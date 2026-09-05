@@ -12,8 +12,6 @@ import CoreData
 struct WorkStepService: WorkStepServiceProtocol {
     let context: NSManagedObjectContext
 
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
-
     // MARK: - Creation
 
     /// Create and insert a new step for the given work.

@@ -132,50 +132,6 @@ struct LessonsViewModel {
 // MARK: - CDLesson Status
 
 extension LessonsViewModel {
-    enum LessonStatus {
-        case ready, presented, practicing, stalled
-    }
-
-    struct LessonStatusInfo {
-        let status: LessonStatus
-        let ageString: String
-        let lastActivityDate: Date?
-        let isStale: Bool
-        let isOverdue: Bool
-    }
-
-    private static func computeLastActivityDate(
-        lasForLesson: [CDLessonAssignment],
-        workForLesson: [CDWorkModel],
-        isPresented: Bool
-    ) -> Date? {
-        let activeWork = workForLesson.filter { $0.completedAt == nil }
-        if !activeWork.isEmpty {
-            let lastTouches = activeWork.compactMap { work -> Date? in
-                let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
-                let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
-                return WorkAgingPolicy.lastMeaningfulTouchDate(for: work, checkIns: checkIns, notes: notes)
-            }
-            return lastTouches.max()
-        } else if isPresented {
-            let dates = lasForLesson.compactMap { $0.presentedAt ?? ($0.isPresented ? $0.createdAt : nil) }
-            return dates.max()
-        }
-        return nil
-    }
-
-    private static func computeWorkFlags(
-        activeWork: [CDWorkModel],
-        viewContext: NSManagedObjectContext
-    ) -> (isStale: Bool, isOverdue: Bool) {
-        guard let work = activeWork.first else { return (false, false) }
-        let checkIns = (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
-        let notes = (work.unifiedNotes?.allObjects as? [CDNote]) ?? []
-        return (
-            WorkAgingPolicy.isStale(work, using: viewContext, checkIns: checkIns, notes: notes),
-            WorkAgingPolicy.isOverdue(work, checkIns: checkIns)
-        )
-    }
 
     // MARK: - Status Counts
 

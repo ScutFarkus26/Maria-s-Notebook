@@ -16,7 +16,6 @@ struct TodoMainView: View {
     @State private var isShowingNewTodo = false
     @State private var isShowingTemplates = false
     @State private var isShowingExport = false
-    @State private var showingSortOptions = false
     @State var sortBy: TodoSortOption = .dueDate
     @State var isSelectMode = false
     @State var selectedTodoIDs: Set<UUID> = []
@@ -27,7 +26,6 @@ struct TodoMainView: View {
     @State var selectedFolder: String?
     @State var isShowingNewFolder = false
     @State var newFolderName = ""
-    @State private var draggingTag: String?
 
     // PERF: Cached computed results to avoid recomputing on every body evaluation.
     // Refreshed via .onChange handlers when source data changes.

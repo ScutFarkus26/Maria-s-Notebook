@@ -51,7 +51,6 @@ nonisolated extension CDWorkCheckIn {
     // Convenience flags
     var isScheduled: Bool { status == .scheduled }
     var isCompleted: Bool { status == .completed }
-    var isUpcoming: Bool { status == .scheduled && (date ?? .distantPast) > Date() }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships

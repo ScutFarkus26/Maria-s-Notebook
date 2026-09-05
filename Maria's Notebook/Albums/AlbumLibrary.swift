@@ -208,8 +208,6 @@ final class AlbumLibrary {
     static let bookmarksKey = UserDefaultsKeys.albumsFolderBookmarks
     static let lastSeenKey = UserDefaultsKeys.albumsLastSeenModDates
 
-    var folderURL: URL? { folderURLs.first }
-
     func album(id: String) -> Album? { albums.first { $0.id == id } }
 
     private init() {

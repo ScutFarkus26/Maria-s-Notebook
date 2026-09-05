@@ -178,26 +178,6 @@ nonisolated extension CDLesson {
         }
     }
 
-    /// Returns statistics about this lesson's usage
-    func getLessonStats(from context: NSManagedObjectContext) -> LessonStats {
-        let presentations = fetchAllPresentations(from: context)
-        let work = fetchAllWork(from: context)
-        let practiceSessions = fetchAllPracticeSessions(from: context)
-
-        let presentedCount = presentations.filter { $0.state == .presented }.count
-        let completedWork = work.filter { $0.status == .complete }.count
-
-        return LessonStats(
-            totalPresentations: presentations.count,
-            presentedCount: presentedCount,
-            scheduledCount: presentations.filter { $0.state == .scheduled }.count,
-            totalWorkItems: work.count,
-            completedWorkItems: completedWork,
-            activeWorkItems: work.filter { $0.status == .active }.count,
-            totalPracticeSessions: practiceSessions.count,
-            lastPresentedDate: presentations.compactMap(\.presentedAt).max()
-        )
-    }
 }
 
 // MARK: - CDPracticeSession Extensions
@@ -226,43 +206,6 @@ nonisolated extension CDPracticeSession {
         }
     }
 
-    /// Fetches all work items practiced in this session
-    func fetchWorkItems(from context: NSManagedObjectContext) -> [CDWorkModel] {
-        let workIDStrings = workItemIDsArray
-        guard !workIDStrings.isEmpty else { return [] }
-
-        // Convert string IDs to UUIDs for querying
-        let uuids = workIDStrings.compactMap { UUID(uuidString: $0) }
-        guard !uuids.isEmpty else { return [] }
-
-        // Fetch work items by UUID. The session's ID list is a Transformable and
-        // can't be queried, but the work items' own `id` attribute can.
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
-        request.predicate = NSPredicate(format: "id IN %@", uuids)
-        do {
-            return try context.fetch(request)
-        } catch {
-            logger.warning("Failed to fetch work items: \(error.localizedDescription)")
-            return []
-        }
-    }
-
 }
 
 // MARK: - Supporting Types
-
-struct LessonStats {
-    let totalPresentations: Int
-    let presentedCount: Int
-    let scheduledCount: Int
-    let totalWorkItems: Int
-    let completedWorkItems: Int
-    let activeWorkItems: Int
-    let totalPracticeSessions: Int
-    let lastPresentedDate: Date?
-
-    var workCompletionRate: Double {
-        guard totalWorkItems > 0 else { return 0 }
-        return Double(completedWorkItems) / Double(totalWorkItems)
-    }
-}

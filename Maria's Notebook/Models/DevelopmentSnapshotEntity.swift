@@ -133,26 +133,6 @@ nonisolated extension CDDevelopmentSnapshotEntity {
         UUID(uuidString: studentID)
     }
 
-    /// Returns true if this snapshot has actionable intervention suggestions
-    var hasInterventions: Bool {
-        !interventionSuggestions.isEmpty
-    }
-
-    /// Returns true if this snapshot contains sufficient data for meaningful analysis
-    var hasSufficientData: Bool {
-        totalNotesAnalyzed >= 3 || practiceSessionsAnalyzed >= 2
-    }
-
-    /// Returns a formatted summary for display
-    var displaySummary: String {
-        let dateStr = generatedAt?.formatted(date: .abbreviated, time: .omitted) ?? "Unknown"
-        return """
-        Generated: \(dateStr)
-        Period: \(lookbackDays) days
-        Data: \(totalNotesAnalyzed) notes, \(practiceSessionsAnalyzed) sessions, \(workCompletionsAnalyzed) completions
-        """
-    }
-
     // MARK: - Private Encoding/Decoding
 
     private static func decodeStringArray(from data: Data?) -> [String] {

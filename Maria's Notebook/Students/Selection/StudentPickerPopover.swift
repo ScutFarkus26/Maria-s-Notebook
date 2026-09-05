@@ -300,7 +300,4 @@ struct StudentPickerPopover: View {
 }
 
 private extension String {
-    var nonEmpty: String? {
-        isEmpty ? nil : self
-    }
 }

@@ -97,10 +97,6 @@ nonisolated extension CDStory {
 // MARK: - Fetch Helpers
 
 nonisolated extension CDStory {
-    /// Default sort: most recently created first.
-    static func defaultSortDescriptors() -> [NSSortDescriptor] {
-        [NSSortDescriptor(keyPath: \CDStory.createdAt, ascending: false)]
-    }
 }
 
 // MARK: - Related Lessons

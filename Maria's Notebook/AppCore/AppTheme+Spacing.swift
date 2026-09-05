@@ -14,9 +14,6 @@ extension AppTheme {
         /// 4pt - Extra small spacing for tight layouts
         nonisolated static let xsmall: CGFloat = 4
         
-        /// 4pt - Alias for xsmall
-        nonisolated static let xs: CGFloat = 4
-        
         /// 6pt - Very small spacing
         nonisolated static let verySmall: CGFloat = 6
 
@@ -41,9 +38,6 @@ extension AppTheme {
         /// 24pt - Large spacing for section gaps
         nonisolated static let large: CGFloat = 24
         
-        /// 24pt - Alias for large
-        nonisolated static let xl: CGFloat = 24
-
         /// 32pt - Extra large spacing for major sections
         nonisolated static let xlarge: CGFloat = 32
         

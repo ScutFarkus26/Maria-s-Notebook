@@ -54,10 +54,6 @@ extension TodoMainView {
         return TodoTagHelper.tagName(sidebarItem)
     }
 
-    var topLevelTags: [String] {
-        allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count <= 1 }
-    }
-
     func nestedTags(forSequence sequence: String) -> [String] {
         let nested = allUsedTags.filter {
             TodoTagHelper.tagPathComponents($0).count > 1 && TodoTagHelper.rootTagName($0) == sequence
@@ -71,20 +67,6 @@ extension TodoMainView {
             return TodoTagHelper.leafTagName(lhs)
                 .localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName(rhs)) == .orderedAscending
         }
-    }
-
-    var groupedNestedTags: [(sequence: String, tags: [String])] {
-        let nested = allUsedTags.filter { TodoTagHelper.tagPathComponents($0).count > 1 }
-        let grouped = Dictionary(grouping: nested, by: { TodoTagHelper.rootTagName($0) })
-        return grouped
-            .map { entry in
-                let sortedTags = entry.value.sorted {
-                    TodoTagHelper.leafTagName($0)
-                        .localizedCaseInsensitiveCompare(TodoTagHelper.leafTagName($1)) == .orderedAscending
-                }
-                return (sequence: entry.key, tags: sortedTags)
-            }
-            .sorted { $0.sequence.localizedCaseInsensitiveCompare($1.sequence) == .orderedAscending }
     }
 
     func persistTagOrder() {

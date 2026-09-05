@@ -29,16 +29,10 @@ final class AppBootstrapping {
     /// Initialized on first access via the static factory method.
     static var _sharedCoreDataStack: CoreDataStack?
 
-    // Legacy _sharedModelContainer removed — SwiftData migration complete.
-
     /// Runtime-only CloudKit disable flag used during XCTest runs.
     /// This prevents tests from touching CloudKit without persisting the disabled state.
     static var disableCloudKitForCurrentLaunch: Bool = false
-    
-    // MARK: - Logger
-    
-    private static let resetLogger = Logger.app(category: "Reset")
-    
+
     // MARK: - Store Management
     
     /// Deletes the persistent store file/package.

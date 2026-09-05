@@ -61,7 +61,6 @@ typealias CDTodoTemplate = CDTodoTemplateEntity
 typealias CDMeetingTemplate = CDMeetingTemplateEntity
 typealias CDNoteTemplate = CDNoteTemplateEntity
 typealias CDSequenceTrack = CDSequenceTrackEntity
-typealias CDPresentation = CDLessonPresentation
 typealias CDSampleWork = CDSampleWorkEntity
 typealias CDSampleWorkStep = CDSampleWorkStepEntity
 typealias CDCommunityAttachment = CDCommunityAttachmentEntity

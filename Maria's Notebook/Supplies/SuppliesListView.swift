@@ -12,7 +12,6 @@ struct SuppliesListView: View {
     @State private var selectedCategory: SupplyCategory?
     @State var showingAddSheet = false
     @State var selectedSupply: CDSupply?
-    @State private var showingQuickAdjustSheet = false
     @State var quickAdjustSupply: CDSupply?
 
     var filteredSupplies: [CDSupply] {

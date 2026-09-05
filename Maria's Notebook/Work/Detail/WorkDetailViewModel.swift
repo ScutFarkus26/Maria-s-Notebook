@@ -24,7 +24,6 @@ final class WorkDetailViewModel {
     var awaitingFollowUp: [CDStudent] = []  // received lesson but no work yet
     var peerWorkIDs: [UUID: UUID] = [:]  // studentID → workID for tap navigation
 
-    var showPresentationNotes = false
     var showAddNoteSheet = false
     var noteBeingEdited: CDNote?
     var editingNoteCheckIn: CDWorkCheckIn?

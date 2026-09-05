@@ -57,9 +57,6 @@ extension BackupEntityImporter {
         )
     }
 
-    // Import methods for CDProjectTemplateWeek, CDProjectAssignmentTemplate,
-    // and CDProjectWeekRoleAssignment removed — entities deprecated.
-
     // MARK: - CDProject Sessions
 
     /// Imports project sessions from DTOs.

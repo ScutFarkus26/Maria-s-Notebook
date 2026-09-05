@@ -149,10 +149,6 @@ final class LessonPickerViewModel {
         selectedLessonID != nil && !selectedStudentIDs.isEmpty
     }
     
-    var shouldShowScheduleHint: Bool {
-        mode == .plan && scheduledFor == nil
-    }
-    
     // MARK: - Actions
 
     func toggleStudentSelection(_ studentID: UUID) {
@@ -385,10 +381,6 @@ final class LessonPickerViewModel {
 
         context.safeSave()
     }
-    
-    // MARK: - Error Handling Helpers
-
-    // safeFetch helper removed — use context.safeFetch(request) or context.safeFetchFirst(request) directly
 
     // MARK: - Sorting
 

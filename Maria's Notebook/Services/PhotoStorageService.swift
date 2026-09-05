@@ -253,5 +253,4 @@ public enum PhotoStorageService {
 public enum PhotoStorageError: Error {
     case imageConversionFailed
     case fileNotFound
-    case directoryCreationFailed
 }

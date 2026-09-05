@@ -38,33 +38,3 @@ final class ToastService {
         }
     }
 }
-
-/// Presents whatever `ToastService` is currently showing.
-struct AssistantToastOverlay: View {
-    @State private var service = ToastService.shared
-
-    var body: some View {
-        if let toast = service.current {
-            HStack(spacing: 8) {
-                Image(systemName: icon(for: toast.kind))
-                Text(toast.message)
-                    .font(.footnote)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(.regularMaterial, in: Capsule())
-            .foregroundStyle(toast.kind == .error ? .red : .primary)
-            .padding(.horizontal, 20)
-            .transition(.move(edge: .top).combined(with: .opacity))
-        }
-    }
-
-    private func icon(for kind: ToastService.Kind) -> String {
-        switch kind {
-        case .success: return "checkmark.circle.fill"
-        case .error: return "exclamationmark.triangle.fill"
-        case .info: return "info.circle.fill"
-        }
-    }
-}

@@ -22,7 +22,6 @@ struct PlanNextLessonService {
         case noNextLesson
         case noCurrentLesson
         case currentNotMastered(reason: String)
-        case emptyAreaOrSequence
         case noStudents
     }
 
@@ -221,5 +220,4 @@ struct PlanNextLessonService {
         return reasons.isEmpty ? nil : "Current lesson not yet mastered: " + reasons.joined(separator: ", ")
     }
 
-    // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.
 }

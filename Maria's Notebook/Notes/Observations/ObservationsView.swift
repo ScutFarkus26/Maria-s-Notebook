@@ -45,14 +45,6 @@ struct NotesNarrative {
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 enum ObservationsHelpers {
-    static func formatBodiesForSummary(_ bodies: [String], mode: ObservationsView.SummaryMode) -> String {
-        if mode == .digest {
-            return bodies.joined(separator: "\n")
-        } else {
-            return bodies.map { $0.replacingOccurrences(of: "^- ", with: "", options: .regularExpression) }
-                .joined(separator: "\n")
-        }
-    }
 
     static func buildSummaryInstructions() -> String {
         """
@@ -92,7 +84,6 @@ struct ObservationsView: View {
     // AI scope picker state
     @State var showingAIScopeSheet: Bool = false
     @State var aiScopeDate: Date = Date()
-    @State var aiScopeContext: String?
 #endif
     @State var hasMore: Bool = true
     @State var lastCursorDate: Date? // fetch notes where createdAt < lastCursorDate

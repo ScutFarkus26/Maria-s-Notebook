@@ -83,5 +83,4 @@ enum WorkCompletionService {
         )
     }
 
-    // Deprecated ModelContext overloads removed - no longer needed with Core Data.
 }

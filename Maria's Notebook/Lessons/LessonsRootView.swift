@@ -138,16 +138,6 @@ struct LessonsRootView: View {
         return helper.groups(for: area, lessons: Array(lessons))
     }
 
-    var groupsFromFilteredLessons: [String] {
-        let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
-        if hasSearchText {
-            let unique = Set(lessonsForArea.map { $0.sequence.trimmed() }.filter { !$0.isEmpty })
-            return Array(unique).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        } else {
-            return groupsForSelectedArea
-        }
-    }
-
     var lessonsForArea: [CDLesson] {
         // Parshas mode renders its own view (ParshaBrowseView); skip the fetch entirely.
         if showingParshas { return [] }

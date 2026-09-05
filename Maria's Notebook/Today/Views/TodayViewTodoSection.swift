@@ -213,7 +213,4 @@ extension TodayView {
         .accessibilityElement(children: .combine)
     }
 
-    /// Todos relevant to the selected day: scheduled for day, overdue deadline, due on date, or high priority.
-    /// Someday todos are excluded. Delegates to todosPartition for memoized computation.
-    var todayTodos: [CDTodoItem] { todosPartition.all }
 }

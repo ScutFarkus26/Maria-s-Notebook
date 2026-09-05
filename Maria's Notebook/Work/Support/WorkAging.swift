@@ -123,8 +123,6 @@ enum WorkAgingPolicy {
         return SchoolDayChecker.schoolDaysBetween(start: last, end: today, using: context)
     }
 
-    // Deprecated ModelContext overload for daysSinceLastTouch removed.
-
     /// Maps day difference to an AgingBucket using school days.
     /// Returns `.fresh` while work is intentionally resting.
     nonisolated static func agingBucket(
@@ -142,8 +140,6 @@ enum WorkAgingPolicy {
         return .fresh
     }
 
-    // Deprecated ModelContext overload for agingBucket removed.
-
     /// Convenience predicate for stale status using school days.
     nonisolated static func isStale(
         _ work: CDWorkModel,
@@ -153,8 +149,6 @@ enum WorkAgingPolicy {
     ) -> Bool {
         agingBucket(for: work, using: context, checkIns: checkIns, notes: notes) == .stale
     }
-
-    // Deprecated ModelContext overload for isStale removed.
 
     /// Intent-aware overdue check.
     /// True only when:
@@ -201,48 +195,4 @@ enum WorkAgingPolicy {
         return AppCalendar.startOfDay(last) < earliestDue
     }
     
-    /// Check if work is due today. Returns false while work is resting.
-    nonisolated static func isDueToday(
-        _ work: CDWorkModel,
-        checkIns: [CDWorkCheckIn]? = nil
-    ) -> Bool {
-        if let until = work.restingUntil, until > AppCalendar.startOfDay(Date()) {
-            return false
-        }
-        let today = AppCalendar.startOfDay(Date())
-        
-        if let dueAt = work.dueAt {
-            return AppCalendar.startOfDay(dueAt) == today
-        }
-        
-        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
-        return workCheckIns.contains {
-            $0.status == .scheduled && AppCalendar.startOfDay($0.date ?? .distantPast) == today
-        }
-    }
-
-    /// Check if work is upcoming (due in 1-2 days). Returns false while work is resting.
-    nonisolated static func isUpcoming(
-        _ work: CDWorkModel,
-        checkIns: [CDWorkCheckIn]? = nil
-    ) -> Bool {
-        if let until = work.restingUntil, until > AppCalendar.startOfDay(Date()) {
-            return false
-        }
-        let today = AppCalendar.startOfDay(Date())
-        let tomorrow = AppCalendar.addingDays(1, to: today)
-        let dayAfter = AppCalendar.addingDays(2, to: today)
-        
-        if let dueAt = work.dueAt {
-            let dueDay = AppCalendar.startOfDay(dueAt)
-            return (dueDay == tomorrow || dueDay == dayAfter) && dueDay > today
-        }
-        
-        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
-        return workCheckIns.contains { checkIn in
-            guard checkIn.status == .scheduled else { return false }
-            let checkInDay = AppCalendar.startOfDay(checkIn.date ?? .distantPast)
-            return (checkInDay == tomorrow || checkInDay == dayAfter) && checkInDay > today
-        }
-    }
 }

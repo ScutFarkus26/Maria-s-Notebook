@@ -149,8 +149,6 @@ enum SchoolDayChecker {
         return result
     }
 
-    // Deprecated ModelContext overloads removed - no longer needed with Core Data.
-
     // MARK: - Private Helpers
 
     /// Start-of-day dates of all records of `type` whose date falls in

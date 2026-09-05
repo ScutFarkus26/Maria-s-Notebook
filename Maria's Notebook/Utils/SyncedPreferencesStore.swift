@@ -334,13 +334,6 @@ public final class SyncedPreferencesStore {
         }
     }
 
-    /// Returns a human-readable string of the current quota usage
-    public var quotaUsageDescription: String {
-        let usedKB = Double(quotaUsageBytes) / 1024.0
-        let maxKB = Double(Self.kvsMaxBytes) / 1024.0
-        return String(format: "%.1f KB / %.0f KB (%.1f%%)", usedKB, maxKB, quotaUsagePercent * 100)
-    }
-    
     /// Removes a value from synced storage
     public func remove(key: String) {
         set(nil, forKey: key)

@@ -98,11 +98,6 @@ nonisolated extension CDPracticeSession {
         studentIDsArray.count > 1
     }
 
-    /// Returns true if this is a solo practice session (1 student)
-    var isSoloSession: Bool {
-        studentIDsArray.count == 1
-    }
-
     /// Number of students who participated
     var participantCount: Int {
         studentIDsArray.count
@@ -189,16 +184,6 @@ nonisolated extension CDPracticeSession {
     /// Returns student UUIDs from the stored string IDs
     var studentUUIDs: [UUID] {
         studentIDsArray.compactMap { UUID(uuidString: $0) }
-    }
-
-    /// Returns work item UUIDs from the stored string IDs
-    var workItemUUIDs: [UUID] {
-        workItemIDsArray.compactMap { UUID(uuidString: $0) }
-    }
-
-    /// Returns the work step UUID if set
-    var workStepUUID: UUID? {
-        workStepID.flatMap { UUID(uuidString: $0) }
     }
 
     /// Adds a student to the practice session if not already present

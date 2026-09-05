@@ -189,16 +189,6 @@ public struct BackupInfo {
     public let entityCounts: [String: Int]
     public let checksum: String
     
-    public var formattedFileSize: String {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        return formatter.string(fromByteCount: fileSize)
-    }
-    
-    public var totalEntityCount: Int {
-        entityCounts.values.reduce(0, +)
-    }
 }
 
 /// Status information about backups

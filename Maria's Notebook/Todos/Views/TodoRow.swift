@@ -21,19 +21,6 @@ struct TodoRow: View {
         }
     }
 
-    private func formatTimeEstimate(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let mins = minutes % 60
-
-        if hours > 0 && mins > 0 {
-            return "\(hours)h \(mins)m"
-        } else if hours > 0 {
-            return "\(hours)h"
-        } else {
-            return "\(mins)m"
-        }
-    }
-
     @State private var checkboxScale: CGFloat = 1.0
 
     var body: some View {

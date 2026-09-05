@@ -54,14 +54,9 @@ nonisolated extension CDYearPlanEntry {
 
     var studentUUID: UUID? { UUID(uuidString: studentID) }
     var lessonUUID: UUID? { UUID(uuidString: lessonID) }
-    var promotedAssignmentUUID: UUID? {
-        guard let idStr = promotedAssignmentID else { return nil }
-        return UUID(uuidString: idStr)
-    }
 
     var isPlanned: Bool { status == .planned }
     var isPromoted: Bool { status == .promoted }
-    var isSkipped: Bool { status == .skipped }
 
     /// Whether this entry's planned date is in the past and it hasn't been promoted.
     var isBehindPace: Bool {

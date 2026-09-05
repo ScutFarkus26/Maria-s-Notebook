@@ -126,5 +126,4 @@ enum ProcedureService {
         }
     }
 
-    // Deprecated SwiftData methods removed - use Core Data overloads.
 }

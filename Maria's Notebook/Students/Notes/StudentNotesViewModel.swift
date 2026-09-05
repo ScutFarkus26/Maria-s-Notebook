@@ -18,10 +18,6 @@ final class StudentNotesViewModel {
     private(set) var displayedItemCount: Int = 0
     private(set) var hasMoreItems: Bool = true
 
-    var displayedItems: [UnifiedNoteItem] {
-        Array(items.prefix(displayedItemCount))
-    }
-
     init(student: CDStudent, viewContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         self.student = student
         self.viewContext = viewContext

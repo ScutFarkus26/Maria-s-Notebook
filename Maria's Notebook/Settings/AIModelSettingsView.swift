@@ -52,14 +52,6 @@ enum AIModelOption: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Whether this model requires Apple Intelligence to be available.
-    var requiresAppleIntelligence: Bool {
-        switch self {
-        case .appleOnDevice, .applePrivateCloud, .localFirstAuto: return true
-        default: return false
-        }
-    }
-
     /// Whether this option keeps data inside Apple's privacy boundary
     /// (on-device, or Private Cloud Compute which is stateless and verifiable).
     var isPrivate: Bool {

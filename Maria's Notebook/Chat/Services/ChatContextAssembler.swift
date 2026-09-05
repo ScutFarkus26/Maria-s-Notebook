@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import Foundation
 import CoreData
 import OSLog
@@ -15,8 +14,6 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
     init(context: NSManagedObjectContext) {
         self.context = context
     }
-
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
 
     // MARK: - Tier 1: Classroom Snapshot
 
@@ -42,18 +39,6 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
 
     // MARK: - Classroom Snapshot Helpers
 
-    private func appendRosterSection(_ lines: inout [String], students: [CDStudent]) {
-        lines.append("--- Student Roster ---")
-        for student in students.sorted(by: { $0.firstName < $1.firstName }) {
-            let age = ageString(for: student.birthday)
-            let nick = student.nickname.map { " (\($0))" } ?? ""
-            let bday = formattedDate(student.birthday)
-            let nameStr = StudentFormatter.displayName(for: student) + nick
-            lines.append("• \(nameStr) — \(student.level.rawValue), age \(age), born \(bday)")
-        }
-        lines.append("")
-    }
-
     private func appendAreasSection(_ lines: inout [String], lessons: [CDLesson]) {
         let areas = Set(lessons.map(\.area)).filter { !$0.isEmpty }.sorted()
         if !areas.isEmpty {
@@ -61,111 +46,6 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
             lines.append(areas.joined(separator: ", "))
             lines.append("")
         }
-    }
-
-    private func appendWeeklyActivitySection(
-        _ lines: inout [String], weekStart: Date,
-        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent]
-    ) {
-        let recentPresentations = fetchPresentations(from: weekStart, to: Date(), state: .presented)
-        let nextWeek = AppCalendar.shared.date(byAdding: .day, value: 7, to: Date()) ?? Date()
-        let scheduledPresentations = fetchPresentations(from: Date(), to: nextWeek, state: .scheduled)
-
-        lines.append("--- This Week ---")
-        lines.append("Presentations given: \(recentPresentations.count)")
-        if !scheduledPresentations.isEmpty {
-            lines.append("Upcoming scheduled: \(scheduledPresentations.count)")
-        }
-
-        if !recentPresentations.isEmpty {
-            lines.append("Recent presentations:")
-            for pres in recentPresentations.prefix(10) {
-                let lessonName = pres.lessonTitleSnapshot ?? lessonsDict[pres.lessonIDUUID ?? UUID()]?.name ?? "Unknown"
-                let studentNames = pres.studentUUIDs.compactMap { studentsDict[$0]?.firstName }.joined(separator: ", ")
-                let date = formattedDate(pres.presentedAt ?? pres.createdAt)
-                var line = "  • \(lessonName) → \(studentNames) (\(date))"
-                if pres.needsPractice { line += " [needs practice]" }
-                if pres.needsAnotherPresentation { line += " [needs re-presentation]" }
-                lines.append(line)
-            }
-        }
-
-        let attendanceRecords = fetchAttendanceRecords(from: weekStart, to: Date())
-        let absences = attendanceRecords.filter { $0.status == .absent }
-        let tardies = attendanceRecords.filter { $0.status == .tardy }
-        if !absences.isEmpty || !tardies.isEmpty {
-            lines.append("Absences this week: \(absences.count)")
-            if !absences.isEmpty {
-                let absentNames = absences.compactMap { rec -> String? in
-                    guard let uuid = UUID(uuidString: rec.studentID) else { return nil }
-                    return studentsDict[uuid]?.firstName
-                }
-                lines.append("  Students absent: \(Array(Set(absentNames)).sorted().joined(separator: ", "))")
-            }
-            lines.append("Tardies this week: \(tardies.count)")
-        }
-    }
-
-    private func appendOpenWorkSection(
-        _ lines: inout [String], queryService: DataQueryService, studentsDict: [UUID: CDStudent]
-    ) {
-        let openWork = queryService.fetchOpenWorkModels()
-        lines.append("Open work items: \(openWork.count)")
-        if !openWork.isEmpty {
-            let workByStudent = Dictionary(grouping: openWork) { $0.studentID }
-            for (studentIDStr, works) in workByStudent.sorted(by: { $0.value.count > $1.value.count }).prefix(8) {
-                if let student = studentsDict[uuidString: studentIDStr] {
-                    let titles = works.prefix(3).map(\.title).joined(separator: ", ")
-                    let moreCount = works.count > 3 ? " +\(works.count - 3) more" : ""
-                    lines.append("  • \(student.firstName): \(titles)\(moreCount)")
-                }
-            }
-        }
-        lines.append("")
-    }
-
-    private func appendCompletedWorkSection(
-        _ lines: inout [String], weekStart: Date, studentsDict: [UUID: CDStudent]
-    ) {
-        let recentCompleted = fetchRecentCompletedWork(since: weekStart)
-        guard !recentCompleted.isEmpty else { return }
-        lines.append("--- Recently Completed Work ---")
-        for work in recentCompleted.prefix(8) {
-            let studentName = studentsDict[uuidString: work.studentID]?.firstName ?? "Unknown"
-            let outcome = work.completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
-            let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
-            lines.append("  • \(studentName): \(work.title)\(outcomeStr)")
-        }
-        lines.append("")
-    }
-
-    private func appendClassNotesSection(_ lines: inout [String]) {
-        let recentClassNotes = fetchRecentClassNotes(limit: 5)
-        guard !recentClassNotes.isEmpty else { return }
-        lines.append("--- Recent Class Notes ---")
-        for note in recentClassNotes {
-            let date = formattedDate(note.createdAt)
-            let body = String(note.body.prefix(150))
-            lines.append("  • \(date): \(body)")
-        }
-        lines.append("")
-    }
-
-    private func appendTodosSection(_ lines: inout [String], studentsDict: [UUID: CDStudent]) {
-        let openTodos = fetchOpenTodos()
-        guard !openTodos.isEmpty else { return }
-        lines.append("--- Teacher Todos ---")
-        for todo in openTodos.prefix(10) {
-            var line = "  • \(todo.title)"
-            if todo.priority != .none { line += " [\(todo.priority.rawValue)]" }
-            if let due = todo.dueDate { line += " (due \(formattedDate(due)))" }
-            if !todo.studentIDsArray.isEmpty {
-                let names = todo.studentUUIDs.compactMap { studentsDict[$0]?.firstName }
-                if !names.isEmpty { line += " — \(names.joined(separator: ", "))" }
-            }
-            lines.append(line)
-        }
-        lines.append("")
     }
 
     // MARK: - Tier 2: Question-Specific Context
@@ -408,31 +288,6 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
 
     // MARK: - Data Fetching Helpers
 
-    private func fetchPresentations(
-        from startDate: Date, to endDate: Date,
-        state: LessonAssignmentState
-    ) -> [CDLessonAssignment] {
-        let stateRaw = state.rawValue
-        if state == .presented {
-            let request = CDFetchRequest(CDLessonAssignment.self)
-            request.predicate = NSPredicate(format: "stateRaw == %@ AND presentedAt != nil", stateRaw)
-            request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
-            return context.safeFetch(request).filter { pres in
-                guard let presentedAt = pres.presentedAt else { return false }
-                return presentedAt >= startDate && presentedAt <= endDate
-            }
-        } else {
-            let request = CDFetchRequest(CDLessonAssignment.self)
-            request.predicate = NSPredicate(format: "stateRaw == %@", stateRaw)
-            request.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
-            return context.safeFetch(request).filter { pres in
-                guard let scheduled = pres.scheduledFor else { return false }
-                let day = AppCalendar.startOfDay(scheduled)
-                return day >= startDate && day <= endDate
-            }
-        }
-    }
-
     private func fetchPresentationsForStudent(studentID: UUID, limit: Int) -> [CDLessonAssignment] {
         let presentedRaw = LessonAssignmentState.presented.rawValue
         let request = CDFetchRequest(CDLessonAssignment.self)
@@ -457,25 +312,6 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         return context.safeFetch(request)
     }
 
-    private func fetchRecentClassNotes(limit: Int) -> [CDNote] {
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(format: "scopeIsAll == YES")
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        request.fetchLimit = limit
-        return context.safeFetch(request)
-    }
-
-    private func fetchRecentCompletedWork(since date: Date) -> [CDWorkModel] {
-        let completeRaw = WorkStatus.complete.rawValue
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "statusRaw == %@", completeRaw)
-        request.sortDescriptors = [NSSortDescriptor(key: "completedAt", ascending: false)]
-        return context.safeFetch(request).filter { work in
-            guard let completedAt = work.completedAt else { return false }
-            return completedAt >= date
-        }
-    }
-
     private func fetchCompletedWorkForStudent(studentID: String, since date: Date) -> [CDWorkModel] {
         let completeRaw = WorkStatus.complete.rawValue
         let request = CDFetchRequest(CDWorkModel.self)
@@ -485,13 +321,6 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
             guard let completedAt = work.completedAt else { return false }
             return completedAt >= date
         }
-    }
-
-    private func fetchOpenTodos() -> [CDTodoItemEntity] {
-        let request = CDFetchRequest(CDTodoItemEntity.self)
-        request.predicate = NSPredicate(format: "isCompleted == NO")
-        request.sortDescriptors = [NSSortDescriptor(key: "orderIndex", ascending: true)]
-        return context.safeFetch(request)
     }
 
     private func fetchTodosForStudent(studentID: UUID) -> [CDTodoItemEntity] {

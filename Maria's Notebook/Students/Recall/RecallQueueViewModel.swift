@@ -36,7 +36,6 @@ final class RecallQueueViewModel {
     private(set) var fadeOverSummerPercent: Int?
     private(set) var retentionByStudent: [RecallStudentRetention] = []
 
-    var totalDue: Int { sections.reduce(0) { $0 + $1.entries.count } }
     var hasContent: Bool { !sections.isEmpty }
 
     func loadData(context: NSManagedObjectContext, schoolYearStore: SchoolYearStore) {

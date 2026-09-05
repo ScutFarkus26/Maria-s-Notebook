@@ -37,13 +37,6 @@ public final class BackupTransactionManager {
         }
     }
 
-    public struct TransactionResult {
-        public let success: Bool
-        public let checkpointURL: URL?
-        public let rollbackPerformed: Bool
-        public let error: Error?
-    }
-
     // MARK: - Initialization
 
     public init() {}
@@ -206,47 +199,6 @@ public final class BackupTransactionManager {
             into: viewContext,
             progress: progress
         )
-    }
-
-    /// Lists all available checkpoints.
-    ///
-    /// - Returns: Array of checkpoint URLs sorted by date (newest first)
-    public func listCheckpoints() -> [URL] {
-        guard FileManager.default.fileExists(atPath: checkpointDirectory.path) else {
-            return []
-        }
-
-        let files: [URL]
-        do {
-            files = try FileManager.default.contentsOfDirectory(
-                at: checkpointDirectory,
-                includingPropertiesForKeys: [.creationDateKey],
-                options: [.skipsHiddenFiles]
-            )
-        } catch {
-            Self.logger.warning("Failed to list checkpoint directory: \(error)")
-            return []
-        }
-
-        return files
-            .filter { $0.pathExtension == BackupFile.fileExtension }
-            .sorted { url1, url2 in
-                let date1: Date
-                let date2: Date
-                do {
-                    date1 = try url1.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
-                } catch {
-                    Self.logger.warning("Failed to get creation date for \(url1.lastPathComponent): \(error)")
-                    date1 = Date.distantPast
-                }
-                do {
-                    date2 = try url2.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
-                } catch {
-                    Self.logger.warning("Failed to get creation date for \(url2.lastPathComponent): \(error)")
-                    date2 = Date.distantPast
-                }
-                return date1 > date2
-            }
     }
 
     // MARK: - Private Helpers

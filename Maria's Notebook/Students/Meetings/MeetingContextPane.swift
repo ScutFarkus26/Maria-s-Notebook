@@ -31,7 +31,6 @@ struct MeetingContextPane: View {
     @State private var restingDatePickerWorkID: UUID?
     @State private var restingDate: Date =
         AppCalendar.shared.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
-    @State private var rescheduleWorkID: UUID?
     @State private var rescheduleDate: Date = Date()
 
     var body: some View {

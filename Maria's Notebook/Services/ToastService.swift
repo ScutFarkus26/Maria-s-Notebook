@@ -133,11 +133,6 @@ final class ToastService {
         show(message, type: .info, duration: duration)
     }
 
-    /// Show a warning toast
-    func showWarning(_ message: String, duration: TimeInterval = 2.5) {
-        show(message, type: .warning, duration: duration)
-    }
-
     /// Show an error toast (for non-critical errors that don't need an alert)
     func showError(_ message: String, duration: TimeInterval = 3.0) {
         show(message, type: .error, duration: duration)
@@ -147,15 +142,6 @@ final class ToastService {
     func showError(_ message: String, actionLabel: String, action: @escaping () -> Void) {
         let toast = ToastMessage(
             message, type: .error, duration: 5.0,
-            action: ToastAction(label: actionLabel, handler: action)
-        )
-        enqueue(toast)
-    }
-
-    /// Show a warning toast with an action button
-    func showWarning(_ message: String, actionLabel: String, action: @escaping () -> Void) {
-        let toast = ToastMessage(
-            message, type: .warning, duration: 5.0,
             action: ToastAction(label: actionLabel, handler: action)
         )
         enqueue(toast)

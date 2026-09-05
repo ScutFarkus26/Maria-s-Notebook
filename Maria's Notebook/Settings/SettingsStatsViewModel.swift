@@ -9,7 +9,6 @@ class SettingsStatsViewModel {
     // MARK: - Teaching
     var studentsCount: Int = 0
     var lessonsCount: Int = 0
-    // Legacy count removed — use presentations instead
     var plannedCount: Int = 0
     var givenCount: Int = 0
     var workModelsCount: Int = 0

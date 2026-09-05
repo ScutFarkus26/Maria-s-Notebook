@@ -31,18 +31,6 @@ enum ParshaMetadataService {
 
     private static let logger = Logger.app(category: "ParshaMetadataService")
 
-    /// Keys that represent combined parshiot. Excluded from the topic index so single
-    /// parshas are the source of truth for which-parsha-mentions-which-topic.
-    private static let combinedKeys: Set<String> = [
-        "vayakhel-pekudei",
-        "tazria-metzora",
-        "acharei-mot-kedoshim",
-        "behar-bechukotai",
-        "chukat-balak",
-        "matot-masei",
-        "nitzavim-vayelech"
-    ]
-
     private struct Library: Decodable {
         let version: Int
         let parshas: [ParshaMetadata]

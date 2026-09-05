@@ -112,9 +112,6 @@ nonisolated extension CDLessonAssignment {
         studentIDs.compactMap { UUID(uuidString: $0) }
     }
 
-    /// Whether this presentation is in the draft state.
-    var isDraft: Bool { state == .draft }
-
     /// Whether this presentation is scheduled.
     var isScheduled: Bool { state == .scheduled || scheduledFor != nil }
 

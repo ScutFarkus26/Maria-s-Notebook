@@ -373,12 +373,4 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         }
     }
 
-    /// Returns all lessons matching the sequence track's area and sequence, sorted by order.
-    static func getLessonsForTrack(track: CDSequenceTrackEntity, allLessons: [CDLesson]) -> [CDLesson] {
-        allLessons.filter { lesson in
-            lesson.area.trimmed().caseInsensitiveCompare(track.area.trimmed()) == .orderedSame &&
-            lesson.sequence.trimmed().caseInsensitiveCompare(track.sequence.trimmed()) == .orderedSame
-        }
-        .sorted { Int($0.orderInSequence) < Int($1.orderInSequence) }
-    }
 }

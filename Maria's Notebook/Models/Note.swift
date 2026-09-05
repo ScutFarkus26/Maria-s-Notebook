@@ -60,13 +60,6 @@ enum NoteScope: Codable, Equatable {
         }
     }
 
-    var isAll: Bool {
-        if case .all = self {
-            return true
-        }
-        return false
-    }
-
     func applies(to studentID: UUID) -> Bool {
         switch self {
         case .all:

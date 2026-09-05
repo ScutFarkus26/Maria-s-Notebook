@@ -16,7 +16,6 @@ struct SchoolCalendarSettingsView: View {
     @State private var currentMonth: Date = Date()
     @State private var selected: Set<DateComponents> = []
     @State private var nonSchoolDates: Set<Date> = []
-    @State private var selectedSingleDate: Date = Date()
     @State private var showingRollover = false
 
     private var monthInterval: DateInterval {

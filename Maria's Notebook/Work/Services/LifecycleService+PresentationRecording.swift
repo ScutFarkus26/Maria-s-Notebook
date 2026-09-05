@@ -156,5 +156,4 @@ extension LifecycleService {
         return (la, allForAssignment)
     }
 
-    // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.
 }

@@ -88,12 +88,6 @@ nonisolated extension CDWorkModel {
         set { completionOutcomeRaw = newValue?.rawValue }
     }
 
-    /// Scheduled reason
-    var scheduledReason: ScheduledReason? {
-        get { scheduledReasonRaw.flatMap { ScheduledReason(rawValue: $0) } }
-        set { scheduledReasonRaw = newValue?.rawValue }
-    }
-
     /// Source context type (e.g., projectSession)
     var sourceContextType: WorkSourceContextType? {
         get { sourceContextTypeRaw.flatMap { WorkSourceContextType(rawValue: $0) } }
@@ -130,7 +124,6 @@ nonisolated extension CDWorkModel {
     var isActive: Bool { status == .active }
     var isReview: Bool { status == .review }
     var isComplete: Bool { status == .complete }
-    var isIncomplete: Bool { status == .active || status == .review }
 
     func participant(for studentID: UUID) -> CDWorkParticipantEntity? {
         let studentIDString = studentID.uuidString
@@ -150,13 +143,6 @@ nonisolated extension CDWorkModel {
         return s.sorted { $0.orderIndex < $1.orderIndex }
     }
 
-    /// Returns true if all steps are completed (or if there are no steps)
-    var allStepsCompleted: Bool {
-        let s = (steps?.allObjects as? [CDWorkStep]) ?? []
-        guard !s.isEmpty else { return true }
-        return s.allSatisfy { $0.completedAt != nil }
-    }
-
     /// Returns step completion progress as (completed, total)
     var stepProgress: (completed: Int, total: Int) {
         let s = (steps?.allObjects as? [CDWorkStep]) ?? []
@@ -167,15 +153,6 @@ nonisolated extension CDWorkModel {
     /// Returns true if this is a report-type work
     var isReport: Bool {
         kind == .report
-    }
-
-    // MARK: - Practice Count
-
-    /// Number of check-ins recorded for this work item, representing practice repetitions.
-    var practiceCount: Int {
-        // `NSSet.count` needs no bridging; `allObjects as? [T]` allocated and
-        // type-checked an array per read, from grid row builders.
-        checkIns?.count ?? 0
     }
 
     // MARK: - Choice Mode Helpers

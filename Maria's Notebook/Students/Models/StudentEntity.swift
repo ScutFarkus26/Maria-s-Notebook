@@ -61,9 +61,6 @@ nonisolated extension CDStudent {
     var isTransferred: Bool { enrollmentStatus == .transferred }
     var isEnrolled: Bool { enrollmentStatus == .enrolled }
 
-    /// True for any student no longer on the active roster (withdrawn or transferred).
-    var isDeparted: Bool { !isEnrolled }
-
     /// `dateWithdrawn` doubles as the departure date for transferred students.
     var dateDeparted: Date? {
         get { dateWithdrawn }

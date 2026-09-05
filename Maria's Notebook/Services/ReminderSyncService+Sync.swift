@@ -215,5 +215,4 @@ extension ReminderSyncService {
         reminder.lastSyncedAt = Date()
     }
 
-    // Deprecated SwiftData CRUD helpers removed - no longer needed with Core Data.
 }

@@ -26,5 +26,3 @@ nonisolated extension NSManagedObjectContext {
         return result
     }
 }
-
-// Deprecated SwiftData ModelContext bridge methods removed.

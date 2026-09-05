@@ -129,9 +129,6 @@ final class AppRouter {
     /// Navigation item selection for root view (new primary navigation)
     var selectedNavItem: RootView.NavigationItem?
     
-    /// Students mode selection
-    var studentsMode: String?
-
     /// One-shot destination inside the shared Lessons & Work workspace.
     var lessonsAndWorkRequest: LessonsAndWorkRequest?
 

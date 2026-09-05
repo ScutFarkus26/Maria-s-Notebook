@@ -193,10 +193,6 @@ extension ObservationsView {
         loadStudentsIfNeeded(for: filteredItems)
     }
 
-    var loadMoreRow: some View {
-        EmptyView()
-    }
-
     func loadStudentsIfNeeded(for items: [UnifiedObservationItem]) {
         studentsByID = ObservationsDataLoader.loadStudents(
             for: items,

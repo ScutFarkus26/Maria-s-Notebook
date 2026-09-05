@@ -377,12 +377,4 @@ extension PresentationsViewModel {
         return !getBlockingWork(la).isEmpty
     }
 
-    /// Get the earliest date with a scheduled lesson (computed from cached data)
-    func earliestDateWithLesson(calendar: Calendar) -> Date? {
-        let scheduledDates = cachedLessonAssignments.compactMap { la -> Date? in
-            guard let scheduled = la.scheduledFor, !la.isGiven else { return nil }
-            return calendar.startOfDay(for: scheduled)
-        }
-        return scheduledDates.min()
-    }
 }

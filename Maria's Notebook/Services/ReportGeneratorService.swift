@@ -50,8 +50,6 @@ struct ReportGeneratorService {
         }
     }
 
-    // Deprecated SwiftData safeFetch helper removed.
-
     // MARK: - Report Options
 
     enum DateRangeOption: String, CaseIterable, Identifiable {
@@ -94,14 +92,6 @@ struct ReportGeneratorService {
 
         var id: String { rawValue }
 
-        var includesImages: Bool {
-            switch self {
-            case .progressReport: return true
-            case .parentConference: return true
-            case .iepDocumentation: return false
-            }
-        }
-
         var groupsByCategory: Bool {
             switch self {
             case .progressReport: return true
@@ -110,8 +100,6 @@ struct ReportGeneratorService {
             }
         }
     }
-
-    // Deprecated SwiftData fetchReportNotes removed - use Core Data overload.
 
     // MARK: - Generate PDF
 

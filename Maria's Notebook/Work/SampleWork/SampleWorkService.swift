@@ -10,8 +10,6 @@ import CoreData
 struct SampleWorkService {
     let context: NSManagedObjectContext
 
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
-
     // MARK: - CDSampleWorkEntity CRUD
 
     /// Create and insert a new sample work for the given lesson.
@@ -95,8 +93,6 @@ struct SampleWorkService {
     func deleteStep(_ step: CDSampleWorkStepEntity) {
         context.delete(step)
     }
-
-    // Deprecated SwiftData bridge overloads removed - typealiases now point to CD types directly.
 
     // MARK: - Instantiation
 

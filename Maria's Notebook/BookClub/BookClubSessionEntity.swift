@@ -79,11 +79,5 @@ nonisolated extension CDBookClubSession {
 }
 
 nonisolated extension CDBookClubSession {
-    static func defaultSortDescriptors() -> [NSSortDescriptor] {
-        [
-            NSSortDescriptor(keyPath: \CDBookClubSession.startDate, ascending: true),
-            NSSortDescriptor(keyPath: \CDBookClubSession.createdAt, ascending: false)
-        ]
-    }
 
 }

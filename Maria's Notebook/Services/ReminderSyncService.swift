@@ -25,8 +25,6 @@ final class ReminderSyncService {
     let eventStore = EKEventStore()
     var managedObjectContext: NSManagedObjectContext?
 
-    // Deprecated ModelContext property removed - no longer needed with Core Data.
-
     /// The identifier of the Reminders list to sync from (more robust than name)
     /// If nil, syncing is disabled
     var syncListIdentifier: String? {
@@ -73,8 +71,6 @@ final class ReminderSyncService {
             startObservingChanges()
         }
     }
-
-    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
     /// Migrate from legacy name-based storage to identifier-based storage
     private func migrateToIdentifierBasedStorage() {

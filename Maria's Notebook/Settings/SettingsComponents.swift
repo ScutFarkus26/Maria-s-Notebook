@@ -13,9 +13,6 @@ enum SettingsStyle {
     /// Compact padding for grid cards
     static let compactPadding: CGFloat = 12
 
-    /// Standard toggle scale for consistency
-    static let toggleScale: CGFloat = 0.8
-
     /// Standard spacing between sections
     static let sectionSpacing: CGFloat = 24
 

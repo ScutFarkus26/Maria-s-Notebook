@@ -11,18 +11,6 @@ struct PresentationNotesSectionUnified: View {
     @State private var showAddNoteSheet: Bool = false
     @State private var noteBeingEdited: CDNote?
 
-    // We already have the CDLessonAssignment directly — no matching needed
-    private var matchedLessonAssignments: [CDLessonAssignment] {
-        [lessonAssignment]
-    }
-
-    private var matchedAssignmentIDs: Set<UUID> {
-        if let id = lessonAssignment.id {
-            return Set([id])
-        }
-        return []
-    }
-
     // Get notes from WorkModels associated with this lesson assignment
     private var workNotesForThisPresentation: [CDNote] {
         do {

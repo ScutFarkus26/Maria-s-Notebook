@@ -13,12 +13,10 @@ enum BackupSizeEstimator {
         "Student": 600,
         "Lesson": 2500,
         "LegacyPresentation": 300,
-        // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
         "Note": 300,
         "NonSchoolDay": 200,
         "SchoolDayOverride": 200,
         "StudentMeeting": 1200,
-        // CDPresentation removed - using CDLessonAssignment instead
         "CommunityTopic": 1500,
         "ProposedSolution": BatchingConstants.estimatedBytesPerEntity,
         "CommunityAttachment": 600,
@@ -59,13 +57,10 @@ enum BackupSizeEstimator {
 
         counts["Student"] = safeFetchCount(CDStudent.self, using: viewContext)
         counts["Lesson"] = safeFetchCount(CDLesson.self, using: viewContext)
-        // LegacyPresentation removed — fully migrated to CDLessonAssignment
-        // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
         counts["Note"] = safeFetchCount(CDNote.self, using: viewContext)
         counts["NonSchoolDay"] = safeFetchCount(CDNonSchoolDay.self, using: viewContext)
         counts["SchoolDayOverride"] = safeFetchCount(CDSchoolDayOverride.self, using: viewContext)
         counts["StudentMeeting"] = safeFetchCount(CDStudentMeeting.self, using: viewContext)
-        // CDPresentation removed - using CDLessonAssignment instead
         counts["CommunityTopic"] = safeFetchCount(CDCommunityTopicEntity.self, using: viewContext)
         counts["ProposedSolution"] = safeFetchCount(CDProposedSolutionEntity.self, using: viewContext)
         counts["CommunityAttachment"] = safeFetchCount(CDCommunityAttachmentEntity.self, using: viewContext)
@@ -94,17 +89,6 @@ enum BackupSizeEstimator {
         let compressedSize = Int64(Double(uncompressedSize) / compressionRatio)
 
         return compressedSize + envelopeOverhead
-    }
-
-    /// Formats a byte count as a human-readable string.
-    ///
-    /// - Parameter bytes: The number of bytes
-    /// - Returns: Human-readable string (e.g., "1.5 MB")
-    static func formatSize(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
     }
 
     // MARK: - Private Helpers

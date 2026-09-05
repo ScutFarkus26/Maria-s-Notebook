@@ -33,5 +33,4 @@ public enum ImportCommitService {
         return ImportCommitResult(title: "CSV Import Complete", message: message)
     }
 
-    // Deprecated SwiftData commit methods removed - no longer needed with Core Data.
 }

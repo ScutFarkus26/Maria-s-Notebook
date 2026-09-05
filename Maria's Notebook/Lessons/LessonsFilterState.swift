@@ -48,16 +48,4 @@ final class LessonsFilterState {
         }
     }
 
-    struct PersistedFilterState {
-        let areaRaw: String
-        let groupRaw: String
-        let searchRaw: String
-        let expandedRaw: String
-        let sourceRaw: String
-        let personalKindRaw: String
-        let hasAttachmentRaw: String
-        let needsAttentionRaw: String
-        let formatFilterRaw: String
-    }
-
 }

@@ -23,8 +23,6 @@ final class StudentAnalysisService {
         self.mcpClient = mcpClient
     }
 
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
-
     // MARK: - Public API
 
     /// Analyzes a student's recent activity and generates development insights
@@ -263,8 +261,6 @@ final class StudentAnalysisService {
             behavioralFlags: behavioralFlags.joined(separator: "\n")
         )
     }
-
-    // Deprecated SwiftData bridge overloads removed - typealiases now point to CD types directly.
 
     private func parseAnalysisResponse(json: String) throws -> MCPAnalysisResult {
         let data = Data(json.utf8)

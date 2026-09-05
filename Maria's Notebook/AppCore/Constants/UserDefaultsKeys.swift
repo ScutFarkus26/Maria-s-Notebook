@@ -127,9 +127,6 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Work
     static let workAgendaHideScheduled = "WorkAgenda.hideScheduled"
     static let workAgendaVisibleKinds = "WorkAgenda.visibleKinds"
-    /// Widens the Attention list to every open work item — the list that used
-    /// to be a separate Children Working destination.
-    static let workAgendaShowAllOpenWork = "WorkAgenda.showAllOpenWork"
     /// Whether the Scheduled calendar pane is open beneath the list it is
     /// scheduled from. Collapsing it hands the whole screen back to the list.
     static let workAgendaCalendarExpanded = "WorkAgenda.calendarExpanded"

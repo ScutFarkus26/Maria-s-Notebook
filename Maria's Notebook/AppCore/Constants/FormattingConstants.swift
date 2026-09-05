@@ -21,6 +21,4 @@ enum FormattingConstants {
     /// Two-digit hex format with zero padding (e.g., "0f")
     static let twoDigitHex = "%02x"
     
-    /// Two-digit uppercase hex format with zero padding (e.g., "0F")
-    static let twoDigitHexUppercase = "%02X"
 }

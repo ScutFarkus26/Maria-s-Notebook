@@ -37,7 +37,6 @@ struct ResourceLibraryView: View {
     @State var showingBulkCategoryPicker = false
     @State var showingBulkTagPicker = false
     @State var showingBulkDeleteConfirmation = false
-    @State var bulkCategory: ResourceCategory = .other
     @State var bulkTags: [String] = []
 
     // Rename / change category

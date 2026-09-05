@@ -80,5 +80,4 @@ extension AppBootstrapping {
         }
     }
 
-    // Legacy getSharedModelContainer() removed — SwiftData migration complete.
 }

@@ -1,6 +1,4 @@
 enum BatchingConstants {
-    /// Default batch size for fetching entities from SwiftData
-    static let defaultBatchSize = 1000
 
     /// Maximum number of days to iterate (safety limit ~100 years)
     static let maxDaysToIterate = 36500

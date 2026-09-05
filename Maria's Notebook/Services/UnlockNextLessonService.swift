@@ -22,7 +22,6 @@ struct UnlockNextLessonService {
         case alreadyUnlocked
         case noCurrentLesson
         case error(String)
-
     }
 
     // MARK: - Core Data Unlock Logic
@@ -114,9 +113,5 @@ struct UnlockNextLessonService {
             saveImmediately: saveImmediately
         )
     }
-
-    // MARK: - Deprecated SwiftData Overloads
-
-    // Deprecated SwiftData bridge methods removed - no longer needed with Core Data.
 
 }

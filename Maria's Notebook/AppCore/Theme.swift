@@ -1,19 +1,12 @@
 import SwiftUI
 
 enum AppTheme {
-    // MARK: - Legacy Font Sizes (for reference/migration)
-    // These static values are kept for backwards compatibility
-    // Prefer using ScaledFont for new code to support Dynamic Type
+    // MARK: - Fixed Font Sizes
+    // Point sizes for the few places that need a fixed value. Prefer ScaledFont.
     enum FontSize {
-        static let titleLarge: CGFloat = 26
-        static let titleMedium: CGFloat = 20
         static let body: CGFloat = 14
-        static let titleXLarge: CGFloat = 32
-        static let titleSmall: CGFloat = 18
-        static let header: CGFloat = 24
         static let callout: CGFloat = 16
         static let caption: CGFloat = 13
-        static let captionSmall: CGFloat = 11
     }
 
     // MARK: - Dynamic Type Scaled Fonts
@@ -104,69 +97,11 @@ enum AppTheme {
 
         // MARK: - Expanded Weight Palette (#1-4)
 
-        /// Body text with light weight - for long-form descriptions, observation notes
-        nonisolated static var bodyLight: Font {
-            .system(.subheadline, design: .default, weight: .light)
-        }
-
-        /// Caption with light weight - for tertiary metadata, timestamps, "last updated"
-        nonisolated static var captionLight: Font {
-            .system(.footnote, design: .default, weight: .light)
-        }
-
         /// Small caption with light weight - for the most receded text
         nonisolated static var captionSmallLight: Font {
             .system(.caption2, design: .default, weight: .light)
         }
 
-        /// Body text with medium weight - subtle emphasis without full semibold
-        nonisolated static var bodyMedium: Font {
-            .system(.subheadline, design: .default, weight: .medium)
-        }
-
-        /// Callout with medium weight - distinct from both regular and semibold
-        nonisolated static var calloutMedium: Font {
-            .system(.callout, design: .default, weight: .medium)
-        }
-
-        /// Large title with heavy weight - hero display text
-        nonisolated static var titleXLargeHeavy: Font {
-            .system(.largeTitle, design: .rounded, weight: .heavy)
-        }
-
-        /// Title with heavy weight - strong section anchors
-        nonisolated static var titleLargeHeavy: Font {
-            .system(.title, design: .rounded, weight: .heavy)
-        }
-
-        /// Headline with bold weight - stronger list item titles
-        nonisolated static var titleSmallBold: Font {
-            .system(.headline, design: .rounded, weight: .bold)
-        }
-
-        // MARK: - Serif Display Variants (#7)
-
-        /// Serif display font for the largest titles — editorial, premium feel
-        nonisolated static var displaySerif: Font {
-            .system(.largeTitle, design: .serif, weight: .bold)
-        }
-
-        /// Serif title font for detail view headers
-        nonisolated static var titleSerif: Font {
-            .system(.title, design: .serif, weight: .semibold)
-        }
-
-        // MARK: - Monospaced Variants (#6)
-
-        /// Full monospaced font for grid cells, codes, IDs
-        nonisolated static var monoBody: Font {
-            .system(.subheadline, design: .monospaced, weight: .medium)
-        }
-
-        /// Small monospaced font for dense data tables
-        nonisolated static var monoCaption: Font {
-            .system(.caption2, design: .monospaced, weight: .medium)
-        }
     }
     
     // MARK: - Shadow Styles
@@ -228,20 +163,6 @@ enum AppTheme {
             .system(.largeTitle, design: .rounded, weight: .heavy)
         }
 
-        /// Numeric data in grids/tables — monospaced digits for column alignment (#22)
-        nonisolated static var tabularNumber: Font {
-            .system(.subheadline, design: .default, weight: .medium).monospacedDigit()
-        }
-
-        /// Small numeric data in dense grids — heavier stroke at small sizes (#23)
-        nonisolated static var denseGridCell: Font {
-            .system(.caption2, design: .default, weight: .medium).monospacedDigit()
-        }
-
-        /// Chart axis labels and legend text
-        nonisolated static var chartLabel: Font {
-            .system(.caption2, design: .default, weight: .regular).monospacedDigit()
-        }
     }
 
     // MARK: - Surface Colors
@@ -259,14 +180,6 @@ enum AppTheme {
             #endif
         }
 
-        /// Secondary surface, slightly inset from primary panes.
-        nonisolated static var surfaceSecondary: Color {
-            #if os(macOS)
-            return Color(NSColor.controlBackgroundColor)
-            #else
-            return Color(uiColor: .systemBackground)
-            #endif
-        }
     }
 
     // MARK: - Tracking (Letter Spacing) Constants (#12-14)
@@ -281,9 +194,6 @@ enum AppTheme {
 
         /// Slightly wider tracking for small text in pills/badges (#14)
         nonisolated static let badge: CGFloat = 0.2
-
-        /// Wide tracking for uppercase section labels / overline text (#12)
-        nonisolated static let overline: CGFloat = 0.8
 
     }
 }

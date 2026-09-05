@@ -224,31 +224,5 @@ extension BackupOperationError.TransactionError: LocalizedError {
 // MARK: - Convenience Helpers
 
 extension BackupOperationError {
-    /// Check if this error is recoverable by user action
-    public var isRecoverable: Bool {
-        switch self {
-        case .exportFailed(.insufficientDiskSpace):
-            return true
-        case .validationFailed(.passwordRequired), .validationFailed(.passwordIncorrect):
-            return true
-        case .cloudOperationFailed(.iCloudNotAvailable), .cloudOperationFailed(.networkUnavailable):
-            return true
-        default:
-            return false
-        }
-    }
     
-    /// Check if this error should trigger a retry
-    public var shouldRetry: Bool {
-        switch self {
-        case .cloudOperationFailed(.networkUnavailable):
-            return true
-        case .cloudOperationFailed(.uploadFailed), .cloudOperationFailed(.downloadFailed):
-            return true
-        case .exportFailed(.writeToFileFailed):
-            return true
-        default:
-            return false
-        }
-    }
 }

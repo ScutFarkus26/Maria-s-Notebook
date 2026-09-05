@@ -28,8 +28,6 @@ final class DataQueryService {
         self.context = context
     }
 
-    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
-
     // MARK: - Students
 
     /// Fetch all students, optionally filtering out test students and/or withdrawn students.
@@ -220,15 +218,6 @@ final class DataQueryService {
     }
 
     // MARK: - WorkModels
-
-    /// Fetch work models by status.
-    func fetchWorkModels(status: WorkStatus? = nil) -> [CDWorkModel] {
-        let request = CDFetchRequest(CDWorkModel.self)
-        if let status {
-            request.predicate = NSPredicate(format: "statusRaw == %@", status.rawValue)
-        }
-        return context.safeFetch(request)
-    }
 
     /// Fetch active or review work models.
     func fetchOpenWorkModels() -> [CDWorkModel] {

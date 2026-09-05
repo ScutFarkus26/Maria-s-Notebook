@@ -98,7 +98,6 @@ final class CloudKitSyncStatusService {
     var monitoredPersistentStoreCoordinator: NSPersistentStoreCoordinator? {
         coreDataStack?.container.persistentStoreCoordinator
     }
-    // Legacy modelContainer removed — use coreDataStack instead
     var syncingTask: Task<Void, Never>?
 
     // Task tracking for notification handlers to prevent accumulation
@@ -207,8 +206,6 @@ final class CloudKitSyncStatusService {
             }
         }
     }
-
-    // Deprecated configure(with: ModelContainer) removed — use configure(with: CoreDataStack)
 
     // MARK: - Manual Sync
 

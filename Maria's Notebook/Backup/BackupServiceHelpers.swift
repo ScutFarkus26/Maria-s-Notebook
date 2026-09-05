@@ -226,9 +226,6 @@ enum BackupServiceHelpers {
         }
     }
 
-    // toDTOs for CDProjectTemplateWeek, CDProjectAssignmentTemplate,
-    // CDProjectWeekRoleAssignment removed — entities deprecated.
-
     // MARK: - Simple DTO Conversions
 
     static func toDTOs(_ nonSchoolDays: [CDNonSchoolDay]) -> [NonSchoolDayDTO] {

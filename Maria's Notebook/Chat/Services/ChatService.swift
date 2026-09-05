@@ -19,8 +19,6 @@ final class ChatService {
         self.contextAssembler = ChatContextAssembler(context: modelContext)
     }
 
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
-
     // MARK: - Session Management
 
     /// Starts a new chat session and builds the initial classroom snapshot.

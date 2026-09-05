@@ -6,37 +6,6 @@ enum SupplyService {
 
     // MARK: - Core Data Methods
 
-    /// Fetches all supplies, optionally filtered by category
-    static func fetchSupplies(
-        in context: NSManagedObjectContext,
-        category: SupplyCategory? = nil,
-        searchText: String = ""
-    ) -> [CDSupply] {
-        let request = CDFetchRequest(CDSupply.self)
-        request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-
-        let supplies = context.safeFetch(request)
-
-        var filtered = supplies
-
-        // Filter by category if specified
-        if let category {
-            filtered = filtered.filter { $0.category == category }
-        }
-
-        // Filter by search text if provided
-        if !searchText.isEmpty {
-            let searchLower = searchText.lowercased()
-            filtered = filtered.filter {
-                $0.name.lowercased().contains(searchLower) ||
-                $0.location.lowercased().contains(searchLower) ||
-                $0.notes.lowercased().contains(searchLower)
-            }
-        }
-
-        return filtered
-    }
-
     /// Creates a new supply
     static func createSupply(
         name: String,

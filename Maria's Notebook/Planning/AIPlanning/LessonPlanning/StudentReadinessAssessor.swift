@@ -53,8 +53,6 @@ struct StudentReadinessAssessor {
         return profile
     }
 
-    // Deprecated SwiftData API removed - use Core Data overloads.
-    
     // MARK: - Profile Building
 
     // swiftlint:disable:next function_parameter_count
@@ -273,8 +271,6 @@ extension StudentReadinessAssessor {
     }
 
 }
-
-// Deprecated SwiftData fetching methods removed - Core Data versions are used.
 
 // MARK: - Helper Types
 

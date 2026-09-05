@@ -129,8 +129,6 @@ struct WorkPresentationStatusService {
     }
 }
 
-// Deprecated ModelContext overloads removed - no longer needed with Core Data.
-
 extension WorkPresentationStatusService.PresentationStatus {
     var isNotFound: Bool {
         if case .notFound = self { return true }

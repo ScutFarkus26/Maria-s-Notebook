@@ -46,7 +46,6 @@ struct UnifiedPresentationWorkflowPanel: View {
     @State private var activePanel: PanelFocus = .presentation
     @State var showBulkAppliedToast: Bool = false
     @State var bulkAppliedMessage: String = ""
-    @State private var showStudentNavigator: Bool = false
     @State var bulkCheckInStyle: CheckInStyle = .flexible
     @State var scrollTargetStudentID: UUID?
     @Namespace private var studentScrollAnchor

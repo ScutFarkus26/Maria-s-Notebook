@@ -101,26 +101,9 @@ extension RootView {
             }
         }
 
-        var isInMoreMenu: Bool {
-            switch self {
-            case .lessons, .teachingAlbums, .stories, .bookClub, .supplies, .procedures, .meetings,
-                 .parentReports,
-                 .planningChecklist, .planningAgenda,
-                 .planningProjects, .planningCalendar,
-                 .progressDashboard, .lessonRecall,
-                 .goingOut,
-                 .smallSequencePlanner,
-                 .perpetualCalendar,
-                 .thisWeeksParsha, .parshaCalendar,
-                 .community, .schedules, .resourceLibrary, .askAI, .logs, .settings:
-                return true
-            default:
-                return false
-            }
-        }
     }
 
-    // MARK: - Legacy Tabs (kept for backward compatibility)
+    // MARK: - Tab (the pre-NavigationItem selection, still decoded to migrate a saved selection)
 
     enum Tab: String, CaseIterable, Identifiable {
         case students  = "Students"

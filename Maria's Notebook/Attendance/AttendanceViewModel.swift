@@ -155,10 +155,6 @@ final class AttendanceViewModel {
     var countAbsent: Int { recordsByStudentID.values.filter { $0.status == .absent }.count }
     var countTardy: Int { recordsByStudentID.values.filter { $0.status == .tardy }.count }
     var countLeftEarly: Int { recordsByStudentID.values.filter { $0.status == .leftEarly }.count }
-    /// Roster members with no record are unmarked too — records are only created on first mark.
-    var countUnmarked: Int {
-        max(0, rosterCount - (countPresent + countAbsent + countTardy + countLeftEarly))
-    }
 
     /// "In Class" counts students who are either Present or Tardy.
     /// This is a derived metric for the header summary only and does not change stored data.

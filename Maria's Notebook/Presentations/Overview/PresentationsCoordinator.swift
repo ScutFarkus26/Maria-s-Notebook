@@ -66,11 +66,6 @@ final class PresentationsCoordinator {
         activeSheet = .lessonAssignmentDetail(lessonAssignment)
     }
 
-    /// Present consolidate-duplicates sheet
-    func showConsolidatePresentations() {
-        activeSheet = .consolidatePresentations
-    }
-
     /// Dismiss currently active sheet
     func dismissSheet() {
         activeSheet = nil

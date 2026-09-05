@@ -49,8 +49,6 @@ extension UnifiedNoteEditor {
         }
     }
 
-    // shouldShowCategory removed — tags are always shown
-
     var preSelectedStudents: Set<UUID> {
         switch context {
         case .attendance(let record):
@@ -287,25 +285,6 @@ extension UnifiedNoteEditor {
         bodyText = newText
     }
 
-    // MARK: - Context Description
-
-    var contextDescription: String {
-        switch context {
-        case .general: return ".general"
-        case .lesson: return ".lesson"
-        case .work: return ".work"
-        case .presentation: return ".presentation"
-        case .attendance: return ".attendance"
-        case .workCheckIn: return ".workCheckIn"
-        case .workCompletion: return ".workCompletion"
-        case .studentMeeting: return ".studentMeeting"
-        case .projectSession: return ".projectSession"
-        case .communityTopic: return ".communityTopic"
-        case .reminder: return ".reminder"
-        case .schoolDayOverride: return ".schoolDayOverride"
-        case .goingOut: return ".goingOut"
-        }
-    }
 }
 
 // MARK: - Photo Action Chip Style

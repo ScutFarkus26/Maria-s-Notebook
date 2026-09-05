@@ -28,16 +28,6 @@ extension Presentation {
         lessonTitleSnapshot ?? lesson?.name ?? "Unknown Lesson"
     }
 
-    /// Display section - prefer snapshot for historical accuracy, fall back to lesson relationship.
-    var displaySection: String {
-        lessonSectionSnapshot ?? lesson?.section ?? ""
-    }
-
-    /// Whether this presentation has any students assigned.
-    var hasStudents: Bool {
-        !studentIDs.isEmpty
-    }
-
     /// Number of students assigned.
     var studentCount: Int {
         studentIDs.count
@@ -65,37 +55,10 @@ extension Presentation {
         }
     }
 
-    /// Whether this presentation can be scheduled (is in draft state).
-    var canSchedule: Bool {
-        state == .draft
-    }
-
-    /// Whether this presentation can be marked as presented.
-    var canPresent: Bool {
-        state != .presented
-    }
-
-    /// Whether this presentation can be unscheduled (is in scheduled state).
-    var canUnschedule: Bool {
-        state == .scheduled
-    }
 }
 
 // MARK: - CDTrackEntity Integration
 
 extension Presentation {
-    /// Whether this presentation is part of a track.
-    var isPartOfTrack: Bool {
-        trackID.map { !$0.isEmpty } ?? false
-    }
 
-    /// CDTrackEntity ID as UUID, if valid.
-    var trackIDUUID: UUID? {
-        trackID.flatMap { UUID(uuidString: $0) }
-    }
-
-    /// CDTrackEntity step ID as UUID, if valid.
-    var trackStepIDUUID: UUID? {
-        trackStepID.flatMap { UUID(uuidString: $0) }
-    }
 }

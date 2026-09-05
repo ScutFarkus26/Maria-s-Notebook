@@ -151,7 +151,6 @@ nonisolated enum UIConstants {
         
         /// 24pt - Large icon size
         static let iconSizeLarge: CGFloat = 24
-        
     }
     
     // MARK: - Corner Radius
@@ -169,7 +168,6 @@ nonisolated enum UIConstants {
         
         /// 16pt - Extra large corner radius
         nonisolated static let extraLarge: CGFloat = 16
-        
     }
     
     // MARK: - Stroke & Border Widths
@@ -181,41 +179,8 @@ nonisolated enum UIConstants {
         
         /// 1.5pt - Regular strokes
         nonisolated static let regular: CGFloat = 1.5
-        
-        /// 2pt - Thick strokes for emphasis
-        nonisolated static let thick: CGFloat = 2
-        
-        /// 3pt - Extra thick for strong emphasis
-        nonisolated static let extraThick: CGFloat = 3
     }
-    
-    // MARK: - Line Limits
-    
-    /// Standardized line limit values for text
-    enum LineLimit {
-        /// 1 line - Single line of text
-        static let single: Int = 1
-        
-        /// 2 lines - Double line of text
-        static let double: Int = 2
-        
-    }
-    
-    // MARK: - Z-Index
-    
-    /// Standardized z-index values for layering
-    enum ZIndex {
-        /// 0 - Background layer
-        static let background: Double = 0
-        
-        /// 1 - Base content layer
-        static let base: Double = 1
-        
-        /// 10 - Overlay layer
-        static let overlay: Double = 10
-        
-    }
-    
+
     // MARK: - Animation Durations
     
     /// Standardized animation timing
@@ -232,7 +197,6 @@ nonisolated enum UIConstants {
         
         /// 0.3s - Normal animations
         static let normal: Double = 0.3
-        
     }
     
     // MARK: - Spring Animations
@@ -247,50 +211,5 @@ nonisolated enum UIConstants {
         
         /// Gentle spring: response 0.35, damping 0.85, blend 0.1
         static let gentle = Animation.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
-    }
-    
-    // MARK: - Timing Delays
-    
-    /// Standardized delay durations for UI operations
-    enum TimingDelay {
-        
-        /// 200ms - Short delay
-        static let short: UInt64 = 200_000_000
-        
-        /// 250ms - Debounce delay
-        static let debounce: UInt64 = 250_000_000
-        
-        /// 300ms - Standard delay
-        static let standard: UInt64 = 300_000_000
-        
-        /// 400ms - Medium delay
-        static let medium: UInt64 = 400_000_000
-        
-        /// 600ms - Long delay
-        static let long: UInt64 = 600_000_000
-        
-        /// 1.5s - Toast/message duration
-        static let toast: UInt64 = 1_500_000_000
-        
-        /// 3s - Standard message display
-        static let message: UInt64 = 3_000_000_000
-    }
-    
-    // MARK: - Data Limits
-    
-    /// Standardized limits for data fetching and display
-    enum DataLimit {
-        
-    }
-    
-    // MARK: - Stroke Patterns
-    
-    /// Standardized dash patterns for strokes
-    enum StrokePattern {
-        /// [6, 6] - Standard dashed line
-        static let dashed: [CGFloat] = [6, 6]
-        
-        /// [5] - Single dash
-        static let single: [CGFloat] = [5]
     }
 }

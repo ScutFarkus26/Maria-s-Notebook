@@ -64,10 +64,6 @@ final class AutoBackupManager {
             }
         }
 
-        var isSuccess: Bool {
-            if case .success = self { return true }
-            return false
-        }
     }
 
     enum BackupTrigger: String, Sendable {
@@ -375,38 +371,4 @@ final class AutoBackupManager {
         set { retentionCount = max(1, min(newValue, 100)) }
     }
 
-    var isScheduledBackupEnabled: Bool {
-        get { scheduledEnabled }
-        set {
-            scheduledEnabled = newValue
-            if newValue, let context = viewContext {
-                startScheduledBackups(viewContext: context)
-            } else {
-                stopScheduledBackups()
-            }
-        }
-    }
-
-    var backupIntervalHours: Int {
-        get { intervalHours }
-        set {
-            intervalHours = max(1, min(newValue, 24))
-            // Restart scheduled backups with new interval
-            if scheduledEnabled, let context = viewContext {
-                startScheduledBackups(viewContext: context)
-            }
-        }
-    }
-
-    /// Time until next scheduled backup
-    var timeUntilNextBackup: TimeInterval? {
-        guard scheduledEnabled else { return nil }
-        let intervalSeconds = TimeInterval(intervalHours * 3600)
-
-        if let lastBackup = lastScheduledBackupDate {
-            let nextBackup = lastBackup.addingTimeInterval(intervalSeconds)
-            return max(0, nextBackup.timeIntervalSinceNow)
-        }
-        return intervalSeconds
-    }
 }

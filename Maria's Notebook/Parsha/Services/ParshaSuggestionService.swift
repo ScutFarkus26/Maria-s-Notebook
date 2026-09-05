@@ -23,7 +23,6 @@ struct CachedParshaSuggestions: Codable, Sendable {
 final class ParshaSuggestionService {
 
     static let cacheStorageKey = "ParshaSuggestionCache.v1"
-    static let refreshIntervalSeconds: TimeInterval = 3600 // 1 hour rate cap
 
     private let mcpClient: MCPClientProtocol
     private let context: NSManagedObjectContext

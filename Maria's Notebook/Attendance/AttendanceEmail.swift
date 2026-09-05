@@ -359,34 +359,6 @@ public enum AttendanceEmail {
         )
     }
 
-    /// Attempts to open a mailto: URL using current preferences.
-    /// Returns true if the URL was opened successfully.
-    /// - CDNote: Use this as a fallback when
-    ///   NSSharingService(.composeEmail) is unavailable.
-    public static func openMailtoFallbackForCurrentPrefs(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        date: Date = Date(),
-        calendar: Calendar = .current
-    ) -> Bool {
-        let to = parseRecipients(from: storedToAddress())
-        let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            date: date,
-            calendar: calendar
-        )
-        guard let url = makeMailtoURL(
-            to: to,
-            subject: subject,
-            body: body
-        ) else { return false }
-        return NSWorkspace.shared.open(url)
-    }
-
     #endif
 }
 

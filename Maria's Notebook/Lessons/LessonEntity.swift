@@ -134,9 +134,6 @@ nonisolated extension CDLesson {
     /// Whether this lesson is a story (root or child).
     var isStory: Bool { lessonFormat == .story }
 
-    /// Whether this lesson is a top-level story with no parent.
-    var isRootStory: Bool { isStory && parentStoryID == nil }
-
     /// Where in the teaching albums this lesson is written up, if linked.
     /// `albumPageIndex` alone is meaningless — always gate on this.
     var albumLink: AlbumLink? {

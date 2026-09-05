@@ -93,8 +93,6 @@ struct TodayView: View {
     @State private var todayAnchor: Date?
 
     // MARK: - Computed Properties
-    private var presentationIDs: [UUID] { filteredPresentationIDs }
-    private var planItemIDs: [UUID] { filteredPlanItemIDs }
 
     /// Returns true if we're on iPhone compact layout where attendance has its own tab
     private var isIPhoneCompact: Bool {

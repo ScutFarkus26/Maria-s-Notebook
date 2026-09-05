@@ -123,19 +123,6 @@ enum HebrewParshaService {
         return parshaKey(forShabbat: shabbat)
     }
 
-    /// Maps a combined parsha key to its component single keys, so callers can match a
-    /// requested single (e.g. "vayakhel") against a year that reads it combined
-    /// (e.g. "vayakhel-pekudei").
-    private static let combinedKeyComponents: [String: [String]] = [
-        "vayakhel-pekudei": ["vayakhel", "pekudei"],
-        "tazria-metzora": ["tazria", "metzora"],
-        "acharei-mot-kedoshim": ["acharei-mot", "kedoshim"],
-        "behar-bechukotai": ["behar", "bechukotai"],
-        "chukat-balak": ["chukat", "balak"],
-        "matot-masei": ["matot", "masei"],
-        "nitzavim-vayelech": ["nitzavim", "vayelech"]
-    ]
-
     /// Returns every Shabbat in the Hebrew year containing `date`, paired with its parsha
     /// key (nil on festival-displaced Shabbatot) and the festival name (when displaced).
     /// Walks from the first sedra Shabbat after Simchat Torah through next Rosh Hashanah.

@@ -147,19 +147,6 @@ final class SearchIndexService {
         apply(outcome)
     }
 
-    /// Unconditional full pass over every searchable entity on a background
-    /// context, then a snapshot write so the next launch can skip it.
-    func rebuildIndexAsync(container: NSPersistentContainer) async {
-        indexingContainer = container
-        let outcome = await Self.fullRebuild(
-            context: container.newBackgroundContext(),
-            identity: Self.storeIdentity(of: container),
-            currentToken: Self.archivedCurrentHistoryToken(of: container),
-            snapshotDirectory: snapshotDirectory
-        )
-        apply(outcome)
-    }
-
     /// Rebuild synchronously on the caller's context, without touching the snapshot.
     /// Prefer `refresh(container:)` at launch so nothing blocks the main thread.
     func rebuildIndex(context: NSManagedObjectContext) {

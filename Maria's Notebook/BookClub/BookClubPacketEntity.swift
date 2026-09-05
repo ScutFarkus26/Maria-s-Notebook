@@ -72,7 +72,4 @@ nonisolated extension CDBookClubPacket {
 }
 
 nonisolated extension CDBookClubPacket {
-    static func defaultSortDescriptors() -> [NSSortDescriptor] {
-        [NSSortDescriptor(keyPath: \CDBookClubPacket.createdAt, ascending: false)]
-    }
 }

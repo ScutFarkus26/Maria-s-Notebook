@@ -119,22 +119,10 @@ nonisolated extension CDTodoItemEntity {
         set { studentIDsArray = newValue.map(\.uuidString) }
     }
 
-    /// Convenience computed property to get linked work item ID as UUID
-    var linkedWorkItemUUID: UUID? {
-        get { linkedWorkItemID.flatMap { UUID(uuidString: $0) } }
-        set { linkedWorkItemID = newValue?.uuidString }
-    }
-
     /// Check if todo is overdue
     var isOverdue: Bool {
         guard let dueDate, !isCompleted else { return false }
         return dueDate < AppCalendar.shared.startOfDay(for: Date())
-    }
-
-    /// Check if todo is due today
-    var isDueToday: Bool {
-        guard let dueDate, !isCompleted else { return false }
-        return AppCalendar.shared.isDateInToday(dueDate)
     }
 
     /// Check if todo is due this week
@@ -164,19 +152,9 @@ nonisolated extension CDTodoItemEntity {
         return items.allSatisfy { $0.isCompleted }
     }
 
-    /// Check if todo has attachments
-    var hasAttachments: Bool {
-        !attachmentPathsArray.isEmpty
-    }
-
     /// Check if todo has a reminder set
     var hasReminder: Bool {
         reminderDate != nil
-    }
-
-    /// Check if todo has mood or reflection notes
-    var hasMoodOrReflection: Bool {
-        mood != nil || !reflectionNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// Check if todo has location-based reminder

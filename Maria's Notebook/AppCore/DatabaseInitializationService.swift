@@ -11,11 +11,6 @@ enum DatabaseInitializationService {
 
     private static let logger = Logger.database
 
-    private static let resetLogger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "com.mariasnotebook",
-        category: "Reset"
-    )
-
     // MARK: - Store URL
 
     /// Returns the URL of the primary on-disk store (the private store).

@@ -16,8 +16,6 @@ final class CalendarSyncService {
     private let eventStore = EKEventStore()
     var managedObjectContext: NSManagedObjectContext?
 
-    // Deprecated ModelContext property removed - no longer needed with Core Data.
-
     /// The identifiers of calendars to sync from (supports multiple calendars)
     /// If empty, syncing is disabled
     var syncCalendarIdentifiers: [String] {
@@ -80,8 +78,6 @@ final class CalendarSyncService {
             startObservingChanges()
         }
     }
-
-    // Deprecated ModelContext convenience init removed - no longer needed with Core Data.
 
     deinit {
         stopObservingChanges()

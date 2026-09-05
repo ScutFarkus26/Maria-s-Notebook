@@ -10,8 +10,6 @@ struct PracticeSessionRepository: Repository {
 
     let context: NSManagedObjectContext
 
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
-
     // MARK: - Create
 
     /// Creates and saves a new practice session
@@ -166,28 +164,4 @@ struct PracticeStatistics {
     let totalDuration: TimeInterval
     let averageDuration: TimeInterval
 
-    var groupPercentage: Double {
-        guard totalSessions > 0 else { return 0 }
-        return Double(groupSessions) / Double(totalSessions) * 100
-    }
-
-    var soloPercentage: Double {
-        guard totalSessions > 0 else { return 0 }
-        return Double(soloSessions) / Double(totalSessions) * 100
-    }
-
-    var totalDurationFormatted: String {
-        let hours = Int(totalDuration / 3600)
-        let minutes = Int((totalDuration.truncatingRemainder(dividingBy: 3600)) / 60)
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
-    }
-
-    var averageDurationFormatted: String {
-        let minutes = Int(averageDuration / 60)
-        return "\(minutes) min"
-    }
 }

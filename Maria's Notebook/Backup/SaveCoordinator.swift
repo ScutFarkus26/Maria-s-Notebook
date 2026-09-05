@@ -100,8 +100,6 @@ final class SaveCoordinator {
         return success
     }
 
-    // Legacy SwiftData overloads removed — primary methods already accept NSManagedObjectContext.
-
     /// Clear any previously captured error state and dismiss the alert.
     func clearError() {
         lastSaveError = nil

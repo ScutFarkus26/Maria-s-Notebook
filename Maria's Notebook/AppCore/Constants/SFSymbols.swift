@@ -74,7 +74,6 @@ enum SFSymbol {
         static let books = "books.vertical"
         static let graduationcap = "graduationcap"
         static let pencil = "pencil"
-        static let pencilCircle = "pencil.circle"
         static let note = "note"
         static let noteText = "note.text"
         static let backpack = "backpack"
@@ -83,24 +82,13 @@ enum SFSymbol {
     // MARK: - Status & Indicators
     enum Status {
         static let circle = "circle"
-        static let circleFill = "circle.fill"
         static let exclamationmark = "exclamationmark"
         static let exclamationmarkTriangleFill = "exclamationmark.triangle.fill"
         static let questionmark = "questionmark"
         static let info = "info"
         static let infoCircle = "info.circle"
     }
-    
-    // MARK: - Media & Content
-    enum Media {
-        static let photo = "photo"
-        static let camera = "camera"
-        static let video = "video"
-        static let play = "play"
-        static let pause = "pause"
-        static let mic = "mic"
-    }
-    
+
     // MARK: - Search & Filter
     enum Search {
         static let magnifyingglass = "magnifyingglass"
@@ -136,12 +124,10 @@ enum SFSymbol {
         static let square = "square"
         static let rectangle = "rectangle"
         static let circle = "circle"
-        static let circleFill = "circle.fill"
         static let capsule = "capsule"
         static let star = "star"
         static let starFill = "star.fill"
         static let heart = "heart"
-        static let heartFill = "heart.fill"
     }
     
     // MARK: - Data & Storage
@@ -164,14 +150,12 @@ enum SFSymbol {
         static let star = "star"
         static let starFill = "star.fill"
         static let heart = "heart"
-        static let heartFill = "heart.fill"
         static let flag = "flag"
     }
     
     // MARK: - Editing & Tools
     enum Tool {
         static let pencil = "pencil"
-        static let pencilCircle = "pencil.circle"
         static let scribble = "scribble"
         static let lasso = "lasso"
         static let paintbrush = "paintbrush"

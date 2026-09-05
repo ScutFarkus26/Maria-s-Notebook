@@ -63,8 +63,6 @@ final class PresentationDetailViewModel {
     // MARK: - Workflow Panel State (for embedded presentation workflow)
     var showWorkflowPanel: Bool = false
     var presentationViewModel: PostPresentationFormViewModel?
-    var savedScrollPosition: CGPoint = .zero
-    var hasUnsavedWorkflowChanges: Bool = false
 
     // MARK: - Move Students UI State
     var studentsToMove: Set<UUID> = []

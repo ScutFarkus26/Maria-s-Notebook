@@ -8,8 +8,6 @@ struct SessionWorkAssignmentService {
 
     let context: NSManagedObjectContext
 
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
-
     // MARK: - Choice Mode
 
     /// Creates an offered work (no participants yet) for choice mode
@@ -77,18 +75,6 @@ struct SessionWorkAssignmentService {
             work.studentID = remaining.first?.studentID ?? ""
         }
     }
-
-    // MARK: - Queries
-
-    /// Gets all works for a session
-    func worksForSession(_ session: CDProjectSession) -> [CDWorkModel] {
-        let sessionID = session.id?.uuidString ?? ""
-        let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "sourceContextID == %@", sessionID)
-        return context.safeFetch(request)
-    }
-
-    // Deprecated SwiftData adapter overloads removed - typealiases now point to CD types directly.
 
     // MARK: - Private Helpers
 

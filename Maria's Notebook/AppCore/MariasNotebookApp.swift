@@ -96,7 +96,6 @@ struct MariasNotebookApp: App {
         // so a freshly-opened window isn't immediately snapped wider.
         .defaultSize(width: 1000, height: 720)
         #endif
-        // Legacy .modelContainer removed — using CoreDataStack
         .commands {
             NotebookCommands(appRouter: appRouter, classroomWorkspace: classroomWorkspace)
         }

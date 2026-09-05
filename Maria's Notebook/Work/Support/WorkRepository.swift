@@ -9,8 +9,6 @@ struct WorkRepository: Repository {
 
     let context: NSManagedObjectContext
 
-    // Deprecated ModelContext init removed - no longer needed with Core Data.
-
     // MARK: - CDTrackEntity Linking Helper
 
     /// Links a work item to its associated track and step if the lesson belongs to a track
@@ -83,23 +81,6 @@ struct WorkRepository: Repository {
 
     /// Fetch CDWorkModel by ID
     func fetchWorkModel(id: UUID) -> CDWorkModel? { fetch(id: id) }
-
-    /// Fetch multiple CDWorkModel entities
-    /// - Parameters:
-    ///   - predicate: Optional predicate to filter work items. If nil, fetches all.
-    ///   - sortDescriptors: Optional sort descriptors. Defaults to sorting by createdAt descending.
-    /// - Returns: Array of CDWorkModel entities matching the criteria
-    func fetchWorkModels(
-        predicate: NSPredicate? = nil,
-        sortDescriptors: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
-    ) -> [CDWorkModel] {
-        let request = CDFetchRequest(CDWorkModel.self)
-        if let predicate {
-            request.predicate = predicate
-        }
-        request.sortDescriptors = sortDescriptors
-        return context.safeFetch(request)
-    }
 
     // MARK: - Create
 
