@@ -2,6 +2,7 @@ import CoreData
 import CryptoKit
 import Foundation
 import OSLog
+import SQLite3
 
 // MARK: - Schema Version Guard
 //
@@ -123,13 +124,23 @@ extension CoreDataStack {
             // so catch the lie here. Migrating stores skip this: their
             // migration rebuilds the schema anyway.
             if !migrating {
-                let findings = incoherentSchemaFindings(
-                    storeURL: url,
-                    configuration: description.configuration,
-                    model: model
-                )
-                if !findings.isEmpty {
-                    if description.configuration == sharedConfiguration {
+                // The physical check walks PRAGMA table_info for every table.
+                // Skip it when this exact (model, on-disk DDL) pair has already
+                // been verified — see `schemaCoherenceKey(storeURL:model:)`.
+                let coherenceKey = schemaCoherenceKey(storeURL: url, model: model)
+                if let coherenceKey, isSchemaCoherenceVerified(storeURL: url, key: coherenceKey) {
+                    schemaLogger.debug("\(url.lastPathComponent, privacy: .public): physical schema already verified")
+                } else {
+                    let findings = incoherentSchemaFindings(
+                        storeURL: url,
+                        configuration: description.configuration,
+                        model: model
+                    )
+                    if findings.isEmpty {
+                        if let coherenceKey {
+                            recordSchemaCoherenceVerified(storeURL: url, key: coherenceKey)
+                        }
+                    } else if description.configuration == sharedConfiguration {
                         // The shared store mirrors the CloudKit shared
                         // database; a rebuilt store re-imports from the server.
                         quarantineIncoherentStore(storeURL: url, findings: findings)
@@ -155,6 +166,86 @@ extension CoreDataStack {
         }
 
         return backups
+    }
+
+    // MARK: - Physical Schema Coherence Cache
+    //
+    // `incoherentSchemaFindings` exists because store *metadata* can lie about
+    // the physical schema (a half-finished migration by another build). The
+    // physical schema itself cannot lie: every table and index is one row of
+    // `sqlite_master` with its CREATE statement, so a digest of those rows
+    // identifies the on-disk DDL exactly. "This model digest was verified
+    // against this schema digest" is therefore a sound reason to skip the
+    // per-table `PRAGMA table_info` walk — a later migration, repair, or
+    // quarantine changes one half of the key or the other. Row writes, WAL
+    // checkpoints, and CloudKit imports do not.
+    //
+    // Not `PRAGMA schema_version`: Core Data bumps it by roughly one per entity
+    // on every launch (transient DDL that leaves `sqlite_master` unchanged), so
+    // a key built on it never matched twice.
+
+    nonisolated static let schemaCoherenceDefaultsKeyPrefix = "CoreDataStack.schemaCoherenceVerified."
+
+    /// SHA-256 over the store's tables and indexes (`sqlite_master` type, name,
+    /// and CREATE statement, ordered), or `nil` when the file is missing or
+    /// cannot be opened — in which case the caller runs the full check and
+    /// caches nothing.
+    nonisolated static func sqliteSchemaDigest(storeURL: URL) -> String? {
+        guard FileManager.default.fileExists(atPath: storeURL.path) else { return nil }
+        var handle: OpaquePointer?
+        guard sqlite3_open_v2(storeURL.path, &handle, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+              let handle else {
+            if handle != nil { sqlite3_close(handle) }
+            return nil
+        }
+        defer { sqlite3_close(handle) }
+
+        let sql = "SELECT type, name, sql FROM sqlite_master " +
+            "WHERE type IN ('table', 'index') ORDER BY type, name"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { return nil }
+        defer { sqlite3_finalize(statement) }
+
+        var hasher = SHA256()
+        var rows = 0
+        while sqlite3_step(statement) == SQLITE_ROW {
+            for column: Int32 in 0..<3 {
+                if let text = sqlite3_column_text(statement, column) {
+                    hasher.update(data: Data(String(cString: text).utf8))
+                }
+                hasher.update(data: Data([0x1F]))
+            }
+            hasher.update(data: Data([0x0A]))
+            rows += 1
+        }
+        // An empty file that SQLite happily "opens" is a store Core Data has
+        // not built yet; leave it uncached so the first real launch verifies it.
+        guard rows > 0 else { return nil }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Identity of the (compiled model, on-disk DDL) pair the physical check
+    /// would compare. Equal keys mean an equal answer.
+    nonisolated static func schemaCoherenceKey(storeURL: URL, model: NSManagedObjectModel) -> String? {
+        guard let schema = sqliteSchemaDigest(storeURL: storeURL) else { return nil }
+        return "\(modelSchemaDigest(model))|schema=\(schema)"
+    }
+
+    nonisolated static func isSchemaCoherenceVerified(
+        storeURL: URL,
+        key: String,
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        defaults.string(forKey: schemaCoherenceDefaultsKeyPrefix + storeURL.lastPathComponent) == key
+    }
+
+    nonisolated static func recordSchemaCoherenceVerified(
+        storeURL: URL,
+        key: String,
+        defaults: UserDefaults = .standard
+    ) {
+        defaults.set(key, forKey: schemaCoherenceDefaultsKeyPrefix + storeURL.lastPathComponent)
     }
 
     // MARK: - Guard

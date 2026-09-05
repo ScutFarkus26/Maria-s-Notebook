@@ -1,6 +1,6 @@
 # Build and Launch Performance — Implementation Plan
 
-Status: **Phase 0 and Phase 1 landed (uncommitted, 2026-09-04)** · Owner: Danny · Created 2026-09-04
+Status: **Phases 0–2 landed 2026-09-04** (0–1 on `main` as e6619849; 2 on `perf/phase-2-launch-path`) · Owner: Danny · Created 2026-09-04
 
 ## Implementation status (2026-09-04)
 
@@ -21,6 +21,11 @@ Status: **Phase 0 and Phase 1 landed (uncommitted, 2026-09-04)** · Owner: Danny
   confirmed on the iOS 27 simulator: `perf-baselines/2026-09-04-launch-signposts.md`
   (`CoreDataStack.init` 273 ms with the schema argument vs 48 ms without, on an empty store).
   Still to do for Phase 0: capture the launch trace on the Mac with the production store.
+- **Phase 2** (branch `perf/phase-2-launch-path`) — items 17, 18, 21 landed; item 20 dropped
+  (see the Phase 2 table for why). Full suite 626/0 after the change. Simulator (empty store),
+  three consecutive launches: `PrepareStoresForLoad` 50 ms → 20 ms → 16 ms, with the
+  "physical schema already verified" skip logged for both stores from the second launch on.
+  The real-store number is still to be captured on the Mac.
 
 Source: the 25-item audit against WWDC26 guidance (sessions 258, 262, 269, 222; group labs
 8003, 8006, 8013). Every item is non-destructive: no data migration, no deleted features,
@@ -81,17 +86,16 @@ All four changes are local, testable, and land in `AppCore/`.
 
 | Item | Change | File |
 |------|--------|------|
-| 17 | Add `@ObservationIgnored` to the 13 tracked `private var _service` caches (only `schoolDayChangeObserver` has it today). Services are created once and never replaced, so nothing observes them legitimately | `AppCore/AppDependencies.swift` |
-| 21 | Replace the per-body `Logger.app(category: "App")` and the two `logger.info` calls with the file's static logger, logged from `.onChange(of: bootstrapper.state)` instead of on every evaluation | `AppCore/MariasNotebookApp+MainWindow.swift` |
-| 20 | Read the two UserDefaults completion flags **before** `await MainActor.run` in `runPostLaunchMigrations`, so completed backfills never hop to the main actor | `AppCore/AppBootstrapper.swift`, the two `DataMigrations.backfill…` entry points |
-| 18 | Cache `incoherentSchemaFindings` per store: key = store file modification date + model `versionChecksum`; store the "clean" result in UserDefaults and skip the SQL introspection when the key matches | `AppCore/CoreDataStack+SchemaVersion.swift` |
+| 17 | Add `@ObservationIgnored` to all 25 `_service` caches (only `schoolDayChangeObserver` had it). Services are created once and never replaced, so they are not view state. **Corrected expectation:** a write that happens inside the same body evaluation that first read the cache does not fire Observation, so this does not remove a cascade; it removes registrar bookkeeping from every `dependencies.<service>` read in a body and documents intent | `AppCore/AppDependencies.swift` |
+| 21 | Replace the per-body `Logger.app(category: "App")` and the two `logger.info` calls with a static logger, logged from `.onChange(of: bootstrapper.state)` instead of on every evaluation | `AppCore/MariasNotebookApp+MainWindow.swift` |
+| ~~20~~ | **Dropped.** Both backfills already return on their UserDefaults flag before any fetch, `repairScopeForContextualNotes` is `MigrationFlag`-gated, and `runPostLaunchMigrations` is itself main-actor isolated, so the `MainActor.run` wrappers are not hops. Nothing to save | — |
+| 18 | Cache `incoherentSchemaFindings` per store. Key = model digest + SHA-256 of `sqlite_master` (type, name, CREATE statement for every table and index). Not mtime (changes on every WAL checkpoint) and not `PRAGMA schema_version` (Core Data bumps it ~1 per entity on every launch with transient DDL, so it never matched twice on the simulator). The `sqlite_master` digest is the physical schema, so it changes on exactly the events the check guards against, including a foreign build's half-finished migration. Recorded in UserDefaults on a clean result | `AppCore/CoreDataStack+SchemaVersion.swift` |
 
-Tests to add in `Maria's Notebook Tests/AppCore/`:
-
-- `AppDependencies`: accessing a lazy service does not trigger an Observation
-  change (use `withObservationTracking` and assert the `onChange` closure never fires).
-- Schema cache: a store with an unchanged mtime + checksum skips introspection; a
-  changed mtime re-runs it. Both cases against an in-memory-backed temp SQLite file.
+Tests added in `Maria's Notebook Tests/AppCore/SchemaCoherenceCacheTests.swift`: key stable
+for an unchanged store; missing file has no key; record-then-verify; DDL from a foreign
+SQLite connection invalidates; row writes through Core Data keep the key; entries are per
+store. (No `AppDependencies` observation test: the behavior it would assert is unchanged by
+the annotation, see item 17.) Plus: dropping an index changes the key.
 
 Verification: the Phase 0 launch trace, comparing the `Bootstrap` and
 `CoreDataStack.init` intervals, plus the SwiftUI Instruments template showing no

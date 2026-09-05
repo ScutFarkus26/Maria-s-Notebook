@@ -74,7 +74,7 @@ final class AppDependencies {
 
     // MARK: - Core Services
 
-    private var _memoryPressureMonitor: MemoryPressureMonitor?
+    @ObservationIgnored private var _memoryPressureMonitor: MemoryPressureMonitor?
     var memoryPressureMonitor: MemoryPressureMonitor {
         if let monitor = _memoryPressureMonitor {
             return monitor
@@ -91,7 +91,7 @@ final class AppDependencies {
 
     /// Central repository container for type-safe data access
     /// Provides repositories for all entities with consistent context injection
-    private var _repositories: RepositoryContainer?
+    @ObservationIgnored private var _repositories: RepositoryContainer?
     var repositories: RepositoryContainer {
         if let container = _repositories {
             return container
@@ -120,7 +120,7 @@ final class AppDependencies {
     }
 
     // CDTrackEntity services
-    private var _groupTrackService: SequenceTrackService?
+    @ObservationIgnored private var _groupTrackService: SequenceTrackService?
     var groupTrackService: SequenceTrackService {
         if let service = _groupTrackService {
             return service
@@ -130,7 +130,7 @@ final class AppDependencies {
         return service
     }
 
-    private var _trackProgressResolver: TrackProgressResolver?
+    @ObservationIgnored private var _trackProgressResolver: TrackProgressResolver?
     var trackProgressResolver: TrackProgressResolver {
         if let resolver = _trackProgressResolver {
             return resolver
@@ -142,7 +142,7 @@ final class AppDependencies {
 
     // MARK: - Sync Services
 
-    private var _reminderSyncService: ReminderSyncService?
+    @ObservationIgnored private var _reminderSyncService: ReminderSyncService?
     var reminderSync: ReminderSyncService {
         if let service = _reminderSyncService {
             // ReminderSyncService is process-wide. Rebind it whenever the
@@ -157,7 +157,7 @@ final class AppDependencies {
         return service
     }
 
-    private var _calendarSyncService: CalendarSyncService?
+    @ObservationIgnored private var _calendarSyncService: CalendarSyncService?
     var calendarSync: CalendarSyncService {
         if let service = _calendarSyncService {
             return service
@@ -168,11 +168,15 @@ final class AppDependencies {
     }
 
     // MARK: - Backup Services (backing stores for AppDependencies+BackupServices.swift)
+    //
+    // Every `_service` cache below is `@ObservationIgnored`: it is set exactly once
+    // and never replaced, so it is not view state. Tracking it would only add
+    // registrar bookkeeping to every `dependencies.<service>` read in a body.
 
-    var _backupService: BackupService?
-    var _backupTransactionManager: BackupTransactionManager?
-    var _autoBackupManager: AutoBackupManager?
-    var _backupCoordinator: BackupCoordinator?
+    @ObservationIgnored var _backupService: BackupService?
+    @ObservationIgnored var _backupTransactionManager: BackupTransactionManager?
+    @ObservationIgnored var _autoBackupManager: AutoBackupManager?
+    @ObservationIgnored var _backupCoordinator: BackupCoordinator?
 
     // MARK: - Migration Services
 
@@ -182,7 +186,7 @@ final class AppDependencies {
 
     // MARK: - Business Logic Services
 
-    private var _followUpInboxEngine: FollowUpInboxEngine?
+    @ObservationIgnored private var _followUpInboxEngine: FollowUpInboxEngine?
     var followUpInboxEngine: FollowUpInboxEngine {
         if let engine = _followUpInboxEngine {
             return engine
@@ -194,17 +198,17 @@ final class AppDependencies {
 
     // MARK: - AI Services (backing stores for AppDependencies+AIServices.swift)
 
-    var _aiRouter: AIClientRouter?
-    var _chatService: ChatService?
-    var _studentAnalysisService: StudentAnalysisService?
-    var _lessonPlanningService: LessonPlanningService?
-    var _reportGeneratorService: ReportGeneratorService?
-    var _meetingInsightsService: MeetingInsightsService?
-    var _monthlyReportDraftService: MonthlyReportDraftService?
+    @ObservationIgnored var _aiRouter: AIClientRouter?
+    @ObservationIgnored var _chatService: ChatService?
+    @ObservationIgnored var _studentAnalysisService: StudentAnalysisService?
+    @ObservationIgnored var _lessonPlanningService: LessonPlanningService?
+    @ObservationIgnored var _reportGeneratorService: ReportGeneratorService?
+    @ObservationIgnored var _meetingInsightsService: MeetingInsightsService?
+    @ObservationIgnored var _monthlyReportDraftService: MonthlyReportDraftService?
 
     // MARK: - UI Services
 
-    private var _toastService: ToastService?
+    @ObservationIgnored private var _toastService: ToastService?
     var toastService: ToastService {
         if let service = _toastService {
             return service
@@ -225,7 +229,7 @@ final class AppDependencies {
 
     /// The global "viewing year" lens shared by every screen.
     /// See Documentation/Implementation/SCHOOL_YEAR_SEPARATION.md.
-    private var _schoolYearStore: SchoolYearStore?
+    @ObservationIgnored private var _schoolYearStore: SchoolYearStore?
     var schoolYearStore: SchoolYearStore {
         if let store = _schoolYearStore {
             return store
@@ -237,7 +241,7 @@ final class AppDependencies {
 
     // MARK: - Presentation Services
 
-    private var _presentationsViewModel: PresentationsViewModel?
+    @ObservationIgnored private var _presentationsViewModel: PresentationsViewModel?
     var presentationsViewModel: PresentationsViewModel {
         if let vm = _presentationsViewModel {
             return vm
@@ -262,7 +266,7 @@ final class AppDependencies {
         CloudKitSyncStatusService.shared
     }
 
-    private var _classroomSharingService: ClassroomSharingService?
+    @ObservationIgnored private var _classroomSharingService: ClassroomSharingService?
     var classroomSharingService: ClassroomSharingService {
         if let service = _classroomSharingService {
             return service
@@ -285,7 +289,7 @@ final class AppDependencies {
 
     // MARK: - Router & Coordinators
 
-    private var _appRouter: AppRouter?
+    @ObservationIgnored private var _appRouter: AppRouter?
     var appRouter: AppRouter {
         if let router = _appRouter {
             return router
@@ -295,7 +299,7 @@ final class AppDependencies {
         return router
     }
 
-    private var _saveCoordinator: SaveCoordinator?
+    @ObservationIgnored private var _saveCoordinator: SaveCoordinator?
     var saveCoordinator: SaveCoordinator {
         if let coordinator = _saveCoordinator {
             return coordinator
@@ -305,7 +309,7 @@ final class AppDependencies {
         return coordinator
     }
 
-    private var _restoreCoordinator: RestoreCoordinator?
+    @ObservationIgnored private var _restoreCoordinator: RestoreCoordinator?
     var restoreCoordinator: RestoreCoordinator {
         if let coordinator = _restoreCoordinator {
             return coordinator

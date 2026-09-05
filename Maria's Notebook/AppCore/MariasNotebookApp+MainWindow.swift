@@ -69,20 +69,21 @@ extension MariasNotebookApp {
         }
     }
 
-    var mainWindowContent: some View {
-        let logger: Logger = Logger.app(category: "App")
-        // swiftlint:disable:next redundant_discardable_let
-        let _ = logger.info("App body: Starting scene body evaluation")
-        let stateDesc: String = String(describing: bootstrapper.state)
-        // swiftlint:disable:next redundant_discardable_let
-        let _ = logger.info("App body: bootstrapper state: \(stateDesc)")
+    private static let logger = Logger.app(category: "App")
 
-        return Group {
+    var mainWindowContent: some View {
+        Group {
             if databaseErrorCoordinator.error != nil || AppBootstrapping.initError != nil {
                 DatabaseErrorView(errorCoordinator: databaseErrorCoordinator, appRouter: appRouter)
             } else {
                 appFlowContent
             }
+        }
+        // Log state transitions, not evaluations: this body re-runs on every
+        // change to the observed coordinators, and building a Logger plus two
+        // log lines per evaluation sat on the hottest path in the app.
+        .onChange(of: bootstrapper.state, initial: true) { _, state in
+            Self.logger.info("App body: bootstrapper state: \(String(describing: state))")
         }
     }
 

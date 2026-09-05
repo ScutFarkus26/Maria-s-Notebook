@@ -43,3 +43,18 @@ open -a "Montessori Daybook"
 
 Or in Instruments: App Launch template → the intervals appear under **os_signpost**,
 subsystem `DanielSDeBerry.MariasNoteBook`, category `Launch`.
+
+## After Phase 2 (same simulator, same empty store, Debug build of `perf/phase-2-launch-path`)
+
+Three consecutive cold launches; the first is a cache miss (fresh install), the next two hit
+the physical-schema cache for both stores.
+
+| Launch | `PrepareStoresForLoad` | skip logged |
+|---|---|---|
+| 1 | 50 ms | no (first verification, key recorded) |
+| 2 | 20 ms | private.sqlite, shared.sqlite |
+| 3 | 16 ms | private.sqlite, shared.sqlite |
+
+The remaining ~16 ms is the two metadata reads (newer-build guard, migration check), the orphan
+metadata cleanup, and the version stamp. On the production store the table walk scales with the
+number of tables, so the saving there should be larger; capture it on the Mac.
