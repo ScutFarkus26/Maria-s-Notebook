@@ -1,6 +1,6 @@
 # Build and Launch Performance — Implementation Plan
 
-Status: **Phases 0–3 on `main` (595132d9); Phase 4a on `perf/phase-4-slow-type-check`** · Owner: Danny · Created 2026-09-04
+Status: **Phases 0–4 on `main`** (4a landed as 251ec634; 4b/24a/24b measured and deferred, see status) · Owner: Danny · Created 2026-09-04
 
 ## Implementation status (2026-09-04)
 
@@ -42,7 +42,33 @@ Status: **Phases 0–3 on `main` (595132d9); Phase 4a on `perf/phase-4-slow-type
   <File>Preview: View` (`Scripts/hoist_previews.py`, idempotent; the rule is now in CLAUDE.md). Clean
   build 56.2 s → 47.9 s wall; type checking −28.6%, frontend total −15.2% (compiler
   `-stats-output-dir` sums, 47 jobs). Details in `perf-baselines/2026-09-04-clean-build.md`.
-  46 sites remain over the 100 ms thresholds (was 51); those are Phase 4b.
+  46 sites remain over the 100 ms thresholds (was 51).
+- **Phase 4b reframed after measurement (2026-09-04).** The per-job stats show the fixed cost per
+  frontend job is small (~0.5 s of a 7 s median job: parse 0.2 s, module load 0.3 s), so batch
+  sizing is not a lever. Most of the remaining "slow" bodies are attribution artifacts: a
+  two-line sort comparator (`StudentSortComparator.byFirstName`) and a five-case `switch`
+  (`LogsMenuRootView.logsContent`) are flagged at 160–210 ms because the *first* reference to
+  `CDStudent` or to a root view in a job lazily type-checks that declaration from another file
+  (its attached-macro expansions, memberwise init, extensions). The same declaration then shows
+  up under whichever body touched it first, with a different time in each job. Rewriting those
+  bodies would move the charge, not remove it. The structural fix is fewer jobs seeing fewer
+  declarations, i.e. Phase 6. Per-site body splitting is therefore **not** pursued; the
+  100 ms warnings stay on as a tripwire for genuinely quadratic expressions (none remain
+  flagged that are attributable to their own body).
+- **Where the clean build's wall clock now goes.** After 4a the 47 compile batches total 344 s of
+  CPU (≈34 s across 10 cores) and the single-threaded emit-module job takes 37 s; they run in
+  parallel, so the 48 s wall clock is bounded by the emit-module job plus link and sign. Both
+  numbers scale with the size of the one module, which is why Phase 6 is the next real lever.
+- **Items 24a/24b/25 (audited, deferred).** 24a: 20 `GeometryReader` sites (list in the Phase 4
+  section); most read a width to choose a column count, which `onGeometryChange` or a container
+  `Layout` can replace, but none is on the launch path. 24b: 47 files pair `@FetchRequest` with a
+  `List` or lazy stack and set no `fetchBatchSize`; 68 of those requests are over `CDStudent` or
+  `CDLesson` (a few hundred rows at most) and only ~25 over the tables that grow all year
+  (`CDNote`, `CDWorkModel`, `CDLessonAssignment`, `CDStudentMeeting`). Converting them means
+  switching to the `@FetchRequest(fetchRequest:)` form. Neither is measurable on the empty
+  simulator store, so both wait for the SwiftUI Instruments pass on the Mac with real data;
+  do 24b on the ~25 growing-table requests first. 25: `grep -rnE "@State .* = .*\(\)"` shows no
+  view that also assigns the same property in `init`; nothing to do.
 
 Source: the 25-item audit against WWDC26 guidance (sessions 258, 262, 269, 222; group labs
 8003, 8006, 8013). Every item is non-destructive: no data migration, no deleted features,
