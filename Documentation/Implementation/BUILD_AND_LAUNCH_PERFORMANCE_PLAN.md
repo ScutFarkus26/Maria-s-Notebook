@@ -1,6 +1,6 @@
 # Build and Launch Performance — Implementation Plan
 
-Status: **Phases 0–2 landed 2026-09-04** (0–1 on `main` as e6619849; 2 on `perf/phase-2-launch-path`) · Owner: Danny · Created 2026-09-04
+Status: **Phases 0–3 landed 2026-09-04** (0–2 on `main` through dbc60c7c; 3 on `perf/phase-3-search-index`) · Owner: Danny · Created 2026-09-04
 
 ## Implementation status (2026-09-04)
 
@@ -26,6 +26,15 @@ Status: **Phases 0–2 landed 2026-09-04** (0–1 on `main` as e6619849; 2 on `p
   three consecutive launches: `PrepareStoresForLoad` 50 ms → 20 ms → 16 ms, with the
   "physical schema already verified" skip logged for both stores from the second launch on.
   The real-store number is still to be captured on the Mac.
+- **Phase 3** (branch `perf/phase-3-search-index`) — `SearchIndexService.refresh(container:)` loads a
+  JSON snapshot from `Caches/SearchIndex/index-v1-<store identity>.json`, replays persistent
+  history since the snapshot's token (inserts, updates, deletes of the five searchable entities
+  by object URI), and falls back to a full pass when the snapshot is missing, corrupt, for another
+  store, token-less, expired, or behind by more than 2,000 searchable changes. Decode, replay,
+  tokenization, and the index build run under `@concurrent` off the main actor; the main actor
+  receives one value assignment instead of the old per-result insert loop. The five per-entity
+  fetch loops and their five synchronous twins collapsed onto one `entry(for:)`.
+  Nine tests in `SearchIndexSnapshotTests` cover every path.
 
 Source: the 25-item audit against WWDC26 guidance (sessions 258, 262, 269, 222; group labs
 8003, 8006, 8013). Every item is non-destructive: no data migration, no deleted features,
@@ -118,11 +127,19 @@ version stamp.
    backup restore, "Reset Local Cache", and classroom switch (`ClassroomWorkspaceStore`).
 
 Files: `Services/SearchIndexService.swift` (+ new `SearchIndexService+Snapshot.swift`),
-`AppCore/AppBootstrapper.swift` (call order only), `Backup/BackupService+Restoration.swift`
-(invalidation hook).
+`AppCore/AppBootstrapper.swift` (call site only).
 
-Tests: round-trip encode/decode; snapshot invalidated on restore; incremental update
-picks up one inserted note.
+**As built:** no explicit invalidation hooks were needed. The snapshot file is named by the
+store identity (sorted `NSPersistentStore.identifier`s), so Reset Local Cache, a quarantined
+store, and the sample classroom each get their own file; a backup restore imports records
+through saves, which persistent history replays; a bulk import over the change limit forces
+the full pass. The snapshot lives in Caches (regenerable, not backed up), not Application
+Support.
+
+Tests (`SearchIndexSnapshotTests`, 9): full pass writes a snapshot and the next launch is
+served from it; insert, update, and delete replay; change limit falls back; foreign-store
+snapshot ignored; corrupt file replaced; no directory means memory-only; purge then
+`ensureReady` reloads from the snapshot.
 
 Verification: launch trace; the `SearchIndex` interval should move from the
 migration tail to near-zero on a warm launch.

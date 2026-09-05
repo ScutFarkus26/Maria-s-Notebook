@@ -102,6 +102,7 @@ Documentation/           # Repository-level architecture, ADRs, plans, and manua
 - `@Observable` on all ViewModels and stateful services (zero `ObservableObject`)
 - `@MainActor` on all ViewModels, services, and repositories (~496 annotations)
 - `async/await` throughout, actors for off-thread work
+- `SWIFT_APPROACHABLE_CONCURRENCY` is on, so a `nonisolated async` function runs on its *caller's* actor. CPU-heavy work that must leave the main actor (decoding, tokenizing, digesting) is marked `@concurrent` — see `SearchIndexService.refreshContents` — and takes only `Sendable` arguments (a background `NSManagedObjectContext`, `Data`, value types), never a container or managed object
 - `Sendable` types for cross-actor data
 
 **Persistence:**

@@ -207,10 +207,11 @@ final class AppBootstrapper {
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 
-        // 4. Build full-text search index after data is clean.
-        // rebuildIndexAsync fetches on a background context so the main thread stays free.
+        // 4. Bring the full-text search index up to date after data is clean.
+        // `refresh` reuses the on-disk snapshot and replays persistent history
+        // since it was written; only a missing or stale snapshot costs a full pass.
         let searchIndex = LaunchSignposts.begin("SearchIndexRebuild")
-        await SearchIndexService.shared.rebuildIndexAsync(container: coreDataStack.container)
+        await SearchIndexService.shared.refresh(container: coreDataStack.container)
         LaunchSignposts.end("SearchIndexRebuild", searchIndex)
     }
 
