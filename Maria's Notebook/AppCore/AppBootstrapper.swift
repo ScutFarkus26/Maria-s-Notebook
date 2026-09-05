@@ -32,6 +32,7 @@ final class AppBootstrapper {
         let context = coreDataStack.viewContext
 
         let startTime = Date()
+        let bootstrapInterval = LaunchSignposts.begin("Bootstrap")
         Self.logger.info("Bootstrap: Starting startup checks...")
 
         // Activate the iCloud ubiquity container in the background so the
@@ -42,7 +43,9 @@ final class AppBootstrapper {
             _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
         }
 
+        let earlySetup = LaunchSignposts.begin("EarlySetup")
         performEarlySetup(context: context)
+        LaunchSignposts.end("EarlySetup", earlySetup)
 
         // 4. Initialize CDReminder Sync Service (macOS only)
         #if os(macOS)
@@ -76,7 +79,9 @@ final class AppBootstrapper {
         
         let totalElapsed = Self.formatSeconds(Date().timeIntervalSince(startTime))
         Self.logger.info("Bootstrap: Initial phase complete in \(totalElapsed)")
+        LaunchSignposts.end("Bootstrap", bootstrapInterval)
         state = .ready
+        LaunchSignposts.event("UIReady")
 
         // 5.5. Initialize post-sync deduplication coordinator
         DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
@@ -117,6 +122,8 @@ final class AppBootstrapper {
         let backgroundContext = coreDataStack.newBackgroundContext()
         
         let start = Date()
+        let migrations = LaunchSignposts.begin("PostLaunchMigrations")
+        defer { LaunchSignposts.end("PostLaunchMigrations", migrations) }
         logger.info("Post-launch migrations started")
 
         let log = logger
@@ -202,7 +209,9 @@ final class AppBootstrapper {
 
         // 4. Build full-text search index after data is clean.
         // rebuildIndexAsync fetches on a background context so the main thread stays free.
+        let searchIndex = LaunchSignposts.begin("SearchIndexRebuild")
         await SearchIndexService.shared.rebuildIndexAsync(container: coreDataStack.container)
+        LaunchSignposts.end("SearchIndexRebuild", searchIndex)
     }
 
     private static func formatSeconds(_ interval: TimeInterval) -> String {

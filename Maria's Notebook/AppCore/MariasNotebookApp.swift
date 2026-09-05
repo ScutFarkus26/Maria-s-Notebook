@@ -40,6 +40,9 @@ struct MariasNotebookApp: App {
     // MARK: - Initialization
 
     init() {
+        let appInit = LaunchSignposts.begin("AppInit")
+        defer { LaunchSignposts.end("AppInit", appInit) }
+
         AppBootstrapping.performInitialSetup()
         let stack = AppBootstrapping.getSharedCoreDataStack()
         coreDataStack = stack

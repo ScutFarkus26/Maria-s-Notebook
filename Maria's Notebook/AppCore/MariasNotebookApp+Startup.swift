@@ -16,6 +16,9 @@ extension MariasNotebookApp {
     // MARK: - Startup
 
     func performStartupBootstrap() async {
+        let startup = LaunchSignposts.begin("StartupBootstrap")
+        defer { LaunchSignposts.end("StartupBootstrap", startup) }
+
         // Sync initError to error coordinator if not already set
         if databaseErrorCoordinator.error == nil, let error = AppBootstrapping.initError {
             databaseErrorCoordinator.setError(error)

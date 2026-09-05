@@ -290,6 +290,8 @@ final class CoreDataStack {
         managedObjectModel suppliedModel: NSManagedObjectModel? = nil
     ) throws {
         let start = Date()
+        let initInterval = LaunchSignposts.begin("CoreDataStack.init")
+        defer { LaunchSignposts.end("CoreDataStack.init", initInterval) }
         Self.logger.info("Initializing CoreDataStack (CloudKit: \(enableCloudKit), inMemory: \(inMemory))...")
 
         // Honor a deferred "Reset Local Cache" request from Settings →
@@ -379,11 +381,15 @@ final class CoreDataStack {
         // constraint violation. Stripping those rows first lets migration succeed.
         var migrationBackups: [URL: URL] = [:]
         if !inMemory {
+            let prepare = LaunchSignposts.begin("PrepareStoresForLoad")
             migrationBackups = try Self.prepareStoresForLoad(container: container, model: model)
+            LaunchSignposts.end("PrepareStoresForLoad", prepare)
         }
 
         // Load stores synchronously
         var loadErrors: [Error] = []
+        let load = LaunchSignposts.begin("LoadPersistentStores")
+        defer { LaunchSignposts.end("LoadPersistentStores", load) }
         container.loadPersistentStores { description, error in
             if let error {
                 Self.logger.error("Failed to load store '\(description.configuration ?? "default")': \(error)")

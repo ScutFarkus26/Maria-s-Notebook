@@ -17,14 +17,31 @@ Maria's Notebook is a comprehensive teacher planning and classroom management ap
 open -a "/Applications/Xcode-beta.app" "Maria's Notebook.xcodeproj"
 
 # Build from command line — needs the 27.0 SDKs, so point DEVELOPER_DIR at the beta
-# (drop the prefix once Xcode 27 GM replaces /Applications/Xcode.app in the fall)
+# (drop the prefix once Xcode 27 GM replaces /Applications/Xcode.app in the fall).
+# COMPILER_INDEX_STORE_ENABLE=NO skips the IDE-only index store on CLI builds.
 DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
-  xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" build
+  xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+  COMPILER_INDEX_STORE_ENABLE=NO build
 
-# Run unit tests
+# Run unit tests: build the app + test bundle once, then run (and re-run) without rebuilding.
 DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
-  xcodebuild test -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0"
+  xcodebuild build-for-testing -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+  COMPILER_INDEX_STORE_ENABLE=NO
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
+  xcodebuild test-without-building -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0"
+
+# Clean-build timing baseline (compare against Documentation/Implementation/perf-baselines/)
+DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
+  xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+  COMPILER_INDEX_STORE_ENABLE=NO -showBuildTimingSummary clean build
 ```
+
+**Build-setting rules** (see `Documentation/Implementation/BUILD_AND_LAUNCH_PERFORMANCE_PLAN.md`):
+- The scheme's `-InitializeCloudKitSchema` launch argument stays **unchecked**. Tick it for one run after a Core Data model change, verify in CloudKit Console, then untick it — every Debug launch with it on pays a synchronous CloudKit round-trip inside `CoreDataStack.init`.
+- Explicit modules (`SWIFT_ENABLE_EXPLICIT_MODULES`), incremental Debug compilation, and DWARF-only Debug info (`DEBUG_INFORMATION_FORMAT = dwarf`) are deliberate; do not override them per target or switch Debug to whole-module.
+- There are no script build phases. If one is ever added (SwiftLint, codegen), it must declare input and output file lists, or Xcode re-runs it on every build and invalidates downstream products.
+- Debug builds warn on functions and expressions that take over 100 ms to type-check. Treat those warnings as bugs: split the body or add an explicit type annotation.
+- Iterate on UI/data with **Run Without Building** (⌃⌘R) when the source has not changed; keep one DerivedData folder per project path.
 
 ## Project Structure
 
