@@ -221,11 +221,13 @@ and defines the seam 4 will use.
    the model bundle) into `Packages/DaybookCore`. Both apps depend on the package;
    the Assistant's `PBXSourcesBuildPhase` file list shrinks to its own files. Make
    the moved types `public` only where the two apps actually import them.
-2. **Leaf feature packages (item 4).** One package per folder with no inbound
-   dependencies from the rest of the app: `Parsha`, `Stories`, `PerpetualCalendar`, then
-   `Albums`. Each is one PR: move the folder, add the package, fix imports, run tests.
-   Stop after `Albums` and re-measure; further splits only if the timing summary shows
-   the main module is still the long pole.
+2. ~~**Leaf feature packages (item 4).**~~ **Withdrawn 2026-09-05.** The dependency map in
+   `perf-baselines/2026-09-05-module-dependency-map.md` shows no feature folder is a leaf:
+   `Parsha` → `Lessons`, `Albums` → `Parsha`/`Lessons`/`Stories`, `Stories` → `Students`/
+   `Presentations`/`BookClub`, `PerpetualCalendar` → `Parsha`/`Settings`. The four largest
+   features (`Students`, `Work`, `Presentations`, `Lessons`; 64 k lines) form a reference
+   cycle. Phase 6 therefore stops after step 1 and a re-measure; breaking the cycle is a
+   design project outside this plan (see the map's "Corrected Phase 6 shape").
 
 Constraints from the codebase:
 
@@ -238,8 +240,9 @@ Constraints from the codebase:
 - Keep the two-store configuration names and entity routing exactly as they are;
   nothing in this phase touches the schema.
 
-Verification: clean-build timing summary; an edit inside `Parsha` should rebuild only
-that module and relink.
+Verification: clean-build timing summary, watching the emit-module job (37 s today) and
+the Daybook Assistant's compile task count; an edit inside `DaybookCore` should rebuild
+that package and relink, an edit in a feature file should not touch the package.
 
 ## Ongoing (no code)
 
@@ -259,7 +262,7 @@ that module and relink.
 | 3 | 1–2 days | warm launch: search index ready immediately |
 | 4 | 2–3 days | build: flagged bodies gone; runtime: narrower invalidation |
 | 5 | 1 hour | bundle size, actool time |
-| 6 | 1–2 weeks | build: incremental edits rebuild one module; Assistant no longer recompiles core |
+| 6 | 1 week (step 1 only) | build: smaller app module and emit-module job; Assistant no longer recompiles core |
 
 Phases 0–3 fit in one week and deliver the whole launch-time story. Phase 6 is the
 only phase that materially changes clean-build time for the main module and should
