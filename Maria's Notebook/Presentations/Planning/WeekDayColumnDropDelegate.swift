@@ -19,7 +19,9 @@ struct WeekDayColumnDropDelegate: DropDelegate {
     /// feed the insertion index.
     let orderedPresentationIDs: () -> [UUID]
     let itemFramesProvider: () -> [UUID: CGRect]
-    let onDropWorkCheckIn: (UUID, Date) -> Void
+    /// Every check-in in one drop, together: a grouped pill hands over all of
+    /// its children at once, and they are one move rather than one each.
+    let onDropWorkCheckIns: ([UUID], Date) -> Void
     let onDropWork: (UUID, Date) -> Void
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
@@ -74,8 +76,18 @@ struct WeekDayColumnDropDelegate: DropDelegate {
             let payloads = UnifiedCalendarDragPayload.parseAll(ns as String)
             guard !payloads.isEmpty else { return }
             Task { @MainActor in
+                // Check-ins are collected and applied together; everything else
+                // lands in the order it was dragged.
+                var checkInIDs: [UUID] = []
                 for payload in payloads {
-                    applyDrop(payload: payload, locationY: location.y)
+                    if case .workCheckIn(let id) = payload {
+                        checkInIDs.append(id)
+                    } else {
+                        applyDrop(payload: payload, locationY: location.y)
+                    }
+                }
+                if !checkInIDs.isEmpty {
+                    onDropWorkCheckIns(checkInIDs, AppCalendar.startOfDay(day))
                 }
             }
         }
@@ -83,14 +95,14 @@ struct WeekDayColumnDropDelegate: DropDelegate {
     }
 
     private func applyDrop(payload: UnifiedCalendarDragPayload, locationY: CGFloat) {
-        let normalizedDay = AppCalendar.startOfDay(day)
         switch payload {
         case .presentation(let id):
             applyPresentationDrop(id: id, locationY: locationY)
-        case .workCheckIn(let id):
-            onDropWorkCheckIn(id, normalizedDay)
         case .work(let id):
-            onDropWork(id, normalizedDay)
+            onDropWork(id, AppCalendar.startOfDay(day))
+        case .workCheckIn:
+            // Batched by the caller — see performDropFromProvidersAsync.
+            break
         case .yearPlanEntry:
             // Year plan entries belong to the student Year Plan calendar.
             break

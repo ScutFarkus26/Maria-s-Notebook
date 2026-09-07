@@ -205,7 +205,7 @@ struct WithinDayOrderingTests {
     @Test("Moving the week forward carries each lesson's place in its day")
     func bulkMoveKeepsTimeOfDay() {
         let tuesday = day(2026, 6, 9)
-        let moved = WeekPlanSection.preservingTimeOfDay(
+        let moved = CalendarForwardShiftService.preservingTimeOfDay(
             from: time(9, 0, 2, on: monday),
             onto: tuesday,
             using: AppCalendar.shared

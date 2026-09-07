@@ -25,9 +25,21 @@ struct CalendarCheckInGroup: Identifiable {
     let purpose: String
     let sortDate: Date
 
-    /// Representative check-in, used for tap and drag.
+    /// Representative check-in, used for tap.
     var primary: CDWorkCheckIn { checkIns[0] }
     var isGrouped: Bool { checkIns.count > 1 }
+
+    /// What dragging this pill carries: every check-in under it, so the pill
+    /// moves as one.
+    ///
+    /// It used to carry only `primary`, which split the group on every drag —
+    /// one child landed on the new day and the rest stayed behind, so moving a
+    /// lesson's work meant dragging the same pill once per child. The payloads
+    /// are newline-joined; drop sites that predate multi-record drags still
+    /// call `parse` and take the first line, which is `primary`.
+    var dragPayload: String {
+        UnifiedCalendarDragPayload.joined(checkIns.compactMap(\.id).map { .workCheckIn($0) })
+    }
 }
 
 enum CalendarCheckInGrouper {

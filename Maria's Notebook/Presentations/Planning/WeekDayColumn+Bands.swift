@@ -162,9 +162,9 @@ extension WeekDayColumn {
 
     @ViewBuilder
     func checkInPill(_ group: CalendarCheckInGroup) -> some View {
-        let payload = UnifiedCalendarDragPayload
-            .workCheckIn(group.primary.id ?? UUID())
-            .stringRepresentation
+        // Every check-in under the pill, not just the one it is keyed on — see
+        // `CalendarCheckInGroup.dragPayload`.
+        let payload = group.dragPayload
 
         if group.isGrouped {
             GroupedWorkCheckInPill(sequence: group) {

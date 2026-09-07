@@ -35,7 +35,7 @@ struct WeekDayColumn: View {
     let onClear: (CDLessonAssignment) -> Void
     let onSelect: (CDLessonAssignment) -> Void
     let onOpenCheckInGroup: (CalendarCheckInGroup) -> Void
-    let onDropWorkCheckIn: (UUID, Date) -> Void
+    let onDropWorkCheckIns: ([UUID], Date) -> Void
     let onDropWork: (UUID, Date) -> Void
 
     @State var itemFrames: [UUID: CGRect] = [:]
@@ -162,7 +162,7 @@ struct WeekDayColumn: View {
             day: day,
             orderedPresentationIDs: { scheduledLessonsForDay.compactMap(\.id) },
             itemFramesProvider: { itemFrames },
-            onDropWorkCheckIn: onDropWorkCheckIn,
+            onDropWorkCheckIns: onDropWorkCheckIns,
             onDropWork: onDropWork,
             onTargetChange: { targeted in
                 adaptiveWithAnimation(.easeInOut(duration: 0.12)) { isTargeted = targeted }

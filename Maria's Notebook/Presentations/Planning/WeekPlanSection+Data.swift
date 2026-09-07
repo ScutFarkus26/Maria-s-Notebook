@@ -100,15 +100,23 @@ extension WeekPlanSection {
         saveCoordinator.save(viewContext, reason: "Clear presentation schedule from calendar")
     }
 
-    /// A check-in dragged to another day moves with its work's due date, so the
-    /// two never drift apart.
-    func rescheduleCheckIn(id: UUID, to day: Date) {
-        guard let checkIn = viewContext.object(CDWorkCheckIn.self, id: id),
-              let workID = checkIn.workID.asUUID else { return }
+    /// Check-ins dragged to another day move with their work's due dates, so
+    /// the two never drift apart.
+    ///
+    /// A grouped pill hands over every check-in under it, so moving the work a
+    /// lesson produced for six children is one drag and one save rather than
+    /// six of each.
+    func rescheduleCheckIns(ids: [UUID], to day: Date) {
+        let checkIns = ids.compactMap { viewContext.object(CDWorkCheckIn.self, id: $0) }
+        guard !checkIns.isEmpty else { return }
 
-        checkIn.date = day
-        fetchWork(id: workID)?.dueAt = day
-        saveCoordinator.save(viewContext, reason: "Reschedule work check-in from calendar")
+        for checkIn in checkIns {
+            checkIn.date = day
+            if let workID = checkIn.workID.asUUID {
+                fetchWork(id: workID)?.dueAt = day
+            }
+        }
+        saveCoordinator.save(viewContext, reason: "Reschedule work check-ins from calendar")
         Task { await refreshCheckIns() }
     }
 
@@ -143,22 +151,6 @@ extension WeekPlanSection {
         viewContext.object(CDWorkModel.self, id: id)
     }
 
-    /// Moves `source`'s time-of-day onto `day`, so a lesson keeps its position
-    /// within the day when the whole week shifts.
-    static func preservingTimeOfDay(
-        from source: Date,
-        onto day: Date,
-        using calendar: Calendar
-    ) -> Date {
-        let time = calendar.dateComponents([.hour, .minute, .second], from: source)
-        return calendar.date(
-            bySettingHour: time.hour ?? UIConstants.morningHour,
-            minute: time.minute ?? 0,
-            second: time.second ?? 0,
-            of: day
-        ) ?? day
-    }
-
     func clearAllScheduledLessonsToInbox() async {
         let scheduled = lessonAssignments.filter { $0.scheduledFor != nil && !$0.isGiven }
         guard !scheduled.isEmpty else { return }
@@ -166,19 +158,21 @@ extension WeekPlanSection {
         saveCoordinator.save(viewContext, reason: "Clear all scheduled presentations to inbox")
     }
 
-    func moveAllScheduledLessonsForward() async {
-        let scheduled = lessonAssignments.filter { $0.scheduledFor != nil && !$0.isGiven }
-        guard !scheduled.isEmpty else { return }
-        for lesson in scheduled {
-            guard let currentDate = lesson.scheduledFor else { continue }
-            let nextSchoolDay = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: viewContext)
-            // Carry the within-day position across, or moving the week forward
-            // would flatten every day's order to a single instant.
-            lesson.setScheduledFor(
-                Self.preservingTimeOfDay(from: currentDate, onto: nextSchoolDay, using: calendar),
-                using: calendar
-            )
-        }
-        saveCoordinator.save(viewContext, reason: "Move all scheduled presentations forward one day")
+    /// Slides the whole plan one school day later — presentations and the work
+    /// checks alongside them. See `CalendarForwardShiftService` for the rule.
+    func moveAllScheduledForward() async {
+        let moved = CalendarForwardShiftService.moveForwardOneDay(
+            in: viewContext,
+            calendar: calendar,
+            nextSchoolDay: { day in
+                SchoolCalendarService.shared.nextSchoolDaySync(after: day, using: viewContext)
+            }
+        )
+        guard !moved.isEmpty else { return }
+        saveCoordinator.save(
+            viewContext,
+            reason: "Move all scheduled presentations and work forward one day"
+        )
+        await refreshCheckIns()
     }
 }

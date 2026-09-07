@@ -173,10 +173,11 @@ struct WeekPlanSection: View {
             }
             Divider()
             Button {
-                Task { await moveAllScheduledLessonsForward() }
+                Task { await moveAllScheduledForward() }
             } label: {
                 Label("Move All Forward 1 Day", systemImage: "arrow.right.circle")
             }
+            .help("Slides every scheduled presentation and work check one school day later.")
             Button(role: .destructive) {
                 showClearAllConfirmation = true
             } label: {
@@ -249,7 +250,7 @@ struct WeekPlanSection: View {
                         onClear: clearSchedule,
                         onSelect: onSelectPresentation,
                         onOpenCheckInGroup: openCheckInGroup,
-                        onDropWorkCheckIn: rescheduleCheckIn,
+                        onDropWorkCheckIns: rescheduleCheckIns,
                         onDropWork: beginPlanningWork
                     )
                     .id(day)
