@@ -102,6 +102,11 @@ ambiguity errors:
 | `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
 | **Meetings** | |
 | `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items |
+| `student_meetings` | `CDStudentMeeting` history with its work reviews and linked notes — the read side of `create_meeting_entry` |
+| `scheduled_meetings` | `CDScheduledMeeting`; uses `allStudentIDs`, so a group sitting lists its whole party |
+| **Observation depth** | |
+| `practice_sessions` | `CDPracticeSession` — duration, quality, independence, and the flagged behaviours (`activeBehaviours`), filterable by signal |
+| `recall_checks` | `CDLessonRecallCheck` — retained / shaky / forgotten, weeks after mastery |
 | **Families** | |
 | `list_guardians` | `CDGuardian`, optionally only those flagged `receivesReports` |
 | `update_guardian` (write) | adds or edits a `CDGuardian` — name, email, relationship, report flag, notes |
@@ -119,6 +124,18 @@ ambiguity errors:
 | `list_issues` | `CDIssue`, urgent first; unresolved only unless a status is asked for |
 | `update_issue` (write) | raises or updates a `CDIssue`; resolving or closing stamps `resolvedAt` |
 | `community_topics` | `CDCommunityTopicEntity` + proposed solutions |
+| **Library & shelves** | |
+| `list_resources` | `CDResource` — printables, charts and forms; metadata only, the files stay on disk |
+| `book_club` | `CDBookClubSession` + its `orderedMeetings`, with packet titles resolved |
+| `list_reminders` | `CDReminder`, including any synced from Apple Reminders |
+| `day_pad` (read + write) | `CDDayPad` for one day; writing replaces the day's text |
+| `album_marks` | `CDAlbumBookmark` / `CDAlbumPageNote` / `CDAlbumHighlight`, cited as `[albumPage …]` so a mark can be followed with `get_album_page`. Pencil ink is excluded — it has no text |
+| **Planning structures** | |
+| `weekly_schedules` | `CDSchedule` + `CDScheduleSlot`, ordered Sunday-first by `Weekday` |
+| `year_plan` | `CDYearPlanEntry` — intentions with target dates, not calendar entries |
+| `list_templates` | meeting / note / todo templates and sample work with steps, in one tool keyed by `kind` |
+| **Operations** | |
+| `sync_status` | `CloudKitSyncStatusService.shared` — health, last sync, pending uploads, and the terminal mirroring-delegate failure |
 | **Reference & progression** | |
 | `list_procedures` | `CDProcedure`; a single match returns its full text |
 | `list_stories` | `CDStory` metadata (the PDFs themselves are not returned) |
@@ -142,6 +159,27 @@ follow the app rather than the schema. `CDSupply` has `minimumThreshold`,
 `unit` and `isOnOrder` in the model, but no Swift property declares them and
 nothing writes them, so `list_supplies` reports no reorder threshold and
 takes a `below` argument instead of inventing one.
+
+**Entities deliberately not exposed.** `TransitionPlan`,
+`TransitionChecklistItem`, `PrepChecklist`, `PrepChecklistItem`,
+`PrepChecklistCompletion`, `Initiative`, `WorkCycleSession` and
+`WorkCycleEntry` exist in the `.xcdatamodel` with **no Swift class and no app
+code at all** — schema without a feature. There is nothing to fetch and
+nothing that would ever write a row. `DevelopmentSnapshot` has an entity
+class but nothing generates snapshots. Expose these only if and when the
+features behind them are built. `NoteStudentLink`, `TodayAgendaOrder` and
+`ClassroomMembership` are internal plumbing, and `WorkStep`,
+`GoingOutChecklistItem` and `IssueAction` already surface through their
+parents.
+
+**Not exposed for want of an entry point, not by policy.** Triggering a
+backup (`AutoBackupManager`) and generating an AI parent-report draft
+(`MonthlyReportDraftService`) are both reached through `AppDependencies`,
+which is injected into the SwiftUI environment rather than resolvable from a
+static tool handler. Wiring either up means giving the MCP layer a way to
+reach app-level services — a small service locator populated at bootstrap —
+not a new tool. `sync_status` works today only because
+`CloudKitSyncStatusService` is a singleton.
 
 `find_lessons` + `record_presentation` are the pair that lets a guide
 describe a presentation in prose and have it filed: the model names the

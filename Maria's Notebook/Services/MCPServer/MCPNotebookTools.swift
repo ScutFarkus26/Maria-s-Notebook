@@ -46,10 +46,15 @@ enum MCPNotebookTools {
             updateStudentTool(context: context),
             searchNotebookTool(),
             classroomSnapshotTool(context: context),
+            syncStatusTool(),
             findLessonsTool(context: context),
             searchAlbumsTool(),
             albumPageTool(),
-            studentTracksTool(context: context)
+            albumMarksTool(context: context),
+            studentTracksTool(context: context),
+            weeklySchedulesTool(context: context),
+            yearPlanTool(context: context),
+            listTemplatesTool(context: context)
         ]
     }
 
@@ -63,7 +68,11 @@ enum MCPNotebookTools {
             studentPresentationHistoryTool(context: context),
             presentationsMissingObservationsTool(context: context),
             recordPresentationTool(context: context),
-            createMeetingEntryTool(context: context)
+            createMeetingEntryTool(context: context),
+            studentMeetingsTool(context: context),
+            scheduledMeetingsTool(context: context),
+            practiceSessionsTool(context: context),
+            recallChecksTool(context: context)
         ]
     }
 
@@ -118,7 +127,11 @@ enum MCPNotebookTools {
             updateIssueTool(context: context),
             listProceduresTool(context: context),
             listStoriesTool(context: context),
-            communityTopicsTool(context: context)
+            communityTopicsTool(context: context),
+            listResourcesTool(context: context),
+            bookClubTool(context: context),
+            listRemindersTool(context: context),
+            dayPadTool(context: context)
         ]
     }
 }
