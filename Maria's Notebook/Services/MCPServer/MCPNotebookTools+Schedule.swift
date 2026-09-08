@@ -272,17 +272,10 @@ extension MCPNotebookTools {
     }
 
     static func workStudentIDs(for work: CDWorkModel) -> [UUID] {
-        var ids = [UUID(uuidString: work.studentID)].compactMap { $0 }
-        let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-        for participant in participants {
-            if let id = UUID(uuidString: participant.studentID), !ids.contains(id) {
-                ids.append(id)
-            }
-        }
-        return ids
+        WorkGrouping.studentIDs(of: work)
     }
 
     static func involves(_ studentID: UUID, in work: CDWorkModel) -> Bool {
-        workStudentIDs(for: work).contains(studentID)
+        WorkGrouping.involves(studentID, in: work)
     }
 }

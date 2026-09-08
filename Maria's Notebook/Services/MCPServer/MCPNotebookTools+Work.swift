@@ -157,7 +157,10 @@ extension MCPNotebookTools {
             name: "work_detail",
             title: "Work Detail",
             description: "Everything about one work item by its id: who is on it, the lesson it "
-                + "came from, its steps, its check-ins, linked observations, and who has finished it.",
+                + "came from, its steps, its check-ins, linked observations, and who has finished it. "
+                + "Also reports the record's shape — whether it is one of several linked copies "
+                + "(one row per child, each listing the whole group) or a single row shared by "
+                + "several children. The two read alike but are not the same record structure.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -200,6 +203,7 @@ extension MCPNotebookTools {
             lines.append("  Kind: \(kind.displayName)")
         }
         lines.append("  Students: \(workStudentNames(for: work, in: modelContext))")
+        lines += shapeLines(of: work, in: modelContext)
 
         if let lessonID = UUID(uuidString: work.lessonID),
            let lesson = modelContext.safeFetch(CDFetchRequest(CDLesson.self)).first(where: { $0.id == lessonID }) {
@@ -229,6 +233,47 @@ extension MCPNotebookTools {
         lines += checkInLines(of: work)
         lines += noteLines(of: work)
         return lines.joined(separator: "\n")
+    }
+
+    /// States which of the two multi-student shapes this row is, because the
+    /// rest of the output cannot distinguish them.
+    ///
+    /// A row listing three children is either one of three linked copies or a
+    /// single shared row, and "remove a child" and "delete" mean different
+    /// things in each case. Saying so here is what keeps a caller from reading
+    /// a fan-out group as one item.
+    private static func shapeLines(
+        of work: CDWorkModel, in modelContext: NSManagedObjectContext
+    ) -> [String] {
+        let group = WorkGrouping.group(containing: work, in: modelContext)
+        switch group.shape {
+        case .single:
+            return ["  Shape: one child on one row"]
+
+        case .shared(let childCount):
+            let designed: String
+            switch work.sourceContextType {
+            case .projectSession, .bookClubSession:
+                designed = " (shared by design)"
+            default:
+                designed = ""
+            }
+            return ["  Shape: one shared row carrying \(childCount) children"
+                + "\(designed) — no linked copies"]
+
+        case .linkedCopies(let total):
+            let position = (group.members.firstIndex { $0 === work }).map { $0 + 1 } ?? 1
+            var lines = ["  Shape: \(position) of \(total) linked copies — "
+                + "each child has their own row"]
+            lines.append("  Linked copies:")
+            for sibling in group.siblings {
+                let id = sibling.id?.uuidString ?? "unknown"
+                let who = WorkGrouping.owner(of: sibling)
+                    .map { studentNames(for: [$0], in: modelContext) } ?? "no owner"
+                lines.append("    - [work id=\(id)] \(who)")
+            }
+            return lines
+        }
     }
 
     private static func stepLines(of work: CDWorkModel) -> [String] {
