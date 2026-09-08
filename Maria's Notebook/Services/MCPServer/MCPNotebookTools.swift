@@ -2,9 +2,18 @@
 //  MCPNotebookTools.swift
 //  Maria's Notebook
 //
-//  The toolset the MCP server exposes to Claude Desktop: read tools that
-//  mirror the on-device NotebookTools lookups, plus a sanctioned
-//  observation-capture write that follows LogObservationIntent.
+//  The toolset the MCP server exposes to Claude Desktop. The goal is total
+//  coverage: anything the guide can see or change in the app should be
+//  reachable here. Two boundaries are deliberate — nothing deletes, and
+//  record_parent_communication files a letter without sending it.
+//
+//  Tools are grouped below only to keep this list readable; the order is what
+//  the client sees in tools/list. Each domain's implementation lives in its
+//  own MCPNotebookTools+<Domain>.swift file.
+//
+//  Every write goes through the same service the equivalent in-app control
+//  uses, never straight to Core Data — see Documentation/Architecture/
+//  MCP_SERVER.md for the tool-to-backing-path table.
 //
 //  All handlers run on the main actor and read through the app's shared
 //  Core Data stack, the same entry point the Siri intents use.
@@ -22,22 +31,94 @@ enum MCPNotebookTools {
     static func makeTools(
         context: @escaping MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext }
     ) -> [MCPToolDefinition] {
+        rosterAndLessonTools(context: context)
+            + observationTools(context: context)
+            + scheduleAndWorkTools(context: context)
+            + dayToDayTools(context: context)
+            + classroomTools(context: context)
+    }
+
+    private static func rosterAndLessonTools(
+        context: @escaping MCPContextProvider
+    ) -> [MCPToolDefinition] {
         [
             listStudentsTool(context: context),
+            updateStudentTool(context: context),
             searchNotebookTool(),
-            studentObservationsTool(context: context),
-            studentPresentationHistoryTool(context: context),
-            presentationsMissingObservationsTool(context: context),
             classroomSnapshotTool(context: context),
+            findLessonsTool(context: context),
             searchAlbumsTool(),
             albumPageTool(),
+            studentTracksTool(context: context)
+        ]
+    }
+
+    private static func observationTools(
+        context: @escaping MCPContextProvider
+    ) -> [MCPToolDefinition] {
+        [
+            studentObservationsTool(context: context),
             createObservationTool(context: context),
-            updateStudentTool(context: context),
             updateObservationTool(context: context),
-            createMeetingEntryTool(context: context),
+            studentPresentationHistoryTool(context: context),
+            presentationsMissingObservationsTool(context: context),
+            recordPresentationTool(context: context),
+            createMeetingEntryTool(context: context)
+        ]
+    }
+
+    private static func scheduleAndWorkTools(
+        context: @escaping MCPContextProvider
+    ) -> [MCPToolDefinition] {
+        [
+            scheduleForRangeTool(context: context),
+            schedulePresentationTool(context: context),
+            reschedulePresentationTool(context: context),
+            studentWorkTool(context: context),
+            workDetailTool(context: context),
+            assignWorkTool(context: context),
+            updateWorkTool(context: context)
+        ]
+    }
+
+    private static func dayToDayTools(
+        context: @escaping MCPContextProvider
+    ) -> [MCPToolDefinition] {
+        [
+            attendanceForDayTool(context: context),
+            studentAttendanceTool(context: context),
+            markAttendanceTool(context: context),
+            listOpenFollowUpsTool(context: context),
+            listTodosTool(context: context),
             addFollowUpTool(context: context),
-            resolveFollowUpTool(context: context),
-            listOpenFollowUpsTool(context: context)
+            updateTodoTool(context: context),
+            resolveFollowUpTool(context: context)
+        ]
+    }
+
+    private static func classroomTools(
+        context: @escaping MCPContextProvider
+    ) -> [MCPToolDefinition] {
+        [
+            listGuardiansTool(context: context),
+            updateGuardianTool(context: context),
+            parentCommunicationsTool(context: context),
+            recordParentCommunicationTool(context: context),
+            listGoingOutsTool(context: context),
+            updateGoingOutTool(context: context),
+            classroomJobsTool(context: context),
+            assignJobTool(context: context),
+            listSuppliesTool(context: context),
+            adjustSupplyTool(context: context),
+            listProjectsTool(context: context),
+            projectDetailTool(context: context),
+            updateProjectTool(context: context),
+            addProjectSessionTool(context: context),
+            listIssuesTool(context: context),
+            updateIssueTool(context: context),
+            listProceduresTool(context: context),
+            listStoriesTool(context: context),
+            communityTopicsTool(context: context)
         ]
     }
 }

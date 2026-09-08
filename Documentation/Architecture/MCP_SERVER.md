@@ -65,24 +65,98 @@ ambiguity errors:
 
 | Tool | Backing path |
 |---|---|
+| **Roster & search** | |
 | `list_students` | `DataQueryService.fetchAllStudents` |
 | `search_notebook` | `SearchIndexService.shared.search` |
+| `classroom_snapshot` | `ChatContextAssembler.buildClassroomSnapshot` |
+| **Lessons & albums** | |
+| `find_lessons` | `CDLesson` fetch ranked exact name > partial name > area/sequence |
+| `search_albums` | `AlbumCorpusLookup.search` — teaching-album PDFs |
+| `get_album_page` | `AlbumCorpusLookup.page` — one album page's full text |
+| **Observations & presentations** | |
 | `student_observations` | `CDNote` fetch + `NoteScope` filter |
 | `student_presentation_history` | presented `CDLessonAssignment`s |
 | `presentations_missing_observations` | `PresentationObservationCoverageService` |
-| `classroom_snapshot` | `ChatContextAssembler.buildClassroomSnapshot` |
-| `search_albums` | `AlbumCorpusLookup.search` — teaching-album PDFs |
-| `get_album_page` | `AlbumCorpusLookup.page` — one album page's full text |
 | `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent` |
-| `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, by note id |
-| `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items |
-| `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo` |
-| `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
+| `record_presentation` (write) | `LifecycleService.recordPresentation` + `PresentationOutcomePersistenceService.persistObservations` + `safeSave`, mirroring the command bar's `saveCaptureProposal` — completes a planned presentation when one matches, and re-recording the same lesson/students/day edits that presentation instead of duplicating it |
+| `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
+| **Schedule** | |
+| `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days |
+| `schedule_presentation` (write) | `PresentationFactory.makeDraft` + `schedule(onDay:)` — reuses an existing unpresented plan for the same lesson and exact student set rather than duplicating it |
+| `reschedule_presentation` (write) | the assignment's own `schedule(onDay:)` / `unschedule()`; refuses presentations already given |
+| **Work** | |
+| `student_work` | `CDWorkModel` owned by or participated in by the student |
+| `work_detail` | one work item: steps, check-ins, participants, linked notes |
+| `assign_work` (write) | `WorkRepository.createWork` + participant cross-links + optional `CDWorkCheckIn`, mirroring the Quick New Work sheet |
+| `update_work` (write) | `WorkRepository.markWorkCompleted` / `WorkCompletionService.markCompleted`; status, due date, per-student completion, check-in completion |
+| **Attendance** | |
+| `attendance_for_day` | `attendanceStatuses(for:on:)` — deduplicated per student/day |
+| `student_attendance` | `CDAttendanceRecord` + `deduplicatedPerStudentDay()`, with a tally |
+| `mark_attendance` (write) | `CDAttendanceStore` — the permission + attribution + store-assignment chokepoint |
+| **Todos & follow-ups** | |
 | `list_open_follow_ups` | open `CDTodoItem`s + active `CDStudentFocusItem`s + `needsFollowUp` notes, optionally filtered to one student |
+| `list_todos` | `CDTodoItem` filtered by status, student, due window, someday, tag |
+| `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo` |
+| `update_todo` (write) | title, notes, dates, priority, someday, students (+ retagging via `TodoTagHelper`) |
+| `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
+| **Meetings** | |
+| `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items |
+| **Families** | |
+| `list_guardians` | `CDGuardian`, optionally only those flagged `receivesReports` |
+| `update_guardian` (write) | adds or edits a `CDGuardian` — name, email, relationship, report flag, notes |
+| `parent_communications` | `CDParentCommunication` by student, month, or status |
+| `record_parent_communication` (write) | files or updates a `CDParentCommunication`; marking it sent stamps `sentAt`. **Never sends mail** — delivery stays in the app |
+| **Classroom operations** | |
+| `list_going_outs` / `update_going_out` (write) | `CDGoingOut` — status, permissions, date, party |
+| `classroom_jobs` / `assign_job` (write) | `CDClassroomJob` + `CDJobAssignment`, keyed to the week's Monday; honours `maxStudents` (0 = uncapped) |
+| `list_supplies` / `adjust_supply` (write) | `CDSupply`; every change also writes a `CDSupplyTransaction` and stock cannot go negative |
+| **Projects** | |
+| `list_projects` / `project_detail` | `CDProject` + `CDProjectSession` with agendas and session notes |
+| `update_project` (write) | title, book, members, active flag |
+| `add_project_session` (write) | `CDProjectSession` with meeting date, reading, and agenda |
+| **Issues & community** | |
+| `list_issues` | `CDIssue`, urgent first; unresolved only unless a status is asked for |
+| `update_issue` (write) | raises or updates a `CDIssue`; resolving or closing stamps `resolvedAt` |
+| `community_topics` | `CDCommunityTopicEntity` + proposed solutions |
+| **Reference & progression** | |
+| `list_procedures` | `CDProcedure`; a single match returns its full text |
+| `list_stories` | `CDStory` metadata (the PDFs themselves are not returned) |
+| `student_tracks` | `TrackProgressResolver` over the student's `CDStudentTrackEnrollmentEntity`s |
 
 Deletes are deliberately not exposed; edits change only the fields provided
 and report exactly what changed.
+
+**Coverage is deliberate and near-total.** The guide asked for the whole
+notebook to be reachable — reads *and* writes, with nothing held back — so
+guardian contact details, parent communications and meeting notes are all in
+scope. Two boundaries survive that decision, and neither is a gap to close:
+no tool deletes anything, and `record_parent_communication` files a letter
+without sending it, because delivery to families is a step the guide reviews
+in the app. `mark_attendance` writes only through `CDAttendanceStore`, which
+enforces `ClassroomPermissions` — an assistant's MCP session cannot write
+what an assistant's app session could not.
+
+Where the Core Data model carries columns the app never adopted, the tools
+follow the app rather than the schema. `CDSupply` has `minimumThreshold`,
+`unit` and `isOnOrder` in the model, but no Swift property declares them and
+nothing writes them, so `list_supplies` reports no reorder threshold and
+takes a `below` argument instead of inventing one.
+
+`find_lessons` + `record_presentation` are the pair that lets a guide
+describe a presentation in prose and have it filed: the model names the
+lesson from the curriculum, then writes the presentation with the group and
+per-student observations linked to it. `record_presentation` takes the same
+lifecycle path as the in-app capture review, so what it writes is
+indistinguishable from a command bar capture — a plan waiting to be given is
+completed rather than duplicated, and observations are deduplicated by body
+and scope against the presentation they hang off. Its one divergence from
+the in-app flow is deliberate: notes are stamped with the presentation's
+date, not the moment they were written, because presentations filed this way
+are often caught up in the evening or a day later. The per-student
+follow-up outcomes the capture review offers (practice, follow-up work,
+re-present, ready for the next lesson) are not exposed yet — only the
+`needs_follow_up` flag that puts an observation in the follow-up inbox.
 
 The two album tools are the exception to the `[kind id=<uuid>]` convention:
 album pages aren't Core Data records and have no id, so they cite
@@ -157,6 +231,9 @@ can be lost.
 - `Maria's Notebook Tests/Services/MCPServer/MCPMeetingToolsTests.swift`
   — meeting entries, follow-up todos, goal resolution, and the open
   follow-ups listing.
+- `Maria's Notebook Tests/Services/MCPServer/MCPPresentationToolsTests.swift`
+  — lesson lookup ranking, the presentation write (planned-lesson reuse,
+  same-day idempotency, observation linking and dating), and its refusals.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash
