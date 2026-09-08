@@ -10,18 +10,11 @@ extension BackupEntityImporter {
     static func importStudents(
         _ dtos: [StudentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDStudent>
     ) rethrows -> [UUID: CDStudent] {
         var studentsByID: [UUID: CDStudent] = [:]
         for dto in dtos {
-            do {
-                if try existingCheck(dto.id) { continue }
-            } catch {
-                let desc = error.localizedDescription
-                Logger.backup.warning("Failed to check existing student: \(desc, privacy: .public)")
-                continue
-            }
-            let student = CDStudent(context: viewContext)
+            let student = existingEntity(id: dto.id, existing: existing) ?? CDStudent(context: viewContext)
             student.id = dto.id
             student.firstName = dto.firstName
             student.lastName = dto.lastName

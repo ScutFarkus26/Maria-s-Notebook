@@ -515,6 +515,41 @@ final class BackupRestoreModeTests {
         #expect(total >= 3, "Merge mode dropped pre-existing data: \(total) students")
     }
 
+    @Test("Merge mode updates records the backup already holds instead of skipping them")
+    func mergeUpdatesExistingRecordsInPlace() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ada = CoreDataTestHelpers.seedStudent(in: sourceStack.viewContext, firstName: "Ada", lastName: "Lovelace")
+        _ = CoreDataTestHelpers.seedLesson(in: sourceStack.viewContext, name: "Counting Bars")
+        #expect(CoreDataTestHelpers.save(sourceStack.viewContext))
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: sourceStack.viewContext, to: url)
+
+        // First restore lands the records; then the guide edits one locally
+        // and adds a record the backup has never seen.
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
+        let restored = try #require(
+            try BackupTestUtil.fetchByID(CDStudent.self, ada.id, entityName: "Student", in: destStack.viewContext)
+        )
+        restored.firstName = "Augusta"
+        _ = CoreDataTestHelpers.seedStudent(in: destStack.viewContext, firstName: "Local", lastName: "Only")
+        #expect(CoreDataTestHelpers.save(destStack.viewContext))
+
+        // Second restore of the same backup: the backup wins for the ID it
+        // holds, the local-only record survives, and nothing is duplicated.
+        try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
+
+        let again = try #require(
+            try BackupTestUtil.fetchByID(CDStudent.self, ada.id, entityName: "Student", in: destStack.viewContext)
+        )
+        #expect(again.firstName == "Ada")
+        #expect(again.objectID == restored.objectID, "update must happen in place, not delete + reinsert")
+        #expect(try BackupTestUtil.count(entityName: "Student", in: destStack.viewContext) == 2)
+        #expect(try BackupTestUtil.count(entityName: "Lesson", in: destStack.viewContext) == 1)
+    }
+
     @Test("Merge mode does not duplicate MeetingWorkReview / StudentFocusItem already in the store")
     func mergeDoesNotDuplicateNewEntities() async throws {
         let sharedReviewID = UUID()

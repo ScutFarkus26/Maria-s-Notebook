@@ -10,14 +10,14 @@ extension BackupEntityImporter {
     static func importProjects(
         _ dtos: [ProjectDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDProject>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-                let project = CDProject(context: viewContext)
+            entityBuilder: { dto, current in
+                let project = current ?? CDProject(context: viewContext)
                 project.id = dto.id
                 project.createdAt = dto.createdAt
                 project.title = dto.title
@@ -38,14 +38,14 @@ extension BackupEntityImporter {
     static func importProjectRoles(
         _ dtos: [ProjectRoleDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDProjectRole>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-                let role = CDProjectRole(context: viewContext)
+            entityBuilder: { dto, current in
+                let role = current ?? CDProjectRole(context: viewContext)
                 role.id = dto.id
                 role.createdAt = dto.createdAt
                 role.projectID = dto.projectID.uuidString
@@ -63,14 +63,14 @@ extension BackupEntityImporter {
     static func importProjectSessions(
         _ dtos: [ProjectSessionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDProjectSession>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-                let session = CDProjectSession(context: viewContext)
+            entityBuilder: { dto, current in
+                let session = current ?? CDProjectSession(context: viewContext)
                 session.id = dto.id
                 session.createdAt = dto.createdAt
                 session.projectID = dto.projectID.uuidString

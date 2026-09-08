@@ -11,14 +11,14 @@ extension BackupEntityImporter {
     static func importLessons(
         _ dtos: [LessonDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDLesson>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let lesson = CDLesson(context: viewContext)
+            entityBuilder: { dto, current in
+            let lesson = current ?? CDLesson(context: viewContext)
             lesson.id = dto.id
             lesson.name = dto.name
             lesson.area = dto.area
@@ -64,12 +64,11 @@ extension BackupEntityImporter {
     static func importSampleWorks(
         _ dtos: [SampleWorkDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDSampleWork>,
         lessonCheck: EntityLookup<CDLesson>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let sw = CDSampleWork(context: viewContext)
+            let sw = existingEntity(id: dto.id, existing: existing) ?? CDSampleWork(context: viewContext)
             sw.id = dto.id
             sw.title = dto.title
             sw.workKindRaw = (WorkKind(rawValue: dto.workKindRaw) ?? .practiceLesson).rawValue
@@ -96,12 +95,11 @@ extension BackupEntityImporter {
     static func importSampleWorkSteps(
         _ dtos: [SampleWorkStepDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDSampleWorkStep>,
         sampleWorkCheck: EntityLookup<CDSampleWork>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let step = CDSampleWorkStep(context: viewContext)
+            let step = existingEntity(id: dto.id, existing: existing) ?? CDSampleWorkStep(context: viewContext)
             step.id = dto.id
             step.title = dto.title
             step.orderIndex = Int64(dto.orderIndex)
@@ -128,23 +126,15 @@ extension BackupEntityImporter {
     /// - Parameters:
     ///   - dtos: The lesson assignment DTOs to import
     ///   - viewContext: The model context for database operations
-    ///   - existingCheck: Function to check if a lesson assignment already exists
+    ///   - existing: Looks up an already-stored a lesson assignment by ID so it is updated in place
     ///   - lessonCheck: Function to look up a lesson by ID for linking
     static func importLessonAssignments(
         _ dtos: [LessonAssignmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDLessonAssignment>,
         lessonCheck: EntityLookup<CDLesson>
     ) rethrows {
         for dto in dtos {
-            do {
-                if try existingCheck(dto.id) { continue }
-            } catch {
-                let desc = error.localizedDescription
-                Logger.backup.warning("Failed to check existing lesson assignment: \(desc, privacy: .public)")
-                continue
-            }
-
             // Parse state from raw value
             let state = LessonAssignmentState(rawValue: dto.stateRaw) ?? .draft
 
@@ -154,7 +144,7 @@ extension BackupEntityImporter {
             // Parse student IDs
             let studentUUIDs = dto.studentIDs.compactMap { UUID(uuidString: $0) }
 
-            let assignment = CDLessonAssignment(context: viewContext)
+            let assignment = existingEntity(id: dto.id, existing: existing) ?? CDLessonAssignment(context: viewContext)
             assignment.id = dto.id
             assignment.createdAt = dto.createdAt
             assignment.stateRaw = state.rawValue
@@ -201,12 +191,11 @@ extension BackupEntityImporter {
     static func importLessonAttachments(
         _ dtos: [LessonAttachmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDLessonAttachment>,
         lessonCheck: EntityLookup<CDLesson>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let attachment = CDLessonAttachment(context: viewContext)
+            let attachment = existingEntity(id: dto.id, existing: existing) ?? CDLessonAttachment(context: viewContext)
             attachment.id = dto.id
             attachment.fileName = dto.fileName
             attachment.fileRelativePath = dto.fileRelativePath
@@ -234,14 +223,14 @@ extension BackupEntityImporter {
     static func importLessonPresentations(
         _ dtos: [LessonPresentationDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDLessonPresentation>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let lp = CDLessonPresentation(context: viewContext)
+            entityBuilder: { dto, current in
+            let lp = current ?? CDLessonPresentation(context: viewContext)
             lp.id = dto.id
             lp.createdAt = dto.createdAt
             lp.studentID = dto.studentID
@@ -271,14 +260,14 @@ extension BackupEntityImporter {
     static func importRecallChecks(
         _ dtos: [LessonRecallCheckDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDLessonRecallCheck>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let rc = CDLessonRecallCheck(context: viewContext)
+            entityBuilder: { dto, current in
+            let rc = current ?? CDLessonRecallCheck(context: viewContext)
             rc.id = dto.id
             rc.createdAt = dto.createdAt
             rc.modifiedAt = dto.modifiedAt

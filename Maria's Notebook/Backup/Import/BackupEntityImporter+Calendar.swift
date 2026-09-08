@@ -11,14 +11,14 @@ extension BackupEntityImporter {
     static func importStudentMeetings(
         _ dtos: [StudentMeetingDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDStudentMeeting>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let meeting = CDStudentMeeting(context: viewContext)
+            entityBuilder: { dto, current in
+            let meeting = current ?? CDStudentMeeting(context: viewContext)
             meeting.id = dto.id
             meeting.studentID = dto.studentID.uuidString
             meeting.date = dto.date
@@ -37,19 +37,19 @@ extension BackupEntityImporter {
     static func importAttendanceRecords(
         _ dtos: [AttendanceRecordDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDAttendanceRecord>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
+            entityBuilder: { dto, current in
                 let absenceReason = dto.absenceReason
                     .flatMap { AbsenceReason(rawValue: $0) } ?? .none
                 let status = AttendanceStatus(
                     rawValue: dto.status
                 ) ?? .unmarked
-                let record = CDAttendanceRecord(context: viewContext)
+                let record = current ?? CDAttendanceRecord(context: viewContext)
                 record.id = dto.id
                 record.studentID = dto.studentID.uuidString
                 record.date = dto.date
@@ -69,14 +69,14 @@ extension BackupEntityImporter {
     static func importMeetingTemplates(
         _ dtos: [MeetingTemplateDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDMeetingTemplate>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let mt = CDMeetingTemplate(context: viewContext)
+            entityBuilder: { dto, current in
+            let mt = current ?? CDMeetingTemplate(context: viewContext)
             mt.id = dto.id
             mt.createdAt = dto.createdAt
             mt.name = dto.name
@@ -96,14 +96,14 @@ extension BackupEntityImporter {
     static func importReminders(
         _ dtos: [ReminderDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDReminder>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let r = CDReminder(context: viewContext)
+            entityBuilder: { dto, current in
+            let r = current ?? CDReminder(context: viewContext)
             r.id = dto.id
             r.title = dto.title
             r.notes = dto.notes
@@ -121,14 +121,14 @@ extension BackupEntityImporter {
     static func importCalendarEvents(
         _ dtos: [CalendarEventDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDCalendarEvent>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let e = CDCalendarEvent(context: viewContext)
+            entityBuilder: { dto, current in
+            let e = current ?? CDCalendarEvent(context: viewContext)
             e.id = dto.id
             e.title = dto.title
             e.startDate = dto.startDate

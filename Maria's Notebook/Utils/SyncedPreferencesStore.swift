@@ -190,6 +190,14 @@ public final class SyncedPreferencesStore {
         }
     }
     
+    /// Every key currently stored under `prefix`, in iCloud KVS or (for keys that
+    /// predate syncing) UserDefaults. Backups use this for dynamic per-date keys.
+    public func storedKeys(withPrefix prefix: String) -> Set<String> {
+        var keys = Set(kvStore.dictionaryRepresentation.keys.filter { $0.hasPrefix(prefix) })
+        keys.formUnion(userDefaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(prefix) })
+        return keys
+    }
+
     /// Sets a value in synced storage (KVS) for synced keys, UserDefaults otherwise
     /// ENERGY OPTIMIZATION: Batches sync operations instead of syncing immediately
     @discardableResult

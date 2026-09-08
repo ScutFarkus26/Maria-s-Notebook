@@ -12,14 +12,14 @@ extension BackupEntityImporter {
     static func importWorkModels(
         _ dtos: [WorkModelDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDWorkModel>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-                let work = CDWorkModel(context: viewContext)
+            entityBuilder: { dto, current in
+                let work = current ?? CDWorkModel(context: viewContext)
                 work.id = dto.id
                 work.title = dto.title
                 work.workTypeRaw = dto.workTypeRaw
@@ -54,14 +54,14 @@ extension BackupEntityImporter {
     static func importWorkCompletionRecords(
         _ dtos: [WorkCompletionRecordDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDWorkCompletionRecord>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let r = CDWorkCompletionRecord(context: viewContext)
+            entityBuilder: { dto, current in
+            let r = current ?? CDWorkCompletionRecord(context: viewContext)
             r.id = dto.id
             r.workID = dto.workID.uuidString
             r.studentID = dto.studentID.uuidString
@@ -75,13 +75,12 @@ extension BackupEntityImporter {
     static func importWorkCheckIns(
         _ dtos: [WorkCheckInDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDWorkCheckIn>,
         workCheck: EntityLookup<CDWorkModel>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let workUUID = UUID(uuidString: dto.workID) else { continue }
-            let checkIn = CDWorkCheckIn(context: viewContext)
+            let checkIn = existingEntity(id: dto.id, existing: existing) ?? CDWorkCheckIn(context: viewContext)
             checkIn.id = dto.id
             checkIn.workID = dto.workID
             checkIn.date = dto.date
@@ -106,12 +105,11 @@ extension BackupEntityImporter {
     static func importWorkSteps(
         _ dtos: [WorkStepDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDWorkStep>,
         workCheck: EntityLookup<CDWorkModel>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let step = CDWorkStep(context: viewContext)
+            let step = existingEntity(id: dto.id, existing: existing) ?? CDWorkStep(context: viewContext)
             step.id = dto.id
             step.orderIndex = Int64(dto.orderIndex)
             step.title = dto.title
@@ -139,13 +137,12 @@ extension BackupEntityImporter {
     static func importWorkParticipants(
         _ dtos: [WorkParticipantEntityDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDWorkParticipantEntity>,
         workCheck: EntityLookup<CDWorkModel>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard UUID(uuidString: dto.studentID) != nil else { continue }
-            let participant = CDWorkParticipantEntity(context: viewContext)
+            let participant = existingEntity(id: dto.id, existing: existing) ?? CDWorkParticipantEntity(context: viewContext)
             participant.id = dto.id
             participant.studentID = dto.studentID
             participant.completedAt = dto.completedAt
@@ -168,14 +165,14 @@ extension BackupEntityImporter {
     static func importPracticeSessions(
         _ dtos: [PracticeSessionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDPracticeSession>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let session = CDPracticeSession(context: viewContext)
+            entityBuilder: { dto, current in
+            let session = current ?? CDPracticeSession(context: viewContext)
             session.id = dto.id
             session.createdAt = dto.createdAt
             session.date = dto.date

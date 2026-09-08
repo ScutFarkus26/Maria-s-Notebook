@@ -10,12 +10,11 @@ extension BackupEntityImporter {
     static func importAlbumBookmarks(
         _ dtos: [AlbumBookmarkDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDAlbumBookmark>
     ) {
         for dto in dtos {
             // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDAlbumBookmark(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDAlbumBookmark(context: viewContext)
             entity.id = dto.id
             entity.albumID = dto.albumID
             entity.pageIndex = Int32(dto.pageIndex)
@@ -30,11 +29,10 @@ extension BackupEntityImporter {
     static func importAlbumPageNotes(
         _ dtos: [AlbumPageNoteDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDAlbumPageNote>
     ) {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDAlbumPageNote(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDAlbumPageNote(context: viewContext)
             entity.id = dto.id
             entity.albumID = dto.albumID
             entity.pageIndex = Int32(dto.pageIndex)
@@ -50,11 +48,10 @@ extension BackupEntityImporter {
     static func importAlbumRecentVisits(
         _ dtos: [AlbumRecentVisitDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDAlbumRecentVisit>
     ) {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDAlbumRecentVisit(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDAlbumRecentVisit(context: viewContext)
             entity.id = dto.id
             entity.albumID = dto.albumID
             entity.pageIndex = Int32(dto.pageIndex)
@@ -69,11 +66,10 @@ extension BackupEntityImporter {
     static func importAlbumReadingPositions(
         _ dtos: [AlbumReadingPositionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDAlbumReadingPosition>
     ) {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDAlbumReadingPosition(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDAlbumReadingPosition(context: viewContext)
             entity.id = dto.id
             entity.albumID = dto.albumID
             entity.pageIndex = Int32(dto.pageIndex)
@@ -86,11 +82,10 @@ extension BackupEntityImporter {
     static func importAlbumHighlights(
         _ dtos: [AlbumHighlightDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDAlbumHighlight>
     ) {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDAlbumHighlight(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDAlbumHighlight(context: viewContext)
             entity.id = dto.id
             entity.albumID = dto.albumID
             entity.pageIndex = Int32(dto.pageIndex)
@@ -108,11 +103,10 @@ extension BackupEntityImporter {
     static func importAlbumPageInk(
         _ dtos: [AlbumPageInkDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDAlbumPageInk>
     ) {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDAlbumPageInk(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDAlbumPageInk(context: viewContext)
             entity.id = dto.id
             entity.albumID = dto.albumID
             entity.pageIndex = Int32(dto.pageIndex)

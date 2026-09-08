@@ -13,21 +13,14 @@ extension BackupEntityImporter {
     /// - Parameters:
     ///   - dtos: The note DTOs to import
     ///   - viewContext: The model context for database operations
-    ///   - existingCheck: Function to check if a note already exists
+    ///   - existing: Looks up an already-stored a note by ID so it is updated in place
     ///   - lessonCheck: Function to look up a lesson by ID for linking
     static func importNotes(
         _ dtos: [NoteDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDNote>
     ) rethrows {
         for dto in dtos {
-            do {
-                if try existingCheck(dto.id) { continue }
-            } catch {
-                Logger.backup.warning("Failed to check existing note: \(error.localizedDescription, privacy: .public)")
-                continue
-            }
-
             // Determine tags: prefer dto.tags, fallback to converting legacy categoryRaw if present
             let importedTags: [String]
             if let dtoTags = dto.tags, !dtoTags.isEmpty {
@@ -36,7 +29,7 @@ extension BackupEntityImporter {
                 importedTags = []
             }
 
-            let note = CDNote(context: viewContext)
+            let note = existingEntity(id: dto.id, existing: existing) ?? CDNote(context: viewContext)
             note.id = dto.id
             note.createdAt = dto.createdAt
             note.updatedAt = dto.updatedAt
@@ -122,13 +115,13 @@ extension BackupEntityImporter {
     static func importNoteTemplates(
         _ dtos: [NoteTemplateDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDNoteTemplate>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
+            entityBuilder: { dto, current in
             let templateTags: [String]
             if let dtoTags = dto.tags, !dtoTags.isEmpty {
                 templateTags = dtoTags
@@ -137,7 +130,7 @@ extension BackupEntityImporter {
             } else {
                 templateTags = []
             }
-            let template = CDNoteTemplate(context: viewContext)
+            let template = current ?? CDNoteTemplate(context: viewContext)
             template.id = dto.id
             template.createdAt = dto.createdAt
             template.title = dto.title
@@ -155,14 +148,14 @@ extension BackupEntityImporter {
     static func importCommunityTopics(
         _ dtos: [CommunityTopicDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDCommunityTopicEntity>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let topic = CDCommunityTopicEntity(context: viewContext)
+            entityBuilder: { dto, current in
+            let topic = current ?? CDCommunityTopicEntity(context: viewContext)
             topic.id = dto.id
             topic.title = dto.title
             topic.issueDescription = dto.issueDescription
@@ -182,24 +175,16 @@ extension BackupEntityImporter {
     /// - Parameters:
     ///   - dtos: The proposed solution DTOs to import
     ///   - viewContext: The model context for database operations
-    ///   - existingCheck: Function to check if a solution already exists
+    ///   - existing: Looks up an already-stored a solution by ID so it is updated in place
     ///   - topicCheck: Function to look up a community topic by ID
     static func importProposedSolutions(
         _ dtos: [ProposedSolutionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDProposedSolutionEntity>,
         topicCheck: EntityLookup<CDCommunityTopicEntity>
     ) rethrows {
         for dto in dtos {
-            do {
-                if try existingCheck(dto.id) { continue }
-            } catch {
-                let desc = error.localizedDescription
-                Logger.backup.warning("Failed to check existing proposed solution: \(desc, privacy: .public)")
-                continue
-            }
-
-            let solution = CDProposedSolutionEntity(context: viewContext)
+            let solution = existingEntity(id: dto.id, existing: existing) ?? CDProposedSolutionEntity(context: viewContext)
             solution.id = dto.id
             solution.title = dto.title
             solution.details = dto.details
@@ -229,24 +214,16 @@ extension BackupEntityImporter {
     /// - Parameters:
     ///   - dtos: The community attachment DTOs to import
     ///   - viewContext: The model context for database operations
-    ///   - existingCheck: Function to check if an attachment already exists
+    ///   - existing: Looks up an already-stored an attachment by ID so it is updated in place
     ///   - topicCheck: Function to look up a community topic by ID
     static func importCommunityAttachments(
         _ dtos: [CommunityAttachmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDCommunityAttachmentEntity>,
         topicCheck: EntityLookup<CDCommunityTopicEntity>
     ) rethrows {
         for dto in dtos {
-            do {
-                if try existingCheck(dto.id) { continue }
-            } catch {
-                let desc = error.localizedDescription
-                Logger.backup.warning("Failed to check existing community attachment: \(desc, privacy: .public)")
-                continue
-            }
-
-            let attachment = CDCommunityAttachmentEntity(context: viewContext)
+            let attachment = existingEntity(id: dto.id, existing: existing) ?? CDCommunityAttachmentEntity(context: viewContext)
             attachment.id = dto.id
             attachment.filename = dto.filename
             attachment.kind = CommunityAttachmentKind(rawValue: dto.kind) ?? .file
@@ -273,14 +250,14 @@ extension BackupEntityImporter {
     static func importIssues(
         _ dtos: [IssueDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDIssue>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let i = CDIssue(context: viewContext)
+            entityBuilder: { dto, current in
+            let i = current ?? CDIssue(context: viewContext)
             i.id = dto.id
             i.title = dto.title
             i.issueDescription = dto.issueDescription
@@ -303,12 +280,11 @@ extension BackupEntityImporter {
     static func importIssueActions(
         _ dtos: [IssueActionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDIssueAction>,
         issueCheck: EntityLookup<CDIssue>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let a = CDIssueAction(context: viewContext)
+            let a = existingEntity(id: dto.id, existing: existing) ?? CDIssueAction(context: viewContext)
             a.id = dto.id
             a.actionTypeRaw = (IssueActionType(rawValue: dto.actionTypeRaw) ?? .note).rawValue
             a.actionDescription = dto.actionDescription
@@ -341,14 +317,14 @@ extension BackupEntityImporter {
     static func importDevelopmentSnapshots(
         _ dtos: [DevelopmentSnapshotDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDDevelopmentSnapshotEntity>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let s = CDDevelopmentSnapshotEntity(context: viewContext)
+            entityBuilder: { dto, current in
+            let s = current ?? CDDevelopmentSnapshotEntity(context: viewContext)
             s.id = dto.id
             s.studentID = dto.studentID
             s.generatedAt = dto.generatedAt
@@ -383,17 +359,16 @@ extension BackupEntityImporter {
     static func importPlanningRecommendations(
         _ dtos: [PlanningRecommendationDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDPlanningRecommendation>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let lessonUUID = UUID(uuidString: dto.lessonID),
                   let sessionUUID = UUID(uuidString: dto.planningSessionID),
                   let depth = PlanningDepth(rawValue: dto.depthLevel) else { continue }
             // Decode student IDs from the blob
             let studentIDs = CloudKitStringArrayStorage.decode(from: dto.studentIDsData)
                 .compactMap { UUID(uuidString: $0) }
-            let rec = CDPlanningRecommendation(context: viewContext)
+            let rec = existingEntity(id: dto.id, existing: existing) ?? CDPlanningRecommendation(context: viewContext)
             rec.id = dto.id
             rec.lessonID = lessonUUID.uuidString
             rec.studentIDs = studentIDs.map(\.uuidString)

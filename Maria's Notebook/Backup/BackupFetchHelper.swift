@@ -27,13 +27,14 @@ enum BackupFetchHelper {
 /// Two separate per-entity-type caches for restore, because the two questions
 /// need data captured at different moments — and at different weights:
 ///
-/// - `exists` (existence / dedup): "was this record in the store *before* this
-///   restore began?" An id-only dictionary fetch, so it never materializes an
-///   object: the answer is a `Bool` and no caller has ever needed the record
-///   itself. The set is built the first time a type is imported — i.e. before
-///   that type's own rows are inserted — which is exactly right: replace-mode
-///   has already cleared the store, and within-payload duplicates were removed
-///   by `deduplicatePayload`, so the only thing that should count as "already
+/// - `existing` (upsert target): "was this record in the store *before* this
+///   restore began, and if so, which object is it?" Backed by an id → objectID
+///   map from a dictionary fetch, so nothing is materialized until an importer
+///   actually updates a matching row (then only that row is faulted in). The
+///   map is built the first time a type is imported — i.e. before that type's
+///   own rows are inserted — which is exactly right: replace-mode has already
+///   cleared the store, and within-payload duplicates were removed by
+///   `deduplicatePayload`, so the only thing that should count as "already
 ///   exists" is a pre-restore row (merge mode). Dictionary fetches don't see
 ///   pending inserts, which reinforces that pre-restore-only semantic.
 ///
@@ -46,26 +47,28 @@ enum BackupFetchHelper {
 ///   same-restore parents are found.
 ///
 /// Keeping the two caches separate is load-bearing: a single shared map would
-/// be frozen by the early existence check and would then miss every
+/// be frozen by the early existence lookup and would then miss every
 /// same-restore parent on a fresh device (replace mode), silently dropping all
 /// intra-restore relationships.
 final class BackupEntityIndex {
     private let context: NSManagedObjectContext
-    private var existenceIDs: [ObjectIdentifier: Set<UUID>] = [:]
+    private var existingObjectIDs: [ObjectIdentifier: [UUID: NSManagedObjectID]] = [:]
     private var relationshipMaps: [ObjectIdentifier: [UUID: NSManagedObject]] = [:]
 
     init(context: NSManagedObjectContext) {
         self.context = context
     }
 
-    /// Existence / dedup check. See the type-level note: built early, so it
-    /// reflects pre-restore state only.
-    func exists<T: NSManagedObject>(_ type: T.Type, id: UUID) throws -> Bool {
+    /// Upsert-target lookup. See the type-level note: built early, so it
+    /// reflects pre-restore state only. Returns the stored object (as a fault
+    /// until the importer touches it) or nil when the ID is new.
+    func existing<T: NSManagedObject>(_ type: T.Type, id: UUID) throws -> T? {
         let key = ObjectIdentifier(type)
-        if existenceIDs[key] == nil {
-            existenceIDs[key] = try buildIDSet(type)
+        if existingObjectIDs[key] == nil {
+            existingObjectIDs[key] = try buildObjectIDMap(type)
         }
-        return existenceIDs[key]?.contains(id) ?? false
+        guard let objectID = existingObjectIDs[key]?[id] else { return nil }
+        return try context.existingObject(with: objectID) as? T
     }
 
     /// Relationship-target lookup. See the type-level note: built lazily at
@@ -78,17 +81,30 @@ final class BackupEntityIndex {
         return relationshipMaps[key]?[id] as? T
     }
 
-    /// Reads just the `id` column — same pattern as `EntityIDIndexCache` below.
-    /// One narrow query per type instead of a full table of live objects.
-    private func buildIDSet<T: NSManagedObject>(_ type: T.Type) throws -> Set<UUID> {
+    /// Reads just the `id` column plus each row's objectID — one narrow query
+    /// per type, no live objects.
+    private func buildObjectIDMap<T: NSManagedObject>(_ type: T.Type) throws -> [UUID: NSManagedObjectID] {
         guard let entityName = BackupFetchHelper.entityName(for: type, in: context) else {
-            return []
+            return [:]
         }
+        let objectIDColumn = NSExpressionDescription()
+        objectIDColumn.name = "objectID"
+        objectIDColumn.expression = NSExpression.expressionForEvaluatedObject()
+        objectIDColumn.expressionResultType = .objectIDAttributeType
+
         let request = NSFetchRequest<NSDictionary>(entityName: entityName)
         request.resultType = .dictionaryResultType
-        request.propertiesToFetch = ["id"]
+        request.propertiesToFetch = ["id", objectIDColumn]
         let rows = try context.fetch(request)
-        return Set(rows.compactMap { $0["id"] as? UUID })
+
+        var map: [UUID: NSManagedObjectID] = [:]
+        map.reserveCapacity(rows.count)
+        for row in rows {
+            if let id = row["id"] as? UUID, let objectID = row["objectID"] as? NSManagedObjectID {
+                map[id] = objectID
+            }
+        }
+        return map
     }
 
     private func buildMap<T: NSManagedObject>(_ type: T.Type) throws -> [UUID: NSManagedObject] {

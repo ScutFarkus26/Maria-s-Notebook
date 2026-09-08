@@ -11,14 +11,14 @@ extension BackupEntityImporter {
     static func importGoingOuts(
         _ dtos: [GoingOutDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDGoingOut>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let g = CDGoingOut(context: viewContext)
+            entityBuilder: { dto, current in
+            let g = current ?? CDGoingOut(context: viewContext)
             g.id = dto.id
             g.title = dto.title
             g.purpose = dto.purpose
@@ -43,13 +43,12 @@ extension BackupEntityImporter {
     static func importGoingOutChecklistItems(
         _ dtos: [GoingOutChecklistItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDGoingOutChecklistItem>,
         goingOutCheck: EntityLookup<CDGoingOut>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let goingOutUUID = UUID(uuidString: dto.goingOutID) else { continue }
-            let item = CDGoingOutChecklistItem(context: viewContext)
+            let item = existingEntity(id: dto.id, existing: existing) ?? CDGoingOutChecklistItem(context: viewContext)
             item.id = dto.id
             item.goingOutID = goingOutUUID.uuidString
             item.title = dto.title
@@ -75,14 +74,14 @@ extension BackupEntityImporter {
     static func importClassroomJobs(
         _ dtos: [ClassroomJobDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDClassroomJob>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let job = CDClassroomJob(context: viewContext)
+            entityBuilder: { dto, current in
+            let job = current ?? CDClassroomJob(context: viewContext)
             job.id = dto.id
             job.name = dto.name
             job.jobDescription = dto.jobDescription
@@ -102,12 +101,11 @@ extension BackupEntityImporter {
     static func importJobAssignments(
         _ dtos: [JobAssignmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDJobAssignment>,
         jobCheck: EntityLookup<CDClassroomJob>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let a = CDJobAssignment(context: viewContext)
+            let a = existingEntity(id: dto.id, existing: existing) ?? CDJobAssignment(context: viewContext)
             a.id = dto.id
             a.jobID = dto.jobID
             a.studentID = dto.studentID
@@ -135,14 +133,14 @@ extension BackupEntityImporter {
     static func importCalendarNotes(
         _ dtos: [CalendarNoteDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDCalendarNote>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let note = CDCalendarNote(context: viewContext)
+            entityBuilder: { dto, current in
+            let note = current ?? CDCalendarNote(context: viewContext)
             note.id = dto.id
             note.year = Int64(dto.year)
             note.month = Int64(dto.month)
@@ -159,12 +157,11 @@ extension BackupEntityImporter {
     static func importScheduledMeetings(
         _ dtos: [ScheduledMeetingDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDScheduledMeeting>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             guard let studentUUID = UUID(uuidString: dto.studentID) else { continue }
-            let meeting = CDScheduledMeeting(context: viewContext)
+            let meeting = existingEntity(id: dto.id, existing: existing) ?? CDScheduledMeeting(context: viewContext)
             meeting.id = dto.id
             meeting.studentID = studentUUID.uuidString
             meeting.date = dto.date
@@ -181,14 +178,14 @@ extension BackupEntityImporter {
     static func importClassroomMemberships(
         _ dtos: [ClassroomMembershipDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDClassroomMembership>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let membership = CDClassroomMembership(context: viewContext)
+            entityBuilder: { dto, current in
+            let membership = current ?? CDClassroomMembership(context: viewContext)
             membership.id = dto.id
             membership.classroomZoneID = dto.classroomZoneID
             membership.roleRaw = dto.roleRaw
@@ -204,12 +201,11 @@ extension BackupEntityImporter {
     static func importMeetingWorkReviews(
         _ dtos: [MeetingWorkReviewDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDMeetingWorkReview>
     ) {
         for dto in dtos {
             // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDMeetingWorkReview(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDMeetingWorkReview(context: viewContext)
             entity.id = dto.id
             entity.meetingID = dto.meetingID
             entity.workID = dto.workID
@@ -226,12 +222,11 @@ extension BackupEntityImporter {
     static func importStudentFocusItems(
         _ dtos: [StudentFocusItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDStudentFocusItem>
     ) {
         for dto in dtos {
             // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDStudentFocusItem(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDStudentFocusItem(context: viewContext)
             entity.id = dto.id
             entity.studentID = dto.studentID
             entity.text = dto.text
@@ -249,12 +244,11 @@ extension BackupEntityImporter {
     static func importGuardians(
         _ dtos: [GuardianDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDGuardian>
     ) {
         for dto in dtos {
             // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDGuardian(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDGuardian(context: viewContext)
             entity.id = dto.id
             entity.studentID = dto.studentID
             entity.name = dto.name
@@ -273,12 +267,11 @@ extension BackupEntityImporter {
     static func importParentCommunications(
         _ dtos: [ParentCommunicationDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDParentCommunication>
     ) {
         for dto in dtos {
             // Skip records already in the store so a `.merge` restore doesn't insert duplicates.
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let entity = CDParentCommunication(context: viewContext)
+            let entity = existingEntity(id: dto.id, existing: existing) ?? CDParentCommunication(context: viewContext)
             entity.id = dto.id
             entity.studentID = dto.studentID
             entity.templateName = dto.templateName

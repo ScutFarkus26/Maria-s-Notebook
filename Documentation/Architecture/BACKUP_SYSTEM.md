@@ -64,9 +64,11 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | v5–v16 | JSON envelope + LZFSE (+ SHA256 / AES-GCM in some) | **No longer readable by the app.** Recover via the external Python/`aa` recipe. |
 | v17 | Plain LZFSE Apple Archive (`pbz*`) | First NDJSON-in-archive format. Read-only now. |
 | v18 | Plain LZFSE Apple Archive (`pbz*`) | Adds DayPad, YearPlanEntry, LessonSequenceSettings, Story, BookClub entries. Read-only now. |
-| **v19** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** AES-CTR + HMAC, key from iCloud Keychain. Same entry layout as v18. |
+| v19 | Encrypted Apple Archive (`AEA1`) | AES-CTR + HMAC, key from iCloud Keychain. Same entry layout as v18. |
+| v20–v22 | Encrypted Apple Archive (`AEA1`) | Additive entries: Guardians + Parent Communications (v20), teaching-album annotations (v21), lesson↔album links (v22). |
+| **v23** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** `preferences.json` grows to the full user-settings set (school year, recall, AI models, view state, per-date attendance locks, album folder bookmarks + fingerprints) and gains a `plist` value type. Entity entries unchanged. |
 
-`BackupReader.supportedFormatVersions = 17...19`.
+`BackupReader.supportedFormatVersions = 17...23`.
 
 ---
 
@@ -111,10 +113,11 @@ silently missing data is worse than a failed one.
 4. `BackupService.importPayload` (main actor):
    - dedup the payload,
    - for `.replace`: context-level delete of every backed-up type (emits CloudKit tombstones — never `NSBatchDeleteRequest`),
-   - import entities in dependency order using a lazily built `BackupEntityIndex` for existence/relationship checks,
+   - import entities in dependency order using a lazily built `BackupEntityIndex` for upsert/relationship lookups. **Merge mode updates in place:** each importer resolves the pre-restore record for the DTO's ID (`ExistingLookup`) and populates it; the backup wins for any ID it holds, records absent from the backup are kept. Replace mode has already cleared the store, so the same path inserts everything,
    - `save()`,
    - repair denormalized fields,
-   - apply preferences.
+   - apply preferences (`BackupPreferencesService`; album folder bookmarks union with the local list, the album fingerprint map merges local-wins),
+   - reload the album library if it was already open, and warn when the backup holds album annotations but no album folder resolves on this device.
 5. The CloudKit export wait is subscribed **before** `save()` so a fast export isn't missed; it blocks up to 30 s, then reports "still syncing in background."
 6. On any import failure, the transaction manager rolls back to the checkpoint.
 

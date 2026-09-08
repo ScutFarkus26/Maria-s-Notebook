@@ -31,6 +31,10 @@ nonisolated public enum PreferenceValueDTO: Codable, Sendable, Equatable {
     case string(String)
     case data(Data)
     case date(Date)
+    /// A property-list array or dictionary (binary plist bytes). Carries the
+    /// few list/map preferences — todo tag order, album folder bookmarks, the
+    /// album fingerprint map — that the scalar cases can't.
+    case plist(Data)
 
     enum CodingKeys: String, CodingKey {
         case type
@@ -44,6 +48,7 @@ nonisolated public enum PreferenceValueDTO: Codable, Sendable, Equatable {
         case string
         case data
         case date
+        case plist
     }
 
     public init(from decoder: Decoder) throws {
@@ -62,6 +67,8 @@ nonisolated public enum PreferenceValueDTO: Codable, Sendable, Equatable {
             self = .data(try container.decode(Data.self, forKey: .value))
         case .date:
             self = .date(try container.decode(Date.self, forKey: .value))
+        case .plist:
+            self = .plist(try container.decode(Data.self, forKey: .value))
         }
     }
 
@@ -86,6 +93,9 @@ nonisolated public enum PreferenceValueDTO: Codable, Sendable, Equatable {
         case .date(let date):
             try container.encode(ValueType.date, forKey: .type)
             try container.encode(date, forKey: .value)
+        case .plist(let data):
+            try container.encode(ValueType.plist, forKey: .type)
+            try container.encode(data, forKey: .value)
         }
     }
 }

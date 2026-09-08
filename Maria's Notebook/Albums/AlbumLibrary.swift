@@ -226,6 +226,32 @@ final class AlbumLibrary {
         state = .needsFolder
     }
 
+    /// True when at least one registered album folder bookmark still resolves
+    /// on this device. The backup restore asks this without loading the library
+    /// so it can tell the guide when restored annotations have no shelf yet.
+    static func hasResolvableFolderBookmark() -> Bool {
+        let bookmarkList = (UserDefaults.standard.array(forKey: bookmarksKey) as? [Data]) ?? []
+        return bookmarkList.contains { data in
+            var stale = false
+            #if os(macOS)
+            let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope,
+                               relativeTo: nil, bookmarkDataIsStale: &stale)
+            #else
+            let url = try? URL(resolvingBookmarkData: data, relativeTo: nil, bookmarkDataIsStale: &stale)
+            #endif
+            return url != nil
+        }
+    }
+
+    /// Re-reads the folder bookmarks and fingerprint map after a backup restore
+    /// has applied preferences. A library that never loaded stays lazy; one that
+    /// already showed a shelf (or "needs folder") reloads so the restored
+    /// annotations reattach without a relaunch.
+    func reloadAfterRestore() {
+        guard didBootstrap else { return }
+        bootstrap()
+    }
+
     /// Opening the albums means parsing every PDF and indexing its text, so
     /// the library loads the first time the Albums section (or an AI tool)
     /// actually needs it rather than at app launch.

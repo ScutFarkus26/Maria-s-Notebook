@@ -11,14 +11,14 @@ extension BackupEntityImporter {
     static func importTodoItems(
         _ dtos: [TodoItemDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDTodoItem>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let t = CDTodoItem(context: viewContext)
+            entityBuilder: { dto, current in
+            let t = current ?? CDTodoItem(context: viewContext)
             t.id = dto.id
             t.title = dto.title
             t.notes = dto.notes
@@ -57,12 +57,11 @@ extension BackupEntityImporter {
     static func importTodoSubtasks(
         _ dtos: [TodoSubtaskDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDTodoSubtask>,
         todoCheck: EntityLookup<CDTodoItem>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let s = CDTodoSubtask(context: viewContext)
+            let s = existingEntity(id: dto.id, existing: existing) ?? CDTodoSubtask(context: viewContext)
             s.id = dto.id
             s.title = dto.title
             s.orderIndex = Int64(dto.orderIndex)
@@ -88,14 +87,14 @@ extension BackupEntityImporter {
     static func importTodoTemplates(
         _ dtos: [TodoTemplateDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDTodoTemplate>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let t = CDTodoTemplate(context: viewContext)
+            entityBuilder: { dto, current in
+            let t = current ?? CDTodoTemplate(context: viewContext)
             t.id = dto.id
             t.name = dto.name
             t.title = dto.title
@@ -115,14 +114,14 @@ extension BackupEntityImporter {
     static func importTodayAgendaOrders(
         _ dtos: [TodayAgendaOrderDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDTodayAgendaOrder>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let a = CDTodayAgendaOrder(context: viewContext)
+            entityBuilder: { dto, current in
+            let a = current ?? CDTodayAgendaOrder(context: viewContext)
             a.id = dto.id
             a.day = dto.day
             a.itemTypeRaw = (AgendaItemType(rawValue: dto.itemTypeRaw) ?? .lesson).rawValue

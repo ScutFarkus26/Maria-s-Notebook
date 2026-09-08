@@ -19,13 +19,12 @@ extension BackupEntityImporter {
     static func importDayPads(
         _ dtos: [DayPadDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDDayPad>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
             // CDDayPad's only convenience init requires a `day`; pass a placeholder
             // then restore the exact stored value (including nil) below.
-            let pad = CDDayPad(context: viewContext, day: dto.day ?? Date())
+            let pad = existingEntity(id: dto.id, existing: existing) ?? CDDayPad(context: viewContext, day: dto.day ?? Date())
             pad.id = dto.id
             pad.day = dto.day
             pad.body = dto.body
@@ -40,14 +39,14 @@ extension BackupEntityImporter {
     static func importYearPlanEntries(
         _ dtos: [YearPlanEntryDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDYearPlanEntry>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let entry = CDYearPlanEntry(context: viewContext)
+            entityBuilder: { dto, current in
+            let entry = current ?? CDYearPlanEntry(context: viewContext)
             entry.id = dto.id
             entry.studentID = dto.studentID
             entry.lessonID = dto.lessonID
@@ -68,14 +67,14 @@ extension BackupEntityImporter {
     static func importLessonSequenceSettings(
         _ dtos: [LessonSequenceSettingsDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDLessonSequenceSettings>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let settings = CDLessonSequenceSettings(context: viewContext)
+            entityBuilder: { dto, current in
+            let settings = current ?? CDLessonSequenceSettings(context: viewContext)
             settings.id = dto.id
             settings.area = dto.area
             settings.sequence = dto.sequence
@@ -92,14 +91,14 @@ extension BackupEntityImporter {
     static func importStories(
         _ dtos: [StoryDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDStory>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let story = CDStory(context: viewContext)
+            entityBuilder: { dto, current in
+            let story = current ?? CDStory(context: viewContext)
             story.id = dto.id
             story.title = dto.title
             story.summary = dto.summary
@@ -129,14 +128,14 @@ extension BackupEntityImporter {
     static func importBookClubPackets(
         _ dtos: [BookClubPacketDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDBookClubPacket>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let packet = CDBookClubPacket(context: viewContext)
+            entityBuilder: { dto, current in
+            let packet = current ?? CDBookClubPacket(context: viewContext)
             packet.id = dto.id
             packet.title = dto.title
             packet.author = dto.author
@@ -159,14 +158,14 @@ extension BackupEntityImporter {
     static func importBookClubSessions(
         _ dtos: [BookClubSessionDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDBookClubSession>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let session = CDBookClubSession(context: viewContext)
+            entityBuilder: { dto, current in
+            let session = current ?? CDBookClubSession(context: viewContext)
             session.id = dto.id
             session.packetID = dto.packetID
             session.displayName = dto.displayName
@@ -189,12 +188,11 @@ extension BackupEntityImporter {
     static func importBookClubMeetings(
         _ dtos: [BookClubMeetingDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDBookClubMeeting>,
         sessionCheck: EntityLookup<CDBookClubSession>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let meeting = CDBookClubMeeting(context: viewContext)
+            let meeting = existingEntity(id: dto.id, existing: existing) ?? CDBookClubMeeting(context: viewContext)
             meeting.id = dto.id
             meeting.sessionID = dto.sessionID
             meeting.ordinal = Int32(dto.ordinal)

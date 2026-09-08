@@ -11,11 +11,10 @@ extension BackupEntityImporter {
     static func importDocuments(
         _ dtos: [DocumentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDDocument>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let d = CDDocument(context: viewContext)
+            let d = existingEntity(id: dto.id, existing: existing) ?? CDDocument(context: viewContext)
             d.id = dto.id
             d.title = dto.title
             d.category = dto.category
@@ -35,14 +34,14 @@ extension BackupEntityImporter {
     static func importSupplies(
         _ dtos: [SupplyDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDSupply>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let s = CDSupply(context: viewContext)
+            entityBuilder: { dto, current in
+            let s = current ?? CDSupply(context: viewContext)
             s.id = dto.id
             s.name = dto.name
             s.categoryRaw = (SupplyCategory(rawValue: dto.categoryRaw) ?? .other).rawValue
@@ -60,14 +59,14 @@ extension BackupEntityImporter {
     static func importProcedures(
         _ dtos: [ProcedureDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDProcedure>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let p = CDProcedure(context: viewContext)
+            entityBuilder: { dto, current in
+            let p = current ?? CDProcedure(context: viewContext)
             p.id = dto.id
             p.title = dto.title
             p.summary = dto.summary

@@ -55,7 +55,7 @@ public struct RestorePreviewView: View {
         if mode == "replace" {
             return "Mode: Replace — existing data will be deleted and replaced by the backup."
         } else {
-            return "Mode: Merge — new records will be inserted; existing IDs are skipped."
+            return "Mode: Merge — records in the backup are added or updated in place; records not in the backup are kept."
         }
     }
 
@@ -93,7 +93,7 @@ public struct RestorePreviewView: View {
                         let sk = preview.entitySkips[key] ?? 0
                         let del = preview.entityDeletes[key] ?? 0
                         if ins > 0 { chip(text: "+\(ins)", color: .green, system: "plus") }
-                        if sk > 0 { chip(text: "skip \(sk)", color: .secondary, system: "arrow.uturn.left") }
+                        if sk > 0 { chip(text: "update \(sk)", color: .secondary, system: "arrow.triangle.2.circlepath") }
                         if del > 0 { chip(text: "-\(del)", color: .red, system: "trash") }
                         Spacer()
                     }

@@ -11,14 +11,14 @@ extension BackupEntityImporter {
     static func importTracks(
         _ dtos: [TrackDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDTrackEntity>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let t = CDTrackEntity(context: viewContext)
+            entityBuilder: { dto, current in
+            let t = current ?? CDTrackEntity(context: viewContext)
             t.id = dto.id
             t.title = dto.title
             t.createdAt = dto.createdAt
@@ -31,13 +31,12 @@ extension BackupEntityImporter {
     static func importTrackSteps(
         _ dtos: [TrackStepDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDTrackStepEntity>,
         trackCheck: EntityLookup<CDTrackEntity>
     ) rethrows {
         var imported = 0
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let step = CDTrackStepEntity(context: viewContext)
+            let step = existingEntity(id: dto.id, existing: existing) ?? CDTrackStepEntity(context: viewContext)
             step.id = dto.id
             step.orderIndex = Int64(dto.orderIndex)
             step.lessonTemplateID = dto.lessonTemplateID
@@ -70,16 +69,16 @@ extension BackupEntityImporter {
     static func importStudentTrackEnrollments(
         _ dtos: [StudentTrackEnrollmentDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDStudentTrackEnrollmentEntity>,
         studentCheck: EntityLookup<CDStudent>,
         trackCheck: EntityLookup<CDTrackEntity>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let e = CDStudentTrackEnrollmentEntity(context: viewContext)
+            entityBuilder: { dto, current in
+            let e = current ?? CDStudentTrackEnrollmentEntity(context: viewContext)
             e.id = dto.id
             e.createdAt = dto.createdAt
             e.studentID = dto.studentID
@@ -102,14 +101,14 @@ extension BackupEntityImporter {
     static func importSequenceTracks(
         _ dtos: [SequenceTrackDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDSequenceTrack>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let g = CDSequenceTrack(context: viewContext)
+            entityBuilder: { dto, current in
+            let g = current ?? CDSequenceTrack(context: viewContext)
             g.id = dto.id
             g.area = dto.area
             g.sequence = dto.sequence

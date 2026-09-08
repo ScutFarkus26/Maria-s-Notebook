@@ -13,14 +13,14 @@ extension BackupEntityImporter {
     static func importNonSchoolDays(
         _ dtos: [NonSchoolDayDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDNonSchoolDay>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let day = CDNonSchoolDay(context: viewContext)
+            entityBuilder: { dto, current in
+            let day = current ?? CDNonSchoolDay(context: viewContext)
             day.id = dto.id
             day.date = dto.date
             day.reason = dto.reason
@@ -35,14 +35,14 @@ extension BackupEntityImporter {
     static func importSchoolDayOverrides(
         _ dtos: [SchoolDayOverrideDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDSchoolDayOverride>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let override = CDSchoolDayOverride(context: viewContext)
+            entityBuilder: { dto, current in
+            let override = current ?? CDSchoolDayOverride(context: viewContext)
             override.id = dto.id
             override.date = dto.date
             return override
@@ -63,14 +63,14 @@ extension BackupEntityImporter {
     static func importSchedules(
         _ dtos: [ScheduleDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck
+        existing: ExistingLookup<CDSchedule>
     ) rethrows {
         try importSimpleEntities(
             dtos, into: viewContext,
-            existingCheck: existingCheck,
+            existing: existing,
             idExtractor: { $0.id },
-            entityBuilder: { dto in
-            let s = CDSchedule(context: viewContext)
+            entityBuilder: { dto, current in
+            let s = current ?? CDSchedule(context: viewContext)
             s.id = dto.id
             s.name = dto.name
             s.notes = dto.notes
@@ -87,12 +87,11 @@ extension BackupEntityImporter {
     static func importScheduleSlots(
         _ dtos: [ScheduleSlotDTO],
         into viewContext: NSManagedObjectContext,
-        existingCheck: EntityExistsCheck,
+        existing: ExistingLookup<CDScheduleSlot>,
         scheduleCheck: EntityLookup<CDSchedule>
     ) rethrows {
         for dto in dtos {
-            if shouldSkipExisting(id: dto.id, existingCheck: existingCheck) { continue }
-            let slot = CDScheduleSlot(context: viewContext)
+            let slot = existingEntity(id: dto.id, existing: existing) ?? CDScheduleSlot(context: viewContext)
             slot.id = dto.id
             slot.scheduleID = dto.scheduleID
             slot.studentID = dto.studentID
