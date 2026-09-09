@@ -207,16 +207,7 @@ struct SchoolYearRolloverView: View {
                      + (viewModel.plan.writeNotes ? " · observations will be logged" : ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                let futurePlans = viewModel.futurePlansForDeparting(context: viewContext)
-                if futurePlans > 0 {
-                    Label(
-                        "Departing children come off \(futurePlans) planned "
-                            + (futurePlans == 1 ? "lesson" : "lessons") + " not yet given",
-                        systemImage: "calendar.badge.minus"
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                }
+                departureEffects
             } footer: {
                 Text(viewModel.lensFootnote(store: store))
                     .font(.footnote)
@@ -298,5 +289,39 @@ struct SchoolYearRolloverView: View {
             Button("Generate Summary") { reportStudent = student }
                 .buttonStyle(.bordered)
         }
+    }
+}
+
+// MARK: - Departure Effects
+
+/// What applying the plan does to departing children beyond their enrolment:
+/// they come off lessons still to be given, and their year plans stop
+/// pencilling in lessons they will not be here for. Both are stated on the
+/// review step so the rollover never changes more than the guide expects.
+private extension SchoolYearRolloverView {
+    @ViewBuilder
+    var departureEffects: some View {
+        let futurePlans = viewModel.futurePlansForDeparting(context: viewContext)
+        if futurePlans > 0 {
+            footnoteLabel(
+                "Departing children come off \(futurePlans) planned "
+                    + (futurePlans == 1 ? "lesson" : "lessons") + " not yet given",
+                icon: "calendar.badge.minus"
+            )
+        }
+        let entries = viewModel.yearPlanEntriesForDeparting(context: viewContext)
+        if entries > 0 {
+            footnoteLabel(
+                "\(entries) year-plan " + (entries == 1 ? "entry" : "entries")
+                    + " for departing children marked skipped, not deleted",
+                icon: "calendar.badge.checkmark"
+            )
+        }
+    }
+
+    func footnoteLabel(_ text: String, icon: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
     }
 }

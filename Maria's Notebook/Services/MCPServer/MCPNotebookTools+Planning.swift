@@ -163,24 +163,34 @@ extension MCPNotebookTools {
         }
 
         let lessons = lessonNameIndex(in: modelContext)
-        let lines = entries.map { entry -> String in
-            let id: String = entry.id?.uuidString ?? "unknown"
-            let lesson: String = entry.lessonUUID.flatMap { lessons[$0] } ?? "a lesson"
-            var details: [String] = []
-            if let planned = entry.plannedDate {
-                details.append("target \(dayString(planned))")
-            }
-            if entry.isBehindPace {
-                details.append("behind pace")
-            }
-            if let group = nonEmpty(entry.sequenceGroupKey) {
-                details.append(group)
-            }
-            let suffix: String = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
-            return "- [yearPlanEntry id=\(id)] \(lesson)\(suffix)"
-        }
+        // The header already says which status these are, so the lines don't repeat it.
+        let lines = entries.map { "- " + yearPlanEntryLine($0, lessons: lessons) }
         return "\(student.fullName), \(status.rawValue) (\(entries.count)):\n"
             + lines.joined(separator: "\n")
+    }
+
+    /// One year-plan entry as a line, without a list marker. Shared so
+    /// `year_plan` and `update_year_plan_entry` describe an entry the same way.
+    static func yearPlanEntryLine(
+        _ entry: CDYearPlanEntry, lessons: [UUID: String], includeStatus: Bool = false
+    ) -> String {
+        let id: String = entry.id?.uuidString ?? "unknown"
+        let lesson: String = entry.lessonUUID.flatMap { lessons[$0] } ?? "a lesson"
+        var details: [String] = []
+        if includeStatus {
+            details.append(entry.status.rawValue)
+        }
+        if let planned = entry.plannedDate {
+            details.append("target \(dayString(planned))")
+        }
+        if entry.isBehindPace {
+            details.append("behind pace")
+        }
+        if let group = nonEmpty(entry.sequenceGroupKey) {
+            details.append(group)
+        }
+        let suffix: String = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
+        return "[yearPlanEntry id=\(id)] \(lesson)\(suffix)"
     }
 
     static func lessonNameIndex(in modelContext: NSManagedObjectContext) -> [UUID: String] {

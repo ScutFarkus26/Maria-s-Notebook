@@ -14,6 +14,13 @@
 //  is on and offer to take her off them. Presented lessons are history and
 //  are never touched.
 //
+//  The year plan is the same rule one step earlier. A `CDYearPlanEntry` is an
+//  intention with a target date, not yet a lesson on the calendar; left alone
+//  it keeps claiming a future the child no longer has here, and every target
+//  date that passes counts as another lesson behind pace. Those entries move
+//  to `skipped` at the same moment, and are never deleted — a girl who
+//  re-enrols should find her year plan where she left it.
+//
 
 import CoreData
 import Foundation
@@ -25,7 +32,11 @@ enum StudentDeparturePlans {
         var plansEdited = 0
         /// Plans that named only her, deleted rather than left with nobody on them.
         var plansDeleted = 0
+        /// Year-plan entries moved to skipped. Kept, never deleted.
+        var entriesSkipped = 0
 
+        /// Plans touched. Year-plan entries are counted separately because they
+        /// are a different kind of record and the guide is told about them apart.
         var total: Int { plansEdited + plansDeleted }
     }
 
@@ -65,6 +76,54 @@ enum StudentDeparturePlans {
         }
         return "\(name) — not yet scheduled"
     }
+
+    // MARK: - Year Plan
+
+    /// Year-plan entries still pencilled in for `studentID`, soonest first.
+    ///
+    /// Only `planned` ones. A promoted entry has already become a real
+    /// assignment on the calendar, and that assignment — reached through
+    /// `futurePlans` above — is where a departing child comes off; touching
+    /// the entry as well would desync it from the lesson it was promoted into.
+    static func plannedEntries(
+        for studentID: UUID, in context: NSManagedObjectContext
+    ) -> [CDYearPlanEntry] {
+        let request = CDFetchRequest(CDYearPlanEntry.self)
+        request.predicate = NSPredicate(
+            format: "studentID == %@ AND statusRaw == %@",
+            studentID.uuidString, YearPlanEntryStatus.planned.rawValue
+        )
+        return context.safeFetch(request).sorted { lhs, rhs in
+            let lhsDate = lhs.plannedDate ?? .distantFuture
+            let rhsDate = rhs.plannedDate ?? .distantFuture
+            if lhsDate != rhsDate { return lhsDate < rhsDate }
+            return (lhs.createdAt ?? .distantPast) < (rhs.createdAt ?? .distantPast)
+        }
+    }
+
+    /// Entries for every child in `studentIDs`, each entry once.
+    static func plannedEntries(
+        for studentIDs: [UUID], in context: NSManagedObjectContext
+    ) -> [CDYearPlanEntry] {
+        var seen = Set<NSManagedObjectID>()
+        return studentIDs.flatMap { plannedEntries(for: $0, in: context) }
+            .filter { seen.insert($0.objectID).inserted }
+    }
+
+    /// Marks each entry skipped, returning how many changed. Never deletes: the
+    /// entries stay readable through `year_plan(status: "skipped")` and come
+    /// back if she re-enrols. Does not save.
+    @discardableResult
+    static func skip(entries: [CDYearPlanEntry]) -> Int {
+        var skipped = 0
+        for entry in entries where !entry.isDeleted && entry.isPlanned {
+            entry.status = .skipped
+            skipped += 1
+        }
+        return skipped
+    }
+
+    // MARK: - Retracting
 
     /// Takes `studentID` off each of `plans`. A plan left with nobody on it is
     /// deleted, since the app never keeps a zero-child lesson. Does not save.

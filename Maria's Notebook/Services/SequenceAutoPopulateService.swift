@@ -38,7 +38,15 @@ enum SequenceAutoPopulateService {
         guard !lessonsAhead.isEmpty else { return }
 
         let sequenceKey = "\(area)::\(sequence)"
-        let studentIDs = assignment.studentUUIDs
+        // A child who has withdrawn or transferred gets no new intentions. The
+        // departure cascade skips the entries she already had (see
+        // StudentDeparturePlans); minting more here would put them straight
+        // back, dated into a year she will not be here for. A student record
+        // that cannot be found is left alone rather than silently dropped.
+        let studentIDs: [UUID] = assignment.studentUUIDs.filter { studentID in
+            let student: CDStudent? = context.object(CDStudent.self, id: studentID)
+            return student?.isEnrolled ?? true
+        }
         guard !studentIDs.isEmpty else { return }
 
         let defaultSpacing: Int64 = 3

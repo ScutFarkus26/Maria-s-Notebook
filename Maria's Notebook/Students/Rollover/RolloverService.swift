@@ -49,6 +49,9 @@ struct RolloverSummary: Equatable {
     /// rollover takes those children off them so the plans stop generating
     /// work for children who have left.
     var futurePlansForDeparting = 0
+    /// Year-plan entries still pencilled in for departing children; the
+    /// rollover marks these skipped so they stop accruing behind pace.
+    var yearPlanEntriesForDeparting = 0
 
     var changeCount: Int { promoted.values.reduce(0, +) + transferred + withdrawn }
 
@@ -90,8 +93,12 @@ enum RolloverService {
             }
         }
         if let context {
+            let departing = departingStudentIDs(in: plan, students: students)
             result.futurePlansForDeparting = StudentDeparturePlans
-                .futurePlans(for: departingStudentIDs(in: plan, students: students), in: context)
+                .futurePlans(for: departing, in: context)
+                .count
+            result.yearPlanEntriesForDeparting = StudentDeparturePlans
+                .plannedEntries(for: departing, in: context)
                 .count
         }
         return result
@@ -152,11 +159,14 @@ enum RolloverService {
     }
 
     /// A child who has left should not be on lessons still to be given —
-    /// those plans generate work naming her when they are presented.
+    /// those plans generate work naming her when they are presented — nor
+    /// should her year plan keep pencilling in lessons she will not be here
+    /// for. The entries are skipped, not deleted, so a return finds them.
     private static func retractFuturePlans(for student: CDStudent, context: NSManagedObjectContext) {
         guard let studentID = student.id else { return }
         let plans = StudentDeparturePlans.futurePlans(for: studentID, in: context)
         StudentDeparturePlans.retract(studentID: studentID, from: plans, in: context)
+        StudentDeparturePlans.skip(entries: StudentDeparturePlans.plannedEntries(for: studentID, in: context))
     }
 
     // MARK: - Notes

@@ -116,6 +116,12 @@ final class SchoolYearRolloverViewModel {
         RolloverService.summary(for: plan, students: students, context: context).futurePlansForDeparting
     }
 
+    /// Year-plan entries still pencilled in for a departing child; `apply`
+    /// marks them skipped so they stop counting as behind pace.
+    func yearPlanEntriesForDeparting(context: NSManagedObjectContext) -> Int {
+        RolloverService.summary(for: plan, students: students, context: context).yearPlanEntriesForDeparting
+    }
+
     /// Roster grouped by current level, in ladder order, for the assign list.
     var studentsByLevel: [(level: CDStudent.Level, students: [CDStudent])] {
         CDStudent.Level.allCases.compactMap { level in

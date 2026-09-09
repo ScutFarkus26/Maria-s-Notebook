@@ -136,6 +136,8 @@ ambiguity errors:
 | **Planning structures** | |
 | `weekly_schedules` | `CDSchedule` + `CDScheduleSlot`, ordered Sunday-first by `Weekday` |
 | `year_plan` | `CDYearPlanEntry` — intentions with target dates, not calendar entries |
+| `update_year_plan_entry` (write) | one `CDYearPlanEntry`'s status and target date. Refuses promoted entries — the presentation carries the date once an entry reaches the calendar, so `reschedule_presentation` moves those — and refuses `promoted` as a status to set by hand, since promotion is `schedule_presentation` linking a real assignment |
+| `skip_year_plan_entries` (write) | `StudentDeparturePlans.plannedEntries` + `skip` for one student, the same call the roster makes when a child is withdrawn; skips only `planned` entries and deletes nothing |
 | `list_templates` | meeting / note / todo templates and sample work with steps, in one tool keyed by `kind` |
 | **Operations** | |
 | `sync_status` | `CloudKitSyncStatusService.shared` — health, last sync, pending uploads, and the terminal mirroring-delegate failure |
@@ -150,6 +152,13 @@ copy she owns means deleting that row. It is the one tool that destroys
 rows, so it is two-step — a call without `confirm` only reports the plan —
 and it never touches another child's completion. Edits change only the
 fields provided and report exactly what changed.
+
+Retiring, not deleting, is the pattern elsewhere: `skip_year_plan_entries`
+can change hundreds of rows in one call and is deliberately *not*
+confirm-gated, because every one of them is recoverable — the entries move
+to `skipped`, `year_plan` still reads them back, and
+`update_year_plan_entry` puts any of them to `planned` again. A girl who
+re-enrols finds her year plan intact.
 
 **Coverage is deliberate and near-total.** The guide asked for the whole
 notebook to be reachable — reads *and* writes, with nothing held back — so
