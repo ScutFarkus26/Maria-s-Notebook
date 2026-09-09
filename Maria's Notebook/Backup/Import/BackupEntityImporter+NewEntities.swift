@@ -169,6 +169,7 @@ extension BackupEntityImporter {
             meeting._participantIDsData = dto.participantIDsData
             meeting.workID = dto.workID
             meeting.isGroupMeeting = dto.isGroupMeeting ?? false
+            meeting.purpose = dto.purpose
             viewContext.insert(meeting)
         }
     }

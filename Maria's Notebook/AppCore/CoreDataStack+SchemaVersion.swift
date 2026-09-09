@@ -58,7 +58,10 @@ extension CoreDataStack {
     /// - `4` — `AttendanceRecord.recordedByID`/`recordedByName`: which person
     ///   marked a record, not just which role. Two assistants both stamp
     ///   "assistant", so the role alone stops answering the question.
-    nonisolated static let currentSchemaVersion = 4
+    /// - `5` — `ScheduledMeeting.purpose`: what a booked-but-unheld conference is
+    ///   about, so a meeting scheduled over MCP carries its reason onto the
+    ///   Today agenda instead of arriving as a bare date.
+    nonisolated static let currentSchemaVersion = 5
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

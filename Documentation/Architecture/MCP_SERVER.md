@@ -102,9 +102,10 @@ ambiguity errors:
 | `update_todo` (write) | title, notes, dates, priority, someday, students (+ retagging via `TodoTagHelper`) |
 | `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
 | **Meetings** | |
-| `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items |
+| `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items; then `MeetingScheduler.completeBooking` deletes the student's booking for that day (or an earlier one still pending), as the Today agenda does when a started meeting is completed |
 | `student_meetings` | `CDStudentMeeting` history with its work reviews and linked notes — the read side of `create_meeting_entry` |
-| `scheduled_meetings` | `CDScheduledMeeting`; uses `allStudentIDs`, so a group sitting lists its whole party |
+| `scheduled_meetings` | `CDScheduledMeeting`; uses `allStudentIDs`, so a group sitting lists its whole party; shows each booking's `purpose` and the work it is about |
+| `schedule_meeting` (write) | `CDScheduledMeeting` via `MeetingScheduler.bookMeeting`, the meetings tab's date-picker path: one individual booking per student (another day moves it, the same day keeps it), group sittings untouched; refuses a day `SchoolCalendarService.isNonSchoolDaySync` says school is out |
 | **Observation depth** | |
 | `practice_sessions` | `CDPracticeSession` — duration, quality, independence, and the flagged behaviours (`activeBehaviours`), filterable by signal |
 | `recall_checks` | `CDLessonRecallCheck` — retained / shaky / forgotten, weeks after mastery |

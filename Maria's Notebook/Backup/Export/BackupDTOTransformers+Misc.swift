@@ -636,7 +636,8 @@ extension BackupDTOTransformers {
             createdAt: meeting.createdAt ?? Date(),
             participantIDsData: meeting._participantIDsData,
             workID: meeting.workID,
-            isGroupMeeting: meeting.isGroupMeeting
+            isGroupMeeting: meeting.isGroupMeeting,
+            purpose: meeting.purpose
         )
     }
 

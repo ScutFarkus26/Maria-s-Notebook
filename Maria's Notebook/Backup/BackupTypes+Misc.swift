@@ -237,6 +237,8 @@ nonisolated public struct ScheduledMeetingDTO: Codable, Sendable {
     public var participantIDsData: Data?
     public var workID: String?
     public var isGroupMeeting: Bool?
+    /// Format v24+: what the meeting is about.
+    public var purpose: String?
 }
 
 // MARK: - Classroom Membership DTO (format v13+)

@@ -73,6 +73,7 @@ enum MCPNotebookTools {
             createMeetingEntryTool(context: context),
             studentMeetingsTool(context: context),
             scheduledMeetingsTool(context: context),
+            scheduleMeetingTool(context: context),
             practiceSessionsTool(context: context),
             recallChecksTool(context: context)
         ]

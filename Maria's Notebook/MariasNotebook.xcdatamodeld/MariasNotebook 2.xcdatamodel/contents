@@ -946,6 +946,7 @@
         <attribute name="_participantIDsData" optional="YES" attributeType="Binary"/>
         <attribute name="workID" optional="YES" attributeType="String"/>
         <attribute name="isGroupMeeting" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="purpose" optional="YES" attributeType="String"/>
     </entity>
     <!-- ==================== CalendarNote ==================== -->
     <entity name="CalendarNote" representedClassName="CDCalendarNote" syncable="YES">

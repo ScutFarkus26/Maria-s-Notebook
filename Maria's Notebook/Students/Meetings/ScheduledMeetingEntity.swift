@@ -11,6 +11,9 @@ nonisolated public class CDScheduledMeeting: NSManagedObject {
     @NSManaged public var _participantIDsData: Data?
     @NSManaged public var workID: String?
     @NSManaged public var isGroupMeeting: Bool
+    /// What the meeting is about, in the guide's words. Nil on bookings made
+    /// before the field existed and on ones the guide made with a date alone.
+    @NSManaged public var purpose: String?
 
     // MARK: - Convenience Initializer
     @discardableResult

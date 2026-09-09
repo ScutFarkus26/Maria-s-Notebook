@@ -111,7 +111,7 @@ extension MCPNotebookTools {
 
     /// A work review points at its work by id string; naming it keeps the line
     /// readable rather than printing a bare uuid.
-    private static func workTitle(
+    static func workTitle(
         forID workID: String?, in modelContext: NSManagedObjectContext
     ) -> String? {
         guard let workID, let uuid = UUID(uuidString: workID) else { return nil }
@@ -124,8 +124,9 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "scheduled_meetings",
             title: "Scheduled Meetings",
-            description: "Student meetings booked but not yet held, with who is coming and the "
-                + "work they are about. schedule_for_range does not include these.",
+            description: "Student meetings booked but not yet held, with who is coming, what "
+                + "each is about, and the work it will review. schedule_for_range does not "
+                + "include these; schedule_meeting books one.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -181,6 +182,9 @@ extension MCPNotebookTools {
             var details: [String] = [who.isEmpty ? "no students linked" : who.joined(separator: ", ")]
             if meeting.isGroupMeeting {
                 details.append("group meeting")
+            }
+            if let purpose = nonEmpty(meeting.purpose) {
+                details.append(purpose)
             }
             if let workID = meeting.workID, let title = workTitle(forID: workID, in: modelContext) {
                 details.append("about \(title)")

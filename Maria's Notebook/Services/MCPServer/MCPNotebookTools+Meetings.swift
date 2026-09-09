@@ -22,7 +22,9 @@ extension MCPNotebookTools {
             description: "Record a completed student meeting (conference) in the student's "
                 + "history, exactly as the in-app meeting form would: a reflection on how the "
                 + "work is going, lessons the student requested, private guide notes, and new "
-                + "goals that carry forward to the next meeting as open focus items.",
+                + "goals that carry forward to the next meeting as open focus items. A booking "
+                + "the student had for that day (or an earlier one still pending) is completed "
+                + "by this, so it leaves scheduled_meetings rather than standing beside the entry.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -106,14 +108,23 @@ extension MCPNotebookTools {
             )
         }
 
+        // Filing the entry for a booked day is the meeting being held, so the
+        // booking goes the way the Today agenda sends it on completion
+        // (MeetingScheduler.clearMeeting) — otherwise the conference would sit
+        // in scheduled_meetings beside its own record.
+        let bookedFor = MeetingScheduler.completeBooking(
+            studentID: studentID, heldOn: date, context: modelContext
+        )
+
         guard modelContext.safeSave() else {
             modelContext.rollback()
             throw MCPToolError("The meeting could not be saved.")
         }
 
         let goalSuffix = goals.isEmpty ? "" : " with \(goals.count) new goal(s)"
+        let bookingSuffix = bookedFor.map { ", completing the booking made for \(dayString($0))" } ?? ""
         return "Recorded meeting [meeting id=\(meetingID.uuidString)] for \(student.fullName) "
-            + "on \(dayString(date))\(goalSuffix)."
+            + "on \(dayString(date))\(goalSuffix)\(bookingSuffix)."
     }
 
     // MARK: - Add Follow-Up
