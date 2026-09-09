@@ -90,11 +90,8 @@ extension LessonsRootView {
                     }
                     syncReorderableSequences()
                 },
-                onMoveSequences: { source, destination, area in
-                    let currentSequences = reorderableSequences.isEmpty
-                        ? helper.groups(for: area, lessons: Array(lessons))
-                        : reorderableSequences
-                    moveSequences(from: source, to: destination, in: currentSequences, overrideArea: area)
+                onMoveSequences: { area, visibleOrder in
+                    applySequenceOrder(visibleOrder, in: area)
                 },
                 onConfigureTrack: { key in
                     handleConfigureTrack(key.sequence, area: key.area)

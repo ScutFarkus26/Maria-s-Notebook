@@ -3,7 +3,8 @@
 // Thread row used by LessonsScopeMapView: leading colored bar, sequence label,
 // and pills tinted in the area's hue. Default state shows pills as a single
 // horizontal-scrolling row; clicking the count chevron pins the row open
-// (wrapped multi-line). Edit mode auto-expands every row.
+// (wrapped multi-line). Edit mode auto-expands every row. Press and hold to
+// lift the row out of the stack for a drag — the hold progress bar tracks the wait.
 
 import SwiftUI
 import CoreData
@@ -14,6 +15,14 @@ struct ThreadRow: View {
     let color: Color
     var isEditing: Bool = false
     var hasSections: Bool = false
+    /// Lifted by a completed hold and following the pointer.
+    var isPickedUpForMove: Bool = false
+    /// The lifted row would land here if released now.
+    var isMoveTarget: Bool = false
+    /// A press is being held on this row; fills the hold progress bar.
+    var isHoldingToMove: Bool = false
+    /// This row is one the map will let the user reorder.
+    var canHoldToMove: Bool = false
     let onTap: () -> Void
     var onConfigureTrack: (() -> Void)?
     var onReorderSections: (() -> Void)?
@@ -50,6 +59,12 @@ struct ThreadRow: View {
                 if isEditing {
                     editControls
                         .padding(.top, isExpanded ? 5 : 0)
+                } else if isPickedUpForMove {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(minWidth: 30, alignment: .trailing)
+                        .padding(.top, isExpanded ? 5 : 0)
                 } else {
                     pinToggleButton
                         .padding(.top, isExpanded ? 5 : 0)
@@ -60,15 +75,61 @@ struct ThreadRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(color.opacity(0.06))
+                    .fill(color.opacity(isPickedUpForMove ? 0.16 : 0.06))
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(color.opacity(0.18), lineWidth: 0.5)
-            )
+            .overlay(moveStateBorder)
+            .overlay(alignment: .bottomLeading) { holdProgressBar }
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .scaleEffect(isPickedUpForMove ? 1.012 : 1)
+        .shadow(
+            color: .black.opacity(isPickedUpForMove ? 0.2 : 0),
+            radius: isPickedUpForMove ? 8 : 0,
+            y: isPickedUpForMove ? 4 : 0
+        )
+        .help(helpText)
+        .accessibilityHint(canHoldToMove && !isPickedUpForMove
+                           ? "Press and hold to move this sequence"
+                           : "")
+    }
+
+    private var helpText: String {
+        if isPickedUpForMove { return "Drag into place, then release" }
+        if canHoldToMove { return "Click to open · press and hold to move" }
+        return ""
+    }
+
+    /// Picked-up rows take a solid accent border, the row under the pointer a dashed one,
+    /// everything else the resting hairline.
+    @ViewBuilder
+    private var moveStateBorder: some View {
+        if isPickedUpForMove {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.accentColor.opacity(0.9), lineWidth: 1.5)
+        } else if isMoveTarget {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(
+                    Color.accentColor.opacity(0.7),
+                    style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                )
+        } else {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(color.opacity(0.18), lineWidth: 0.5)
+        }
+    }
+
+    /// Sweeps across the bottom edge for as long as the hold lasts. Without it a
+    /// long hold reads as a click that did nothing.
+    private var holdProgressBar: some View {
+        Capsule(style: .continuous)
+            .fill(Color.accentColor.opacity(0.85))
+            .frame(height: 2)
+            .scaleEffect(x: isHoldingToMove ? 1 : 0, anchor: .leading)
+            .opacity(isHoldingToMove && !isPickedUpForMove ? 1 : 0)
+            .padding(.horizontal, 6)
+            .padding(.bottom, 1)
+            .allowsHitTesting(false)
     }
 
     /// Count badge that toggles persistent expansion. The chevron + count gives

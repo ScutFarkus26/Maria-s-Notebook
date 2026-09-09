@@ -31,20 +31,21 @@ extension LessonsRootView {
 
     // MARK: - Move Groups
 
-    func moveSequences(from source: IndexSet, to destination: Int, in groups: [String], overrideArea: String? = nil) {
-        let area = overrideArea ?? selectedArea ?? ""
-        guard !area.trimmed().isEmpty else { return }
-        guard let sourceIndex = source.first else { return }
-        guard sourceIndex < groups.count else { return }
+    /// Applies a reorder the map expressed as the new order of one area's *visible*
+    /// sequence names.
+    ///
+    /// Sequences the current filter hides never appear in `visibleOrder`, so the new
+    /// order is folded into the area's full saved order rather than replacing it.
+    func applySequenceOrder(_ visibleOrder: [String], in area: String) {
+        let trimmedArea = area.trimmed()
+        guard !trimmedArea.isEmpty else { return }
 
-        var reordered = groups
-        reordered.move(fromOffsets: source, toOffset: destination)
+        let saved = helper.groups(for: trimmedArea, lessons: Array(lessons))
+        guard let full = FilterOrderStore.applyingVisibleOrder(visibleOrder, to: saved) else { return }
 
-        reorderableSequences = reordered
-
-        // Save the full order including "Ungrouped" so its position is preserved
-        FilterOrderStore.saveSequenceOrder(reordered, for: area)
+        FilterOrderStore.saveSequenceOrder(full, for: trimmedArea)
         FilterOrderStore.resetCache()
+        syncReorderableSequences()
     }
 
     // MARK: - Move Lessons in Area

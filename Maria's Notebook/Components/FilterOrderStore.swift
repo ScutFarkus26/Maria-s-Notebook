@@ -86,6 +86,32 @@ struct FilterOrderStore {
         cachedSectionOrders.removeAll()
     }
 
+    // MARK: Partial reorder
+
+    /// Rewrites `saved` so the names in `visibleOrder` read in that order, each landing
+    /// in a slot one of them already held. Names absent from `visibleOrder` keep their
+    /// positions untouched.
+    ///
+    /// This is what lets a screen showing a filtered subset reorder what it can see
+    /// without speaking for what it can't: saving the short list wholesale would drop
+    /// every hidden name's stored position and re-append it alphabetically on the next
+    /// read. Returns nil when the two lists don't line up — a stale `visibleOrder`
+    /// naming something `saved` no longer has, or naming it twice.
+    static func applyingVisibleOrder(_ visibleOrder: [String], to saved: [String]) -> [String]? {
+        guard visibleOrder.count > 1 else { return nil }
+        let visibleKeys = Set(visibleOrder.map(normalized))
+        guard visibleKeys.count == visibleOrder.count else { return nil }
+
+        let slots = saved.indices.filter { visibleKeys.contains(normalized(saved[$0])) }
+        guard slots.count == visibleOrder.count else { return nil }
+
+        var result = saved
+        for (slot, name) in zip(slots, visibleOrder) {
+            result[slot] = name
+        }
+        return result
+    }
+
     // MARK: Merge helper
 
     /// The saved order, narrowed to what the caller actually has, with anything the

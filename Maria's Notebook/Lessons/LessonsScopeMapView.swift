@@ -3,22 +3,10 @@
 // Scope-and-sequence "Map" view: every sequence is one labeled row, every lesson
 // is a small pill on that row, organized into a spine (Area or Great Lesson).
 // Tapping a thread row drills into LessonsScopeThreadFocusView.
-// In edit mode, rows are draggable to reorder within their area section.
+// Press and hold a row to pick it up, then drag it to reorder within its area.
 
 import SwiftUI
 import CoreData
-import UniformTypeIdentifiers
-
-// MARK: - Sequence drag-drop payload
-
-struct SequenceTransfer: Codable, Transferable {
-    let area: String
-    let sequence: String
-
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .data)
-    }
-}
 
 // MARK: - LessonsScopeMapView
 
@@ -30,15 +18,38 @@ struct LessonsScopeMapView: View {
     @Binding var spine: MapSpine
     var isEditing: Bool = false
     let onSelectThread: (ThreadKey) -> Void
-    var onMoveSequences: ((IndexSet, Int, String) -> Void)?
+    /// Called with the dragged row's area and the new order of that area's *visible*
+    /// sequence names. Sequences hidden by the current filter aren't listed and keep
+    /// their saved positions.
+    var onMoveSequences: ((String, [String]) -> Void)?
     var onConfigureTrack: ((ThreadKey) -> Void)?
     var onReorderSections: ((ThreadKey) -> Void)?
     var onFocusArea: ((String) -> Void)?
     var onClearAreaFocus: (() -> Void)?
 
-    private let helper = LessonsViewModel()
+    /// How long a row has to be held before it can be dragged. Deliberately long:
+    /// this map is the curriculum's spine, and a reorder nudged in by accident is
+    /// easy to miss and tedious to undo. Edit mode uses `editHoldDuration` instead,
+    /// since the user has already declared intent by turning it on.
+    static let holdToMoveDuration: TimeInterval = 5
+    static let editHoldDuration: TimeInterval = 0.15
 
-    @State private var dropTargetSequence: String?
+    private static let mapSpace = "lessonsScopeMap"
+
+    /// Row currently lifted out of the stack, as `rowID(section:row:)`.
+    @State private var pickedUpRowID: String?
+    @State private var pickedUpName: String = ""
+    /// Row the lifted one would land on if released now.
+    @State private var hoverRowID: String?
+    @State private var rowFrames: [String: CGRect] = [:]
+    /// True from the moment a hold succeeds until shortly after the press ends, so the
+    /// mouse-up that finishes a move doesn't also register as a tap and drill into the row.
+    @State private var moveGestureDidEngage = false
+
+    /// Set while a press is being held on a row and reset the moment it ends — drives
+    /// the hold progress bar so a five-second wait doesn't look like a dead click.
+    @GestureState(resetTransaction: Transaction(animation: .easeOut(duration: 0.2)))
+    private var holdingRowID: String?
 
     private var hasAreaFocus: Bool {
         guard let selectedArea else { return false }
@@ -50,13 +61,24 @@ struct LessonsScopeMapView: View {
             VStack(alignment: .leading, spacing: 24) {
                 spinePicker
 
-                ForEach(sections) { section in
+                ForEach(MapSectionBuilder(lessons: lessons, selectedArea: selectedArea)
+                    .sections(for: spine)) { section in
                     sectionView(section)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .coordinateSpace(name: Self.mapSpace)
+        .onPreferenceChange(MapRowFramePreference.self) { frames in
+            // Preference updates land during layout; defer to avoid layout recursion.
+            Task { @MainActor in rowFrames = frames }
+        }
+        .overlay(alignment: .bottom) {
+            if pickedUpRowID != nil {
+                MapMoveHintBanner(sequenceName: pickedUpName)
+            }
         }
     }
 
@@ -76,56 +98,146 @@ struct LessonsScopeMapView: View {
 
     @ViewBuilder
     private func threadRow(_ row: ThreadRowData, in section: MapSection) -> some View {
+        let rowID = section.rowID(for: row)
+        let isPickedUp = pickedUpRowID == rowID
+        let movable = canMove(row, in: section)
+
         ThreadRow(
             threadKey: row.key,
             lessons: row.lessons,
             color: AppColors.color(forArea: row.key.area),
             isEditing: isEditing,
             hasSections: hasMultipleSections(row: row),
-            onTap: { onSelectThread(row.key) },
+            isPickedUpForMove: isPickedUp,
+            isMoveTarget: hoverRowID == rowID && !isPickedUp,
+            isHoldingToMove: holdingRowID == rowID,
+            canHoldToMove: movable,
+            onTap: {
+                // A completed hold ends with a mouse-up on the row; that must not
+                // count as the click that drills into the thread.
+                guard !moveGestureDidEngage else { return }
+                onSelectThread(row.key)
+            },
             onConfigureTrack: { onConfigureTrack?(row.key) },
             onReorderSections: { onReorderSections?(row.key) }
         )
-        .when(isEditing && !row.key.area.isEmpty) { view in
-            view
-                .draggable(SequenceTransfer(area: row.key.area, sequence: row.key.sequence))
-                .dropDestination(for: SequenceTransfer.self) { items, _ in
-                    handleSequenceDrop(items, row: row, in: section)
-                } isTargeted: { isTargeted in
-                    if isTargeted {
-                        dropTargetSequence = row.key.sequence
-                    } else if dropTargetSequence == row.key.sequence {
-                        dropTargetSequence = nil
-                    }
-                }
+        .modifier(MapRowFrameReporter(rowID: rowID, space: Self.mapSpace))
+        .when(movable) { view in
+            view.simultaneousGesture(holdThenDragGesture(row: row, in: section, rowID: rowID))
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(
-                    Color.accentColor.opacity(dropTargetSequence == row.key.sequence ? 0.6 : 0),
-                    lineWidth: 1.5
-                )
-        )
     }
 
-    /// Reorders sequences within an area when one `ThreadRow` is dropped onto another.
-    /// Extracted from the drop view builder so `threadRow` type-checks quickly.
-    private func handleSequenceDrop(
-        _ items: [SequenceTransfer],
+    // MARK: - Hold-then-drag reordering
+
+    /// Hold to lift a row, then keep dragging in the same press to place it. Sequenced
+    /// so the whole move is one gesture — release drops the row where it hovers.
+    private func holdThenDragGesture(
+        row: ThreadRowData,
+        in section: MapSection,
+        rowID: String
+    ) -> some Gesture {
+        let duration = isEditing ? Self.editHoldDuration : Self.holdToMoveDuration
+        let hold = LongPressGesture(minimumDuration: duration, maximumDistance: 14)
+            .updating($holdingRowID) { pressing, state, transaction in
+                state = pressing ? rowID : nil
+                transaction.animation = .linear(duration: duration)
+            }
+        let drag = DragGesture(minimumDistance: 1, coordinateSpace: .named(Self.mapSpace))
+
+        return hold.sequenced(before: drag)
+            .onChanged { value in
+                switch value {
+                case .first(true):
+                    beginMove(rowID: rowID, name: row.key.displayName)
+                case .second(true, let dragValue?):
+                    if pickedUpRowID != rowID {
+                        beginMove(rowID: rowID, name: row.key.displayName)
+                    }
+                    let target = nearestRowID(to: dragValue.location, from: rowID, row: row, in: section)
+                    if target != hoverRowID {
+                        withAnimation(.easeOut(duration: 0.12)) { hoverRowID = target }
+                    }
+                default:
+                    break
+                }
+            }
+            .onEnded { _ in
+                finishMove(row: row, in: section)
+            }
+    }
+
+    private func beginMove(rowID: String, name: String) {
+        guard pickedUpRowID != rowID else { return }
+        moveGestureDidEngage = true
+        pickedUpName = name
+        HapticService.shared.impact(.medium)
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            pickedUpRowID = rowID
+        }
+    }
+
+    private func finishMove(row: ThreadRowData, in section: MapSection) {
+        let landedOn = hoverRowID
+        let wasPickedUp = pickedUpRowID != nil
+        resetMoveState()
+        guard wasPickedUp, let landedOn else { return }
+        guard let target = section.rows.first(where: { section.rowID(for: $0) == landedOn }),
+              target.key != row.key
+        else { return }
+
+        let names = section.movableSequences(in: row.key.area)
+        guard let srcIdx = names.firstIndex(of: row.key.sequence),
+              let dstIdx = names.firstIndex(of: target.key.sequence)
+        else { return }
+
+        var reordered = names
+        reordered.move(
+            fromOffsets: IndexSet(integer: srcIdx),
+            toOffset: dstIdx > srcIdx ? dstIdx + 1 : dstIdx
+        )
+        onMoveSequences?(row.key.area, reordered)
+    }
+
+    private func resetMoveState() {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+            pickedUpRowID = nil
+            hoverRowID = nil
+        }
+        // Outlive the mouse-up that ends the gesture, then let clicks drill in again.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            moveGestureDidEngage = false
+        }
+    }
+
+    /// The row under the pointer, restricted to rows this one can actually swap with:
+    /// same area, real sequence, and close enough vertically to be a deliberate target.
+    private func nearestRowID(
+        to location: CGPoint,
+        from rowID: String,
         row: ThreadRowData,
         in section: MapSection
-    ) -> Bool {
-        guard let item = items.first,
-              item.area == row.key.area,
-              item.sequence != row.key.sequence
-        else { return false }
-        let rowSequences = section.rows.map { $0.key.sequence }
-        guard let srcIdx = rowSequences.firstIndex(of: item.sequence),
-              let dstIdx = rowSequences.firstIndex(of: row.key.sequence)
-        else { return false }
-        let adjustedDst = dstIdx > srcIdx ? dstIdx + 1 : dstIdx
-        onMoveSequences?(IndexSet(integer: srcIdx), adjustedDst, row.key.area)
-        return true
+    ) -> String? {
+        var best: (id: String, frame: CGRect)?
+        var bestDistance = CGFloat.greatestFiniteMagnitude
+        for candidate in section.rows where candidate.key.area == row.key.area {
+            let candidateID = section.rowID(for: candidate)
+            guard candidateID != rowID,
+                  canMove(candidate, in: section),
+                  let frame = rowFrames[candidateID]
+            else { continue }
+            let distance = abs(frame.midY - location.y)
+            guard distance < bestDistance else { continue }
+            bestDistance = distance
+            best = (candidateID, frame)
+        }
+        // Too far from any row to be a deliberate target.
+        guard let best, bestDistance <= best.frame.height else { return nil }
+        return best.id
+    }
+
+    private func canMove(_ row: ThreadRowData, in section: MapSection) -> Bool {
+        onMoveSequences != nil && section.canMove(row)
     }
 
     @ViewBuilder
@@ -196,143 +308,6 @@ struct LessonsScopeMapView: View {
         .padding(.bottom, 4)
     }
 
-    // MARK: - Sections
-
-    private var sections: [MapSection] {
-        switch spine {
-        case .area:
-            return areaSections()
-        case .greatLesson:
-            return greatLessonSections()
-        }
-    }
-
-    private func areaSections() -> [MapSection] {
-        let areas: [String]
-        if let selectedArea, !selectedArea.trimmed().isEmpty {
-            areas = [selectedArea]
-        } else {
-            areas = helper.areas(from: lessons)
-        }
-
-        return areas.compactMap { area -> MapSection? in
-            let rows = threadRowsForArea(area, lessons: lessonsInArea(area))
-            guard !rows.isEmpty else { return nil }
-            return MapSection(
-                id: "area:\(area)",
-                title: area,
-                color: AppColors.color(forArea: area),
-                icon: nil,
-                rows: rows
-            )
-        }
-    }
-
-    private func greatLessonSections() -> [MapSection] {
-        var unassigned: [CDLesson] = []
-        var byGreatLesson: [GreatLesson: [CDLesson]] = [:]
-
-        for lesson in lessons {
-            let resolved = GreatLesson.resolve(for: lesson)
-            if let primary = resolved.first {
-                byGreatLesson[primary, default: []].append(lesson)
-            } else {
-                unassigned.append(lesson)
-            }
-        }
-
-        var result: [MapSection] = []
-        for greatLesson in GreatLesson.allCases {
-            guard let bucket = byGreatLesson[greatLesson], !bucket.isEmpty else { continue }
-            let rows = threadRowsAcrossAreas(lessons: bucket)
-            guard !rows.isEmpty else { continue }
-            result.append(MapSection(
-                id: "greatLesson:\(greatLesson.rawValue)",
-                title: greatLesson.shortName,
-                color: greatLesson.color,
-                icon: greatLesson.icon,
-                rows: rows
-            ))
-        }
-
-        if !unassigned.isEmpty {
-            let rows = threadRowsAcrossAreas(lessons: unassigned)
-            if !rows.isEmpty {
-                result.append(MapSection(
-                    id: "greatLesson:unassigned",
-                    title: "Unassigned",
-                    color: .secondary,
-                    icon: "questionmark.circle",
-                    rows: rows
-                ))
-            }
-        }
-
-        return result
-    }
-
-    // MARK: - Thread row builders
-
-    private func lessonsInArea(_ area: String) -> [CDLesson] {
-        let key = area.trimmed().lowercased()
-        return lessons.filter { $0.area.trimmed().lowercased() == key }
-    }
-
-    /// Thread rows for a single area — order respects FilterOrderStore via `helper.groups`.
-    private func threadRowsForArea(_ area: String, lessons areaLessons: [CDLesson]) -> [ThreadRowData] {
-        let groups = helper.groups(for: area, lessons: lessons)
-        var rows: [ThreadRowData] = []
-
-        for sequence in groups {
-            let sequenceKey = sequence.trimmed().lowercased()
-            let inSequence = areaLessons
-                .filter { $0.sequence.trimmed().lowercased() == sequenceKey }
-                .sorted(by: ThreadRowData.lessonSortOrder)
-            if !inSequence.isEmpty {
-                rows.append(ThreadRowData(
-                    key: ThreadKey(area: area, sequence: sequence),
-                    lessons: inSequence
-                ))
-            }
-        }
-
-        let ungrouped = areaLessons
-            .filter { $0.sequence.trimmed().isEmpty }
-            .sorted(by: ThreadRowData.lessonSortOrder)
-        if !ungrouped.isEmpty {
-            rows.append(ThreadRowData(
-                key: ThreadKey(area: area, sequence: ""),
-                lessons: ungrouped
-            ))
-        }
-
-        return rows
-    }
-
-    /// Thread rows aggregated from a heterogeneous lesson set. Used by Great Lesson spine
-    /// where one section spans multiple areas. Areas are interleaved alphabetically
-    /// within the section so threads stay grouped by their parent area.
-    private func threadRowsAcrossAreas(lessons bucket: [CDLesson]) -> [ThreadRowData] {
-        let byArea = Dictionary(grouping: bucket) { $0.area.trimmed() }
-        let orderedAreas = byArea.keys
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-
-        var rows: [ThreadRowData] = []
-        for area in orderedAreas {
-            guard !area.isEmpty, let areaLessons = byArea[area] else { continue }
-            rows.append(contentsOf: threadRowsForArea(area, lessons: areaLessons))
-        }
-
-        if let arealess = byArea[""], !arealess.isEmpty {
-            let sorted = arealess.sorted(by: ThreadRowData.lessonSortOrder)
-            rows.append(ThreadRowData(
-                key: ThreadKey(area: "", sequence: ""),
-                lessons: sorted
-            ))
-        }
-        return rows
-    }
-
     // MARK: - Helpers
 
     private func hasMultipleSections(row: ThreadRowData) -> Bool {
@@ -341,30 +316,53 @@ struct LessonsScopeMapView: View {
     }
 }
 
-// MARK: - Section model
+// MARK: - Move chrome
 
-struct MapSection: Identifiable {
-    let id: String
-    let title: String
-    let color: Color
-    let icon: String?
-    let rows: [ThreadRowData]
+/// Floats over the map while a row is lifted, so the hold reads as "picked up"
+/// rather than "nothing happened".
+private struct MapMoveHintBanner: View {
+    let sequenceName: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.up.and.down")
+                .font(.system(size: 11, weight: .semibold))
+            Text("Drag \(sequenceName) into place, then release")
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Capsule(style: .continuous).fill(Color.accentColor.opacity(0.92)))
+        .padding(.bottom, 16)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .allowsHitTesting(false)
+    }
 }
 
-struct ThreadRowData: Identifiable {
-    let key: ThreadKey
-    let lessons: [CDLesson]
+// MARK: - Preferences
 
-    var id: String { key.id }
+/// Publishes each row's frame in the map's coordinate space so a drag can tell which
+/// row it is over without hit-testing.
+private struct MapRowFrameReporter: ViewModifier {
+    let rowID: String
+    let space: String
 
-    static func lessonSortOrder(_ lhs: CDLesson, _ rhs: CDLesson) -> Bool {
-        if lhs.orderInSequence != rhs.orderInSequence {
-            return lhs.orderInSequence < rhs.orderInSequence
-        }
-        let nameCompare = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-        if nameCompare != .orderedSame {
-            return nameCompare == .orderedAscending
-        }
-        return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+    func body(content: Content) -> some View {
+        content.background(
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: MapRowFramePreference.self,
+                    value: [rowID: proxy.frame(in: .named(space))]
+                )
+            }
+        )
+    }
+}
+
+private struct MapRowFramePreference: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: [String: CGRect] = [:]
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }
