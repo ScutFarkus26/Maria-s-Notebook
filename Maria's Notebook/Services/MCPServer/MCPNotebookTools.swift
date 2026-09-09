@@ -50,6 +50,10 @@ enum MCPNotebookTools {
             classroomSnapshotTool(context: context),
             syncStatusTool(),
             findLessonsTool(context: context),
+            listLessonsByAreaTool(context: context),
+            createLessonTool(context: context),
+            updateLessonTool(context: context),
+            reorderLessonsTool(context: context),
             searchAlbumsTool(),
             albumPageTool(),
             albumMarksTool(context: context),
@@ -58,6 +62,7 @@ enum MCPNotebookTools {
             yearPlanTool(context: context),
             updateYearPlanEntryTool(context: context),
             skipYearPlanEntriesTool(context: context),
+            clearYearPlanTool(context: context),
             listTemplatesTool(context: context)
         ]
     }
@@ -88,6 +93,8 @@ enum MCPNotebookTools {
             scheduleForRangeTool(context: context),
             schedulePresentationTool(context: context),
             reschedulePresentationTool(context: context),
+            discardPresentationTool(context: context),
+            updatePresentationRosterTool(context: context),
             studentWorkTool(context: context),
             workDetailTool(context: context),
             assignWorkTool(context: context),

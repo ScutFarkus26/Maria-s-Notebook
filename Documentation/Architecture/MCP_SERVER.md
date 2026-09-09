@@ -71,6 +71,10 @@ ambiguity errors:
 | `classroom_snapshot` | `ChatContextAssembler.buildClassroomSnapshot` |
 | **Lessons & albums** | |
 | `find_lessons` | `CDLesson` fetch ranked exact name > partial name > area/sequence |
+| `list_lessons_by_area` | one area or sub-area in taught order, no cap — `orderInSequence` then name within a sub-area, sub-areas in the scope map's saved order (`LessonsViewModel.groups`) |
+| `create_lesson` (write) | `LessonRepository.createLesson` + the sub-area renumbered and the area's `sortIndex` rebuilt the way `LessonsRootViewReordering` does after a drag, then AddLessonView's best-effort `SequenceTrackService.getOrCreateTrack`; idempotent on name within a sub-area, creates a sub-area but never an area |
+| `update_lesson` (write) | the lesson detail's Save path (fields set in place, one save); a sub-area move mirrors `moveLessonToSequence` — end of the target, both areas' `sortIndex` rebuilt |
+| `reorder_lessons` (write) | `moveLessonsInArea`'s write — `orderInSequence` renumbered across the sub-area, `sortIndex` rebuilt across the area; unlisted lessons keep their relative order after the listed ones |
 | `search_albums` | `AlbumCorpusLookup.search` — teaching-album PDFs |
 | `get_album_page` | `AlbumCorpusLookup.page` — one album page's full text |
 | **Observations & presentations** | |
@@ -85,6 +89,8 @@ ambiguity errors:
 | `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days |
 | `schedule_presentation` (write) | `PresentationFactory.makeDraft` + `schedule(onDay:)` — reuses an existing unpresented plan for the same lesson and exact student set rather than duplicating it |
 | `reschedule_presentation` (write) | the assignment's own `schedule(onDay:)` / `unschedule()`; refuses presentations already given |
+| `discard_presentation` (write) | the planning list's context-menu delete — `context.delete` + save, notes cascading — two-step like `remove_student_from_work` (no `confirm` = report only: lesson, day, roster, note count); a year-plan entry promoted into the plan goes back to `planned`; refuses presentations already given |
+| `update_presentation_roster` (write) | the detail view's Save shape — `studentIDs` rewritten in place, `modifiedAt` stamped, confirmed ids pruned; refuses an empty group and presentations already given |
 | **Work** | |
 | `student_work` | `CDWorkModel` owned by or participated in by the student |
 | `work_detail` | one work item: steps, check-ins, participants, linked notes |
@@ -138,6 +144,7 @@ ambiguity errors:
 | `year_plan` | `CDYearPlanEntry` — intentions with target dates, not calendar entries |
 | `update_year_plan_entry` (write) | one `CDYearPlanEntry`'s status and target date. Refuses promoted entries — the presentation carries the date once an entry reaches the calendar, so `reschedule_presentation` moves those — and refuses `promoted` as a status to set by hand, since promotion is `schedule_presentation` linking a real assignment |
 | `skip_year_plan_entries` (write) | `StudentDeparturePlans.plannedEntries` + `skip` for one student, the same call the roster makes when a child is withdrawn; skips only `planned` entries and deletes nothing |
+| `clear_year_plan` (write) | the same `StudentDeparturePlans.plannedEntries` + `skip`, scoped to one track (`sequenceGroupKey`, matched as `Area::Sequence`, `Area › Sequence`, or the sequence alone) and/or entries targeted before a day, two-step: without `confirm` it reports the count and lists the entries by track and writes nothing |
 | `list_templates` | meeting / note / todo templates and sample work with steps, in one tool keyed by `kind` |
 | **Operations** | |
 | `sync_status` | `CloudKitSyncStatusService.shared` — health, last sync, pending uploads, and the terminal mirroring-delegate failure |
@@ -148,10 +155,18 @@ ambiguity errors:
 
 Deletes are deliberately not exposed, with one exception:
 `remove_student_from_work` takes a child off a work item, which on a linked
-copy she owns means deleting that row. It is the one tool that destroys
+copy she owns means deleting that row. It is one of two tools that destroy
 rows, so it is two-step — a call without `confirm` only reports the plan —
-and it never touches another child's completion. Edits change only the
-fields provided and report exactly what changed.
+and it never touches another child's completion. `discard_presentation` is
+the other: `reschedule_presentation(unschedule: true)` only returns a plan
+to the planning list, so a regrouped presentation used to leave its
+original behind; discarding is the planning list's own delete (notes
+cascade with it), previewed first the same way, refused for anything
+already given, and it returns any year-plan entry promoted into the plan to
+`planned` rather than leaving it pointing at nothing. Regrouping itself is
+`update_presentation_roster`, which edits the group in place and refuses to
+empty it. Edits change only the fields provided and report exactly what
+changed.
 
 Retiring, not deleting, is the pattern elsewhere: `skip_year_plan_entries`
 can change hundreds of rows in one call and is deliberately *not*
@@ -159,6 +174,11 @@ confirm-gated, because every one of them is recoverable — the entries move
 to `skipped`, `year_plan` still reads them back, and
 `update_year_plan_entry` puts any of them to `planned` again. A girl who
 re-enrols finds her year plan intact.
+`clear_year_plan` is the scoped, previewed form of the same retirement —
+one track, or everything targeted before a day — for a plan generated
+against a sequence position a child never reached: a call without `confirm`
+lists what would be skipped by track, and a second call with `confirm: true`
+skips exactly that. Promoted entries are never touched by either.
 
 **Coverage is deliberate and near-total.** The guide asked for the whole
 notebook to be reachable — reads *and* writes, with nothing held back — so
@@ -212,6 +232,26 @@ are often caught up in the evening or a day later. The per-student
 follow-up outcomes the capture review offers (practice, follow-up work,
 re-present, ready for the next lesson) are not exposed yet — only the
 `needs_follow_up` flag that puts an observation in the follow-up inbox.
+
+The four curriculum tools exist so an AMI album can be reconciled with the
+notebook without opening the app: `list_lessons_by_area` reads a whole
+area or sub-area uncapped (`find_lessons` stops at 25 because it answers a
+different question), `create_lesson` adds what is missing, `update_lesson`
+renames or refiles, and `reorder_lessons` makes the sub-area run in album
+order. They all settle the two ordering columns exactly as a drag in the
+scope map does — `orderInSequence` is the truth within a sub-area and
+`sortIndex` is an area-wide index rebuilt from the sub-areas' saved order —
+so nothing added this way floats to the top the way the single Add Lesson
+form's zero-indexed lessons do. Three boundaries: an area is never created
+(a typo would fork the map, so the refusal lists the areas that exist), a
+lesson already filed under that sub-area with the same name is returned
+rather than duplicated, and nothing is deleted — `reorder_lessons` carries
+every unlisted lesson along after the listed ones. Renames are safe because
+every presentation, plan, work item, note and track step holds the lesson's
+id; `CDLessonAssignment.lessonTitleSnapshot` keeps the old name, as it does
+after an in-app rename. The sub-area order itself lives in `FilterOrderStore`
+(UserDefaults, device-local), which is why a whole-area listing groups in
+this Mac's map order.
 
 The two album tools are the exception to the `[kind id=<uuid>]` convention:
 album pages aren't Core Data records and have no id, so they cite
@@ -290,6 +330,14 @@ can be lost.
 - `Maria's Notebook Tests/Services/MCPServer/MCPPresentationToolsTests.swift`
   — lesson lookup ranking, the presentation write (planned-lesson reuse,
   same-day idempotency, observation linking and dating), and its refusals.
+- `Maria's Notebook Tests/Services/MCPServer/MCPCurriculumToolsTests.swift`
+  — the curriculum tools: uncapped listing, create (append, after-anchor,
+  idempotency, area refusal, track refresh), rename and move, partial
+  reorder carrying unlisted lessons, and store routing on a split stack.
+- `Maria's Notebook Tests/Services/MCPServer/MCPPlanningEditToolsTests.swift`
+  — discard (preview, confirmed delete with note cascade and year-plan
+  entry restored, refusal when given), roster edits and their refusals,
+  and `clear_year_plan` scoped by track and date, previewed then applied.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash

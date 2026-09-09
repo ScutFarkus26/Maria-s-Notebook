@@ -66,7 +66,7 @@ extension MCPNotebookTools {
         guard !matches.isEmpty else {
             return "No lessons matched \"\(query)\"."
         }
-        return matches.map { "- \(describe($0.lesson))" }.joined(separator: "\n")
+        return matches.map { "- \(describeLesson($0.lesson))" }.joined(separator: "\n")
     }
 
     /// Lower ranks sort first: exact name, then a name containing the term,
@@ -80,7 +80,7 @@ extension MCPNotebookTools {
         return nil
     }
 
-    private static func describe(_ lesson: CDLesson) -> String {
+    static func describeLesson(_ lesson: CDLesson) -> String {
         let filing = [lesson.area.trimmed(), lesson.sequence.trimmed()]
             .filter { !$0.isEmpty }
             .joined(separator: " › ")
@@ -133,7 +133,7 @@ extension MCPNotebookTools {
     }
 
     private static func ambiguityMessage(reference: String, candidates: [CDLesson]) -> String {
-        let list = candidates.prefix(8).map { describe($0) }.joined(separator: "\n")
+        let list = candidates.prefix(8).map { describeLesson($0) }.joined(separator: "\n")
         return "More than one lesson matches \"\(reference)\". Ask which one the guide means:\n\(list)"
     }
 }
