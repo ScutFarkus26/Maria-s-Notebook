@@ -207,6 +207,16 @@ struct SchoolYearRolloverView: View {
                      + (viewModel.plan.writeNotes ? " · observations will be logged" : ""))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                let futurePlans = viewModel.futurePlansForDeparting(context: viewContext)
+                if futurePlans > 0 {
+                    Label(
+                        "Departing children come off \(futurePlans) planned "
+                            + (futurePlans == 1 ? "lesson" : "lessons") + " not yet given",
+                        systemImage: "calendar.badge.minus"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
             } footer: {
                 Text(viewModel.lensFootnote(store: store))
                     .font(.footnote)

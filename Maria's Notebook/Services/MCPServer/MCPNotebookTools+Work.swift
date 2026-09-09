@@ -106,7 +106,7 @@ extension MCPNotebookTools {
         if progress.total > 0 {
             details.append("\(progress.completed)/\(progress.total) steps")
         }
-        if let next = nextCheckIn(for: work) {
+        if let next = nextCheckIn(for: work, in: modelContext) {
             details.append("check-in \(dayString(next.date))")
         }
         if let studentID, work.isStudentCompleted(studentID) {
@@ -120,10 +120,12 @@ extension MCPNotebookTools {
     }
 
     /// The soonest check-in still waiting to happen.
-    private static func nextCheckIn(for work: CDWorkModel) -> CDWorkCheckIn? {
+    private static func nextCheckIn(
+        for work: CDWorkModel, in modelContext: NSManagedObjectContext
+    ) -> CDWorkCheckIn? {
         var soonest: CDWorkCheckIn?
         var soonestDate: Date = .distantFuture
-        for checkIn in checkIns(of: work) where checkIn.status == .scheduled {
+        for checkIn in checkIns(of: work, in: modelContext) where checkIn.status == .scheduled {
             let date: Date = checkIn.date ?? .distantFuture
             if date < soonestDate {
                 soonestDate = date
@@ -133,21 +135,28 @@ extension MCPNotebookTools {
         return soonest
     }
 
-    static func checkIns(of work: CDWorkModel) -> [CDWorkCheckIn] {
-        (work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? []
+    /// Check-ins reached through the relationship and through the `workID`
+    /// string both; the week-plan drop path writes only the string.
+    static func checkIns(of work: CDWorkModel, in modelContext: NSManagedObjectContext) -> [CDWorkCheckIn] {
+        WorkDeletionService.checkIns(of: work, in: modelContext)
     }
 
     static func title(of work: CDWorkModel) -> String {
         nonEmpty(work.title) ?? "Untitled work"
     }
 
-    /// Work a student owns outright plus work they are a participant on, so a
-    /// child listed only as a collaborator still sees the group's project.
+    /// Work a student owns plus work they are a passenger on, so a child
+    /// listed only as a collaborator still sees the group's project — but each
+    /// assignment once. Linked copies all name the whole group, so the copy
+    /// she owns stands in for the others; see `WorkGrouping.visibleWork`.
     static func allWork(
         for studentID: UUID, in modelContext: NSManagedObjectContext
     ) -> [CDWorkModel] {
-        modelContext.safeFetch(CDFetchRequest(CDWorkModel.self))
-            .filter { involves(studentID, in: $0) }
+        WorkGrouping.visibleWork(
+            for: studentID,
+            among: modelContext.safeFetch(CDFetchRequest(CDWorkModel.self)),
+            in: modelContext
+        )
     }
 
     // MARK: - One Work Item
@@ -203,6 +212,7 @@ extension MCPNotebookTools {
             lines.append("  Kind: \(kind.displayName)")
         }
         lines.append("  Students: \(workStudentNames(for: work, in: modelContext))")
+        lines.append("  Owner: \(ownerLine(of: work, in: modelContext))")
         lines += shapeLines(of: work, in: modelContext)
 
         if let lessonID = UUID(uuidString: work.lessonID),
@@ -230,7 +240,7 @@ extension MCPNotebookTools {
         }
 
         lines += stepLines(of: work)
-        lines += checkInLines(of: work)
+        lines += checkInLines(of: work, in: modelContext)
         lines += noteLines(of: work)
         return lines.joined(separator: "\n")
     }
@@ -276,6 +286,18 @@ extension MCPNotebookTools {
         }
     }
 
+    /// The child named in the row's own `studentID` field. Every other child
+    /// on the row is a participant; the difference decides what "remove her"
+    /// means, so it is stated rather than left to be inferred.
+    private static func ownerLine(of work: CDWorkModel, in modelContext: NSManagedObjectContext) -> String {
+        guard let owner = WorkGrouping.owner(of: work) else {
+            return work.studentID.isEmpty
+                ? "none — offered work, not yet claimed"
+                : "unresolved (\(work.studentID))"
+        }
+        return "\(studentNames(for: [owner], in: modelContext)) (\(owner.uuidString))"
+    }
+
     private static func stepLines(of work: CDWorkModel) -> [String] {
         let steps = work.orderedSteps
         guard !steps.isEmpty else { return [] }
@@ -286,8 +308,10 @@ extension MCPNotebookTools {
         }
     }
 
-    private static func checkInLines(of work: CDWorkModel) -> [String] {
-        let all = checkIns(of: work)
+    private static func checkInLines(
+        of work: CDWorkModel, in modelContext: NSManagedObjectContext
+    ) -> [String] {
+        let all = checkIns(of: work, in: modelContext)
             .sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
         guard !all.isEmpty else { return [] }
         return ["  Check-ins:"] + all.map { checkIn in

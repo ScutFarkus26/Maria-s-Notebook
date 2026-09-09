@@ -110,6 +110,12 @@ final class SchoolYearRolloverViewModel {
 
     var changeCount: Int { summary.changeCount }
 
+    /// Planned, not-yet-given lessons that name a child being transferred or
+    /// withdrawn; `apply` takes those children off them.
+    func futurePlansForDeparting(context: NSManagedObjectContext) -> Int {
+        RolloverService.summary(for: plan, students: students, context: context).futurePlansForDeparting
+    }
+
     /// Roster grouped by current level, in ladder order, for the assign list.
     var studentsByLevel: [(level: CDStudent.Level, students: [CDStudent])] {
         CDStudent.Level.allCases.compactMap { level in

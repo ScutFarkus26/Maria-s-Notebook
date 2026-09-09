@@ -4,7 +4,9 @@
 //
 //  The toolset the MCP server exposes to Claude Desktop. The goal is total
 //  coverage: anything the guide can see or change in the app should be
-//  reachable here. Two boundaries are deliberate — nothing deletes, and
+//  reachable here. Two boundaries are deliberate — nothing deletes a record
+//  outright (remove_student_from_work is the one exception, and it refuses
+//  until the guide has seen exactly what it will change), and
 //  record_parent_communication files a letter without sending it.
 //
 //  Tools are grouped below only to keep this list readable; the order is what
@@ -86,7 +88,8 @@ enum MCPNotebookTools {
             studentWorkTool(context: context),
             workDetailTool(context: context),
             assignWorkTool(context: context),
-            updateWorkTool(context: context)
+            updateWorkTool(context: context),
+            removeStudentFromWorkTool(context: context)
         ]
     }
 

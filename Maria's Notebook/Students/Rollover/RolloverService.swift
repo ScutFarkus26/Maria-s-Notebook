@@ -45,6 +45,10 @@ struct RolloverSummary: Equatable {
     var transferred = 0
     var withdrawn = 0
     var staying = 0
+    /// Lessons planned but not yet given that name a departing child; the
+    /// rollover takes those children off them so the plans stop generating
+    /// work for children who have left.
+    var futurePlansForDeparting = 0
 
     var changeCount: Int { promoted.values.reduce(0, +) + transferred + withdrawn }
 
@@ -67,8 +71,11 @@ struct RolloverSummary: Equatable {
 
 enum RolloverService {
 
-    /// Pure summary of what a plan would do to the given roster.
-    static func summary(for plan: RolloverPlan, students: [CDStudent]) -> RolloverSummary {
+    /// Pure summary of what a plan would do to the given roster. Pass a
+    /// context to also count the planned lessons departing children are on.
+    static func summary(
+        for plan: RolloverPlan, students: [CDStudent], context: NSManagedObjectContext? = nil
+    ) -> RolloverSummary {
         var result = RolloverSummary()
         for student in students {
             switch plan.outcome(for: student.id) {
@@ -82,7 +89,21 @@ enum RolloverService {
                 result.withdrawn += 1
             }
         }
+        if let context {
+            result.futurePlansForDeparting = StudentDeparturePlans
+                .futurePlans(for: departingStudentIDs(in: plan, students: students), in: context)
+                .count
+        }
         return result
+    }
+
+    static func departingStudentIDs(in plan: RolloverPlan, students: [CDStudent]) -> [UUID] {
+        students.compactMap { student in
+            switch plan.outcome(for: student.id) {
+            case .transfer, .withdraw: return student.id
+            case .stay, .promote: return nil
+            }
+        }
     }
 
     /// Applies the plan in a single context save (atomic: everything lands or nothing does).
@@ -111,9 +132,11 @@ enum RolloverService {
             case .transfer:
                 student.enrollmentStatus = .transferred
                 student.dateWithdrawn = plan.effectiveDate
+                retractFuturePlans(for: student, context: context)
             case .withdraw:
                 student.enrollmentStatus = .withdrawn
                 student.dateWithdrawn = plan.effectiveDate
+                retractFuturePlans(for: student, context: context)
             }
             student.modifiedAt = Date()
             changed += 1
@@ -126,6 +149,14 @@ enum RolloverService {
             context.safeSave()
         }
         return changed
+    }
+
+    /// A child who has left should not be on lessons still to be given —
+    /// those plans generate work naming her when they are presented.
+    private static func retractFuturePlans(for student: CDStudent, context: NSManagedObjectContext) {
+        guard let studentID = student.id else { return }
+        let plans = StudentDeparturePlans.futurePlans(for: studentID, in: context)
+        StudentDeparturePlans.retract(studentID: studentID, from: plans, in: context)
     }
 
     // MARK: - Notes

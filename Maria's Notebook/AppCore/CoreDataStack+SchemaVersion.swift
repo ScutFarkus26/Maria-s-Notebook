@@ -156,6 +156,9 @@ extension CoreDataStack {
             }
 
             cleanOrphanEntityMetadata(storeURL: url, model: model)
+            // A counter below an occupied Z_PK makes the next insert fail
+            // outright; raise any that are behind before Core Data reads them.
+            raiseStalePrimaryKeyCounters(storeURL: url)
             if backup != nil {
                 cleanDanglingCloudKitMetadata(storeURL: url)
                 dedupeCloudKitMetadataForDuplicatedEntities(storeURL: url)

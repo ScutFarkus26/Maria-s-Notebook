@@ -185,6 +185,20 @@ struct PresentationDetailContentView: View {
         ) {
             postPresentationCaptureContent
         }
+        .workRetractionAlert(
+            isPresented: workRetractionAlertIsPresented,
+            message: workRetractionMessage,
+            onRemove: {
+                let plans = vm.pendingWorkRetraction
+                vm.pendingWorkRetraction = []
+                saveAndDone(retractingWork: plans)
+            },
+            onKeep: {
+                vm.pendingWorkRetraction = []
+                saveAndDone(retractingWork: [])
+            },
+            onCancel: { vm.pendingWorkRetraction = [] }
+        )
         .alert("Couldn’t Record Presentation", isPresented: presentationRecordErrorIsPresented) {
             Button("OK") { presentationRecordErrorMessage = nil }
         } message: {
@@ -410,14 +424,4 @@ struct PresentationDetailContentView: View {
         handleDone()
     }
 
-    func handleSaveAndDone() {
-        vm.save(
-            studentsAll: studentsAll,
-            lessons: lessons,
-            lessonAssignmentsAll: lessonAssignmentsAll,
-            calendar: calendar
-        ) {
-            handleDone()
-        }
-    }
 }

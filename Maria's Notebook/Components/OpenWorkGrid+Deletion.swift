@@ -36,17 +36,26 @@ extension OpenWorkGrid {
     /// observations written against this work go with it. A guide clearing out
     /// stale work should not have to discover that afterwards.
     var deletionMessage: String {
-        let observations = pendingDeletion.reduce(into: 0) { total, work in
-            total += work.unifiedNotes?.count ?? 0
-        }
+        let service = WorkDeletionService(context: viewContext)
+        let cascade = pendingDeletion.reduce(WorkCascade()) { $0 + service.cascade(for: $1) }
         let isMany = pendingDeletion.count > 1
         let subject = isMany ? "These work items" : "This work"
-        guard observations > 0 else {
+        var costs: [String] = []
+        if cascade.observations > 0 {
+            costs.append("\(cascade.observations) " + (cascade.observations == 1 ? "observation" : "observations"))
+        }
+        if cascade.checkIns > 0 {
+            costs.append("\(cascade.checkIns) " + (cascade.checkIns == 1 ? "check-in" : "check-ins"))
+        }
+        if cascade.completionRecords > 0 {
+            costs.append("\(cascade.completionRecords) completion "
+                + (cascade.completionRecords == 1 ? "record" : "records"))
+        }
+        guard !costs.isEmpty else {
             return subject + " will be removed from every child's record. This cannot be undone."
         }
-        let noun = observations == 1 ? "observation" : "observations"
         let pronoun = isMany ? "them" : "it"
-        return subject + " and the \(observations) " + noun + " written on " + pronoun
+        return subject + " and the " + costs.joined(separator: ", ") + " on " + pronoun
             + " will be removed from every child's record. This cannot be undone."
     }
 

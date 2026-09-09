@@ -57,6 +57,9 @@ final class PresentationDetailViewModel {
     var showingAddStudentSheet: Bool = false
     var showingStudentPickerPopover: Bool = false
     var showDeleteAlert: Bool = false
+    /// Work this presentation generated for children being taken off it,
+    /// held while the guide decides whether to take them off the work too.
+    var pendingWorkRetraction: [WorkRemovalPlan] = []
     var showingMoveStudentsSheet: Bool = false
     var showingFindStudentsSheet: Bool = false
 
@@ -149,13 +152,34 @@ final class PresentationDetailViewModel {
     // Saves changes to the database and handles presentation lifecycle events.
     // Planning the next lesson only happens after an explicit choice in the
     // post-presentation workflow.
+    /// Work already generated from this presentation for children the edit
+    /// removes from it. Empty when nothing downstream would disagree.
+    func workRetractionPlans() -> [WorkRemovalPlan] {
+        let removed = Set(lessonAssignment.studentUUIDs).subtracting(selectedStudentIDs)
+        guard !removed.isEmpty else { return [] }
+        return PresentationWorkRetraction.plans(
+            forRemoving: removed, from: lessonAssignment, in: viewContext
+        )
+    }
+
     func save(
         studentsAll: [CDStudent],
         lessons: [CDLesson],
         lessonAssignmentsAll _: [CDLessonAssignment],
         calendar: Calendar,
+        retractingWork: [WorkRemovalPlan] = [],
         onDone: (() -> Void)? = nil
     ) {
+        // 0. Take removed children off the work this presentation generated,
+        //    when the guide chose to, so the two records keep agreeing.
+        if !retractingWork.isEmpty {
+            do {
+                try PresentationWorkRetraction.apply(retractingWork, in: viewContext)
+            } catch {
+                Self.logger.error("Could not retract work for removed students: \(error)")
+            }
+        }
+
         // 1. Apply local edits to the model
         applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
 

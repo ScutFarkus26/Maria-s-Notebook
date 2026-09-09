@@ -262,14 +262,13 @@ extension ClassAreaChecklistViewModel {
         }
 
         // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
+        // Take her off the rows rather than deleting every row that names her:
+        // a shared row also carries the other children on it.
         let workRequest = CDFetchRequest(CDWorkModel.self)
         workRequest.predicate = NSPredicate(format: "statusRaw != %@ AND lessonID == %@", "complete", lidString)
-        let workModelsToDelete = context.safeFetch(workRequest).filter { work in
-            ((work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []).contains { $0.studentID == sidString }
-        }
-        for work in workModelsToDelete {
-            context.delete(work)
-        }
+        WorkDeletionService.removeWithoutSaving(
+            studentID: sid, from: context.safeFetch(workRequest), in: context
+        )
 
         deleteLessonPresentation(studentID: sidString, lessonID: lidString, context: context)
     }

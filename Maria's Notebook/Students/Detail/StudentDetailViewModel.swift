@@ -135,20 +135,29 @@ final class StudentDetailViewModel {
 
     // MARK: - Business Logic (moved from View)
 
-    /// Fetch work models for the student (non-complete only)
+    /// Fetch work models for the student (non-complete only): the rows she
+    /// owns, plus rows she is a passenger on when no copy in that group is
+    /// hers — the same rule the MCP `student_work` reader applies, see
+    /// `WorkGrouping.visibleWork`.
     func fetchWorkModelsForStudent(viewContext: NSManagedObjectContext) -> [CDWorkModel] {
-        let sid = student.id?.uuidString ?? ""
+        guard let studentID = student.id else { return [] }
+        let sid = studentID.uuidString
         let completeStatusRaw = WorkStatus.complete.rawValue
 
-        let predicate = NSPredicate(format: "studentID == %@ AND statusRaw != %@", sid, completeStatusRaw)
+        let predicate = NSPredicate(
+            format: "(studentID == %@ OR ANY participants.studentID == %@) AND statusRaw != %@",
+            sid, sid, completeStatusRaw
+        )
         let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
         descriptor.predicate = predicate
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         descriptor.fetchLimit = 500 // Reasonable limit for incomplete work per student
         // Prefetch unifiedNotes so StudentOverviewTab's needsAttention/latestNoteDate
         // reads each work's notes from the row cache instead of faulting per row (N+1).
-        descriptor.relationshipKeyPathsForPrefetching = ["unifiedNotes"]
-        return viewContext.safeFetch(descriptor)
+        descriptor.relationshipKeyPathsForPrefetching = ["unifiedNotes", "participants"]
+        return WorkGrouping.visibleWork(
+            for: studentID, among: viewContext.safeFetch(descriptor), in: viewContext
+        )
     }
 
     /// Create a draft lesson assignment, reusing existing if available

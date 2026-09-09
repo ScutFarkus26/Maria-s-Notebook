@@ -279,14 +279,11 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
             }
         }
 
-        // Filter from pre-fetched WorkModels instead of re-fetching all
-        let workModelsToDelete = prefetchedWorkModels.filter { work in
-            guard work.lessonID == lidString else { return false }
-            let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            return parts.contains { $0.studentID == sidString }
-        }
-        for work in workModelsToDelete {
-            context.delete(work)
+        // Take her off this lesson's work rather than deleting every row that
+        // names her: a shared row also carries the other children on it.
+        if let studentID = student.id {
+            let lessonWork = prefetchedWorkModels.filter { $0.lessonID == lidString }
+            WorkDeletionService.removeWithoutSaving(studentID: studentID, from: lessonWork, in: context)
         }
 
         deleteLessonPresentation(

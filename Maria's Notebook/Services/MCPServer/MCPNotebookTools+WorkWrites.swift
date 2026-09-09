@@ -263,7 +263,7 @@ extension MCPNotebookTools {
 
         var changes: [String] = []
         changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
-        changes += try applyCheckInCompletion(arguments, to: work)
+        changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
         changes += try applyDueDate(arguments, to: work)
         changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
 
@@ -304,11 +304,12 @@ extension MCPNotebookTools {
     }
 
     private static func applyCheckInCompletion(
-        _ arguments: [String: JSONValue], to work: CDWorkModel
+        _ arguments: [String: JSONValue], to work: CDWorkModel,
+        in modelContext: NSManagedObjectContext
     ) throws -> [String] {
         guard let day = try dayArgument(arguments, "complete_check_in_on") else { return [] }
         let target = AppCalendar.startOfDay(day)
-        let match = checkIns(of: work).first { checkIn in
+        let match = checkIns(of: work, in: modelContext).first { checkIn in
             guard let date = checkIn.date else { return false }
             return AppCalendar.startOfDay(date) == target && checkIn.status == .scheduled
         }

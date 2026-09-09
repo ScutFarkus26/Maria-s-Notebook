@@ -16,7 +16,7 @@ struct StudentDetailView: View {
 
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.managedObjectContext) var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     #if os(macOS)
@@ -40,6 +40,9 @@ struct StudentDetailView: View {
     @State private var draftEnrollmentStatus: CDStudent.EnrollmentStatus = .enrolled
     @State private var draftDateWithdrawn: Date?
     @State private var showDeleteAlert = false
+    /// Lessons still planned for a child being withdrawn or transferred,
+    /// held while the guide decides whether to take her off them.
+    @State var pendingDeparturePlans: [CDLessonAssignment] = []
 
     // The stored key is retained so existing installations migrate cleanly.
     // Its old tab values are translated into the four guide-facing sections.
@@ -117,11 +120,30 @@ struct StudentDetailView: View {
     private func handleCancelEdit() { isEditing = false }
 
     private func handleSaveEdit() {
+        guard !draftFirstName.trimmed().isEmpty, !draftLastName.trimmed().isEmpty,
+              let studentID = student.id else { return }
+        // A departing child is still named on every lesson planned but not
+        // yet given; those plans generate work with her on it when presented.
+        // Name them now, at the point of departure, rather than later.
+        if student.isEnrolled, draftEnrollmentStatus != .enrolled {
+            let plans = StudentDeparturePlans.futurePlans(for: studentID, in: managedObjectContext)
+            if !plans.isEmpty {
+                pendingDeparturePlans = plans
+                return
+            }
+        }
+        commitEdit(retractingPlans: [])
+    }
+
+    private func commitEdit(retractingPlans plans: [CDLessonAssignment]) {
         let fn = draftFirstName.trimmed()
         let ln = draftLastName.trimmed()
         guard !fn.isEmpty, !ln.isEmpty else { return }
         let nick = draftNickname.trimmed()
         guard let studentID = student.id else { return }
+        if !plans.isEmpty {
+            StudentDeparturePlans.retract(studentID: studentID, from: plans, in: managedObjectContext)
+        }
         repository.updateStudent(
             id: studentID,
             firstName: fn,
@@ -223,6 +245,20 @@ struct StudentDetailView: View {
         .overlay(alignment: .top) {
             StudentDetailToastOverlay(message: vm.toastMessage)
         }
+        .departurePlansAlert(
+            isPresented: departureAlertIsPresented,
+            message: departureAlertMessage,
+            onRemove: {
+                let plans = pendingDeparturePlans
+                pendingDeparturePlans = []
+                commitEdit(retractingPlans: plans)
+            },
+            onKeep: {
+                pendingDeparturePlans = []
+                commitEdit(retractingPlans: [])
+            },
+            onCancel: { pendingDeparturePlans = [] }
+        )
         .alert("Delete Student?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 do {

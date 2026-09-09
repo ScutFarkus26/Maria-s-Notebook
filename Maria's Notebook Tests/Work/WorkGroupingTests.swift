@@ -176,6 +176,31 @@ struct WorkGroupingTests {
         #expect(group.shape == .linkedCopies(total: 2))
     }
 
+    // MARK: - What a child sees
+
+    @Test("a child sees the copy she owns once, and a passenger row only when no copy is hers")
+    func visibleWorkListsEachAssignmentOnce() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let avigail = UUID()
+        let leshem = UUID()
+        let sarah = UUID()
+        let copies = seedLinkedCopies(in: context, studentIDs: [avigail, leshem], lessonID: UUID())
+        let avigailsCopy = try #require(copies.first { $0.studentID == avigail.uuidString })
+        addParticipant(sarah, to: avigailsCopy, in: context)
+        let sharedRow = seedSharedRow(in: context, studentIDs: [leshem, avigail], lessonID: UUID(), title: "Map")
+        CoreDataTestHelpers.save(context)
+
+        let all = context.safeFetch(CDFetchRequest(CDWorkModel.self))
+        let avigailSees = WorkGrouping.visibleWork(for: avigail, among: all, in: context)
+        #expect(Set(avigailSees.map(\.objectID)) == Set([avigailsCopy.objectID, sharedRow.objectID]))
+
+        // Sarah has no copy of her own, so the row she rides on is hers to see.
+        #expect(WorkGrouping.visibleWork(for: sarah, among: all, in: context).map(\.objectID) == [avigailsCopy.objectID])
+
+        // The copies still name every child: the mutual test is intact.
+        #expect(WorkGrouping.studentIDs(of: avigailsCopy).count == 3)
+    }
+
     // MARK: - What the rule refuses to join
 
     @Test("a one-directional link is not a group")

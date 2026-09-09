@@ -90,6 +90,7 @@ ambiguity errors:
 | `work_detail` | one work item: steps, check-ins, participants, linked notes |
 | `assign_work` (write) | `WorkRepository.createWork` + participant cross-links + optional `CDWorkCheckIn`, mirroring the Quick New Work sheet |
 | `update_work` (write) | `WorkRepository.markWorkCompleted` / `WorkCompletionService.markCompleted`; status, due date, per-student completion, check-in completion |
+| `remove_student_from_work` (write) | `WorkDeletionService.removalPlan` / `apply`; refuses until called with `confirm: true`, and reports owner promotion, passenger drops and linked-copy deletion before doing any of it |
 | **Attendance** | |
 | `attendance_for_day` | `attendanceStatuses(for:on:)` — deduplicated per student/day |
 | `student_attendance` | `CDAttendanceRecord` + `deduplicatedPerStudentDay()`, with a tally |
@@ -142,14 +143,19 @@ ambiguity errors:
 | `list_stories` | `CDStory` metadata (the PDFs themselves are not returned) |
 | `student_tracks` | `TrackProgressResolver` over the student's `CDStudentTrackEnrollmentEntity`s |
 
-Deletes are deliberately not exposed; edits change only the fields provided
-and report exactly what changed.
+Deletes are deliberately not exposed, with one exception:
+`remove_student_from_work` takes a child off a work item, which on a linked
+copy she owns means deleting that row. It is the one tool that destroys
+rows, so it is two-step — a call without `confirm` only reports the plan —
+and it never touches another child's completion. Edits change only the
+fields provided and report exactly what changed.
 
 **Coverage is deliberate and near-total.** The guide asked for the whole
 notebook to be reachable — reads *and* writes, with nothing held back — so
 guardian contact details, parent communications and meeting notes are all in
 scope. Two boundaries survive that decision, and neither is a gap to close:
-no tool deletes anything, and `record_parent_communication` files a letter
+no tool deletes a record outright except `remove_student_from_work` (above,
+and confirm-gated), and `record_parent_communication` files a letter
 without sending it, because delivery to families is a step the guide reviews
 in the app. `mark_attendance` writes only through `CDAttendanceStore`, which
 enforces `ClassroomPermissions` — an assistant's MCP session cannot write
@@ -256,8 +262,9 @@ can be lost.
 - Claude Desktop prompts the teacher before each tool call; the write
   tools (observations, student edits, meeting entries, follow-ups) all go
   through the app's normal save paths (CloudKit mirroring, follow-up
-  inbox, student links all behave as if entered in-app), and none can
-  delete.
+  inbox, student links all behave as if entered in-app); the only
+  destructive tool, `remove_student_from_work`, refuses until re-called
+  with `confirm: true`.
 
 ## Testing
 

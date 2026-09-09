@@ -1,9 +1,11 @@
 import Foundation
 import CoreData
+import OSLog
 import SwiftUI
 
 @Observable
 final class WorkDetailViewModel {
+    private static let logger = Logger.work
     // MARK: - State
     var work: CDWorkModel?
     var relatedLesson: CDLesson?
@@ -360,9 +362,13 @@ final class WorkDetailViewModel {
         onDeleted: @escaping () -> Void
     ) {
         guard let work else { return }
-        
-        modelContext.delete(work)
-        saveCoordinator.save(modelContext)
+        do {
+            try WorkDeletionService(context: modelContext).delete([work]) {
+                saveCoordinator.save(modelContext, reason: "Delete work")
+            }
+        } catch {
+            Self.logger.error("Failed to delete work: \(error)"); return
+        }
         onDeleted()
     }
     

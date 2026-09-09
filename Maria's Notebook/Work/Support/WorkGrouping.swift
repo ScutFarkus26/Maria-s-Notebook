@@ -105,6 +105,28 @@ enum WorkGrouping {
         studentIDs(of: work).contains(studentID)
     }
 
+    // MARK: - What a Child Sees
+
+    /// The rows a child's own work list should show, out of every row that
+    /// names her.
+    ///
+    /// Linked copies each name the whole group, so a naive "everything that
+    /// names her" lists the same assignment once per copy. She sees the copy
+    /// she owns; a row she is only a passenger on counts only when no member
+    /// of its group is hers. The copies themselves keep naming every child —
+    /// that mutual naming is what `areLinkedCopies` reads, and what lets
+    /// "with Leshem" render on each copy.
+    static func visibleWork(
+        for studentID: UUID, among works: [CDWorkModel], in context: NSManagedObjectContext
+    ) -> [CDWorkModel] {
+        works.filter { work in
+            guard involves(studentID, in: work) else { return false }
+            if owner(of: work) == studentID { return true }
+            let group = group(containing: work, in: context)
+            return !group.members.contains { owner(of: $0) == studentID }
+        }
+    }
+
     // MARK: - Grouping
 
     /// Resolves the fan-out group a work item belongs to.
