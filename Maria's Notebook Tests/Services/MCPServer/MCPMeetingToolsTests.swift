@@ -208,4 +208,60 @@ struct MCPMeetingToolsTests {
         ])
         #expect(unrelated.contains("Nothing is open for Sarah Zell."))
     }
+
+    @Test("add_follow_up sets priority, scheduled date and someday in one call")
+    func addFollowUpAcceptsTheFullTodoShape() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
+        CoreDataTestHelpers.save(context)
+
+        let output = try await tool(named: "add_follow_up", in: tools).handler([
+            "title": .string("Order Morse code books"),
+            "student_names": .array([.string("Etty")]),
+            "due_date": .string("2026-09-18"),
+            "scheduled_date": .string("2026-09-15"),
+            "priority": .string("High"),
+            "is_someday": .bool(false)
+        ])
+        #expect(output.contains("due 2026-09-18"))
+        #expect(output.contains("scheduled 2026-09-15"))
+        #expect(output.contains("high priority"))
+
+        let todo = try #require(context.safeFetch(CDFetchRequest(CDTodoItem.self)).first)
+        #expect(MCPNotebookTools.dayString(todo.scheduledDate) == "2026-09-15")
+        #expect(todo.priority == .high)
+        #expect(!todo.isSomeday)
+    }
+
+    @Test("add_follow_up files a someday item with no dates")
+    func addFollowUpFilesSomedayItems() async throws {
+        let (tools, context) = try makeTools()
+
+        let output = try await tool(named: "add_follow_up", in: tools).handler([
+            "title": .string("Rebuild the botany shelf"),
+            "is_someday": .bool(true)
+        ])
+        #expect(output.contains("someday"))
+
+        let todo = try #require(context.safeFetch(CDFetchRequest(CDTodoItem.self)).first)
+        #expect(todo.isSomeday)
+        #expect(todo.dueDate == nil)
+        #expect(todo.priority == .none)
+    }
+
+    @Test("add_follow_up rejects an unknown priority without writing the todo")
+    func addFollowUpRejectsUnknownPriority() async throws {
+        let (tools, context) = try makeTools()
+
+        do {
+            _ = try await tool(named: "add_follow_up", in: tools).handler([
+                "title": .string("Call the office"),
+                "priority": .string("Urgent")
+            ])
+            Issue.record("Expected a priority error")
+        } catch let error as MCPToolError {
+            #expect(error.message.contains("None, Low, Medium, High"))
+        }
+        #expect(context.safeFetch(CDFetchRequest(CDTodoItem.self)).isEmpty)
+    }
 }

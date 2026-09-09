@@ -199,4 +199,175 @@ struct MCPNotebookToolsTests {
         #expect(output.contains("stamp game"))
         #expect(!output.contains("garden"))
     }
+
+    // MARK: - Reassigning An Observation
+
+    @Test("update_observation replaces the note's children rather than adding to them")
+    func updateObservationReplacesParticipants() async throws {
+        let (tools, context) = try makeTools()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "Built the trinomial cube.")
+        note.scope = .student(try #require(ora.id))
+        CoreDataTestHelpers.save(context)
+        let ettyID = try #require(etty.id)
+        let noteID = try #require(note.id?.uuidString)
+
+        let output = try await tool(named: "update_observation", in: tools).handler([
+            "note_id": .string(noteID),
+            "student_names": .array([.string("Etty")])
+        ])
+        #expect(output.contains("now about Etty Klein"))
+        // Replaced, not appended — Ora is off the note entirely.
+        #expect(note.scope == .student(ettyID))
+    }
+
+    @Test("update_observation files a shared note against several children")
+    func updateObservationAssignsSeveralChildren() async throws {
+        let (tools, context) = try makeTools()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "Worked the map together.")
+        note.scope = .student(try #require(ora.id))
+        CoreDataTestHelpers.save(context)
+        let ids = [try #require(ora.id), try #require(etty.id)]
+        let noteID = try #require(note.id?.uuidString)
+
+        _ = try await tool(named: "update_observation", in: tools).handler([
+            "note_id": .string(noteID),
+            "student_names": .array([.string("Ora"), .string("Etty")])
+        ])
+        #expect(note.scope == .students(ids.sorted { $0.uuidString < $1.uuidString }))
+
+        // The multi-student scope is mirrored into the link rows the timeline reads.
+        let links = context.safeFetch(CDFetchRequest(CDNoteStudentLink.self))
+        #expect(Set(links.map(\.studentID)) == Set(ids.map(\.uuidString)))
+    }
+
+    @Test("update_observation widens a note to the whole class on an empty list")
+    func updateObservationWidensToWholeClass() async throws {
+        let (tools, context) = try makeTools()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "The shelf work was left out.")
+        note.scope = .student(try #require(ora.id))
+        CoreDataTestHelpers.save(context)
+        let noteID = try #require(note.id?.uuidString)
+
+        let output = try await tool(named: "update_observation", in: tools).handler([
+            "note_id": .string(noteID),
+            "student_names": .array([])
+        ])
+        #expect(output.contains("whole-class note"))
+        #expect(note.scope == .all)
+    }
+
+    @Test("update_observation refuses an ambiguous first name without touching the note")
+    func updateObservationRefusesAmbiguousName() async throws {
+        let (tools, context) = try makeTools()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Fleishman")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Fleischman")
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "Read aloud to the group.")
+        let oraID = try #require(ora.id)
+        note.scope = .student(oraID)
+        CoreDataTestHelpers.save(context)
+        let noteID = try #require(note.id?.uuidString)
+
+        do {
+            _ = try await tool(named: "update_observation", in: tools).handler([
+                "note_id": .string(noteID),
+                "body": .string("Read aloud to the whole group."),
+                "student_names": .array([.string("Etty")])
+            ])
+            Issue.record("Expected an ambiguity error")
+        } catch let error as MCPToolError {
+            #expect(error.message.contains("More than one student"))
+            #expect(error.message.contains("Etty Fleischman"))
+            #expect(error.message.contains("Etty Fleishman"))
+        }
+        // Nothing was applied — not the reassignment, and not the body either.
+        #expect(note.scope == .student(oraID))
+        #expect(note.body == "Read aloud to the group.")
+    }
+
+    @Test("update_observation can reassign a note onto a withdrawn student")
+    func updateObservationResolvesFormerStudents() async throws {
+        let (tools, context) = try makeTools()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        let left = CoreDataTestHelpers.seedStudent(
+            in: context, firstName: "Leshem", lastName: "Pardes", enrollmentStatus: .transferred
+        )
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "Finished the timeline.")
+        note.scope = .student(try #require(ora.id))
+        CoreDataTestHelpers.save(context)
+        let leftID = try #require(left.id)
+        let noteID = try #require(note.id?.uuidString)
+
+        _ = try await tool(named: "update_observation", in: tools).handler([
+            "note_id": .string(noteID),
+            "student_names": .array([.string("Leshem")])
+        ])
+        #expect(note.scope == .student(leftID))
+    }
+
+    @Test("update_observation still refuses a request with no changes in it")
+    func updateObservationRefusesEmptyRequest() async throws {
+        let (tools, context) = try makeTools()
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "Unchanged.")
+        CoreDataTestHelpers.save(context)
+        let noteID = try #require(note.id?.uuidString)
+
+        do {
+            _ = try await tool(named: "update_observation", in: tools).handler([
+                "note_id": .string(noteID)
+            ])
+            Issue.record("Expected a no-changes error")
+        } catch let error as MCPToolError {
+            #expect(error.message.contains("student_names"))
+        }
+    }
+
+    // MARK: - Back-dating A New Observation
+
+    @Test("create_observation files a note under a given day, defaulting to today")
+    func createObservationAcceptsADate() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        CoreDataTestHelpers.save(context)
+
+        let backdated = try await tool(named: "create_observation", in: tools).handler([
+            "student_names": .array([.string("Ora")]),
+            "body": .string("Chose the bells before anyone else."),
+            "date": .string("2026-09-02")
+        ])
+        #expect(backdated.contains("2026-09-02"))
+
+        _ = try await tool(named: "create_observation", in: tools).handler([
+            "student_names": .array([.string("Ora")]),
+            "body": .string("Came back to the bells.")
+        ])
+
+        let notes = context.safeFetch(CDFetchRequest(CDNote.self))
+        #expect(notes.count == 2)
+        let old = try #require(notes.first { $0.body.contains("before anyone else") })
+        #expect(MCPNotebookTools.dayString(old.createdAt) == "2026-09-02")
+        let today = try #require(notes.first { $0.body.contains("Came back") })
+        #expect(MCPNotebookTools.dayString(today.createdAt) == MCPNotebookTools.dayString(Date()))
+    }
+
+    @Test("create_observation rejects a malformed date before writing anything")
+    func createObservationRejectsMalformedDate() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        CoreDataTestHelpers.save(context)
+
+        await #expect(throws: MCPToolError.self) {
+            _ = try await tool(named: "create_observation", in: tools).handler([
+                "student_names": .array([.string("Ora")]),
+                "body": .string("Anything"),
+                "date": .string("September 2nd")
+            ])
+        }
+        #expect(context.safeFetch(CDFetchRequest(CDNote.self)).isEmpty)
+    }
 }

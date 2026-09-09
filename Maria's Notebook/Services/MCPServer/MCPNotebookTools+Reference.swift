@@ -3,8 +3,8 @@
 //  Maria's Notebook
 //
 //  The material a guide consults rather than edits day to day: written
-//  procedures, the story shelf, community topics the class has discussed, and
-//  where each child stands on their sequence tracks.
+//  procedures, the story shelf, and where each child stands on their sequence
+//  tracks. Community topics moved to their own file when they gained a writer.
 //
 //  Track progress goes through TrackProgressResolver, the same helper the
 //  progression screens use, so "mastered" means the same thing everywhere.
@@ -156,71 +156,6 @@ extension MCPNotebookTools {
             return true
         }
         return false
-    }
-
-    // MARK: - Community Topics
-
-    static func communityTopicsTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "community_topics",
-            title: "Community Topics",
-            description: "Topics the class has raised for community meeting — who brought each "
-                + "one, the solutions proposed, and how it was settled.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "unaddressed_only": [
-                        "type": "boolean",
-                        "description": "Only topics not yet discussed (default false)"
-                    ]
-                ]
-            ],
-            handler: { arguments in
-                describeCommunityTopics(arguments: arguments, in: context())
-            }
-        )
-    }
-
-    private static func describeCommunityTopics(
-        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) -> String {
-        let unaddressedOnly: Bool = arguments["unaddressed_only"]?.boolValue ?? false
-        let all: [CDCommunityTopicEntity] = modelContext
-            .safeFetch(CDFetchRequest(CDCommunityTopicEntity.self))
-        var kept: [CDCommunityTopicEntity] = []
-        for topic in all {
-            if unaddressedOnly && topic.addressedDate != nil { continue }
-            kept.append(topic)
-        }
-        guard !kept.isEmpty else {
-            return unaddressedOnly ? "Every topic has been addressed." : "No community topics yet."
-        }
-
-        let sorted: [CDCommunityTopicEntity] = kept.sorted { lhs, rhs in
-            (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
-        }
-        let lines = sorted.map { topic -> String in
-            let id: String = topic.id?.uuidString ?? "unknown"
-            var details: [String] = []
-            if let broughtBy = nonEmpty(topic.broughtBy) {
-                details.append("raised by \(broughtBy)")
-            }
-            if let addressed = topic.addressedDate {
-                details.append("discussed \(dayString(addressed))")
-            } else {
-                details.append("not yet discussed")
-            }
-            let solutions: [CDProposedSolutionEntity] =
-                (topic.proposedSolutions?.allObjects as? [CDProposedSolutionEntity]) ?? []
-            if !solutions.isEmpty {
-                details.append("\(solutions.count) proposed solution(s)")
-            }
-            let resolution: String = nonEmpty(topic.resolution)
-                .map { "\n    Resolution: \($0)" } ?? ""
-            return "- [communityTopic id=\(id)] \(topic.title) "
-                + "(\(details.joined(separator: "; ")))\(resolution)"
-        }
-        return "\(sorted.count) topic(s):\n" + lines.joined(separator: "\n")
     }
 
     // MARK: - Track Progress

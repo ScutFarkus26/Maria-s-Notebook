@@ -241,11 +241,7 @@ extension MCPNotebookTools {
                 "type": "string",
                 "description": "The day the guide means to do it, YYYY-MM-DD"
             ],
-            "priority": [
-                "type": "string",
-                "enum": ["None", "Low", "Medium", "High"],
-                "description": "Priority level"
-            ],
+            "priority": todoPrioritySchema,
             "is_someday": [
                 "type": "boolean",
                 "description": "Move to (or out of) someday/maybe"
@@ -274,11 +270,7 @@ extension MCPNotebookTools {
             changes.append("notes")
         }
         changes += try applyTodoDates(arguments, to: todo)
-        if let priorityRaw = nonEmpty(arguments["priority"]?.stringValue) {
-            guard let priority = TodoPriority(rawValue: priorityRaw) else {
-                let allowed = TodoPriority.allCases.map(\.rawValue).joined(separator: ", ")
-                throw MCPToolError("priority must be one of: \(allowed). Got \"\(priorityRaw)\".")
-            }
+        if let priority = try todoPriorityArgument(arguments) {
             todo.priority = priority
             changes.append("priority \(priority.rawValue.lowercased())")
         }
@@ -338,6 +330,26 @@ extension MCPNotebookTools {
         return students.isEmpty
             ? ["cleared the students"]
             : ["students \(students.map(\.fullName).joined(separator: ", "))"]
+    }
+
+    /// The priority field as both `update_todo` and `add_follow_up` declare it.
+    static let todoPrioritySchema: JSONValue = [
+        "type": "string",
+        "enum": ["None", "Low", "Medium", "High"],
+        "description": "Priority level"
+    ]
+
+    /// Parses an optional priority argument, shared so both todo writers name
+    /// the same allowed values in the same error.
+    static func todoPriorityArgument(
+        _ arguments: [String: JSONValue], _ key: String = "priority"
+    ) throws -> TodoPriority? {
+        guard let raw = nonEmpty(arguments[key]?.stringValue) else { return nil }
+        guard let priority = TodoPriority(rawValue: raw) else {
+            let allowed = TodoPriority.allCases.map(\.rawValue).joined(separator: ", ")
+            throw MCPToolError("\(key) must be one of: \(allowed). Got \"\(raw)\".")
+        }
+        return priority
     }
 
     static func resolveTodo(

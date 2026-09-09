@@ -124,8 +124,8 @@ extension MCPNotebookTools {
             title: "Add Follow-Up",
             description: "Add a follow-up to the guide's todo list — something owed to a "
                 + "student, a parent, an assistant, or the guide themself. Optionally tied to "
-                + "students and a due date. For a goal a student owns, use the goals field of "
-                + "create_meeting_entry instead.",
+                + "students, dated, prioritised, or filed under someday. For a goal a student "
+                + "owns, use the goals field of create_meeting_entry instead.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -145,6 +145,16 @@ extension MCPNotebookTools {
                     "due_date": [
                         "type": "string",
                         "description": "Due date as YYYY-MM-DD, if there is a deadline"
+                    ],
+                    "scheduled_date": [
+                        "type": "string",
+                        "description": "The day the guide means to do it, YYYY-MM-DD"
+                    ],
+                    "priority": todoPrioritySchema,
+                    "is_someday": [
+                        "type": "boolean",
+                        "description": .string("File it under someday/maybe rather than the "
+                            + "active list (default false)")
                     ]
                 ],
                 "required": ["title"]
@@ -166,12 +176,20 @@ extension MCPNotebookTools {
             throw MCPToolError("A matched student record has no identifier.")
         }
         let dueDate = try dayArgument(arguments, "due_date")
+        let scheduledDate = try dayArgument(arguments, "scheduled_date")
+        let priority = try todoPriorityArgument(arguments)
+        let isSomeday = arguments["is_someday"]?.boolValue ?? false
 
         let todo = CDTodoItem(context: modelContext)
         todo.title = title
         todo.notes = arguments["notes"]?.stringValue?.trimmed() ?? ""
         todo.studentIDsArray = studentIDs.map(\.uuidString)
         todo.dueDate = dueDate
+        todo.scheduledDate = scheduledDate
+        if let priority {
+            todo.priority = priority
+        }
+        todo.isSomeday = isSomeday
         todo.tagsArray = TodoTagHelper.syncStudentTags(
             existingTags: [], studentNames: students.map(\.fullName)
         )
@@ -184,6 +202,15 @@ extension MCPNotebookTools {
         var details: [String] = []
         if let dueDate {
             details.append("due \(dayString(dueDate))")
+        }
+        if let scheduledDate {
+            details.append("scheduled \(dayString(scheduledDate))")
+        }
+        if isSomeday {
+            details.append("someday")
+        }
+        if let priority, priority != .none {
+            details.append("\(priority.rawValue.lowercased()) priority")
         }
         if !students.isEmpty {
             details.append(students.map(\.fullName).joined(separator: ", "))

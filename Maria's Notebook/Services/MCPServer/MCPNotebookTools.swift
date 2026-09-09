@@ -128,6 +128,7 @@ enum MCPNotebookTools {
             listProceduresTool(context: context),
             listStoriesTool(context: context),
             communityTopicsTool(context: context),
+            updateCommunityTopicTool(context: context),
             listResourcesTool(context: context),
             bookClubTool(context: context),
             listRemindersTool(context: context),

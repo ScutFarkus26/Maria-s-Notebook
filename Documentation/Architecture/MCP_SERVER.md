@@ -77,8 +77,8 @@ ambiguity errors:
 | `student_observations` | `CDNote` fetch + `NoteScope` filter |
 | `student_presentation_history` | presented `CDLessonAssignment`s |
 | `presentations_missing_observations` | `PresentationObservationCoverageService` |
-| `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent` |
-| `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, by note id |
+| `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent`; an optional `date` back-dates the note the way `create_meeting_entry` does |
+| `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, and the children the note is about, by note id. `student_names` replaces the note's scope rather than adding to it (`.all` on an empty list, as `UnifiedNoteEditor.determineScope` reads an empty selection) and re-syncs the link rows; the presentation relationship is left alone, matching the in-app editor, which attaches a note to its context only at creation |
 | `record_presentation` (write) | `LifecycleService.recordPresentation` + `PresentationOutcomePersistenceService.persistObservations` + `safeSave`, mirroring the command bar's `saveCaptureProposal` — completes a planned presentation when one matches, and re-recording the same lesson/students/day edits that presentation instead of duplicating it |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | **Schedule** | |
@@ -97,7 +97,7 @@ ambiguity errors:
 | **Todos & follow-ups** | |
 | `list_open_follow_ups` | open `CDTodoItem`s + active `CDStudentFocusItem`s + `needsFollowUp` notes, optionally filtered to one student |
 | `list_todos` | `CDTodoItem` filtered by status, student, due window, someday, tag |
-| `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo` |
+| `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo`; takes priority, scheduled date and the someday flag at creation, so a follow-up no longer needs a second `update_todo` |
 | `update_todo` (write) | title, notes, dates, priority, someday, students (+ retagging via `TodoTagHelper`) |
 | `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
 | **Meetings** | |
@@ -124,6 +124,7 @@ ambiguity errors:
 | `list_issues` | `CDIssue`, urgent first; unresolved only unless a status is asked for |
 | `update_issue` (write) | raises or updates a `CDIssue`; resolving or closing stamps `resolvedAt` |
 | `community_topics` | `CDCommunityTopicEntity` + proposed solutions |
+| `update_community_topic` (write) | raises or updates a `CDCommunityTopicEntity`, following `TopicDetailViewModel.applyFields`: `addressedDate` is the discussed state (clearing it reopens the topic), and `proposed_solutions` appends `CDProposedSolutionEntity` rows rather than replacing them |
 | **Library & shelves** | |
 | `list_resources` | `CDResource` — printables, charts and forms; metadata only, the files stay on disk |
 | `book_club` | `CDBookClubSession` + its `orderedMeetings`, with packet titles resolved |

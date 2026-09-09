@@ -252,4 +252,51 @@ struct MCPPresentationToolsTests {
         #expect(byPartialName.contains("Racks and Tubes"))
         #expect(presentations(in: context).count == 2)
     }
+
+    @Test("update_observation keeps a note attached to its presentation when children change")
+    func reassigningAPresentationNoteKeepsTheLink() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(
+            in: context, name: "Racks and Tubes", area: "Math", sequence: "Division"
+        )
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
+        let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
+        CoreDataTestHelpers.save(context)
+        let ettyID = try #require(etty.id)
+
+        _ = try await tool(named: "record_presentation", in: tools).handler([
+            "lesson": .string("Racks and Tubes"),
+            "student_names": .array([.string("Ora")]),
+            "student_observations": .array([
+                .object([
+                    "student": .string("Ora"),
+                    "observation": .string("Named each hierarchy without prompting.")
+                ])
+            ])
+        ])
+        let assignment = try #require(presentations(in: context).first)
+        let note = try #require(
+            ((assignment.unifiedNotes?.allObjects as? [CDNote]) ?? []).first
+        )
+        let noteID = try #require(note.id?.uuidString)
+
+        // The note was filed against the wrong child; move it to Etty.
+        let output = try await tool(named: "update_observation", in: tools).handler([
+            "note_id": .string(noteID),
+            "student_names": .array([.string("Etty")])
+        ])
+        #expect(output.contains("Still linked to its presentation."))
+        #expect(note.scope == .student(ettyID))
+        #expect(note.lessonAssignment === assignment)
+        // The lesson foreign key persistObservations writes alongside the
+        // relationship is left alone too.
+        #expect(note.lessonID == assignment.lessonID)
+
+        // The presentation still counts as covered, since coverage follows the
+        // relationship rather than the note's scope.
+        let missing = try await tool(
+            named: "presentations_missing_observations", in: tools
+        ).handler([:])
+        #expect(missing.contains("has a linked observation"))
+    }
 }

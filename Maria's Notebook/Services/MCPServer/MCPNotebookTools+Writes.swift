@@ -34,6 +34,10 @@ extension MCPNotebookTools {
                         "type": "string",
                         "description": "The observation text, as the teacher phrased it"
                     ],
+                    "date": [
+                        "type": "string",
+                        "description": "The day observed, YYYY-MM-DD (default today)"
+                    ],
                     "tags": [
                         "type": "array",
                         "items": ["type": "string"],
@@ -67,8 +71,10 @@ extension MCPNotebookTools {
             throw MCPToolError("A matched student record has no identifier.")
         }
 
+        let date = try dayArgument(arguments, "date") ?? Date()
+
         let note = CDNote(context: modelContext)
-        note.createdAt = Date()
+        note.createdAt = date
         note.body = body
         note.scope = studentIDs.count == 1
             ? .student(studentIDs[0])
@@ -87,7 +93,7 @@ extension MCPNotebookTools {
 
         let who = students.map(\.fullName).joined(separator: ", ")
         let id = note.id?.uuidString ?? "unknown"
-        return "Recorded observation [note id=\(id)] about \(who)."
+        return "Recorded observation [note id=\(id)] about \(who) on \(dayString(date))."
     }
 
     // MARK: - Update Student
@@ -223,36 +229,48 @@ extension MCPNotebookTools {
             name: "update_observation",
             title: "Update Observation",
             description: "Edit an existing observation note by its id (as returned by "
-                + "student_observations or search_notebook). Only the fields provided are changed.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "note_id": [
-                        "type": "string",
-                        "description": "The observation's UUID from another notebook tool"
-                    ],
-                    "body": ["type": "string", "description": "Replacement observation text"],
-                    "tags": [
-                        "type": "array",
-                        "items": ["type": "string"],
-                        "description": "Replacement tag list (replaces all existing tags)"
-                    ],
-                    "needs_follow_up": [
-                        "type": "boolean",
-                        "description": "Flag or unflag the note for the follow-up inbox"
-                    ],
-                    "include_in_report": [
-                        "type": "boolean",
-                        "description": "Include or exclude the note from generated reports"
-                    ]
-                ],
-                "required": ["note_id"]
-            ],
+                + "student_observations or search_notebook): its text, tags, flags, or which "
+                + "children it is about. Only the fields provided are changed.",
+            inputSchema: updateObservationSchema,
             handler: { arguments in
                 try updateObservation(arguments: arguments, in: context())
             }
         )
     }
+
+    private static let updateObservationSchema: JSONValue = [
+        "type": "object",
+        "properties": [
+            "note_id": [
+                "type": "string",
+                "description": "The observation's UUID from another notebook tool"
+            ],
+            "body": ["type": "string", "description": "Replacement observation text"],
+            "student_names": [
+                "type": "array",
+                "items": ["type": "string"],
+                "description": .string("The children the note is about. This REPLACES the "
+                    + "note's current children rather than adding to them, so name every "
+                    + "child it should carry, including any already on it. An empty list "
+                    + "widens the note to the whole class. Former students can be named "
+                    + "here, since correcting an old note is the usual reason to reassign one.")
+            ],
+            "tags": [
+                "type": "array",
+                "items": ["type": "string"],
+                "description": "Replacement tag list (replaces all existing tags)"
+            ],
+            "needs_follow_up": [
+                "type": "boolean",
+                "description": "Flag or unflag the note for the follow-up inbox"
+            ],
+            "include_in_report": [
+                "type": "boolean",
+                "description": "Include or exclude the note from generated reports"
+            ]
+        ],
+        "required": ["note_id"]
+    ]
 
     private static func updateObservation(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
@@ -262,40 +280,103 @@ extension MCPNotebookTools {
             throw MCPToolError("note_id must be a UUID from another notebook tool.")
         }
 
-        let body = arguments["body"]?.stringValue?.trimmed()
-        if let body, body.isEmpty {
-            throw MCPToolError("The replacement body cannot be empty.")
-        }
-        let tags = arguments["tags"].map { _ in stringArrayArgument(arguments, "tags") }
-        let needsFollowUp = arguments["needs_follow_up"]?.boolValue
-        let includeInReport = arguments["include_in_report"]?.boolValue
-
-        var descriptions: [String] = []
-        if body != nil { descriptions.append("body") }
-        if tags != nil { descriptions.append("tags") }
-        if let needsFollowUp { descriptions.append(needsFollowUp ? "flagged for follow-up" : "follow-up cleared") }
-        if let includeInReport {
-            descriptions.append(includeInReport ? "included in reports" : "excluded from reports")
-        }
-        guard !descriptions.isEmpty else {
+        // Parsed before the note is touched, so an unknown or ambiguous name
+        // fails without leaving a half-applied edit behind.
+        let edits = try parseNoteEdits(from: arguments, in: modelContext)
+        guard !edits.descriptions.isEmpty else {
             throw MCPToolError(
-                "No changes were provided. Pass body, tags, needs_follow_up, or include_in_report."
+                "No changes were provided. Pass body, student_names, tags, needs_follow_up, "
+                    + "or include_in_report."
             )
         }
 
-        guard NoteRepository(context: modelContext).updateNote(
-            id: noteID,
-            body: body,
-            tags: tags,
-            includeInReport: includeInReport,
-            needsFollowUp: needsFollowUp
-        ) else {
+        let repository = NoteRepository(context: modelContext)
+        guard let note = repository.fetchNote(id: noteID) else {
             throw MCPToolError("No observation with id \(idString) was found.")
         }
+        // Reassigning the children leaves the presentation relationship alone,
+        // the way UnifiedNoteEditor does: it attaches a note to its context
+        // only when the note is first created, never on a later edit.
+        let keptPresentationLink = edits.scope != nil && note.lessonAssignment != nil
+
+        repository.updateNote(
+            id: noteID,
+            body: edits.body,
+            tags: edits.tags,
+            scope: edits.scope,
+            includeInReport: edits.includeInReport,
+            needsFollowUp: edits.needsFollowUp
+        )
         guard modelContext.safeSave() else {
             modelContext.rollback()
             throw MCPToolError("The observation changes could not be saved.")
         }
-        return "Updated observation [note id=\(idString)]: \(descriptions.joined(separator: ", "))."
+        let linkNote = keptPresentationLink ? " Still linked to its presentation." : ""
+        return "Updated observation [note id=\(idString)]: "
+            + edits.descriptions.joined(separator: ", ") + ".\(linkNote)"
+    }
+
+    /// The parsed shape of an `update_observation` request: what to hand
+    /// `NoteRepository`, and the receipt lines naming each change.
+    private struct NoteEdits {
+        var body: String?
+        var tags: [String]?
+        var scope: NoteScope?
+        var includeInReport: Bool?
+        var needsFollowUp: Bool?
+        var descriptions: [String] = []
+    }
+
+    private static func parseNoteEdits(
+        from arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws -> NoteEdits {
+        var edits = NoteEdits()
+        if let body = arguments["body"]?.stringValue?.trimmed() {
+            guard !body.isEmpty else {
+                throw MCPToolError("The replacement body cannot be empty.")
+            }
+            edits.body = body
+            edits.descriptions.append("body")
+        }
+        if arguments["tags"] != nil {
+            edits.tags = stringArrayArgument(arguments, "tags")
+            edits.descriptions.append("tags")
+        }
+        if let needsFollowUp = arguments["needs_follow_up"]?.boolValue {
+            edits.needsFollowUp = needsFollowUp
+            edits.descriptions.append(needsFollowUp ? "flagged for follow-up" : "follow-up cleared")
+        }
+        if let includeInReport = arguments["include_in_report"]?.boolValue {
+            edits.includeInReport = includeInReport
+            edits.descriptions.append(includeInReport ? "included in reports" : "excluded from reports")
+        }
+        if let reassignment = try parseNoteScope(arguments, in: modelContext) {
+            edits.scope = reassignment.scope
+            edits.descriptions.append(reassignment.description)
+        }
+        return edits
+    }
+
+    /// Rebuilds the note's scope from `student_names`. The list replaces the
+    /// note's children the way `update_todo` does, and an empty list widens the
+    /// note to the whole class — the same reading `UnifiedNoteEditor` gives an
+    /// empty selection.
+    private static func parseNoteScope(
+        _ arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws -> (scope: NoteScope, description: String)? {
+        guard let entries = arguments["student_names"]?.arrayValue else { return nil }
+        let names = entries.compactMap { $0.stringValue?.trimmed() }.filter { !$0.isEmpty }
+        let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
+        let ids = students.compactMap(\.id)
+        guard ids.count == students.count else {
+            throw MCPToolError("A matched student record has no identifier.")
+        }
+        guard !ids.isEmpty else {
+            return (.all, "now a whole-class note")
+        }
+        let scope: NoteScope = ids.count == 1
+            ? .student(ids[0])
+            : .students(ids.sorted { $0.uuidString < $1.uuidString })
+        return (scope, "now about \(students.map(\.fullName).joined(separator: ", "))")
     }
 }
