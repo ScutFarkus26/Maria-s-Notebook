@@ -12,7 +12,10 @@
 //  is the second tool that deletes a row, and it follows
 //  `remove_student_from_work`'s shape: a call without `confirm` reports the
 //  lesson, the day, the roster and the notes that hang off it, and writes
-//  nothing. The delete itself is the one the planning list's context menu
+//  nothing; a call with `confirm: true` deletes at once, whether or not a
+//  report was asked for first — the report is offered, never required, so a
+//  caller who already knows the presentation id can discard it in one call.
+//  The delete itself is the one the planning list's context menu
 //  makes — `context.delete` + save, notes cascading — plus one repair that
 //  menu does not make: a year-plan entry promoted into the discarded plan
 //  goes back to `planned`, so the intention survives the plan.
@@ -34,11 +37,13 @@ extension MCPNotebookTools {
             title: "Discard Presentation",
             description: "Drop a planned presentation altogether — off the calendar and out of the "
                 + "planning list — for a plan the guide has decided against. Called without "
-                + "confirm it only reports what would go: the lesson, the day, who was in the "
-                + "group, and any notes written on it. Nothing is deleted until it is called again "
-                + "with confirm: true. Presentations already given are refused; correct those with "
-                + "record_presentation. To take a plan off the calendar but keep it, use "
-                + "reschedule_presentation with unschedule instead.",
+                + "confirm it only reports what would go — the lesson, the day, who was in the "
+                + "group, and any notes written on it — and deletes nothing. Called with "
+                + "confirm: true it deletes immediately, in that one call, with the same report as "
+                + "its receipt; a preview call first is optional, not required. Presentations "
+                + "already given are refused; correct those with record_presentation. To take a "
+                + "plan off the calendar but keep it, use reschedule_presentation with unschedule "
+                + "instead.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -49,7 +54,8 @@ extension MCPNotebookTools {
                     ],
                     "confirm": [
                         "type": "boolean",
-                        "description": "Pass true, after reading the report, to delete it"
+                        "description": .string("true deletes the presentation in this call. Omit (or false) "
+                            + "to get the report only, with nothing changed.")
                     ]
                 ],
                 "required": ["presentation_id"]

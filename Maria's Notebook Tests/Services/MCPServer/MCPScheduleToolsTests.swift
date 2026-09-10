@@ -77,7 +77,107 @@ struct MCPScheduleToolsTests {
         #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-16")))
     }
 
+    @Test("schedule_presentation defaults to the morning slot and honours an HH:MM time")
+    func schedulePresentationTakesATime() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Checkerboard", area: "Math", sequence: "Multiplication")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Noa", lastName: "Katz")
+        CoreDataTestHelpers.save(context)
+        let schedule = try tool(named: "schedule_presentation", in: tools)
+
+        let morning = try await schedule.handler([
+            "lesson": .string("Checkerboard"),
+            "student_names": .array([.string("Noa")]),
+            "date": .string("2026-09-16")
+        ])
+        #expect(morning.contains("on 2026-09-16 at 09:00."))
+        let planned = try #require(assignments(in: context).first)
+        #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "09:00")
+
+        // The same lesson and student moves the existing plan, now with a time.
+        let timed = try await schedule.handler([
+            "lesson": .string("Checkerboard"),
+            "student_names": .array([.string("Noa")]),
+            "date": .string("2026-09-17"),
+            "time": .string("10:30")
+        ])
+        #expect(timed.contains("Moved the existing plan for"))
+        #expect(timed.contains("on 2026-09-17 at 10:30."))
+        #expect(assignments(in: context).count == 1)
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-17")))
+        #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "10:30")
+
+        let onTheDay = try await tool(named: "schedule_for_range", in: tools).handler([
+            "start_date": .string("2026-09-17")
+        ])
+        #expect(onTheDay.contains("Checkerboard at 10:30"))
+    }
+
+    @Test("schedule_presentation rejects a malformed time without writing")
+    func schedulePresentationRejectsBadTime() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Checkerboard", area: "Math", sequence: "Multiplication")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Noa", lastName: "Katz")
+        CoreDataTestHelpers.save(context)
+
+        for bad in ["10:75", "25:00", "1030", "10:30 am", "ten"] {
+            let refusal = await #expect(throws: MCPToolError.self) {
+                _ = try await tool(named: "schedule_presentation", in: tools).handler([
+                    "lesson": .string("Checkerboard"),
+                    "student_names": .array([.string("Noa")]),
+                    "date": .string("2026-09-16"),
+                    "time": .string(bad)
+                ])
+            }
+            #expect(refusal?.message.contains("HH:MM") == true, "\(bad)")
+        }
+        #expect(assignments(in: context).isEmpty)
+    }
+
     // MARK: - reschedule_presentation
+
+    @Test("reschedule_presentation moves a plan to a day and time, and a time alone keeps the day")
+    func reschedulePresentationTakesATime() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Stamp Game", area: "Math", sequence: "Operations")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "Perez")
+        CoreDataTestHelpers.save(context)
+        _ = try await tool(named: "schedule_presentation", in: tools).handler([
+            "lesson": .string("Stamp Game"),
+            "student_names": .array([.string("Ana")]),
+            "date": .string("2026-09-15")
+        ])
+        let planned = try #require(assignments(in: context).first)
+        let id = try #require(planned.id).uuidString
+        let reschedule = try tool(named: "reschedule_presentation", in: tools)
+
+        let moved = try await reschedule.handler([
+            "presentation_id": .string(id), "date": .string("2026-09-18"), "time": .string("13:15")
+        ])
+        #expect(moved.contains("now scheduled for 2026-09-18 at 13:15."))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-18")))
+        #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "13:15")
+
+        let retimed = try await reschedule.handler([
+            "presentation_id": .string(id), "time": .string("09:45")
+        ])
+        #expect(retimed.contains("stays on 2026-09-18, now at 09:45."))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-18")))
+        #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "09:45")
+
+        // A bare date drops back to the default morning slot.
+        let dated = try await reschedule.handler([
+            "presentation_id": .string(id), "date": .string("2026-09-21")
+        ])
+        #expect(dated.contains("now scheduled for 2026-09-21 at 09:00."))
+
+        // Off the calendar, a time has no day to go with.
+        _ = try await reschedule.handler(["presentation_id": .string(id), "unschedule": .bool(true)])
+        let refusal = await #expect(throws: MCPToolError.self) {
+            _ = try await reschedule.handler(["presentation_id": .string(id), "time": .string("10:00")])
+        }
+        #expect(refusal?.message.contains("Pass a date as well") == true)
+    }
 
     @Test("reschedule_presentation unschedules without deleting the plan")
     func reschedulePresentationUnschedules() async throws {

@@ -79,7 +79,7 @@ ambiguity errors:
 | `get_album_page` | `AlbumCorpusLookup.page` — one album page's full text |
 | **Observations & presentations** | |
 | `student_observations` | `CDNote` fetch + `NoteScope` filter |
-| `student_presentation_history` | presented `CDLessonAssignment`s |
+| `student_presentation_history` | presented `CDLessonAssignment`s, newest first — `limit` 1–200 (default 10), `since` (YYYY-MM-DD), and `lesson` (id or name) narrow it; with `lesson` the child's `CDLessonPresentation` record is read as well, so a checklist mark with no dated presentation is reported rather than read as "never had it" |
 | `presentations_missing_observations` | `PresentationObservationCoverageService`, judged child by child: a group presentation is listed while any child on it has no observation about her, and the line names those children |
 | `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent`; an optional `date` back-dates the note the way `create_meeting_entry` does |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, and the children the note is about, by note id. `student_names` replaces the note's scope rather than adding to it (`.all` on an empty list, as `UnifiedNoteEditor.determineScope` reads an empty selection) and re-syncs the link rows; the presentation relationship is left alone, matching the in-app editor, which attaches a note to its context only at creation |
@@ -88,9 +88,9 @@ ambiguity errors:
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | **Schedule** | |
 | `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` (resolved through `resolvedWork`, the relationship or the `workID` string) + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days. A check-in whose work is gone is labelled an orphan, never printed as an unassigned plan |
-| `schedule_presentation` (write) | `PresentationFactory.makeDraft` + `schedule(onDay:)` — reuses an existing unpresented plan for the same lesson and exact student set rather than duplicating it |
-| `reschedule_presentation` (write) | the assignment's own `schedule(onDay:)` / `unschedule()`; refuses presentations already given |
-| `discard_presentation` (write) | the planning list's context-menu delete — `context.delete` + save, notes cascading — two-step like `remove_student_from_work` (no `confirm` = report only: lesson, day, roster, note count); a year-plan entry promoted into the plan goes back to `planned`; refuses presentations already given |
+| `schedule_presentation` (write) | `PresentationFactory.makeDraft` + `schedule(onDay:)` — or `schedule(for:)` when an `HH:MM` `time` is given, the same write the calendar's drag makes — reusing an existing unpresented plan for the same lesson and exact student set rather than duplicating it. Without `time` the plan lands at `UIConstants.morningHour`, the in-app default |
+| `reschedule_presentation` (write) | the assignment's own `schedule(onDay:)` / `schedule(for:)` / `unschedule()`; takes the same optional `time`, and `time` alone re-times the day the plan already has; refuses presentations already given |
+| `discard_presentation` (write) | the planning list's context-menu delete — `context.delete` + save, notes cascading — confirm-gated like `remove_student_from_work`: no `confirm` = report only (lesson, day, roster, note count), `confirm: true` = deleted in that call, whether or not a report was asked for first; a year-plan entry promoted into the plan goes back to `planned`; refuses presentations already given |
 | `update_presentation_roster` (write) | the detail view's Save shape — `studentIDs` rewritten in place, `modifiedAt` stamped, confirmed ids pruned; refuses an empty group and presentations already given |
 | **Work** | |
 | `student_work` | `CDWorkModel` owned by or participated in by the student |
@@ -143,6 +143,7 @@ ambiguity errors:
 | **Planning structures** | |
 | `weekly_schedules` | `CDSchedule` + `CDScheduleSlot`, ordered Sunday-first by `Weekday` |
 | `year_plan` | `CDYearPlanEntry` — intentions with target dates, not calendar entries |
+| `students_pending` | one lesson across the class, from the plan: every enrolled child with a planned (unsatisfied) or promoted `CDYearPlanEntry` for it, or an unpresented `CDLessonAssignment` naming her, with target date, `isBehindPace`, and the presentation's day, time and group; closes with who has had it (`CDLessonPresentation` or a presented assignment) and who has no plan. Every fetch is keyed on the lesson id — a handful of small queries, not a per-child scan |
 | `update_year_plan_entry` (write) | one `CDYearPlanEntry`'s status and target date. Refuses promoted entries — the presentation carries the date once an entry reaches the calendar, so `reschedule_presentation` moves those — and refuses `promoted` as a status to set by hand, since promotion is `schedule_presentation` linking a real assignment |
 | `skip_year_plan_entries` (write) | `StudentDeparturePlans.plannedEntries` + `skip` for one student, the same call the roster makes when a child is withdrawn; skips only `planned` entries and deletes nothing |
 | `clear_year_plan` (write) | the same `StudentDeparturePlans.plannedEntries` + `skip`, scoped to one track (`sequenceGroupKey`, matched as `Area::Sequence`, `Area › Sequence`, or the sequence alone) and/or entries targeted before a day, two-step: without `confirm` it reports the count and lists the entries by track and writes nothing |
@@ -159,14 +160,17 @@ ambiguity errors:
 Deletes are deliberately not exposed, with one exception:
 `remove_student_from_work` takes a child off a work item, which on a linked
 copy she owns means deleting that row. It is one of two tools that destroy
-rows, so it is two-step — a call without `confirm` only reports the plan —
-and it never touches another child's completion. `discard_presentation` is
-the other: `reschedule_presentation(unschedule: true)` only returns a plan
-to the planning list, so a regrouped presentation used to leave its
-original behind; discarding is the planning list's own delete (notes
-cascade with it), previewed first the same way, refused for anything
+rows, so it is confirm-gated — a call without `confirm` only reports the
+plan — and it never touches another child's completion.
+`discard_presentation` is the other: `reschedule_presentation(unschedule:
+true)` only returns a plan to the planning list, so a regrouped presentation
+used to leave its original behind; discarding is the planning list's own
+delete (notes cascade with it), gated the same way, refused for anything
 already given, and it returns any year-plan entry promoted into the plan to
-`planned` rather than leaving it pointing at nothing. Regrouping itself is
+`planned` rather than leaving it pointing at nothing. The gate is the
+`confirm` flag, not a call count: a first call *with* `confirm: true`
+deletes at once, and the preview call is offered rather than required, so a
+caller who already holds the presentation id is not made to ask twice. Regrouping itself is
 `update_presentation_roster`, which edits the group in place and refuses to
 empty it. Edits change only the fields provided and report exactly what
 changed.
@@ -254,6 +258,17 @@ distributive law" as names grouped by state, oldest cohort first, ready for
 `schedule_presentation`. Neither judges: they report presence and absence
 of records, and say so.
 
+`students_pending` is the planning-side counterpart: where the class map
+reads the record (who has *had* a lesson), this reads the plan (who is *due*
+for it). It is the call a guide makes when forming a group — one lesson in,
+every enrolled child who still has it ahead of her out, each with her target
+date, whether she is behind pace, and the scheduled presentation she is
+already on, if any, with its day, time and the rest of the group. It used to
+take one `year_plan` call per child. The three sources that make a child
+pending are a planned entry the record has not answered, a promoted entry,
+and an unpresented assignment with no entry behind it; the trailer names who
+has had it and who has no plan, so the guide can see who could join.
+
 The four curriculum tools exist so an AMI album can be reconciled with the
 notebook without opening the app: `list_lessons_by_area` reads a whole
 area or sub-area uncapped (`find_lessons` stops at 25 because it answers a
@@ -288,6 +303,52 @@ All handlers run on the main actor against
 `AppBootstrapping.getSharedCoreDataStack().viewContext` (the sanctioned
 entry point for non-SwiftUI code), taking an injectable context provider so
 tests use an in-memory stack.
+
+## Example calls
+
+Arguments as a client sends them in `tools/call`. Names resolve the way
+every tool resolves them — a student by first name, full name, nickname, or
+id; a lesson by id or by exact then unique-partial name — and a miss or an
+ambiguity comes back as a tool error naming the candidates.
+
+```jsonc
+// Put a lesson on the calendar at a time. Without "time" it lands at the
+// app's default morning slot (9:00); the receipt names the time either way.
+{"name": "schedule_presentation", "arguments": {
+  "lesson": "The Distributive Law of Multiplication",
+  "student_names": ["Ora", "Etty Klein"],
+  "date": "2026-09-14", "time": "10:30"}}
+// → Scheduled [presentation id=…] The Distributive Law of Multiplication — Ora Levi, Etty Klein on 2026-09-14 at 10:30.
+
+// Re-time a plan on the day it already has; add "date" to move the day too.
+{"name": "reschedule_presentation", "arguments": {
+  "presentation_id": "6121E630-…", "time": "13:15"}}
+// → [presentation id=…] The Distributive Law of Multiplication stays on 2026-09-14, now at 13:15.
+
+// "Has Ora ever had the checkerboard?" — dated presentations plus her
+// presentation record for the lesson, so a checklist mark still counts.
+{"name": "student_presentation_history", "arguments": {
+  "student_name": "Ora", "lesson": "Checkerboard"}}
+// → Presentations of Checkerboard for Ora Levi (1): … / Presentation record of Checkerboard: mastered; …
+
+// Everything since a date, past the default ten.
+{"name": "student_presentation_history", "arguments": {
+  "student_name": "Ora", "since": "2026-06-01", "limit": 200}}
+
+// Who is due for a lesson — the group-forming query.
+{"name": "students_pending", "arguments": {"lesson": "Checkerboard"}}
+// → [lesson id=…] Checkerboard — Math › Multiplication — pending for 4 of 22 enrolled child(ren):
+//   - [student id=…] Ora Levi — target 2026-09-05 (behind pace) — not on the calendar
+//   - [student id=…] Etty Klein — target 2026-09-19 — scheduled 2026-09-14 at 10:30 with Dalia Roth [presentation id=…]
+//   …
+//   Already given (12): … / No plan for it (6): …
+
+// Discard a plan. Without "confirm" this only reports; with it, the
+// presentation is deleted in this call — no second call needed.
+{"name": "discard_presentation", "arguments": {
+  "presentation_id": "6121E630-…", "confirm": true}}
+// → Discarded. [presentation id=…] Checkerboard — scheduled 2026-09-14 — Ora Levi …
+```
 
 ## Claude Desktop setup
 
@@ -364,6 +425,18 @@ can be lost.
   — discard (preview, confirmed delete with note cascade and year-plan
   entry restored, refusal when given), roster edits and their refusals,
   and `clear_year_plan` scoped by track and date, previewed then applied.
+- `Maria's Notebook Tests/Services/MCPServer/MCPScheduleToolsTests.swift`
+  — the calendar tools, including the `time` argument on
+  `schedule_presentation` and `reschedule_presentation` (default morning
+  slot, `HH:MM` placement, time-only re-timing, malformed times refused).
+- `Maria's Notebook Tests/Services/MCPServer/MCPPresentationHistoryToolsTests.swift`
+  — `student_presentation_history`: the default cap and what it says when it
+  holds rows back, `limit`, `since`, and the `lesson` filter reading the
+  presentation record beside the dated rows.
+- `Maria's Notebook Tests/Services/MCPServer/MCPPendingStudentsToolTests.swift`
+  — `students_pending`: planned, promoted and calendar-only children, behind
+  pace, the group on a scheduled presentation, the given / no-plan trailer,
+  and a withdrawn child kept out.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash

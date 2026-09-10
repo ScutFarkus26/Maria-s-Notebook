@@ -62,6 +62,7 @@ enum MCPNotebookTools {
             classCurriculumMapTool(context: context),
             weeklySchedulesTool(context: context),
             yearPlanTool(context: context),
+            studentsPendingTool(context: context),
             updateYearPlanEntryTool(context: context),
             skipYearPlanEntriesTool(context: context),
             clearYearPlanTool(context: context),
