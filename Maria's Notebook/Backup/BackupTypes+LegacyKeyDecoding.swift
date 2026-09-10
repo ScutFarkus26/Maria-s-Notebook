@@ -86,6 +86,8 @@ nonisolated extension LessonDTO {
         self.albumLinkConfidence = try c.decodeIfPresent(
             Double.self, forKey: LegacyKey("albumLinkConfidence")
         )
+        // Three-Year View milestone flag (format v25+); absent in older backups.
+        self.isKeyLesson = try c.decodeIfPresent(Bool.self, forKey: LegacyKey("isKeyLesson"))
     }
 }
 

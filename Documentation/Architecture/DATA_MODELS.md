@@ -98,6 +98,8 @@ Curriculum lessons organized by subject and group.
 | `defaultWorkKindRaw` | String? | Default work type for this lesson |
 | `pagesFileBookmark` | Data? | Security-scoped bookmark for attached file |
 | `pagesFileRelativePath` | String? | Relative path to imported file |
+| `greatLessonRaw` | String? | `GreatLesson` tag; the Three-Year View builds its Great Lessons row from it (story-format lessons preferred) |
+| `isKeyLesson` | Bool | Milestone flag (schema 6, 2026-09). Key lessons are the Three-Year View's default rows, together with the first lesson of every sequence |
 
 **Computed Properties:**
 - `source: LessonSource` - Enum accessor (.album, .personal)

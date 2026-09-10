@@ -29,6 +29,7 @@ extension RootView {
         case planningProjects
         case planningCalendar
         case progressDashboard
+        case curriculumMap
         case lessonRecall
         case goingOut
         case smallSequencePlanner
@@ -70,6 +71,7 @@ extension RootView {
             case .planningProjects:    return ("Projects", "folder")
             case .planningCalendar:    return ("Calendar", "calendar.day.timeline.leading")
             case .progressDashboard:   return ("Progress Dashboard", "person.text.rectangle")
+            case .curriculumMap:       return ("Three-Year View", "square.grid.3x3")
             case .lessonRecall:        return ("Lesson Recall", "arrow.clockwise.circle")
             case .goingOut:            return ("Going Out", "figure.walk")
             case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")

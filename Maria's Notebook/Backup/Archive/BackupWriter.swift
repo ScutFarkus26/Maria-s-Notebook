@@ -33,6 +33,8 @@ nonisolated public enum BackupWriter {
     /// Format version produced by this writer.
     /// - v19: Apple Encrypted Archive container ("AA01" magic) — AES-CTR+HMAC
     ///   with the iCloud-Keychain symmetric key; LZFSE inside the AEA layer.
+    /// - v25: `Lesson` entries carry `isKeyLesson`, the Three-Year View's
+    ///   milestone flag. Purely additive; entry layout is otherwise unchanged.
     /// - v24: `ScheduledMeeting` entries carry `purpose`. Purely additive;
     ///   entry layout is otherwise unchanged.
     /// - v23: Preferences entry grows from 15 keys to the full set of
@@ -48,7 +50,7 @@ nonisolated public enum BackupWriter {
     ///   CDLessonSequenceSettings, CDStory, CDBookClubPacket, CDBookClubSession,
     ///   CDBookClubMeeting. Purely additive NDJSON entries.
     /// - v17: AppleArchive-framed NDJSON (replaced the legacy v16 JSON envelope).
-    public static let formatVersion: Int = 24
+    public static let formatVersion: Int = 25
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

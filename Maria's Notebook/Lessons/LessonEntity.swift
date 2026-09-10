@@ -44,6 +44,11 @@ nonisolated public class CDLesson: NSManagedObject {
     /// 0…1. Below `LessonAlbumMatcher.autoLinkThreshold` the link was
     /// accepted by the guide in the review sheet rather than automatically.
     @NSManaged public var albumLinkConfidence: Double
+    /// A milestone the Three-Year View shows by default. Not every lesson in
+    /// the catalog is one; without this the per-child grid drowns in
+    /// sub-steps. See `CurriculumMapEngine.isKeyLesson`, which also counts the
+    /// first step of every sequence whether or not it is hand-marked.
+    @NSManaged public var isKeyLesson: Bool
 
     // MARK: - Relationships
     @NSManaged public var attachments: NSSet?
@@ -86,6 +91,7 @@ nonisolated public class CDLesson: NSManagedObject {
         self.albumPageIndex = 0
         self.albumLessonTitle = nil
         self.albumLinkConfidence = 0
+        self.isKeyLesson = false
     }
 }
 
@@ -99,9 +105,11 @@ nonisolated extension CDLesson {
 
     var personalKind: PersonalLessonKind? {
         get {
-            guard source == .personal else { return nil }
-            guard let raw = personalKindRaw else { return .personal }
-            return PersonalLessonKind(rawValue: raw) ?? .personal
+            let isPersonal: Bool = source == LessonSource.personal
+            guard isPersonal else { return nil }
+            guard let raw: String = personalKindRaw else { return PersonalLessonKind.personal }
+            let kind: PersonalLessonKind? = PersonalLessonKind(rawValue: raw)
+            return kind ?? PersonalLessonKind.personal
         }
         set {
             if source != .personal { personalKindRaw = nil; return }

@@ -581,6 +581,27 @@ Both filters can be on at once, and **Clear** drops them both. Cells you had sel
 
 A per-student progression map across the curriculum. Each student's card shows where they stand by subject area; tap a category to open the sequence detail — what's been presented, what's mastered, and what comes next.
 
+## Three-Year View
+
+The record card for the whole elementary cycle. Open it from a student's **Learning** section (Learning View ▸ Three-Year View) for one child, or from the sidebar for the class.
+
+**For one child**, the curriculum runs down the side and her years in the environment run across the top, counted from her start date and divided into years, terms, or months. The Great Lessons come first, one row per story; every area follows, and tapping an area opens its sequences and key lessons. Each cell is a glyph:
+
+- empty — not yet presented
+- outline dot — presented
+- half dot — chosen: work or a practice session followed the presentation
+- filled dot — repeated: three or more practice sessions, or work that reached review or completion
+- ringed dot — mastered
+- a coloured ring — the latest recall check (green retained, orange shaky, red forgotten)
+
+An area with no presentation in the last 90 days carries a soft flag — the "she has not been in biology since spring" signal. Change the threshold for all areas in the Options menu, or for one area from its row's context menu, since Art and Parsha have different rhythms than Math. Tap any cell to see the records behind it; a cell that is a single presentation opens that presentation straight away, with its observation or a place to write one.
+
+**For the class**, children run across the top, oldest cohort first, and lessons (or areas) down the side. Choose an area to see its sequences and key lessons. Tap a lesson's name for the children in each state; the button at the top turns everyone who has not had it into a draft presentation, ready to schedule.
+
+**Key lessons** are the milestones the grids show by default: any lesson you mark **Key lesson** in its editor, plus the first lesson of every sequence and the Great Lesson stories. Switch to **All lessons** to see every sub-step. The Great Lessons row is built from each story's **Great Lesson** tag, so tag the five stories to fill it in.
+
+The view reports the presence and absence of records. It never judges whether a child is ahead or behind.
+
 ---
 
 # Needs Attention

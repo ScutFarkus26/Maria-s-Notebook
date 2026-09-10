@@ -36,7 +36,7 @@ struct RootDetailContent: View {
                 curriculumContent
             case .todos, .planningCalendar, .perpetualCalendar:
                 planningContent
-            case .progressDashboard, .lessonRecall:
+            case .progressDashboard, .curriculumMap, .lessonRecall:
                 progressContent
             case .supplies, .procedures, .schedules,
                  .community, .resourceLibrary:
@@ -119,6 +119,7 @@ struct RootDetailContent: View {
     private var progressContent: some View {
         switch selectedNavItem {
         case .progressDashboard: ProgressDashboardView()
+        case .curriculumMap: ClassCurriculumMapView()
         case .lessonRecall: RecallQueueView()
         default: EmptyView()
         }

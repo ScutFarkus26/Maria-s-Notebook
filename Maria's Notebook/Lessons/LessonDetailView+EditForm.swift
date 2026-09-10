@@ -64,6 +64,15 @@ extension LessonDetailView {
                     .foregroundStyle(.tertiary)
             }
 
+            // Three-Year View milestone flag
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                Toggle("Key lesson", isOn: $draftIsKeyLesson)
+                Text("Key lessons are the milestones a child's Three-Year View shows by default. "
+                     + "The first lesson of every sequence counts as one without being marked.")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
             TextField("Age Range (e.g., 6+, 3-6)", text: $draftAgeRange)
                 .textFieldStyle(.roundedBorder)
 

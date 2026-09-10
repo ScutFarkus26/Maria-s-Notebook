@@ -66,9 +66,11 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | v18 | Plain LZFSE Apple Archive (`pbz*`) | Adds DayPad, YearPlanEntry, LessonSequenceSettings, Story, BookClub entries. Read-only now. |
 | v19 | Encrypted Apple Archive (`AEA1`) | AES-CTR + HMAC, key from iCloud Keychain. Same entry layout as v18. |
 | v20–v22 | Encrypted Apple Archive (`AEA1`) | Additive entries: Guardians + Parent Communications (v20), teaching-album annotations (v21), lesson↔album links (v22). |
-| **v23** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** `preferences.json` grows to the full user-settings set (school year, recall, AI models, view state, per-date attendance locks, album folder bookmarks + fingerprints) and gains a `plist` value type. Entity entries unchanged. |
+| v23 | Encrypted Apple Archive (`AEA1`) | `preferences.json` grows to the full user-settings set (school year, recall, AI models, view state, per-date attendance locks, album folder bookmarks + fingerprints) and gains a `plist` value type. Entity entries unchanged. |
+| v24 | Encrypted Apple Archive (`AEA1`) | `ScheduledMeeting` entries carry `purpose`. Additive. |
+| **v25** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** `Lesson` entries carry `isKeyLesson` (the Three-Year View's milestone flag), and `preferences.json` carries the view's untouched-area thresholds, zoom and granularity. Additive. |
 
-`BackupReader.supportedFormatVersions = 17...23`.
+`BackupReader.supportedFormatVersions = 17...25`.
 
 ---
 

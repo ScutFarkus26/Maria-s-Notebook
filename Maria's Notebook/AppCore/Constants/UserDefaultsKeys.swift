@@ -180,6 +180,19 @@ nonisolated enum UserDefaultsKeys {
     /// re-check. Default 90.
     static let recallSpacedIntervalDays = "Recall.spacedIntervalDays"
 
+    // MARK: - Three-Year View
+    /// Days without a presentation before an area is flagged "untouched" on a
+    /// child's Three-Year View. Default 90.
+    static let curriculumMapUntouchedDays = "CurriculumMap.untouchedDays"
+    /// Per-area overrides of the above: `[area: days]`, because Art and Parsha have
+    /// different rhythms than Math.
+    static let curriculumMapUntouchedDaysByArea = "CurriculumMap.untouchedDaysByArea"
+    /// Last zoom chosen on the per-child grid (`CurriculumZoom` raw value).
+    static let curriculumMapZoom = "CurriculumMap.zoom"
+    /// Whether the grids show key lessons only or every lesson
+    /// (`CurriculumGranularity` raw value).
+    static let curriculumMapGranularity = "CurriculumMap.granularity"
+
     // MARK: - Albums
     /// Security-scoped bookmarks ([Data]) for the folders holding the guide's
     /// teaching-album PDFs. The PDFs stay where they live; the app only reads them.

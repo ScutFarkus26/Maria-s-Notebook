@@ -54,6 +54,8 @@ extension RootSidebar {
 
                 sidebarRow(.progressDashboard, title: "Progress Dashboard", systemImage: "person.text.rectangle")
 
+                sidebarRow(.curriculumMap, title: "Three-Year View", systemImage: "square.grid.3x3")
+
                 sidebarRow(.lessonRecall, title: "Lesson Recall", systemImage: "arrow.clockwise.circle")
             }
 
@@ -201,6 +203,10 @@ extension RootSidebar {
                              title: "Progress Dashboard",
                              systemImage: "person.text.rectangle",
                              hint: "View per-student progress across all areas")
+            iOSSidebarButton(.curriculumMap,
+                             title: "Three-Year View",
+                             systemImage: "square.grid.3x3",
+                             hint: "The curriculum against the whole class, one glyph per child and lesson")
             iOSSidebarButton(.lessonRecall,
                              title: "Lesson Recall",
                              systemImage: "arrow.clockwise.circle",

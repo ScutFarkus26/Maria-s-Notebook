@@ -74,6 +74,7 @@ struct LessonDetailView: View {
     @State var draftParentStoryID: UUID?
     @State var draftPracticeOverride: ProgressionOverride = .inherit
     @State var draftConfirmationOverride: ProgressionOverride = .inherit
+    @State var draftIsKeyLesson: Bool = false
     @State private var showDeleteAlert = false
     @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
@@ -351,6 +352,7 @@ extension LessonDetailView {
                         updated.parentStoryUUID = draftLessonFormat == .story ? draftParentStoryID : nil
                         updated.practiceOverride = draftPracticeOverride
                         updated.confirmationOverride = draftConfirmationOverride
+                        updated.isKeyLesson = draftIsKeyLesson
                         onSave(updated)
                         isEditing = false
                     }
@@ -400,6 +402,7 @@ extension LessonDetailView {
         draftParentStoryID = lesson.parentStoryUUID
         draftPracticeOverride = lesson.practiceOverride
         draftConfirmationOverride = lesson.confirmationOverride
+        draftIsKeyLesson = lesson.isKeyLesson
     }
 }
 

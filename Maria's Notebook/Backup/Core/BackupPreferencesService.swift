@@ -22,6 +22,11 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.schoolYearCounterPromptAnsweredYear,
         // Recall
         UserDefaultsKeys.recallSpacedIntervalDays,
+        // Three-Year View
+        UserDefaultsKeys.curriculumMapUntouchedDays,
+        UserDefaultsKeys.curriculumMapUntouchedDaysByArea,
+        UserDefaultsKeys.curriculumMapZoom,
+        UserDefaultsKeys.curriculumMapGranularity,
         // General
         UserDefaultsKeys.generalShowTestStudents,
         UserDefaultsKeys.generalTestStudentNames,

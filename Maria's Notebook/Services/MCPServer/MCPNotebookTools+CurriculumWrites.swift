@@ -51,7 +51,12 @@ extension MCPNotebookTools {
                     "write_up": ["type": "string", "description": "The lesson's write-up or description"],
                     "teacher_notes": ["type": "string", "description": "The guide's own notes on the lesson"],
                     "purpose": ["type": "string", "description": "Direct and indirect aims"],
-                    "materials": ["type": "string", "description": "Materials, one per line"]
+                    "materials": ["type": "string", "description": "Materials, one per line"],
+                    "is_key_lesson": [
+                        "type": "boolean",
+                        "description": .string("Mark it a key lesson — a milestone the Three-Year View "
+                            + "shows by default (the first lesson of a sub-area counts without marking)")
+                    ]
                 ],
                 "required": ["name", "area", "sub_area"]
             ],
@@ -80,6 +85,8 @@ extension MCPNotebookTools {
 
         let anchor: CDLesson? = try resolveAnchor(arguments, area: area, sequence: sequence, in: modelContext)
         let lesson: CDLesson = makeLesson(arguments, name: name, area: area, sequence: sequence, in: modelContext)
+        let isKeyLesson: Bool = arguments["is_key_lesson"]?.boolValue ?? false
+        lesson.isKeyLesson = isKeyLesson
         let anchorIndex: Int? = anchor.flatMap { inSequence.firstIndex(of: $0) }
         let insertAt: Int = anchorIndex.map { $0 + 1 } ?? inSequence.count
         inSequence.insert(lesson, at: insertAt)
@@ -154,7 +161,12 @@ extension MCPNotebookTools {
                     "write_up": ["type": "string", "description": "Replaces the write-up; empty string clears it"],
                     "teacher_notes": ["type": "string", "description": "Replaces the notes; empty string clears"],
                     "purpose": ["type": "string", "description": "Replaces the purpose; empty string clears"],
-                    "materials": ["type": "string", "description": "Replaces materials; empty string clears"]
+                    "materials": ["type": "string", "description": "Replaces materials; empty string clears"],
+                    "is_key_lesson": [
+                        "type": "boolean",
+                        "description": .string("Mark or unmark the lesson as a key lesson, a milestone the "
+                            + "Three-Year View shows by default")
+                    ]
                 ],
                 "required": ["lesson"]
             ],
@@ -171,6 +183,10 @@ extension MCPNotebookTools {
         let lessons = allCurriculumLessons(in: modelContext)
         var changes: [String] = []
         changes += applyLessonText(arguments, to: lesson)
+        if let isKey = arguments["is_key_lesson"]?.boolValue, isKey != lesson.isKeyLesson {
+            lesson.isKeyLesson = isKey
+            changes.append(isKey ? "marked as a key lesson" : "no longer a key lesson")
+        }
         changes += try applyLessonFiling(arguments, to: lesson, from: lessons)
         if let name = nonEmpty(arguments["name"]?.stringValue), name != lesson.name {
             let twin = lessonsInSequence(lesson.sequence, area: lesson.area, from: lessons).first {

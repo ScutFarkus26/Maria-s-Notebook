@@ -6,12 +6,14 @@ struct StudentLearningWorkspace: View {
     private enum Destination: String {
         case current
         case plan
+        case threeYear
         case history
 
         var title: String {
             switch self {
             case .current: "Current Learning"
             case .plan: "Year Plan"
+            case .threeYear: "Three-Year View"
             case .history: "Past Learning"
             }
         }
@@ -20,6 +22,7 @@ struct StudentLearningWorkspace: View {
             switch self {
             case .current: "book.closed"
             case .plan: "calendar"
+            case .threeYear: "square.grid.3x3"
             case .history: "clock.arrow.circlepath"
             }
         }
@@ -35,7 +38,7 @@ struct StudentLearningWorkspace: View {
                     .font(.headline)
                 Spacer()
                 Menu {
-                    ForEach([Destination.current, .plan, .history], id: \.rawValue) { item in
+                    ForEach([Destination.current, .plan, .threeYear, .history], id: \.rawValue) { item in
                         Button(item.title, systemImage: item.systemImage) {
                             destination = item
                         }
@@ -58,6 +61,8 @@ struct StudentLearningWorkspace: View {
                 StudentYearPlanTab(student: student)
                     .padding(.horizontal, 32)
                     .padding(.bottom, 24)
+            case .threeYear:
+                StudentCurriculumMapView(student: student)
             case .history:
                 StudentHistoryTab(student: student)
                     .padding(.horizontal, 32)

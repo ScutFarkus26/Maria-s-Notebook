@@ -152,6 +152,8 @@ ambiguity errors:
 | `list_procedures` | `CDProcedure`; a single match returns its full text |
 | `list_stories` | `CDStory` metadata (the PDFs themselves are not returned) |
 | `student_tracks` | `TrackProgressResolver` over the student's `CDStudentTrackEnrollmentEntity`s |
+| `student_curriculum_map` | `CurriculumMapLoader.snapshot` + `CurriculumMapEngine.cells(for:)` — the Three-Year View's cells for one child: Great Lessons, then every area with each key lesson's state (not presented / presented / chosen / repeated / mastered), dates, latest recall outcome, and the untouched-area list from `CurriculumMapSettings` |
+| `class_curriculum_map` | the same engine over every enrolled child, for one lesson (or the best state across one area), grouped by state and ordered by enrollment year — the names to hand to `schedule_presentation` |
 
 Deletes are deliberately not exposed, with one exception:
 `remove_student_from_work` takes a child off a work item, which on a linked
@@ -232,6 +234,24 @@ are often caught up in the evening or a day later. The per-student
 follow-up outcomes the capture review offers (practice, follow-up work,
 re-present, ready for the next lesson) are not exposed yet — only the
 `needs_follow_up` flag that puts an observation in the follow-up inbox.
+
+The two curriculum-map tools are the Three-Year View over MCP. They read
+nothing the screens do not: `CurriculumMapLoader` reduces the notebook to
+value types, `CurriculumMapEngine` derives one cell per (child, lesson) —
+a presentation makes it *presented*, work or practice following it makes it
+*chosen*, three practice sessions or work past active make it *repeated*,
+the mastery record (or the guide's confirmation on the presentation) makes
+it *mastered*, and the latest recall check rings it — and both tools print
+those cells. `student_curriculum_map` is the call for "what has Ora not had
+yet" and for planning a child's next month: Great Lessons first (built from
+the `greatLessonRaw` tag, story-format lessons preferred, never by name),
+then every area at the chosen granularity (`keyLesson` by default: hand-
+marked `isKeyLesson`, the first lesson of every sub-area, and the Great
+Lesson stories), closing with the areas that have had no presentation inside
+the guide's threshold. `class_curriculum_map` answers "who has not had the
+distributive law" as names grouped by state, oldest cohort first, ready for
+`schedule_presentation`. Neither judges: they report presence and absence
+of records, and say so.
 
 The four curriculum tools exist so an AMI album can be reconciled with the
 notebook without opening the app: `list_lessons_by_area` reads a whole

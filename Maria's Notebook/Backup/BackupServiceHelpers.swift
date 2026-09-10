@@ -83,7 +83,9 @@ enum BackupServiceHelpers {
                 albumID: l.albumID,
                 albumPageIndex: Int(l.albumPageIndex),
                 albumLessonTitle: l.albumLessonTitle,
-                albumLinkConfidence: l.albumLinkConfidence
+                albumLinkConfidence: l.albumLinkConfidence,
+                // Three-Year View milestone flag — hand-marked by the guide.
+                isKeyLesson: l.isKeyLesson
             )
         }
     }

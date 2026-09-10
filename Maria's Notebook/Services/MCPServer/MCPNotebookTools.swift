@@ -58,6 +58,8 @@ enum MCPNotebookTools {
             albumPageTool(),
             albumMarksTool(context: context),
             studentTracksTool(context: context),
+            studentCurriculumMapTool(context: context),
+            classCurriculumMapTool(context: context),
             weeklySchedulesTool(context: context),
             yearPlanTool(context: context),
             updateYearPlanEntryTool(context: context),

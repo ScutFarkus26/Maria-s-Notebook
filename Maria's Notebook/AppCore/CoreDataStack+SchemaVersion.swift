@@ -61,7 +61,10 @@ extension CoreDataStack {
     /// - `5` — `ScheduledMeeting.purpose`: what a booked-but-unheld conference is
     ///   about, so a meeting scheduled over MCP carries its reason onto the
     ///   Today agenda instead of arriving as a bare date.
-    nonisolated static let currentSchemaVersion = 5
+    /// - `6` — `Lesson.isKeyLesson`: the milestone flag the Three-Year View
+    ///   filters on, so a child's grid shows key lessons rather than every
+    ///   sub-step. Additive Boolean, default NO.
+    nonisolated static let currentSchemaVersion = 6
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

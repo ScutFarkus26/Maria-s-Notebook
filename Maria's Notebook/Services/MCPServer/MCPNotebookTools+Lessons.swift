@@ -85,9 +85,10 @@ extension MCPNotebookTools {
             .filter { !$0.isEmpty }
             .joined(separator: " › ")
         let id = lesson.id?.uuidString ?? "unknown"
+        let key: String = lesson.isKeyLesson ? " (key lesson)" : ""
         return filing.isEmpty
-            ? "[lesson id=\(id)] \(lesson.name)"
-            : "[lesson id=\(id)] \(lesson.name) — \(filing)"
+            ? "[lesson id=\(id)] \(lesson.name)\(key)"
+            : "[lesson id=\(id)] \(lesson.name) — \(filing)\(key)"
     }
 
     private static func fold(_ text: String) -> String {

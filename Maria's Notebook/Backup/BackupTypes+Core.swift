@@ -73,6 +73,8 @@ nonisolated public struct LessonDTO: Codable, Sendable {
     public var albumPageIndex: Int?
     public var albumLessonTitle: String?
     public var albumLinkConfidence: Double?
+    // Three-Year View milestone flag (format v25+). Optional so older backups decode.
+    public var isKeyLesson: Bool?
 }
 
 nonisolated public struct SampleWorkDTO: Codable, Sendable {

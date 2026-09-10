@@ -64,6 +64,11 @@ struct RootAdaptiveTabs: View {
             } label: {
                 Label("Progress Dashboard", systemImage: "person.text.rectangle")
             }
+            Tab(value: RootView.NavigationItem.curriculumMap) {
+                RootDetailContent(selectedNavItem: .curriculumMap)
+            } label: {
+                Label("Three-Year View", systemImage: "square.grid.3x3")
+            }
             Tab(value: RootView.NavigationItem.lessonRecall) {
                 RootDetailContent(selectedNavItem: .lessonRecall)
             } label: {

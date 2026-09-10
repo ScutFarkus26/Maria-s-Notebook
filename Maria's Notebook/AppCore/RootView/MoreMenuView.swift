@@ -19,6 +19,7 @@ struct MoreMenuView: View {
                     moreMenuButton(.parentReports)
                     moreMenuButton(.goingOut)
                     moreMenuButton(.progressDashboard)
+                    moreMenuButton(.curriculumMap)
                 }
 
                 Section("Curriculum") {

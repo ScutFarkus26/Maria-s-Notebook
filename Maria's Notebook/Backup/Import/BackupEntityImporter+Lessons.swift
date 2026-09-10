@@ -54,6 +54,8 @@ extension BackupEntityImporter {
             if let v = dto.albumPageIndex { lesson.albumPageIndex = Int32(v) }
             lesson.albumLessonTitle = dto.albumLessonTitle
             if let v = dto.albumLinkConfidence { lesson.albumLinkConfidence = v }
+            // Format v25+ Three-Year View milestone flag.
+            if let v = dto.isKeyLesson { lesson.isKeyLesson = v }
             return lesson
         })
     }
