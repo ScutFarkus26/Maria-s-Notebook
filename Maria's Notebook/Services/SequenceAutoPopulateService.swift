@@ -50,11 +50,16 @@ enum SequenceAutoPopulateService {
         guard !studentIDs.isEmpty else { return }
 
         let defaultSpacing: Int64 = 3
-        let scheduledDateNormalized = AppCalendar.startOfDay(scheduledDate)
+        // The lessons after the first were always spaced in *school* days; the
+        // first one used to take the scheduled date as given, which is how a
+        // sequence started on a day the school is closed. One rule for both now.
+        let scheduledDateNormalized: Date = YearPlanPacing.schoolDay(
+            onOrAfter: scheduledDate, in: context
+        )
 
         for studentID in studentIDs {
             let studentIDStr = studentID.uuidString
-            var currentDate = scheduledDateNormalized
+            var currentDate: Date = scheduledDateNormalized
 
             for (index, lessonInSequence) in lessonsAhead.enumerated() {
                 let lessonIDStr = lessonInSequence.id?.uuidString ?? ""
@@ -62,11 +67,10 @@ enum SequenceAutoPopulateService {
 
                 // Compute date: first entry uses scheduledDate, rest are spaced
                 if index > 0 {
-                    for _ in 0..<defaultSpacing {
-                        currentDate = await SchoolCalendarService.shared.nextSchoolDay(
-                            after: currentDate, using: context
-                        )
-                    }
+                    let next: Date = YearPlanPacing.advance(
+                        from: currentDate, bySchoolDays: defaultSpacing, in: context
+                    )
+                    currentDate = next
                 }
 
                 let isFirstEntry = (index == 0)

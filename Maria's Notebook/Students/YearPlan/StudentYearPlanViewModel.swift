@@ -11,6 +11,12 @@ final class StudentYearPlanViewModel {
     /// answers. Read once per `load` — see `YearPlanSatisfaction`.
     private(set) var satisfaction: YearPlanSatisfaction = .none
 
+    /// Targets still ahead that sit on days the school is closed. The guide has
+    /// nothing to do about these by hand — the calendar moved under the plan —
+    /// so they are the second reason to offer Readjust. Counted at load, not in
+    /// `body`.
+    private(set) var closedDayCount: Int = 0
+
     private var itemsByCell: [CellID: [YearPlanCalendarItem]] = [:]
 
     func items(for cellID: CellID) -> [YearPlanCalendarItem] {
@@ -63,6 +69,9 @@ final class StudentYearPlanViewModel {
 
         // 4. Build unified cell lookup
         itemsByCell = buildCells(assignments: unlinkedAssignments)
+        closedDayCount = entriesStillAhead
+            .filter { YearPlanPacing.fallsOnClosedDay($0, in: context) }
+            .count
     }
 
     /// Lays the entries and the assignments nothing links to onto calendar
@@ -117,14 +126,17 @@ final class StudentYearPlanViewModel {
 
     /// Reschedules an entry and cascades the shift to all subsequent planned entries
     /// in the same sequence, maintaining spacing.
+    ///
+    /// A drop onto a day the school is closed lands on the next open day — the
+    /// guide is asking for "about here", and no lesson is given on Rosh Hashana.
     func rescheduleWithCascade(
         _ entry: CDYearPlanEntry,
         to newDate: Date,
         studentID: UUID,
         context: NSManagedObjectContext
     ) async {
-        let newDateNormalized = AppCalendar.startOfDay(newDate)
-        entry.plannedDate = newDateNormalized
+        let landing = YearPlanPacing.schoolDay(onOrAfter: newDate, in: context)
+        entry.plannedDate = landing
         entry.modifiedAt = Date()
 
         // Find all planned entries in the same sequence after this one
@@ -137,11 +149,11 @@ final class StudentYearPlanViewModel {
             }
             .sorted { $0.orderInSequence < $1.orderInSequence }
 
-        var currentDate = newDateNormalized
+        var currentDate = landing
         for next in subsequent {
-            for _ in 0..<max(1, next.spacingSchoolDays) {
-                currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: context)
-            }
+            currentDate = YearPlanPacing.advance(
+                from: currentDate, bySchoolDays: next.spacingSchoolDays, in: context
+            )
             next.plannedDate = currentDate
             next.modifiedAt = Date()
         }
@@ -155,29 +167,40 @@ final class StudentYearPlanViewModel {
         entries.first { $0.id == id }
     }
 
-    /// Readjust all future planned entries in all sequences for this student.
+    /// Readjust the entries still ahead of this child, sequence by sequence.
+    ///
+    /// Two things send a sequence back to the drawing board, and they are
+    /// handled differently. A sequence whose first entry has fallen behind pace
+    /// is re-laid from the next school day — it has slipped as a whole. A
+    /// sequence that is on time but has targets sitting on days the school is
+    /// closed is only nudged: those entries move to the open days around them
+    /// (`YearPlanPacing.resettle`) and the ones already on good days keep the
+    /// dates the guide chose.
     func readjust(studentID: UUID, context: NSManagedObjectContext) async {
         let today = AppCalendar.startOfDay(Date())
-
         let stillAhead = entries.filter { $0.isPlanned && !$0.isSatisfied(by: satisfaction) }
         let grouped = Dictionary(grouping: stillAhead) { $0.sequenceGroupKey }
 
         for (_, sequenceEntries) in grouped {
-            let sorted = sequenceEntries.sorted { $0.orderInSequence < $1.orderInSequence }
-            guard let first = sorted.first else { continue }
+            let sorted = YearPlanPacing.inSequenceOrder(sequenceEntries)
+            guard let first = sorted.first, let firstDate = first.plannedDate else { continue }
 
-            guard let firstDate = first.plannedDate, firstDate < today else { continue }
+            if firstDate < today {
+                var currentDate = YearPlanPacing.schoolDay(
+                    onOrAfter: AppCalendar.addingDays(1, to: today), in: context
+                )
+                first.plannedDate = currentDate
+                first.modifiedAt = Date()
 
-            var currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: today, using: context)
-            first.plannedDate = currentDate
-            first.modifiedAt = Date()
-
-            for entry in sorted.dropFirst() {
-                for _ in 0..<max(1, entry.spacingSchoolDays) {
-                    currentDate = await SchoolCalendarService.shared.nextSchoolDay(after: currentDate, using: context)
+                for entry in sorted.dropFirst() {
+                    currentDate = YearPlanPacing.advance(
+                        from: currentDate, bySchoolDays: entry.spacingSchoolDays, in: context
+                    )
+                    entry.plannedDate = currentDate
+                    entry.modifiedAt = Date()
                 }
-                entry.plannedDate = currentDate
-                entry.modifiedAt = Date()
+            } else {
+                YearPlanPacing.resettle(sorted, in: context)
             }
         }
 

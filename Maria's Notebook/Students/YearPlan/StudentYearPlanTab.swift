@@ -31,7 +31,10 @@ struct StudentYearPlanTab: View {
             nonSchoolCells: nonSchoolCells,
             headerTrailing: {
                 HStack(spacing: 12) {
-                    if viewModel.behindPaceCount > 0 {
+                    // Offered for either reason a plan needs re-laying: it has
+                    // slipped behind, or the school calendar has moved under it
+                    // and targets are sitting on days school is closed.
+                    if viewModel.behindPaceCount > 0 || viewModel.closedDayCount > 0 {
                         Button {
                             Task {
                                 guard let id = student.id else { return }
@@ -203,6 +206,18 @@ struct StudentYearPlanTab: View {
                         Text("\(behind) behind")
                             .font(.caption)
                             .foregroundStyle(AppColors.destructive)
+                    }
+                }
+
+                let onClosedDays = viewModel.closedDayCount
+                if onClosedDays > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.caption2)
+                            .foregroundStyle(AppColors.warning)
+                        Text("\(onClosedDays) on days school is closed")
+                            .font(.caption)
+                            .foregroundStyle(AppColors.warning)
                     }
                 }
 

@@ -50,7 +50,8 @@ extension MCPNotebookTools {
                     ],
                     "target_date": [
                         "type": "string",
-                        "description": "The new target day, YYYY-MM-DD"
+                        "description": .string("The new target day, YYYY-MM-DD. A day the school "
+                            + "is closed moves forward to the next open one, and the reply says so.")
                     ]
                 ],
                 "required": ["entry_id"]
@@ -91,8 +92,21 @@ extension MCPNotebookTools {
         }
 
         if let status { entry.status = status }
+
+        // A target is a day the guide means to give the lesson, so it has to be
+        // a day the school is open. Asking for Rosh Hashana gets the next open
+        // morning rather than a refusal — but the reply never lets that pass
+        // silently, or the plan and the answer would disagree.
+        var moved: String = ""
         if let day {
-            entry.plannedDate = AppCalendar.startOfDay(day)
+            let asked: Date = AppCalendar.startOfDay(day)
+            let landing: Date = YearPlanPacing.schoolDay(onOrAfter: asked, in: modelContext)
+            if landing != asked {
+                let from: String = dayString(asked)
+                let to: String = dayString(landing)
+                moved = "\(from) is not a school day, so the target moved to \(to).\n"
+            }
+            entry.plannedDate = landing
             entry.modifiedAt = Date()
         }
 
@@ -100,8 +114,9 @@ extension MCPNotebookTools {
             modelContext.rollback()
             throw MCPToolError("The year-plan entry could not be saved.")
         }
-        let lessons = lessonNameIndex(in: modelContext)
-        return "Updated " + yearPlanEntryLine(entry, lessons: lessons, includeStatus: true)
+        let lessons: [UUID: String] = lessonNameIndex(in: modelContext)
+        let line: String = yearPlanEntryLine(entry, lessons: lessons, includeStatus: true)
+        return moved + "Updated " + line
     }
 
     // MARK: - Skip a Whole Plan
