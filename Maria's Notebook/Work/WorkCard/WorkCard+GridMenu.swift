@@ -72,6 +72,9 @@ extension WorkCardGridContent {
 
         if !isBulk {
             Divider()
+            // A one-card question: with several cards selected, "this work" no
+            // longer names one thing.
+            SameWorkPeersMenu(work: config.work, context: viewContext)
             jumpButtons
             Button {
                 copyWorkTitle()

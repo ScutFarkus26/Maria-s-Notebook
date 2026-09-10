@@ -279,7 +279,7 @@ struct ReadyToPresentSection: View {
                 cornerRadius: UIConstants.CornerRadius.medium
             )
             .contextMenu {
-                ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
+                lessonMenuItems(for: la)
                 Divider()
                 deleteButton(for: la)
             }
@@ -331,7 +331,7 @@ extension ReadyToPresentSection {
             cornerRadius: UIConstants.CornerRadius.medium
         )
         .contextMenu {
-            ShowInChecklistButton(lessonID: la.resolvedLessonID, context: viewContext)
+            lessonMenuItems(for: la)
             Button("Unlock Lesson", systemImage: "lock.open") {
                 unlockOnDeckLesson(la)
             }

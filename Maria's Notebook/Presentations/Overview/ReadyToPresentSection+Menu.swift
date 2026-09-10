@@ -24,6 +24,15 @@ extension ReadyToPresentSection {
         return visible.filter { selection.contains($0.id) }
     }
 
+    /// The items every presentation card offers, whatever state it is in:
+    /// where the lesson sits in the checklist, and who is already working on
+    /// it. Written once so the Ready and On Deck cards cannot drift apart.
+    @ViewBuilder
+    func lessonMenuItems(for assignment: CDLessonAssignment) -> some View {
+        ShowInChecklistButton(lessonID: assignment.resolvedLessonID, context: viewContext)
+        LessonWorkPeersMenu(lessonID: assignment.resolvedLessonID, context: viewContext)
+    }
+
     @ViewBuilder
     func deleteButton(for assignment: CDLessonAssignment) -> some View {
         let targets = menuTargets(for: assignment)
