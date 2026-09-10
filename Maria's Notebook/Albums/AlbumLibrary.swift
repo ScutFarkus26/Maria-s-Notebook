@@ -453,7 +453,9 @@ final class AlbumLibrary {
         for (i, item) in items.enumerated() {
             let modified = (try? item.url.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
-            let result = await Task.detached(priority: .userInitiated) {
+            // Indexing is background maintenance, not something the guide is waiting on:
+            // `.utility` keeps the PDF text extraction off the cores the UI needs.
+            let result = await Task.detached(priority: .utility) {
                 Self.loadOrBuildIndex(url: item.url, modified: modified, cacheDir: cacheDir)
             }.value
             pageTexts[item.id] = result.texts
@@ -470,6 +472,9 @@ final class AlbumLibrary {
             }
             indexedPageCount += result.texts.count
             indexProgress = Double(i + 1) / Double(max(items.count, 1))
+            // Give the main actor a turn between albums so a long shelf does not
+            // monopolise it with the per-album bookkeeping above.
+            await Task.yield()
         }
         if lastSeenChanged {
             UserDefaults.standard.set(lastSeen, forKey: Self.lastSeenKey)
