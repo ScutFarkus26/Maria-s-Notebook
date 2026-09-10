@@ -121,4 +121,55 @@ struct AttendanceDeduplicationTests {
         )
         #expect(records.count == 3)
     }
+
+    // MARK: - Strong dedup pre-check
+
+    // The launch and post-import passes call deduplicateAttendanceRecordsStrong on a
+    // table that almost never has duplicates. A dictionary pre-check on the two
+    // grouping columns answers that without faulting a single record into the context.
+
+    @Test("With no duplicates, the strong pass answers from the columns alone")
+    func strongDedupSkipsFullFetchWhenClean() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        let day = AppCalendar.startOfDay(Date())
+        let previousDay = AppCalendar.addingDays(-1, to: day)
+        let studentA = UUID().uuidString
+        let studentB = UUID().uuidString
+
+        _ = makeRecord(in: context, studentID: studentA, date: day, status: .present)
+        _ = makeRecord(in: context, studentID: studentB, date: day, status: .absent)
+        _ = makeRecord(in: context, studentID: studentA, date: previousDay, status: .tardy)
+        #expect(CoreDataTestHelpers.save(context))
+
+        // Drop the freshly inserted objects so registration is a true signal of
+        // what the dedup pass itself faulted in.
+        context.reset()
+
+        #expect(DataCleanupService.deduplicateAttendanceRecordsStrong(using: context) == 0)
+        // A dictionary-result fetch registers nothing; the old full-table object
+        // fetch would have registered all three rows.
+        #expect(context.registeredObjects.isEmpty)
+        #expect(context.safeFetch(CDFetchRequest(CDAttendanceRecord.self)).count == 3)
+    }
+
+    @Test("The pre-check still lets a real duplicate through to the full pass")
+    func strongDedupCollapsesAfterPreCheck() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        let day = AppCalendar.startOfDay(Date())
+        let studentID = UUID().uuidString
+
+        _ = makeRecord(in: context, studentID: studentID, date: day, status: .unmarked)
+        // Same calendar day, later time of day — the grouping key normalizes it.
+        _ = makeRecord(in: context, studentID: studentID,
+                       date: day.addingTimeInterval(3600), status: .absent)
+        #expect(CoreDataTestHelpers.save(context))
+        context.reset()
+
+        #expect(DataCleanupService.deduplicateAttendanceRecordsStrong(using: context) == 1)
+        let survivors = context.safeFetch(CDFetchRequest(CDAttendanceRecord.self))
+        #expect(survivors.count == 1)
+        #expect(survivors.first?.status == .absent)
+    }
 }

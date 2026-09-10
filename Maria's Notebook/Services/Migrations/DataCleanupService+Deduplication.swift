@@ -288,6 +288,15 @@ nonisolated extension DataCleanupService {
     /// context-level deletes produce proper CloudKit delete tombstones.
     @discardableResult
     static func deduplicateAttendanceRecordsStrong(using context: NSManagedObjectContext) -> Int {
+        // Cheap pre-check: read only the two columns that make up the grouping key
+        // to learn whether any (student, day) repeats at all. This runs on every
+        // launch and after every CloudKit import, and the answer is almost always
+        // "no" — finding that out shouldn't fault the whole table into the context.
+        // `nil` means the pre-check couldn't be trusted, so fall back to the full pass.
+        if let hasDuplicates = attendanceHasRepeatedStudentDay(in: context), !hasDuplicates {
+            return 0
+        }
+
         let fetch = CDFetchRequest(CDAttendanceRecord.self)
         let all: [CDAttendanceRecord]
         do {
@@ -298,15 +307,11 @@ nonisolated extension DataCleanupService {
         }
         guard !all.isEmpty else { return 0 }
 
-        let calendar = AppCalendar.shared
-
         // Group by (studentID, normalized calendar day). Records missing a
         // studentID or date can't be safely matched, so leave them untouched.
         var groups: [String: [CDAttendanceRecord]] = [:]
         for record in all {
-            guard !record.studentID.isEmpty, let date = record.date else { continue }
-            let dayStart = calendar.startOfDay(for: date)
-            let key = "\(record.studentID)|\(dayStart.timeIntervalSinceReferenceDate)"
+            guard let key = attendanceGroupKey(studentID: record.studentID, date: record.date) else { continue }
             groups[key, default: []].append(record)
         }
 
@@ -343,6 +348,49 @@ nonisolated extension DataCleanupService {
             context.safeSave()
         }
         return deletedCount
+    }
+
+    /// The (student, calendar day) identity two attendance rows must share to be
+    /// duplicates of one another. `nil` for a row that can't be matched safely —
+    /// no student id, or no date.
+    ///
+    /// Both the pre-check and the full pass build their groups through this, so the
+    /// two can never disagree about what counts as the same logical fact.
+    private static func attendanceGroupKey(studentID: String, date: Date?) -> String? {
+        guard !studentID.isEmpty, let date else { return nil }
+        let dayStart = AppCalendar.shared.startOfDay(for: date)
+        return "\(studentID)|\(dayStart.timeIntervalSinceReferenceDate)"
+    }
+
+    /// Whether any (studentID, day) appears on more than one attendance row, found
+    /// by reading just the two grouping columns instead of materializing every record.
+    ///
+    /// Returns `nil` when the answer can't be trusted — a context with unsaved
+    /// changes (dictionary-result fetches don't see pending inserts) or a failed
+    /// fetch — in which case the caller should do the original full pass.
+    private static func attendanceHasRepeatedStudentDay(in context: NSManagedObjectContext) -> Bool? {
+        guard !context.hasChanges else { return nil }
+        guard let entityName = CDFetchRequest(CDAttendanceRecord.self).entityName else { return nil }
+
+        let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["studentID", "date"]
+
+        let rows: [NSDictionary]
+        do {
+            rows = try context.fetch(request)
+        } catch {
+            return nil
+        }
+
+        var seen = Set<String>(minimumCapacity: rows.count)
+        for row in rows {
+            let key = attendanceGroupKey(studentID: row["studentID"] as? String ?? "",
+                                         date: row["date"] as? Date)
+            guard let key else { continue }
+            if !seen.insert(key).inserted { return true }
+        }
+        return false
     }
 
     private static func mergeStudent(canonical: CDStudent, duplicate: CDStudent) {
