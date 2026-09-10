@@ -9,6 +9,30 @@ struct WorkRepository: Repository {
 
     let context: NSManagedObjectContext
 
+    // MARK: - Assignment Rules
+
+    enum AssignmentError: LocalizedError, Equatable {
+        /// The child's record says withdrawn or transferred. Work is for
+        /// children in the room; a former student is corrected in her
+        /// profile, not given new work.
+        case studentNotEnrolled(name: String, status: String)
+
+        var errorDescription: String? {
+            switch self {
+            case let .studentNotEnrolled(name, status):
+                return "\(name) is \(status) and cannot be given work. Only enrolled students can be assigned work."
+            }
+        }
+    }
+
+    /// Refuses a student whose record is on file and not enrolled. A student
+    /// id with no record passes: tests and imports create work for children
+    /// whose rows arrive later, and that was never the failure here.
+    func requireEnrolled(_ studentID: UUID) throws {
+        guard let student = context.object(CDStudent.self, id: studentID), !student.isEnrolled else { return }
+        throw AssignmentError.studentNotEnrolled(name: student.fullName, status: student.enrollmentStatusRaw)
+    }
+
     // MARK: - CDTrackEntity Linking Helper
 
     /// Links a work item to its associated track and step if the lesson belongs to a track
@@ -96,6 +120,8 @@ struct WorkRepository: Repository {
         sampleWorkID: UUID? = nil,
         saveImmediately: Bool = true
     ) throws -> CDWorkModel {
+        try requireEnrolled(studentID)
+
         // Use WorkKind directly (new system), with smart defaults
         let workKind = kind ?? (presentationID != nil ? .practiceLesson : .followUpAssignment)
         let studentLessonID = resolvePresentationID(

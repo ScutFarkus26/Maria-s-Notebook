@@ -152,6 +152,11 @@ nonisolated enum UserDefaultsKeys {
     /// reconstitutes from CloudKit. Used to recover from corrupt persistent
     /// history that prevents `NSCloudKitMirroringDelegate` from initializing.
     static let resetLocalCacheOnLaunch = "AppCore.resetLocalCacheOnLaunch"
+
+    /// Set after the first launch-time check-in link repair on this device.
+    /// Orphaned check-ins are only deleted from the second run on, so a fresh
+    /// install still importing its work rows from CloudKit deletes nothing.
+    static let checkInLinkRepairHasRun = "DataMigrations.checkInLinkRepair.hasRun"
     static let resetLocalCacheArmedAt = "AppCore.resetLocalCacheArmedAt"
     static let resetLocalCacheArmedSource = "AppCore.resetLocalCacheArmedSource"
 

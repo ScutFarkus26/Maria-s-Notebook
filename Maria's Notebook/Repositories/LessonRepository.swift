@@ -58,9 +58,69 @@ struct LessonRepository: SavingRepository {
         fetchLessons(predicate: NSPredicate(format: "parentStoryID == %@", parentID.uuidString))
     }
 
+    // MARK: - Uniqueness
+
+    /// A lesson name is unique within its sub-area (area + sequence). Names
+    /// compare trimmed, case- and diacritic-insensitively — the same folding
+    /// `find_lessons` and `create_lesson` use — so "Rectangle" and "rectangle "
+    /// are one lesson. Parsha lessons are exempt: "Middle Girls" is filed
+    /// fresh every week under a different `parshaKey`.
+    enum CreationError: LocalizedError, Equatable {
+        /// A lesson with this name already sits in the same sub-area.
+        case duplicateName(existingID: UUID?, name: String, area: String, sequence: String)
+
+        var errorDescription: String? {
+            switch self {
+            case let .duplicateName(_, name, area, sequence):
+                let filing = sequence.trimmed().isEmpty ? area.trimmed() : "\(area.trimmed()) › \(sequence.trimmed())"
+                return "\"\(name)\" is already in \(filing)."
+            }
+        }
+    }
+
+    /// The identity a lesson name has within the curriculum: its area,
+    /// sub-area and name, each folded the way the Lessons screens compare them.
+    nonisolated static func nameKey(name: String, area: String, sequence: String) -> String {
+        [area, sequence, name].map(foldedName).joined(separator: "|")
+    }
+
+    nonisolated static func nameKey(for lesson: CDLesson) -> String {
+        nameKey(name: lesson.name, area: lesson.area, sequence: lesson.sequence)
+    }
+
+    nonisolated static func foldedName(_ text: String) -> String {
+        text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).trimmed().lowercased()
+    }
+
+    /// Whether a lesson takes part in the name-uniqueness rule. Parsha lessons
+    /// are keyed by week, not name, so they are left out on both sides.
+    nonisolated static func participatesInNameUniqueness(_ lesson: CDLesson) -> Bool {
+        (lesson.parshaKey ?? "").trimmed().isEmpty
+    }
+
+    /// The lesson already filed under `name` in this sub-area, if any.
+    /// `excluding` lets a rename check skip the lesson being renamed.
+    func existingLesson(
+        named name: String, area: String, sequence: String, excluding: CDLesson? = nil
+    ) -> CDLesson? {
+        let key = Self.nameKey(name: name, area: area, sequence: sequence)
+        let request = CDFetchRequest(CDLesson.self)
+        request.sortDescriptors = [NSSortDescriptor(key: "sortIndex", ascending: true)]
+        return context.safeFetch(request).first { lesson in
+            lesson !== excluding
+                && !lesson.isDeleted
+                && Self.participatesInNameUniqueness(lesson)
+                && Self.nameKey(for: lesson) == key
+        }
+    }
+
     // MARK: - Create
 
-    /// Create a new CDLesson
+    /// Create a new CDLesson.
+    ///
+    /// Refuses a name already used in the same sub-area (`CreationError.duplicateName`)
+    /// so a sub-area entered twice no longer doubles every child's year plan.
+    /// Pass `parshaKey` for a parsha lesson, which is exempt from that rule.
     @discardableResult
     func createLesson(
         name: String,
@@ -78,9 +138,17 @@ struct LessonRepository: SavingRepository {
         ageRange: String = "",
         teacherNotes: String = "",
         lessonFormat: LessonFormat = .standard,
-        parentStoryID: String? = nil
-    ) -> CDLesson {
+        parentStoryID: String? = nil,
+        parshaKey: String? = nil
+    ) throws -> CDLesson {
+        let isParsha = !(parshaKey ?? "").trimmed().isEmpty
+        if !isParsha, let existing = existingLesson(named: name, area: area, sequence: sequence) {
+            throw CreationError.duplicateName(
+                existingID: existing.id, name: name.trimmed(), area: area, sequence: sequence
+            )
+        }
         let lesson = CDLesson(context: context)
+        lesson.parshaKey = parshaKey
         lesson.name = name
         lesson.area = area
         lesson.sequence = sequence

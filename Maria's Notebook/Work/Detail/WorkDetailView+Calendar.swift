@@ -129,12 +129,9 @@ extension WorkDetailView {
         guard let work = viewModel.work else { return }
         let note = viewModel.newPlanNote.trimmed().isEmpty ? nil : viewModel.newPlanNote.trimmed()
 
-        // PHASE 6: Create CDWorkCheckIn only (WorkPlanItem removed)
-        let checkIn = CDWorkCheckIn(context: modelContext)
-        checkIn.workID = work.id?.uuidString ?? ""
-        checkIn.date = viewModel.newPlanDate
-        checkIn.status = .scheduled
-        checkIn.purpose = viewModel.newPlanPurpose
+        let checkIn = CDWorkCheckIn.make(
+            for: work, on: viewModel.newPlanDate, purpose: viewModel.newPlanPurpose, in: modelContext
+        )
         if let note {
             checkIn.setLegacyNoteText(note, in: modelContext)
         }

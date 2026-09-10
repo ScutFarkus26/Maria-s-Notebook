@@ -34,6 +34,9 @@ public struct BulkLessonsEntryView: View {
     @State private var quickSequence: String = ""
     @State private var batchSource: LessonSource = .album
     @State private var batchPersonalKind: PersonalLessonKind = .personal
+    /// Names refused because they were already filed in their sub-area — in
+    /// the store or earlier in this same grid. Reported after the save.
+    @State private var skippedDuplicates: [String] = []
 
     public init(
         defaultArea: String? = nil,
@@ -111,6 +114,15 @@ public struct BulkLessonsEntryView: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
 #endif
+        .alert(
+            "Some Lessons Were Already Filed",
+            isPresented: Binding(get: { !skippedDuplicates.isEmpty }, set: { if !$0 { skippedDuplicates = [] } })
+        ) {
+            Button("OK", role: .cancel) { finish() }
+        } message: {
+            Text("Skipped, because the same name is already in that sub-area:\n"
+                + skippedDuplicates.joined(separator: "\n"))
+        }
     }
 
     // MARK: - Extracted Body Sections
@@ -342,24 +354,22 @@ public struct BulkLessonsEntryView: View {
             }
         }
 
-        var insertedLessons: [CDLesson] = []
-        for r in items {
-            // Calculate the next orderInSequence for this area+sequence
-            let key = "\(r.area)|\(r.sequence)"
-            let nextOrder = (maxOrderBySequence[key] ?? -1) + 1
-            maxOrderBySequence[key] = nextOrder
-
-            let lesson = repository.createLesson(
-                name: r.name,
-                area: r.area,
-                sequence: r.sequence,
-                section: r.section,
-                writeUp: r.writeUp,
-                orderInSequence: nextOrder,
-                source: batchSource,
-                personalKind: batchSource == .personal ? batchPersonalKind : nil
+        let drafts = items.map { row in
+            BulkLessonDraft(
+                name: row.name, area: row.area, sequence: row.sequence, section: row.section, writeUp: row.writeUp
             )
-            insertedLessons.append(lesson)
+        }
+        let outcome = BulkLessonInsertion.insert(
+            drafts, using: repository, source: batchSource,
+            personalKind: batchSource == .personal ? batchPersonalKind : nil,
+            maxOrderBySequence: maxOrderBySequence
+        )
+        let insertedLessons = outcome.inserted
+        let skipped = outcome.skipped
+
+        guard !insertedLessons.isEmpty else {
+            skippedDuplicates = skipped
+            return
         }
 
         // A failed save shows the "Couldn't Save" alert and keeps the sheet open
@@ -393,6 +403,16 @@ public struct BulkLessonsEntryView: View {
         // Save track updates
         guard saveCoordinator.save(viewContext, reason: "Update tracks") else { return }
 
+        finish(reporting: skipped)
+    }
+
+    /// The saved lessons stand either way; when some were skipped the alert
+    /// names them first, and dismissing it closes the sheet.
+    private func finish(reporting skipped: [String] = []) {
+        guard skipped.isEmpty else {
+            skippedDuplicates = skipped
+            return
+        }
         onDone?()
         dismiss()
     }

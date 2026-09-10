@@ -24,15 +24,8 @@ struct WorkCheckInService: WorkCheckInServiceProtocol {
                        status: WorkCheckInStatus = .scheduled,
                        purpose: String = "",
                        note: String = "") throws -> CDWorkCheckIn {
-        let trimmedPurpose = purpose.trimmed()
         let trimmedNote = note.trimmed()
-        let ci = CDWorkCheckIn(context: context)
-        ci.workID = work.id?.uuidString ?? ""
-        ci.date = date
-        ci.status = status
-        ci.purpose = trimmedPurpose
-        ci.work = work
-        work.addToCheckIns(ci)
+        let ci = CDWorkCheckIn.make(for: work, on: date, purpose: purpose, status: status, in: context)
         if !trimmedNote.isEmpty {
             ci.setLegacyNoteText(trimmedNote, in: context)
         }

@@ -129,9 +129,12 @@ extension MCPNotebookTools {
         checkInRequest.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)
         ]
+        // `resolvedWork` reads the relationship or the workID string, so a
+        // check-in dropped onto the week plan before the relationship was
+        // always set still names its work here.
         let checkIns = modelContext.safeFetch(checkInRequest).filter { checkIn in
             guard let studentID else { return true }
-            return checkIn.work.map { involves(studentID, in: $0) } ?? false
+            return checkIn.resolvedWork(in: modelContext).map { involves(studentID, in: $0) } ?? false
         }
 
         // Calendar events and day notes belong to the classroom as a whole, so a
@@ -174,10 +177,13 @@ extension MCPNotebookTools {
         if !day.checkIns.isEmpty {
             lines.append("  Work check-ins due:")
             lines.append(contentsOf: day.checkIns.map { checkIn in
-                let work = checkIn.work
+                let work = checkIn.resolvedWork(in: modelContext)
                 let id = work?.id?.uuidString ?? "unknown"
                 let title = nonEmpty(work?.title) ?? "Untitled work"
-                let who = work.map { workStudentNames(for: $0, in: modelContext) } ?? "unassigned"
+                // No work row at all means the check-in outlived its work; say
+                // so rather than printing it as an unassigned plan.
+                let who = work.map { workStudentNames(for: $0, in: modelContext) }
+                    ?? "orphaned check-in, its work no longer exists"
                 let purpose = nonEmpty(checkIn.purpose).map { " — \($0)" } ?? ""
                 return "    - [work id=\(id)] \(title) — \(who) (\(checkIn.status.rawValue.lowercased()))\(purpose)"
             })
@@ -256,11 +262,17 @@ extension MCPNotebookTools {
 
     /// Resolves student ids to names for output, quietly skipping ids whose
     /// student record is gone — a stale id should not blank out the whole line.
+    /// A former student is named with her status, so a work item that still
+    /// carries her reads as what it is rather than as a roster the reader
+    /// cannot find in list_students.
     static func studentNames(
         for ids: [UUID], in modelContext: NSManagedObjectContext
     ) -> String {
         let repository = StudentRepository(context: modelContext)
-        let names = ids.compactMap { repository.fetchStudent(id: $0)?.fullName }.sorted()
+        let names = ids.compactMap { id -> String? in
+            guard let student = repository.fetchStudent(id: id) else { return nil }
+            return student.isEnrolled ? student.fullName : "\(student.fullName) (\(student.enrollmentStatusRaw))"
+        }.sorted()
         return names.isEmpty ? "no students linked" : names.joined(separator: ", ")
     }
 

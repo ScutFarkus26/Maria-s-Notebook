@@ -231,8 +231,14 @@ struct ProjectsRootView: View {
             sessionIDs.contains($0.sourceContextID ?? "")
         }
 
-        for w in workModels {
-            modelContext.delete(w)
+        // Through the service, so check-ins keyed only by workID string,
+        // completion records and passenger rows on linked copies go too.
+        if !workModels.isEmpty {
+            do {
+                try WorkDeletionService(context: modelContext).delete(workModels) { true }
+            } catch {
+                Self.logger.error("Failed to delete club work: \(error)")
+            }
         }
         for s in sessions {
             modelContext.delete(s)

@@ -329,13 +329,7 @@ final class WorkDetailViewModel {
     func addPlan(modelContext: NSManagedObjectContext) {
         guard let work else { return }
 
-        let checkIn = CDWorkCheckIn(context: modelContext)
-        checkIn.id = UUID()
-        checkIn.workID = work.id?.uuidString ?? ""
-        checkIn.date = newPlanDate
-        checkIn.status = .scheduled
-        checkIn.purpose = newPlanPurpose
-        checkIn.work = work
+        let checkIn = CDWorkCheckIn.make(for: work, on: newPlanDate, purpose: newPlanPurpose, in: modelContext)
 
         let trimmedNote = newPlanNote.trimmed()
         if !trimmedNote.isEmpty {

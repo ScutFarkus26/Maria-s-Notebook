@@ -51,23 +51,18 @@ extension WorksAgendaView {
         request.predicate = NSPredicate(format: "workID == %@", workIDString)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)]
         request.fetchLimit = 1
+        let existing: CDWorkCheckIn?
         do {
-            if let first = try viewContext.fetch(request).first {
-                first.date = checkDay
-            } else {
-                let item = CDWorkCheckIn(context: viewContext)
-                item.workID = workIDString
-                item.date = checkDay
-                item.status = .scheduled
-                item.purpose = "progressCheck"
-            }
+            existing = try viewContext.fetch(request).first
         } catch {
             Self.logger.warning("Failed to fetch CDWorkCheckIn: \(error)")
-            let item = CDWorkCheckIn(context: viewContext)
-            item.workID = workIDString
-            item.date = checkDay
-            item.status = .scheduled
-            item.purpose = "progressCheck"
+            existing = nil
+        }
+        if let existing {
+            existing.date = checkDay
+            if existing.work == nil { existing.work = w }
+        } else {
+            CDWorkCheckIn.make(for: w, on: checkDay, purpose: "progressCheck", in: viewContext)
         }
         w.dueAt = checkDay
         saveCoordinator.save(viewContext, reason: "Quick schedule work check")

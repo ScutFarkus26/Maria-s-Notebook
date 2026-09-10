@@ -35,6 +35,22 @@ nonisolated public class CDWorkModel: NSManagedObject {
     @NSManaged public var steps: NSSet?
     @NSManaged public var unifiedNotes: NSSet?
 
+    // MARK: - Deletion
+
+    /// Deleting a work item takes its check-ins with it. The `checkIns`
+    /// relationship cascades on its own; this sweeps the check-ins that carry
+    /// only the `workID` string, which older creation paths wrote without the
+    /// relationship and a relationship cascade cannot see.
+    public override func prepareForDeletion() {
+        super.prepareForDeletion()
+        guard let context = managedObjectContext, let workID = id?.uuidString, !workID.isEmpty else { return }
+        let request = CDFetchRequest(CDWorkCheckIn.self)
+        request.predicate = NSPredicate(format: "workID == %@ AND work == nil", workID)
+        for checkIn in context.safeFetch(request) where !checkIn.isDeleted {
+            context.delete(checkIn)
+        }
+    }
+
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {

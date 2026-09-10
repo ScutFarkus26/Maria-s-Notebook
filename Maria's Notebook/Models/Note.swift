@@ -60,6 +60,25 @@ enum NoteScope: Codable, Equatable {
         }
     }
 
+    /// The scope a picker selection means. An empty selection is the whole
+    /// class unless the note lives on something with a roster of its own — a
+    /// presentation — in which case it is that roster.
+    nonisolated static func forSelection(_ selected: Set<UUID>, fallback: [UUID] = []) -> NoteScope {
+        let ids = selected.isEmpty ? fallback : Array(selected)
+        if ids.isEmpty { return .all }
+        if ids.count == 1, let only = ids.first { return .student(only) }
+        return .students(ids.sorted { $0.uuidString < $1.uuidString })
+    }
+
+    /// The children this scope names, or nil for the whole class.
+    nonisolated var studentIDs: [UUID]? {
+        switch self {
+        case .all: return nil
+        case .student(let id): return [id]
+        case .students(let ids): return ids
+        }
+    }
+
     func applies(to studentID: UUID) -> Bool {
         switch self {
         case .all:

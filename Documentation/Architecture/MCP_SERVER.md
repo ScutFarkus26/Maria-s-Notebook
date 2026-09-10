@@ -80,13 +80,13 @@ ambiguity errors:
 | **Observations & presentations** | |
 | `student_observations` | `CDNote` fetch + `NoteScope` filter |
 | `student_presentation_history` | presented `CDLessonAssignment`s |
-| `presentations_missing_observations` | `PresentationObservationCoverageService` |
+| `presentations_missing_observations` | `PresentationObservationCoverageService`, judged child by child: a group presentation is listed while any child on it has no observation about her, and the line names those children |
 | `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent`; an optional `date` back-dates the note the way `create_meeting_entry` does |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, and the children the note is about, by note id. `student_names` replaces the note's scope rather than adding to it (`.all` on an empty list, as `UnifiedNoteEditor.determineScope` reads an empty selection) and re-syncs the link rows; the presentation relationship is left alone, matching the in-app editor, which attaches a note to its context only at creation |
 | `record_presentation` (write) | `LifecycleService.recordPresentation` + `PresentationOutcomePersistenceService.persistObservations` + `safeSave`, mirroring the command bar's `saveCaptureProposal` — completes a planned presentation when one matches, and re-recording the same lesson/students/day edits that presentation instead of duplicating it |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | **Schedule** | |
-| `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days |
+| `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` (resolved through `resolvedWork`, the relationship or the `workID` string) + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days. A check-in whose work is gone is labelled an orphan, never printed as an unassigned plan |
 | `schedule_presentation` (write) | `PresentationFactory.makeDraft` + `schedule(onDay:)` — reuses an existing unpresented plan for the same lesson and exact student set rather than duplicating it |
 | `reschedule_presentation` (write) | the assignment's own `schedule(onDay:)` / `unschedule()`; refuses presentations already given |
 | `discard_presentation` (write) | the planning list's context-menu delete — `context.delete` + save, notes cascading — two-step like `remove_student_from_work` (no `confirm` = report only: lesson, day, roster, note count); a year-plan entry promoted into the plan goes back to `planned`; refuses presentations already given |
@@ -94,7 +94,7 @@ ambiguity errors:
 | **Work** | |
 | `student_work` | `CDWorkModel` owned by or participated in by the student |
 | `work_detail` | one work item: steps, check-ins, participants, linked notes |
-| `assign_work` (write) | `WorkRepository.createWork` + participant cross-links + optional `CDWorkCheckIn`, mirroring the Quick New Work sheet |
+| `assign_work` (write) | `WorkRepository.createWork` + participant cross-links + optional `CDWorkCheckIn` (through `CDWorkCheckIn.make`), mirroring the Quick New Work sheet; refuses a withdrawn or transferred student by name and status, as the repository itself does |
 | `update_work` (write) | `WorkRepository.markWorkCompleted` / `WorkCompletionService.markCompleted`; status, due date, per-student completion, check-in completion |
 | `remove_student_from_work` (write) | `WorkDeletionService.removalPlan` / `apply`; refuses until called with `confirm: true`, and reports owner promotion, passenger drops and linked-copy deletion before doing any of it |
 | **Attendance** | |

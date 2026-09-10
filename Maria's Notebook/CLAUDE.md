@@ -141,6 +141,12 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 - Relationships use `NSSet` (cast to `Set<CDEntityType>` for iteration)
 - Use `mutableSetValue(forKey:)` for relationship mutations
 
+**Data-integrity rules (2026-09-10)** — each one closed a defect found by reading the live store over MCP, and each has a launch-time repair plus a creation-time guard:
+- **One lesson name per sub-area.** `LessonRepository.createLesson` throws `CreationError.duplicateName` for a folded-name match in the same area + sequence (parsha lessons exempt via `parshaKey`); `DataCleanupService.mergeSameNameLessons` (in `deduplicateAllModels`, so both the launch and post-import passes) folds any pair that got in anyway onto the older record — CloudKit creation date, then `orderInSequence` — repointing presentations, marks, year-plan entries, work, notes, recall checks, track steps and the id-list fields, and collapsing a child's doubled plan entries and marks. Same name in *different* sub-areas is left alone on purpose.
+- **A check-in always knows its work.** `CDWorkCheckIn.make(for:on:purpose:in:)` is the only creation path and writes the `workID` string and `work` relationship together; readers use `resolvedWork(in:)`. `CDWorkModel.prepareForDeletion` sweeps string-only check-ins so a bare `context.delete(work)` cascades too; `DataCleanupService.repairWorkCheckInLinks` relinks at launch and deletes true orphans from the second run on a device (`UserDefaultsKeys.checkInLinkRepairHasRun`).
+- **Work is for enrolled children.** `WorkRepository.createWork` throws `AssignmentError.studentNotEnrolled` when the student's record is on file and not enrolled; `assign_work` refuses before creating anything; MCP readers print a former student as "Name (withdrawn)".
+- **An observation on a presentation is about specific children.** The link (`CDNote.lessonAssignment`) is per presentation; the student dimension is the note's scope (mirrored into `NoteStudentLink`). `NoteScope.forSelection` gives an empty picker selection the presentation's roster, never `.all`; `DataCleanupService.repairPresentationNoteScopes` narrows old whole-class presentation notes; `PresentationObservationCoverageService` judges coverage per child.
+
 ## Sharing Model
 
 - **Lead Guide** — full read/write on all shared + private data

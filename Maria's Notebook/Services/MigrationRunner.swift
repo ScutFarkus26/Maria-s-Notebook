@@ -18,6 +18,10 @@ enum MigrationRunner {
             let results = DataMigrations.deduplicateAllModels(using: bgContext, container: container)
             // Clean up any orphaned note images.
             DataMigrations.cleanupOrphanedNoteImages(using: bgContext)
+            // Check-ins that carry only a workID string, and whole-class notes
+            // written on a presentation (see +CheckInAndNoteRepairs).
+            DataMigrations.repairWorkCheckInLinks(using: bgContext)
+            DataMigrations.repairPresentationNoteScopes(using: bgContext)
             if bgContext.hasChanges {
                 bgContext.safeSave()
             }

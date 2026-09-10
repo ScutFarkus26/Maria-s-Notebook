@@ -137,12 +137,20 @@ struct ParshaLessonEditorSheet: View {
             lesson.ageRange = ageRange.trimmed()
             lesson.teacherNotes = teacherNotes
         } else {
-            lesson = repo.createLesson(
-                name: trimmedName,
-                area: "Parsha",
-                ageRange: ageRange.trimmed(),
-                teacherNotes: teacherNotes
-            )
+            do {
+                // Parsha lessons repeat their names week after week, so the
+                // parsha key goes in with the name to exempt them from the
+                // one-name-per-sub-area rule.
+                lesson = try repo.createLesson(
+                    name: trimmedName,
+                    area: "Parsha",
+                    ageRange: ageRange.trimmed(),
+                    teacherNotes: teacherNotes,
+                    parshaKey: selectedParshaKey
+                )
+            } catch {
+                return
+            }
         }
         lesson.parshaKey = selectedParshaKey
         lesson.derivedFromLessonID = derivedFromLessonID?.uuidString

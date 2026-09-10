@@ -371,7 +371,7 @@ nonisolated extension DataCleanupService {
         }
     }
 
-    private static func mergeLesson(canonical: CDLesson, duplicate: CDLesson) {
+    static func mergeLesson(canonical: CDLesson, duplicate: CDLesson) {
         if canonical.name.isEmpty { canonical.name = duplicate.name }
         if canonical.area.isEmpty { canonical.area = duplicate.area }
         if canonical.sequence.isEmpty { canonical.sequence = duplicate.sequence }
@@ -634,6 +634,8 @@ nonisolated extension DataCleanupService {
         // Core models
         results["Student"] = deduplicateStudentsStrong(using: context, container: container)
         results["Lesson"] = deduplicateLessonsStrong(using: context, container: container)
+        // Same name filed twice in one sub-area under two ids — see +LessonNameMerge.
+        results["Lesson (same name)"] = mergeSameNameLessons(using: context, container: container)
         results["LessonAssignment"] = deduplicate(
             CDLessonAssignment.self, using: context, container: container, merge: mergeLessonAssignment
         )

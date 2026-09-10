@@ -84,7 +84,7 @@ extension MCPNotebookTools {
         }
 
         let anchor: CDLesson? = try resolveAnchor(arguments, area: area, sequence: sequence, in: modelContext)
-        let lesson: CDLesson = makeLesson(arguments, name: name, area: area, sequence: sequence, in: modelContext)
+        let lesson: CDLesson = try makeLesson(arguments, name: name, area: area, sequence: sequence, in: modelContext)
         let isKeyLesson: Bool = arguments["is_key_lesson"]?.boolValue ?? false
         lesson.isKeyLesson = isKeyLesson
         let anchorIndex: Int? = anchor.flatMap { inSequence.firstIndex(of: $0) }
@@ -121,20 +121,26 @@ extension MCPNotebookTools {
     }
 
     /// `LessonRepository.createLesson` with AddLessonView's defaults (album
-    /// source, standard format); ordering is settled by the caller.
+    /// source, standard format); ordering is settled by the caller. The
+    /// repository's own one-name-per-sub-area rule backs the idempotency
+    /// check above, so a race between two filings cannot double a lesson.
     private static func makeLesson(
         _ arguments: [String: JSONValue], name: String, area: String, sequence: String,
         in modelContext: NSManagedObjectContext
-    ) -> CDLesson {
+    ) throws -> CDLesson {
         let section: String = arguments["section"]?.stringValue?.trimmed() ?? ""
         let writeUp: String = arguments["write_up"]?.stringValue ?? ""
         let materials: String = arguments["materials"]?.stringValue ?? ""
         let purpose: String = arguments["purpose"]?.stringValue?.trimmed() ?? ""
         let teacherNotes: String = arguments["teacher_notes"]?.stringValue ?? ""
-        return LessonRepository(context: modelContext).createLesson(
-            name: name, area: area, sequence: sequence, section: section, writeUp: writeUp,
-            materials: materials, purpose: purpose, teacherNotes: teacherNotes
-        )
+        do {
+            return try LessonRepository(context: modelContext).createLesson(
+                name: name, area: area, sequence: sequence, section: section, writeUp: writeUp,
+                materials: materials, purpose: purpose, teacherNotes: teacherNotes
+            )
+        } catch {
+            throw MCPToolError(error.localizedDescription)
+        }
     }
 
     // MARK: - Update Lesson

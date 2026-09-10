@@ -54,4 +54,25 @@ nonisolated enum DataMigrations {
         DataCleanupService.cleanupOrphanedNoteImages(using: context)
     }
 
+    /// Relink check-ins that carry only a `workID` string, and drop the ones
+    /// whose work is gone. Orphans are only deleted from the second run on a
+    /// device, so a fresh install still receiving its work rows from CloudKit
+    /// keeps a check-in that arrived a batch ahead of its work.
+    @discardableResult
+    static func repairWorkCheckInLinks(
+        using context: NSManagedObjectContext
+    ) -> DataCleanupService.CheckInRepairReport {
+        let hasRunBefore = UserDefaults.standard.bool(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+        let report = DataCleanupService.repairWorkCheckInLinks(using: context, deleteOrphans: hasRunBefore)
+        if !hasRunBefore {
+            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+        }
+        return report
+    }
+
+    /// Narrow whole-class notes written on a presentation to its roster.
+    @discardableResult
+    static func repairPresentationNoteScopes(using context: NSManagedObjectContext) -> Int {
+        DataCleanupService.repairPresentationNoteScopes(using: context)
+    }
 }

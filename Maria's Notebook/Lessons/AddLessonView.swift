@@ -30,6 +30,8 @@ struct AddLessonView: View {
     @State private var ageRange: String = ""
     @State private var teacherNotes: String = ""
     @State private var showingBulkEntry: Bool = false
+    /// Set when the name is already filed in this sub-area; shown as an alert.
+    @State private var duplicateMessage: String?
 
     @State private var source: LessonSource = .album
     @State private var personalKind: PersonalLessonKind = .personal
@@ -68,6 +70,15 @@ struct AddLessonView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
 #endif
+        }
+        .alert(
+            "Already in the Curriculum",
+            isPresented: Binding(get: { duplicateMessage != nil }, set: { if !$0 { duplicateMessage = nil } }),
+            presenting: duplicateMessage
+        ) { _ in
+            Button("OK", role: .cancel) { duplicateMessage = nil }
+        } message: { message in
+            Text(message)
         }
         .onAppear {
             if area.trimmed().isEmpty, let d = defaultArea, !d.isEmpty { area = d }
@@ -189,21 +200,29 @@ struct AddLessonView: View {
     }
 
     private func addLesson() {
-        let newLesson = repository.createLesson(
-            name: name.trimmed(),
-            area: area.trimmed(),
-            sequence: sequence.trimmed(),
-            section: section.trimmed(),
-            writeUp: writeUp,
-            source: source,
-            personalKind: source == .personal ? personalKind : nil,
-            materials: materials,
-            purpose: purpose.trimmed(),
-            ageRange: ageRange.trimmed(),
-            teacherNotes: teacherNotes,
-            lessonFormat: lessonFormat,
-            parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
-        )
+        let newLesson: CDLesson
+        do {
+            newLesson = try repository.createLesson(
+                name: name.trimmed(),
+                area: area.trimmed(),
+                sequence: sequence.trimmed(),
+                section: section.trimmed(),
+                writeUp: writeUp,
+                source: source,
+                personalKind: source == .personal ? personalKind : nil,
+                materials: materials,
+                purpose: purpose.trimmed(),
+                ageRange: ageRange.trimmed(),
+                teacherNotes: teacherNotes,
+                lessonFormat: lessonFormat,
+                parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
+            )
+        } catch {
+            // The one refusal the repository makes is a name already filed in
+            // this sub-area. Nothing was inserted, so the form stays as typed.
+            duplicateMessage = error.localizedDescription
+            return
+        }
 
         let areaTrimmed: String = newLesson.area.trimmed()
         let groupTrimmed: String = newLesson.sequence.trimmed()

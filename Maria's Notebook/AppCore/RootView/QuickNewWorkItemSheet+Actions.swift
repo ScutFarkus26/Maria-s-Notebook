@@ -36,15 +36,11 @@ extension QuickNewWorkItemSheet {
                 }
 
                 // Create check-in if scheduled
-                if hasCheckIn, let workID = work.id {
-                    let normalized = AppCalendar.startOfDay(checkInDate)
-
-                    // Create CDWorkCheckIn for scheduled check-ins
-                    let checkIn = CDWorkCheckIn(context: viewContext)
-                    checkIn.workID = workID.uuidString
-                    checkIn.date = normalized
-                    checkIn.status = WorkCheckInStatus.scheduled
-                    checkIn.purpose = checkInReason.purpose
+                if hasCheckIn {
+                    CDWorkCheckIn.make(
+                        for: work, on: AppCalendar.startOfDay(checkInDate),
+                        purpose: checkInReason.purpose, in: viewContext
+                    )
                 }
 
                 createdWorks.append(work)

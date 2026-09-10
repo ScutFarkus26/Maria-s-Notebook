@@ -133,16 +133,17 @@ extension WeekPlanSection {
         note: String,
         studentInitiated: Bool
     ) {
-        let checkIn = CDWorkCheckIn(context: viewContext)
-        checkIn.workID = workID.uuidString
-        checkIn.date = date
-        checkIn.status = .scheduled
-        checkIn.purpose = reason
-        checkIn.studentInitiated = studentInitiated
+        // A drop onto a day used to write only the workID string; without the
+        // relationship the check-in read as "Untitled work — unassigned" over
+        // MCP. No work row, no check-in.
+        guard let work = fetchWork(id: workID) else { return }
+        let checkIn = CDWorkCheckIn.make(
+            for: work, on: date, purpose: reason, studentInitiated: studentInitiated, in: viewContext
+        )
         if !note.trimmed().isEmpty {
             checkIn.setLegacyNoteText(note, in: viewContext)
         }
-        fetchWork(id: workID)?.dueAt = date
+        work.dueAt = date
         saveCoordinator.save(viewContext, reason: "Schedule work check-in from calendar")
         Task { await refreshCheckIns() }
     }

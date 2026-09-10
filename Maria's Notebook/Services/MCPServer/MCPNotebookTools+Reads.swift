@@ -234,7 +234,9 @@ extension MCPNotebookTools {
             name: "presentations_missing_observations",
             title: "Presentations Missing Observations",
             description: "Find presented lessons with no linked observation in the last N days. "
-                + "Reports missing records only; it never judges readiness.",
+                + "A group presentation is checked child by child: it is listed while any child "
+                + "on it has no observation about her, and names those children. Reports "
+                + "missing records only; it never judges readiness.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -253,11 +255,17 @@ extension MCPNotebookTools {
                     through: Date()
                 )
                 guard !references.isEmpty else {
-                    return "Every presentation in the last \(daysBack) days has a linked observation."
+                    return "Every child on every presentation in the last \(daysBack) days has a linked observation."
                 }
+                let modelContext = context()
                 return references.map { reference in
-                    "- [presentation id=\(reference.entityID.uuidString)] \(dayString(reference.date)) — "
-                        + reference.title
+                    let unobserved = modelContext.object(CDLessonAssignment.self, id: reference.entityID)
+                        .map { PresentationObservationCoverageService.unobservedStudentIDs(on: $0) } ?? []
+                    let who = unobserved.isEmpty
+                        ? ""
+                        : " — no observation yet for \(studentNames(for: unobserved, in: modelContext))"
+                    return "- [presentation id=\(reference.entityID.uuidString)] \(dayString(reference.date)) — "
+                        + reference.title + who
                 }.joined(separator: "\n")
             }
         )

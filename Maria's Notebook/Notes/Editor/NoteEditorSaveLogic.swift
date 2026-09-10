@@ -32,12 +32,19 @@ extension UnifiedNoteEditor {
     // MARK: - Private Helpers
 
     private func determineScope() -> NoteScope {
-        if selectedStudentIDs.isEmpty {
-            return .all
-        } else if selectedStudentIDs.count == 1, let first = selectedStudentIDs.first {
-            return .student(first)
-        } else {
-            return .students(Array(selectedStudentIDs))
+        NoteScope.forSelection(selectedStudentIDs, fallback: contextRoster)
+    }
+
+    /// The children a note with no explicit selection is about. A note
+    /// written on a presentation is about the children who received it,
+    /// never the whole class — `.all` would make it read as an observation
+    /// of every child on the roster.
+    private var contextRoster: [UUID] {
+        switch context {
+        case .presentation(let presentation):
+            return presentation.studentUUIDs
+        default:
+            return []
         }
     }
 

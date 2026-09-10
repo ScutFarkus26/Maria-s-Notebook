@@ -97,6 +97,17 @@ extension MCPNotebookTools {
             throw MCPToolError("At least one student name is required.")
         }
         let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
+        let former = students.filter { !$0.isEnrolled }
+        if !former.isEmpty {
+            // Names resolve against every student on file, so a former student
+            // still matches; she is refused here with her status rather than
+            // quietly put back on the roster through a work item.
+            let described = former.map { "\($0.fullName) (\($0.enrollmentStatusRaw))" }.joined(separator: ", ")
+            throw MCPToolError(
+                "Work can only be assigned to enrolled students. Not enrolled: \(described). "
+                    + "list_students shows the current roster."
+            )
+        }
         let studentIDs = students.compactMap(\.id)
         guard studentIDs.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")
@@ -150,13 +161,11 @@ extension MCPNotebookTools {
                     scheduledDate: assignment.dueDate,
                     saveImmediately: false
                 )
-                if let checkInDate = assignment.checkInDate, let workID = work.id {
-                    let checkIn = CDWorkCheckIn(context: modelContext)
-                    checkIn.workID = workID.uuidString
-                    checkIn.date = AppCalendar.startOfDay(checkInDate)
-                    checkIn.status = .scheduled
-                    checkIn.purpose = assignment.checkInPurpose
-                    checkIn.work = work
+                if let checkInDate = assignment.checkInDate {
+                    CDWorkCheckIn.make(
+                        for: work, on: AppCalendar.startOfDay(checkInDate),
+                        purpose: assignment.checkInPurpose, in: modelContext
+                    )
                 }
                 created.append(work)
             }
