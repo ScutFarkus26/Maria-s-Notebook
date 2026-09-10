@@ -46,7 +46,7 @@ struct DayDetailPopover: View {
 
                 Text(lesson?.name ?? "Unknown")
                     .font(.body)
-                    .strikethrough(item.displayStatus == .promoted)
+                    .strikethrough(item.displayStatus == .promoted || item.displayStatus == .given)
 
                 Spacer()
 
@@ -59,7 +59,7 @@ struct DayDetailPopover: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let entry = item.planEntry, entry.isPlanned {
+            if let entry = item.planEntry, item.isEditable {
                 planEntryActions(entry)
             }
         }
@@ -111,6 +111,10 @@ struct DayDetailPopover: View {
             Text("Skipped")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        case .given:
+            Text("Given")
+                .font(.caption)
+                .foregroundStyle(.green)
         case .behindPace:
             Text("Behind")
                 .font(.caption)

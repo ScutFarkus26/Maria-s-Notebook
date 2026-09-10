@@ -103,8 +103,10 @@ struct StudentDepartureYearPlanTests {
         let orasEntry = seedEntry(in: context, student: staying, lesson: lesson, plannedDate: daysFromNow(-30))
         CoreDataTestHelpers.save(context)
 
-        #expect(behind.isBehindPace)
-        #expect(alsoBehind.isBehindPace)
+        // No presentations exist here, so nothing is satisfied — behind pace
+        // still means only "planned, and its target has passed".
+        #expect(behind.isBehindPace(satisfiedBy: .none))
+        #expect(alsoBehind.isBehindPace(satisfiedBy: .none))
 
         var plan = RolloverPlan(effectiveDate: Date(), writeNotes: false)
         plan.outcomes[try #require(leaving.id)] = .withdraw
@@ -121,8 +123,8 @@ struct StudentDepartureYearPlanTests {
         #expect(behind.status == .skipped)
         #expect(alsoBehind.status == .skipped)
         // A skipped entry is no longer behind pace, because it is no longer planned.
-        #expect(behind.isBehindPace == false)
-        #expect(alsoBehind.isBehindPace == false)
+        #expect(behind.isBehindPace(satisfiedBy: .none) == false)
+        #expect(alsoBehind.isBehindPace(satisfiedBy: .none) == false)
         // The calendar keeps what it already owns, and other children are untouched.
         #expect(promoted.status == .promoted)
         #expect(orasEntry.status == .planned)

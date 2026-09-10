@@ -148,7 +148,8 @@ extension MCPNotebookTools {
         guard !entries.isEmpty else {
             return "\(student.fullName) has no planned year-plan entries to skip."
         }
-        let behind = entries.filter(\.isBehindPace).count
+        let satisfaction = YearPlanSatisfaction.index(for: entries, in: modelContext)
+        let behind = entries.filter { $0.isBehindPace(satisfiedBy: satisfaction) }.count
         let skipped = StudentDeparturePlans.skip(entries: entries)
 
         guard modelContext.safeSave() else {

@@ -115,8 +115,11 @@ struct StudentYearPlanTab: View {
     }
 
     private func handleEntryDrop(entryID: UUID, targetCellID: CellID) {
+        // A lesson already given has nothing left to re-target; dropping it on
+        // another day would only move a label. Scheduling an assignment is how
+        // a repeat is asked for.
         guard let entry = viewModel.entry(byID: entryID),
-              entry.isPlanned,
+              entry.isPlanned, !entry.isSatisfied(by: viewModel.satisfaction),
               let studentID = student.id else { return }
 
         var comps = DateComponents()
@@ -162,7 +165,7 @@ struct StudentYearPlanTab: View {
 
     @ViewBuilder
     private var yearPlanPaceSummary: some View {
-        let entryCount = viewModel.entries.filter { $0.isPlanned || $0.isPromoted }.count
+        let entryCount = viewModel.openEntryCount
         if entryCount >= 2 {
             HStack(spacing: 16) {
                 // Average spacing

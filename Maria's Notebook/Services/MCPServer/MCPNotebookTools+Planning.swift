@@ -116,7 +116,9 @@ extension MCPNotebookTools {
             title: "Year Plan",
             description: "Lessons pencilled in for a student across the year, with their target "
                 + "dates and whether each is still planned, has been promoted onto the calendar, "
-                + "or was skipped. An entry here is an intention, not a scheduled presentation.",
+                + "or was skipped. An entry here is an intention, not a scheduled presentation. "
+                + "Entries whose lesson has since been given drop out of the planned list — the "
+                + "record answers them — and are counted at the end.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -155,24 +157,39 @@ extension MCPNotebookTools {
 
         let request = CDFetchRequest(CDYearPlanEntry.self)
         request.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
-        let entries: [CDYearPlanEntry] = modelContext.safeFetch(request)
+        let matching: [CDYearPlanEntry] = modelContext.safeFetch(request)
             .filter { $0.status == status }
             .sorted { ($0.plannedDate ?? .distantFuture) < ($1.plannedDate ?? .distantFuture) }
+
+        // An intention the record already answers is not a plan any more. It is
+        // left out of the planned list rather than deleted — the entry is still
+        // there, and this says how many were held back so the number is never a
+        // silent one.
+        let satisfaction = YearPlanSatisfaction.index(for: matching, in: modelContext)
+        let entries = status == .planned
+            ? matching.filter { !$0.isSatisfied(by: satisfaction) }
+            : matching
+        let given = matching.count - entries.count
+        let givenNote = given == 0 ? "" : "\n\n\(given) more \(given == 1 ? "is" : "are") on record as given."
+
         guard !entries.isEmpty else {
-            return "\(student.fullName) has no \(status.rawValue) year-plan entries."
+            return "\(student.fullName) has no \(status.rawValue) year-plan entries." + givenNote
         }
 
         let lessons = lessonNameIndex(in: modelContext)
         // The header already says which status these are, so the lines don't repeat it.
-        let lines = entries.map { "- " + yearPlanEntryLine($0, lessons: lessons) }
+        let lines = entries.map { "- " + yearPlanEntryLine($0, lessons: lessons, satisfiedBy: satisfaction) }
         return "\(student.fullName), \(status.rawValue) (\(entries.count)):\n"
-            + lines.joined(separator: "\n")
+            + lines.joined(separator: "\n") + givenNote
     }
 
     /// One year-plan entry as a line, without a list marker. Shared so
     /// `year_plan` and `update_year_plan_entry` describe an entry the same way.
     static func yearPlanEntryLine(
-        _ entry: CDYearPlanEntry, lessons: [UUID: String], includeStatus: Bool = false
+        _ entry: CDYearPlanEntry,
+        lessons: [UUID: String],
+        includeStatus: Bool = false,
+        satisfiedBy satisfaction: YearPlanSatisfaction = .none
     ) -> String {
         let id: String = entry.id?.uuidString ?? "unknown"
         let lesson: String = entry.lessonUUID.flatMap { lessons[$0] } ?? "a lesson"
@@ -183,7 +200,10 @@ extension MCPNotebookTools {
         if let planned = entry.plannedDate {
             details.append("target \(dayString(planned))")
         }
-        if entry.isBehindPace {
+        if entry.isSatisfied(by: satisfaction) {
+            details.append("already given")
+        }
+        if entry.isBehindPace(satisfiedBy: satisfaction) {
             details.append("behind pace")
         }
         if let group = nonEmpty(entry.sequenceGroupKey) {

@@ -70,6 +70,12 @@ extension LifecycleService {
             }
         }
 
+        // The history rows above are what settle these children's year-plan
+        // intentions — that reading is derived, not written (YearPlanSatisfaction).
+        // What is not derived is a plan for the same lesson still sitting on
+        // another day: take the children who have just had it off that group.
+        YearPlanReleaseService.releaseRedundantPlans(after: lessonAssignment, in: modelContext)
+
         return lessonAssignment
     }
 

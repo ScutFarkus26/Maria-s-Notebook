@@ -64,7 +64,14 @@ enum YearPlanPromotionService {
 
     // MARK: - Helpers
 
-    /// Find a Year Plan entry matching a lesson + student that is still planned.
+    /// Find a Year Plan entry matching a lesson + student that is still
+    /// planned, and that the presentation record has not already answered.
+    ///
+    /// The second half matters when a guide schedules a lesson the child has
+    /// already had: the old entry is settled, and promoting it would drag a
+    /// finished intention onto the calendar as if it were the reason for the
+    /// new plan. The new assignment stands on its own instead — which is what
+    /// "give it again" means here.
     static func findMatchingEntry(
         lessonID: String,
         studentID: UUID,
@@ -76,6 +83,8 @@ enum YearPlanPromotionService {
             lessonID, studentID.uuidString, YearPlanEntryStatus.planned.rawValue
         )
         req.fetchLimit = 1
-        return context.safeFetchFirst(req)
+        guard let entry = context.safeFetchFirst(req) else { return nil }
+        let satisfaction = YearPlanSatisfaction.index(for: [entry], in: context)
+        return entry.isSatisfied(by: satisfaction) ? nil : entry
     }
 }

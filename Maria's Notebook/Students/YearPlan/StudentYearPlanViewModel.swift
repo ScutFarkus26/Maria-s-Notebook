@@ -7,6 +7,10 @@ final class StudentYearPlanViewModel {
     private(set) var entries: [CDYearPlanEntry] = []
     private(set) var lessonsByID: [String: CDLesson] = [:]
 
+    /// Which of this child's intentions the presentation record already
+    /// answers. Read once per `load` — see `YearPlanSatisfaction`.
+    private(set) var satisfaction: YearPlanSatisfaction = .none
+
     private var itemsByCell: [CellID: [YearPlanCalendarItem]] = [:]
 
     func items(for cellID: CellID) -> [YearPlanCalendarItem] {
@@ -22,6 +26,7 @@ final class StudentYearPlanViewModel {
         entryReq.predicate = NSPredicate(format: "studentID == %@", studentIDString)
         entryReq.sortDescriptors = [NSSortDescriptor(key: "plannedDate", ascending: true)]
         entries = context.safeFetch(entryReq)
+        satisfaction = YearPlanSatisfaction.index(forStudents: [studentIDString], in: context)
 
         // 2. Fetch scheduled or presented assignments
         let assignmentReq = CDFetchRequest(CDLessonAssignment.self)
@@ -57,30 +62,42 @@ final class StudentYearPlanViewModel {
         lessonsByID = lookup
 
         // 4. Build unified cell lookup
+        itemsByCell = buildCells(assignments: unlinkedAssignments)
+    }
+
+    /// Lays the entries and the assignments nothing links to onto calendar
+    /// days. Each item's display status is resolved here, once, because
+    /// `YearPlanSatisfaction` reads the store and the calendar asks for it per
+    /// cell per render.
+    private func buildCells(assignments: [CDLessonAssignment]) -> [CellID: [YearPlanCalendarItem]] {
         let cal = AppCalendar.shared
         var cellLookup: [CellID: [YearPlanCalendarItem]] = [:]
 
-        for entry in entries {
-            guard let date = entry.plannedDate, let entryID = entry.id else { continue }
-            let cellID = CellID(
+        func cellID(for date: Date) -> CellID {
+            CellID(
                 year: cal.component(.year, from: date),
                 month: cal.component(.month, from: date),
                 day: cal.component(.day, from: date)
-            )
-            cellLookup[cellID, default: []].append(
-                YearPlanCalendarItem(id: entryID, lessonID: entry.lessonID, date: date, kind: .planEntry(entry))
             )
         }
 
-        for assignment in unlinkedAssignments {
+        for entry in entries {
+            guard let date = entry.plannedDate, let entryID = entry.id else { continue }
+            cellLookup[cellID(for: date), default: []].append(
+                YearPlanCalendarItem(
+                    id: entryID,
+                    lessonID: entry.lessonID,
+                    date: date,
+                    kind: .planEntry(entry),
+                    satisfaction: satisfaction
+                )
+            )
+        }
+
+        for assignment in assignments {
             let date = assignment.scheduledFor ?? assignment.presentedAt
             guard let date, let assignmentID = assignment.id else { continue }
-            let cellID = CellID(
-                year: cal.component(.year, from: date),
-                month: cal.component(.month, from: date),
-                day: cal.component(.day, from: date)
-            )
-            cellLookup[cellID, default: []].append(
+            cellLookup[cellID(for: date), default: []].append(
                 YearPlanCalendarItem(
                     id: assignmentID,
                     lessonID: assignment.lessonID,
@@ -90,7 +107,7 @@ final class StudentYearPlanViewModel {
             )
         }
 
-        itemsByCell = cellLookup
+        return cellLookup
     }
 
     func removeEntry(_ entry: CDYearPlanEntry, context: NSManagedObjectContext) {
@@ -116,7 +133,7 @@ final class StudentYearPlanViewModel {
                 $0.sequenceGroupKey == entry.sequenceGroupKey &&
                 $0.studentID == entry.studentID &&
                 $0.orderInSequence > entry.orderInSequence &&
-                $0.isPlanned
+                $0.isPlanned && !$0.isSatisfied(by: satisfaction)
             }
             .sorted { $0.orderInSequence < $1.orderInSequence }
 
@@ -142,7 +159,8 @@ final class StudentYearPlanViewModel {
     func readjust(studentID: UUID, context: NSManagedObjectContext) async {
         let today = AppCalendar.startOfDay(Date())
 
-        let grouped = Dictionary(grouping: entries.filter { $0.isPlanned }) { $0.sequenceGroupKey }
+        let stillAhead = entries.filter { $0.isPlanned && !$0.isSatisfied(by: satisfaction) }
+        let grouped = Dictionary(grouping: stillAhead) { $0.sequenceGroupKey }
 
         for (_, sequenceEntries) in grouped {
             let sorted = sequenceEntries.sorted { $0.orderInSequence < $1.orderInSequence }
@@ -168,13 +186,26 @@ final class StudentYearPlanViewModel {
     }
 
     var behindPaceCount: Int {
-        entries.filter(\.isBehindPace).count
+        entries.filter { $0.isBehindPace(satisfiedBy: satisfaction) }.count
+    }
+
+    /// Entries still ahead of this child: pencilled in or on the calendar, and
+    /// not answered by a lesson already given. The number the pace summary
+    /// counts, and the gate on showing it at all.
+    var openEntryCount: Int {
+        entriesStillAhead.count
+    }
+
+    /// The entries every pace measurement is taken over.
+    private var entriesStillAhead: [CDYearPlanEntry] {
+        entries.filter {
+            ($0.isPlanned || $0.isPromoted) && !$0.isSatisfied(by: satisfaction)
+        }
     }
 
     /// Average spacing in days between consecutive planned entries.
     var averageSpacingDays: Double? {
-        let planned = entries
-            .filter { $0.isPlanned || $0.isPromoted }
+        let planned = entriesStillAhead
             .compactMap(\.plannedDate)
             .sorted()
         guard planned.count >= 2 else { return nil }
@@ -189,8 +220,7 @@ final class StudentYearPlanViewModel {
 
     /// Number of consecutive entries that are compressed (spacing < 2 days).
     var compressedCount: Int {
-        let planned = entries
-            .filter { $0.isPlanned || $0.isPromoted }
+        let planned = entriesStillAhead
             .compactMap(\.plannedDate)
             .sorted()
         guard planned.count >= 2 else { return 0 }

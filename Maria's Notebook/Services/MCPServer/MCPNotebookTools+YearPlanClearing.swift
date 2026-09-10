@@ -109,12 +109,15 @@ extension MCPNotebookTools {
     private static func clearReport(_ entries: [CDYearPlanEntry], in modelContext: NSManagedObjectContext) -> String {
         let lessons = lessonNameIndex(in: modelContext)
         let byTrack = Dictionary(grouping: entries, by: \.sequenceGroupKey)
-        let behind = entries.filter(\.isBehindPace).count
+        let satisfaction = YearPlanSatisfaction.index(for: entries, in: modelContext)
+        let behind = entries.filter { $0.isBehindPace(satisfiedBy: satisfaction) }.count
         var sections: [String] = []
         if behind > 0 { sections.append("\(behind) of \(entries.count) had gone behind pace.") }
         for key in byTrack.keys.sorted() {
             let group = byTrack[key] ?? []
-            let lines = group.map { "- " + yearPlanEntryLine($0, lessons: lessons) }
+            let lines = group.map {
+                "- " + yearPlanEntryLine($0, lessons: lessons, satisfiedBy: satisfaction)
+            }
             sections.append("\(trackLabel(key)) (\(group.count)):\n" + lines.joined(separator: "\n"))
         }
         return sections.joined(separator: "\n\n")

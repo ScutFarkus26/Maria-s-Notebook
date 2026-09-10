@@ -58,9 +58,25 @@ nonisolated extension CDYearPlanEntry {
     var isPlanned: Bool { status == .planned }
     var isPromoted: Bool { status == .promoted }
 
-    /// Whether this entry's planned date is in the past and it hasn't been promoted.
-    var isBehindPace: Bool {
-        guard isPlanned, let date = plannedDate else { return false }
+    /// Whether the lesson behind this intention has already been given to this
+    /// child. Derived from the presentation record rather than stored on the
+    /// entry — see `YearPlanSatisfaction` for why, and for why re-dating an
+    /// entry is not how you ask for a lesson to be given again.
+    func isSatisfied(by satisfaction: YearPlanSatisfaction) -> Bool {
+        satisfaction.isSatisfied(self)
+    }
+
+    /// Whether this entry's planned date is in the past, it hasn't been
+    /// promoted, and the lesson has not in fact been given.
+    ///
+    /// The last clause is what stops a lesson given without being scheduled
+    /// first — the ordinary case, a child ready this morning — from reading as
+    /// behind pace for the rest of the year. "Behind pace" still means the same
+    /// thing it always did: a target date that has passed with the lesson still
+    /// ahead of her.
+    func isBehindPace(satisfiedBy satisfaction: YearPlanSatisfaction) -> Bool {
+        guard isPlanned, !isSatisfied(by: satisfaction) else { return false }
+        guard let date = plannedDate else { return false }
         return date < AppCalendar.startOfDay(Date())
     }
 }

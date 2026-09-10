@@ -119,7 +119,7 @@ struct YearPlanPill: View {
 
     private var paceColor: Color {
         switch item.displayStatus {
-        case .promoted: return .green
+        case .promoted, .given: return .green
         case .skipped: return .gray
         case .behindPace: return .red
         case .planned: return .gray
@@ -130,13 +130,13 @@ struct YearPlanPill: View {
 
     private var isMuted: Bool {
         switch item.displayStatus {
-        case .promoted, .presented: return true
+        case .promoted, .given, .presented: return true
         default: return false
         }
     }
 
     private var isStrikethrough: Bool {
-        item.displayStatus == .promoted
+        item.displayStatus == .promoted || item.displayStatus == .given
     }
 
     private var showBorder: Bool {
