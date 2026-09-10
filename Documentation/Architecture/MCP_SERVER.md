@@ -84,6 +84,7 @@ ambiguity errors:
 | `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent`; an optional `date` back-dates the note the way `create_meeting_entry` does |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, and the children the note is about, by note id. `student_names` replaces the note's scope rather than adding to it (`.all` on an empty list, as `UnifiedNoteEditor.determineScope` reads an empty selection) and re-syncs the link rows; the presentation relationship is left alone, matching the in-app editor, which attaches a note to its context only at creation |
 | `record_presentation` (write) | `LifecycleService.recordPresentation` + `PresentationOutcomePersistenceService.persistObservations` + `safeSave`, mirroring the command bar's `saveCaptureProposal` — completes a planned presentation when one matches, and re-recording the same lesson/students/day edits that presentation instead of duplicating it |
+| `mark_mastered` (write) | the Mastered pill's `updateProficiencyState` and the checklist's `upsertLessonPresentation` shape — the child's latest `CDLessonPresentation` for the lesson flipped to `mastered` in place with `masteredAt` set (today, or an explicit `date`), then `SequenceTrackService.checkAndCompleteTrackIfNeeded`; this is the only write that advances a track step. Refuses the whole call, writing nothing, if any named child has no presentation of the lesson on record — it never manufactures a row. An already-mastered row keeps its original date |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | **Schedule** | |
 | `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` (resolved through `resolvedWork`, the relationship or the `workID` string) + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days. A check-in whose work is gone is labelled an orphan, never printed as an unassigned plan |
@@ -350,6 +351,11 @@ can be lost.
 - `Maria's Notebook Tests/Services/MCPServer/MCPPresentationToolsTests.swift`
   — lesson lookup ranking, the presentation write (planned-lesson reuse,
   same-day idempotency, observation linking and dating), and its refusals.
+- `Maria's Notebook Tests/Services/MCPServer/MCPMasteryToolsTests.swift`
+  — `mark_mastered`: an MCP mark and a checklist mark read identically to
+  `TrackProgressResolver`, the row is mutated rather than duplicated, the
+  refusal for a child with no presentation on record writes nothing, and
+  today-default versus back-dated assessment.
 - `Maria's Notebook Tests/Services/MCPServer/MCPCurriculumToolsTests.swift`
   — the curriculum tools: uncapped listing, create (append, after-anchor,
   idempotency, area refusal, track refresh), rename and move, partial
