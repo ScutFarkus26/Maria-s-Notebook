@@ -36,6 +36,12 @@ struct SyncHistoryLogView: View {
                                     Text(event.message)
                                         .font(.subheadline)
                                         .lineLimit(2)
+                                    if event.count > 1 {
+                                        Text("×\(event.count)")
+                                            .font(.caption2.monospacedDigit())
+                                            .foregroundStyle(.secondary)
+                                            .accessibilityLabel("repeated \(event.count) times")
+                                    }
                                 }
                                 Text(event.timestamp.formatted(.relative(presentation: .named)))
                                     .font(.caption)

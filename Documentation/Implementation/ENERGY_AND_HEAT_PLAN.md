@@ -113,6 +113,14 @@ launch after an upgrade, because the watermark key is absent) bound that risk.
 
 ## Phase 2 — Sync status: stop writing to disk per notification
 
+**Landed 2026-09-10.** `scheduleRemoteChangeHandling` debounces `.NSPersistentStoreRemoteChange`
+(500 ms, `remoteChangeDebounce`) into one `handleRemoteChange`; the handlers assign observable
+state only when it changes; `SyncEventLogger` folds a repeat of the latest event inside 30 s
+into one row with a `count` (legacy rows decode as 1) and writes UserDefaults through a 1 s
+debounce; the history view shows `×N`. Nine tests in `SyncEventLoggerCoalescingTests.swift`
+(they poll with a deadline — under the parallel suite a main-actor task can wait seconds for a
+turn). Full suite 905/0.
+
 ### Problem
 
 `CloudKitSyncStatusService+Observers` schedules `handleRemoteChange()` per

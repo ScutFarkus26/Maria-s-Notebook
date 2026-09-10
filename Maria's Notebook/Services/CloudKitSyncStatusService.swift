@@ -124,6 +124,15 @@ final class CloudKitSyncStatusService {
     /// Maximum time to wait for sync confirmation before assuming success (in nanoseconds)
     let syncTimeout: Duration = TimeoutConstants.defaultSyncTimeout
 
+    /// Quiet period after the last `.NSPersistentStoreRemoteChange` before one
+    /// `handleRemoteChange` runs. CloudKit posts that notification once per
+    /// imported batch — dozens a second during an import — and each handler
+    /// pass writes UserDefaults and the sync history, so a burst is handled once.
+    var remoteChangeDebounce: Duration = .milliseconds(500)
+
+    /// Diagnostics: how many debounced remote-change passes have run this session.
+    private(set) var remoteChangeHandlingCount = 0
+
     // MARK: - Initialization
 
     init(coreDataStack: CoreDataStack? = nil) {
@@ -204,6 +213,24 @@ final class CloudKitSyncStatusService {
                 self.healthCheck.startICloudAccountMonitoring()
                 self.updateSyncHealth()
             }
+        }
+    }
+
+    // MARK: - Remote-change debounce
+
+    /// Coalesces a burst of remote-change notifications into a single
+    /// `handleRemoteChange` once they go quiet for `remoteChangeDebounce`.
+    func scheduleRemoteChangeHandling() {
+        pendingRemoteChangeTask?.cancel()
+        pendingRemoteChangeTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(for: self.remoteChangeDebounce)
+            } catch {
+                return // superseded by a newer notification
+            }
+            self.remoteChangeHandlingCount += 1
+            self.handleRemoteChange()
         }
     }
 

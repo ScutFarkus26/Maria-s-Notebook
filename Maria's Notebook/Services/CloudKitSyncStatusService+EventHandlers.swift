@@ -131,16 +131,18 @@ extension CloudKitSyncStatusService {
     }
 
     func handleRemoteChange() {
-        // A remote change was received from CloudKit - this confirms sync is working
+        // A remote change was received from CloudKit - this confirms sync is working.
+        // `@Observable` notifies on every assignment, equal or not, and the
+        // toolbar indicators observe this service — so write only real changes.
         SyncEventLogger.shared.log("cloudkit", status: "success", message: "Remote changes received")
         let now = Date()
         lastSuccessfulSync = now
-        lastSyncError = nil
-        isSyncing = false
-        currentOperation = nil
-        lastOperation = "Remote changes received"
+        if lastSyncError != nil { lastSyncError = nil }
+        if isSyncing { isSyncing = false }
+        if currentOperation != nil { currentOperation = nil }
+        if lastOperation != "Remote changes received" { lastOperation = "Remote changes received" }
         lastOperationDate = now
-        pendingSyncCount = 0
+        if pendingSyncCount != 0 { pendingSyncCount = 0 }
         retryLogic.resetRetryCount()
         syncingTask?.cancel()
         syncingTask = nil
@@ -235,7 +237,9 @@ extension CloudKitSyncStatusService {
                 isSyncing = true
                 syncStartTime = Date()
             }
-            currentOperation = "CloudKit event in progress"
+            if currentOperation != "CloudKit event in progress" {
+                currentOperation = "CloudKit event in progress"
+            }
             if type == .setup || type == .import {
                 noteCloudImportActivity()
             }
@@ -301,13 +305,13 @@ extension CloudKitSyncStatusService {
         lastSuccessfulSync = now
         lastOperation = "\(typeDescription) completed"
         lastOperationDate = now
-        lastSyncError = nil
-        pendingSyncCount = 0
+        if lastSyncError != nil { lastSyncError = nil }
+        if pendingSyncCount != 0 { pendingSyncCount = 0 }
         retryLogic.resetRetryCount()
 
         syncingTask?.cancel()
         syncingTask = nil
-        isSyncing = false
+        if isSyncing { isSyncing = false }
 
         UserDefaults.standard.set(
             now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate

@@ -20,12 +20,7 @@ extension CloudKitSyncStatusService {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                // Cancel any pending task to prevent accumulation
-                self.pendingRemoteChangeTask?.cancel()
-                self.pendingRemoteChangeTask = Task { @MainActor [weak self] in
-                    self?.handleRemoteChange()
-                }
+                self?.scheduleRemoteChangeHandling()
             }
         }
 
