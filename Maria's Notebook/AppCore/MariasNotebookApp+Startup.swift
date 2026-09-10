@@ -6,6 +6,7 @@
 //  wiring sync and background services, and the iOS backgrounding backup.
 //
 
+import OSLog
 import SwiftUI
 import TipKit
 #if os(macOS)
@@ -61,7 +62,14 @@ extension MariasNotebookApp {
             dependencies.autoBackupManager.startScheduledBackups(viewContext: coreDataStack.viewContext)
 
             // Index students + lessons into Spotlight (searchable + Siri-referenceable); idempotent, off critical path.
-            Task { await SpotlightIndexer.reindexAll() }
+            // A hot device or Low Power Mode skips it for this launch; the pass
+            // is change-gated, so the next launch indexes everything anyway.
+            if EnergyPolicy.shared.shouldDeferMaintenance {
+                Logger.app(category: "Startup")
+                    .notice("Spotlight reindex skipped — device hot or in Low Power Mode")
+            } else {
+                Task { await SpotlightIndexer.reindexAll() }
+            }
 
             #if os(macOS)
             // Start the MCP server for Claude Desktop if the teacher enabled it.

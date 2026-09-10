@@ -441,7 +441,7 @@ final class AlbumLibrary {
         Task { await buildIndexes() }
     }
 
-    func buildIndexes() async {
+    func buildIndexes(policy: EnergyPolicy = .shared) async {
         guard !indexing else { return }
         indexing = true
         indexProgress = 0
@@ -451,6 +451,11 @@ final class AlbumLibrary {
         let items = albums.map { (id: $0.id, url: $0.url, pages: $0.pageCount) }
         let cacheDir = Self.indexCacheDirectory()
         for (i, item) in items.enumerated() {
+            // Parsing a PDF is discretionary work, so a hot device or Low Power
+            // Mode pauses between albums rather than abandoning the index.
+            if i > 0 {
+                await pauseIndexingWhileDeferred(policy: policy)
+            }
             let modified = (try? item.url.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
             // Indexing is background maintenance, not something the guide is waiting on:
@@ -482,6 +487,31 @@ final class AlbumLibrary {
         indexing = false
         indexPurged = false
         await semantic.build(items: semanticItems())
+    }
+
+    /// How many 2-second pauses one album will wait out before indexing goes
+    /// ahead anyway. Without a bound, `ensureIndexed()` — which spins until
+    /// `indexing` clears — would never return on a permanently warm device.
+    static let maxIndexEnergyPauses = 15
+
+    /// Waits while the device is too hot (or in Low Power Mode) to index the
+    /// next album, re-checking every `interval`. Returns the number of pauses
+    /// taken; the app ignores it, the tests read it.
+    ///
+    /// `interval` is a parameter only so the tests don't sleep for real.
+    @discardableResult
+    func pauseIndexingWhileDeferred(
+        policy: EnergyPolicy,
+        interval: Duration = .seconds(2)
+    ) async -> Int {
+        var pauses = 0
+        while policy.shouldDeferMaintenance,
+              pauses < Self.maxIndexEnergyPauses,
+              !Task.isCancelled {
+            pauses += 1
+            try? await Task.sleep(for: interval)
+        }
+        return pauses
     }
 
     /// Per-lesson titles and body texts used to build the semantic index.

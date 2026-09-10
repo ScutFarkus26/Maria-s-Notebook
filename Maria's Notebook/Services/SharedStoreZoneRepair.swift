@@ -91,6 +91,10 @@ final class SharedStoreZoneRepair {
             shared.logger.notice("SharedStoreZoneRepair: circuit breaker open, skipping auto-run")
             return
         }
+        guard !EnergyPolicy.shared.shouldDeferMaintenance else {
+            shared.logger.notice("SharedStoreZoneRepair: device hot or in Low Power Mode, skipping auto-run")
+            return
+        }
         await shared.run(coreDataStack: coreDataStack)
     }
 

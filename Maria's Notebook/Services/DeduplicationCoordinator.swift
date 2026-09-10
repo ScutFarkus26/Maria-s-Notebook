@@ -19,20 +19,72 @@ final class DeduplicationCoordinator {
     private var debounceTask: Task<Void, Never>?
     private var isRunning = false
 
-    private init() {}
+    /// How long requests are coalesced before the pass runs. Fixed at 5 s in
+    /// the app; the energy-gating tests shorten it so they don't sleep.
+    private let debounceInterval: Duration
+
+    /// A hot device or Low Power Mode re-arms the debounce instead of running,
+    /// but only this many times in a row — after that a permanently warm
+    /// device dedups anyway rather than never cleaning up merge conflicts.
+    static let defaultMaxEnergyDeferrals = 12
+
+    /// This coordinator's re-arm limit. Only the tests lower it, so they can
+    /// watch the fall-through without waiting out a dozen debounce intervals.
+    let maxEnergyDeferrals: Int
+
+    /// Consecutive energy deferrals in the current debounce cycle. Resets when
+    /// a pass is finally allowed to start.
+    private(set) var energyDeferralCount = 0
+
+    /// How many times the debounced pass has been allowed to start. Bumped
+    /// even when there is no container to work on, so it measures the gate
+    /// rather than the outcome.
+    private(set) var runAttemptCount = 0
+
+    private init() {
+        self.debounceInterval = .seconds(5)
+        self.maxEnergyDeferrals = Self.defaultMaxEnergyDeferrals
+    }
+
+    /// Test seam: an isolated coordinator with a short debounce.
+    init(debounceInterval: Duration, maxEnergyDeferrals: Int = defaultMaxEnergyDeferrals) {
+        self.debounceInterval = debounceInterval
+        self.maxEnergyDeferrals = maxEnergyDeferrals
+    }
 
     /// Request a debounced deduplication run.
     /// Multiple calls within 5 seconds are coalesced into a single run.
-    func requestDeduplication() {
+    ///
+    /// Deduplication is discretionary maintenance, so a hot device or Low
+    /// Power Mode re-arms the debounce instead of running (see
+    /// `maxEnergyDeferrals`).
+    func requestDeduplication(policy: EnergyPolicy = .shared) {
         debounceTask?.cancel()
+        let interval = debounceInterval
+        energyDeferralCount = 0
         debounceTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(5))
-            guard !Task.isCancelled else { return }
-            self?.runDeduplication()
+            while true {
+                try? await Task.sleep(for: interval)
+                guard !Task.isCancelled, let self else { return }
+
+                guard policy.shouldDeferMaintenance,
+                      self.energyDeferralCount < self.maxEnergyDeferrals else {
+                    self.runDeduplication()
+                    return
+                }
+
+                self.energyDeferralCount += 1
+                let count = self.energyDeferralCount
+                let limit = self.maxEnergyDeferrals
+                Self.logger.notice(
+                    "Deduplication deferred (device hot or in Low Power Mode), re-arm \(count)/\(limit)"
+                )
+            }
         }
     }
 
     private func runDeduplication() {
+        runAttemptCount += 1
         guard !isRunning, let container = persistentContainer else { return }
         isRunning = true
 
