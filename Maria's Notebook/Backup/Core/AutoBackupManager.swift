@@ -151,9 +151,22 @@ final class AutoBackupManager {
         scheduledBackupTask = nil
     }
 
-    /// Performs a scheduled backup
-    private func performScheduledBackup() async {
+    /// Performs a scheduled backup.
+    ///
+    /// The interval backup is the one automatic trigger that can safely wait:
+    /// a hot device or Low Power Mode skips it and the clock advances, so the
+    /// next attempt comes one interval later. The quit, background, and
+    /// pre-destructive backups are never deferred — those are the moments the
+    /// data would otherwise be lost.
+    func performScheduledBackup(policy: EnergyPolicy = .shared) async {
         guard let viewContext else { return }
+        guard !policy.shouldDeferMaintenance else {
+            Self.logger.notice(
+                "Auto-backup (Scheduled) deferred one interval \u{2014} device hot or in Low Power Mode"
+            )
+            markScheduledBackupPerformed()
+            return
+        }
         _ = await performBackup(viewContext: viewContext, trigger: .scheduled, prefix: "ScheduledBackup")
         // Advance the schedule clock regardless of outcome (success, skip, or
         // failure). A failed attempt must still move `lastScheduledBackupDate`

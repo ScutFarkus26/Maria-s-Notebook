@@ -210,6 +210,14 @@ final class AppBootstrapper {
         // 4. Bring the full-text search index up to date after data is clean.
         // `refresh` reuses the on-disk snapshot and replays persistent history
         // since it was written; only a missing or stale snapshot costs a full pass.
+        //
+        // Skipped entirely on a hot device or in Low Power Mode: the refresh is
+        // change-gated, so the next launch picks up everything this one missed.
+        // Searching still works meanwhile — the snapshot on disk is just older.
+        guard !EnergyPolicy.shared.shouldDeferMaintenance else {
+            logger.notice("Post-launch: search index refresh skipped — device hot or in Low Power Mode")
+            return
+        }
         let searchIndex = LaunchSignposts.begin("SearchIndexRebuild")
         await SearchIndexService.shared.refresh(container: coreDataStack.container)
         LaunchSignposts.end("SearchIndexRebuild", searchIndex)
