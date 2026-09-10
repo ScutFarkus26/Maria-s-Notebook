@@ -732,6 +732,8 @@ final class CoreDataStack {
         // data so the post-refactor state is consistent.
         defaults.removeObject(forKey: UserDefaultsKeys.classroomStoreMigrationV1Complete)
         defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairLastTimeoutAt)
+        // The clean watermark belongs to the store file being deleted.
+        defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairCleanHistoryToken)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)

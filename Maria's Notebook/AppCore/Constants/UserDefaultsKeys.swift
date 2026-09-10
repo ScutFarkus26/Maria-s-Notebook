@@ -144,6 +144,9 @@ nonisolated enum UserDefaultsKeys {
     static let classroomIdentityRecordName = "ClassroomIdentity.userRecordName"
     static let classroomIdentityDisplayName = "ClassroomIdentity.displayName"
     static let sharedStoreZoneRepairLastTimeoutAt = "SharedStoreZoneRepair.lastTimeoutAt"
+    /// Persistent-history token recorded by the last zone-repair pass that
+    /// left nothing to attach. Device-local; never exported with preferences.
+    static let sharedStoreZoneRepairCleanHistoryToken = "SharedStoreZoneRepair.cleanHistoryToken"
 
     /// One-shot flag the user sets via Settings → Database → "Reset Local
     /// Cache". On the next launch, `CoreDataStack.init` checks this flag,

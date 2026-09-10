@@ -1,6 +1,6 @@
 # Energy and Heat — Implementation Plan
 
-Status: **Planned, nothing landed** · Owner: Danny · Created 2026-09-10
+Status: **Phase 1 on `perf/heat-1-zone-repair-gate`; Phase 2 in progress; Phases 3–5 running in parallel worktrees** · Owner: Danny · Created 2026-09-10
 
 Source: the 2026-09-10 heat audit (recorded in the project memory under
 `efficiency-hot-spots`). Earlier passes (2026-08-24, 2026-09-02) already fixed the view-layer
@@ -23,6 +23,14 @@ Ground rules for every phase:
 ---
 
 ## Phase 1 — Zone repair: run only when something new needs attaching
+
+**Landed 2026-09-10.** `SharedStoreZoneRepair+HistoryGate.swift` (gate decision, clean
+watermark under `UserDefaultsKeys.sharedStoreZoneRepairCleanHistoryToken`, cleared by Reset Local
+Cache), `+Detection.swift` rewritten to fetch object IDs on a background context, `+Attach.swift`
+split out of the main file, `refreshCountsIfNeeded` replaces the 5 s recount (returns when the
+history token has not moved). Six tests in `SharedStoreZoneRepairGateTests`. Deviation from the
+plan: the orphan guard's inserted-entity names are not threaded through — history is the single
+source of truth for the scope, and it also sees remote inserts the guard cannot. Full suite 896/0.
 
 ### Problem
 

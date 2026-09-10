@@ -46,13 +46,14 @@ struct ClassroomSharingView: View {
         .task {
             // Recount while this screen is open. The repair pass only updates
             // its own figures when it runs, so without this the card would sit
-            // on a stale number through a multi-minute move.
-            // On macOS a Settings window left open behind the main window
-            // would otherwise keep scanning every shared entity on the main
-            // actor while the app sits idle; skip the tick when inactive.
+            // on a stale number through a multi-minute move. The tick is
+            // nearly free: it returns as soon as the store's history token
+            // matches the last one seen, and only fetches when history shows
+            // a shared entity was inserted. Skipped while the scene is
+            // inactive (a Settings window left open behind the main window).
             while !Task.isCancelled {
                 if scenePhase == .active {
-                    zoneRepair.refreshCounts(coreDataStack: dependencies.coreDataStack)
+                    await zoneRepair.refreshCountsIfNeeded(coreDataStack: dependencies.coreDataStack)
                 }
                 try? await Task.sleep(for: .seconds(5))
             }

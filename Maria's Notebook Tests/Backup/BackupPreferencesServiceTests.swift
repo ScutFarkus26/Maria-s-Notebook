@@ -120,6 +120,7 @@ struct BackupPreferencesServiceTests {
         let forbidden = [
             UserDefaultsKeys.cloudKitLastErrorDescription,
             UserDefaultsKeys.persistentHistoryLastToken,
+            UserDefaultsKeys.sharedStoreZoneRepairCleanHistoryToken,
             UserDefaultsKeys.aiMCPServerEnabled,
             UserDefaultsKeys.classroomIdentityRecordName,
             UserDefaultsKeys.resetLocalCacheOnLaunch

@@ -15,11 +15,17 @@ import OSLog
 /// or deletes user data.
 ///
 /// When a CKShare does exist, the service attaches every detected
-/// orphan to it. Re-runs are cheap when the shared store has no orphans
-/// and are triggered from three places:
+/// orphan to it. Automatic runs are triggered from four places:
 ///   1. Post-launch migrations (after the final viewContext save)
 ///   2. ClassroomSharingService when `isSharing` transitions `false → true`
 ///   3. DeduplicationCoordinator after each post-import dedup pass
+///   4. SharedStoreOrphanGuard after any save that inserts a shared entity
+///
+/// Every automatic run first consults persistent history (see
+/// `+HistoryGate`): when no shared entity has been inserted since the last
+/// pass that left nothing to attach, the run costs one small history query
+/// and reads no entity table at all. Only the manual "Repair Sync Errors"
+/// button forces a full scan.
 @Observable
 final class SharedStoreZoneRepair {
 
@@ -27,7 +33,7 @@ final class SharedStoreZoneRepair {
 
     /// Not `private`: the `+Detection` extension lives in another file and
     /// Swift scopes `private` members to the declaring file.
-    static let logger = Logger.app(category: "SharedStoreZoneRepair")
+    nonisolated static let logger = Logger.app(category: "SharedStoreZoneRepair")
 
     // MARK: - Observable State
 
@@ -37,6 +43,11 @@ final class SharedStoreZoneRepair {
     private(set) var lastRunAt: Date?
     private(set) var repairInProgress: Bool = false
     private(set) var hasActiveShare: Bool = false
+
+    /// The store's history token the last time this service looked. Lets the
+    /// sharing screen's periodic recount return immediately when nothing has
+    /// been written since — no history query, no entity fetch.
+    private var lastObservedToken: NSPersistentHistoryToken?
 
     private init() {}
 
@@ -69,10 +80,6 @@ final class SharedStoreZoneRepair {
         UserDefaults.standard.set(Date(), forKey: lastTimeoutKey)
     }
 
-    private static func trippedCircuitBreaker() {
-        Self.tripCircuitBreakerOnTimeout()
-    }
-
     // MARK: - Public API
 
     /// Runs the detection-and-repair pass on the shared singleton.
@@ -92,33 +99,94 @@ final class SharedStoreZoneRepair {
     /// re-arms it, but otherwise behaves identically to `run`.
     func runManual(coreDataStack: CoreDataStack) async {
         Self.resetCircuitBreaker()
-        await run(coreDataStack: coreDataStack)
+        await run(coreDataStack: coreDataStack, force: true)
     }
 
     /// Recounts records still waiting to move, without attaching anything.
-    /// Cheap enough to call whenever the sharing screen appears or ticks, and
-    /// it distinguishes "nothing left" from "never checked" — `lastRunAt`
-    /// stays nil until a real pass has run.
-    func refreshCounts(coreDataStack: CoreDataStack) {
+    /// Called on every tick of the sharing screen, so it has to be nearly
+    /// free when nothing is happening: it returns as soon as the store's
+    /// history token matches the one it saw last, and otherwise asks history
+    /// which entities (if any) gained rows before fetching anything. It
+    /// distinguishes "nothing left" from "never checked" — `lastRunAt` stays
+    /// nil until either a real pass or a clean history check has happened.
+    func refreshCountsIfNeeded(coreDataStack: CoreDataStack) async {
         guard coreDataStack.isCloudKitActive,
               let store = coreDataStack.privatePersistentStore,
               !repairInProgress else { return }
-        let scope = RepairScope(
-            entityNames: CoreDataStack.sharedEntityNames.sorted(),
-            store: store,
-            context: coreDataStack.viewContext,
-            container: coreDataStack.container
-        )
-        let (orphans, perEntity) = collectOrphans(in: scope)
-        orphanCount = orphans.count
-        orphansByEntity = perEntity
+        let container = coreDataStack.container
+        let token = Self.currentHistoryToken(for: store, in: container)
+        if let token, let seen = lastObservedToken, token == seen { return }
+
+        let entityNames: [String]
+        switch await Self.gateDecision(since: Self.loadCleanToken(), container: container) {
+        case .clean:
+            lastObservedToken = token
+            if lastRunAt == nil { lastRunAt = Date() }
+            return
+        case let .scan(names):
+            entityNames = names.sorted()
+        case .scanEverything:
+            entityNames = CoreDataStack.sharedEntityNames.sorted()
+        }
+
+        let scope = RepairScope(entityNames: entityNames, store: store, container: container)
+        let report = await Self.collectOrphans(in: scope)
+        guard !report.failed else { return }
+        orphanCount = report.orphanIDs.count
+        orphansByEntity = report.byEntity
+        lastObservedToken = token
+        if lastRunAt == nil { lastRunAt = Date() }
+        if report.orphanIDs.isEmpty {
+            markClean(token)
+        }
+    }
+
+    /// The entity names an automatic pass should scan, or `nil` when history
+    /// shows nothing shared was inserted since the last clean pass. `force`
+    /// (the manual button) bypasses the gate and scans everything.
+    private func scanScope(
+        force: Bool,
+        store: NSPersistentStore,
+        container: NSPersistentCloudKitContainer,
+        tokenBefore: NSPersistentHistoryToken?
+    ) async -> [String]? {
+        if force { return CoreDataStack.sharedEntityNames.sorted() }
+        switch await Self.gateDecision(since: Self.loadCleanToken(), container: container) {
+        case .clean:
+            // Nothing that could be an orphan exists. Keep the share flag
+            // accurate on the first look of the session — the orphan guard
+            // uses it to choose between repair and auto-create.
+            if lastRunAt == nil {
+                hasActiveShare = (try? container.fetchShares(in: store).first) != nil
+            }
+            lastObservedToken = tokenBefore
+            lastRunAt = Date()
+            Self.logger.debug("Zone repair pass skipped: no shared entity inserted since the last clean pass")
+            return nil
+        case let .scan(names):
+            return names.sorted()
+        case let .scanEverything(reason):
+            Self.logger.notice("Zone repair pass scanning every shared entity: \(reason, privacy: .public)")
+            return CoreDataStack.sharedEntityNames.sorted()
+        }
+    }
+
+    /// Records `token` as the point up to which the private store is known to
+    /// hold no orphans. Only ever called after a pass that found nothing left
+    /// to attach — see `+HistoryGate` for why that is sufficient.
+    private func markClean(_ token: NSPersistentHistoryToken?) {
+        guard let token else { return }
+        Self.saveCleanToken(token)
     }
 
     private var logger: Logger { Self.logger }
 
     /// Instance variant of `runIfNeeded`. Use the static form from call
     /// sites that don't need to bind to the singleton directly.
-    func run(coreDataStack: CoreDataStack) async {
+    ///
+    /// - Parameter force: Skip the history gate and scan every shared entity.
+    ///   Only the user's "Repair Sync Errors" button passes `true`.
+    func run(coreDataStack: CoreDataStack, force: Bool = false) async {
         guard coreDataStack.isCloudKitActive else { return }
         // Post-refactor: lead-guide-owned classroom data lives in the
         // .private store. Detect and repair orphans there (matches where the
@@ -142,28 +210,39 @@ final class SharedStoreZoneRepair {
             return
         }
 
+        let container = coreDataStack.container
+
+        // Captured before anything is read, so an insert that lands during
+        // this pass is still ahead of the watermark it may record.
+        let tokenBefore = Self.currentHistoryToken(for: store, in: container)
+
+        guard let entityNames = await scanScope(
+            force: force, store: store, container: container, tokenBefore: tokenBefore
+        ) else { return }
+
         repairInProgress = true
         defer {
             repairInProgress = false
             lastRunAt = Date()
+            lastObservedToken = tokenBefore
         }
 
-        let scope = RepairScope(
-            entityNames: CoreDataStack.sharedEntityNames.sorted(),
-            store: store,
-            context: coreDataStack.viewContext,
-            container: coreDataStack.container
-        )
-        let container = scope.container
+        let scope = RepairScope(entityNames: entityNames, store: store, container: container)
+        let report = await Self.collectOrphans(in: scope)
 
-        let (orphans, perEntity) = collectOrphans(in: scope)
+        guard !report.failed else {
+            // CloudKit could not say which zone anything lives in. Leave the
+            // counts and the watermark alone; the next trigger tries again.
+            return
+        }
 
-        orphanCount = orphans.count
-        orphansByEntity = perEntity
+        orphanCount = report.orphanIDs.count
+        orphansByEntity = report.byEntity
 
-        guard !orphans.isEmpty else {
+        guard !report.orphanIDs.isEmpty else {
             lastUnrecoverableOrphans = []
             hasActiveShare = (try? container.fetchShares(in: store).first) != nil
+            markClean(tokenBefore)
             Self.logger.notice("Zone repair pass: nothing to attach, 0 records waiting")
             return
         }
@@ -179,28 +258,32 @@ final class SharedStoreZoneRepair {
         hasActiveShare = (existingShare != nil)
 
         if let share = existingShare {
-            await repairOrphans(orphans, with: share, in: scope)
+            await repairOrphans(report.orphanIDs, with: share, in: scope)
+            if orphanCount == 0 && lastUnrecoverableOrphans.isEmpty {
+                markClean(tokenBefore)
+            }
         } else {
-            reportOrphansWithoutShare(count: orphans.count)
+            reportOrphansWithoutShare(count: report.orphanIDs.count)
         }
     }
 
-    /// Attaches `orphans` to `share`, then refreshes the observable orphan
+    /// Attaches `orphanIDs` to `share`, then refreshes the observable orphan
     /// counts from whatever survived the pass.
     private func repairOrphans(
-        _ orphans: [NSManagedObject],
+        _ orphanIDs: [NSManagedObjectID],
         with share: CKShare,
         in scope: RepairScope
     ) async {
         lastUnrecoverableOrphans = await attachOrphans(
-            orphans,
+            orphanIDs,
             to: share,
             container: scope.container
         )
 
-        let (remaining, remainingByEntity) = collectOrphans(in: scope)
-        orphanCount = remaining.count
-        orphansByEntity = remainingByEntity
+        let remaining = await Self.collectOrphans(in: scope)
+        guard !remaining.failed else { return }
+        orphanCount = remaining.orphanIDs.count
+        orphansByEntity = remaining.byEntity
     }
 
     /// The safe-by-default case: orphans exist but there is no CKShare to
@@ -212,166 +295,5 @@ final class SharedStoreZoneRepair {
             "zone, but no CKShare exists yet. CloudKit export will fail until the lead " +
             "guide runs Settings → Classroom Sharing → Share Classroom."
         Self.logger.warning("\(msg, privacy: .public)")
-    }
-
-    // MARK: - Attachment
-
-    /// Attaches orphans to the share in **chunks**. NSPersistentCloudKitContainer's
-    /// `Share-Export` task has an internal timeout, and attempting to attach
-    /// thousands of records in one batch reliably trips it ("Share-Export
-    /// timed out"). Chunking keeps each request small enough that the export
-    /// scheduler finishes within its budget; per-chunk per-record fallback
-    /// still isolates pathological records.
-    ///
-    /// `container.share(_:to:)` is documented as `async` but its implementation
-    /// blocks the calling thread on a kernel `__ulock_wait` until CloudKit's
-    /// internal Share-Export task resolves. To keep the MainActor responsive
-    /// we marshal each share call through a `Task.detached` running against a
-    /// background context — the ulock then blocks a cooperative-pool worker
-    /// instead of the MainActor's runloop.
-    ///
-    /// We yield to the actor between chunks so the bootstrapper can interleave
-    /// other work, and log progress so a multi-minute attach is visible in
-    /// Console.
-    private func attachOrphans(
-        _ orphans: [NSManagedObject],
-        to share: CKShare,
-        container: NSPersistentCloudKitContainer
-    ) async -> [NSManagedObjectID] {
-        let chunkSize = 200
-        let orphanIDs = orphans.map(\.objectID)
-        let attachMsg = "Attaching \(orphanIDs.count) orphan record(s) in chunks of \(chunkSize)"
-        Self.logger.notice("\(attachMsg, privacy: .public)")
-
-        var failures: [NSManagedObjectID] = []
-        var successCount = 0
-        let chunkCount = (orphanIDs.count + chunkSize - 1) / chunkSize
-
-        for (chunkIndex, start) in stride(from: 0, to: orphanIDs.count, by: chunkSize).enumerated() {
-            let end = min(start + chunkSize, orphanIDs.count)
-            let chunkIDs = Array(orphanIDs[start..<end])
-
-            do {
-                try await Self.shareOffMain(chunkIDs: chunkIDs, share: share, container: container)
-                successCount += chunkIDs.count
-                let chunkMsg = "Chunk \(chunkIndex + 1)/\(chunkCount): attached \(chunkIDs.count)" +
-                    " record(s) (running total: \(successCount)/\(orphanIDs.count))"
-                Self.logger.notice("\(chunkMsg, privacy: .public)")
-                await Task.yield()
-                continue
-            } catch {
-                let ns = error as NSError
-                let failMsg = "Chunk \(chunkIndex + 1)/\(chunkCount) batch attach failed: " +
-                    "domain=\(ns.domain) code=\(ns.code) description=\(ns.localizedDescription)" +
-                    " userInfo=\(ns.userInfo)."
-                Self.logger.warning("\(failMsg, privacy: .public)")
-
-                if let reason = abortReason(for: ns) {
-                    failures.append(contentsOf: orphanIDs[start..<orphanIDs.count])
-                    let abortMsg = "Orphan attachment aborted (\(reason)): \(successCount) succeeded, " +
-                        "\(failures.count) deferred"
-                    Self.logger.error("\(abortMsg, privacy: .public)")
-                    return failures
-                }
-            }
-
-            // The whole-chunk call failed for a reason that might be specific
-            // to one bad record, so retry the chunk one record at a time.
-            let fallback = await attachIndividually(chunkIDs, to: share, container: container)
-            successCount += fallback.succeeded
-            failures.append(contentsOf: fallback.failures)
-
-            if fallback.delegateDied {
-                failures.append(contentsOf: fallback.untried)
-                failures.append(contentsOf: orphanIDs[end..<orphanIDs.count])
-                let abortMsg = "Orphan attachment aborted (mirroring delegate dead): " +
-                    "\(successCount) succeeded, \(failures.count) deferred"
-                Self.logger.error("\(abortMsg, privacy: .public)")
-                return failures
-            }
-
-            // Yield between chunks so we don't monopolise the MainActor for
-            // minutes and so any cancellation has a chance to propagate.
-            await Task.yield()
-        }
-
-        let completeMsg = "Orphan attachment complete: \(successCount) succeeded, \(failures.count) unrecoverable"
-        Self.logger.notice("\(completeMsg, privacy: .public)")
-        return failures
-    }
-
-    /// Why a whole-chunk failure should abandon the entire pass rather than
-    /// fall back to per-record retries, or `nil` when per-record is worth a go.
-    ///
-    /// Both cases here fail identically for every remaining record, so retrying
-    /// them one at a time buys nothing — and in the dead-delegate case the
-    /// retries are what eventually walk into `container.share`'s uncatchable
-    /// Objective-C exception (see `shareOffMain`).
-    ///
-    /// Returning a reason also arms the matching kill switch, because both
-    /// conditions outlive this pass: the session-wide mirroring-delegate flag
-    /// (cleared only by relaunching) or the 24-hour circuit breaker.
-    private func abortReason(for error: NSError) -> String? {
-        if Self.indicatesDeadMirroringDelegate(error) {
-            CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
-            return "mirroring delegate never initialized, code \(error.code)"
-        }
-
-        // CloudKit's Share-Export timeout. Trip the circuit breaker so we don't
-        // burn another ten-minute ulock wait per remaining record; the user can
-        // retry from Settings → Repair Sync Errors.
-        if error.domain == NSCocoaErrorDomain && error.code == 134060 {
-            Self.trippedCircuitBreaker()
-            return "Share-Export timed out, manual Repair required"
-        }
-
-        return nil
-    }
-
-    /// Per-record retry for one chunk, isolating a single pathological record
-    /// instead of losing the whole chunk to it.
-    private func attachIndividually(
-        _ chunkIDs: [NSManagedObjectID],
-        to share: CKShare,
-        container: NSPersistentCloudKitContainer
-    ) async -> ChunkFallbackResult {
-        var result = ChunkFallbackResult()
-
-        for (index, orphanID) in chunkIDs.enumerated() {
-            do {
-                try await Self.shareOffMain(chunkIDs: [orphanID], share: share, container: container)
-                result.succeeded += 1
-            } catch {
-                result.failures.append(orphanID)
-                let ns = error as NSError
-                let uri = orphanID.uriRepresentation().absoluteString
-                let errMsg = "Per-record attach failed for \(uri): " +
-                    "domain=\(ns.domain) code=\(ns.code)" +
-                    " description=\(ns.localizedDescription) userInfo=\(ns.userInfo)"
-                Self.logger.error("\(errMsg, privacy: .public)")
-
-                if Self.indicatesDeadMirroringDelegate(ns) {
-                    CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
-                    result.delegateDied = true
-                    result.untried = Array(chunkIDs[(index + 1)...])
-                    return result
-                }
-            }
-        }
-
-        return result
-    }
-
-    /// Tally from one chunk's per-record retry pass.
-    private struct ChunkFallbackResult {
-        var succeeded = 0
-        /// Records that were attempted and failed.
-        var failures: [NSManagedObjectID] = []
-        /// Records skipped because the pass aborted. Only ever non-empty when
-        /// ``delegateDied`` is true.
-        var untried: [NSManagedObjectID] = []
-        /// True when the mirroring delegate died mid-chunk, meaning no further
-        /// `container.share` call can succeed this session.
-        var delegateDied = false
     }
 }
