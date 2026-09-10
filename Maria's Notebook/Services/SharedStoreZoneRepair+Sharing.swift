@@ -30,8 +30,10 @@ extension SharedStoreZoneRepair {
     /// The message match is case-insensitive: Core Data spells the phrase
     /// lower-case inside 134406's `localizedDescription`.
     nonisolated static func indicatesDeadMirroringDelegate(_ error: NSError) -> Bool {
-        if error.domain == NSCocoaErrorDomain,
-           error.code == 134406 || error.code == 134421 || error.code == NSFileReadUnknownError {
+        let domain: String = error.domain
+        let code: Int = error.code
+        let deadDelegateCodes: Set<Int> = [134406, 134421, NSFileReadUnknownError]
+        if domain == NSCocoaErrorDomain && deadDelegateCodes.contains(code) {
             return true
         }
         return error.localizedDescription.range(

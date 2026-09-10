@@ -1,6 +1,6 @@
 # Energy and Heat — Implementation Plan
 
-Status: **Phase 1 on `perf/heat-1-zone-repair-gate`; Phase 2 in progress; Phases 3–5 running in parallel worktrees** · Owner: Danny · Created 2026-09-10
+Status: **All five phases merged to `main` 2026-09-10** (phases 1–2 by the parent session, 3–5 by parallel agents; final verification on `main` recorded below) · Owner: Danny · Created 2026-09-10
 
 Source: the 2026-09-10 heat audit (recorded in the project memory under
 `efficiency-hot-spots`). Earlier passes (2026-08-24, 2026-09-02) already fixed the view-layer
@@ -173,6 +173,13 @@ change size during an idle import.
 
 ## Phase 3 — Planner cards: one fetch per column, not two per card
 
+**Landed 2026-09-10** (`2c5600f1`). `PresentationPlannerCard`, `PresentationPill`, and
+`PracticeSessionCard` own no `@FetchRequest`; `WeekPlanSection` loads lessons and the visible
+roster once (`refreshCardData`, re-run when the assignment count changes) and threads them
+through `WeekDayColumn`; the inbox and drop-zone rows get them from `PlanningWeekViewContent`;
+`WorkDetailView` fetches only the ids its practice sessions name. Note: `PlanningWeekViewContent`
+and its subtree are not instantiated anywhere (dead code, left in place).
+
 ### Problem
 
 `WeekDayColumn+Bands.presentationCard` passes `cachedLessons: nil, cachedStudents: nil`, so each
@@ -215,6 +222,13 @@ total, not two per card.
 
 ## Phase 4 — Thermal and Low Power Mode gating
 
+**Landed 2026-09-10** (`1c8dcb07`). `Utils/EnergyPolicy.swift` (`shouldDeferMaintenance`,
+injectable inputs, observer holder). Gated: dedup (re-arms up to 12 times, then runs),
+`SharedStoreZoneRepair.runIfNeeded`, album indexing (pauses up to 15 × 2 s between albums),
+search-index refresh and Spotlight reindex at launch, scheduled backups (one interval). Thirteen
+tests in `EnergyPolicyTests`. The three launch/repair call sites read `EnergyPolicy.shared` inline
+and have no tests.
+
 ### Problem
 
 Nothing in the app reads `ProcessInfo.processInfo.thermalState` or
@@ -246,6 +260,13 @@ work did not run.
 
 ## Phase 5 — Smaller fetch-shape fixes
 
+**Items 1–3 landed 2026-09-10** (`6e45522a`): album indexing at `.utility` with a yield per album;
+attendance strong dedup has a two-column pre-check keyed exactly like the full pass; days-since-
+last-lesson reads presented assignments as a five-column dictionary fetch (object path kept for a
+dirty context) and asks the store for the Parsha rows — the old path also did one `SELECT` per
+row through `resolvedLessonID`. Six new tests. Item 4 was absorbed by Phase 1 (the 5 s loop
+stays but costs a token comparison).
+
 Each is independent; land in one commit.
 
 1. **Album text extraction priority.** `AlbumLibrary.buildIndexes` and `loadCoverIfNeeded`
@@ -268,6 +289,11 @@ Each is independent; land in one commit.
    entirely if Phase 1 step 5 left anything behind.
 
 ---
+
+## Also fixed on the way
+
+The `Daybook Assistant` scheme had not built since 79d6f9fd (2026-09-08): `CoreDataStack+
+PrimaryKeyRepair.swift` was never added to that target's explicit source list. Added in f789d71f.
 
 ## Order and estimates
 

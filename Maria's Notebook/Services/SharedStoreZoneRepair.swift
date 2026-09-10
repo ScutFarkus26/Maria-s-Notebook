@@ -121,18 +121,23 @@ final class SharedStoreZoneRepair {
         let token = Self.currentHistoryToken(for: store, in: container)
         if let token, let seen = lastObservedToken, token == seen { return }
 
-        let entityNames: [String]
-        switch await Self.gateDecision(since: Self.loadCleanToken(), container: container) {
-        case .clean:
+        let decision = await Self.gateDecision(since: Self.loadCleanToken(), container: container)
+        guard let entityNames = Self.entityNamesToScan(for: decision) else {
             lastObservedToken = token
             if lastRunAt == nil { lastRunAt = Date() }
             return
-        case let .scan(names):
-            entityNames = names.sorted()
-        case .scanEverything:
-            entityNames = CoreDataStack.sharedEntityNames.sorted()
         }
+        await recount(entityNames: entityNames, store: store, container: container, token: token)
+    }
 
+    /// One counting pass over `entityNames`, recording a clean watermark when
+    /// it finds nothing waiting.
+    private func recount(
+        entityNames: [String],
+        store: NSPersistentStore,
+        container: NSPersistentCloudKitContainer,
+        token: NSPersistentHistoryToken?
+    ) async {
         let scope = RepairScope(entityNames: entityNames, store: store, container: container)
         let report = await Self.collectOrphans(in: scope)
         guard !report.failed else { return }
@@ -142,6 +147,18 @@ final class SharedStoreZoneRepair {
         if lastRunAt == nil { lastRunAt = Date() }
         if report.orphanIDs.isEmpty {
             markClean(token)
+        }
+    }
+
+    /// The entities a pass should read for `decision`, or `nil` for "none".
+    nonisolated static func entityNamesToScan(for decision: GateDecision) -> [String]? {
+        switch decision {
+        case .clean:
+            return nil
+        case let .scan(names):
+            return names.sorted()
+        case .scanEverything:
+            return CoreDataStack.sharedEntityNames.sorted()
         }
     }
 
@@ -155,8 +172,11 @@ final class SharedStoreZoneRepair {
         tokenBefore: NSPersistentHistoryToken?
     ) async -> [String]? {
         if force { return CoreDataStack.sharedEntityNames.sorted() }
-        switch await Self.gateDecision(since: Self.loadCleanToken(), container: container) {
-        case .clean:
+        let decision = await Self.gateDecision(since: Self.loadCleanToken(), container: container)
+        if case let .scanEverything(reason) = decision {
+            Self.logger.notice("Zone repair pass scanning every shared entity: \(reason, privacy: .public)")
+        }
+        guard let entityNames = Self.entityNamesToScan(for: decision) else {
             // Nothing that could be an orphan exists. Keep the share flag
             // accurate on the first look of the session — the orphan guard
             // uses it to choose between repair and auto-create.
@@ -167,12 +187,8 @@ final class SharedStoreZoneRepair {
             lastRunAt = Date()
             Self.logger.debug("Zone repair pass skipped: no shared entity inserted since the last clean pass")
             return nil
-        case let .scan(names):
-            return names.sorted()
-        case let .scanEverything(reason):
-            Self.logger.notice("Zone repair pass scanning every shared entity: \(reason, privacy: .public)")
-            return CoreDataStack.sharedEntityNames.sorted()
         }
+        return entityNames
     }
 
     /// Records `token` as the point up to which the private store is known to

@@ -12,10 +12,7 @@ extension CloudKitSyncStatusService {
     func handleNetworkChange(isAvailable: Bool) {
         if isAvailable {
             // Network restored - clear network-related errors and trigger retry
-            let isNetworkError: Bool = lastSyncError?.contains("network") == true
-                || lastSyncError?.contains("offline") == true
-                || lastSyncError?.contains("Waiting") == true
-            if isNetworkError {
+            if lastSyncErrorMentions(["network", "offline", "Waiting"]) {
                 lastSyncError = nil
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }
@@ -25,13 +22,16 @@ extension CloudKitSyncStatusService {
         updateSyncHealth()
     }
 
+    /// Whether the stored error text contains any of `fragments`.
+    private func lastSyncErrorMentions(_ fragments: [String]) -> Bool {
+        guard let text = lastSyncError else { return false }
+        return fragments.contains { text.contains($0) }
+    }
+
     func handleICloudAccountChange(isAvailable: Bool) {
         if isAvailable {
             // User signed into iCloud - clear any offline errors and retry
-            let isICloudError: Bool = lastSyncError?.contains("iCloud") == true
-                || lastSyncError?.contains("signed in") == true
-                || lastSyncError?.contains("Sign into") == true
-            if isICloudError {
+            if lastSyncErrorMentions(["iCloud", "signed in", "Sign into"]) {
                 lastSyncError = nil
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
             }

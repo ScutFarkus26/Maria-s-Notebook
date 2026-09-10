@@ -76,21 +76,26 @@ struct SyncEventLoggerCoalescingTests {
     func repeatsOutsideWindowStartANewRow() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanUp() }
-        let start = Date()
+        let start: Date = Date()
+        let secondRepeat: Date = start.addingTimeInterval(29)
+        let insideWindow: Date = start.addingTimeInterval(31)
+        let afterQuietGap: Date = start.addingTimeInterval(62)
+        let message = "Remote changes received"
+
         fixture.logger.now = { start }
-        fixture.logger.log("cloudkit", status: "success", message: "Remote changes received")
-        fixture.logger.now = { start.addingTimeInterval(29) }
-        fixture.logger.log("cloudkit", status: "success", message: "Remote changes received")
+        fixture.logger.log("cloudkit", status: "success", message: message)
+        fixture.logger.now = { secondRepeat }
+        fixture.logger.log("cloudkit", status: "success", message: message)
         #expect(fixture.logger.events.count == 1)
-        #expect(fixture.logger.events.first?.timestamp == start.addingTimeInterval(29))
+        #expect(fixture.logger.events.first?.timestamp == secondRepeat)
         // Two seconds after the second repeat is still inside the window.
-        fixture.logger.now = { start.addingTimeInterval(31) }
-        fixture.logger.log("cloudkit", status: "success", message: "Remote changes received")
+        fixture.logger.now = { insideWindow }
+        fixture.logger.log("cloudkit", status: "success", message: message)
         #expect(fixture.logger.events.count == 1)
         #expect(fixture.logger.events.first?.count == 3)
         // Thirty-one seconds of quiet is not.
-        fixture.logger.now = { start.addingTimeInterval(62) }
-        fixture.logger.log("cloudkit", status: "success", message: "Remote changes received")
+        fixture.logger.now = { afterQuietGap }
+        fixture.logger.log("cloudkit", status: "success", message: message)
         #expect(fixture.logger.events.count == 2)
         #expect(fixture.logger.events.first?.count == 1)
         #expect(fixture.logger.events.last?.count == 3)

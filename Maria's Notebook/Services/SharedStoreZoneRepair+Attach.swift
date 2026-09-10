@@ -110,15 +110,19 @@ extension SharedStoreZoneRepair {
     /// conditions outlive this pass: the session-wide mirroring-delegate flag
     /// (cleared only by relaunching) or the 24-hour circuit breaker.
     private func abortReason(for error: NSError) -> String? {
+        let domain: String = error.domain
+        let code: Int = error.code
         if Self.indicatesDeadMirroringDelegate(error) {
             CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
-            return "mirroring delegate never initialized, code \(error.code)"
+            let reason: String = "mirroring delegate never initialized, code " + String(code)
+            return reason
         }
 
         // CloudKit's Share-Export timeout. Trip the circuit breaker so we don't
         // burn another ten-minute ulock wait per remaining record; the user can
         // retry from Settings → Repair Sync Errors.
-        if error.domain == NSCocoaErrorDomain && error.code == 134060 {
+        let isShareExportTimeout: Bool = (domain == NSCocoaErrorDomain) && (code == 134060)
+        if isShareExportTimeout {
             Self.tripCircuitBreakerOnTimeout()
             return "Share-Export timed out, manual Repair required"
         }
