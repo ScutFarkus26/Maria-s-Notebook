@@ -24,6 +24,10 @@ struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_lengt
     private var inboxLessonIDs: [UUID] {
         inboxLessons.compactMap(\.id)
     }
+
+    /// The roster the pills read, deduplicated once here rather than in every
+    /// pill — CloudKit sync can leave two rows carrying one id.
+    var pillStudents: [CDStudent] { students.uniqueByID }
     
     @Binding var inboxOrderRaw: String
     @Binding var startDate: Date
@@ -111,6 +115,8 @@ struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_lengt
             InboxViewContent(
                 lessonAssignments: inboxLessons,
                 orderedUnscheduledLessons: orderedUnscheduledLessons,
+                lessons: lessons,
+                students: pillStudents,
                 inboxOrderRaw: $inboxOrderRaw,
                 onOpenDetails: { id in activeSheet = .presentationDetail(id) },
                 onQuickActions: { id in activeSheet = .quickActions(id) },
@@ -150,6 +156,8 @@ struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_lengt
                         WeekGrid(
                             days: days,
                             allLessonAssignments: weekLessonAssignments,
+                            lessons: lessons,
+                            pillStudents: pillStudents,
                             availableWidth: geometry.size.width - (UIConstants.contentHorizontalPadding * 2),
                             availableHeight: geometry.size.height,
                             onSelectLesson: { la in if let id = la.id { activeSheet = .presentationDetail(id) } },

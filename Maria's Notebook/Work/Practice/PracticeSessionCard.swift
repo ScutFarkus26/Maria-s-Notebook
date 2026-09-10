@@ -5,13 +5,15 @@ import CoreData
 struct PracticeSessionCard: View {
     let session: CDPracticeSession
     let displayMode: DisplayMode
+    /// Everyone and everything named by the practice history this card belongs
+    /// to, fetched once by the parent. The card used to hold a `@FetchRequest`
+    /// of the whole student table and another of the whole work table, so a
+    /// work with ten sessions in its history carried twenty live
+    /// fetched-results controllers.
+    let allStudents: [CDStudent]
+    let allWork: [CDWorkModel]
     var onTap: (() -> Void)?
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
-    var allStudents: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
-    var allWork: FetchedResults<CDWorkModel>
-    
     enum DisplayMode {
         case compact    // Minimal display
         case standard   // Normal card
@@ -95,16 +97,27 @@ private struct PracticeSessionCardPreview: View {
         soloSession.workItemIDsArray = [work1.id?.uuidString ?? ""]
         soloSession.sharedNotes = "Quick review session. Danny is getting better!"
 
+        let students = [mary, danny]
+        let work = [work1, work2]
+
         return ScrollView {
             VStack(spacing: 20) {
                 Text("Compact").font(.headline)
-                PracticeSessionCard(session: groupSession, displayMode: .compact)
+                PracticeSessionCard(
+                    session: groupSession, displayMode: .compact, allStudents: students, allWork: work
+                )
                 Text("Standard").font(.headline)
-                PracticeSessionCard(session: groupSession, displayMode: .standard)
+                PracticeSessionCard(
+                    session: groupSession, displayMode: .standard, allStudents: students, allWork: work
+                )
                 Text("Expanded").font(.headline)
-                PracticeSessionCard(session: groupSession, displayMode: .expanded)
+                PracticeSessionCard(
+                    session: groupSession, displayMode: .expanded, allStudents: students, allWork: work
+                )
                 Text("Solo Session").font(.headline)
-                PracticeSessionCard(session: soloSession, displayMode: .standard)
+                PracticeSessionCard(
+                    session: soloSession, displayMode: .standard, allStudents: students, allWork: work
+                )
             }
             .padding()
         }

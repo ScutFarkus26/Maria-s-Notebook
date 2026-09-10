@@ -4,6 +4,10 @@ struct WeekGrid: View {
     @Environment(\.calendar) private var calendar
     let days: [Date]
     let allLessonAssignments: [CDLessonAssignment]
+    /// Carried down to the pills so the week draws from one pair of arrays
+    /// rather than a fetch per pill.
+    let lessons: [CDLesson]
+    let pillStudents: [CDStudent]
     let availableWidth: CGFloat
     let availableHeight: CGFloat
     let onSelectLesson: (CDLessonAssignment) -> Void
@@ -35,6 +39,8 @@ struct WeekGrid: View {
                 DayColumn(
                     day: day,
                     lessonAssignments: byDay[dayStart, default: []],
+                    lessons: lessons,
+                    pillStudents: pillStudents,
                     availableHeight: availableHeight,
                     onSelectLesson: onSelectLesson,
                     onQuickActions: onQuickActions,

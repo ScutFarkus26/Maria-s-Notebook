@@ -27,6 +27,13 @@ struct WeekDayColumn: View {
 
     let day: Date
     let allLessonAssignments: [CDLessonAssignment]
+    /// The curriculum and the roster, fetched once by `WeekPlanSection` for the
+    /// whole strip. Every card on the day reads these arrays; before they were
+    /// threaded through, each card ran its own unpredicated fetch of both
+    /// tables, so a five-day window with six presentations a day held sixty
+    /// live fetched-results controllers.
+    let lessons: [CDLesson]
+    let students: [CDStudent]
     let visibleKinds: CalendarKindFilter
     /// Already resolved and grouped for this day by the parent, which builds
     /// one lookup for the whole visible range.

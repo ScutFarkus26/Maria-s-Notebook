@@ -12,6 +12,36 @@ extension WorkDetailView {
         PracticeStatsCalculator.calculate(from: practiceSessions)
     }
 
+    /// One fetch of the children and one of the work items this work's practice
+    /// history names, for the whole section. Every card used to carry its own
+    /// unpredicated `@FetchRequest` of both whole tables — a live
+    /// fetched-results controller per card, per table — and then filter them
+    /// down to the two or three rows it actually draws.
+    func loadPracticeParticipants() {
+        let sessions = practiceSessions
+        let studentIDs = Set(sessions.flatMap(\.studentIDsArray).compactMap(UUID.init(uuidString:)))
+        let workIDs = Set(sessions.flatMap(\.workItemIDsArray).compactMap(UUID.init(uuidString:)))
+
+        if studentIDs.isEmpty {
+            practiceStudents = []
+        } else {
+            let request = CDFetchRequest(CDStudent.self)
+            request.predicate = NSPredicate(format: "id IN %@", Array(studentIDs))
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
+            // DEDUPLICATION: CloudKit sync can leave two rows carrying one id.
+            practiceStudents = modelContext.safeFetch(request).uniqueByID
+        }
+
+        if workIDs.isEmpty {
+            practiceWorkItems = []
+        } else {
+            let request = CDFetchRequest(CDWorkModel.self)
+            request.predicate = NSPredicate(format: "id IN %@", Array(workIDs))
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
+            practiceWorkItems = modelContext.safeFetch(request).uniqueByID
+        }
+    }
+
     @ViewBuilder
     // swiftlint:disable:next function_body_length
     func practiceOverviewSection() -> some View {
@@ -122,7 +152,12 @@ extension WorkDetailView {
             ) {
                 VStack(spacing: 12) {
                     ForEach(practiceSessions) { session in
-                        PracticeSessionCard(session: session, displayMode: .standard) {
+                        PracticeSessionCard(
+                            session: session,
+                            displayMode: .standard,
+                            allStudents: practiceStudents,
+                            allWork: practiceWorkItems
+                        ) {
                             selectedPracticeSession = session
                         }
                     }
@@ -136,7 +171,12 @@ extension WorkDetailView {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
-                    PracticeSessionCard(session: session, displayMode: .expanded)
+                    PracticeSessionCard(
+                        session: session,
+                        displayMode: .expanded,
+                        allStudents: practiceStudents,
+                        allWork: practiceWorkItems
+                    )
                 }
                 .padding(AppTheme.Spacing.large)
             }

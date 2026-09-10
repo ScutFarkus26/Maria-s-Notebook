@@ -34,6 +34,14 @@ struct WeekPlanSection: View {
     @AppStorage(UserDefaultsKeys.calendarVisibleKinds)
     var visibleKindsRaw: String = CalendarKindFilter.everything.rawValue
     @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) var startDateRaw: Double = 0
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
+    /// The curriculum and the roster, fetched once for the whole strip and
+    /// handed to every day column. Each card used to fetch both tables itself.
+    @State var cachedLessons: [CDLesson] = []
+    @State var cachedStudents: [CDStudent] = []
 
     /// Check-ins for the whole visible range, fetched once and grouped per day.
     @State var cachedCheckIns: [CDWorkCheckIn] = []
@@ -70,6 +78,7 @@ struct WeekPlanSection: View {
             }
             .task {
                 startDate = restoredStartDate()
+                refreshCardData()
                 await reloadDays()
                 scrollToFirstDay(proxy)
             }
@@ -83,6 +92,9 @@ struct WeekPlanSection: View {
                 Task { await refreshCheckIns() }
             }
             .onChange(of: lessonAssignments.count) { _, _ in
+                // A presentation arriving can name a lesson or a child the
+                // strip has not read yet, so the card data reloads with it.
+                refreshCardData()
                 Task { await refreshCheckIns() }
             }
         }
@@ -244,6 +256,8 @@ struct WeekPlanSection: View {
                     WeekDayColumn(
                         day: day,
                         allLessonAssignments: Array(lessonAssignments),
+                        lessons: cachedLessons,
+                        students: cachedStudents,
                         visibleKinds: visibleKinds,
                         checkInGroups: checkInGroups(for: day),
                         focusedPresentationID: focusedPresentationID,
