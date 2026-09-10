@@ -48,6 +48,8 @@ extension PlanningWeekViewContent {
             InboxViewContent(
                 lessonAssignments: inboxLessons,
                 orderedUnscheduledLessons: orderedUnscheduledLessons,
+                lessons: lessons,
+                students: pillStudents,
                 inboxOrderRaw: $inboxOrderRaw,
                 onOpenDetails: { id in activeSheet = .presentationDetail(id) },
                 onQuickActions: { id in activeSheet = .quickActions(id) },

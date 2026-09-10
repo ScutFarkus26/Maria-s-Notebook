@@ -65,6 +65,27 @@ extension WeekPlanSection {
         adaptiveWithAnimation { proxy.scrollTo(visibleDay, anchor: .center) }
     }
 
+    // MARK: - Card data
+
+    /// The curriculum and the roster every presentation card names, read once
+    /// for the whole strip. The cards used to hold a `@FetchRequest` of each
+    /// table apiece, which is a live fetched-results controller per card.
+    ///
+    /// Withdrawn children stay in the array on purpose: a card that still
+    /// carries a departed girl's name should keep showing it rather than
+    /// silently drop her chip. Test children obey the same setting they obey
+    /// everywhere else.
+    func refreshCardData() {
+        cachedLessons = viewContext.safeFetch(CDFetchRequest(CDLesson.self))
+        let allStudents: [CDStudent] = viewContext.safeFetch(CDFetchRequest(CDStudent.self))
+        // DEDUPLICATION: CloudKit sync can leave two rows carrying one id.
+        cachedStudents = TestStudentsFilter.filterVisible(
+            allStudents,
+            show: showTestStudents,
+            namesRaw: testStudentNamesRaw
+        ).uniqueByID
+    }
+
     // MARK: - Check-in data
 
     func refreshCheckIns() async {

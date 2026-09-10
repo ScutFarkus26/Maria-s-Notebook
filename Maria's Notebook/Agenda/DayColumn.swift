@@ -13,6 +13,10 @@ struct DayColumn: View {
 
     // Pre-filtered to this day's assignments by WeekGrid — no further date filtering needed.
     let lessonAssignments: [CDLessonAssignment]
+    /// The curriculum and the roster the week view already holds, passed
+    /// straight through to the drop zones' pills so no pill fetches its own.
+    let lessons: [CDLesson]
+    let pillStudents: [CDStudent]
     @FetchRequest(sortDescriptors: CDStudent.sortByLastName) private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
@@ -33,6 +37,8 @@ struct DayColumn: View {
     init(
         day: Date,
         lessonAssignments: [CDLessonAssignment],
+        lessons: [CDLesson],
+        pillStudents: [CDStudent],
         availableHeight: CGFloat,
         onSelectLesson: @escaping (CDLessonAssignment) -> Void,
         onQuickActions: @escaping (CDLessonAssignment) -> Void,
@@ -40,6 +46,8 @@ struct DayColumn: View {
     ) {
         self.day = day
         self.lessonAssignments = lessonAssignments
+        self.lessons = lessons
+        self.pillStudents = pillStudents
         self.availableHeight = availableHeight
         self.onSelectLesson = onSelectLesson
         self.onQuickActions = onQuickActions
@@ -85,6 +93,8 @@ struct DayColumn: View {
                         periodChip(title: "Morning", tint: .blue)
                         DropZone(
                             allLessonAssignments: lessonAssignments,
+                            lessons: lessons,
+                            students: pillStudents,
                             day: day,
                             period: PlanningDayPeriod.morning,
                             onSelectLesson: onSelectLesson,
@@ -99,6 +109,8 @@ struct DayColumn: View {
                         .padding(.top, UIConstants.dayColumnSpacing)
                     DropZone(
                         allLessonAssignments: lessonAssignments,
+                        lessons: lessons,
+                        students: pillStudents,
                         day: day,
                         period: PlanningDayPeriod.afternoon,
                         onSelectLesson: onSelectLesson,

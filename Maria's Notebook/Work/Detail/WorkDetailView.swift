@@ -104,8 +104,12 @@ struct WorkDetailView: View {
                     #endif
             }
         }
+        .onChange(of: allPracticeSessions.count) { _, _ in
+            loadPracticeParticipants()
+        }
         .onAppear {
             viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
+            loadPracticeParticipants()
             if viewModel.work != nil {
                 #if DEBUG
                 PerformanceLogger.logScreenLoad(
@@ -123,6 +127,11 @@ struct WorkDetailView: View {
             }
         }
     }
+
+    /// The children and the work items this work's practice history names,
+    /// fetched once for the whole section — see `loadPracticeParticipants`.
+    @State var practiceStudents: [CDStudent] = []
+    @State var practiceWorkItems: [CDWorkModel] = []
 
     @State var selectedWorkID: UUID?
     @State var selectedPracticeSession: CDPracticeSession?

@@ -12,6 +12,11 @@ private struct InboxPillFramePreference: PreferenceKey {
 public struct InboxSheetView: View {
   let lessonAssignments: [CDLessonAssignment]
   let orderedUnscheduledLessons: [CDLessonAssignment]
+  /// Loaded once by the parent and read by every row's pill. The pill owns no
+  /// `@FetchRequest`: an unread one still builds a live fetched-results
+  /// controller, and the inbox draws a pill per unscheduled presentation.
+  let lessons: [CDLesson]
+  let students: [CDStudent]
   @Binding var inboxOrderRaw: String
 
   let onOpenDetails: (UUID) -> Void
@@ -34,6 +39,8 @@ public struct InboxSheetView: View {
   init(
     lessonAssignments: [CDLessonAssignment],
     orderedUnscheduledLessons: [CDLessonAssignment],
+    lessons: [CDLesson],
+    students: [CDStudent],
     inboxOrderRaw: Binding<String>,
     onOpenDetails: @escaping (UUID) -> Void,
     onQuickActions: @escaping (UUID) -> Void,
@@ -42,6 +49,8 @@ public struct InboxSheetView: View {
   ) {
     self.lessonAssignments = lessonAssignments
     self.orderedUnscheduledLessons = orderedUnscheduledLessons
+    self.lessons = lessons
+    self.students = students
     self._inboxOrderRaw = inboxOrderRaw
     self.onOpenDetails = onOpenDetails
     self.onQuickActions = onQuickActions
@@ -136,6 +145,8 @@ public struct InboxSheetView: View {
             isSelected: viewModel.selected.contains(slID),
             isSelectionMode: viewModel.isSelectionMode,
             spaceID: spaceID,
+            lessons: lessons,
+            students: students,
             onToggleSelected: {
               viewModel.toggleSelection(slID)
             },
@@ -193,6 +204,12 @@ public struct InboxSheetView: View {
         .stroke(isTargeted ? Color.accentColor.opacity(UIConstants.OpacityConstants.half) : Color.clear, lineWidth: 2)
     )
   }
+
+}
+
+// The drop placeholder and the toast live in an extension so the view's own
+// body stays inside SwiftLint's type-length limit.
+extension InboxSheetView {
 
   private var dropPlaceholderOverlay: some View {
     GeometryReader { proxy in
@@ -275,7 +292,6 @@ public struct InboxSheetView: View {
         .padding(.top, 8)
     }
   }
-
 }
 
 private struct InboxRow: View {
@@ -284,6 +300,8 @@ private struct InboxRow: View {
   let isSelected: Bool
   let isSelectionMode: Bool
   let spaceID: UUID
+  let lessons: [CDLesson]
+  let students: [CDStudent]
   let onToggleSelected: () -> Void
   let onOpenDetails: (UUID) -> Void
   let onQuickActions: (UUID) -> Void
@@ -296,7 +314,13 @@ private struct InboxRow: View {
       }
       .buttonStyle(.plain)
 
-      PresentationPill(snapshot: sl.snapshot(), day: Date(), targetLessonAssignmentID: slID)
+      PresentationPill(
+        snapshot: sl.snapshot(),
+        day: Date(),
+        targetLessonAssignmentID: slID,
+        cachedLessons: lessons,
+        cachedStudents: students
+      )
         .onTapGesture {
           if isSelectionMode {
             onToggleSelected()
@@ -329,51 +353,5 @@ private struct InboxRow: View {
           )
       }
     )
-  }
-}
-
-private struct InboxDropDelegate: DropDelegate {
-  let getCurrent: () -> [CDLessonAssignment]
-  let itemFramesProvider: () -> [UUID: CGRect]
-  let onTargetChange: (Bool) -> Void
-  let onInsertionIndexChange: (Int?) -> Void
-  let performDropHandler: ([NSItemProvider], CGPoint) -> Bool
-  func dropEntered(info: DropInfo) {
-    onTargetChange(true)
-    onInsertionIndexChange(computeIndex(info))
-  }
-
-  func dropUpdated(info: DropInfo) -> DropProposal? {
-    onInsertionIndexChange(computeIndex(info))
-    return DropProposal(operation: .move)
-  }
-
-  func dropExited(info: DropInfo) {
-    onTargetChange(false)
-    onInsertionIndexChange(nil)
-  }
-
-  func validateDrop(info: DropInfo) -> Bool {
-    return info.hasItemsConforming(to: [UTType.text])
-  }
-
-  func performDrop(info: DropInfo) -> Bool {
-    onTargetChange(false)
-    onInsertionIndexChange(nil)
-    let providers = info.itemProviders(for: [UTType.text])
-    return performDropHandler(providers, info.location)
-  }
-
-  private func computeIndex(_ info: DropInfo) -> Int {
-    let current = getCurrent()
-    let frames = itemFramesProvider()
-    let dict: [UUID: CGRect] = Dictionary(
-      current.compactMap { item -> (UUID, CGRect)? in
-        guard let id = item.id, let rect = frames[id] else { return nil }
-        return (id, rect)
-      },
-      uniquingKeysWith: { first, _ in first }
-    )
-    return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
   }
 }

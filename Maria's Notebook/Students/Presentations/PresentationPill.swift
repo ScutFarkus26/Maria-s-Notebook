@@ -35,21 +35,18 @@ struct PresentationPill: View {
     var blockingWork: [UUID: CDWorkModel] = [:]
     var doubleBookedStudentIDs: Set<UUID> = []
 
-    // PERFORMANCE: Accept cached data instead of using @Query per-pill
-    var cachedLessons: [CDLesson]?
-    var cachedStudents: [CDStudent]?
+    // PERFORMANCE: the lessons and children come from the parent, which loads
+    // them once for the whole screen. The pill owns no @FetchRequest of its
+    // own — even one whose results are never read builds a live
+    // NSFetchedResultsController that diffs the table on every context change,
+    // and a planning day draws a pill per presentation. Callers hand over an
+    // already-deduplicated roster (`.uniqueByID`), since CloudKit sync can
+    // leave two rows carrying one id.
+    var cachedLessons: [CDLesson]
+    var cachedStudents: [CDStudent]
 
-    // Fallback queries only used when cached data isn't provided
-    @FetchRequest(sortDescriptors: []) private var lessonsQuery: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var studentsQuery: FetchedResults<CDStudent>
-
-    // Use cached data if provided, otherwise fall back to queries
-    private var lessons: [CDLesson] {
-        cachedLessons ?? Array(lessonsQuery)
-    }
-    private var students: [CDStudent] {
-        (cachedStudents ?? Array(studentsQuery)).uniqueByID
-    }
+    private var lessons: [CDLesson] { cachedLessons }
+    private var students: [CDStudent] { cachedStudents }
 
     @State private var showTimeEditor = false
     @State private var isValidDragTarget = false

@@ -112,8 +112,8 @@ extension WeekDayColumn {
         return PresentationPlannerCard(
             snapshot: la.snapshot(),
             day: day,
-            cachedLessons: nil,
-            cachedStudents: nil,
+            cachedLessons: lessons,
+            cachedStudents: students,
             blockingWork: [:],
             doubleBookedStudentIDs: dayDoubleBooked,
             period: period
@@ -138,8 +138,9 @@ extension WeekDayColumn {
                 period: period
             )
             .opacity(UIConstants.OpacityConstants.nearSolid)
-            // Drag previews don't inherit the app environment;
-            // the card's @FetchRequests need a real context.
+            // Drag previews don't inherit the app environment, and the card
+            // still reads the context for the lesson's age and the day's
+            // attendance — without one it traps at drag lift.
             .environment(\.managedObjectContext, viewContext)
         }
         .contextMenu {

@@ -16,11 +16,15 @@ struct PresentationPlannerCard: View {
     /// `day` controls absence/double-booked context. For inbox usage (where the
     /// presentation isn't scheduled to a particular day), pass `nil`.
     let day: Date?
-    /// Optional caches — pass them when the parent already has these arrays
-    /// (e.g. `ReadyToPresentSection` via `PresentationsViewModel`). When `nil`,
-    /// the card falls back to its own @FetchRequest (used by `WeekDayColumn`).
-    let cachedLessons: [CDLesson]?
-    let cachedStudents: [CDStudent]?
+    /// The lessons and children the parent already has in hand, loaded once per
+    /// screen — `ReadyToPresentSection` via `PresentationsViewModel`,
+    /// `WeekDayColumn` via `WeekPlanSection`. The card deliberately owns no
+    /// `@FetchRequest` of its own: even an unread one builds a live
+    /// `NSFetchedResultsController` that diffs the whole table on every context
+    /// change, and a week of columns holds a card per presentation.
+    /// A drag preview, which needs neither, passes empty arrays.
+    let cachedLessons: [CDLesson]
+    let cachedStudents: [CDStudent]
     let blockingWork: [UUID: CDWorkModel]
     /// Children the caller has already found to be booked twice. In the
     /// calendar that means twice in *this card's own half* of the day, so the
@@ -35,14 +39,11 @@ struct PresentationPlannerCard: View {
     /// of something on its way out of it.
     var period: DayPeriod?
 
-    @FetchRequest(sortDescriptors: []) private var lessonsQuery: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var studentsQuery: FetchedResults<CDStudent>
-
     @State private var attendanceCache: [UUID: AttendanceStatus] = [:]
     @State private var lastAttendanceDay: Date?
 
-    private var lessons: [CDLesson] { cachedLessons ?? Array(lessonsQuery) }
-    private var students: [CDStudent] { cachedStudents ?? Array(studentsQuery) }
+    private var lessons: [CDLesson] { cachedLessons }
+    private var students: [CDStudent] { cachedStudents }
 
     // MARK: - Derived
 

@@ -10,6 +10,12 @@ struct DropZone: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     let allLessonAssignments: [CDLessonAssignment]
+    /// Handed down from the week view, which already holds both tables. The
+    /// pills read them to name a lesson and its children; giving each pill its
+    /// own `@FetchRequest` instead meant a live fetched-results controller per
+    /// pill, per slot, per day on screen.
+    let lessons: [CDLesson]
+    let students: [CDStudent]
 
     // Visual/drag state
     @State private var isTargeted: Bool = false
@@ -151,14 +157,18 @@ struct DropZone: View {
             day: day,
             sourceLessonAssignmentID: la.id,
             targetLessonAssignmentID: la.id,
-            enableMergeDrop: true
+            enableMergeDrop: true,
+            cachedLessons: lessons,
+            cachedStudents: students
         )
         .draggable((la.id ?? UUID()).uuidString) {
             PresentationPill(
                 snapshot: la.snapshot(),
                 day: day,
                 sourceLessonAssignmentID: la.id,
-                targetLessonAssignmentID: la.id
+                targetLessonAssignmentID: la.id,
+                cachedLessons: lessons,
+                cachedStudents: students
             )
             .opacity(UIConstants.OpacityConstants.nearSolid)
             .environment(\.managedObjectContext, viewContext)
