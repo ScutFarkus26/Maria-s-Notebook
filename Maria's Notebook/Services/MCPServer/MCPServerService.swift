@@ -63,7 +63,12 @@ final class MCPServerService {
             let token = try Self.loadOrCreateToken()
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
                 ?? "1.0"
-            let handler = MCPRequestHandler(serverVersion: version, tools: MCPNotebookTools.makeTools())
+            let journal = MCPWriteJournal.shared
+            let handler = MCPRequestHandler(
+                serverVersion: version,
+                tools: MCPNotebookTools.makeTools(journal: journal),
+                onWrite: { record in await journal.record(record) }
+            )
             let serverID = UUID()
             let server = MCPSocketServer(port: Self.port, authToken: token, requestHandler: handler) { message in
                 Task { @MainActor in

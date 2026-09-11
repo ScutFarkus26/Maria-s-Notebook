@@ -157,4 +157,134 @@ struct MCPRequestHandlerTests {
         #expect(error["code"] as? Int == -32700)
         #expect(response["id"] is NSNull)
     }
+
+    // MARK: - Write Journalling
+
+    /// Collects what the handler hands to `onWrite`. An actor because the
+    /// callback is `@Sendable` and may run off the main thread.
+    private actor WriteCollector {
+        private(set) var records: [MCPWriteRecord] = []
+        func add(_ record: MCPWriteRecord) { records.append(record) }
+    }
+
+    /// A write tool whose receipt cites a note, an album page (no id), and an
+    /// id that is not a UUID.
+    private static let citedNoteID = UUID()
+
+    private static let fileTool = MCPToolDefinition(
+        name: "file_it",
+        title: "File It",
+        description: "Files something and cites it.",
+        inputSchema: ["type": "object", "properties": [:]],
+        annotations: .write,
+        handler: { _ in
+            "Recorded [note id=\(citedNoteID.uuidString)] about Ora Levi. "
+                + "See [albumPage album=\"math.pdf\" page=3] and [lesson id=unknown]."
+        }
+    )
+
+    private static let failingWriteTool = MCPToolDefinition(
+        name: "file_it_badly",
+        title: "File It Badly",
+        description: "Always refuses.",
+        inputSchema: ["type": "object", "properties": [:]],
+        annotations: .write,
+        handler: { _ in throw MCPToolError("No student named \"Nobody\" was found.") }
+    )
+
+    private func callJSON(tool: String, arguments: [String: Any]) throws -> String {
+        let body: [String: Any] = [
+            "jsonrpc": "2.0", "id": 9, "method": "tools/call",
+            "params": ["name": tool, "arguments": arguments]
+        ]
+        let data = try JSONSerialization.data(withJSONObject: body)
+        return try #require(String(bytes: data, encoding: .utf8))
+    }
+
+    @Test("A write tool's success is journaled with its citations and compacted arguments")
+    func writesAreJournaled() async throws {
+        let collector = WriteCollector()
+        let handler = MCPRequestHandler(
+            serverVersion: "1.0-test",
+            tools: [Self.echoTool, Self.fileTool],
+            onWrite: { record in await collector.add(record) }
+        )
+        let json = try callJSON(tool: "file_it", arguments: [
+            "body": String(repeating: "a", count: 250),
+            "names": (0..<25).map { "child \($0)" }
+        ])
+        let response = try await response(for: json, handler: handler)
+
+        let records = await collector.records
+        #expect(records.count == 1)
+        let record = try #require(records.first)
+        #expect(record.tool == "file_it")
+        #expect(!record.destructive)
+        #expect(record.citations == [
+            MCPWriteRecord.Citation(kind: "note", id: Self.citedNoteID.uuidString)
+        ])
+        #expect(record.arguments.contains(String(repeating: "a", count: 200) + "…"))
+        #expect(!record.arguments.contains(String(repeating: "a", count: 201)))
+        #expect(record.arguments.contains("… 5 more"))
+        #expect(record.receipt.hasPrefix("Recorded [note id="))
+
+        // The JSON-RPC reply is exactly what it was before journalling.
+        let result = try #require(response["result"] as? [String: Any])
+        #expect(result["isError"] as? Bool == false)
+        let content = try #require(result["content"] as? [[String: Any]])
+        #expect((content[0]["text"] as? String)?.hasPrefix("Recorded [note id=") == true)
+    }
+
+    @Test("A destructive tool is journaled as destructive")
+    func destructiveWritesAreTagged() async throws {
+        let collector = WriteCollector()
+        let retire = MCPToolDefinition(
+            name: "retire_it", title: "Retire It", description: "Retires a row.",
+            inputSchema: ["type": "object", "properties": [:]],
+            annotations: .destructive, handler: { _ in "Discarded." }
+        )
+        let handler = MCPRequestHandler(
+            serverVersion: "1.0-test", tools: [retire],
+            onWrite: { record in await collector.add(record) }
+        )
+        _ = try await response(for: try callJSON(tool: "retire_it", arguments: [:]), handler: handler)
+        let records = await collector.records
+        #expect(records.map(\.destructive) == [true])
+    }
+
+    @Test("Read-only tools are never journaled")
+    func readsAreNotJournaled() async throws {
+        let collector = WriteCollector()
+        let handler = MCPRequestHandler(
+            serverVersion: "1.0-test", tools: [Self.echoTool],
+            onWrite: { record in await collector.add(record) }
+        )
+        let json = try callJSON(tool: "echo", arguments: ["message": "hi"])
+        let response = try await response(for: json, handler: handler)
+
+        let records = await collector.records
+        #expect(records.isEmpty)
+        let result = try #require(response["result"] as? [String: Any])
+        #expect(result["isError"] as? Bool == false)
+        let content = try #require(result["content"] as? [[String: Any]])
+        #expect(content[0]["text"] as? String == "echo: hi")
+    }
+
+    @Test("A tool error is never journaled, and still reads as a tool error")
+    func toolErrorsAreNotJournaled() async throws {
+        let collector = WriteCollector()
+        let handler = MCPRequestHandler(
+            serverVersion: "1.0-test", tools: [Self.failingWriteTool],
+            onWrite: { record in await collector.add(record) }
+        )
+        let json = try callJSON(tool: "file_it_badly", arguments: [:])
+        let response = try await response(for: json, handler: handler)
+
+        let records = await collector.records
+        #expect(records.isEmpty)
+        let result = try #require(response["result"] as? [String: Any])
+        #expect(result["isError"] as? Bool == true)
+        let content = try #require(result["content"] as? [[String: Any]])
+        #expect(content[0]["text"] as? String == "No student named \"Nobody\" was found.")
+    }
 }
