@@ -48,6 +48,11 @@ enum CaptureFollowUpPersistence {
                     workCount += 1
                 }
             case .represent:
+                // The record she has is the one that did not take: flag it for
+                // re-teaching, the same bit the recall queue sets, so the
+                // planning reads see the second pass and not just a new draft.
+                assignment.needsAnotherPresentation = true
+                assignment.modifiedAt = Date()
                 try createRepresentationIfNeeded(
                     studentID: entry.studentID, lesson: lesson, context: persistence.context
                 )
@@ -110,7 +115,10 @@ enum CaptureFollowUpPersistence {
         studentRequest.predicate = NSPredicate(format: "id == %@", studentID as CVarArg)
         studentRequest.fetchLimit = 1
         guard let student = try context.fetch(studentRequest).first else { return }
-        _ = PresentationFactory.makeDraft(lesson: lesson, students: [student], context: context)
+        let draft = PresentationFactory.makeDraft(lesson: lesson, students: [student], context: context)
+        // Says on the draft itself why the lesson is coming round again, in the
+        // words student_presentation_history reads back.
+        draft.notes = MCPNotebookTools.RepeatPurpose.secondPass.noteLine(plannedOn: Date())
     }
 
     /// Flags the child's observation on this presentation for the follow-up

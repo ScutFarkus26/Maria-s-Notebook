@@ -28,7 +28,8 @@ extension MCPNotebookTools {
                 + "Ten by default; raise limit (up to 200) or pass since to go further back. "
                 + "Pass lesson to ask \"has she ever had X\" — the answer covers both dated "
                 + "presentations and the lesson's presentation record, and says so when the record "
-                + "marks a lesson no dated presentation shows.",
+                + "marks a lesson no dated presentation shows. A lesson she has had more than once "
+                + "carries its ordinal and, where the record says so, why — \"(2nd time; second pass)\".",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -99,6 +100,7 @@ extension MCPNotebookTools {
             return "No presentations\(scopeText) are recorded for \(student.fullName).\(record)"
         }
 
+        let ordinals = repeatOrdinals(matching)
         let lines = shown.compactMap { assignment -> String? in
             guard let id = assignment.id else { return nil }
             let snapshotTitle = assignment.lessonTitleSnapshot?.trimmed() ?? ""
@@ -111,13 +113,45 @@ extension MCPNotebookTools {
                 ? "no linked observation"
                 : "\(notes.count) linked observation(s)\(observationScopeNote(notes, for: studentID, in: modelContext))"
             return "- [presentation id=\(id.uuidString)] \(dayString(assignment.presentedAt)) — "
-                + "\(title) (\(noteText))"
+                + "\(title)\(repeatSuffix(assignment, ordinal: ordinals[id])) (\(noteText))"
         }
         let count = matching.count > shown.count
             ? " (showing \(shown.count) of \(matching.count); raise limit or pass since for the rest)"
             : " (\(shown.count))"
         return "Presentations\(scopeText) for \(student.fullName)\(count):\n"
             + lines.joined(separator: "\n") + record
+    }
+
+    // MARK: - Lessons Given More Than Once
+
+    /// Presentation id → which giving of that lesson it was, oldest first, for
+    /// the lessons this child has had more than once. A lesson with a single
+    /// row is absent, so an ordinary presentation reads as it always has.
+    ///
+    /// Counted over the rows already fetched, so a narrow `since` window
+    /// numbers the rows it returned rather than paying for a second read of
+    /// the whole record.
+    private static func repeatOrdinals(_ rows: [CDLessonAssignment]) -> [UUID: Int] {
+        var ordinals: [UUID: Int] = [:]
+        for (_, group) in Dictionary(grouping: rows, by: \.lessonID) where group.count > 1 {
+            let oldestFirst = group.sorted {
+                ($0.presentedAt ?? .distantPast) < ($1.presentedAt ?? .distantPast)
+            }
+            for (offset, assignment) in oldestFirst.enumerated() {
+                if let id = assignment.id { ordinals[id] = offset + 1 }
+            }
+        }
+        return ordinals
+    }
+
+    /// " (2nd time; second pass)" — the ordinal, and the reason if the record
+    /// carries one. Empty for a lesson given once, and for the first giving of
+    /// one given several times: only a repeat needs saying.
+    private static func repeatSuffix(_ assignment: CDLessonAssignment, ordinal: Int?) -> String {
+        guard let ordinal, ordinal > 1 else { return "" }
+        let purpose = RepeatPurpose.parse(notes: assignment.notes)
+            .map { "; \($0.displayName.lowercased())" } ?? ""
+        return " (\(ordinalText(ordinal)) time\(purpose))"
     }
 
     // MARK: - Detail
