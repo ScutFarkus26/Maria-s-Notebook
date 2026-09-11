@@ -25,7 +25,8 @@ extension MCPNotebookTools {
             description: "Recorded practice: how long a child worked, how it went, and what the "
                 + "guide noticed — breakthroughs, struggles, asking for help, helping a peer, "
                 + "readiness for a check-in or assessment. Filter to one student, or to sessions "
-                + "carrying a particular signal.",
+                + "carrying a particular signal. Sixty days by default; raise limit or pass "
+                + "since/until (YYYY-MM-DD) to go further back.",
             inputSchema: practiceSessionsSchema,
             handler: { arguments in
                 try describePracticeSessions(arguments: arguments, in: context())
@@ -33,16 +34,15 @@ extension MCPNotebookTools {
         )
     }
 
-    private static let practiceSessionsSchema: JSONValue = [
-        "type": "object",
-        "properties": [
+    private static var practiceSessionsSchema: JSONValue {
+        var properties: [String: JSONValue] = [
             "student_name": [
                 "type": "string",
                 "description": "Only sessions this student took part in"
             ],
             "days_back": [
                 "type": "integer",
-                "description": "How many days back to look, 1-365 (default 60)"
+                "description": "How many days back to look, 1-365 (default 60). Ignored when since is given."
             ],
             "signal": [
                 "type": "string",
@@ -57,7 +57,9 @@ extension MCPNotebookTools {
                 "description": "Maximum sessions to return, 1-50 (default 20)"
             ]
         ]
-    ]
+        properties.merge(dayWindowSchema("sessions worked")) { current, _ in current }
+        return ["type": "object", "properties": .object(properties)]
+    }
 
     private static func describePracticeSessions(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
@@ -66,10 +68,12 @@ extension MCPNotebookTools {
             .map { try resolveStudentReference($0, in: modelContext) }
         let studentKey: String? = student?.id?.uuidString
         let daysBack: Int = intArgument(arguments, "days_back", default: 60, range: 1...365)
+        let window: DayWindow = try dayWindowArgument(arguments)
         let signal: String? = nonEmpty(arguments["signal"]?.stringValue)
         let limit: Int = intArgument(arguments, "limit", default: 20, range: 1...50)
 
-        let cutoff: Date = AppCalendar.shared.date(
+        // `since` replaces the rolling window; `until` caps it.
+        let cutoff: Date = window.start ?? AppCalendar.shared.date(
             byAdding: .day, value: -daysBack, to: AppCalendar.startOfDay(Date())
         ) ?? .distantPast
 
@@ -77,13 +81,16 @@ extension MCPNotebookTools {
         var kept: [CDPracticeSession] = []
         for session in all {
             guard let date = session.date, date >= cutoff else { continue }
+            if let ceiling = window.endExclusive, date >= ceiling { continue }
             if let studentKey, !session.studentIDsArray.contains(studentKey) { continue }
             if let signal, !hasSignal(session, signal) { continue }
             kept.append(session)
         }
         guard !kept.isEmpty else {
             let who = student.map { " for \($0.fullName)" } ?? ""
-            return "No practice sessions\(who) in the last \(daysBack) days."
+            return window.isSet
+                ? "No practice sessions\(who)\(window.phrase)."
+                : "No practice sessions\(who) in the last \(daysBack) days."
         }
 
         let sorted: [CDPracticeSession] = kept.sorted {
@@ -164,29 +171,33 @@ extension MCPNotebookTools {
             description: "Spaced recall: lessons re-checked weeks after mastery, and whether the "
                 + "child still had it (retained), needed a brush-up (shaky), or had lost it "
                 + "(forgotten). Use this to find what is slipping rather than inferring it from "
-                + "presentation dates.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "student_name": [
-                        "type": "string",
-                        "description": "Only this student's checks"
-                    ],
-                    "outcome": [
-                        "type": "string",
-                        "enum": ["retained", "shaky", "forgotten"],
-                        "description": "Only checks with this outcome"
-                    ],
-                    "days_back": [
-                        "type": "integer",
-                        "description": "How many days back to look, 1-365 (default 90)"
-                    ]
-                ]
-            ],
+                + "presentation dates. Ninety days by default; pass since/until (YYYY-MM-DD) to "
+                + "go further back.",
+            inputSchema: recallChecksSchema,
             handler: { arguments in
                 try describeRecallChecks(arguments: arguments, in: context())
             }
         )
+    }
+
+    private static var recallChecksSchema: JSONValue {
+        var properties: [String: JSONValue] = [
+            "student_name": [
+                "type": "string",
+                "description": "Only this student's checks"
+            ],
+            "outcome": [
+                "type": "string",
+                "enum": ["retained", "shaky", "forgotten"],
+                "description": "Only checks with this outcome"
+            ],
+            "days_back": [
+                "type": "integer",
+                "description": "How many days back to look, 1-365 (default 90). Ignored when since is given."
+            ]
+        ]
+        properties.merge(dayWindowSchema("checks made")) { current, _ in current }
+        return ["type": "object", "properties": .object(properties)]
     }
 
     private static func describeRecallChecks(
@@ -196,9 +207,11 @@ extension MCPNotebookTools {
             .map { try resolveStudentReference($0, in: modelContext) }
         let studentKey: String? = student?.id?.uuidString
         let daysBack: Int = intArgument(arguments, "days_back", default: 90, range: 1...365)
+        let window: DayWindow = try dayWindowArgument(arguments)
         let outcome: RecallOutcome? = try recallOutcomeArgument(arguments, "outcome")
 
-        let cutoff: Date = AppCalendar.shared.date(
+        // `since` replaces the rolling window; `until` caps it.
+        let cutoff: Date = window.start ?? AppCalendar.shared.date(
             byAdding: .day, value: -daysBack, to: AppCalendar.startOfDay(Date())
         ) ?? .distantPast
 
@@ -207,13 +220,16 @@ extension MCPNotebookTools {
         var kept: [CDLessonRecallCheck] = []
         for check in all {
             guard let checkedAt = check.checkedAt, checkedAt >= cutoff else { continue }
+            if let ceiling = window.endExclusive, checkedAt >= ceiling { continue }
             if let studentKey, check.studentID != studentKey { continue }
             if let outcome, check.outcome != outcome { continue }
             kept.append(check)
         }
         guard !kept.isEmpty else {
             let who = student.map { " for \($0.fullName)" } ?? ""
-            return "No recall checks\(who) in the last \(daysBack) days."
+            return window.isSet
+                ? "No recall checks\(who)\(window.phrase)."
+                : "No recall checks\(who) in the last \(daysBack) days."
         }
 
         let names = studentNameIndex(in: modelContext)

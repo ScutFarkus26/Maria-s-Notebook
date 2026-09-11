@@ -104,43 +104,67 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "student_observations",
             title: "Student Observations",
-            description: "Get one student's observation notes from the last N days, "
-                + "with dates, tags, and full text.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "student_name": [
-                        "type": "string",
-                        "description": "The student's first name, full name, or nickname"
-                    ],
-                    "days_back": [
-                        "type": "integer",
-                        "description": "How many days back to look, 1-120 (default 30)"
-                    ]
-                ],
-                "required": ["student_name"]
-            ],
+            description: "Get one student's observation notes, newest first, with dates, tags, "
+                + "and full text. Thirty days by default; raise limit or pass since/until "
+                + "(YYYY-MM-DD) to go further back.",
+            inputSchema: studentObservationsSchema,
             handler: { arguments in
                 let name = try requireString(arguments, "student_name")
                 let daysBack = intArgument(arguments, "days_back", default: 30, range: 1...120)
-                return try fetchStudentObservations(name: name, daysBack: daysBack, in: context())
+                let window = try dayWindowArgument(arguments)
+                let limit = intArgument(arguments, "limit", default: 40, range: 1...200)
+                return try fetchStudentObservations(
+                    name: name, daysBack: daysBack, window: window, limit: limit, in: context()
+                )
             }
         )
     }
 
+    private static var studentObservationsSchema: JSONValue {
+        var properties: [String: JSONValue] = [
+            "student_name": [
+                "type": "string",
+                "description": "The student's first name, full name, or nickname"
+            ],
+            "days_back": [
+                "type": "integer",
+                "description": "How many days back to look, 1-120 (default 30). Ignored when since is given."
+            ],
+            "limit": [
+                "type": "integer",
+                "description": "Maximum notes to return, 1-200 (default 40)"
+            ]
+        ]
+        properties.merge(dayWindowSchema("notes written")) { current, _ in current }
+        return [
+            "type": "object",
+            "properties": .object(properties),
+            "required": ["student_name"]
+        ]
+    }
+
     private static func fetchStudentObservations(
-        name: String, daysBack: Int, in modelContext: NSManagedObjectContext
+        name: String, daysBack: Int, window: DayWindow, limit: Int,
+        in modelContext: NSManagedObjectContext
     ) throws -> String {
         let student = try resolveStudent(named: name, in: modelContext)
         guard let studentID = student.id else {
             throw MCPToolError("That student record has no identifier.")
         }
 
-        let cutoff = AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date()) ?? .distantPast
+        // `since` replaces the rolling window; without it the floor is the
+        // same "last N days" the tool has always used.
+        let floor = window.start
+            ?? AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date())
+            ?? .distantPast
+        var clauses = [NSPredicate(format: "createdAt >= %@", floor as NSDate)]
+        if let ceiling = window.endExclusive {
+            clauses.append(NSPredicate(format: "createdAt < %@", ceiling as NSDate))
+        }
         let request = CDFetchRequest(CDNote.self)
-        request.predicate = NSPredicate(format: "createdAt >= %@", cutoff as NSDate)
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: clauses)
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-        let notes = modelContext.safeFetch(request)
+        let matching = modelContext.safeFetch(request)
             .filter { note in
                 // Classroom-wide notes aren't about this student specifically.
                 switch note.scope {
@@ -149,17 +173,23 @@ extension MCPNotebookTools {
                 case .students(let ids): return ids.contains(studentID)
                 }
             }
-            .prefix(20)
-        guard !notes.isEmpty else {
-            return "No notes about \(student.firstName) in the last \(daysBack) days."
+        let shown = matching.prefix(limit)
+        let scope = window.isSet ? window.phrase : " (last \(daysBack) days)"
+        guard !shown.isEmpty else {
+            return window.isSet
+                ? "No notes about \(student.firstName)\(window.phrase)."
+                : "No notes about \(student.firstName) in the last \(daysBack) days."
         }
 
-        let lines = notes.map { note -> String in
+        let lines = shown.map { note -> String in
             let tags = note.tagsArray.isEmpty ? "" : " [\(note.tagsArray.joined(separator: ", "))]"
             let id = note.id?.uuidString ?? "unknown"
             return "- [note id=\(id)] \(dayString(note.createdAt))\(tags): \(note.body)"
         }
-        return "Notes about \(student.firstName) (last \(daysBack) days):\n" + lines.joined(separator: "\n")
+        let held = matching.count > shown.count
+            ? " (showing \(shown.count) of \(matching.count); raise limit or pass since/until for the rest)"
+            : ""
+        return "Notes about \(student.firstName)\(scope)\(held):\n" + lines.joined(separator: "\n")
     }
 
     // MARK: - Observation Coverage
@@ -168,42 +198,61 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "presentations_missing_observations",
             title: "Presentations Missing Observations",
-            description: "Find presented lessons with no linked observation in the last N days. "
+            description: "Find presented lessons with no linked observation. "
                 + "A group presentation is checked child by child: it is listed while any child "
                 + "on it has no observation about her, and names those children. Reports "
-                + "missing records only; it never judges readiness.",
+                + "missing records only; it never judges readiness. Thirty days by default; "
+                + "pass since/until (YYYY-MM-DD) to check an earlier stretch.",
             inputSchema: [
                 "type": "object",
-                "properties": [
-                    "days_back": [
-                        "type": "integer",
-                        "description": "How many days back to check, 1-120 (default 30)"
-                    ]
-                ]
+                "properties": .object(coverageWindowProperties)
             ],
             handler: { arguments in
                 let daysBack = intArgument(arguments, "days_back", default: 30, range: 1...120)
-                let start = AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date()) ?? .distantPast
-                let references = PresentationObservationCoverageService.missingObservationReferences(
-                    in: context(),
-                    from: start,
-                    through: Date()
+                let window = try dayWindowArgument(arguments)
+                return describeMissingObservations(
+                    daysBack: daysBack, window: window, in: context()
                 )
-                guard !references.isEmpty else {
-                    return "Every child on every presentation in the last \(daysBack) days has a linked observation."
-                }
-                let modelContext = context()
-                return references.map { reference in
-                    let unobserved = modelContext.object(CDLessonAssignment.self, id: reference.entityID)
-                        .map { PresentationObservationCoverageService.unobservedStudentIDs(on: $0) } ?? []
-                    let who = unobserved.isEmpty
-                        ? ""
-                        : " — no observation yet for \(studentNames(for: unobserved, in: modelContext))"
-                    return "- [presentation id=\(reference.entityID.uuidString)] \(dayString(reference.date)) — "
-                        + reference.title + who
-                }.joined(separator: "\n")
             }
         )
+    }
+
+    private static var coverageWindowProperties: [String: JSONValue] {
+        var properties: [String: JSONValue] = [
+            "days_back": [
+                "type": "integer",
+                "description": "How many days back to check, 1-120 (default 30). Ignored when since is given."
+            ]
+        ]
+        properties.merge(dayWindowSchema("presentations given")) { current, _ in current }
+        return properties
+    }
+
+    private static func describeMissingObservations(
+        daysBack: Int, window: DayWindow, in modelContext: NSManagedObjectContext
+    ) -> String {
+        let start = window.start
+            ?? AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date())
+            ?? .distantPast
+        // The service compares `<=`, so the window's last instant is its end.
+        let references = PresentationObservationCoverageService.missingObservationReferences(
+            in: modelContext,
+            from: start,
+            through: window.endInclusive ?? Date()
+        )
+        let scope = window.isSet ? window.phrase : " in the last \(daysBack) days"
+        guard !references.isEmpty else {
+            return "Every child on every presentation\(scope) has a linked observation."
+        }
+        return references.map { reference in
+            let unobserved = modelContext.object(CDLessonAssignment.self, id: reference.entityID)
+                .map { PresentationObservationCoverageService.unobservedStudentIDs(on: $0) } ?? []
+            let who = unobserved.isEmpty
+                ? ""
+                : " — no observation yet for \(studentNames(for: unobserved, in: modelContext))"
+            return "- [presentation id=\(reference.entityID.uuidString)] \(dayString(reference.date)) — "
+                + reference.title + who
+        }.joined(separator: "\n")
     }
 
     // MARK: - Classroom Snapshot
