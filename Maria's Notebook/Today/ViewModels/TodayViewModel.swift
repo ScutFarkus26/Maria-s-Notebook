@@ -88,6 +88,12 @@ final class TodayViewModel {
     /// confirmations and mastery marks, turned into the lessons they point at.
     var readyForNext: [ReadyForNextItem] = []
 
+    /// Due and overdue work check-ins, one per work, for the todo list.
+    /// Departed children's rows are kept and marked (see TodayFollowUpLoader).
+    var followUpCheckIns: [WorkCheckInFollowUp] = []
+    /// Former students named on those rows — the enrolled cache never holds them.
+    var departedStudentsByID: [UUID: CDStudent] = [:]
+
     // MARK: - Cache Accessors (delegate to cacheManager)
 
     /// Students lookup dictionary (read-only access to cache)
@@ -211,10 +217,11 @@ final class TodayViewModel {
             )
 
         // 2. Fetch work data
-        if let prelimResult = TodayDataFetcher.fetchWorkData(
+        let prelimResult = TodayDataFetcher.fetchWorkData(
             day: day, nextDay: nextDay, referenceDate: date, context: context,
             errorCollector: errorCollector
-        ) {
+        )
+        if let prelimResult {
             cacheManager.loadStudentsIfNeeded(ids: prelimResult.neededStudentIDs, context: context)
             cacheManager.loadLessonsIfNeeded(ids: prelimResult.neededLessonIDs, context: context)
         }
@@ -224,6 +231,13 @@ final class TodayViewModel {
             errorCollector: errorCollector
         )
         cacheManager.updateWork(workResult.workByID)
+
+        // 2b. Due check-ins for the todo list (same fetch, list rules)
+        let departed = TodayFollowUpLoader.fetchDepartedStudents(context: context)
+        let followUps = TodayFollowUpLoader.build(
+            fetch: prelimResult, day: day, nextDay: nextDay,
+            studentsByID: studentsByID, departedStudentsByID: departed, levelFilter: levelFilter
+        )
 
         // 3. Fetch completed work
         let completedResult = TodayWorkLoader.fetchCompletedWork(
@@ -301,13 +315,17 @@ final class TodayViewModel {
         recentNotes = notesResult.notes
         recentNoteStudentsByID = updatedRecentNoteStudents
         readyForNext = loadReadyForNext()
+        followUpCheckIns = followUps
+        departedStudentsByID = departed
 
-        // 8. Build unified agenda
+        // 8. Build unified agenda. Due check-ins live in the todo list now
+        // (followUpCheckIns), so the agenda is built without them; the
+        // overdueSchedule/todaysSchedule outputs stay for Right Now's count.
         agendaItems = TodayAgendaBuilder.buildAgenda(
             lessons: filteredLessons,
             meetings: meetingsResult.meetings,
-            overdueSchedule: workResult.overdueSchedule,
-            todaysSchedule: workResult.todaysSchedule,
+            overdueSchedule: [],
+            todaysSchedule: [],
             staleFollowUps: workResult.staleFollowUps,
             day: day,
             context: context
