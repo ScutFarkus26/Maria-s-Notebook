@@ -102,6 +102,7 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.logsMenuRootViewMode,
         UserDefaultsKeys.todayDayPadExpanded,
         UserDefaultsKeys.todayDoneTodayExpanded,
+        UserDefaultsKeys.todayAnytimeRemindersExpanded,
         "resourceLibrary.viewMode",
         // Albums — the folder bookmarks only resolve on the device that made
         // them, but restoring them on the same Mac after a reinstall brings the

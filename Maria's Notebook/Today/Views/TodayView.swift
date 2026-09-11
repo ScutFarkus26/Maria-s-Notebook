@@ -58,7 +58,7 @@ struct TodayView: View {
     @State var toastMessage: String?
 
     #if os(iOS)
-    private let pullToRefreshTip = PullToRefreshTip()
+    let pullToRefreshTip = PullToRefreshTip()
     #endif
 
     // MARK: - Meeting State
@@ -72,6 +72,9 @@ struct TodayView: View {
     // MARK: - Day Pad / Done Today / Day Cards State
     @AppStorage(UserDefaultsKeys.todayDayPadExpanded) var isDayPadExpanded: Bool = false
     @AppStorage(UserDefaultsKeys.todayDoneTodayExpanded) var isDoneTodayExpanded: Bool = false
+    /// The undated reminder pile starts closed and stays wherever she left it.
+    @AppStorage(UserDefaultsKeys.todayAnytimeRemindersExpanded)
+    var isAnytimeRemindersExpanded: Bool = false
     /// Bumped when a day card is dismissed to force the section to recompute.
     @State var dayCardsRefreshTrigger: Int = 0
     @State var needsLessonCount: Int = 0
@@ -241,94 +244,8 @@ struct TodayView: View {
         .padding(.bottom, isAttendanceExpanded ? 8 : 10)
     }
 
-    private var listContent: some View {
-        #if os(macOS)
-        twoColumnLayout
-        #else
-        List {
-            TipView(pullToRefreshTip)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-            // What's next, then today's surfaces
-            rightNowListSection
-            followingPresentationsListSection
-            readyForNextListSection
-            deadlinesListSection
-            parentReportsListSection
-            dayCardsListSection
-            agendaListSection
-            todosListSection
-            calendarEventsListSection
-            remindersListSection
-            dayPadListSection
-            recentNotesListSection
-            doneTodayListSection
-        }
-        .listStyle(.insetGrouped)
-        .refreshable {
-            viewModel.reload()
-            reloadDerivedCounts()
-            pullToRefreshTip.invalidate(reason: .actionPerformed)
-        }
-        #endif
-    }
-
-    #if os(macOS)
-    private var twoColumnLayout: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Left column: glanceable surfaces; Right column: live agenda
-            List {
-                rightNowListSection
-                followingPresentationsListSection
-                readyForNextListSection
-                deadlinesListSection
-                parentReportsListSection
-                dayCardsListSection
-                todosListSection
-                calendarEventsListSection
-                remindersListSection
-                dayPadListSection
-                recentNotesListSection
-                doneTodayListSection
-            }
-            .listStyle(.inset)
-            .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
-
-            Divider()
-
-            rightColumnContent
-        }
-    }
-
-    @ViewBuilder
-    private var rightColumnContent: some View {
-        if let selectedTodoItem {
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Edit Todo")
-                        .font(AppTheme.ScaledFont.body.weight(.semibold))
-                    Spacer()
-                    Button("Done") {
-                        self.selectedTodoItem = nil
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-
-                Divider()
-
-                EditTodoForm(todo: selectedTodoItem)
-            }
-        } else {
-            // Right column: Agenda (lessons + work items)
-            List {
-                agendaListSection
-            }
-            .listStyle(.inset)
-        }
-    }
-    #endif
+    // `listContent` and the macOS two-column layout live in
+    // TodayViewSectionOrder.swift, beside the ordering they express.
 
     #if os(iOS)
     @ToolbarContentBuilder

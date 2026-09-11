@@ -17,6 +17,16 @@ extension TodayView {
                     Label(action.label, systemImage: action.icon)
                 }
             }
+            Divider()
+            // The pad's section hides itself while the pad is empty, so this
+            // is how a blank page is reached on a day that has nothing on it.
+            Button {
+                adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                    isDayPadExpanded = true
+                }
+            } label: {
+                Label("Today's Pad", systemImage: "note.text")
+            }
         } label: {
             Image(systemName: "plus")
                 .accessibilityLabel("Quick capture")

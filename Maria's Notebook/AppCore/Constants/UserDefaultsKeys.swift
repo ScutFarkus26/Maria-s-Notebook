@@ -166,6 +166,10 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Today
     static let todayDayPadExpanded = "Today.dayPadExpanded"
     static let todayDoneTodayExpanded = "Today.doneTodayExpanded"
+    /// Whether the undated ("Anytime") reminders are disclosed on Today.
+    /// Default closed: the standing pile of undated Apple Reminders belongs
+    /// in reach, not on the fold.
+    static let todayAnytimeRemindersExpanded = "Today.anytimeRemindersExpanded"
     /// Dynamic per-date keys for dismissable Today cards: "Today.dayCardDismissed.<yyyy-MM-dd>.<cardName>"
     static let todayDayCardDismissedPrefix = "Today.dayCardDismissed."
 
