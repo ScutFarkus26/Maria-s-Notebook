@@ -19,7 +19,7 @@ extension MCPNotebookTools {
                 + "(lesson, student_names, date, group_observation, student_observations)"),
             "items": [
                 "type": "object",
-                "properties": .object(presentationProperties),
+                "properties": JSONValue.object(presentationProperties).withoutDescriptions,
                 "required": ["lesson", "student_names"]
             ]
         ]

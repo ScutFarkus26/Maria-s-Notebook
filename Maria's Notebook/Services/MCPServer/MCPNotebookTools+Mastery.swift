@@ -14,13 +14,12 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "mark_mastered",
             title: "Mark Lesson Mastered",
-            description: "Record that the guide assessed a lesson as mastered for one or more "
-                + "children. Flips each child's existing presentation record for that lesson to "
-                + "mastered in place — the same change the app's Mastered pill and checklist "
-                + "make — which is what advances their sequence-track step; record_presentation "
-                + "alone never does. Refuses, and writes nothing, if any named child has no "
-                + "presentation of the lesson on record: file it with record_presentation first. "
-                + "Only use this when the guide says they assessed mastery; never infer it.",
+            description: "Record that the guide assessed a lesson as mastered for one or more children. Flips "
+                + "each child's existing presentation record for that lesson to mastered in place, "
+                + "which is what advances her sequence-track step; record_presentation alone never "
+                + "does. Refuses, and writes nothing, if any named child has no presentation of the "
+                + "lesson on record: file it with record_presentation first. Only use this when the "
+                + "guide says they assessed mastery; never infer it.",
             inputSchema: markMasteredSchema,
             annotations: .idempotentWrite,
             handler: { arguments in

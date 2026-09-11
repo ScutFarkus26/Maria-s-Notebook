@@ -19,11 +19,9 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "create_observation",
             title: "Record Observation",
-            description: "Record a new observation note about one or more students. "
-                + "Writes to the teacher's notebook exactly as an in-app quick note would. "
-                + "Pass a notes array to file several observations in one call, each with the "
-                + "same fields. An observation identical to one already filed that day is "
-                + "reported rather than duplicated, unless force is true.",
+            description: "Record a new observation note about one or more students. Pass a notes array to file "
+                + "several in one call, each with the same fields. An observation identical to one "
+                + "already filed that day is reported rather than duplicated, unless force is true.",
             inputSchema: createObservationSchema,
             annotations: .write,
             handler: { arguments in

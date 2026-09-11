@@ -22,12 +22,10 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "schedule_meeting",
             title: "Schedule Meeting",
-            description: "Book a student conference that has not happened yet, the way the "
-                + "meetings tab's date picker does. It shows in scheduled_meetings and on the "
-                + "Today agenda, and is completed rather than duplicated when "
-                + "create_meeting_entry files the meeting. A student holds one booking at a "
-                + "time: booking another day moves the existing one instead of adding a "
-                + "second. A day school is not in session is refused.",
+            description: "Book a student conference that has not happened yet. It shows in scheduled_meetings "
+                + "and on the Today agenda, and create_meeting_entry completes it rather than "
+                + "duplicating it. A student holds one booking at a time: booking another day moves the "
+                + "existing one. A day school is not in session is refused.",
             inputSchema: [
                 "type": "object",
                 "properties": [

@@ -21,12 +21,11 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "create_meeting_entry",
             title: "Record Student Meeting",
-            description: "Record a completed student meeting (conference) in the student's "
-                + "history, exactly as the in-app meeting form would: a reflection on how the "
-                + "work is going, lessons the student requested, private guide notes, and new "
-                + "goals that carry forward to the next meeting as open focus items. A booking "
-                + "the student had for that day (or an earlier one still pending) is completed "
-                + "by this, so it leaves scheduled_meetings rather than standing beside the entry.",
+            description: "Record a completed student meeting (conference): a reflection on how the work is "
+                + "going, lessons the student requested, private guide notes, and new goals that carry "
+                + "forward to the next meeting as open focus items. It completes the student's booking "
+                + "for that day (or an earlier one still pending), so the booking leaves "
+                + "scheduled_meetings.",
             inputSchema: [
                 "type": "object",
                 "properties": [

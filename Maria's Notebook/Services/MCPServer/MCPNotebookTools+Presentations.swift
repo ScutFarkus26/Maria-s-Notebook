@@ -22,16 +22,14 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "record_presentation",
             title: "Record Presentation",
-            description: "Record a lesson the guide gave, with what they observed and what they "
-                + "decided for each child (practice, follow-up work, re-present, ready for the next "
-                + "lesson, keep observing). Writes the presentation into the students' histories "
-                + "exactly as the in-app capture review would, and links each observation to it. "
-                + "If the lesson was already planned or scheduled for those same students, that plan "
-                + "is completed rather than duplicated. Use find_lessons first so the lesson is "
-                + "unambiguous. Recording the same lesson, students, and day twice updates that "
-                + "presentation instead of creating a second one. To file a whole day at once pass "
-                + "presentations, an array of these same fields; every name is checked before "
-                + "anything is written, and one save covers them all.",
+            description: "Record a lesson the guide gave, with what they observed and what they decided for "
+                + "each child (practice, follow-up work, re-present, ready for the next lesson, keep "
+                + "observing); each observation is linked to the presentation. A plan already waiting "
+                + "for those same students is completed rather than duplicated, and the same lesson, "
+                + "students and day filed twice updates the first. Use find_lessons first so the lesson "
+                + "is unambiguous. To file a whole day pass presentations, an array of these same "
+                + "fields: every name is checked before anything is written and one save covers them "
+                + "all.",
             inputSchema: recordPresentationSchema,
             annotations: .write,
             handler: { arguments in

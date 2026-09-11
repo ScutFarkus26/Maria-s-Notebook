@@ -178,11 +178,10 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "mark_attendance",
             title: "Mark Attendance",
-            description: "Mark one student present, absent, tardy or left-early on a day, "
-                + "with an optional absence reason and note. Pass students for several at once, "
-                + "or mark_all_present to mark everyone not named there present. Writes "
-                + "through the same store the attendance grid uses, so the mark is attributed "
-                + "and syncs to the classroom.",
+            description: "Mark one student present, absent, tardy or left-early on a day, with an optional "
+                + "absence reason and note. Pass students for several at once, or mark_all_present to "
+                + "mark everyone not named there present. Marks are attributed and sync to the "
+                + "classroom.",
             inputSchema: markAttendanceSchema,
             annotations: .idempotentWrite,
             handler: { arguments in

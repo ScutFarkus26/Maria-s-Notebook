@@ -21,13 +21,11 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "schedule_presentation",
             title: "Schedule Presentation",
-            description: "Plan a lesson to be given to one or more students on a day. Creates the "
-                + "plan the same way the in-app planner does, so it appears on the calendar and is "
-                + "completed rather than duplicated when record_presentation files it later. "
-                + "If the same lesson is already planned for exactly these students, that plan is "
-                + "moved to the new day instead of a second one being created. Without a time it "
-                + "lands at the start of the teaching morning (\(UIConstants.morningHour):00), the "
-                + "app's own default; pass time to place it later in the day.",
+            description: "Plan a lesson to be given to one or more students on a day; it appears on the "
+                + "calendar and record_presentation completes it later rather than duplicating it. If "
+                + "the same lesson is already planned for exactly these students, that plan is moved to "
+                + "the new day instead of a second being created. Without a time it lands at 9:00, the "
+                + "start of the teaching morning; pass time to place it later.",
             inputSchema: [
                 "type": "object",
                 "properties": [

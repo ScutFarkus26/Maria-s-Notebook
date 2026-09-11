@@ -62,12 +62,10 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "draft_parent_report",
             title: "Draft Parent Report",
-            description: "Draft one child's monthly report from the month's recorded evidence "
-                + "(presentations, work, observations marked for the report, attendance) and file "
-                + "it as a draft parent communication, exactly as the Parent Reports screen's "
-                + "Generate button does. Never sends anything. Refuses to replace a report that "
-                + "already has text unless overwrite is true; a reviewed or sent report is never "
-                + "replaced.",
+            description: "Draft one child's monthly report from the month's recorded evidence (presentations, "
+                + "work, observations marked for the report, attendance) and file it as a draft parent "
+                + "communication. Never sends anything. Keeps an existing draft's text unless overwrite "
+                + "is true; a reviewed or sent report is never replaced.",
             inputSchema: [
                 "type": "object",
                 "properties": [

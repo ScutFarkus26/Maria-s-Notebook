@@ -267,7 +267,7 @@ extension MCPNotebookTools {
                 + "body are not needed at the top level."),
             "items": [
                 "type": "object",
-                "properties": .object(observationFields),
+                "properties": JSONValue.object(observationFields).withoutDescriptions,
                 "required": ["student_names", "body"]
             ]
         ]
