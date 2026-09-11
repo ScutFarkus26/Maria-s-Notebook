@@ -3,6 +3,10 @@ import CoreData
 
 struct StudentPillsSection: View {
     let students: [CDStudent]
+    /// The lesson this group is for, when there is one. Given it, a chip for a
+    /// child who already has the lesson on record carries the same caption the
+    /// picker shows, so the warning survives the picker being dismissed.
+    var lessonOnRecord: CDLesson?
     let areaColor: Color
     var onRemove: (UUID) -> Void
     var onOpenPicker: () -> Void
@@ -11,6 +15,11 @@ struct StudentPillsSection: View {
     var onOpenFindStudents: () -> Void
     var onOpenMoveAbsent: () -> Void
     let canMoveAbsentStudents: Bool
+
+    @Environment(\.managedObjectContext) private var viewContext
+
+    /// What the record holds for `lessonOnRecord`, read once when there is one.
+    @State private var records: [UUID: PresentationRecordIndex.Given] = [:]
 
     var body: some View {
         VStack(spacing: 12) {
@@ -51,12 +60,25 @@ struct StudentPillsSection: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .task(id: lessonOnRecord?.id) { loadRecord() }
+    }
+
+    private func loadRecord() {
+        guard let lessonID = lessonOnRecord?.id else {
+            records = [:]
+            return
+        }
+        let index = PresentationRecordIndex(lessonIDs: [lessonID.uuidString], in: viewContext)
+        records = StudentPickerModel.records(from: index, lesson: lessonID)
     }
 
     private func studentChip(for student: CDStudent) -> some View {
         HStack(spacing: 6) {
             Text(StudentFormatter.displayName(for: student))
                 .font(AppTheme.ScaledFont.captionSemibold)
+            if let given = student.id.flatMap({ records[$0] }) {
+                StudentRecordCaption(given: given, compact: true)
+            }
             Button { if let id = student.id { onRemove(id) } } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 12, weight: .semibold))

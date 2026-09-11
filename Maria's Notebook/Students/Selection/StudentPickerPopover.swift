@@ -1,3 +1,15 @@
+//
+//  StudentPickerPopover.swift
+//  Maria's Notebook
+//
+//  The roster in a popover: search it, scope it to a level, sort it, tick the
+//  children you want.
+//
+//  Which children it offers, in what order, and which of them may not be
+//  ticked at all is `StudentPickerModel` — value types with their own tests.
+//  This file is the presentation of those rows and nothing else.
+//
+
 import SwiftUI
 import CoreData
 
@@ -13,12 +25,17 @@ struct StudentPickerPopover: View {
     /// the same caption the schedule sheet shows. Note and filter call sites
     /// have no lesson and leave it nil.
     var lessonOnRecord: CDLesson?
+    /// What to do with a child who has left the classroom. Forming a group for
+    /// a lesson shows her disabled with the reason, so a withdrawal is visible
+    /// where the choice is made; every other picker keeps today's behaviour and
+    /// leaves her out.
+    var formerStudents: StudentPickerModel.FormerStudents = .hidden
 
     @State private var filterLevel: LevelFilter = .all
     @State private var searchText: String = ""
     @State private var showingAddStudent: Bool = false
     /// What the record holds for `lessonOnRecord`, read once when there is one.
-    @State private var recordIndex: PresentationRecordIndex?
+    @State private var records: [UUID: PresentationRecordIndex.Given] = [:]
 
     @Environment(\.managedObjectContext) private var viewContext
 
@@ -34,6 +51,15 @@ struct StudentPickerPopover: View {
         case adolescent = "Adolescent"
 
         var id: String { rawValue }
+
+        var scope: StudentPickerModel.LevelScope {
+            switch self {
+            case .all: return .all
+            case .lower: return .level(.lower)
+            case .upper: return .level(.upper)
+            case .adolescent: return .level(.adolescent)
+            }
+        }
     }
 
     /// How the list is ordered. Age is for the common case of picking a run of children
@@ -57,75 +83,43 @@ struct StudentPickerPopover: View {
             case .age: return "calendar"
             }
         }
+
+        var sort: StudentPickerModel.Sort {
+            switch self {
+            case .name: return .name
+            case .age: return .age
+            }
+        }
     }
 
     private var sortMode: SortMode { SortMode(rawValue: sortModeRaw) ?? .name }
 
-    var filteredStudentsForPicker: [CDStudent] {
-        let search = searchText.normalizedForComparison()
-        let enrolled = students.filterEnrolled()
-
-        let searched = enrolled.filter { student in
-            if search.isEmpty { return true }
-            let first = student.firstName.lowercased()
-            let last = student.lastName.lowercased()
-            let full = "\(first) \(last)"
-            return first.contains(search) || last.contains(search) || full.contains(search)
-        }
-
-        let filtered = searched.filter { student in
-            switch filterLevel {
-            case .all:
-                return true
-            case .lower:
-                return student.level == .lower
-            case .upper:
-                return student.level == .upper
-            case .adolescent:
-                return student.level == .adolescent
-            }
-        }
-
-        return sortedForDisplay(filtered)
+    /// The children on screen, with what the record holds for each and whether
+    /// she may be picked.
+    var rows: [StudentPickerRow] {
+        StudentPickerModel.rows(
+            candidates: StudentPickerModel.candidates(students),
+            query: StudentPickerModel.Query(
+                search: searchText,
+                scope: filterLevel.scope,
+                sort: sortMode.sort,
+                formerStudents: formerStudents
+            ),
+            records: records
+        )
     }
 
-    /// Age runs oldest first, matching the student columns on the checklist this picker
-    /// filters, so the same children sit in the same order in both places. Students with
-    /// no birthday on file sink to the bottom rather than posing as newborns.
-    private func sortedForDisplay(_ students: [CDStudent]) -> [CDStudent] {
-        switch sortMode {
-        case .name:
-            return students.sorted(by: StudentSortComparator.byFirstName)
-        case .age:
-            return students.sorted { lhs, rhs in
-                switch (lhs.birthday, rhs.birthday) {
-                case let (left?, right?):
-                    if left != right { return left < right }
-                    return StudentSortComparator.byFirstName(lhs, rhs)
-                case (nil, nil):
-                    return StudentSortComparator.byFirstName(lhs, rhs)
-                case (nil, _):
-                    return false
-                case (_, nil):
-                    return true
-                }
-            }
-        }
-    }
-    
-    func displayName(for student: CDStudent) -> String {
-        return StudentFormatter.displayName(for: student)
-    }
-
-    /// IDs of the students the current search and level filter leave on screen. The
-    /// select-all control acts on exactly this set, so what you see is what you toggle.
-    private var visibleStudentIDs: [UUID] {
-        filteredStudentsForPicker.compactMap(\.id)
-    }
+    /// IDs of the children the current search and level filter leave on screen and
+    /// allow picking. The select-all control acts on exactly this set.
+    private var selectableIDs: [UUID] { StudentPickerModel.selectableIDs(rows) }
 
     private var allVisibleSelected: Bool {
-        !visibleStudentIDs.isEmpty && visibleStudentIDs.allSatisfy { selectedIDs.contains($0) }
+        !selectableIDs.isEmpty && selectableIDs.allSatisfy { selectedIDs.contains($0) }
     }
+
+    /// Nothing on screen can be ticked — every row is a child who has left, or
+    /// the search found nobody.
+    private var nothingSelectable: Bool { selectableIDs.isEmpty }
 
     /// The name of the group being toggled, when the visible set is a whole level rather
     /// than a search result. Lets the button read "Select All Upper".
@@ -147,14 +141,10 @@ struct StudentPickerPopover: View {
     }
 
     private func toggleSelectAllVisible() {
-        let ids = visibleStudentIDs
-        guard !ids.isEmpty else { return }
+        let visible = rows
+        guard !StudentPickerModel.selectableIDs(visible).isEmpty else { return }
         adaptiveWithAnimation {
-            if allVisibleSelected {
-                selectedIDs.subtract(ids)
-            } else {
-                selectedIDs.formUnion(ids)
-            }
+            selectedIDs = StudentPickerModel.selectAll(visible, in: selectedIDs)
         }
     }
 
@@ -188,7 +178,7 @@ struct StudentPickerPopover: View {
                 }
                 .buttonStyle(.borderless)
                 .font(.callout)
-                .disabled(visibleStudentIDs.isEmpty)
+                .disabled(nothingSelectable)
 
                 Spacer()
 
@@ -280,75 +270,31 @@ extension StudentPickerPopover {
     var studentList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 4) {
-                ForEach(filteredStudentsForPicker) { student in
-                    Button {
-                        adaptiveWithAnimation {
-                            guard let studentID = student.id else { return }
-                            if selectedIDs.contains(studentID) {
-                                selectedIDs.remove(studentID)
-                            } else {
-                                selectedIDs.insert(studentID)
-                            }
-                        }
-                    } label: {
-                        studentRow(for: student)
-                    }
-                    .buttonStyle(.plain)
+                ForEach(rows) { row in
+                    StudentPickerRowView(
+                        row: row,
+                        isSelected: selectedIDs.contains(row.id),
+                        onToggle: { toggle(row.id) }
+                    )
                 }
             }
             .padding(.vertical, 4)
         }
     }
 
-    @ViewBuilder
-    private func studentRow(for student: CDStudent) -> some View {
-        let isSelected = student.id.map { selectedIDs.contains($0) } ?? false
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(displayName(for: student))
-                    .foregroundStyle(.primary)
-                if let given = record(for: student) {
-                    StudentRecordCaption(given: given)
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            if let birthday = student.birthday {
-                Text(AgeUtils.quarterGlyphAgeString(for: birthday))
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(AgeUtils.verboseQuarterAgeString(for: birthday))
-            }
-
-            // The tick keeps its slot when a row is unselected, so the ages stay in a column.
-            Image(systemName: "checkmark")
-                .foregroundStyle(Color.accentColor)
-                .opacity(isSelected ? 1 : 0)
-                .accessibilityHidden(!isSelected)
-                .frame(width: 14)
+    private func toggle(_ id: UUID) {
+        let visible = rows
+        adaptiveWithAnimation {
+            selectedIDs = StudentPickerModel.toggling(id, in: selectedIDs, rows: visible)
         }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
     }
 
     private func loadRecord() {
-        guard let lessonID = lessonOnRecord?.id?.uuidString else {
-            recordIndex = nil
+        guard let lessonID = lessonOnRecord?.id else {
+            records = [:]
             return
         }
-        recordIndex = PresentationRecordIndex(lessonIDs: [lessonID], in: viewContext)
+        let index = PresentationRecordIndex(lessonIDs: [lessonID.uuidString], in: viewContext)
+        records = StudentPickerModel.records(from: index, lesson: lessonID)
     }
-
-    /// What the record says about this child and the picker's lesson.
-    private func record(for student: CDStudent) -> PresentationRecordIndex.Given? {
-        guard let recordIndex,
-              let lessonID = lessonOnRecord?.id?.uuidString,
-              let studentID = student.id?.uuidString else { return nil }
-        return recordIndex.given(student: studentID, lesson: lessonID)
-    }
-}
-
-private extension String {
 }

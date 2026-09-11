@@ -30,9 +30,12 @@ extension PresentationDetailContentView {
     }
 
     var studentPillsSection: some View {
-        StudentPillsSection(
+        let lesson: CDLesson? = currentLesson
+        let areaColor: Color = AppColors.color(forArea: lesson?.area ?? "")
+        return StudentPillsSection(
             students: selectedStudentsList,
-            areaColor: AppColors.color(forArea: currentLesson?.area ?? ""),
+            lessonOnRecord: lesson,
+            areaColor: areaColor,
             onRemove: { id in vm.selectedStudentIDs.remove(id) },
             onOpenPicker: { vm.showingStudentPickerPopover = true },
             onOpenMove: openMoveStudentsSheet,
@@ -46,7 +49,10 @@ extension PresentationDetailContentView {
                 students: studentsAll,
                 selectedIDs: $vm.selectedStudentIDs,
                 onDone: { vm.showingStudentPickerPopover = false },
-                lessonOnRecord: currentLesson
+                lessonOnRecord: currentLesson,
+                // The roster may already hold a child who has since left; she
+                // stays visible here, disabled, so she can be taken off.
+                formerStudents: .shownBlocked
             )
             .padding(12)
             .frame(minWidth: 320)
