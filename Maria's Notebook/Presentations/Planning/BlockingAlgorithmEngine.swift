@@ -271,43 +271,6 @@ enum BlockingAlgorithmEngine {
         return computePrecedingLesson(currentLesson: currentLesson, lessons: lessons)
     }
 
-    /// Preceding lesson for every lesson in the library, keyed by lesson id.
-    ///
-    /// Use this instead of calling `findPrecedingLesson` in a loop over the
-    /// library: that filters and sorts the whole array per lesson — O(L²)
-    /// with four trimmed-string allocations per comparison, which on a full
-    /// album curriculum was millions of comparisons on the main actor per
-    /// Presentations refresh. Grouping once by (area, sequence) and sorting
-    /// each group once gives the same answer: a group is exactly the
-    /// candidate set the per-lesson filter produced, in the same input order.
-    static func buildPrecedingLessonCache(_ lessons: [CDLesson]) -> [UUID: CDLesson] {
-        var groups: [String: [CDLesson]] = [:]
-        for lesson in lessons {
-            let area = lesson.area.trimmed()
-            let sequence = lesson.sequence.trimmed()
-            guard !area.isEmpty, !sequence.isEmpty else { continue }
-            groups[sequenceGroupKey(area: area, sequence: sequence), default: []].append(lesson)
-        }
-
-        var cache: [UUID: CDLesson] = [:]
-        for group in groups.values {
-            let ordered = group.sorted { $0.orderInSequence < $1.orderInSequence }
-            for index in ordered.indices.dropFirst() {
-                guard let lessonID = ordered[index].id, cache[lessonID] == nil else { continue }
-                cache[lessonID] = ordered[index - 1]
-            }
-        }
-        return cache
-    }
-
-    /// Case-insensitive key matching the `caseInsensitiveCompare` test in
-    /// `computePrecedingLesson`. Inputs are already trimmed.
-    private static func sequenceGroupKey(area: String, sequence: String) -> String {
-        area.folding(options: .caseInsensitive, locale: nil)
-            + "\u{1F}"
-            + sequence.folding(options: .caseInsensitive, locale: nil)
-    }
-
     /// Internal implementation of preceding lesson computation.
     /// Separated to allow reuse in context initialization without recursion.
     private static func computePrecedingLesson(currentLesson: CDLesson, lessons: [CDLesson]) -> CDLesson? {
@@ -342,7 +305,7 @@ enum BlockingAlgorithmEngine {
     ///   - work: The CDWorkModel to check
     ///   - requiredStudentIDs: The student IDs that need to have completed the work
     /// - Returns: True if work is complete for all required students
-    static func isWorkComplete(work: CDWorkModel, requiredStudentIDs: [UUID]) -> Bool {
+    nonisolated static func isWorkComplete(work: CDWorkModel, requiredStudentIDs: [UUID]) -> Bool {
         if work.statusRaw == "complete" {
             return true
         }

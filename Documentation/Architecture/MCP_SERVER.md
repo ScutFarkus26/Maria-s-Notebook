@@ -181,6 +181,7 @@ ambiguity errors:
 | `weekly_schedules` | `CDSchedule` + `CDScheduleSlot`, ordered Sunday-first by `Weekday` |
 | `year_plan` | `CDYearPlanEntry` — intentions with target dates, not calendar entries |
 | `students_pending` | one lesson across the class, from the plan: every enrolled child with a planned (unsatisfied) or promoted `CDYearPlanEntry` for it, or an unpresented `CDLessonAssignment` naming her, with target date, `isBehindPace`, and the presentation's day, time and group; closes with who has had it (`CDLessonPresentation` or a presented assignment) and who has no plan. Every fetch is keyed on the lesson id — a handful of small queries, not a per-child scan |
+| `students_ready` | the record-side counterpart: every enrolled child the record holds as `confirmedStudentIDs` on a presented `CDLessonAssignment`, or marked mastered, on a lesson whose successor in the same sub-area (`BlockingAlgorithmEngine.buildNextLessonCache`) is neither on her record nor on an open plan for her. `group_by` student or lesson, narrowed by `student`, `area`, `basis` (`either` / `confirmed` / `mastered`) and `include_almost_ready`; a sub-area whose `LessonProgressionRules` require practice holds a child at almost-ready while her own work on the lesson she just had is open. The by-lesson form closes each group with the literal `schedule_presentation` call for its ready children on the next school day. One `PresentationRecordIndex`, one work fetch, dictionary lookups from there |
 | `update_year_plan_entry` (write) | one `CDYearPlanEntry`'s status and target date. Refuses promoted entries — the presentation carries the date once an entry reaches the calendar, so `reschedule_presentation` moves those — and refuses `promoted` as a status to set by hand, since promotion is `schedule_presentation` linking a real assignment |
 | `skip_year_plan_entries` (write) | `StudentDeparturePlans.plannedEntries` + `skip` for one student, the same call the roster makes when a child is withdrawn; skips only `planned` entries and deletes nothing |
 | `clear_year_plan` (write) | the same `StudentDeparturePlans.plannedEntries` + `skip`, scoped to one track (`sequenceGroupKey`, matched as `Area::Sequence`, `Area › Sequence`, or the sequence alone) and/or entries targeted before a day, two-step: without `confirm` it reports the count and lists the entries by track and writes nothing |
@@ -322,6 +323,18 @@ pending are a planned entry the record has not answered, a promoted entry,
 and an unpresented assignment with no entry behind it; the trailer names who
 has had it and who has no plan, so the guide can see who could join.
 
+`students_ready` asks the same question from the record's end, and it is the
+one the notebook could not answer at all before: at capture the guide tags a
+child ready for the next lesson, and a mastery mark says it more strongly,
+but neither mark went anywhere — the only way to say "soon" was to put a date
+on it. The tool turns both into a queue. A child is in it when she is
+confirmed or mastered on a lesson and the next lesson in the *same* sub-area
+is neither on her record nor on an open plan for her; the practice gate the
+Small Sequence Planner applies holds her at almost-ready, with the reason, so
+the two surfaces never disagree about the same child on the same day. Grouped
+by lesson it closes each group with the exact `schedule_presentation` call —
+it proposes, and writes nothing.
+
 The four curriculum tools exist so an AMI album can be reconciled with the
 notebook without opening the app: `list_lessons_by_area` reads a whole
 area or sub-area uncapped (`find_lessons` stops at 25 because it answers a
@@ -394,6 +407,11 @@ ambiguity comes back as a tool error naming the candidates.
 //   - [student id=…] Ora Levi — target 2026-09-05 (behind pace) — not on the calendar
 //   - [student id=…] Etty Klein — target 2026-09-19 — scheduled 2026-09-14 at 10:30 with Dalia Roth [presentation id=…]
 //   …
+
+// Who is ready for what — the same question from the record's end.
+{"name": "students_ready", "arguments": {"group_by": "lesson", "area": "Math"}}
+// → [lesson id=…] Distributive Law — Math › Laws — ready (2): Avital Beyderman, Etty Krinsky; almost ready (1): Ora Levi (practice on Commutative Law not yet complete)
+//   To schedule: {"arguments":{"date":"2026-09-14","lesson":"…","student_names":["Avital Beyderman","Etty Krinsky"]},"name":"schedule_presentation"}
 //   Already given (12): … / No plan for it (6): …
 
 // Discard a plan. Without "confirm" this only reports; with it, the
@@ -490,6 +508,13 @@ can be lost.
   — `students_pending`: planned, promoted and calendar-only children, behind
   pace, the group on a scheduled presentation, the given / no-plan trailer,
   and a withdrawn child kept out.
+- `Maria's Notebook Tests/Services/MCPServer/MCPReadyForNextToolTests.swift`
+  — `students_ready`: both groupings, the closing `schedule_presentation`
+  call decoded rather than pattern-matched (right lesson, right names, a day
+  school is in), the `basis` / `include_almost_ready` / `student` / `area`
+  filters, the empty-queue sentence, and a withdrawn child kept out. The
+  queue's own rules are pinned separately in
+  `Maria's Notebook Tests/Planning/ReadyForNextEngineTests.swift`.
 - `Maria's Notebook Tests/Services/MCPServer/MCPPresentationOutcomeToolsTests.swift`
   — the `follow_up` decisions on `record_presentation` (work items, the
   re-present plan, confirmation, the inbox flag, an unknown value refused)
