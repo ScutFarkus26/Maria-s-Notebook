@@ -97,6 +97,36 @@ struct MCPPresentationHistoryToolsTests {
         #expect(refusal?.message.contains("YYYY-MM-DD") == true)
     }
 
+    @Test("a lesson given twice says which time it was, and why when the record says")
+    func repeatRowsCarryTheirOrdinalAndPurpose() async throws {
+        let (tools, context) = try makeTools()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        let checkerboard = CoreDataTestHelpers.seedLesson(in: context, name: "Checkerboard", area: "Math")
+        let stampGame = CoreDataTestHelpers.seedLesson(in: context, name: "Stamp Game", area: "Math")
+        try seedGiven(checkerboard, to: ora, on: "2026-03-11", in: context)
+        let again = try seedGiven(checkerboard, to: ora, on: "2026-09-16", in: context)
+        again.notes = "Second pass — planned 2026-09-16"
+        try seedGiven(stampGame, to: ora, on: "2026-05-04", in: context)
+        #expect(CoreDataTestHelpers.save(context))
+
+        let history = try await tool(named: "student_presentation_history", in: tools).handler([
+            "student_name": .string("Ora")
+        ])
+        #expect(history.contains("2026-09-16 — Checkerboard (2nd time; second pass) ("))
+        // The first giving, and a lesson given once, say nothing.
+        #expect(history.contains("2026-03-11 — Checkerboard ("))
+        #expect(history.contains("2026-05-04 — Stamp Game ("))
+        #expect(!history.contains("1st time"))
+
+        // A revisit with no reason on the record still carries its ordinal.
+        again.notes = ""
+        #expect(CoreDataTestHelpers.save(context))
+        let plain = try await tool(named: "student_presentation_history", in: tools).handler([
+            "student_name": .string("Ora"), "lesson": .string("Checkerboard")
+        ])
+        #expect(plain.contains("2026-09-16 — Checkerboard (2nd time) ("))
+    }
+
     @Test("lesson narrows to one lesson and reads the presentation record beside the dated rows")
     func lessonFilterAnswersHasSheHadIt() async throws {
         let (tools, context) = try makeTools()

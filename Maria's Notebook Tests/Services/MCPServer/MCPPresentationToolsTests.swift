@@ -275,9 +275,8 @@ struct MCPPresentationToolsTests {
             ])
         ])
         let assignment = try #require(presentations(in: context).first)
-        let note = try #require(
-            ((assignment.unifiedNotes?.allObjects as? [CDNote]) ?? []).first
-        )
+        let linked: [CDNote] = (assignment.unifiedNotes?.allObjects as? [CDNote]) ?? []
+        let note = try #require(linked.first)
         let noteID = try #require(note.id?.uuidString)
 
         // The note was filed against the wrong child; move it to Etty.

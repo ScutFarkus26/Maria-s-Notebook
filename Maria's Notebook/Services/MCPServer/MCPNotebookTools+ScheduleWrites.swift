@@ -25,7 +25,9 @@ extension MCPNotebookTools {
                 + "calendar and record_presentation completes it later rather than duplicating it. If "
                 + "the same lesson is already planned for exactly these students, that plan is moved to "
                 + "the new day instead of a second being created. Without a time it lands at 9:00, the "
-                + "start of the teaching morning; pass time to place it later.",
+                + "start of the teaching morning; pass time to place it later. Refuses a day school is "
+                + "out, and refuses when any named child already has the lesson on record unless "
+                + "purpose says why she is having it again.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -47,7 +49,8 @@ extension MCPNotebookTools {
                         "type": "string",
                         "description": .string("Optional time of day, HH:MM (24-hour, in the school's local "
                             + "time zone), e.g. \"10:30\". Omit for the app's default morning slot.")
-                    ]
+                    ],
+                    "purpose": repeatPurposeProperty
                 ],
                 "required": ["lesson", "student_names", "date"]
             ],
@@ -78,6 +81,13 @@ extension MCPNotebookTools {
             throw MCPToolError("A date is required, formatted YYYY-MM-DD.")
         }
         let time = try timeArgument(arguments, "time")
+        try requireSchoolDay(day, in: modelContext)
+
+        let purpose = try RepeatPurpose.argument(arguments)
+        let index = PresentationRecordIndex(lessonIDs: [lessonID.uuidString], in: modelContext)
+        let conflicts = try explainedConflicts(
+            lesson: lesson, students: students, on: day, purpose: purpose, index: index
+        )
 
         let existing = plannedAssignment(
             lessonID: lessonID, studentIDs: Set(studentIDs), in: modelContext
@@ -85,6 +95,15 @@ extension MCPNotebookTools {
         let assignment = existing
             ?? PresentationFactory.makeDraft(lesson: lesson, students: students, context: modelContext)
         schedule(assignment, onDay: day, at: time)
+        if let purpose {
+            recordRepeatIntent(
+                RepeatIntent(
+                    purpose: purpose, conflicts: conflicts,
+                    lessonID: lessonID.uuidString, index: index
+                ),
+                draft: assignment, plannedOn: day, in: modelContext
+            )
+        }
 
         guard modelContext.safeSave() else {
             modelContext.rollback()
@@ -95,7 +114,39 @@ extension MCPNotebookTools {
         let who = students.map(\.fullName).joined(separator: ", ")
         let verb = existing == nil ? "Scheduled" : "Moved the existing plan for"
         return "\(verb) [presentation id=\(id)] \(lesson.name) — \(who) on \(dayString(day))"
-            + "\(timeSuffix(assignment))."
+            + "\(timeSuffix(assignment))"
+            + "\(repeatReceipt(purpose, conflicts: conflicts.count, of: students.count))."
+    }
+
+    /// The named children the record already covers — refusing the call when
+    /// the caller has not said why the lesson is coming round again for them.
+    private static func explainedConflicts(
+        lesson: CDLesson,
+        students: [CDStudent],
+        on day: Date,
+        purpose: RepeatPurpose?,
+        index: PresentationRecordIndex
+    ) throws -> [RepeatConflict] {
+        let conflicts = repeatConflicts(
+            lessonID: lesson.id?.uuidString ?? "", students: students, before: day, index: index
+        )
+        guard conflicts.isEmpty || purpose != nil else {
+            throw refuseRepeat(
+                tool: "schedule_presentation", lesson: lesson, conflicts: conflicts, of: students.count
+            )
+        }
+        return conflicts
+    }
+
+    /// The same calendar `schedule_for_range` consults, so a plan is refused on
+    /// exactly the days that tool reports as not in session — and in the words
+    /// `schedule_meeting` refuses them.
+    private static func requireSchoolDay(_ day: Date, in modelContext: NSManagedObjectContext) throws {
+        guard SchoolCalendarService.shared.isNonSchoolDaySync(day, using: modelContext) else { return }
+        throw MCPToolError(
+            "School is not in session on \(dayString(day)) (\(weekdayName(day))); "
+                + "nothing was scheduled. Choose a school day."
+        )
     }
 
     // MARK: - Time of Day

@@ -16,7 +16,7 @@ extension MCPNotebookTools {
         properties["presentations"] = [
             "type": "array",
             "description": .string("Several presentations in one call, each with the fields above "
-                + "(lesson, student_names, date, group_observation, student_observations)"),
+                + "(lesson, student_names, date, purpose, group_observation, student_observations)"),
             "items": [
                 "type": "object",
                 "properties": JSONValue.object(presentationProperties).withoutDescriptions,
@@ -43,6 +43,7 @@ extension MCPNotebookTools {
             "type": "string",
             "description": "The day it was presented, YYYY-MM-DD (default today)"
         ],
+        "purpose": repeatPurposeProperty,
         "group_observation": [
             "type": "string",
             "description": .string("What happened in the presentation as a whole — "

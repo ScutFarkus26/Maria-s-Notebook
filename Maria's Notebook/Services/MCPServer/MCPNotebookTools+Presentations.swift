@@ -26,10 +26,12 @@ extension MCPNotebookTools {
                 + "each child (practice, follow-up work, re-present, ready for the next lesson, keep "
                 + "observing); each observation is linked to the presentation. A plan already waiting "
                 + "for those same students is completed rather than duplicated, and the same lesson, "
-                + "students and day filed twice updates the first. Use find_lessons first so the lesson "
-                + "is unambiguous. To file a whole day pass presentations, an array of these same "
-                + "fields: every name is checked before anything is written and one save covers them "
-                + "all.",
+                + "students and day filed twice updates the first. A new record for a child who "
+                + "already has the lesson is refused unless purpose says why she is having it again; "
+                + "re-filing the same day, and completing a plan, are exempt. Use find_lessons first "
+                + "so the lesson is unambiguous. To file a whole day pass presentations, an array of "
+                + "these same fields: every name is checked before anything is written and one save "
+                + "covers them all.",
             inputSchema: recordPresentationSchema,
             annotations: .write,
             handler: { arguments in
@@ -62,12 +64,14 @@ extension MCPNotebookTools {
     /// One `record_presentation` call with every reference resolved to a
     /// record. Built before anything is written, so a bad name or date fails
     /// the call without leaving a half-filed presentation behind.
-    private struct PresentationFiling {
+    struct PresentationFiling {
         let lesson: CDLesson
         let lessonID: UUID
         let students: [CDStudent]
         let studentIDs: [UUID]
         let presentedAt: Date
+        /// Why a lesson already on record is being given again, when it is.
+        let purpose: RepeatPurpose?
         let groupObservation: String
         let observations: [UUID: String]
         /// Students whose observation the guide flagged for the follow-up inbox.
@@ -101,6 +105,7 @@ extension MCPNotebookTools {
             students: students,
             studentIDs: studentIDs,
             presentedAt: try dayArgument(arguments, "date") ?? Date(),
+            purpose: try RepeatPurpose.argument(arguments),
             groupObservation: arguments["group_observation"]?.stringValue?.trimmed() ?? "",
             observations: observed.bodies,
             followUpIDs: observed.followUpIDs,
@@ -167,15 +172,25 @@ extension MCPNotebookTools {
         let origin: PresentationOrigin
         let noteCount: Int
         let workCount: Int
+        /// The receipt's account of the regive guard, empty unless a purpose
+        /// was given.
+        let repeatNote: String
     }
 
     private static func file(
         _ filings: [PresentationFiling], in modelContext: NSManagedObjectContext
     ) throws -> String {
+        // The record is read once, before anything is resolved or written, so
+        // the guard and the second-pass flag both see it as it stands.
+        let index = PresentationRecordIndex(
+            lessonIDs: Set(filings.map { $0.lessonID.uuidString }), in: modelContext
+        )
         var filed: [FiledPresentation] = []
         do {
-            for filing in filings {
-                filed.append(try write(filing, in: modelContext))
+            let resolved = filings.map { resolve($0, index: index, in: modelContext) }
+            try refuseUnexplainedRepeats(resolved)
+            for item in resolved {
+                filed.append(try write(item, index: index, in: modelContext))
             }
         } catch let error as MCPToolError {
             modelContext.rollback()
@@ -198,9 +213,11 @@ extension MCPNotebookTools {
     /// Writes one presentation, its notes, and the guide's decisions into the
     /// context without saving, so a batch lands or rolls back as a whole.
     private static func write(
-        _ filing: PresentationFiling, in modelContext: NSManagedObjectContext
+        _ resolved: ResolvedFiling,
+        index: PresentationRecordIndex,
+        in modelContext: NSManagedObjectContext
     ) throws -> FiledPresentation {
-        let resolved = resolveAssignment(for: filing, in: modelContext)
+        let filing = resolved.filing
         let assignment = try LifecycleService.recordPresentation(
             from: resolved.assignment,
             presentedAt: filing.presentedAt,
@@ -238,57 +255,22 @@ extension MCPNotebookTools {
             )
         }
 
+        if let purpose = filing.purpose {
+            recordRepeatIntent(
+                RepeatIntent(
+                    purpose: purpose, conflicts: resolved.conflicts,
+                    lessonID: filing.lessonID.uuidString, index: index
+                ),
+                draft: assignment, plannedOn: filing.presentedAt, in: modelContext
+            )
+        }
+
         return FiledPresentation(
             filing: filing, assignment: assignment, origin: resolved.origin,
-            noteCount: notes.count, workCount: workCount
-        )
-    }
-
-    // MARK: - Presentation Resolution
-
-    /// Where the recorded presentation came from, so the receipt can tell the
-    /// guide whether a plan was completed or a new record created.
-    private enum PresentationOrigin {
-        case alreadyRecorded
-        case plannedLesson
-        case newRecord
-    }
-
-    /// Prefers a presentation already recorded for this lesson, these students
-    /// and this day (so re-filing the same account edits it rather than
-    /// duplicating it), then a plan waiting to be given, and finally a new
-    /// record — mirroring the command bar's `resolvePresentation`.
-    private static func resolveAssignment(
-        for filing: PresentationFiling, in modelContext: NSManagedObjectContext
-    ) -> (assignment: CDLessonAssignment, origin: PresentationOrigin) {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "lessonID == %@", filing.lessonID.uuidString)
-        let expected = Set(filing.studentIDs)
-        let candidates = modelContext.safeFetch(request).filter { Set($0.studentUUIDs) == expected }
-
-        if let sameDay = candidates.first(where: { assignment in
-            guard assignment.isPresented, let recordedAt = assignment.presentedAt else { return false }
-            return AppCalendar.shared.isDate(recordedAt, inSameDayAs: filing.presentedAt)
-        }) {
-            return (sameDay, .alreadyRecorded)
-        }
-
-        let planned = candidates
-            .filter { !$0.isPresented }
-            .sorted {
-                if $0.isScheduled != $1.isScheduled { return $0.isScheduled }
-                return ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast)
-            }
-            .first
-        if let planned {
-            return (planned, .plannedLesson)
-        }
-
-        return (
-            PresentationFactory.makeDraft(
-                lesson: filing.lesson, students: filing.students, context: modelContext
-            ),
-            .newRecord
+            noteCount: notes.count, workCount: workCount,
+            repeatNote: repeatReceipt(
+                filing.purpose, conflicts: resolved.conflicts.count, of: filing.students.count
+            )
         )
     }
 
@@ -309,7 +291,7 @@ extension MCPNotebookTools {
         let who = filing.students.map(\.fullName).joined(separator: ", ")
         let notes = filed.noteCount == 0 ? "no observations linked" : "\(filed.noteCount) observation(s) linked"
         var text = "\(opening) [presentation id=\(id)]: \(filing.lesson.name) "
-            + "to \(who) on \(dayString(filing.presentedAt)) — \(notes)."
+            + "to \(who) on \(dayString(filing.presentedAt)) — \(notes)\(filed.repeatNote)."
 
         if !filing.outcomes.isEmpty {
             let names = Dictionary(uniqueKeysWithValues: filing.students.compactMap { student in
