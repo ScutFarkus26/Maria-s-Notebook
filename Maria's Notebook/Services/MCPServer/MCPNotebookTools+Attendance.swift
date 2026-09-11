@@ -177,54 +177,100 @@ extension MCPNotebookTools {
             name: "mark_attendance",
             title: "Mark Attendance",
             description: "Mark one student present, absent, tardy or left-early on a day, "
-                + "with an optional absence reason and note. Writes through the same store the "
-                + "attendance grid uses, so the mark is attributed and syncs to the classroom.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "student_name": [
-                        "type": "string",
-                        "description": "The student's first name, full name, or nickname"
-                    ],
-                    "status": [
-                        "type": "string",
-                        "enum": ["present", "absent", "tardy", "leftEarly", "unmarked"],
-                        "description": "present, absent, tardy, leftEarly, or unmarked"
-                    ],
-                    "date": [
-                        "type": "string",
-                        "description": "The day, YYYY-MM-DD (default today)"
-                    ],
-                    "absence_reason": [
-                        "type": "string",
-                        "enum": ["sick", "vacation", "none"],
-                        "description": "Only meaningful when the status is absent"
-                    ],
-                    "note": [
-                        "type": "string",
-                        "description": "A note about the day (optional)"
-                    ]
-                ],
-                "required": ["student_name", "status"]
-            ],
+                + "with an optional absence reason and note. Pass students for several at once, "
+                + "or mark_all_present to mark everyone not named there present. Writes "
+                + "through the same store the attendance grid uses, so the mark is attributed "
+                + "and syncs to the classroom.",
+            inputSchema: markAttendanceSchema,
             handler: { arguments in
                 try markAttendance(arguments: arguments, in: context())
             }
         )
     }
 
+    private static let attendanceStatusSchema: JSONValue = [
+        "type": "string",
+        "enum": ["present", "absent", "tardy", "leftEarly", "unmarked"],
+        "description": "present, absent, tardy, leftEarly, or unmarked"
+    ]
+
+    private static let markAttendanceSchema: JSONValue = [
+        "type": "object",
+        "properties": [
+            "student_name": [
+                "type": "string",
+                "description": "The student's first name, full name, or nickname"
+            ],
+            "status": attendanceStatusSchema,
+            "students": [
+                "type": "array",
+                "description": .string("Several students in one call: objects with "
+                    + "student_name and status. An unknown or ambiguous name fails the whole "
+                    + "call and nothing is written."),
+                "items": [
+                    "type": "object",
+                    "properties": [
+                        "student_name": [
+                            "type": "string",
+                            "description": "The student's first name, full name, or nickname"
+                        ],
+                        "status": attendanceStatusSchema
+                    ],
+                    "required": ["student_name", "status"]
+                ]
+            ],
+            "mark_all_present": [
+                "type": "boolean",
+                "description": .string("Mark every enrolled student not named in students "
+                    + "present for the day")
+            ],
+            "date": [
+                "type": "string",
+                "description": "The day, YYYY-MM-DD (default today)"
+            ],
+            "absence_reason": [
+                "type": "string",
+                "enum": ["sick", "vacation", "none"],
+                "description": "Only meaningful when the status is absent; single student only"
+            ],
+            "note": [
+                "type": "string",
+                "description": "A note about the day (optional); single student only"
+            ]
+        ]
+    ]
+
     private static func markAttendance(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        let day = AppCalendar.startOfDay(try dayArgument(arguments, "date") ?? Date())
+        let wantsBatch = arguments["students"] != nil
+            || arguments["mark_all_present"]?.boolValue == true
+        guard wantsBatch else {
+            return try markOneStudent(arguments: arguments, on: day, in: modelContext)
+        }
+        guard arguments["absence_reason"] == nil, arguments["note"] == nil else {
+            throw MCPToolError(
+                "absence_reason and note belong to one student's mark — mark that student on "
+                    + "their own call."
+            )
+        }
+        let marks = try resolveAttendanceMarks(arguments, in: modelContext)
+        guard !marks.isEmpty else {
+            throw MCPToolError(
+                "No students to mark — pass student_name, students, or mark_all_present."
+            )
+        }
+        return try applyAttendanceMarks(marks, on: day, in: modelContext)
+    }
+
+    private static func markOneStudent(
+        arguments: [String: JSONValue], on day: Date, in modelContext: NSManagedObjectContext
     ) throws -> String {
         let student = try resolveStudentReference(
             requireString(arguments, "student_name"), in: modelContext
         )
-        let statusRaw = try requireString(arguments, "status")
-        guard let status = AttendanceStatus(rawValue: statusRaw) else {
-            let allowed = AttendanceStatus.allCases.map(\.rawValue).joined(separator: ", ")
-            throw MCPToolError("status must be one of: \(allowed). Got \"\(statusRaw)\".")
-        }
-        let day = AppCalendar.startOfDay(try dayArgument(arguments, "date") ?? Date())
+        let status = try attendanceStatus(try requireString(arguments, "status"))
 
         let store = CDAttendanceStore(context: modelContext, calendar: AppCalendar.shared)
         guard let record = try store.ensureRecord(for: student, on: day) else {
@@ -262,5 +308,84 @@ extension MCPNotebookTools {
         let detail = extras.isEmpty ? "" : " (\(extras.joined(separator: ", ")))"
         return "Marked \(student.fullName) \(status.displayName.lowercased()) on "
             + "\(dayString(day))\(detail)."
+    }
+
+    // MARK: - Marking Several At Once
+
+    /// One resolved (student, status) pair. The whole list is built before the
+    /// first record is touched, so an unknown or ambiguous name fails the call
+    /// with nothing written.
+    private struct AttendanceMark {
+        let student: CDStudent
+        let status: AttendanceStatus
+    }
+
+    private static func attendanceStatus(_ raw: String) throws -> AttendanceStatus {
+        guard let status = AttendanceStatus(rawValue: raw) else {
+            let allowed = AttendanceStatus.allCases.map(\.rawValue).joined(separator: ", ")
+            throw MCPToolError("status must be one of: \(allowed). Got \"\(raw)\".")
+        }
+        return status
+    }
+
+    private static func resolveAttendanceMarks(
+        _ arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws -> [AttendanceMark] {
+        var marks: [AttendanceMark] = []
+        var named: Set<UUID> = []
+        for (index, entry) in (arguments["students"]?.arrayValue ?? []).enumerated() {
+            guard let item = entry.objectValue else {
+                throw MCPToolError(
+                    "students[\(index)] must be an object with student_name and status."
+                )
+            }
+            let student = try resolveStudentReference(
+                try requireString(item, "student_name"), in: modelContext
+            )
+            let status = try attendanceStatus(try requireString(item, "status"))
+            if let id = student.id { named.insert(id) }
+            marks.append(AttendanceMark(student: student, status: status))
+        }
+        guard arguments["mark_all_present"]?.boolValue == true else { return marks }
+        let roster: [CDStudent] = DataQueryService(context: modelContext)
+            .fetchAllStudents(excludeTest: true, excludeWithdrawn: true)
+        for student in roster {
+            guard let id = student.id, !named.contains(id) else { continue }
+            marks.append(AttendanceMark(student: student, status: .present))
+        }
+        return marks
+    }
+
+    /// Writes every mark through the same `CDAttendanceStore` the single form
+    /// uses — it is what enforces `ClassroomPermissions` and stamps
+    /// attribution — then saves once. A refusal rolls the whole call back.
+    private static func applyAttendanceMarks(
+        _ marks: [AttendanceMark], on day: Date, in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        let store = CDAttendanceStore(context: modelContext, calendar: AppCalendar.shared)
+        var lines: [String] = []
+        do {
+            for mark in marks {
+                guard let record = try store.ensureRecord(for: mark.student, on: day) else {
+                    throw MCPToolError(
+                        "Attendance could not be written — this classroom role may not have "
+                            + "permission to mark attendance."
+                    )
+                }
+                store.updateStatus(record, to: mark.status)
+                lines.append("- \(mark.student.fullName) — \(mark.status.displayName.lowercased())")
+            }
+        } catch {
+            modelContext.rollback()
+            throw (error as? MCPToolError)
+                ?? MCPToolError("Attendance could not be written: \(error.localizedDescription)")
+        }
+        guard modelContext.safeSave() else {
+            modelContext.rollback()
+            throw MCPToolError("The attendance marks could not be saved.")
+        }
+        let tail = "\(marks.count) student(s) marked."
+        return (["Attendance for \(dayString(day)):"] + lines.sorted() + [tail])
+            .joined(separator: "\n")
     }
 }
