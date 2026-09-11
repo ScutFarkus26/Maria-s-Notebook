@@ -37,6 +37,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["area", "sub_area", "lesson_ids"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try reorderLessons(arguments: arguments, in: context())
             }

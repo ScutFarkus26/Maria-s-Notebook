@@ -35,6 +35,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let day = try dayArgument(arguments, "week_of") ?? Date()
@@ -101,6 +102,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["job"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try assignJob(arguments: arguments, in: context())
             }

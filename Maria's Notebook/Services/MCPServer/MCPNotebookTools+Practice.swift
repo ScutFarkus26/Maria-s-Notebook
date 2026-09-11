@@ -28,6 +28,7 @@ extension MCPNotebookTools {
                 + "carrying a particular signal. Sixty days by default; raise limit or pass "
                 + "since/until (YYYY-MM-DD) to go further back.",
             inputSchema: practiceSessionsSchema,
+            annotations: .readOnly,
             handler: { arguments in
                 try describePracticeSessions(arguments: arguments, in: context())
             }
@@ -174,6 +175,7 @@ extension MCPNotebookTools {
                 + "presentation dates. Ninety days by default; pass since/until (YYYY-MM-DD) to "
                 + "go further back.",
             inputSchema: recallChecksSchema,
+            annotations: .readOnly,
             handler: { arguments in
                 try describeRecallChecks(arguments: arguments, in: context())
             }

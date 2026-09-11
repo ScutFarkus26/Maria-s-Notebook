@@ -35,6 +35,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let includeInactive = arguments["include_inactive"]?.boolValue ?? false
@@ -129,6 +130,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["project_id"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let project = try resolveProject(
@@ -213,6 +215,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateProject(arguments: arguments, in: context())
             }
@@ -303,6 +306,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["project_id", "meeting_date"]
             ],
+            annotations: .write,
             handler: { arguments in
                 try addProjectSession(arguments: arguments, in: context())
             }

@@ -35,6 +35,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeCommunityTopics(arguments: arguments, in: context())
             }
@@ -93,6 +94,7 @@ extension MCPNotebookTools {
                 + "it, the solutions proposed, whether the class has taken it up, and how it "
                 + "was settled. Pass topic_id to update; pass title to raise a new one.",
             inputSchema: updateCommunityTopicSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateCommunityTopic(arguments: arguments, in: context())
             }

@@ -17,6 +17,7 @@ struct MCPRequestHandlerTests {
             "properties": ["message": ["type": "string"]],
             "required": ["message"]
         ],
+        annotations: .readOnly,
         handler: { arguments in
             guard let message = arguments["message"]?.stringValue else {
                 throw MCPToolError("Missing message")
@@ -79,6 +80,38 @@ struct MCPRequestHandlerTests {
         #expect(tools[0]["name"] as? String == "echo")
         let schema = try #require(tools[0]["inputSchema"] as? [String: Any])
         #expect(schema["type"] as? String == "object")
+    }
+
+    @Test("tools/list carries each tool's annotations")
+    func toolsListCarriesAnnotations() async throws {
+        let writeTool = MCPToolDefinition(
+            name: "scribble",
+            title: "Scribble",
+            description: "Writes something down.",
+            inputSchema: ["type": "object", "properties": [:]],
+            annotations: .destructive,
+            handler: { _ in "done" }
+        )
+        let json = #"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#
+        let handler = Self.makeHandler(tools: [Self.echoTool, writeTool])
+        let response = try await response(for: json, handler: handler)
+        let result = try #require(response["result"] as? [String: Any])
+        let tools = try #require(result["tools"] as? [[String: Any]])
+
+        let readAnnotations = try #require(tools[0]["annotations"] as? [String: Any])
+        #expect(Set(readAnnotations.keys) == [
+            "readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"
+        ])
+        #expect(readAnnotations["readOnlyHint"] as? Bool == true)
+        #expect(readAnnotations["destructiveHint"] as? Bool == false)
+        #expect(readAnnotations["idempotentHint"] as? Bool == true)
+        #expect(readAnnotations["openWorldHint"] as? Bool == false)
+
+        let writeAnnotations = try #require(tools[1]["annotations"] as? [String: Any])
+        #expect(writeAnnotations["readOnlyHint"] as? Bool == false)
+        #expect(writeAnnotations["destructiveHint"] as? Bool == true)
+        #expect(writeAnnotations["idempotentHint"] as? Bool == false)
+        #expect(writeAnnotations["openWorldHint"] as? Bool == false)
     }
 
     @Test("tools/call executes the handler")

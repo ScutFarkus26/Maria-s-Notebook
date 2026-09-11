@@ -22,6 +22,7 @@ extension MCPNotebookTools {
                 + "presentation of the lesson on record: file it with record_presentation first. "
                 + "Only use this when the guide says they assessed mastery; never infer it.",
             inputSchema: markMasteredSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 let modelContext = context()
                 let marking = try makeMarking(arguments: arguments, in: modelContext)

@@ -44,6 +44,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeIssues(arguments: arguments, in: context())
             }
@@ -129,6 +130,7 @@ extension MCPNotebookTools {
                 + "closed stamps the resolution date. Pass issue_id to update; pass title to raise "
                 + "a new one.",
             inputSchema: updateIssueSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateIssue(arguments: arguments, in: context())
             }

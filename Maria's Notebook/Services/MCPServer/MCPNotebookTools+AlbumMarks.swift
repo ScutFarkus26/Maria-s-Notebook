@@ -49,6 +49,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeAlbumMarks(arguments: arguments, in: context())
             }

@@ -103,7 +103,8 @@ struct MCPRequestHandler: Sendable {
                 "name": .string(tool.name),
                 "title": .string(tool.title),
                 "description": .string(tool.description),
-                "inputSchema": tool.inputSchema
+                "inputSchema": tool.inputSchema,
+                "annotations": tool.annotations.jsonValue
             ])
         }
         return .success(id: request.id, result: .object(["tools": .array(descriptors)]))

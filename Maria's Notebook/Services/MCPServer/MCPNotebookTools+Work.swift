@@ -40,6 +40,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let student = try resolveStudentReference(
@@ -180,6 +181,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["work_id"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let work = try resolveWork(requireString(arguments, "work_id"), in: modelContext)

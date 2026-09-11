@@ -33,6 +33,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let day = AppCalendar.startOfDay(try dayArgument(arguments, "date") ?? Date())
@@ -110,6 +111,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let student = try resolveStudentReference(
@@ -182,6 +184,7 @@ extension MCPNotebookTools {
                 + "through the same store the attendance grid uses, so the mark is attributed "
                 + "and syncs to the classroom.",
             inputSchema: markAttendanceSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try markAttendance(arguments: arguments, in: context())
             }

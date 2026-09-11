@@ -44,6 +44,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeCommunications(arguments: arguments, in: context())
             }
@@ -105,6 +106,7 @@ extension MCPNotebookTools {
                 + "the app so the guide reviews it first. Pass communication_id to update an "
                 + "existing one (for example to mark it sent).",
             inputSchema: recordCommunicationSchema,
+            annotations: .write,
             handler: { arguments in
                 try recordParentCommunication(arguments: arguments, in: context())
             }

@@ -27,6 +27,7 @@ extension MCPNotebookTools {
                 + "create_meeting_entry so the conversation picks up where it left off. "
                 + "Five by default; raise limit or pass since/until (YYYY-MM-DD) to go further back.",
             inputSchema: studentMeetingsSchema,
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let student = try resolveStudentReference(
@@ -156,6 +157,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeScheduledMeetings(arguments: arguments, in: context())
             }

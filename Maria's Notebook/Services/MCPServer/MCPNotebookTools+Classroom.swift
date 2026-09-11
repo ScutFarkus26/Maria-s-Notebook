@@ -36,6 +36,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let status = try goingOutStatusArgument(arguments, "status")
@@ -91,6 +92,7 @@ extension MCPNotebookTools {
                 + "permission state, supervisor, notes, or who is going. Pass going_out_id to "
                 + "update; pass title to propose a new one.",
             inputSchema: updateGoingOutSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateGoingOut(arguments: arguments, in: context())
             }

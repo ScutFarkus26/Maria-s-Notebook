@@ -38,6 +38,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["query"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let query = try requireString(arguments, "query")
                 let limit = intArgument(arguments, "limit", default: 10, range: 1...25)

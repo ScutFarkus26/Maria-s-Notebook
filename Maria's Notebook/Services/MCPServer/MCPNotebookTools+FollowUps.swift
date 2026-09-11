@@ -31,6 +31,7 @@ extension MCPNotebookTools {
                 + "open follow-up from today is reported rather than duplicated, unless "
                 + "force is true.",
             inputSchema: addFollowUpSchema,
+            annotations: .write,
             handler: { arguments in
                 try addFollowUp(arguments: arguments, in: context())
             }
@@ -167,6 +168,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["id"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try resolveFollowUp(arguments: arguments, in: context())
             }

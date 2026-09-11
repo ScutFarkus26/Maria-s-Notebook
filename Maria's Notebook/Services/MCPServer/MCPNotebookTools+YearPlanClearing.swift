@@ -58,6 +58,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .destructive,
             handler: { arguments in
                 try clearYearPlan(arguments: arguments, in: context())
             }

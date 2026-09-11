@@ -25,6 +25,7 @@ extension MCPNotebookTools {
                 + "same fields. An observation identical to one already filed that day is "
                 + "reported rather than duplicated, unless force is true.",
             inputSchema: createObservationSchema,
+            annotations: .write,
             handler: { arguments in
                 try recordObservation(arguments: arguments, in: context())
             }
@@ -89,6 +90,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateStudent(arguments: arguments, in: context())
             }
@@ -199,6 +201,7 @@ extension MCPNotebookTools {
                 + "student_observations or search_notebook): its text, tags, flags, or which "
                 + "children it is about. Only the fields provided are changed.",
             inputSchema: updateObservationSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateObservation(arguments: arguments, in: context())
             }

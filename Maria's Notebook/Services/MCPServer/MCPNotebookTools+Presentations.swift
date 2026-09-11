@@ -33,6 +33,7 @@ extension MCPNotebookTools {
                 + "presentations, an array of these same fields; every name is checked before "
                 + "anything is written, and one save covers them all.",
             inputSchema: recordPresentationSchema,
+            annotations: .write,
             handler: { arguments in
                 let modelContext = context()
                 let filings: [PresentationFiling]

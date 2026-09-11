@@ -53,6 +53,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["lesson", "student_names", "date"]
             ],
+            annotations: .write,
             handler: { arguments in
                 try schedulePresentation(arguments: arguments, in: context())
             }
@@ -193,6 +194,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["presentation_id"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try reschedulePresentation(arguments: arguments, in: context())
             }

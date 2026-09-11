@@ -24,6 +24,7 @@ extension MCPNotebookTools {
                 + "Use this when the guide asks whether their data is safe or why a device "
                 + "looks out of date.",
             inputSchema: ["type": "object", "properties": [:]],
+            annotations: .readOnly,
             handler: { _ in
                 describeSyncStatus()
             }

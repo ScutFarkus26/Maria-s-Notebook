@@ -48,6 +48,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeSupplies(arguments: arguments, in: context())
             }
@@ -146,6 +147,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["supply"]
             ],
+            annotations: .write,
             handler: { arguments in
                 try adjustSupply(arguments: arguments, in: context())
             }

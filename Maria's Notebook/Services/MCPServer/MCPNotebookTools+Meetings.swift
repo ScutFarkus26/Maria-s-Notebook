@@ -58,6 +58,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student"]
             ],
+            annotations: .write,
             handler: { arguments in
                 try recordMeeting(arguments: arguments, in: context())
             }
@@ -147,6 +148,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try listOpenFollowUps(arguments: arguments, in: context())
             }

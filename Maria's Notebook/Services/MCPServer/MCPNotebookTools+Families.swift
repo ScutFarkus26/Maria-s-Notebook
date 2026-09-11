@@ -37,6 +37,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let student = try nonEmpty(arguments["student_name"]?.stringValue)
@@ -94,6 +95,7 @@ extension MCPNotebookTools {
                 + "relationship, whether they receive reports, and notes. Pass guardian_id to "
                 + "edit; pass student_name and name to add. Only the fields provided are changed.",
             inputSchema: updateGuardianSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateGuardian(arguments: arguments, in: context())
             }

@@ -60,6 +60,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["name", "area", "sub_area"]
             ],
+            annotations: .write,
             handler: { arguments in
                 try createLesson(arguments: arguments, in: context())
             }
@@ -176,6 +177,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["lesson"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateLesson(arguments: arguments, in: context())
             }

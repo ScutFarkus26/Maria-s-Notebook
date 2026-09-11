@@ -24,6 +24,7 @@ extension MCPNotebookTools {
                 + "attendance for the class, skipping or clearing a year plan) so there is a "
                 + "point to restore to. Returns the archive's path and size.",
             inputSchema: ["type": "object", "properties": [:]],
+            annotations: .write,
             handler: { _ in
                 guard let container = dependencies() else {
                     throw MCPToolError("The app is still starting; backups are not available yet.")
@@ -89,6 +90,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .write,
             handler: { arguments in
                 guard let container = dependencies() else {
                     throw MCPToolError("The app is still starting; report drafting is not available yet.")
