@@ -270,9 +270,7 @@ extension UnifiedNoteEditor {
                   candidates.count == 1,
                   let student = candidates.first else { return }
 
-            let first = student.firstName.trimmed()
-            let lastInitial = student.lastName.trimmed().first.map { String($0).uppercased() } ?? ""
-            let replacement = lastInitial.isEmpty ? first : "\(first) \(lastInitial)"
+            let replacement = StudentFormatter.displayName(for: student)
 
             let loc = match.range.location + delta
             let len = match.range.length

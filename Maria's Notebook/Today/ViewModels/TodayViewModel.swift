@@ -111,11 +111,6 @@ final class TodayViewModel {
         cacheManager.workByID
     }
 
-    /// First names that appear more than once among cached students
-    var duplicateFirstNames: Set<String> {
-        cacheManager.duplicateFirstNames
-    }
-
     /// Returns the display name for a student ID
     func displayName(for studentID: UUID) -> String {
         cacheManager.displayName(for: studentID)

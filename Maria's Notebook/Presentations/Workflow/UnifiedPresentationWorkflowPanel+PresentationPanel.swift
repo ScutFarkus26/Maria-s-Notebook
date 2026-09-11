@@ -79,7 +79,7 @@ extension UnifiedPresentationWorkflowPanel {
             }
             scrollTargetStudentID = id
         } label: {
-            Text(student.firstName)
+            Text(StudentFormatter.displayName(for: student))
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundStyle(pillColor == Color.secondary ? Color.secondary : Color.white)

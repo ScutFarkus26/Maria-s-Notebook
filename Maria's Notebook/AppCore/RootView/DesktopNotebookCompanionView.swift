@@ -161,6 +161,9 @@ struct DesktopNotebookCompanionView: View {
     @ViewBuilder
     private var contextMenu: some View {
         Button("Open Companion", systemImage: "graduationcap.fill", action: openPanel)
+        Button("Capture…", systemImage: "waveform.badge.mic") {
+            performInMainApp { appRouter.triggerCommandBar = true }
+        }
         Button("Ask My Notebook", systemImage: "bubble.left.and.text.bubble.right") {
             performInMainApp { appRouter.navigateTo(.askAI) }
         }
