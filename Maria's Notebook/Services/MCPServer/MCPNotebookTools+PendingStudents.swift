@@ -260,7 +260,7 @@ extension MCPNotebookTools {
         guard let when = assignment.scheduledFor else {
             return "in the planning list, undated\(group) [presentation id=\(presentationID)]"
         }
-        return "scheduled \(dayString(when)) at \(timeString(when))\(group) [presentation id=\(presentationID)]"
+        return "scheduled \(dayString(when))\(whenText(when))\(group) [presentation id=\(presentationID)]"
     }
 
     private static func nameList(_ students: [CDStudent]) -> String {

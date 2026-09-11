@@ -60,9 +60,49 @@ extension DayPeriod {
     }
 }
 
+/// What a stored `scheduledFor` actually says about *when*.
+///
+/// The encoding above means a scheduled moment is one of two quite different
+/// things, and a reader that prints it as a wall clock reports the wrong one:
+/// every ordering slot comes back "09:00" or "14:00", which is a time nobody
+/// set and which hides the real distinction — morning versus afternoon.
+enum ScheduledMoment: Equatable, Sendable {
+    /// An ordering slot: the guide chose a half of the day, not a time.
+    case half(DayPeriod)
+    /// A time the guide actually set, from the time picker or a tool's `time:`.
+    case time(Date)
+}
+
 /// Pure placement rules for a day's presentations. No Core Data, so the whole
 /// AM/PM gesture is testable without a store.
 enum DayHalfPlanner {
+    /// Reads a stored moment back as the thing it was written to mean.
+    ///
+    /// An ordering slot is a base hour on the minute — the rank lives in the
+    /// seconds, so `9:00:07` is the eighth lesson of the morning and not seven
+    /// past nine. Midnight is the same answer for rows written before the halves
+    /// existed, matching `DayPeriod(scheduledFor:)`, which has always read them
+    /// as mornings. Everything else is a deliberate time.
+    ///
+    /// The accepted limit: an explicit 09:00 or 14:00 reads back as a half.
+    /// "In the morning" is still true of a nine o'clock lesson, which is why
+    /// this is the safe direction to be wrong in.
+    static func moment(
+        of date: Date,
+        using calendar: Calendar = AppCalendar.shared
+    ) -> ScheduledMoment {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        let hour = parts.hour ?? 0
+        let minute = parts.minute ?? 0
+        if minute == 0 {
+            if hour == 0 { return .half(.morning) }
+            for period in DayPeriod.allCases where period.baseHour == hour {
+                return .half(period)
+            }
+        }
+        return .time(date)
+    }
+
     /// One presentation's place in a day: which record, and which half.
     struct Placement: Equatable, Sendable {
         let id: UUID

@@ -170,8 +170,8 @@ extension MCPNotebookTools {
                 let title = nonEmpty(assignment.lessonTitleSnapshot)
                     ?? assignment.lesson?.name ?? "Lesson"
                 let who = studentNames(for: assignment.studentUUIDs, in: modelContext)
-                let time = assignment.scheduledFor.map { " at \(timeString($0))" } ?? ""
-                return "    - [presentation id=\(id)] \(title)\(time) — \(who)"
+                let when = whenText(assignment.scheduledFor)
+                return "    - [presentation id=\(id)] \(title)\(when) — \(who)"
             })
         }
 
@@ -248,6 +248,25 @@ extension MCPNotebookTools {
 
     static func timeString(_ date: Date?) -> String {
         date.map { isoTime.string(from: $0) } ?? "—"
+    }
+
+    /// How a presentation's `scheduledFor` should be spoken.
+    ///
+    /// A scheduled presentation usually has no time: the guide plans an order
+    /// within a half of the day, and that order is encoded as seconds past the
+    /// half's base hour. Printed as a clock, every such row reads "at 09:00" —
+    /// a time nobody set, and one that buries the only thing the date really
+    /// says. So say the half, and give a clock time only when one was set.
+    ///
+    /// Returns a suffix, empty for an unscheduled plan, so it appends to a
+    /// sentence that has just named the day.
+    static func whenText(_ date: Date?) -> String {
+        guard let date else { return "" }
+        switch DayHalfPlanner.moment(of: date) {
+        case .half(.morning): return " in the morning"
+        case .half(.afternoon): return " in the afternoon"
+        case .time(let moment): return " at \(timeString(moment))"
+        }
     }
 
     static let weekdayFormatter: DateFormatter = {
