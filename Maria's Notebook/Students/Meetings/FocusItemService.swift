@@ -48,6 +48,15 @@ enum FocusItemService {
         logger.debug("Focus item '\(item.text)' resolved in meeting \(meetingID)")
     }
 
+    /// Resolves a focus item outside a meeting — from the Watching list or
+    /// over MCP. No resolving meeting is recorded, only the time.
+    static func resolve(_ item: CDStudentFocusItem) {
+        item.status = .resolved
+        item.resolvedInMeetingIDUUID = nil
+        item.resolvedAt = Date()
+        logger.debug("Focus item '\(item.text)' resolved outside a meeting")
+    }
+
     /// Drops a focus item (no longer relevant), recording which meeting dropped it.
     static func drop(_ item: CDStudentFocusItem, inMeetingID meetingID: UUID) {
         item.status = .dropped

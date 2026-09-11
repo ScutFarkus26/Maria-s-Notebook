@@ -258,6 +258,7 @@ struct TodayView: View {
             dayCardsListSection
             agendaListSection
             todosListSection
+            watchingListSection
             calendarEventsListSection
             remindersListSection
             dayPadListSection
@@ -285,6 +286,7 @@ struct TodayView: View {
                 parentReportsListSection
                 dayCardsListSection
                 todosListSection
+            watchingListSection
                 calendarEventsListSection
                 remindersListSection
                 dayPadListSection

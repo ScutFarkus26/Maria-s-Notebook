@@ -197,6 +197,11 @@ struct StudentOverviewTab: View {
                 Divider()
                     .padding(.top, AppTheme.Spacing.small)
 
+                StudentWatchingSection(student: student)
+
+                Divider()
+                    .padding(.top, AppTheme.Spacing.small)
+
                 NextLessonsSection(snapshots: nextLessonsForStudent, lessonsByID: lessonsByID)
 
                 Divider()

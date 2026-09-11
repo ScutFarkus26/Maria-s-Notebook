@@ -141,11 +141,11 @@ ambiguity errors:
 | `student_attendance` | `CDAttendanceRecord` + `deduplicatedPerStudentDay()`, with a tally |
 | `mark_attendance` (write) | `CDAttendanceStore` — the permission + attribution + store-assignment chokepoint. One `student_name` + `status`, or a `students` array, or `mark_all_present` (everyone not named in `students` is marked present); every name resolves before any write, and `absence_reason` / `note` are refused alongside the batch forms because they are per-student |
 | **Todos & follow-ups** | |
-| `list_open_follow_ups` | open `CDTodoItem`s + active `CDStudentFocusItem`s + `needsFollowUp` notes, optionally filtered to one student |
+| `list_open_follow_ups` | open `CDTodoItem`s + active `CDStudentFocusItem`s + `needsFollowUp` notes, optionally filtered to one student; `watching_only` narrows it to the app's Watching list (`WatchListFetcher` + `WatchListBuilder`, grouped per child, departed children left out unless one is named) |
 | `list_todos` | `CDTodoItem` filtered by status, student, due window, someday, tag |
 | `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo`; takes priority, scheduled date and the someday flag at creation, so a follow-up no longer needs a second `update_todo`. An identical open todo from today (same trimmed title, same students) is reported and cited rather than added, unless `force` is true |
 | `update_todo` (write) | title, notes, dates, priority, someday, students (+ retagging via `TodoTagHelper`) |
-| `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
+| `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules), resolves a `CDStudentFocusItem` through `FocusItemService.resolve(_:)`, or clears a `CDNote`'s `needsFollowUp` flag through `NoteRepository.updateNote` — the three rows of the Watching list — by id |
 | **Meetings** | |
 | `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items; then `MeetingScheduler.completeBooking` deletes the student's booking for that day (or an earlier one still pending), as the Today agenda does when a started meeting is completed |
 | `student_meetings` | `CDStudentMeeting` history with its work reviews and linked notes — the read side of `create_meeting_entry`; `limit` 1–100 (default 5) and a `since` / `until` window |
