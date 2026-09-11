@@ -2,6 +2,10 @@
 // The mastery write: `mark_mastered` flips a child's existing presentation
 // record for a lesson to mastered, which is the only thing that advances a
 // sequence-track step. Recording a presentation never does.
+//
+// One lesson or a `marks` array of them: either way every child is resolved
+// and her row found before anything is written, so one unrecorded name
+// refuses the whole call rather than half-marking the rest.
 
 import CoreData
 import Foundation
@@ -19,37 +23,53 @@ extension MCPNotebookTools {
                 + "which is what advances her sequence-track step; record_presentation alone never "
                 + "does. Refuses, and writes nothing, if any named child has no presentation of the "
                 + "lesson on record: file it with record_presentation first. Only use this when the "
-                + "guide says they assessed mastery; never infer it.",
+                + "guide says they assessed mastery; never infer it. To confirm a whole list at once "
+                + "pass marks, an array of these same fields: every child is checked before anything "
+                + "is written and one save covers them all. mastery_candidates proposes that list, "
+                + "with its evidence, and hands back the call to make.",
             inputSchema: markMasteredSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
                 let modelContext = context()
-                let marking = try makeMarking(arguments: arguments, in: modelContext)
-                return apply(marking, in: modelContext)
+                let markings = try makeMarkings(arguments: arguments, in: modelContext)
+                return apply(markings, in: modelContext)
             }
         )
     }
 
-    private static let markMasteredSchema: JSONValue = [
-        "type": "object",
-        "properties": [
-            "lesson": [
-                "type": "string",
-                "description": "The lesson mastered: a lesson id from find_lessons, or its exact name"
-            ],
-            "student_names": [
-                "type": "array",
-                "items": ["type": "string"],
-                "minItems": 1,
-                "description": "The children assessed as having mastered it: first names, full names, or nicknames"
-            ],
-            "date": [
-                "type": "string",
-                "description": .string("The day the guide assessed mastery, YYYY-MM-DD "
-                    + "(default today). Use it when filing an assessment made on an earlier day.")
+    private static let markMasteredSchema: JSONValue = {
+        var properties = masteryProperties
+        properties["marks"] = [
+            "type": "array",
+            "description": .string("Several lessons in one call, each with the fields above "
+                + "(lesson, student_names, date)"),
+            "items": [
+                "type": "object",
+                "properties": JSONValue.object(masteryProperties).withoutDescriptions,
+                "required": ["lesson", "student_names"]
             ]
+        ]
+        return .object(["type": "object", "properties": .object(properties)])
+    }()
+
+    /// The fields one mark takes, shared by the single form and each item of
+    /// the `marks` batch.
+    private static let masteryProperties: [String: JSONValue] = [
+        "lesson": [
+            "type": "string",
+            "description": "The lesson mastered: a lesson id from find_lessons, or its exact name"
         ],
-        "required": ["lesson", "student_names"]
+        "student_names": [
+            "type": "array",
+            "items": ["type": "string"],
+            "minItems": 1,
+            "description": "The children assessed as having mastered it: first names, full names, or nicknames"
+        ],
+        "date": [
+            "type": "string",
+            "description": .string("The day the guide assessed mastery, YYYY-MM-DD "
+                + "(default today). Use it when filing an assessment made on an earlier day.")
+        ]
     ]
 
     // MARK: - Resolution
@@ -62,6 +82,35 @@ extension MCPNotebookTools {
         let lesson: CDLesson
         let assessedAt: Date
         let rows: [(student: CDStudent, row: CDLessonPresentation)]
+    }
+
+    /// The call's marks, one per lesson: the single form, or every item of
+    /// `marks`. All of them are resolved here, before `apply` writes anything,
+    /// so an unrecorded child in the last item leaves the first unmarked too.
+    private static func makeMarkings(
+        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws -> [MasteryMarking] {
+        guard let batch = arguments["marks"]?.arrayValue else {
+            return [try makeMarking(arguments: arguments, in: modelContext)]
+        }
+        guard arguments["lesson"] == nil, arguments["student_names"] == nil else {
+            throw MCPToolError(
+                "Pass either one lesson's fields or a marks array, not both. Put every lesson in marks."
+            )
+        }
+        guard !batch.isEmpty else {
+            throw MCPToolError("marks is empty — list at least one lesson.")
+        }
+        return try batch.enumerated().map { index, item in
+            guard let fields = item.objectValue else {
+                throw MCPToolError("marks[\(index)] must be an object.")
+            }
+            do {
+                return try makeMarking(arguments: fields, in: modelContext)
+            } catch let error as MCPToolError {
+                throw MCPToolError("marks[\(index)]: \(error.message)")
+            }
+        }
     }
 
     private static func makeMarking(
@@ -120,16 +169,35 @@ extension MCPNotebookTools {
 
     // MARK: - Writing
 
-    private static func apply(_ marking: MasteryMarking, in modelContext: NSManagedObjectContext) -> String {
-        let lesson = marking.lesson
-        let area = lesson.area.trimmed()
-        let sequence = lesson.sequence.trimmed()
+    /// Marks every resolved item, then saves once. The receipts read exactly
+    /// as a run of single calls would, joined in the order they were given.
+    private static func apply(
+        _ markings: [MasteryMarking], in modelContext: NSManagedObjectContext
+    ) -> String {
+        let applied = markings.map { ($0, mark($0, in: modelContext)) }
+        _ = modelContext.safeSave()
+        return applied.map { marking, outcome in
+            describeMarking(
+                lesson: marking.lesson, assessedAt: marking.assessedAt, marked: outcome.marked,
+                alreadyMastered: outcome.alreadyMastered, in: modelContext
+            )
+        }.joined(separator: "\n")
+    }
 
+    /// Who one mark changed, and who was already mastered before it.
+    private struct MarkOutcome {
         var marked: [CDStudent] = []
         var alreadyMastered: [(CDStudent, Date?)] = []
+    }
+
+    /// Flips one lesson's rows in place without saving — the batch saves once.
+    private static func mark(
+        _ marking: MasteryMarking, in modelContext: NSManagedObjectContext
+    ) -> MarkOutcome {
+        var outcome = MarkOutcome()
         for (student, row) in marking.rows {
             if row.state == .proficient {
-                alreadyMastered.append((student, row.masteredAt))
+                outcome.alreadyMastered.append((student, row.masteredAt))
                 continue
             }
             row.state = .proficient
@@ -137,23 +205,19 @@ extension MCPNotebookTools {
             if (row.lastObservedAt ?? .distantPast) < marking.assessedAt {
                 row.lastObservedAt = marking.assessedAt
             }
-            marked.append(student)
+            outcome.marked.append(student)
         }
 
-        if !area.isEmpty, !sequence.isEmpty {
-            for student in marked {
-                guard let studentID = student.id?.uuidString else { continue }
-                SequenceTrackService.checkAndCompleteTrackIfNeeded(
-                    lessonArea: area, lessonSequence: sequence, studentID: studentID, context: modelContext
-                )
-            }
+        let area = marking.lesson.area.trimmed()
+        let sequence = marking.lesson.sequence.trimmed()
+        guard !area.isEmpty, !sequence.isEmpty else { return outcome }
+        for student in outcome.marked {
+            guard let studentID = student.id?.uuidString else { continue }
+            SequenceTrackService.checkAndCompleteTrackIfNeeded(
+                lessonArea: area, lessonSequence: sequence, studentID: studentID, context: modelContext
+            )
         }
-        _ = modelContext.safeSave()
-
-        return describeMarking(
-            lesson: lesson, assessedAt: marking.assessedAt, marked: marked,
-            alreadyMastered: alreadyMastered, in: modelContext
-        )
+        return outcome
     }
 
     private static func describeMarking(

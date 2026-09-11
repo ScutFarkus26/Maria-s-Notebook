@@ -79,7 +79,7 @@ Claude Desktop ──stdio──▶ Scripts/mcp/marias-notebook-mcp (nc relay)
   into the tool call. `recent_mcp_writes` reads it back. Nothing in the
   journal leaves the Mac and nothing in it is needed by the app.
 - **Catalogue cost.** The whole catalogue is sent on every connection —
-  about 68 KB, roughly 17k tokens, for 81 tools — and schemas are two thirds
+  about 68 KB, roughly 17k tokens, for 82 tools — and schemas are two thirds
   of it. Batch tools therefore describe their fields once at the top level
   and strip descriptions from the array-item copy
   (`JSONValue.withoutDescriptions`); descriptions carry what the model needs
@@ -121,7 +121,8 @@ ambiguity errors:
 | `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent`; an optional `date` back-dates the note the way `create_meeting_entry` does. A `notes` array files several in one call — every name and date resolves before anything is written, one save covers them all. An identical note (same trimmed body, same student scope, same day) is reported and cited rather than filed again, unless `force` is true; the guard also catches a duplicate inside one batch |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, and the children the note is about, by note id. `student_names` replaces the note's scope rather than adding to it (`.all` on an empty list, as `UnifiedNoteEditor.determineScope` reads an empty selection) and re-syncs the link rows; the presentation relationship is left alone, matching the in-app editor, which attaches a note to its context only at creation |
 | `record_presentation` (write) | `LifecycleService.recordPresentation` + `PresentationOutcomePersistenceService.persistObservations` + `CaptureFollowUpPersistence.persist` + `safeSave`, mirroring the command bar's `saveCaptureProposal` — completes a planned presentation when one matches, and re-recording the same lesson/students/day edits that presentation instead of duplicating it. Each `student_observations` item may carry the guide's decision as `follow_up` (`practice`, `follow_up_work`, `re_present`, `ready_for_next_lesson`, `continue_observing`) plus `follow_up_detail`; a `presentations` array files a whole day — every item resolves first, then one save |
-| `mark_mastered` (write) | the Mastered pill's `updateProficiencyState` and the checklist's `upsertLessonPresentation` shape — the child's latest `CDLessonPresentation` for the lesson flipped to `mastered` in place with `masteredAt` set (today, or an explicit `date`), then `SequenceTrackService.checkAndCompleteTrackIfNeeded`; this is the only write that advances a track step. Refuses the whole call, writing nothing, if any named child has no presentation of the lesson on record — it never manufactures a row. An already-mastered row keeps its original date |
+| `mark_mastered` (write) | the Mastered pill's `updateProficiencyState` and the checklist's `upsertLessonPresentation` shape — the child's latest `CDLessonPresentation` for the lesson flipped to `mastered` in place with `masteredAt` set (today, or an explicit `date`), then `SequenceTrackService.checkAndCompleteTrackIfNeeded`; this is the only write that advances a track step. Refuses the whole call, writing nothing, if any named child has no presentation of the lesson on record — it never manufactures a row. An already-mastered row keeps its original date. A `marks` array confirms several lessons at once: every item's lesson and every child resolve before the first row is touched, so one unrecorded name refuses the batch (`marks[i]: …`), and one save covers them all; the single form and `marks` together are refused |
+| `mastery_candidates` | the read that feeds that batch, and the only thing standing between "presented" and "mastered" that does not require a second trip through the record. `PresentationRecordIndex` gives every enrolled child's given-but-unmarked lessons; a pair is a candidate only with evidence beside the presentation — confirmed ready at capture (3, cited with the day), a `.practiceLesson` `CDWorkModel` in a completed state (3 when its `completionOutcome` is proficient, else 2), a `CDLessonRecallCheck` with the retained outcome (1) — ranked by summed weight, ties to the lesson given longest ago. `student`, `area`, `group_by` (`student` / `lesson`), `limit` 1–200 (default 40) narrow it. It never writes: it closes with the exact `{"marks":[…]}` JSON for `mark_mastered`, to be sent only once the guide says they assessed those children |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | **Schedule** | |
 | `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` (resolved through `resolvedWork`, the relationship or the `workID` string) + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days. A check-in whose work is gone is labelled an orphan, never printed as an unassigned plan |
@@ -292,6 +293,17 @@ of `CommandBarViewModel` so both paths share one implementation. The
 before anything is written, each item is written without saving, and one
 save covers the batch — a bad name in the fourth item leaves nothing behind
 from the first three, and the error names the item (`presentations[3]: …`).
+
+`mastery_candidates` + `mark_mastered`'s `marks` array are the pair that
+closes the gap the sequence tracks show as "0 mastered": recording a
+presentation never marks mastery, and going back to assess is a separate
+trip. Nothing about that is fixed by inferring a mark — a mark means the
+guide assessed the child — so the read proposes and the write confirms.
+The read gathers what the notebook already holds beside the presentation
+(the guide's confirmation at capture, practice work that came back complete
+or proficient, a recall check that found the lesson retained), ranks the
+pairs by how much of it there is, cites each one, and hands back the exact
+call to make. The guide's yes then covers the whole list in a single write.
 
 The two curriculum-map tools are the Three-Year View over MCP. They read
 nothing the screens do not: `CurriculumMapLoader` reduces the notebook to
@@ -470,6 +482,16 @@ can be lost.
   `TrackProgressResolver`, the row is mutated rather than duplicated, the
   refusal for a child with no presentation on record writes nothing, and
   today-default versus back-dated assessment.
+- `Maria's Notebook Tests/Services/MCPServer/MCPMasteryBatchToolTests.swift`
+  — the `marks` batch: two lessons for two children in one call, an
+  unrecorded child in the second item leaving every row untouched, the
+  single form and `marks` together refused, and an empty array refused.
+- `Maria's Notebook Tests/Services/MCPServer/MCPMasteryCandidatesToolTests.swift`
+  — `mastery_candidates`: a confirmed unmarked child listed with her day, an
+  already-marked pair, a never-presented lesson and a withdrawn child all
+  kept out, completed practice work standing as evidence on its own,
+  `group_by: lesson` gathering the names, `area` and `limit`, and the
+  closing JSON parsing and feeding straight back into `mark_mastered`.
 - `Maria's Notebook Tests/Services/MCPServer/MCPCurriculumToolsTests.swift`
   — the curriculum tools: uncapped listing, create (append, after-anchor,
   idempotency, area refusal, track refresh), rename and move, partial
