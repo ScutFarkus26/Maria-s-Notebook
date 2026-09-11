@@ -7,7 +7,9 @@
 //  tracks. Community topics moved to their own file when they gained a writer.
 //
 //  Track progress goes through TrackProgressResolver, the same helper the
-//  progression screens use, so "mastered" means the same thing everywhere.
+//  progression screens use, so "mastered" means the same thing everywhere, and
+//  enrollments fold by track title the way StudentHistoryTab folds them — the
+//  store still holds twin track definitions from a migration that ran twice.
 //
 
 import CoreData
@@ -216,40 +218,103 @@ extension MCPNotebookTools {
             .safeFetch(CDFetchRequest(CDLessonPresentation.self))
             .filter { $0.studentID == key }
 
-        var lines: [String] = ["\(student.fullName)'s tracks:"]
-        for enrollment in enrollments {
-            guard let track = enrollment.track else { continue }
-            lines.append(trackLine(track, studentKey: key, presentations: presentations,
-                                   isActive: enrollment.isActive, in: modelContext))
-        }
-        guard lines.count > 1 else {
+        let standings: [TrackStanding] = foldedStandings(
+            for: enrollments, studentKey: key, presentations: presentations, in: modelContext
+        )
+        guard !standings.isEmpty else {
             return "\(student.fullName)'s track enrollments have no tracks attached."
         }
-        return lines.joined(separator: "\n")
+        let lines: [String] = standings.map { trackLine($0, in: modelContext) }
+        return (["\(student.fullName)'s tracks:"] + lines).joined(separator: "\n")
+    }
+
+    /// Where one enrollment leaves a child on one track.
+    ///
+    /// The store holds duplicate track definitions — a migration that ran twice
+    /// left twin rows under the same title, and some twins kept none of the
+    /// steps. A child enrolled on both twins used to get two lines for one
+    /// track, so the standings are folded by title the way the history tab
+    /// folds its enrollments (`StudentHistoryTab.finishedEnrollments`).
+    private struct TrackStanding {
+        let track: CDTrackEntity
+        let total: Int
+        let done: Int
+        let next: CDTrackStepEntity?
+        let isActive: Bool
+
+        /// The fuller record of a title wins: more steps mastered, then more
+        /// steps defined, then a live enrollment over a finished one.
+        func outranks(_ other: TrackStanding) -> Bool {
+            if done != other.done { return done > other.done }
+            if total != other.total { return total > other.total }
+            return isActive && !other.isActive
+        }
+    }
+
+    /// One standing per folded title, in the order the titles first appear.
+    /// Stepless shells are dropped outright: "0/0 steps mastered" is a duplicate
+    /// definition showing through, not a fact about the child.
+    private static func foldedStandings(
+        for enrollments: [CDStudentTrackEnrollmentEntity], studentKey: String,
+        presentations: [CDLessonPresentation], in modelContext: NSManagedObjectContext
+    ) -> [TrackStanding] {
+        var best: [String: TrackStanding] = [:]
+        var order: [String] = []
+        for enrollment in enrollments {
+            guard let track = resolveTrack(for: enrollment, in: modelContext) else { continue }
+            let total: Int = TrackProgressResolver.totalSteps(track: track)
+            guard total > 0 else { continue }
+            let standing = TrackStanding(
+                track: track,
+                total: total,
+                done: TrackProgressResolver.proficientCount(
+                    track: track, studentID: studentKey, lessonPresentations: presentations
+                ),
+                next: TrackProgressResolver.currentStep(
+                    track: track, studentID: studentKey, lessonPresentations: presentations
+                ),
+                isActive: enrollment.isActive
+            )
+            let folded: String = LessonRepository.foldedName(track.title)
+            guard let existing = best[folded] else {
+                best[folded] = standing
+                order.append(folded)
+                continue
+            }
+            if standing.outranks(existing) { best[folded] = standing }
+        }
+        return order.compactMap { best[$0] }
+    }
+
+    /// An enrollment carries both a `track` relationship and a `trackID` string,
+    /// and the relationship can arrive empty while the id is sound. Fall back to
+    /// the id before dropping the row, or a real enrolment goes missing.
+    private static func resolveTrack(
+        for enrollment: CDStudentTrackEnrollmentEntity, in modelContext: NSManagedObjectContext
+    ) -> CDTrackEntity? {
+        if let track = enrollment.track { return track }
+        guard let trackID = UUID(uuidString: enrollment.trackID.trimmed()) else { return nil }
+        let request = CDFetchRequest(CDTrackEntity.self)
+        request.predicate = NSPredicate(format: "id == %@", trackID as CVarArg)
+        request.fetchLimit = 1
+        return modelContext.safeFetch(request).first
     }
 
     private static func trackLine(
-        _ track: CDTrackEntity, studentKey: String, presentations: [CDLessonPresentation],
-        isActive: Bool, in modelContext: NSManagedObjectContext
+        _ standing: TrackStanding, in modelContext: NSManagedObjectContext
     ) -> String {
-        let id: String = track.id?.uuidString ?? "unknown"
-        let total: Int = TrackProgressResolver.totalSteps(track: track)
-        let done: Int = TrackProgressResolver.proficientCount(
-            track: track, studentID: studentKey, lessonPresentations: presentations
-        )
-        let next: CDTrackStepEntity? = TrackProgressResolver.currentStep(
-            track: track, studentID: studentKey, lessonPresentations: presentations
-        )
-        var details: [String] = ["\(done)/\(total) steps mastered"]
-        if let next, let lessonName = lessonName(forTemplateID: next.lessonTemplateID, in: modelContext) {
+        let id: String = standing.track.id?.uuidString ?? "unknown"
+        var details: [String] = ["\(standing.done)/\(standing.total) steps mastered"]
+        if let next = standing.next,
+           let lessonName = lessonName(forTemplateID: next.lessonTemplateID, in: modelContext) {
             details.append("next: \(lessonName)")
-        } else if next == nil && total > 0 {
+        } else if standing.next == nil {
             details.append("complete")
         }
-        if !isActive {
+        if !standing.isActive {
             details.append("no longer active")
         }
-        return "- [track id=\(id)] \(track.title) (\(details.joined(separator: "; ")))"
+        return "- [track id=\(id)] \(standing.track.title) (\(details.joined(separator: "; ")))"
     }
 
     /// A track step points at a lesson template by id; naming it makes the
