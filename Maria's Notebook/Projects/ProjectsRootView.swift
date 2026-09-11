@@ -22,7 +22,14 @@ struct ProjectsRootView: View {
     }())
     private var clubsRaw: FetchedResults<CDProject>
     private var clubs: [CDProject] { Array(clubsRaw).uniqueByID }
-    
+
+    /// Only to tell a member who is still in the class from one who has left:
+    /// the member id list keeps every child ever added.
+    @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
+    private var enrolledMemberIDs: Set<String> {
+        Set(Array(studentsRaw).uniqueByID.filterEnrolled().compactMap { $0.id?.uuidString })
+    }
+
     // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor
     // when needed, avoiding loading all records into memory upfront
 
@@ -63,6 +70,29 @@ struct ProjectsRootView: View {
             }
         }
         return result
+    }
+
+    /// The rows grouped the way the guide reads them: what is running now,
+    /// what has gone quiet, and what is finished.
+    private var clubSections: [(title: String, clubs: [CDProject])] {
+        var active: [CDProject] = []
+        var dormant: [CDProject] = []
+        var closed: [CDProject] = []
+        for club in filteredClubs {
+            switch ProjectActivity.status(of: club) {
+            case .active: active.append(club)
+            case .dormant: dormant.append(club)
+            case .closed: closed.append(club)
+            }
+        }
+        return [("Running", active), ("Dormant", dormant), ("Completed", closed)]
+            .filter { !$0.1.isEmpty }
+            .map { (title: $0.0, clubs: $0.1) }
+    }
+
+    private func enrolledMemberCount(of club: CDProject) -> Int {
+        let enrolled = enrolledMemberIDs
+        return club.memberStudentIDsArray.filter { enrolled.contains($0) }.count
     }
 
     // MARK: - Body
@@ -133,11 +163,33 @@ struct ProjectsRootView: View {
 
     private var projectsSidebar: some View {
         List(selection: selectedClubID) {
-            ForEach(filteredClubs, id: \.objectID) { club in
-                clubRow(for: club)
+            ForEach(clubSections, id: \.title) { section in
+                Section(section.title) {
+                    ForEach(section.clubs, id: \.objectID) { club in
+                        clubRow(for: club)
+                    }
+                }
             }
         }
         .listStyle(.sidebar)
+        .overlay {
+            // The school-year lens can empty this list on a notebook that does
+            // hold projects, so say where they went rather than leaving the
+            // guide looking at nothing. (Dormant projects are sectioned off
+            // below the running ones, never hidden.)
+            if filteredClubs.isEmpty && !clubs.isEmpty {
+                ContentUnavailableView(
+                    searchText.isEmpty ? "None This Year" : "No Match",
+                    systemImage: SFSymbol.People.person3Fill,
+                    description: Text(
+                        searchText.isEmpty
+                            ? "Every project falls outside the school year you are viewing. "
+                                + "Switch the year lens to All Years to see them."
+                            : "No project matches “\(searchText)”."
+                    )
+                )
+            }
+        }
         .searchable(text: $searchText)
         .navigationTitle("Projects")
         .toolbar {
@@ -159,7 +211,9 @@ struct ProjectsRootView: View {
         let row = ProjectSidebarRow(
             club: club,
             isSelected: club.id?.uuidString == selectedClubIDString,
-            lastSessionDate: lastSessionDate(for: club)
+            lastSessionDate: lastSessionDate(for: club),
+            status: ProjectActivity.status(of: club),
+            memberCount: enrolledMemberCount(of: club)
         )
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
@@ -264,73 +318,5 @@ struct ProjectsRootView: View {
         }
         
         saveCoordinator.save(modelContext, reason: "Delete Project")
-    }
-}
-
-// MARK: - Sidebar Row
-
-/// A row component for displaying a project in a list view.
-/// Shows the project's icon (colored circle with project icon), title, and member count.
-/// Design matches AreaListRow/StudentListRow for visual consistency across the app.
-struct ProjectSidebarRow: View {
-    let club: CDProject
-    let isSelected: Bool
-    let lastSessionDate: Date?
-
-    private var projectColor: Color {
-        // Use a consistent color for projects, or could be customized per project
-        AppColors.color(forArea: "Reading")
-    }
-
-    var body: some View {
-        HStack(spacing: AppTheme.Spacing.compact) {
-            // Icon circle with project icon (matching AreaListRow/StudentListRow avatar style)
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                projectColor.opacity(UIConstants.OpacityConstants.faint + 0.72),
-                                projectColor
-                            ]),
-                            center: .center,
-                            startRadius: 8,
-                            endRadius: 24
-                        )
-                    )
-                    .frame(width: 40, height: 40)
-
-                Image(systemName: SFSymbol.People.person3Fill)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-
-            // Title and member count
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                Text(club.title)
-                    .font(AppTheme.ScaledFont.bodySemibold)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                // Member count as secondary text
-                let memberCount = club.memberStudentIDsArray.count
-                HStack(spacing: AppTheme.Spacing.xsmall) {
-                    Circle().fill(club.isActive ? projectColor : AppColors.success).frame(width: 6, height: 6)
-                    Text("\(memberCount) \(memberCount == 1 ? "student" : "students")")
-                        .font(AppTheme.ScaledFont.captionSmallSemibold)
-                        .foregroundStyle(.secondary)
-                    if !club.isActive {
-                        Text("Completed")
-                            .font(AppTheme.ScaledFont.captionSmallSemibold)
-                            .foregroundStyle(AppColors.success)
-                    }
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, AppTheme.Spacing.verySmall)
-        .padding(.horizontal, AppTheme.Spacing.small)
-        .contentShape(Rectangle())
     }
 }

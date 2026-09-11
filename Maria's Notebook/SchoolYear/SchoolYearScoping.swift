@@ -25,15 +25,5 @@ extension Sequence where Element == CDStudent {
     }
 }
 
-nonisolated extension CDProject {
-    /// True if this project's activity window (creation through its last session or edit)
-    /// overlaps `range`. Projects with no creation date fail open.
-    func overlaps(_ range: DateRange) -> Bool {
-        guard let created = createdAt else { return true }
-        if created >= range.end { return false }
-        let lastSession = ((sessions?.allObjects as? [CDProjectSession]) ?? [])
-            .compactMap(\.meetingDate).max()
-        let lastActivity = max(lastSession ?? created, modifiedAt ?? created, created)
-        return lastActivity >= range.start
-    }
-}
+// `CDProject.overlaps(_:)` lives in Projects/Services/ProjectActivity.swift,
+// beside the `lastActivity` definition it and the Active/Dormant label share.

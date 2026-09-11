@@ -7,12 +7,13 @@ extension ProjectDetailView {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
                     HStack(spacing: AppTheme.Spacing.small) {
-                        Label(
-                            club.isActive ? "Active Project" : "Completed Project",
-                            systemImage: club.isActive ? "sparkle.magnifyingglass" : "checkmark.seal.fill"
-                        )
+                        // "Active" used to mean only that nobody had pressed
+                        // Mark Complete, so a project untouched since last year
+                        // still called itself active. Say what has happened.
+                        let standing = ProjectStandingBadge(status: ProjectActivity.status(of: club))
+                        Label(standing.text, systemImage: standing.symbol)
                             .font(AppTheme.ScaledFont.captionSemibold)
-                            .foregroundStyle(club.isActive ? AppColors.info : AppColors.success)
+                            .foregroundStyle(standing.color)
                     }
 
                     Text(club.title)
@@ -51,15 +52,31 @@ extension ProjectDetailView {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: AppTheme.Spacing.small) {
                         ForEach(club.memberStudentIDsArray, id: \.self) { sid in
-                            if let student = studentsByID[uuidString: sid] {
-                                ProjectChip(text: StudentFormatter.displayName(for: student), icon: "person.fill")
-                            } else {
-                                ProjectChip(text: "Unknown", icon: "person.fill.questionmark")
-                            }
+                            memberChip(for: sid)
                         }
                     }
                 }
             }
+        }
+    }
+
+    /// A member's chip.
+    ///
+    /// The member list keeps every child ever added, so a girl who has since
+    /// withdrawn or transferred is still on it. She used to read as "Unknown"
+    /// here — `studentsByID` holds only the enrolled — which hid the fact that
+    /// the project is carrying a child who has left. Name her, and say so.
+    @ViewBuilder
+    private func memberChip(for sid: String) -> some View {
+        if let student = studentsByID[uuidString: sid] {
+            ProjectChip(text: StudentFormatter.displayName(for: student), icon: "person.fill")
+        } else if let former = formerStudentsByID[uuidString: sid] {
+            ProjectChip(
+                text: "\(StudentFormatter.displayName(for: former)) (former)",
+                icon: "person.fill.badge.minus"
+            )
+        } else {
+            ProjectChip(text: "Unknown", icon: "person.fill.questionmark")
         }
     }
 
@@ -70,7 +87,7 @@ extension ProjectDetailView {
         ) {
             ProjectMetricTile(
                 title: "Students",
-                value: "\(club.memberStudentIDsArray.count)",
+                value: "\(enrolledMemberCount)",
                 systemImage: SFSymbol.People.person2,
                 color: AppColors.info
             )
@@ -92,6 +109,35 @@ extension ProjectDetailView {
                 systemImage: "questionmark.bubble",
                 color: AppColors.attention
             )
+        }
+    }
+}
+
+/// How a project's standing reads in a header: running, gone quiet, or finished.
+///
+/// Replaces the old "Active / Completed" pair, which could only report the
+/// `isActive` flag — set true at creation and never revisited, so a project
+/// nobody had touched since last year still announced itself as active.
+struct ProjectStandingBadge {
+    let text: String
+    let symbol: String
+    let color: Color
+
+    init(status: ProjectActivity.Status) {
+        switch status {
+        case .active:
+            text = "Active Project"
+            symbol = "sparkle.magnifyingglass"
+            color = AppColors.info
+        case .closed:
+            text = "Completed Project"
+            symbol = "checkmark.seal.fill"
+            color = AppColors.success
+        case .dormant(let since):
+            let when = since.map { " since \(DateFormatters.mediumDate.string(from: $0))" } ?? ""
+            text = "Dormant\(when)"
+            symbol = "moon.zzz.fill"
+            color = AppColors.warning
         }
     }
 }

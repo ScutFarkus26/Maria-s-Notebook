@@ -6,7 +6,13 @@ struct SuppliesListView: View {
     @Environment(\.managedObjectContext) var viewContext
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDSupply.name, ascending: true)
-    ]) var supplies: FetchedResults<CDSupply>
+    ]) var suppliesRaw: FetchedResults<CDSupply>
+
+    /// One row per logical supply. Supplies are assigned to both store
+    /// configurations, and a shelf cloned from shared to private kept its id,
+    /// so the same supply can come back two or three times until the launch-time
+    /// cleanup folds the copies away.
+    var supplies: [CDSupply] { Array(suppliesRaw).uniqueByID }
 
     @State var searchText = ""
     @State private var selectedCategory: SupplyCategory?
@@ -15,7 +21,7 @@ struct SuppliesListView: View {
     @State var quickAdjustSupply: CDSupply?
 
     var filteredSupplies: [CDSupply] {
-        var result = Array(supplies)
+        var result = supplies
 
         if let category = selectedCategory {
             result = result.filter { $0.category == category }

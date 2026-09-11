@@ -77,7 +77,7 @@ struct MCPScheduleToolsTests {
         #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-16")))
     }
 
-    @Test("schedule_presentation defaults to the morning slot and honours an HH:MM time")
+    @Test("schedule_presentation defaults to the morning half and honours an HH:MM time")
     func schedulePresentationTakesATime() async throws {
         let (tools, context) = try makeTools()
         CoreDataTestHelpers.seedLesson(in: context, name: "Checkerboard", area: "Math", sequence: "Multiplication")
@@ -90,7 +90,9 @@ struct MCPScheduleToolsTests {
             "student_names": .array([.string("Noa")]),
             "date": .string("2026-09-16")
         ])
-        #expect(morning.contains("on 2026-09-16 at 09:00."))
+        // A plan with no time is an order within a half, so the receipt names
+        // the half rather than the 9 o'clock the ordering base happens to use.
+        #expect(morning.contains("on 2026-09-16 in the morning."))
         let planned = try #require(assignments(in: context).first)
         #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "09:00")
 
@@ -165,11 +167,11 @@ struct MCPScheduleToolsTests {
         #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-18")))
         #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "09:45")
 
-        // A bare date drops back to the default morning slot.
+        // A bare date drops back into the morning half of the new day.
         let dated = try await reschedule.handler([
             "presentation_id": .string(id), "date": .string("2026-09-21")
         ])
-        #expect(dated.contains("now scheduled for 2026-09-21 at 09:00."))
+        #expect(dated.contains("now scheduled for 2026-09-21 in the morning."))
 
         // Off the calendar, a time has no day to go with.
         _ = try await reschedule.handler(["presentation_id": .string(id), "unschedule": .bool(true)])
@@ -226,6 +228,41 @@ struct MCPScheduleToolsTests {
     }
 
     // MARK: - schedule_for_range
+
+    @Test("schedule_for_range says which half of the day, and never invents 09:00")
+    func scheduleForRangeReportsTheHalf() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Bank Game", area: "Math", sequence: "Operations")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Rivka", lastName: "Stern")
+        CoreDataTestHelpers.save(context)
+        let schedule = try tool(named: "schedule_presentation", in: tools)
+        let range = try tool(named: "schedule_for_range", in: tools)
+
+        // 79ff3714 made an unscheduled-time plan an *ordering* slot: hour 9,
+        // minute 0, and the rank in the seconds. Read as a clock, every row in
+        // the live notebook came back "at 09:00" — a time nobody had set.
+        let receipt = try await schedule.handler([
+            "lesson": .string("Bank Game"),
+            "student_names": .array([.string("Rivka")]),
+            "date": .string("2026-09-15")
+        ])
+        #expect(receipt.contains("in the morning"))
+        #expect(!receipt.contains("09:00"))
+
+        let listing = try await range.handler(["start_date": .string("2026-09-15")])
+        #expect(listing.contains("Bank Game in the morning"))
+        #expect(!listing.contains("09:00"))
+
+        // A time the guide actually set still reads as that time.
+        _ = try await schedule.handler([
+            "lesson": .string("Bank Game"),
+            "student_names": .array([.string("Rivka")]),
+            "date": .string("2026-09-15"),
+            "time": .string("10:30")
+        ])
+        let timed = try await range.handler(["start_date": .string("2026-09-15")])
+        #expect(timed.contains("Bank Game at 10:30"))
+    }
 
     @Test("schedule_for_range reports an empty span rather than inventing days")
     func scheduleForRangeReportsEmptySpan() async throws {

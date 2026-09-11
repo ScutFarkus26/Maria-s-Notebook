@@ -161,6 +161,34 @@ struct DayHalfTests {
         #expect(sorted.allSatisfy { DayPeriod(scheduledFor: $0.1) == $0.0 })
     }
 
+    // MARK: - Ordering slot or a time somebody set
+
+    @Test("A base hour on the minute is an ordering slot, whatever its seconds")
+    func baseHoursReadAsHalves() {
+        // Rank 0 of the morning: the encoding's own starting point.
+        #expect(DayHalfPlanner.moment(of: time(9, 0, 0, on: monday)) == .half(.morning))
+        // Rank 7 — the eighth lesson of the morning, not seven past nine.
+        #expect(DayHalfPlanner.moment(of: time(9, 0, 7, on: monday)) == .half(.morning))
+        #expect(DayHalfPlanner.moment(of: time(14, 0, 3, on: monday)) == .half(.afternoon))
+    }
+
+    @Test("Rows written before the halves existed sit at midnight and mean morning")
+    func midnightIsLegacyMorning() {
+        #expect(DayHalfPlanner.moment(of: monday) == .half(.morning))
+        // The same answer `DayPeriod(scheduledFor:)` has always given them.
+        #expect(DayPeriod(scheduledFor: monday) == .morning)
+    }
+
+    @Test("A time the guide set is reported as that time")
+    func deliberateTimeSurvives() {
+        let tenThirty = time(10, 30, 0, on: monday)
+        #expect(DayHalfPlanner.moment(of: tenThirty) == .time(tenThirty))
+        // Off the minute in a base hour is a set time too — the scheduler
+        // writes second: 0, so only ordering puts seconds on a base hour.
+        let quarterPastTwo = time(14, 15, 0, on: monday)
+        #expect(DayHalfPlanner.moment(of: quarterPastTwo) == .time(quarterPastTwo))
+    }
+
     // MARK: - Changing halves
 
     @Test("Sending a presentation to the afternoon puts it last in the afternoon")

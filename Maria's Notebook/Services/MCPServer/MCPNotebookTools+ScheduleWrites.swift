@@ -48,7 +48,9 @@ extension MCPNotebookTools {
                     "time": [
                         "type": "string",
                         "description": .string("Optional time of day, HH:MM (24-hour, in the school's local "
-                            + "time zone), e.g. \"10:30\". Omit for the app's default morning slot.")
+                            + "time zone), e.g. \"10:30\". Omit and the lesson takes its place in the "
+                            + "morning half of that day, which is how presentations are normally planned "
+                            + "— an order within a half, not a timetable.")
                     ],
                     "purpose": repeatPurposeProperty
                 ],
@@ -151,8 +153,8 @@ extension MCPNotebookTools {
 
     // MARK: - Time of Day
 
-    /// Puts the plan on a day, at the given time or — with none — at the
-    /// start of the teaching morning, which is what the in-app planner does.
+    /// Puts the plan on a day, at the given time or — with none — into that
+    /// day's morning half, which is what the in-app planner does.
     /// `schedule(for:)` is the same write the calendar's drag makes, so a time
     /// given here orders the day exactly as a drag would.
     private static func schedule(_ assignment: CDLessonAssignment, onDay day: Date, at time: TimeOfDay?) {
@@ -167,10 +169,11 @@ extension MCPNotebookTools {
         assignment.schedule(for: moment, using: calendar)
     }
 
-    /// " at 10:30" — the receipt names the time the plan carries, so a caller
-    /// who passed one can see it took, and one who did not can see the default.
+    /// " at 10:30", or " in the morning" — the receipt names when the plan
+    /// landed, so a caller who passed a time can see it took, and one who did
+    /// not can see which half of the day the lesson went into.
     private static func timeSuffix(_ assignment: CDLessonAssignment) -> String {
-        assignment.scheduledFor.map { " at \(timeString($0))" } ?? ""
+        whenText(assignment.scheduledFor)
     }
 
     struct TimeOfDay: Equatable {
@@ -216,8 +219,8 @@ extension MCPNotebookTools {
             title: "Reschedule Presentation",
             description: "Move a planned presentation to another day or time, or take it off the "
                 + "calendar entirely (it returns to the planning list rather than being deleted). "
-                + "Pass date alone to move it to that day's default morning slot, date and time to "
-                + "place it, or time alone to change the time on the day it already has. Presentations "
+                + "Pass date alone to move it into that day's morning half, date and time to "
+                + "place it at a time, or time alone to set a time on the day it already has. Presentations "
                 + "already given cannot be rescheduled — correct those with record_presentation.",
             inputSchema: [
                 "type": "object",
@@ -234,7 +237,8 @@ extension MCPNotebookTools {
                     "time": [
                         "type": "string",
                         "description": .string("Optional time of day, HH:MM (24-hour, in the school's local "
-                            + "time zone). Without it a moved presentation takes the default morning slot.")
+                            + "time zone). Without it a moved presentation lands in the morning half of "
+                            + "its new day rather than at any particular time.")
                     ],
                     "unschedule": [
                         "type": "boolean",

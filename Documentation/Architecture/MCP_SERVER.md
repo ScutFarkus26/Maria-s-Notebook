@@ -125,8 +125,8 @@ ambiguity errors:
 | `mastery_candidates` | the read that feeds that batch, and the only thing standing between "presented" and "mastered" that does not require a second trip through the record. `PresentationRecordIndex` gives every enrolled child's given-but-unmarked lessons; a pair is a candidate only with evidence beside the presentation — confirmed ready at capture (3, cited with the day), a `.practiceLesson` `CDWorkModel` in a completed state (3 when its `completionOutcome` is proficient, else 2), a `CDLessonRecallCheck` with the retained outcome (1) — ranked by summed weight, ties to the lesson given longest ago. `student`, `area`, `group_by` (`student` / `lesson`), `limit` 1–200 (default 40) narrow it. It never writes: it closes with the exact `{"marks":[…]}` JSON for `mark_mastered`, to be sent only once the guide says they assessed those children |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | **Schedule** | |
-| `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` (resolved through `resolvedWork`, the relationship or the `workID` string) + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days. A check-in whose work is gone is labelled an orphan, never printed as an unassigned plan |
-| `schedule_presentation` (write) | `PresentationFactory.makeDraft` + `schedule(onDay:)` — or `schedule(for:)` when an `HH:MM` `time` is given, the same write the calendar's drag makes — reusing an existing unpresented plan for the same lesson and exact student set rather than duplicating it. Without `time` the plan lands at `UIConstants.morningHour`, the in-app default. Refuses days `SchoolCalendarService` says school is out, in `schedule_meeting`'s words. Refuses, too, when `PresentationRecordIndex` says a named child already has the lesson on record (any day before the one asked for, or an undated mark) — naming each child and her days — unless `purpose` says which repeat this is: `second_pass` also sets `needsAnotherPresentation` on her most recent presented assignment, and either purpose opens the plan's `notes` with `Second pass — planned YYYY-MM-DD` / `Review — planned YYYY-MM-DD` |
+| `schedule_for_range` | `TodayDataFetcher.fetchLessons` / `fetchCalendarEvents` + `CDWorkCheckIn` (resolved through `resolvedWork`, the relationship or the `workID` string) + `CDCalendarNote` + `SchoolCalendarService.isNonSchoolDaySync`; capped at 60 days. A check-in whose work is gone is labelled an orphan, never printed as an unassigned plan. A presentation's `scheduledFor` is read through `DayHalfPlanner.moment` and printed as "in the morning" / "in the afternoon" unless a time was actually set — a base hour on the minute is an ordering slot (the rank lives in the seconds) and midnight is a pre-79ff3714 row, so printing either as a clock invented a 09:00 nobody had chosen |
+| `schedule_presentation` (write) | `PresentationFactory.makeDraft` + `schedule(onDay:)` — or `schedule(for:)` when an `HH:MM` `time` is given, the same write the calendar's drag makes — reusing an existing unpresented plan for the same lesson and exact student set rather than duplicating it. Without `time` the plan takes its place in the day's morning half (`UIConstants.morningHour` as the ordering base), and the receipt says "in the morning" rather than naming a time nobody set. Refuses days `SchoolCalendarService` says school is out, in `schedule_meeting`'s words. Refuses, too, when `PresentationRecordIndex` says a named child already has the lesson on record (any day before the one asked for, or an undated mark) — naming each child and her days — unless `purpose` says which repeat this is: `second_pass` also sets `needsAnotherPresentation` on her most recent presented assignment, and either purpose opens the plan's `notes` with `Second pass — planned YYYY-MM-DD` / `Review — planned YYYY-MM-DD` |
 | `reschedule_presentation` (write) | the assignment's own `schedule(onDay:)` / `schedule(for:)` / `unschedule()`; takes the same optional `time`, and `time` alone re-times the day the plan already has; refuses presentations already given |
 | `discard_presentation` (write) | the planning list's context-menu delete — `context.delete` + save, notes cascading — confirm-gated like `remove_student_from_work`: no `confirm` = report only (lesson, day, roster, note count), `confirm: true` = deleted in that call, whether or not a report was asked for first; a year-plan entry promoted into the plan goes back to `planned`; refuses presentations already given |
 | `update_presentation_roster` (write) | the detail view's Save shape — `studentIDs` rewritten in place, `modifiedAt` stamped, confirmed ids pruned; refuses an empty group and presentations already given |
@@ -162,9 +162,9 @@ ambiguity errors:
 | **Classroom operations** | |
 | `list_going_outs` / `update_going_out` (write) | `CDGoingOut` — status, permissions, date, party |
 | `classroom_jobs` / `assign_job` (write) | `CDClassroomJob` + `CDJobAssignment`, keyed to the week's Monday; honours `maxStudents` (0 = uncapped) |
-| `list_supplies` / `adjust_supply` (write) | `CDSupply`; every change also writes a `CDSupplyTransaction` and stock cannot go negative |
+| `list_supplies` / `adjust_supply` (write) | `CDSupply`, folded by id (classroom entities live in both store configurations and the shared→private clone kept their ids, so one shelf could come back two or three times until `DataCleanupService.shelfDuplicates` folds them at launch); every change also writes a `CDSupplyTransaction` and stock cannot go negative |
 | **Projects** | |
-| `list_projects` / `project_detail` | `CDProject` + `CDProjectSession` with agendas and session notes |
+| `list_projects` / `project_detail` | `CDProject` + `CDProjectSession` with agendas and session notes. "Active" is `ProjectActivity.status`, not the `isActive` flag alone: a project with no session or edit since the school year began (`SchoolYear.containing`, the configurable start month/day) is `dormant since <date>` and is left out unless `include_inactive`. Members are the still-enrolled children; `include_inactive` adds a departed one as "Name (former)", and a project whose whole group has left reads "no current members". `project_detail` always names the former members. `student_name` still filters on the raw member id list, so asking after a child who has left finds her project |
 | `update_project` (write) | title, book, members, active flag |
 | `add_project_session` (write) | `CDProjectSession` with meeting date, reading, and agenda |
 | **Issues & community** | |
@@ -173,7 +173,7 @@ ambiguity errors:
 | `community_topics` | `CDCommunityTopicEntity` + proposed solutions |
 | `update_community_topic` (write) | raises or updates a `CDCommunityTopicEntity`, following `TopicDetailViewModel.applyFields`: `addressedDate` is the discussed state (clearing it reopens the topic), and `proposed_solutions` appends `CDProposedSolutionEntity` rows rather than replacing them |
 | **Library & shelves** | |
-| `list_resources` | `CDResource` — printables, charts and forms; metadata only, the files stay on disk |
+| `list_resources` | `CDResource` — printables, charts and forms; metadata only, the files stay on disk. Folded by id for the same reason as `list_supplies` |
 | `book_club` | `CDBookClubSession` + its `orderedMeetings`, with packet titles resolved |
 | `list_reminders` | `CDReminder`, including any synced from Apple Reminders |
 | `day_pad` (read + write) | `CDDayPad` for one day; writing replaces the day's text |
@@ -390,8 +390,10 @@ id; a lesson by id or by exact then unique-partial name — and a miss or an
 ambiguity comes back as a tool error naming the candidates.
 
 ```jsonc
-// Put a lesson on the calendar at a time. Without "time" it lands at the
-// app's default morning slot (9:00); the receipt names the time either way.
+// Put a lesson on the calendar at a time. Without "time" it takes its place
+// in that day's morning half — which is how presentations are normally
+// planned, an order within a half rather than a timetable — and the receipt
+// then says "in the morning" instead of inventing a clock time.
 {"name": "schedule_presentation", "arguments": {
   "lesson": "The Distributive Law of Multiplication",
   "student_names": ["Ora", "Etty Klein"],
