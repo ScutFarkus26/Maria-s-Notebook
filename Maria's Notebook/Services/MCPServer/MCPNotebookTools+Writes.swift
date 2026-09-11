@@ -20,80 +20,47 @@ extension MCPNotebookTools {
             name: "create_observation",
             title: "Record Observation",
             description: "Record a new observation note about one or more students. "
-                + "Writes to the teacher's notebook exactly as an in-app quick note would.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "student_names": [
-                        "type": "array",
-                        "items": ["type": "string"],
-                        "minItems": 1,
-                        "description": "First names, full names, or nicknames of the students observed"
-                    ],
-                    "body": [
-                        "type": "string",
-                        "description": "The observation text, as the teacher phrased it"
-                    ],
-                    "date": [
-                        "type": "string",
-                        "description": "The day observed, YYYY-MM-DD (default today)"
-                    ],
-                    "tags": [
-                        "type": "array",
-                        "items": ["type": "string"],
-                        "description": "Optional tags to file the note under"
-                    ],
-                    "needs_follow_up": [
-                        "type": "boolean",
-                        "description": "Flag the note for the follow-up inbox (default false)"
-                    ]
-                ],
-                "required": ["student_names", "body"]
-            ],
+                + "Writes to the teacher's notebook exactly as an in-app quick note would. "
+                + "Pass a notes array to file several observations in one call, each with the "
+                + "same fields. An observation identical to one already filed that day is "
+                + "reported rather than duplicated, unless force is true.",
+            inputSchema: createObservationSchema,
             handler: { arguments in
                 try recordObservation(arguments: arguments, in: context())
             }
         )
     }
 
+    /// Both forms of the tool. `notes` resolves every item before writing any
+    /// of them (MCPNotebookTools+ObservationBatch); without it the arguments
+    /// are one observation, as they always were.
     private static func recordObservation(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
-        let body = try requireString(arguments, "body")
-        let names = stringArrayArgument(arguments, "student_names")
-        guard !names.isEmpty else {
-            throw MCPToolError("At least one student name is required.")
+        let force = arguments["force"]?.boolValue ?? false
+        if let entries = arguments["notes"]?.arrayValue {
+            let drafts = try observationDrafts(fromBatch: entries, in: modelContext)
+            return try recordObservationBatch(drafts, force: force, in: modelContext)
         }
 
-        let students = try names.map { try resolveStudent(named: $0, in: modelContext) }
-        let studentIDs = students.compactMap(\.id)
-        guard studentIDs.count == students.count else {
-            throw MCPToolError("A matched student record has no identifier.")
+        let draft = try observationDraft(from: arguments, in: modelContext)
+        if !force, let existing = existingObservation(
+            body: draft.body, scope: draft.scope, on: draft.date, in: modelContext
+        ) {
+            return duplicateNotice(
+                subject: "observation",
+                citation: "[note id=\(citationID(existing.id))]",
+                on: draft.date
+            )
         }
 
-        let date = try dayArgument(arguments, "date") ?? Date()
-
-        let note = CDNote(context: modelContext)
-        note.createdAt = date
-        note.body = body
-        note.scope = studentIDs.count == 1
-            ? .student(studentIDs[0])
-            : .students(studentIDs.sorted { $0.uuidString < $1.uuidString })
-        let tags = stringArrayArgument(arguments, "tags")
-        if !tags.isEmpty {
-            note.tagsArray = tags
-        }
-        note.needsFollowUp = arguments["needs_follow_up"]?.boolValue ?? false
-        note.syncStudentLinks(in: modelContext)
-
+        let note = insertObservation(draft, in: modelContext)
         guard modelContext.safeSave() else {
             modelContext.rollback()
             throw MCPToolError("The observation could not be saved.")
         }
-
-        let who = students.map(\.fullName).joined(separator: ", ")
-        let id = note.id?.uuidString ?? "unknown"
-        return "Recorded observation [note id=\(id)] about \(who) on \(dayString(date))."
+        return "Recorded observation [note id=\(citationID(note.id))] about \(draft.names) "
+            + "on \(dayString(draft.date))."
     }
 
     // MARK: - Update Student

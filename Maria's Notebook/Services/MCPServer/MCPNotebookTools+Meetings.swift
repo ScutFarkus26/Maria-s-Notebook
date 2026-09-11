@@ -2,11 +2,13 @@
 //  MCPNotebookTools+Meetings.swift
 //  Maria's Notebook
 //
-//  Meeting and follow-up tools. Meeting entries follow the same save path
+//  Meeting entries, and the "what is open right now" listing that reads
+//  across todos, goals and flagged notes. Entries follow the same save path
 //  as the in-app meeting form (MeetingFormPane.saveAndContinue): build the
 //  CDStudentMeeting, create focus items through FocusItemService, snapshot
-//  the focus text, and save through safeSave. Follow-up todos mirror
-//  NewTodoForm.createTodo, including student tag syncing.
+//  the focus text, and save through safeSave.
+//
+//  Adding and resolving a follow-up live in +FollowUps.swift.
 //
 
 import CoreData
@@ -125,179 +127,6 @@ extension MCPNotebookTools {
         let bookingSuffix = bookedFor.map { ", completing the booking made for \(dayString($0))" } ?? ""
         return "Recorded meeting [meeting id=\(meetingID.uuidString)] for \(student.fullName) "
             + "on \(dayString(date))\(goalSuffix)\(bookingSuffix)."
-    }
-
-    // MARK: - Add Follow-Up
-
-    static func addFollowUpTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "add_follow_up",
-            title: "Add Follow-Up",
-            description: "Add a follow-up to the guide's todo list — something owed to a "
-                + "student, a parent, an assistant, or the guide themself. Optionally tied to "
-                + "students, dated, prioritised, or filed under someday. For a goal a student "
-                + "owns, use the goals field of create_meeting_entry instead.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "title": [
-                        "type": "string",
-                        "description": "What is owed, phrased as an action"
-                    ],
-                    "notes": [
-                        "type": "string",
-                        "description": "Optional detail behind the follow-up"
-                    ],
-                    "student_names": [
-                        "type": "array",
-                        "items": ["type": "string"],
-                        "description": "Students this follow-up concerns, if any"
-                    ],
-                    "due_date": [
-                        "type": "string",
-                        "description": "Due date as YYYY-MM-DD, if there is a deadline"
-                    ],
-                    "scheduled_date": [
-                        "type": "string",
-                        "description": "The day the guide means to do it, YYYY-MM-DD"
-                    ],
-                    "priority": todoPrioritySchema,
-                    "is_someday": [
-                        "type": "boolean",
-                        "description": .string("File it under someday/maybe rather than the "
-                            + "active list (default false)")
-                    ]
-                ],
-                "required": ["title"]
-            ],
-            handler: { arguments in
-                try addFollowUp(arguments: arguments, in: context())
-            }
-        )
-    }
-
-    static func addFollowUp(
-        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) throws -> String {
-        let title = try requireString(arguments, "title")
-        let names = stringArrayArgument(arguments, "student_names")
-        let students = try names.map { try resolveStudent(named: $0, in: modelContext) }
-        let studentIDs = students.compactMap(\.id)
-        guard studentIDs.count == students.count else {
-            throw MCPToolError("A matched student record has no identifier.")
-        }
-        let dueDate = try dayArgument(arguments, "due_date")
-        let scheduledDate = try dayArgument(arguments, "scheduled_date")
-        let priority = try todoPriorityArgument(arguments)
-        let isSomeday = arguments["is_someday"]?.boolValue ?? false
-
-        let todo = CDTodoItem(context: modelContext)
-        todo.title = title
-        todo.notes = arguments["notes"]?.stringValue?.trimmed() ?? ""
-        todo.studentIDsArray = studentIDs.map(\.uuidString)
-        todo.dueDate = dueDate
-        todo.scheduledDate = scheduledDate
-        if let priority {
-            todo.priority = priority
-        }
-        todo.isSomeday = isSomeday
-        todo.tagsArray = TodoTagHelper.syncStudentTags(
-            existingTags: [], studentNames: students.map(\.fullName)
-        )
-
-        guard modelContext.safeSave() else {
-            modelContext.rollback()
-            throw MCPToolError("The follow-up could not be saved.")
-        }
-
-        var details: [String] = []
-        if let dueDate {
-            details.append("due \(dayString(dueDate))")
-        }
-        if let scheduledDate {
-            details.append("scheduled \(dayString(scheduledDate))")
-        }
-        if isSomeday {
-            details.append("someday")
-        }
-        if let priority, priority != .none {
-            details.append("\(priority.rawValue.lowercased()) priority")
-        }
-        if !students.isEmpty {
-            details.append(students.map(\.fullName).joined(separator: ", "))
-        }
-        let suffix = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
-        let id = todo.id?.uuidString ?? "unknown"
-        return "Added follow-up [todo id=\(id)] \"\(title)\"\(suffix)."
-    }
-
-    // MARK: - Resolve Follow-Up
-
-    static func resolveFollowUpTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
-        MCPToolDefinition(
-            name: "resolve_follow_up",
-            title: "Resolve Follow-Up",
-            description: "Mark a follow-up done: completes a todo, or resolves a student's "
-                + "open goal (focus item), by the id shown in list_open_follow_ups.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "id": [
-                        "type": "string",
-                        "description": "The todo or focus item UUID from list_open_follow_ups"
-                    ]
-                ],
-                "required": ["id"]
-            ],
-            handler: { arguments in
-                try resolveFollowUp(arguments: arguments, in: context())
-            }
-        )
-    }
-
-    static func resolveFollowUp(
-        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) throws -> String {
-        let idString = try requireString(arguments, "id")
-        guard let id = UUID(uuidString: idString) else {
-            throw MCPToolError("id must be a UUID from list_open_follow_ups.")
-        }
-
-        if let todo = modelContext.object(CDTodoItem.self, id: id) {
-            guard !todo.isCompleted else {
-                return "Follow-up [todo id=\(idString)] \"\(todo.title)\" is already completed."
-            }
-            guard todo.recurrence == .none else {
-                throw MCPToolError(
-                    "\"\(todo.title)\" is a repeating todo; complete it in the app so the next "
-                        + "occurrence is scheduled."
-                )
-            }
-            todo.isCompleted = true
-            todo.completedAt = Date()
-            guard modelContext.safeSave() else {
-                modelContext.rollback()
-                throw MCPToolError("The follow-up could not be saved.")
-            }
-            return "Completed follow-up [todo id=\(idString)] \"\(todo.title)\"."
-        }
-
-        if let item = modelContext.object(CDStudentFocusItem.self, id: id) {
-            guard item.isActive else {
-                return "Goal [focusItem id=\(idString)] \"\(item.text)\" is already "
-                    + "\(item.status.rawValue)."
-            }
-            // Resolved outside a meeting, so no resolving meeting is recorded.
-            item.status = .resolved
-            item.resolvedAt = Date()
-            guard modelContext.safeSave() else {
-                modelContext.rollback()
-                throw MCPToolError("The goal could not be saved.")
-            }
-            return "Resolved goal [focusItem id=\(idString)] \"\(item.text)\"."
-        }
-
-        throw MCPToolError("No follow-up or goal with id \(idString) was found.")
     }
 
     // MARK: - List Open Follow-Ups
