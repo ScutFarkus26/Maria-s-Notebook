@@ -78,6 +78,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .general:
             return [
                 "School Calendar", "Non-School Days", "Clear Month", "Keep Weekends Only",
+                "School Year Rollover", "Carried-Over Year Plans",
                 "Display & Colors", "Lesson Age Indicators", "Warning Days", "Overdue Days",
                 "Fresh Color", "Warning Color", "Overdue Color",
                 "Work Age Indicators"

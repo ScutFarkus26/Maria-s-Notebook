@@ -31,10 +31,21 @@ struct RolloverPlan {
     var outcomes: [UUID: RolloverOutcome] = [:]
     var effectiveDate: Date = Date()
     var writeNotes: Bool = true
+    /// What to do with each child's year-plan entries left over from the
+    /// outgoing year (missing = leave them alone).
+    var carryOver: [UUID: YearPlanCarryOverChoice] = [:]
+    /// The day a re-dated run starts from. nil ⇒ the first open day of the
+    /// incoming year, which is what the caller passes to `apply`.
+    var carryOverLanding: Date?
 
     func outcome(for studentID: UUID?) -> RolloverOutcome {
         guard let studentID else { return .stay }
         return outcomes[studentID] ?? .stay
+    }
+
+    func carryOverChoice(for studentID: UUID?) -> YearPlanCarryOverChoice {
+        guard let studentID else { return .leave }
+        return carryOver[studentID] ?? .leave
     }
 }
 
@@ -52,6 +63,17 @@ struct RolloverSummary: Equatable {
     /// Year-plan entries still pencilled in for departing children; the
     /// rollover marks these skipped so they stop accruing behind pace.
     var yearPlanEntriesForDeparting = 0
+    /// Entries belonging to children who are staying or being promoted whose
+    /// targets fell in the outgoing year — last year's intentions.
+    var carriedOverEntries = 0
+    /// How many of those the plan re-dates, and how many it skips.
+    var carriedOverToRedate = 0
+    var carriedOverToSkip = 0
+    /// How many children carry entries over at all, and how many each choice
+    /// touches — the review states the two actions separately.
+    var carriedOverByStudent = 0
+    var carriedOverRedateChildren = 0
+    var carriedOverSkipChildren = 0
 
     var changeCount: Int { promoted.values.reduce(0, +) + transferred + withdrawn }
 
@@ -67,6 +89,32 @@ struct RolloverSummary: Equatable {
         if withdrawn > 0 { parts.append("\(withdrawn) withdrawn") }
         parts.append("\(staying) stay")
         return parts.joined(separator: " · ")
+    }
+
+    /// Counts the carried-over entries belonging to children who are staying or
+    /// being promoted, split by the choice made for each. Departing children
+    /// are excluded on purpose: their whole plan is skipped by the departure
+    /// cascade, and counting it here twice would make the review lie.
+    fileprivate mutating func addCarryOverCounts(
+        for plan: RolloverPlan, students: [CDStudent], context: NSManagedObjectContext
+    ) {
+        let yearStart = YearPlanStaleness.currentYearStart()
+        for studentID in RolloverService.continuingStudentIDs(in: plan, students: students) {
+            let count = YearPlanCarryOver.entries(for: studentID, in: context, yearStart: yearStart).count
+            guard count > 0 else { continue }
+            carriedOverEntries += count
+            carriedOverByStudent += 1
+            switch plan.carryOverChoice(for: studentID) {
+            case .leave:
+                continue
+            case .redate:
+                carriedOverToRedate += count
+                carriedOverRedateChildren += 1
+            case .skip:
+                carriedOverToSkip += count
+                carriedOverSkipChildren += 1
+            }
+        }
     }
 }
 
@@ -100,8 +148,21 @@ enum RolloverService {
             result.yearPlanEntriesForDeparting = StudentDeparturePlans
                 .plannedEntries(for: departing, in: context)
                 .count
+            result.addCarryOverCounts(for: plan, students: students, context: context)
         }
         return result
+    }
+
+    /// Children staying or being promoted — the only ones a carry-over choice
+    /// applies to. A departing child's whole plan is skipped by the departure
+    /// cascade, and that decision wins.
+    static func continuingStudentIDs(in plan: RolloverPlan, students: [CDStudent]) -> [UUID] {
+        students.compactMap { student in
+            switch plan.outcome(for: student.id) {
+            case .stay, .promote: return student.id
+            case .transfer, .withdraw: return nil
+            }
+        }
     }
 
     static func departingStudentIDs(in plan: RolloverPlan, students: [CDStudent]) -> [UUID] {
@@ -120,6 +181,7 @@ enum RolloverService {
         _ plan: RolloverPlan,
         students: [CDStudent],
         incomingYearLabel: String,
+        carryOverLanding: Date? = nil,
         context: NSManagedObjectContext
     ) -> Int {
         var changed = 0
@@ -152,10 +214,45 @@ enum RolloverService {
                 makeNote(body: noteBody, studentID: studentID, date: plan.effectiveDate, context: context)
             }
         }
-        if changed > 0 {
+        // After the student loop, so a departing child's entries are already
+        // skipped by the departure cascade and are never re-dated first.
+        let carried = applyCarryOver(
+            plan, students: students,
+            landing: carryOverLanding ?? plan.carryOverLanding ?? Date(),
+            context: context
+        )
+        if changed > 0 || carried > 0 {
             context.safeSave()
         }
         return changed
+    }
+
+    /// Applies each continuing child's carry-over choice. Returns how many
+    /// entries were moved or skipped. Does not save.
+    @discardableResult
+    private static func applyCarryOver(
+        _ plan: RolloverPlan,
+        students: [CDStudent],
+        landing: Date,
+        context: NSManagedObjectContext
+    ) -> Int {
+        let yearStart = YearPlanStaleness.currentYearStart()
+        var touched = 0
+        for studentID in continuingStudentIDs(in: plan, students: students) {
+            let choice = plan.carryOverChoice(for: studentID)
+            guard choice != .leave else { continue }
+            let entries = YearPlanCarryOver.entries(for: studentID, in: context, yearStart: yearStart)
+            guard !entries.isEmpty else { continue }
+            switch choice {
+            case .leave:
+                continue
+            case .redate:
+                touched += YearPlanCarryOver.redate(entries, landingOn: landing, in: context)
+            case .skip:
+                touched += YearPlanCarryOver.skip(entries)
+            }
+        }
+        return touched
     }
 
     /// A child who has left should not be on lessons still to be given —

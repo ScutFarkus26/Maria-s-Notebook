@@ -99,6 +99,8 @@ struct SchoolYearRolloverView: View {
                     .foregroundStyle(.secondary)
             }
 
+            RolloverCarryOverSection(viewModel: viewModel, store: store)
+
             ForEach(viewModel.studentsByLevel, id: \.level) { group in
                 Section {
                     ForEach(group.students, id: \.objectID) { student in
@@ -245,13 +247,19 @@ struct SchoolYearRolloverView: View {
         return buckets
     }
 
-    // MARK: - Done
+}
 
-    private var donePhase: some View {
+// MARK: - Done
+
+/// The applied screen, kept out of the main struct so it stays inside the
+/// 250-line type-body limit.
+private extension SchoolYearRolloverView {
+    var donePhase: some View {
         List {
             Section {
                 Label {
-                    Text("Applied \(viewModel.appliedChangeCount) change\(viewModel.appliedChangeCount == 1 ? "" : "s").")
+                    let count = viewModel.appliedChangeCount
+                    Text("Applied \(count) change\(count == 1 ? "" : "s").")
                         .font(AppTheme.ScaledFont.calloutSemibold)
                 } icon: {
                     Image(systemName: "checkmark.circle.fill")
@@ -276,7 +284,7 @@ struct SchoolYearRolloverView: View {
         }
     }
 
-    private func departingRow(for student: CDStudent) -> some View {
+    func departingRow(for student: CDStudent) -> some View {
         let noteCount = viewModel.flaggedNoteCount(for: student, store: store, context: viewContext)
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
@@ -315,6 +323,34 @@ private extension SchoolYearRolloverView {
                 "\(entries) year-plan " + (entries == 1 ? "entry" : "entries")
                     + " for departing children marked skipped, not deleted",
                 icon: "calendar.badge.checkmark"
+            )
+        }
+        carryOverEffects
+    }
+
+    /// The carried-over choice, counted before it is committed: the guide sees
+    /// exactly how many of last year's intentions move and how many retire.
+    @ViewBuilder
+    var carryOverEffects: some View {
+        let counts = viewModel.carryOverCounts(context: viewContext)
+        if counts.carriedOverToRedate > 0 {
+            let landing = viewModel.carryOverLandingDate(store: store, context: viewContext)
+            footnoteLabel(
+                "Re-dating \(counts.carriedOverToRedate) carried-over year-plan "
+                    + (counts.carriedOverToRedate == 1 ? "entry" : "entries") + " for "
+                    + "\(counts.carriedOverRedateChildren) "
+                    + (counts.carriedOverRedateChildren == 1 ? "child" : "children")
+                    + ", starting \(DateFormatters.mediumDate.string(from: landing))",
+                icon: "calendar.badge.plus"
+            )
+        }
+        if counts.carriedOverToSkip > 0 {
+            footnoteLabel(
+                "Skipping \(counts.carriedOverToSkip) carried-over year-plan "
+                    + (counts.carriedOverToSkip == 1 ? "entry" : "entries") + " for "
+                    + "\(counts.carriedOverSkipChildren) "
+                    + (counts.carriedOverSkipChildren == 1 ? "child" : "children"),
+                icon: "calendar.badge.minus"
             )
         }
     }

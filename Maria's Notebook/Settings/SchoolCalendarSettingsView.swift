@@ -17,6 +17,51 @@ struct SchoolCalendarSettingsView: View {
     @State private var selected: Set<DateComponents> = []
     @State private var nonSchoolDates: Set<Date> = []
     @State private var showingRollover = false
+    @State private var showingCarryOverSweep = false
+    /// Counted on appear and after the sweep closes, never in `body`: the count
+    /// is a fetch per enrolled child, and this pane redraws on every month step.
+    @State private var carryOverBadge: Int?
+    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
+    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
+    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+
+    /// Year-plan targets left over from a school year that has ended. The
+    /// badge is this year's outstanding count and disappears once the sweep has
+    /// been run; the button itself always stays, since a plan can go stale
+    /// again and re-dating is not a one-shot migration.
+    private var carryOverSweepButton: some View {
+        Button {
+            showingCarryOverSweep = true
+        } label: {
+            HStack(spacing: 6) {
+                Label("Carried-Over Year Plans…", systemImage: "calendar.badge.exclamationmark")
+                if let carryOverBadge {
+                    Text("\(carryOverBadge)")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.secondary.opacity(0.2)))
+                }
+            }
+        }
+        .buttonStyle(.bordered)
+        .help("Re-date or skip year-plan targets left over from a school year that has ended")
+        .sheet(isPresented: $showingCarryOverSweep, onDismiss: refreshCarryOverBadge) {
+            CarriedOverPlanSweepView()
+                #if os(macOS)
+                .frame(minWidth: 560, minHeight: 480)
+                #endif
+        }
+        .task { refreshCarryOverBadge() }
+    }
+
+    private func refreshCarryOverBadge() {
+        carryOverBadge = CarriedOverPlanSweepViewModel.badgeCount(
+            context: viewContext,
+            showTestStudents: showTestStudents,
+            testStudentNames: testStudentNamesRaw
+        )
+    }
 
     private var monthInterval: DateInterval {
         let cal = calendar
@@ -42,6 +87,8 @@ struct SchoolCalendarSettingsView: View {
                     .frame(minWidth: 640, minHeight: 560)
                     #endif
             }
+
+            carryOverSweepButton
 
             Divider()
 
