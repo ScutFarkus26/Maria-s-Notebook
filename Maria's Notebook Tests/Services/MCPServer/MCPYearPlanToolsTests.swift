@@ -205,7 +205,9 @@ struct MCPYearPlanToolsTests {
         let angles = CoreDataTestHelpers.seedLesson(in: context, name: "Introduction to Angles")
         let rhombus = CoreDataTestHelpers.seedLesson(in: context, name: "The Rhombus")
 
-        // Two of Maytal's are behind pace, one is still ahead, one is promoted.
+        // Two of Maytal's targets fell in the school year that has ended, one
+        // is still ahead, one is promoted. The receipt names the first two as
+        // carried over — last year's intentions, not debt she is behind on.
         let behindOne = seedEntry(
             in: context, student: maytal, lesson: angles, plannedDate: try day("2026-05-22")
         )
@@ -232,7 +234,8 @@ struct MCPYearPlanToolsTests {
 
         #expect(receipt.contains("Skipped 3"))
         #expect(receipt.contains("Maytal Meyer"))
-        #expect(receipt.contains("2 of them had gone behind pace"))
+        #expect(receipt.contains("2 of them are carried over from last year."))
+        #expect(!receipt.contains("behind pace"))
         #expect(behindOne.status == .skipped)
         #expect(behindTwo.status == .skipped)
         #expect(ahead.status == .skipped)

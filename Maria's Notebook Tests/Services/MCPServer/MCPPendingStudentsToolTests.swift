@@ -20,8 +20,17 @@ struct MCPPendingStudentsToolTests {
         try #require(MCPNotebookTools.isoDay.date(from: text))
     }
 
+    /// A day relative to today, clamped forward to the first day of this
+    /// school year. A target before that is *carried over*, not behind pace,
+    /// and the expectations below read the behind-pace wording — the clamp is
+    /// what keeps the suite stable across a school-year boundary. The assertions
+    /// format their expected dates through this same helper, so both sides move
+    /// together.
     private func daysFromToday(_ days: Int) -> Date {
-        AppCalendar.shared.date(byAdding: .day, value: days, to: AppCalendar.startOfDay(Date()))!
+        let seed = AppCalendar.shared.date(
+            byAdding: .day, value: days, to: AppCalendar.startOfDay(Date())
+        )!
+        return max(seed, YearPlanStaleness.currentYearStart())
     }
 
     @discardableResult

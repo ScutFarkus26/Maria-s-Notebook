@@ -9,7 +9,7 @@
 import Foundation
 
 /// A half-open date range `[start, end)`.
-struct DateRange: Equatable, Sendable {
+nonisolated struct DateRange: Equatable, Sendable {
     let start: Date
     let end: Date
 
@@ -17,7 +17,11 @@ struct DateRange: Equatable, Sendable {
 }
 
 /// A single school year, e.g. 2025–2026, as `[start, end)`.
-struct SchoolYear: Equatable, Hashable, Identifiable, Sendable {
+///
+/// `nonisolated` as the file header has always claimed: the boundary math is
+/// pure, and `YearPlanStaleness` reads it from the nonisolated Core Data model
+/// extensions. Every existing caller is on the main actor and is unaffected.
+nonisolated struct SchoolYear: Equatable, Hashable, Identifiable, Sendable {
     /// The calendar year the school year starts in (2025 for "2025–2026").
     let beginYear: Int
     /// Start-of-day of the configured start (begin­Year, startMonth, startDay).
@@ -33,7 +37,7 @@ struct SchoolYear: Equatable, Hashable, Identifiable, Sendable {
     var range: DateRange { DateRange(start: start, end: end) }
 }
 
-extension SchoolYear {
+nonisolated extension SchoolYear {
     /// The school year that contains `date`, given a configurable start month/day.
     static func containing(
         _ date: Date,
@@ -84,7 +88,7 @@ extension SchoolYear {
 }
 
 /// The active viewing lens. `.allTime` resolves to *no* date filter (today's behavior).
-enum SchoolYearSelection: Equatable, Sendable {
+nonisolated enum SchoolYearSelection: Equatable, Sendable {
     case year(SchoolYear)
     /// A rolling cycle: the anchor year plus the years immediately preceding it.
     case cycle(anchor: SchoolYear)

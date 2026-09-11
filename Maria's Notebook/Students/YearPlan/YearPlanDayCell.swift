@@ -122,6 +122,9 @@ struct YearPlanPill: View {
         case .promoted, .given: return .green
         case .skipped: return .gray
         case .behindPace: return .red
+        // Last year's intention: quiet, never red. The guide re-dates or
+        // skips these in a sweep, not one alarmed cell at a time.
+        case .carriedOver: return .secondary
         case .planned: return .gray
         case .scheduled: return .blue
         case .presented: return .green
@@ -130,7 +133,7 @@ struct YearPlanPill: View {
 
     private var isMuted: Bool {
         switch item.displayStatus {
-        case .promoted, .given, .presented: return true
+        case .promoted, .given, .presented, .carriedOver: return true
         default: return false
         }
     }

@@ -237,7 +237,10 @@ struct MCPPlanningEditToolsTests {
             "student_name": .string("Ora"), "track": .string("Math › Fractions"), "confirm": .bool(true)
         ])
         #expect(applied.hasPrefix("Skipped 2 year-plan entries for Ora Levi in Math › Fractions."))
-        #expect(applied.contains("1 of 2 had gone behind pace."))
+        // The 2026-03-02 target predates this school year, so it reads as
+        // carried over rather than behind pace; the 2099 one is neither.
+        #expect(applied.contains("1 of 2 is carried over from last year."))
+        #expect(!applied.contains("behind pace"))
         #expect(stale.status == .skipped && ahead.status == .skipped)
         #expect(other.status == .planned)
         #expect(promoted.status == .promoted)

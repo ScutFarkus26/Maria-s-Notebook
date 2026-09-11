@@ -17,6 +17,11 @@ final class StudentYearPlanViewModel {
     /// `body`.
     private(set) var closedDayCount: Int = 0
 
+    /// The first day of the school year containing today. Read once per `load`
+    /// and handed to every pace question below: `isBehindPace` is evaluated per
+    /// calendar cell per render, and the boundary cannot change mid-pass.
+    private(set) var yearStart: Date = YearPlanStaleness.currentYearStart()
+
     private var itemsByCell: [CellID: [YearPlanCalendarItem]] = [:]
 
     func items(for cellID: CellID) -> [YearPlanCalendarItem] {
@@ -26,6 +31,7 @@ final class StudentYearPlanViewModel {
     func load(studentID: UUID?, context: NSManagedObjectContext) {
         guard let studentID else { return }
         let studentIDString = studentID.uuidString
+        yearStart = YearPlanStaleness.currentYearStart()
 
         // 1. Fetch Year Plan entries for this student
         let entryReq = CDFetchRequest(CDYearPlanEntry.self)
@@ -98,7 +104,8 @@ final class StudentYearPlanViewModel {
                     lessonID: entry.lessonID,
                     date: date,
                     kind: .planEntry(entry),
-                    satisfaction: satisfaction
+                    satisfaction: satisfaction,
+                    yearStart: yearStart
                 )
             )
         }
@@ -111,7 +118,8 @@ final class StudentYearPlanViewModel {
                     id: assignmentID,
                     lessonID: assignment.lessonID,
                     date: date,
-                    kind: .assignment(assignment)
+                    kind: .assignment(assignment),
+                    yearStart: yearStart
                 )
             )
         }
@@ -209,7 +217,21 @@ final class StudentYearPlanViewModel {
     }
 
     var behindPaceCount: Int {
-        entries.filter { $0.isBehindPace(satisfiedBy: satisfaction) }.count
+        entries.filter { $0.isBehindPace(satisfiedBy: satisfaction, schoolYearStart: yearStart) }.count
+    }
+
+    /// Entries whose target fell in a school year that has ended. Not debt —
+    /// the header says so in its own words, and Readjust re-lays them.
+    var carriedOverCount: Int {
+        let start = yearStart
+        return entries.filter { entry in
+            entry.isCarriedOver(yearStart: start) && !entry.isSatisfied(by: satisfaction)
+        }.count
+    }
+
+    /// The label a carried-over chip names, e.g. "2025–2026".
+    var previousYearLabel: String {
+        YearPlanStaleness.previousSchoolYear().label
     }
 
     /// Entries still ahead of this child: pencilled in or on the calendar, and

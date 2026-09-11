@@ -186,6 +186,9 @@ nonisolated enum UserDefaultsKeys {
     /// Begin year of the last school year whose "start counters fresh?" prompt was answered,
     /// so the prompt appears once per school year.
     static let schoolYearCounterPromptAnsweredYear = "SchoolYear.counterPromptAnsweredYear"
+    /// Begin year of the last school year whose carried-over year-plan sweep was run.
+    /// Only drops the count badge in Settings — the button itself always stays.
+    static let yearPlanCarryOverSweepYear = "YearPlan.carryOverSweepYear"
 
     // MARK: - Recall
     /// Days after a lesson's last recall (or mastery) before it becomes due for a spaced

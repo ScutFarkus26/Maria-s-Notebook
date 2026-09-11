@@ -24,13 +24,14 @@ struct YearPlanCalendarItem: Identifiable {
         lessonID: String,
         date: Date,
         kind: Kind,
-        satisfaction: YearPlanSatisfaction = .none
+        satisfaction: YearPlanSatisfaction = .none,
+        yearStart: Date = YearPlanStaleness.currentYearStart()
     ) {
         self.id = id
         self.lessonID = lessonID
         self.date = date
         self.kind = kind
-        self.displayStatus = Self.resolveStatus(kind, satisfaction: satisfaction)
+        self.displayStatus = Self.resolveStatus(kind, satisfaction: satisfaction, yearStart: yearStart)
     }
 
     // MARK: - Accessors
@@ -52,6 +53,9 @@ struct YearPlanCalendarItem: Identifiable {
         case behindPace
         case promoted
         case skipped
+        /// Planned for a school year that has ended — last year's intention,
+        /// not this year's debt. Never drawn as behind pace.
+        case carriedOver
         /// The lesson has been given, so the intention is answered.
         case given
         case scheduled
@@ -59,7 +63,7 @@ struct YearPlanCalendarItem: Identifiable {
     }
 
     private static func resolveStatus(
-        _ kind: Kind, satisfaction: YearPlanSatisfaction
+        _ kind: Kind, satisfaction: YearPlanSatisfaction, yearStart: Date
     ) -> DisplayStatus {
         switch kind {
         case .planEntry(let entry):
@@ -71,7 +75,10 @@ struct YearPlanCalendarItem: Identifiable {
             switch entry.status {
             case .promoted: return .promoted
             case .skipped: return .skipped
-            case .planned: return entry.isBehindPace(satisfiedBy: satisfaction) ? .behindPace : .planned
+            case .planned:
+                if entry.isCarriedOver(yearStart: yearStart) { return .carriedOver }
+                return entry.isBehindPace(satisfiedBy: satisfaction, schoolYearStart: yearStart)
+                    ? .behindPace : .planned
             }
         case .assignment(let assignment):
             return assignment.isPresented ? .presented : .scheduled
@@ -79,10 +86,11 @@ struct YearPlanCalendarItem: Identifiable {
     }
 
     /// Whether this item can be rescheduled/removed from the Year Plan.
-    /// A lesson already given has nothing left to re-target.
+    /// A lesson already given has nothing left to re-target. A carried-over
+    /// entry very much does — dragging it into this year is the point.
     var isEditable: Bool {
         switch displayStatus {
-        case .planned, .behindPace: return true
+        case .planned, .behindPace, .carriedOver: return true
         default: return false
         }
     }

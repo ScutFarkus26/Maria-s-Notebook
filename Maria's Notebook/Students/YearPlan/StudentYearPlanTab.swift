@@ -34,7 +34,8 @@ struct StudentYearPlanTab: View {
                     // Offered for either reason a plan needs re-laying: it has
                     // slipped behind, or the school calendar has moved under it
                     // and targets are sitting on days school is closed.
-                    if viewModel.behindPaceCount > 0 || viewModel.closedDayCount > 0 {
+                    if viewModel.behindPaceCount > 0 || viewModel.closedDayCount > 0
+                        || viewModel.carriedOverCount > 0 {
                         Button {
                             Task {
                                 guard let id = student.id else { return }
@@ -206,6 +207,21 @@ struct StudentYearPlanTab: View {
                         Text("\(behind) behind")
                             .font(.caption)
                             .foregroundStyle(AppColors.destructive)
+                    }
+                }
+
+                // Last year's intentions, stated as such. Deliberately quiet
+                // and deliberately not next to the red "behind" count: these
+                // are not debt, and Readjust or the Settings sweep clears them.
+                let carried = viewModel.carriedOverCount
+                if carried > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.uturn.forward")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("\(carried) carried over from \(viewModel.previousYearLabel)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
 

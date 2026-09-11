@@ -18,6 +18,9 @@ final class SchoolYearRolloverViewModel {
     var plan = RolloverPlan()
     private(set) var students: [CDStudent] = []
     private(set) var appliedChangeCount = 0
+    /// The carry-over counts as they stood when Apply was pressed — after the
+    /// entries move, re-deriving them would report zero.
+    private(set) var appliedCarryOver = RolloverSummary()
 
     // MARK: - Loading
 
@@ -149,10 +152,12 @@ final class SchoolYearRolloverViewModel {
     // MARK: - Apply
 
     func apply(context: NSManagedObjectContext, store: SchoolYearStore) {
+        appliedCarryOver = carryOverCounts(context: context)
         appliedChangeCount = RolloverService.apply(
             plan,
             students: students,
             incomingYearLabel: incomingYear(store: store).label,
+            carryOverLanding: carryOverLandingDate(store: store, context: context),
             context: context
         )
         phase = .done

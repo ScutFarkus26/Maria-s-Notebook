@@ -22,9 +22,14 @@ struct YearPlanSatisfactionTests {
         try CoreDataTestHelpers.makeInMemoryStack().viewContext
     }
 
+    /// A day relative to today, never earlier than the first day of this
+    /// school year: a target before that reads as *carried over from last
+    /// year* rather than behind pace, and these tests are about behind pace.
+    /// Without the clamp the suite goes red every early September.
     private func daysFromNow(_ days: Double) -> Date {
         let interval: TimeInterval = days * 86_400
-        return Date().addingTimeInterval(interval)
+        let seed = Date().addingTimeInterval(interval)
+        return max(seed, YearPlanStaleness.currentYearStart())
     }
 
     @discardableResult

@@ -34,7 +34,8 @@ extension MCPNotebookTools {
                 + "skipped and lists them by track; nothing is written until it is called again "
                 + "with confirm: true. Entries are skipped, never deleted: year_plan with status "
                 + "\"skipped\" reads them back and update_year_plan_entry restores any of them. "
-                + "Entries already promoted onto the calendar are left alone.",
+                + "Entries already promoted onto the calendar are left alone. before_date is the "
+                + "way to clear entries carried over from last school year in one call.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -111,13 +112,25 @@ extension MCPNotebookTools {
         let lessons = lessonNameIndex(in: modelContext)
         let byTrack = Dictionary(grouping: entries, by: \.sequenceGroupKey)
         let satisfaction = YearPlanSatisfaction.index(for: entries, in: modelContext)
-        let behind = entries.filter { $0.isBehindPace(satisfiedBy: satisfaction) }.count
+        let yearStart = YearPlanStaleness.currentYearStart()
+        let behind = entries.filter {
+            $0.isBehindPace(satisfiedBy: satisfaction, schoolYearStart: yearStart)
+        }.count
+        let carried = entries.filter { $0.isCarriedOver(yearStart: yearStart) }.count
         var sections: [String] = []
-        if behind > 0 { sections.append("\(behind) of \(entries.count) had gone behind pace.") }
+        var counts: [String] = []
+        if behind > 0 { counts.append("\(behind) of \(entries.count) had gone behind pace.") }
+        if carried > 0 {
+            counts.append("\(carried) of \(entries.count) \(carried == 1 ? "is" : "are") "
+                + "carried over from last year.")
+        }
+        if !counts.isEmpty { sections.append(counts.joined(separator: " ")) }
         for key in byTrack.keys.sorted() {
             let group = byTrack[key] ?? []
             let lines = group.map {
-                "- " + yearPlanEntryLine($0, lessons: lessons, satisfiedBy: satisfaction)
+                "- " + yearPlanEntryLine(
+                    $0, lessons: lessons, satisfiedBy: satisfaction, yearStart: yearStart
+                )
             }
             sections.append("\(trackLabel(key)) (\(group.count)):\n" + lines.joined(separator: "\n"))
         }
