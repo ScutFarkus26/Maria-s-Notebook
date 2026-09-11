@@ -711,6 +711,8 @@ nonisolated extension DataCleanupService {
 
         // CDTrackEntity models
         results["Track"] = deduplicate(CDTrackEntity.self, using: context, container: container)
+        // One title defined twice under two ids — see +TrackTitleMerge.
+        results["Track (same title)"] = mergeSameTitleTracks(using: context, container: container)
         results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context, container: container)
         results["SequenceTrack"] = deduplicate(CDSequenceTrackEntity.self, using: context, container: container)
         results["StudentTrackEnrollment"] = deduplicate(
