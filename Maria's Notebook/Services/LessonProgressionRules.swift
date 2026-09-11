@@ -3,7 +3,7 @@ import CoreData
 
 /// Resolves effective progression rules for a given lesson by checking
 /// lesson-level overrides first, then sequence-level settings, then defaults.
-struct LessonProgressionRules {
+nonisolated struct LessonProgressionRules {
 
     /// The resolved practice/confirmation requirements for a lesson.
     struct ResolvedRules: Sendable {

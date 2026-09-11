@@ -28,8 +28,10 @@ nonisolated public class CDLessonSequenceSettings: NSManagedObject {
 // MARK: - Lookup
 
 nonisolated extension CDLessonSequenceSettings {
-    /// Finds sequence settings for a given area+sequence pair.
-    @MainActor
+    /// Finds sequence settings for a given area+sequence pair. Nonisolated,
+    /// like the entity itself: `LessonProgressionRules` resolves the practice
+    /// gate for the ready queue off the main actor, and the fetch it makes
+    /// touches nothing that is main-actor bound.
     static func find(
         area: String,
         sequence: String,
