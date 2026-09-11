@@ -155,6 +155,31 @@ struct MCPCurriculumMapToolsTests {
         }
     }
 
+    @Test("A capture-time confirmation reads as presented with a note, never as mastered")
+    func confirmationStaysPresented() async throws {
+        let (tools, context) = try makeTools()
+        let classroom = try seedClassroom(in: context)
+        let presentation = try #require(
+            context.safeFetch(CDFetchRequest(CDLessonAssignment.self)).first { $0.isPresented }
+        )
+        presentation.confirmStudent(try #require(classroom.student.id))
+        #expect(CoreDataTestHelpers.save(context))
+
+        let student = try await tool(named: "student_curriculum_map", in: tools).handler([
+            "student_name": .string("Ora")
+        ])
+        #expect(student.contains(
+            "The Commutative Law of Multiplication (Laws) — chosen; confirmed ready for next; presented"
+        ))
+        #expect(!student.contains("mastered"))
+
+        let classMap = try await tool(named: "class_curriculum_map", in: tools).handler([
+            "lesson_or_area": .string("commutative")
+        ])
+        #expect(classMap.contains("Mastered (0):"))
+        #expect(classMap.contains("Chosen (1):"))
+    }
+
     @Test("Key lessons are marked in lesson citations")
     func keyLessonShowsInCitations() async throws {
         let (tools, context) = try makeTools()

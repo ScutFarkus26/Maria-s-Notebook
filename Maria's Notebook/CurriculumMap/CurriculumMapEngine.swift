@@ -211,7 +211,10 @@ nonisolated enum CurriculumMapEngine {
         let isPresented = !builder.presentations.isEmpty || builder.mastery != nil
         let isChosen = !builder.works.isEmpty || !builder.practice.isEmpty
         let isRepeated = builder.practice.count >= 3 || builder.works.contains(where: \.isBeyondActive)
-        let isMastered = builder.mastery?.isMastered == true || confirmed
+        // Confirmation ("ready for the next lesson", set at capture) is evidence
+        // for the mastery sweep, not a mastery mark: only the record's own
+        // mark climbs the ladder. The track resolver reads it the same way.
+        let isMastered = builder.mastery?.isMastered == true
 
         if isMastered {
             cell.state = .mastered
@@ -223,6 +226,7 @@ nonisolated enum CurriculumMapEngine {
             cell.state = .presented
         }
 
+        cell.isConfirmed = confirmed
         cell.practiceCount = builder.practice.count
         cell.evidence = CurriculumEvidence(
             presentationIDs: builder.presentations.map(\.id),
@@ -251,9 +255,8 @@ nonisolated enum CurriculumMapEngine {
         var events: [CurriculumEvent] = []
         for presentation in builder.presentations {
             guard let date = presentation.presentedAt else { continue }
-            let isConfirmed = presentation.confirmedStudentIDs.contains(builder.studentID)
             events.append(CurriculumEvent(
-                date: date, kind: .presentation, state: isConfirmed ? .mastered : .presented,
+                date: date, kind: .presentation, state: .presented,
                 recall: nil, recordID: presentation.id
             ))
         }

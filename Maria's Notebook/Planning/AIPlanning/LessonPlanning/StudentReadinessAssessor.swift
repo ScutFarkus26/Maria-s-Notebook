@@ -184,6 +184,8 @@ struct StudentReadinessAssessor {
 
         if latest.needsAnotherPresentation { return .needsReteaching }
         if latest.needsPractice { return .needsMorePractice }
+        // A readiness heuristic for planning, not the record: the Three-Year
+        // View and the tracks count only an explicit mastery mark.
         if latest.isStudentConfirmed(studentID) { return .proficient }
         return .presented
     }

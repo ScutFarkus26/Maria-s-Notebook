@@ -25,7 +25,8 @@ nonisolated enum CurriculumCellState: Int, Comparable, Sendable, CaseIterable, C
     case chosen
     /// Three or more practice sessions, or work that reached review / complete.
     case repeated
-    /// The mastery record says so, or the guide confirmed proficiency on the presentation.
+    /// The mastery record says so. The guide's capture-time confirmation
+    /// ("ready for the next lesson") is carried separately on the cell.
     case mastered
 
     static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
@@ -208,6 +209,9 @@ nonisolated struct CurriculumCell: Sendable, Hashable, Identifiable {
     let studentID: UUID
     let lessonID: UUID
     var state: CurriculumCellState = .notPresented
+    /// The guide confirmed her ready for the next lesson on a presentation.
+    /// Evidence beside the ladder, never a rung of it.
+    var isConfirmed: Bool = false
     /// Latest recall-check outcome, if the lesson was ever re-checked.
     var recall: RecallOutcome?
     var firstPresented: Date?

@@ -119,7 +119,7 @@ struct CurriculumMapEngineTests {
         #expect(practiceStates == expected)
     }
 
-    @Test("A mastery record or the guide's confirmation is mastered")
+    @Test("A mastery record is mastered; the guide's confirmation is evidence beside the ladder")
     func masteryWins() throws {
         let laws = lesson("Commutative Law", order: 0)
         var input = CurriculumMapInput(lessons: [laws])
@@ -132,9 +132,14 @@ struct CurriculumMapEngineTests {
         #expect(mastered.state == .mastered)
         #expect(mastered.lastActivity == day("2026-05-01"))
 
+        #expect(!mastered.isConfirmed)
+
         input.masteries = []
         input.presentations = [presentation(laws, on: "2026-02-12", confirmed: [student])]
-        #expect(try #require(cell(input, laws)).state == .mastered)
+        let confirmed = try #require(cell(input, laws))
+        #expect(confirmed.state == .presented)
+        #expect(confirmed.isConfirmed)
+        #expect(confirmed.events.map(\.state) == [.presented])
     }
 
     @Test("The latest recall check sets the ring")

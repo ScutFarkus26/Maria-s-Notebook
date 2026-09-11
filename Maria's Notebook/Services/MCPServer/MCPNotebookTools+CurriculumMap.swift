@@ -166,6 +166,7 @@ extension MCPNotebookTools {
             return "- [lesson id=\(lesson.id.uuidString)] \(lesson.name)\(filing) — notPresented"
         }
         var parts: [String] = [cell.state.toolName]
+        if cell.isConfirmed, cell.state < .mastered { parts.append("confirmed ready for next") }
         if let first = cell.firstPresented { parts.append("presented \(dayString(first))") }
         if let last = cell.lastPresented, last != cell.firstPresented { parts.append("again \(dayString(last))") }
         if !cell.evidence.workIDs.isEmpty { parts.append("\(cell.evidence.workIDs.count) work") }
