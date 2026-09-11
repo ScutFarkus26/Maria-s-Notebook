@@ -136,10 +136,10 @@ struct MCPPendingStudentsToolTests {
         #expect(!maya.contains("behind pace"))
         let etty = try #require(lines.first { $0.contains("] Etty Klein —") })
         let sitting = MCPNotebookTools.dayString(daysFromToday(12))
-        #expect(etty.contains("target \(MCPNotebookTools.dayString(daysFromToday(9))) — scheduled \(sitting) at "))
+        #expect(etty.contains("target \(MCPNotebookTools.dayString(daysFromToday(9))) — scheduled \(sitting) in the morning "))
         #expect(etty.contains("with Dalia Roth [presentation id=\(scheduledID)]"))
         let dalia = try #require(lines.first { $0.contains("] Dalia Roth —") })
-        #expect(dalia.contains("no year-plan entry — scheduled \(sitting) at "))
+        #expect(dalia.contains("no year-plan entry — scheduled \(sitting) in the morning "))
         #expect(dalia.contains("with Etty Klein"))
 
         let order = ["Ora Levi", "Maya Soto", "Etty Klein", "Dalia Roth"].map { name in
