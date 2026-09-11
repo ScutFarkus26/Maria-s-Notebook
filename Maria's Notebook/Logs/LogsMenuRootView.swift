@@ -33,6 +33,15 @@ struct LogsMenuRootView: View {
 
     @AppStorage(UserDefaultsKeys.logsMenuRootViewMode) private var modeRaw: String = Mode.presentations.rawValue
 
+    /// The log to open on first appearance, when the caller wants one in
+    /// particular (the Notes destination opens Observations). `nil` keeps the
+    /// last mode the guide chose.
+    private let initialMode: Mode?
+
+    init(initialMode: Mode? = nil) {
+        self.initialMode = initialMode
+    }
+
     private var mode: Mode {
         get { Mode(rawValue: modeRaw) ?? .presentations }
         nonmutating set { modeRaw = newValue.rawValue }
@@ -71,6 +80,11 @@ struct LogsMenuRootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Logs")
+        .onAppear {
+            if let initialMode {
+                modeRaw = initialMode.rawValue
+            }
+        }
     }
 
     // MARK: - Sidebar
