@@ -1,5 +1,8 @@
 // TodayViewAgendaSection.swift
-// Agenda, Presented Lessons, Checked Work, and Completed sections for TodayView
+// The unified Agenda section for TodayView — the day's lessons and work in one
+// reorderable list. The retrospective halves it used to carry (Lessons
+// Presented, Work Checked) live in TodayViewDoneTodaySection.swift, beside the
+// disclosure that shows them.
 // Extracted for maintainability
 
 import SwiftUI
@@ -10,117 +13,14 @@ import OSLog
 
 extension TodayView {
 
-    // MARK: - Presented Lessons Section
-
-    var presentedLessonsListSection: some View {
-        // Compute once; count forwarded to the header to avoid a second filter pass.
-        let presented = viewModel.todaysLessons.filter(\.isPresented)
-        return Section {
-            if presented.isEmpty {
-                emptyStateText("No lessons presented yet")
-            } else {
-                ForEach(presented) { sl in
-                    let lesson = lessonForPresentation(sl)
-                    LessonListRow(
-                        lessonName: nameForLesson(sl.resolvedLessonID),
-                        studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
-                        isPresented: true,
-                        trailingAccessorySystemName: lessonHasPlanDocument(lesson) ? "doc.richtext" : nil,
-                        trailingAccessoryLabel: "Open lesson plan",
-                        onTrailingAccessoryTap: lessonHasPlanDocument(lesson) ? {
-                            openLessonPlan(for: sl)
-                        } : nil
-                    )
-                    .id(sl.id)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedLessonAssignment = sl
-                    }
-                }
-            }
-        } header: {
-            presentedLessonsSectionHeader(count: presented.count)
-        }
-    }
-
-    @ViewBuilder
-    func presentedLessonsSectionHeader(count: Int) -> some View {
-        HStack {
-            Text("Lessons Presented")
-                .font(AppTheme.ScaledFont.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.8)
-            Spacer()
-            if count > 0 {
-                Text("\(count)")
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.blue))
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - Checked Work Section
-
-    var checkedWorkListSection: some View {
-        Section {
-            if viewModel.completedWork.isEmpty {
-                emptyStateText("No work checked yet")
-            } else {
-                ForEach(viewModel.completedWork) { work in
-                    CompletionListRow(
-                        studentName: resolveStudentName(for: work),
-                        lessonName: resolveLessonName(for: work),
-                        work: work
-                    )
-                    .id(work.id)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedWorkID = work.id
-                    }
-                }
-            }
-        } header: {
-            checkedWorkSectionHeader
-        }
-    }
-
-    @ViewBuilder
-    var checkedWorkSectionHeader: some View {
-        HStack {
-            Text("Work Checked")
-                .font(AppTheme.ScaledFont.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.8)
-            Spacer()
-            let count = viewModel.completedWork.count
-            if count > 0 {
-                Text("\(count)")
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.green))
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
     // MARK: - Unified Agenda Section
 
     var agendaListSection: some View {
         Section {
             if viewModel.agendaItems.isEmpty {
-                emptyStateText("No lessons or work items scheduled")
+                // The agenda never hides: on macOS it is a whole column, and
+                // "nothing planned" is the answer the guide came for.
+                emptyStateText("Nothing scheduled for today.")
             } else {
                 ForEach(viewModel.agendaItems) { item in
                     agendaRow(for: item)

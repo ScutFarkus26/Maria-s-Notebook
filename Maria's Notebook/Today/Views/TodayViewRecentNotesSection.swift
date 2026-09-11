@@ -9,25 +9,34 @@ extension TodayView {
 
     // MARK: - Recent Notes Section
 
+    /// Hidden when there is nothing recent to read back. The query itself is
+    /// untouched on purpose — the Watching section replaces this one, and the
+    /// seam should stay where it is until then.
+    @ViewBuilder
     var recentNotesListSection: some View {
-        Section {
-            if viewModel.recentNotes.isEmpty {
-                emptyStateText("No recent observations")
-            } else {
-                ForEach(viewModel.recentNotes, id: \.objectID) { note in
-                    Button {
-                        noteBeingEdited = note
-                    } label: {
-                        recentNoteRow(note)
-                    }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Opens observation for editing")
-                        .id(note.id)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                }
+        if TodaySectionVisibility.showsRecentNotes(count: viewModel.recentNotes.count) {
+            Section {
+                recentNotesRows
+            } header: {
+                recentNotesSectionHeader
             }
-        } header: {
-            recentNotesSectionHeader
+        }
+    }
+
+    // Split out of `recentNotesListSection`: inline, the nested
+    // Section/ForEach/Button chain pushed that getter past the 100 ms
+    // type-check budget.
+    private var recentNotesRows: some View {
+        ForEach(viewModel.recentNotes, id: \.objectID) { note in
+            Button {
+                noteBeingEdited = note
+            } label: {
+                recentNoteRow(note)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens observation for editing")
+            .id(note.id)
+            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
         }
     }
 

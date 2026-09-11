@@ -55,6 +55,18 @@ extension TodayView {
                 }
                 .help("Return to the current school day")
             }
+
+            // The pad's section hides itself while the pad is empty, so this
+            // is how a blank page is reached on a day that has nothing on it.
+            Button {
+                adaptiveWithAnimation(.snappy(duration: 0.2)) {
+                    isDayPadExpanded = true
+                }
+            } label: {
+                Image(systemName: "note.text")
+            }
+            .accessibilityLabel("Today's Pad")
+            .help("Open today's pad")
         }
     }
 

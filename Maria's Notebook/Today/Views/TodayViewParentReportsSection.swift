@@ -1,7 +1,12 @@
 // TodayViewParentReportsSection.swift
-// Nudges the guide while a monthly parent report cycle is open: visible from
-// the 1st of the month until every enrolled student's report for last month
-// is sent, then disappears.
+// Nudges the guide only while a monthly parent report cycle is actually open:
+// the 1st through the end of day 7 of the month after the one being reported
+// on, and only while some enrolled student's report is still unsent.
+//
+// It used to open on the 1st and never close, so a month where nothing was
+// sent left the banner up for three weeks. A nudge she has declined twenty
+// times is not what makes her send the reports; `TodaySectionVisibility`
+// closes it at the end of the cycle window instead.
 
 import SwiftUI
 import CoreData
@@ -33,18 +38,21 @@ struct ParentReportsSectionView: View {
 
     private var cycle: ReportMonth { ReportMonth.currentCycle() }
 
-    private var cycleHasOpened: Bool {
-        Date() >= cycle.cycleWindow(calendar: calendar).start
-    }
-
-    private var isOverdue: Bool {
-        Date() > cycle.cycleWindow(calendar: calendar).end
+    /// The last two days of the window, when the reports are about to be late.
+    private func isRunningOut(now: Date, window: DateInterval) -> Bool {
+        guard let twoDaysBeforeClose = calendar.date(byAdding: .day, value: -2, to: window.end) else {
+            return false
+        }
+        return now >= twoDaysBeforeClose
     }
 
     var body: some View {
+        let now = Date()
+        let window = cycle.cycleWindow(calendar: calendar)
         let total = enrolledStudents.count
         let sent = sentReports.count
-        if cycleHasOpened && total > 0 && sent < total {
+        let isOverdue = isRunningOut(now: now, window: window)
+        if TodaySectionVisibility.showsParentReports(now: now, window: window, enrolled: total, sent: sent) {
             Section {
                 Button {
                     appRouter.navigateTo(.parentReports)
@@ -57,7 +65,7 @@ struct ParentReportsSectionView: View {
                             Text("\(sent) of \(total) \(cycle.displayName) reports sent")
                                 .foregroundStyle(.primary)
                             Text(isOverdue
-                                 ? "Past the first week of the month — finish and send"
+                                 ? "Due by the end of the week — finish and send"
                                  : "Draft, review, and send this month's family updates")
                                 .font(.caption2)
                                 .foregroundStyle(isOverdue ? .red : .secondary)

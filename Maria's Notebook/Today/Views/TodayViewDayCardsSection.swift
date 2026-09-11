@@ -37,20 +37,21 @@ extension TodayView {
         }
     }
 
+    /// No active card means no section at all — an empty `Section` still draws
+    /// its header in a `List`, so the gate wraps the whole thing.
+    @ViewBuilder
     var dayCardsListSection: some View {
-        // Reading dayCardsRefreshTrigger here makes the section re-evaluate after a dismiss.
-        _ = dayCardsRefreshTrigger
-        // Compute once; reused by both the section content and the header guard.
+        // Compute once; reused by both the gate and the rows. Reading
+        // `activeDayCards` also reads `dayCardsRefreshTrigger`, which is what
+        // makes the section re-evaluate after a dismiss.
         let cards = activeDayCards
-        return Section {
-            if !cards.isEmpty {
+        if !cards.isEmpty {
+            Section {
                 ForEach(cards, id: \.0) { card, subtitle in
                     dayCardRow(card: card, subtitle: subtitle)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                 }
-            }
-        } header: {
-            if !cards.isEmpty {
+            } header: {
                 sectionHeader("For Today")
             }
         }
@@ -58,7 +59,11 @@ extension TodayView {
 
     /// Cards visible right now: condition met AND not dismissed for the selected date.
     var activeDayCards: [(DayCard, String)] {
-        DayCard.allCases.compactMap { card in
+        // Reading the trigger here is what makes the section re-evaluate after
+        // a dismiss — the dismissal itself is stored in UserDefaults, which
+        // SwiftUI does not observe.
+        _ = dayCardsRefreshTrigger
+        return DayCard.allCases.compactMap { card in
             guard !isCardDismissed(card) else { return nil }
             guard let subtitle = subtitleIfActive(card) else { return nil }
             return (card, subtitle)
