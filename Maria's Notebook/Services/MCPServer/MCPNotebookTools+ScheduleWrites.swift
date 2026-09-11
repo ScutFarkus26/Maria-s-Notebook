@@ -73,6 +73,7 @@ extension MCPNotebookTools {
             throw MCPToolError("At least one student name is required.")
         }
         let students = try names.map { try resolveStudentReference($0, in: modelContext) }.uniqueByID
+        try requireEnrolledToSchedule(students)
         let studentIDs = students.compactMap(\.id)
         guard studentIDs.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")

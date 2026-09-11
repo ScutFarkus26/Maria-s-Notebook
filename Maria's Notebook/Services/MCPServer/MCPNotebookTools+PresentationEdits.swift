@@ -120,7 +120,8 @@ extension MCPNotebookTools {
             description: "Change who is in the group for a planned presentation, in place — add "
                 + "children, take children off, or both — so regrouping never leaves a stale copy "
                 + "in the planning list. Refuses to empty the group (discard_presentation is for "
-                + "that) and refuses presentations already given.",
+                + "that), refuses presentations already given, and refuses to add a withdrawn or "
+                + "transferred child — though taking one off is how a departure is cleaned up.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -160,6 +161,9 @@ extension MCPNotebookTools {
         guard !adding.isEmpty || !removing.isEmpty else {
             throw MCPToolError("Pass add_students, remove_students, or both.")
         }
+        // Only the children being added: taking a departed child off a group
+        // is exactly how a withdrawal is cleaned up.
+        try requireEnrolledToJoinRoster(adding)
 
         var roster: [String] = assignment.studentIDs
         var changes: [String] = []
