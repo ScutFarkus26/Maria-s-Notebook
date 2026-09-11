@@ -90,13 +90,17 @@ extension TodayView {
         )
     }
 
+    @ViewBuilder
     var todosListSection: some View {
         let partition = todosPartition
         let followUps = followUpPartition
-        return Section {
-            todosSectionContent(partition, followUps)
-        } header: {
-            todosSectionHeader(count: partition.all.count + followUps.count)
+        let count = partition.all.count + followUps.count
+        if TodaySectionVisibility.showsTodos(count: count) {
+            Section {
+                todosSectionContent(partition, followUps)
+            } header: {
+                todosSectionHeader(count: count)
+            }
         }
     }
 
