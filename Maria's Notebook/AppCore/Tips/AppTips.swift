@@ -6,14 +6,14 @@ import TipKit
 
 /// Tip shown near the floating quick-note button
 struct QuickNoteTip: Tip {
-    var id: String { "quick-note-tip" }
+    var id: String { "quick-capture-tip" }
 
     var title: Text {
-        Text("Quick Actions")
+        Text("Capture Anything")
     }
 
     var message: Text? {
-        Text("Long-press this button for quick access to notes, presentations, work items, and to-dos.")
+        Text("Tap to capture a presentation, work, practice, a note or a todo. Long-press for your notebook companion.")
     }
 
     var image: Image? {
