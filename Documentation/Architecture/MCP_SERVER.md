@@ -48,6 +48,43 @@ Claude Desktop ──stdio──▶ Scripts/mcp/marias-notebook-mcp (nc relay)
   tools/call; notifications are consumed silently; tool failures return
   `isError: true` results, protocol failures return JSON-RPC errors).
   Platform-neutral and covered by unit tests.
+- **Annotations.** Every `MCPToolDefinition` declares an
+  `MCPToolAnnotations` value — the spec's `readOnlyHint`, `destructiveHint`,
+  `idempotentHint`, `openWorldHint` — and `tools/list` emits it as the
+  descriptor's `annotations` object, so a client can tell a read from a
+  write before prompting and the model knows which calls are safe to make
+  freely. Four presets: `.readOnly` (the 45 reads), `.write` (creates — a
+  second call may create again), `.idempotentWrite` (edits in place —
+  `update_*`, `mark_*`, `reschedule_presentation`, `resolve_follow_up`,
+  `day_pad`), and `.destructive` (`discard_presentation`,
+  `remove_student_from_work`, `skip_year_plan_entries`, `clear_year_plan`).
+  The field has no default, so a new tool cannot forget it, and
+  `MCPToolRegistryTests.annotationsClassifyEveryTool` pins the exact
+  non-read-only and destructive sets as literals — a misclassified tool is a
+  red test, not a silent change to what a client prompts for. `openWorldHint`
+  is false everywhere: every tool reads the local notebook.
+- **Write journal.** A record filed over MCP is otherwise indistinguishable
+  from one the guide typed, and the note entity's `reportedBy` /
+  `reporterName` cannot carry the distinction — they mean guide-versus-
+  assistant in the classroom and the speaker label in exports. So
+  provenance is a device-local, append-only journal instead:
+  `MCPRequestHandler` takes an `onWrite` closure, and after every successful
+  call of a tool whose `readOnlyHint` is false (errors and reads never
+  qualify) it hands over an `MCPWriteRecord` — timestamp, tool, the
+  arguments re-encoded compactly, the first 300 characters of the receipt,
+  the citations scanned out of it, and the destructive flag.
+  `MCPServerService` wires the `MCPWriteJournal` actor, which appends one
+  JSON line to `<Application Support>/MCP/writes.jsonl` and keeps the newest
+  half when the file passes 2 MB; a write failure is logged, never thrown
+  into the tool call. `recent_mcp_writes` reads it back. Nothing in the
+  journal leaves the Mac and nothing in it is needed by the app.
+- **Catalogue cost.** The whole catalogue is sent on every connection —
+  about 68 KB, roughly 17k tokens, for 81 tools — and schemas are two thirds
+  of it. Batch tools therefore describe their fields once at the top level
+  and strip descriptions from the array-item copy
+  (`JSONValue.withoutDescriptions`); descriptions carry what the model needs
+  to call the tool correctly (dedup, refusals, confirm rules) and not the
+  "as the in-app control would" reassurance, which lives in this document.
 - **Socket layer**: `MCPSocketServer` (macOS-only actor) owns the
   `NWListener`, accepts any number of concurrent clients, buffers lines
   per connection, and answers sequentially per connection.
@@ -150,6 +187,7 @@ ambiguity errors:
 | `list_templates` | meeting / note / todo templates and sample work with steps, in one tool keyed by `kind` |
 | **Operations** | |
 | `sync_status` | `CloudKitSyncStatusService.shared` — health, last sync, pending uploads, and the terminal mirroring-delegate failure |
+| `recent_mcp_writes` | `MCPWriteJournal` — every successful non-read-only call on this Mac, newest first: tool, the arguments it was made with (strings clipped, long arrays summarised), the receipt's first line, and the `[kind id=…]` citations parsed from it; `days` (default 7) or `since` / `until`, `tool`, `limit` 1–500. The review-or-undo call after a filing session |
 | `create_backup` (write) | `AutoBackupManager.performManualBackup` — the `.manual` trigger, never change-gated and independent of the auto-backup switch, so a call always writes a `ManualBackup-<timestamp>` archive into the auto-backup folder and reports its path and size. The call to make before a bulk write |
 | `draft_parent_report` (write) | `MonthlyReportDraftService.generateDraft` + `upsertReport`, the Parent Reports screen's Generate button: drafts one child's month from the recorded evidence (AI when available, the deterministic assembly otherwise — the receipt says which) and files it as a `draft` `CDParentCommunication`. Refuses to touch a `reviewed` or `sent` report, and keeps an existing draft's text unless `overwrite` is true; says so and writes nothing when the month has no evidence. Never sends |
 | **Reference & progression** | |
@@ -471,6 +509,14 @@ can be lost.
   — `since` / `until` on the observation, meeting, practice and recall
   reads: a note beyond `days_back`'s reach, `until` excluding newer rows,
   `since > until` refused, and old arguments unchanged.
+- `Maria's Notebook Tests/Services/MCPServer/MCPWriteJournalToolsTests.swift`
+  — the journal round-trip in a temporary directory (newest first, window
+  and tool filters, a malformed line skipped, the cap rewrite keeping the
+  newest half) and `recent_mcp_writes` over a seeded journal; the handler
+  suite covers what is journaled (a write's success with parsed citations
+  and clipped arguments) and what is not (reads, errors).
+- `MCPToolRegistryTests` also pins the tool count, the exact non-read-only
+  and destructive sets, and `openWorldHint == false` everywhere.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash
