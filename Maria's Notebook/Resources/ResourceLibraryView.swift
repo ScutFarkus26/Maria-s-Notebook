@@ -4,7 +4,7 @@
 //
 // Extensions:
 // - ResourceLibraryView+Sidebar.swift   (categorySidebar, chips, category menu)
-// - ResourceLibraryView+Layout.swift    (wideContent, compactContent, searchBar, statsStrip, etc.)
+// - ResourceLibraryView+Layout.swift    (allResources, wideContent, compactContent, searchBar, etc.)
 // - ResourceLibraryView+Content.swift   (resourceContent, selectableCard/Row)
 // - ResourceLibraryView+Sheets.swift    (bulk category/tag pickers, categoryPickerSheet)
 // - ResourceLibraryView+Actions.swift   (delete, favorite, selection, bulk ops, drag-and-drop)
@@ -21,7 +21,7 @@ struct ResourceLibraryView: View {
     @Environment(\.openWindow) var openWindow
     #endif
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.createdAt, ascending: false)])
-    var allResources: FetchedResults<CDResource>
+    var allResourcesRaw: FetchedResults<CDResource>
 
     @State var searchText = ""
     @State var selectedCategory: ResourceCategory?
@@ -78,7 +78,7 @@ struct ResourceLibraryView: View {
         // Apply smart filter first
         switch smartFilter {
         case .all:
-            result = Array(allResources)
+            result = allResources
         case .favorites:
             result = allResources.filter(\.isFavorite)
         case .recents:

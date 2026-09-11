@@ -63,7 +63,13 @@ extension MCPNotebookTools {
         let category = nonEmpty(arguments["category"]?.stringValue)?.lowercased()
         let search = nonEmpty(arguments["search"]?.stringValue)?.lowercased()
 
-        let all: [CDSupply] = modelContext.safeFetch(CDFetchRequest(CDSupply.self))
+        // Classroom entities live in both store configurations, so an unscoped
+        // fetch legitimately spans private and shared — and a shelf that was
+        // cloned between them under one id comes back two or three times.
+        // `deduplicateAllModels` folds those rows away at launch; until it has
+        // run, fold them for the reader. Scoping the fetch instead would be
+        // wrong: on an assistant device these rows live only in the shared store.
+        let all: [CDSupply] = modelContext.safeFetch(CDFetchRequest(CDSupply.self)).uniqueByID
         var kept: [CDSupply] = []
         for supply in all
         where keeps(supply, outOnly: outOnly, below: below, category: category, search: search) {
@@ -206,7 +212,10 @@ extension MCPNotebookTools {
     private static func resolveSupply(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDSupply {
-        let supplies = modelContext.safeFetch(CDFetchRequest(CDSupply.self))
+        // Folded by id for the same reason `describeSupplies` folds: before the
+        // cleanup pass runs, two clones of one supply would otherwise read as
+        // "more than one supply is called that" and refuse the adjustment.
+        let supplies = modelContext.safeFetch(CDFetchRequest(CDSupply.self)).uniqueByID
         if let id = UUID(uuidString: reference) {
             guard let supply = supplies.first(where: { $0.id == id }) else {
                 throw MCPToolError("No supply with id \(reference) was found.")

@@ -5,6 +5,17 @@ import SwiftUI
 
 extension ResourceLibraryView {
 
+    // MARK: - The Library
+
+    /// One row per logical resource.
+    ///
+    /// Resources are assigned to both store configurations, and the shared →
+    /// private clone kept each row's `id`, so one resource can come back two or
+    /// three times from an unscoped fetch until the launch-time cleanup folds
+    /// the copies away. (It lives here rather than beside its `@FetchRequest`
+    /// only to keep ResourceLibraryView.swift from growing further.)
+    var allResources: [CDResource] { Array(allResourcesRaw).uniqueByID }
+
     // MARK: - Wide Layout (iPad/Mac with Sidebar)
 
     var wideContent: some View {

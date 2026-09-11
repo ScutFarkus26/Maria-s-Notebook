@@ -61,7 +61,10 @@ extension MCPNotebookTools {
         let favouritesOnly: Bool = arguments["favorites_only"]?.boolValue ?? false
         let limit: Int = intArgument(arguments, "limit", default: 40, range: 1...100)
 
-        let all: [CDResource] = modelContext.safeFetch(CDFetchRequest(CDResource.self))
+        // Folded by id: a resource cloned between the private and shared stores
+        // carries the same id in both, and an unscoped fetch legitimately sees
+        // both. See `describeSupplies` for the whole story.
+        let all: [CDResource] = modelContext.safeFetch(CDFetchRequest(CDResource.self)).uniqueByID
         var kept: [CDResource] = []
         for resource in all {
             if favouritesOnly && !resource.isFavorite { continue }

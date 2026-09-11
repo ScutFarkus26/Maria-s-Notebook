@@ -747,7 +747,8 @@ nonisolated extension DataCleanupService {
         results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context, container: container)
         results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context, container: container)
 
-        return results.filter { $0.value > 0 }
+        // Supplies, their history, and resources — see +ShelfDeduplication.
+        return results.merging(shelfDuplicates(in: context, container: container)) { $1 }.filter { $0.value > 0 }
     }
 }
 // swiftlint:enable cyclomatic_complexity
