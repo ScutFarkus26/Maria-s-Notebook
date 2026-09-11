@@ -42,6 +42,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeWeeklySchedules(arguments: arguments, in: context())
             }
@@ -134,6 +135,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeYearPlan(arguments: arguments, in: context())
             }
@@ -240,6 +242,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeTemplates(kind: nonEmpty(arguments["kind"]?.stringValue), in: context())
             }

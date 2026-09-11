@@ -56,6 +56,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["entry_id"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateYearPlanEntry(arguments: arguments, in: context())
             }
@@ -141,6 +142,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .destructive,
             handler: { arguments in
                 try skipYearPlanEntries(arguments: arguments, in: context())
             }

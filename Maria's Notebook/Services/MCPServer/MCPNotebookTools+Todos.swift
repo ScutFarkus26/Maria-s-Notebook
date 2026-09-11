@@ -26,6 +26,7 @@ extension MCPNotebookTools {
                 + "\"what is owed right now\" across goals and flagged notes, use "
                 + "list_open_follow_ups instead.",
             inputSchema: listTodosSchema,
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let filter = try TodoFilter(arguments: arguments, in: modelContext)
@@ -220,6 +221,7 @@ extension MCPNotebookTools {
                 + "someday flag, or which students it concerns. Only the fields provided are "
                 + "changed. To mark one done, use resolve_follow_up.",
             inputSchema: updateTodoSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateTodo(arguments: arguments, in: context())
             }

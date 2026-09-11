@@ -39,6 +39,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let student = try resolveStudentReference(
@@ -144,6 +145,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeScheduledMeetings(arguments: arguments, in: context())
             }

@@ -50,6 +50,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_names", "body"]
             ],
+            annotations: .write,
             handler: { arguments in
                 try recordObservation(arguments: arguments, in: context())
             }
@@ -122,6 +123,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateStudent(arguments: arguments, in: context())
             }
@@ -232,6 +234,7 @@ extension MCPNotebookTools {
                 + "student_observations or search_notebook): its text, tags, flags, or which "
                 + "children it is about. Only the fields provided are changed.",
             inputSchema: updateObservationSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateObservation(arguments: arguments, in: context())
             }

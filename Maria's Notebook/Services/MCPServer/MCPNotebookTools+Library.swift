@@ -46,6 +46,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeResources(arguments: arguments, in: context())
             }
@@ -129,6 +130,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeBookClub(arguments: arguments, in: context())
             }
@@ -225,6 +227,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeReminders(arguments: arguments, in: context())
             }
@@ -294,6 +297,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try dayPad(arguments: arguments, in: context())
             }

@@ -30,6 +30,7 @@ extension MCPNotebookTools {
                 + "Recording the same lesson, students, and day twice updates that presentation "
                 + "instead of creating a second one.",
             inputSchema: recordPresentationSchema,
+            annotations: .write,
             handler: { arguments in
                 let modelContext = context()
                 let filing = try makeFiling(arguments: arguments, in: modelContext)

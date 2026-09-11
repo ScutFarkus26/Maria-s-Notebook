@@ -33,6 +33,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let day = AppCalendar.startOfDay(try dayArgument(arguments, "date") ?? Date())
@@ -110,6 +111,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let student = try resolveStudentReference(
@@ -207,6 +209,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name", "status"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try markAttendance(arguments: arguments, in: context())
             }

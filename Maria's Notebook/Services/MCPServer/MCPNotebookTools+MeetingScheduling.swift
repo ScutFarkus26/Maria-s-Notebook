@@ -51,6 +51,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student", "date"]
             ],
+            annotations: .write,
             handler: { arguments in
                 try scheduleMeeting(arguments: arguments, in: context())
             }

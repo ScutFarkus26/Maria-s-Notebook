@@ -42,6 +42,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["work_id", "student_name"]
             ],
+            annotations: .destructive,
             handler: { arguments in
                 try removeStudentFromWork(arguments: arguments, in: context())
             }

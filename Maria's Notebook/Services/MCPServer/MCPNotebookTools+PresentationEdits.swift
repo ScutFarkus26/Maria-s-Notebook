@@ -60,6 +60,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["presentation_id"]
             ],
+            annotations: .destructive,
             handler: { arguments in
                 try discardPresentation(arguments: arguments, in: context())
             }
@@ -141,6 +142,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["presentation_id"]
             ],
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updatePresentationRoster(arguments: arguments, in: context())
             }

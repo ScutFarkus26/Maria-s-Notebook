@@ -30,6 +30,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let includeWithdrawn = arguments["include_withdrawn"]?.boolValue ?? false
                 let students = DataQueryService(context: context())
@@ -79,6 +80,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["query"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let query = try requireString(arguments, "query")
                 let limit = intArgument(arguments, "limit", default: 8, range: 1...25)
@@ -120,6 +122,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let name = try requireString(arguments, "student_name")
                 let daysBack = intArgument(arguments, "days_back", default: 30, range: 1...120)
@@ -181,6 +184,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let daysBack = intArgument(arguments, "days_back", default: 30, range: 1...120)
                 let start = AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date()) ?? .distantPast
@@ -215,6 +219,7 @@ extension MCPNotebookTools {
             description: "A prose overview of the classroom right now: roster, recent activity, "
                 + "and open threads. A good first call when orienting to the classroom.",
             inputSchema: ["type": "object", "properties": [:]],
+            annotations: .readOnly,
             handler: { _ in
                 ChatContextAssembler(context: context()).buildClassroomSnapshot()
             }
@@ -251,6 +256,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["query"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let query = try requireString(arguments, "query")
                 let limit = intArgument(arguments, "limit", default: 8, range: 1...25)
@@ -285,6 +291,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["album", "page"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let album = try requireString(arguments, "album")
                 let page = intArgument(arguments, "page", default: 1, range: 1...10_000)

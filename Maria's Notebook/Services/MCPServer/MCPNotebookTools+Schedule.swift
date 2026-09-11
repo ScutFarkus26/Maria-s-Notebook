@@ -46,6 +46,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let start = AppCalendar.startOfDay(try dayArgument(arguments, "start_date") ?? Date())

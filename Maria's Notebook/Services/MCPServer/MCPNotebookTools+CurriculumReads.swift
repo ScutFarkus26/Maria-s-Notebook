@@ -38,6 +38,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["area"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try listLessonsByArea(arguments: arguments, in: context())
             }

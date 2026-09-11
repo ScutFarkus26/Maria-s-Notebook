@@ -40,6 +40,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeProcedures(arguments: arguments, in: context())
             }
@@ -107,6 +108,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 describeStories(arguments: arguments, in: context())
             }
@@ -180,6 +182,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 let modelContext = context()
                 let student = try resolveStudentReference(

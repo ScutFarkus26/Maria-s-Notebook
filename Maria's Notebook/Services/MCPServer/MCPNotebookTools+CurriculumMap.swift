@@ -51,6 +51,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeStudentCurriculumMap(arguments: arguments, in: context())
             }
@@ -200,6 +201,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["lesson_or_area"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeClassCurriculumMap(arguments: arguments, in: context())
             }

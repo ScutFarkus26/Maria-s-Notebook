@@ -51,6 +51,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["student_name"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try fetchPresentationHistory(arguments: arguments, in: context())
             }

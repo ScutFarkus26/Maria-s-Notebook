@@ -44,6 +44,7 @@ extension MCPNotebookTools {
                 ],
                 "required": ["lesson"]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeStudentsPending(arguments: arguments, in: context())
             }

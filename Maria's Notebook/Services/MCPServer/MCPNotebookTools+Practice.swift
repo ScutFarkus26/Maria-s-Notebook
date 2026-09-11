@@ -27,6 +27,7 @@ extension MCPNotebookTools {
                 + "readiness for a check-in or assessment. Filter to one student, or to sessions "
                 + "carrying a particular signal.",
             inputSchema: practiceSessionsSchema,
+            annotations: .readOnly,
             handler: { arguments in
                 try describePracticeSessions(arguments: arguments, in: context())
             }
@@ -183,6 +184,7 @@ extension MCPNotebookTools {
                     ]
                 ]
             ],
+            annotations: .readOnly,
             handler: { arguments in
                 try describeRecallChecks(arguments: arguments, in: context())
             }

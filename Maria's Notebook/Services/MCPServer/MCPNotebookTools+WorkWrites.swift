@@ -26,6 +26,7 @@ extension MCPNotebookTools {
                 + "track links, and a link back to the presentation the work follows. Assigning "
                 + "to several students creates one work item each, linked to one another.",
             inputSchema: assignWorkSchema,
+            annotations: .write,
             handler: { arguments in
                 try assignWork(arguments: arguments, in: context())
             }
@@ -214,6 +215,7 @@ extension MCPNotebookTools {
                 + "scheduled check-in. Completing a work item writes the same completion history "
                 + "the in-app work detail does. Only the fields provided are changed.",
             inputSchema: updateWorkSchema,
+            annotations: .idempotentWrite,
             handler: { arguments in
                 try updateWork(arguments: arguments, in: context())
             }
