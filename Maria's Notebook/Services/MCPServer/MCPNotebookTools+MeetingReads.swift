@@ -24,34 +24,45 @@ extension MCPNotebookTools {
             description: "A student's meeting history, newest first: what they reflected on, "
                 + "what they asked for, the guide's notes, the work reviewed, and whether the "
                 + "meeting was completed. Read this before filing a new one with "
-                + "create_meeting_entry so the conversation picks up where it left off.",
-            inputSchema: [
-                "type": "object",
-                "properties": [
-                    "student_name": [
-                        "type": "string",
-                        "description": "The student's first name, full name, or nickname"
-                    ],
-                    "limit": [
-                        "type": "integer",
-                        "description": "Maximum meetings to return, 1-20 (default 5)"
-                    ]
-                ],
-                "required": ["student_name"]
-            ],
+                + "create_meeting_entry so the conversation picks up where it left off. "
+                + "Five by default; raise limit or pass since/until (YYYY-MM-DD) to go further back.",
+            inputSchema: studentMeetingsSchema,
             handler: { arguments in
                 let modelContext = context()
                 let student = try resolveStudentReference(
                     requireString(arguments, "student_name"), in: modelContext
                 )
-                let limit = intArgument(arguments, "limit", default: 5, range: 1...20)
-                return describeMeetings(for: student, limit: limit, in: modelContext)
+                let limit = intArgument(arguments, "limit", default: 5, range: 1...100)
+                let window = try dayWindowArgument(arguments)
+                return describeMeetings(
+                    for: student, limit: limit, window: window, in: modelContext
+                )
             }
         )
     }
 
+    private static var studentMeetingsSchema: JSONValue {
+        var properties: [String: JSONValue] = [
+            "student_name": [
+                "type": "string",
+                "description": "The student's first name, full name, or nickname"
+            ],
+            "limit": [
+                "type": "integer",
+                "description": "Maximum meetings to return, 1-100 (default 5)"
+            ]
+        ]
+        properties.merge(dayWindowSchema("meetings held")) { current, _ in current }
+        return [
+            "type": "object",
+            "properties": .object(properties),
+            "required": ["student_name"]
+        ]
+    }
+
     private static func describeMeetings(
-        for student: CDStudent, limit: Int, in modelContext: NSManagedObjectContext
+        for student: CDStudent, limit: Int, window: DayWindow,
+        in modelContext: NSManagedObjectContext
     ) -> String {
         guard let studentID = student.id else {
             return "That student record has no identifier."
@@ -59,13 +70,14 @@ extension MCPNotebookTools {
         let request = CDFetchRequest(CDStudentMeeting.self)
         request.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
         let meetings: [CDStudentMeeting] = modelContext.safeFetch(request)
+            .filter { window.contains($0.date) }
             .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
         guard !meetings.isEmpty else {
-            return "No meetings are recorded for \(student.fullName)."
+            return "No meetings are recorded for \(student.fullName)\(window.phrase)."
         }
 
         let shown: [CDStudentMeeting] = Array(meetings.prefix(limit))
-        var lines: [String] = ["Meetings with \(student.fullName):"]
+        var lines: [String] = ["Meetings with \(student.fullName)\(window.phrase):"]
         for meeting in shown {
             lines.append(contentsOf: meetingLines(meeting, in: modelContext))
         }

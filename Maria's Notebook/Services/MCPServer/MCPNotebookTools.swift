@@ -230,3 +230,70 @@ extension MCPNotebookTools {
         (arguments[key]?.arrayValue ?? []).compactMap { $0.stringValue?.trimmed() }.filter { !$0.isEmpty }
     }
 }
+
+// MARK: - Day Windows
+
+extension MCPNotebookTools {
+    /// The inclusive `since` … `until` day window the history reads share.
+    ///
+    /// Both ends are whole days, not instants: `start` is the start of the
+    /// `since` day and `endExclusive` the start of the day *after* `until`, so
+    /// a record stamped at any hour of either day falls inside. An unset end
+    /// stays unbounded rather than snapping to the end of today — a caller who
+    /// passes neither argument gets exactly the window the tool had before.
+    struct DayWindow {
+        let sinceDay: Date?
+        let untilDay: Date?
+
+        var isSet: Bool { sinceDay != nil || untilDay != nil }
+        var start: Date? { sinceDay.map(AppCalendar.startOfDay) }
+        var endExclusive: Date? { untilDay.map { AppCalendar.dayRange(for: $0).end } }
+        /// The last instant of the `until` day, for APIs that compare `<=`.
+        var endInclusive: Date? { endExclusive.map { $0.addingTimeInterval(-1) } }
+
+        /// True when the date falls inside the window. An undated record is
+        /// outside a window the caller asked for and inside one they did not.
+        func contains(_ date: Date?) -> Bool {
+            guard let date else { return !isSet }
+            if let start, date < start { return false }
+            if let endExclusive, date >= endExclusive { return false }
+            return true
+        }
+
+        /// " since 2026-01-01", " through 2026-03-01", or both — for headers.
+        var phrase: String {
+            var parts: [String] = []
+            if let sinceDay { parts.append("since \(MCPNotebookTools.dayString(sinceDay))") }
+            if let untilDay { parts.append("through \(MCPNotebookTools.dayString(untilDay))") }
+            return parts.isEmpty ? "" : " " + parts.joined(separator: " ")
+        }
+    }
+
+    /// Parses the optional `since` / `until` arguments. A window that runs
+    /// backwards is a mistake worth naming, not an empty result the caller has
+    /// to puzzle over.
+    static func dayWindowArgument(_ arguments: [String: JSONValue]) throws -> DayWindow {
+        let since = try dayArgument(arguments, "since")
+        let until = try dayArgument(arguments, "until")
+        if let since, let until, AppCalendar.startOfDay(since) > AppCalendar.startOfDay(until) {
+            throw MCPToolError(
+                "since (\(dayString(since))) is after until (\(dayString(until))); swap them."
+            )
+        }
+        return DayWindow(sinceDay: since, untilDay: until)
+    }
+
+    /// The `since` / `until` schema properties, worded the same everywhere.
+    static func dayWindowSchema(_ what: String) -> [String: JSONValue] {
+        [
+            "since": [
+                "type": "string",
+                "description": .string("YYYY-MM-DD. Only \(what) on or after this day (inclusive).")
+            ],
+            "until": [
+                "type": "string",
+                "description": .string("YYYY-MM-DD. Only \(what) on or before this day (inclusive).")
+            ]
+        ]
+    }
+}
