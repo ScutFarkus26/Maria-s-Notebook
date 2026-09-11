@@ -73,6 +73,9 @@ extension MariasNotebookApp {
 
             #if os(macOS)
             // Start the MCP server for Claude Desktop if the teacher enabled it.
+            // The tools that reach past Core Data (backups, report drafts)
+            // find the app's services through this registration.
+            MCPAppServices.register(dependencies)
             MCPServerService.shared.applySettings()
             #endif
         }

@@ -196,36 +196,19 @@ extension CommandBarViewModel {
         lesson: CDLesson,
         persistence: CapturePersistenceContext
     ) throws -> Int {
-        var workCount = 0
-        for entry in entries {
-            switch entry.followUp {
-            case .none:
-                break
-            case .continueObserving:
-                markObservationForFollowUp(
-                    entry: entry,
-                    assignment: assignment,
-                    context: persistence.context
+        try CaptureFollowUpPersistence.persist(
+            entries.map {
+                CaptureFollowUpPersistence.Entry(
+                    studentID: $0.studentID,
+                    observation: $0.observation,
+                    followUp: $0.followUp,
+                    followUpDetail: $0.followUpDetail
                 )
-            case .practice:
-                if try createWorkIfNeeded(kind: .practiceLesson, entry: entry, persistence: persistence) {
-                    workCount += 1
-                }
-            case .followUpWork:
-                if try createWorkIfNeeded(kind: .followUpAssignment, entry: entry, persistence: persistence) {
-                    workCount += 1
-                }
-            case .represent:
-                try createRepresentationIfNeeded(
-                    studentID: entry.studentID,
-                    lesson: lesson,
-                    context: persistence.context
-                )
-            case .readyForNextLesson:
-                assignment.confirmStudent(entry.studentID)
-            }
-        }
-        return workCount
+            },
+            assignment: assignment,
+            lesson: lesson,
+            persistence: persistence
+        )
     }
 }
 

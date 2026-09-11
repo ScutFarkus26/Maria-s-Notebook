@@ -192,7 +192,7 @@ final class AutoBackupManager {
 
     // MARK: - Core Backup Logic
 
-    private func performBackup(
+    fileprivate func performBackup(
         viewContext: NSManagedObjectContext,
         trigger: BackupTrigger,
         prefix: String
@@ -384,4 +384,16 @@ final class AutoBackupManager {
         set { retentionCount = max(1, min(newValue, 100)) }
     }
 
+}
+
+extension AutoBackupManager {
+    // MARK: - Manual Backup
+
+    /// A backup the guide asked for by name — from the MCP `create_backup`
+    /// tool before a bulk change, for instance. Never change-gated and not
+    /// subject to the auto-backup switch: an explicit request always writes
+    /// a file, so the caller can rely on the path it gets back.
+    func performManualBackup(viewContext: NSManagedObjectContext) async -> BackupResult {
+        await performBackup(viewContext: viewContext, trigger: .manual, prefix: "ManualBackup")
+    }
 }

@@ -31,13 +31,26 @@ typealias MCPContextProvider = @MainActor @Sendable () -> NSManagedObjectContext
 enum MCPNotebookTools {
     /// Builds the full toolset backed by the given context provider.
     static func makeTools(
-        context: @escaping MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext }
+        context: @escaping MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext },
+        dependencies: @escaping MCPDependenciesProvider = { MCPAppServices.dependencies }
     ) -> [MCPToolDefinition] {
         rosterAndLessonTools(context: context)
             + observationTools(context: context)
             + scheduleAndWorkTools(context: context)
             + dayToDayTools(context: context)
             + classroomTools(context: context)
+            + appServiceTools(context: context, dependencies: dependencies)
+    }
+
+    /// Tools that need the app's dependency container, not just a context.
+    private static func appServiceTools(
+        context: @escaping MCPContextProvider,
+        dependencies: @escaping MCPDependenciesProvider
+    ) -> [MCPToolDefinition] {
+        [
+            createBackupTool(dependencies: dependencies),
+            draftParentReportTool(context: context, dependencies: dependencies)
+        ]
     }
 
     private static func rosterAndLessonTools(

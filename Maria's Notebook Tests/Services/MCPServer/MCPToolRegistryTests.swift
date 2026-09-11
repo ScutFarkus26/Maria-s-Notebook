@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 78)
+        #expect(names.count == 80)
         #expect(Set(names).count == names.count)
 
         let encoder = JSONEncoder()

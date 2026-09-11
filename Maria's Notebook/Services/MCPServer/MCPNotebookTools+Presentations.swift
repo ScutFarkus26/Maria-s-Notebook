@@ -22,69 +22,41 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "record_presentation",
             title: "Record Presentation",
-            description: "Record a lesson the guide gave, with what they observed. Writes the "
-                + "presentation into the students' histories exactly as the in-app capture "
-                + "review would, and links each observation to it. If the lesson was already "
-                + "planned or scheduled for those same students, that plan is completed rather "
-                + "than duplicated. Use find_lessons first so the lesson is unambiguous. "
-                + "Recording the same lesson, students, and day twice updates that presentation "
-                + "instead of creating a second one.",
+            description: "Record a lesson the guide gave, with what they observed and what they "
+                + "decided for each child (practice, follow-up work, re-present, ready for the next "
+                + "lesson, keep observing). Writes the presentation into the students' histories "
+                + "exactly as the in-app capture review would, and links each observation to it. "
+                + "If the lesson was already planned or scheduled for those same students, that plan "
+                + "is completed rather than duplicated. Use find_lessons first so the lesson is "
+                + "unambiguous. Recording the same lesson, students, and day twice updates that "
+                + "presentation instead of creating a second one. To file a whole day at once pass "
+                + "presentations, an array of these same fields; every name is checked before "
+                + "anything is written, and one save covers them all.",
             inputSchema: recordPresentationSchema,
             handler: { arguments in
                 let modelContext = context()
-                let filing = try makeFiling(arguments: arguments, in: modelContext)
-                return try file(filing, in: modelContext)
+                let filings: [PresentationFiling]
+                if let batch = arguments["presentations"]?.arrayValue {
+                    guard !batch.isEmpty else {
+                        throw MCPToolError("presentations is empty — list at least one presentation.")
+                    }
+                    filings = try batch.enumerated().map { index, item in
+                        guard let fields = item.objectValue else {
+                            throw MCPToolError("presentations[\(index)] must be an object.")
+                        }
+                        do {
+                            return try makeFiling(arguments: fields, in: modelContext)
+                        } catch let error as MCPToolError {
+                            throw MCPToolError("presentations[\(index)]: \(error.message)")
+                        }
+                    }
+                } else {
+                    filings = [try makeFiling(arguments: arguments, in: modelContext)]
+                }
+                return try file(filings, in: modelContext)
             }
         )
     }
-
-    private static let recordPresentationSchema: JSONValue = [
-        "type": "object",
-        "properties": [
-            "lesson": [
-                "type": "string",
-                "description": "The lesson presented: a lesson id from find_lessons, or its exact name"
-            ],
-            "student_names": [
-                "type": "array",
-                "items": ["type": "string"],
-                "minItems": 1,
-                "description": "The students the lesson was given to: first names, full names, or nicknames"
-            ],
-            "date": [
-                "type": "string",
-                "description": "The day it was presented, YYYY-MM-DD (default today)"
-            ],
-            "group_observation": [
-                "type": "string",
-                "description": .string("What happened in the presentation as a whole — "
-                    + "the part that is about the group, not one child")
-            ],
-            "student_observations": [
-                "type": "array",
-                "description": "What the guide noticed about individual children in this presentation",
-                "items": [
-                    "type": "object",
-                    "properties": [
-                        "student": [
-                            "type": "string",
-                            "description": "One of the students named in student_names"
-                        ],
-                        "observation": [
-                            "type": "string",
-                            "description": "The observation, as the guide phrased it"
-                        ],
-                        "needs_follow_up": [
-                            "type": "boolean",
-                            "description": "Flag this observation for the follow-up inbox (default false)"
-                        ]
-                    ],
-                    "required": ["student", "observation"]
-                ]
-            ]
-        ],
-        "required": ["lesson", "student_names"]
-    ]
 
     // MARK: - Filing
 
@@ -101,6 +73,8 @@ extension MCPNotebookTools {
         let observations: [UUID: String]
         /// Students whose observation the guide flagged for the follow-up inbox.
         let followUpIDs: Set<UUID>
+        /// The guide's decision per child, in `student_observations` order.
+        let outcomes: [CaptureFollowUpPersistence.Entry]
     }
 
     private static func makeFiling(
@@ -130,8 +104,17 @@ extension MCPNotebookTools {
             presentedAt: try dayArgument(arguments, "date") ?? Date(),
             groupObservation: arguments["group_observation"]?.stringValue?.trimmed() ?? "",
             observations: observed.bodies,
-            followUpIDs: observed.followUpIDs
+            followUpIDs: observed.followUpIDs,
+            outcomes: observed.outcomes
         )
+    }
+
+    /// What `student_observations` said: each child's note text, who was
+    /// flagged for the inbox, and the guide's decisions.
+    private struct ParsedObservations {
+        let bodies: [UUID: String]
+        let followUpIDs: Set<UUID>
+        let outcomes: [CaptureFollowUpPersistence.Entry]
     }
 
     /// Parses `student_observations`, refusing an observation about a child who
@@ -141,9 +124,10 @@ extension MCPNotebookTools {
         _ arguments: [String: JSONValue],
         presented studentIDs: [UUID],
         in modelContext: NSManagedObjectContext
-    ) throws -> (bodies: [UUID: String], followUpIDs: Set<UUID>) {
+    ) throws -> ParsedObservations {
         var bodies: [UUID: String] = [:]
         var followUpIDs: Set<UUID> = []
+        var outcomes: [CaptureFollowUpPersistence.Entry] = []
 
         for entry in arguments["student_observations"]?.arrayValue ?? [] {
             guard let fields = entry.objectValue else {
@@ -161,33 +145,75 @@ extension MCPNotebookTools {
             if fields["needs_follow_up"]?.boolValue == true {
                 followUpIDs.insert(studentID)
             }
+            if let raw = nonEmpty(fields["follow_up"]?.stringValue) {
+                guard let argument = FollowUpArgument(rawValue: raw) else {
+                    let allowed = FollowUpArgument.allCases.map(\.rawValue).joined(separator: ", ")
+                    throw MCPToolError("follow_up must be one of \(allowed), not \"\(raw)\".")
+                }
+                outcomes.append(CaptureFollowUpPersistence.Entry(
+                    studentID: studentID,
+                    observation: body,
+                    followUp: argument.outcome,
+                    followUpDetail: fields["follow_up_detail"]?.stringValue ?? ""
+                ))
+            }
         }
-        return (bodies, followUpIDs)
+        return ParsedObservations(bodies: bodies, followUpIDs: followUpIDs, outcomes: outcomes)
+    }
+
+    /// One presentation's written rows, before the save.
+    private struct FiledPresentation {
+        let filing: PresentationFiling
+        let assignment: CDLessonAssignment
+        let origin: PresentationOrigin
+        let noteCount: Int
+        let workCount: Int
     }
 
     private static func file(
-        _ filing: PresentationFiling, in modelContext: NSManagedObjectContext
+        _ filings: [PresentationFiling], in modelContext: NSManagedObjectContext
     ) throws -> String {
-        let resolved = resolveAssignment(for: filing, in: modelContext)
-        let assignment: CDLessonAssignment
-        let notes: [CDNote]
+        var filed: [FiledPresentation] = []
         do {
-            assignment = try LifecycleService.recordPresentation(
-                from: resolved.assignment,
-                presentedAt: filing.presentedAt,
-                modelContext: modelContext
-            )
-            notes = try PresentationOutcomePersistenceService.persistObservations(
-                groupObservation: filing.groupObservation,
-                studentObservations: filing.observations,
-                studentIDs: filing.studentIDs,
-                presentationID: assignment.id,
-                context: modelContext
-            )
+            for filing in filings {
+                filed.append(try write(filing, in: modelContext))
+            }
+        } catch let error as MCPToolError {
+            modelContext.rollback()
+            throw error
         } catch {
             modelContext.rollback()
             throw MCPToolError("The presentation could not be recorded: \(error.localizedDescription)")
         }
+
+        guard modelContext.safeSave() else {
+            modelContext.rollback()
+            throw MCPToolError("The presentation could not be saved.")
+        }
+
+        let receipts = filed.map(receipt(for:))
+        guard receipts.count > 1 else { return receipts[0] }
+        return "Filed \(receipts.count) presentation(s):\n" + receipts.map { "- \($0)" }.joined(separator: "\n")
+    }
+
+    /// Writes one presentation, its notes, and the guide's decisions into the
+    /// context without saving, so a batch lands or rolls back as a whole.
+    private static func write(
+        _ filing: PresentationFiling, in modelContext: NSManagedObjectContext
+    ) throws -> FiledPresentation {
+        let resolved = resolveAssignment(for: filing, in: modelContext)
+        let assignment = try LifecycleService.recordPresentation(
+            from: resolved.assignment,
+            presentedAt: filing.presentedAt,
+            modelContext: modelContext
+        )
+        let notes = try PresentationOutcomePersistenceService.persistObservations(
+            groupObservation: filing.groupObservation,
+            studentObservations: filing.observations,
+            studentIDs: filing.studentIDs,
+            presentationID: assignment.id,
+            context: modelContext
+        )
 
         // The in-app flow stamps notes as they are written; a presentation
         // filed for an earlier day should carry that day's date instead.
@@ -198,11 +224,25 @@ extension MCPNotebookTools {
             }
         }
 
-        guard modelContext.safeSave() else {
-            modelContext.rollback()
-            throw MCPToolError("The presentation could not be saved.")
+        var workCount = 0
+        if !filing.outcomes.isEmpty, let presentationID = assignment.id {
+            workCount = try CaptureFollowUpPersistence.persist(
+                filing.outcomes,
+                assignment: assignment,
+                lesson: filing.lesson,
+                persistence: CapturePersistenceContext(
+                    lessonID: filing.lessonID,
+                    lessonName: filing.lesson.name,
+                    presentationID: presentationID,
+                    context: modelContext
+                )
+            )
         }
-        return receipt(for: assignment, filing: filing, origin: resolved.origin, noteCount: notes.count)
+
+        return FiledPresentation(
+            filing: filing, assignment: assignment, origin: resolved.origin,
+            noteCount: notes.count, workCount: workCount
+        )
     }
 
     // MARK: - Presentation Resolution
@@ -255,14 +295,10 @@ extension MCPNotebookTools {
 
     // MARK: - Receipt
 
-    private static func receipt(
-        for assignment: CDLessonAssignment,
-        filing: PresentationFiling,
-        origin: PresentationOrigin,
-        noteCount: Int
-    ) -> String {
+    private static func receipt(for filed: FiledPresentation) -> String {
+        let filing = filed.filing
         let opening: String
-        switch origin {
+        switch filed.origin {
         case .alreadyRecorded:
             opening = "Updated the presentation already recorded"
         case .plannedLesson:
@@ -270,10 +306,24 @@ extension MCPNotebookTools {
         case .newRecord:
             opening = "Recorded"
         }
-        let id = assignment.id?.uuidString ?? "unknown"
+        let id = filed.assignment.id?.uuidString ?? "unknown"
         let who = filing.students.map(\.fullName).joined(separator: ", ")
-        let notes = noteCount == 0 ? "no observations linked" : "\(noteCount) observation(s) linked"
-        return "\(opening) [presentation id=\(id)]: \(filing.lesson.name) "
+        let notes = filed.noteCount == 0 ? "no observations linked" : "\(filed.noteCount) observation(s) linked"
+        var text = "\(opening) [presentation id=\(id)]: \(filing.lesson.name) "
             + "to \(who) on \(dayString(filing.presentedAt)) — \(notes)."
+
+        if !filing.outcomes.isEmpty {
+            let names = Dictionary(uniqueKeysWithValues: filing.students.compactMap { student in
+                student.id.map { ($0, student.fullName) }
+            })
+            let decisions = filing.outcomes.map { entry in
+                "\(names[entry.studentID] ?? "?") — \(entry.followUp.displayName.lowercased())"
+            }
+            text += " Decisions: \(decisions.joined(separator: "; "))."
+            if filed.workCount > 0 {
+                text += " \(filed.workCount) work item(s) created."
+            }
+        }
+        return text
     }
 }
