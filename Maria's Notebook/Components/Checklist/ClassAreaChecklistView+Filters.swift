@@ -13,7 +13,7 @@ extension ClassAreaChecklistView {
             studentFilterIDs: $viewModel.studentFilterIDs,
             rosterStudents: viewModel.rosterStudents,
             selectedStudents: viewModel.selectedFilterStudents,
-            displayName: { viewModel.displayName(for: $0) },
+            displayName: { StudentFormatter.displayName(for: $0) },
             summary: viewModel.filterSummary,
             onQueryDebounced: { query in
                 viewModel.applyLessonQuery(query, context: viewContext)

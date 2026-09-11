@@ -12,16 +12,6 @@ struct AttendanceGrid: View {
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
 
-    private var duplicateFirstNames: Set<String> {
-        var counts: [String: Int] = [:]
-        for student in students {
-            let key = student.firstName.trimmed().lowercased()
-            guard !key.isEmpty else { continue }
-            counts[key, default: 0] += 1
-        }
-        return Set(counts.filter { $0.value > 1 }.map(\.key))
-    }
-
     // Layout constants
     private let horizontalPadding: CGFloat = UIConstants.AttendanceGrid.horizontalPadding
     private let verticalPadding: CGFloat = UIConstants.AttendanceGrid.verticalPadding
@@ -46,14 +36,12 @@ struct AttendanceGrid: View {
 
 #if os(iOS)
     private var compactListLayout: some View {
-        let duplicates = duplicateFirstNames
-        return List {
+        List {
             ForEach(students, id: \.id) { student in
                 AttendanceCard(
                     student: student,
                     record: recordsByStudentID[student.cloudKitKey],
                     isEditing: isEditing,
-                    duplicateFirstNames: duplicates,
                     onTap: {
                         onCycleStatus(student)
                     },
@@ -77,9 +65,7 @@ struct AttendanceGrid: View {
     // MARK: - iPad/macOS: Card grid
 
     private var gridLayout: some View {
-        // Compute once; passed into both the scrolling and non-scrolling ForEach branches.
-        let duplicates = duplicateFirstNames
-        return GeometryReader { geometry in
+        GeometryReader { geometry in
             let availableWidth = geometry.size.width - (horizontalPadding * 2)
             let availableHeight = geometry.size.height - (verticalPadding * 2)
 
@@ -108,7 +94,6 @@ struct AttendanceGrid: View {
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: isEditing,
-                                duplicateFirstNames: duplicates,
                                 onTap: {
                                     onCycleStatus(student)
                                 },
@@ -133,7 +118,6 @@ struct AttendanceGrid: View {
                                 student: student,
                                 record: recordsByStudentID[student.cloudKitKey],
                                 isEditing: isEditing,
-                                duplicateFirstNames: duplicates,
                                 onTap: {
                                     onCycleStatus(student)
                                 },

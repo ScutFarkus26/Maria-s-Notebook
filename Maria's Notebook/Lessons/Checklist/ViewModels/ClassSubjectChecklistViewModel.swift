@@ -4,7 +4,6 @@
 // Extracted from ClassAreaChecklistView.swift for better separation of concerns.
 //
 // Extensions:
-// - ClassAreaChecklistViewModel+NameDisplay.swift         (displayName, duplicateFirstNameKeys)
 // - ClassAreaChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
 // - ClassAreaChecklistViewModel+PresentationHelpers.swift (findOrCreateWork, upsert/deleteLessonPresentation)
 
@@ -70,11 +69,6 @@ class ClassAreaChecklistViewModel {
     var isEditModeActive: Bool = false
     var isSelectionMode: Bool { isEditModeActive || !selectedCells.isEmpty }
     private let lessonsLogic = LessonsViewModel()
-
-    // OPTIMIZATION: Cache duplicate name computation to avoid recalculating on every render
-    // Internal (not private) so +NameDisplay extension can mutate these cached values.
-    var cachedDuplicateFirstNameKeys: Set<String> = []
-    var lastStudentHashForDuplicates: Int?
 
     // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation.
     // Internal (not private) so the +Filtering extension can invalidate it when a filter changes.

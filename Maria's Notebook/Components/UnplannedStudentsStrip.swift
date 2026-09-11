@@ -14,27 +14,6 @@ struct UnplannedStudentsStrip: View {
         self.onSelect = onSelect
     }
 
-    // Compute duplicate first names (case-insensitive, trimmed)
-    private var duplicateFirstNames: Set<String> {
-        var counts: [String: Int] = [:]
-        for s in unplanned {
-            let key = s.firstName.normalizedForComparison()
-            counts[key, default: 0] += 1
-        }
-        return Set(counts.filter { $0.value > 1 }.map(\.key))
-    }
-
-    private func chipLabel(for student: CDStudent) -> String {
-        let first = student.firstName.trimmed()
-        let key = first.lowercased()
-        if duplicateFirstNames.contains(key) {
-            if let initial = student.lastName.trimmed().first {
-                return first + " " + String(initial).uppercased() + "."
-            }
-        }
-        return first
-    }
-
     @ViewBuilder
     var body: some View {
         if unplanned.isEmpty {
@@ -98,7 +77,7 @@ struct UnplannedStudentsStrip: View {
         Button {
             onSelect(student)
         } label: {
-            Text(chipLabel(for: student))
+            Text(StudentFormatter.displayName(for: student))
                 .font(.caption)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 10)

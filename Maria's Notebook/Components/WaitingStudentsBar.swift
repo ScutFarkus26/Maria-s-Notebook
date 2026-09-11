@@ -145,7 +145,7 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
                 Circle()
                     .fill(palette.color(forDays: entry.daysWaiting))
                     .frame(width: 6, height: 6)
-                Text(StudentFormatter.firstName(for: entry.student))
+                Text(StudentFormatter.displayName(for: entry.student))
                     .font(AppTheme.ScaledFont.caption)
                     .fontWeight(isSelected ? .semibold : .regular)
                 Text(entry.daysWaiting.map { "\($0)d" } ?? "—")

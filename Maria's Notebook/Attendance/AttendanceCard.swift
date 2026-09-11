@@ -14,7 +14,6 @@ struct AttendanceCard: View {
     let student: CDStudent
     let record: CDAttendanceRecord?
     let isEditing: Bool
-    let duplicateFirstNames: Set<String>
     let onTap: () -> Void
     let onEditNote: (String?) -> Void
     let onSetAbsenceReason: ((AbsenceReason) -> Void)?
@@ -47,13 +46,7 @@ struct AttendanceCard: View {
     }
 
     private var displayName: String {
-        let first = student.firstName
-        let key = first.trimmed().lowercased()
-        if duplicateFirstNames.contains(key),
-           let initialChar = student.lastName.trimmed().first {
-            return "\(first) \(String(initialChar).uppercased())."
-        }
-        return first
+        StudentFormatter.displayName(for: student)
     }
 
     private var accentColor: Color {

@@ -13,23 +13,6 @@ final class TodayCacheManager {
     private(set) var lessonsByID: [UUID: CDLesson] = [:]
     private(set) var workByID: [UUID: CDWorkModel] = [:]
 
-    // MARK: - Duplicate Names Cache
-
-    private var cachedDuplicateFirstNames: Set<String>?
-
-    /// Returns first names that appear more than once among cached students.
-    var duplicateFirstNames: Set<String> {
-        if let cached = cachedDuplicateFirstNames {
-            return cached
-        }
-        let firsts = studentsByID.values.map { $0.firstName.trimmed().lowercased() }
-        var counts: [String: Int] = [:]
-        for f in firsts { counts[f, default: 0] += 1 }
-        let duplicates = Set(counts.filter { $0.value > 1 }.map(\.key))
-        cachedDuplicateFirstNames = duplicates
-        return duplicates
-    }
-
     // MARK: - Initialization
 
     init() {}
@@ -43,17 +26,10 @@ final class TodayCacheManager {
 
     // MARK: - Display Name Helpers
 
-    /// Returns the display name for a student ID, using first name + last initial if duplicate.
+    /// Returns the canonical short name ("Maya S") for a student ID.
     func displayName(for studentID: UUID) -> String {
         guard let student = studentsByID[studentID] else { return "Student" }
-        let first = student.firstName
-        let key = first.trimmed().lowercased()
-        if duplicateFirstNames.contains(key) {
-            if let initialChar = student.lastName.trimmed().first {
-                return "\(first) \(String(initialChar).uppercased())."
-            }
-        }
-        return first
+        return StudentFormatter.displayName(for: student)
     }
 
     /// Returns the lesson name for a lesson ID.
@@ -89,7 +65,6 @@ final class TodayCacheManager {
                 studentsByID[studentID] = student
             }
         }
-        cachedDuplicateFirstNames = nil
     }
 
     /// Loads lessons if not already cached.
@@ -126,6 +101,5 @@ final class TodayCacheManager {
         studentsByID = [:]
         lessonsByID = [:]
         workByID = [:]
-        cachedDuplicateFirstNames = nil
     }
 }
