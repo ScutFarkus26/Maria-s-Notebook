@@ -9,8 +9,10 @@
 //  `add_follow_up` mirrors NewTodoForm.createTodo, student tag syncing
 //  included, and refuses to file a second identical open todo the same day
 //  unless the caller passes `force` (see +ObservationBatch for the guard).
-//  `resolve_follow_up` completes a todo or resolves a goal, and refuses
-//  recurring todos because only the app schedules the next occurrence.
+//  `resolve_follow_up` completes a todo, resolves a goal, or clears an
+//  observation's follow-up flag — the three rows of the app's Watching list
+//  — and refuses recurring todos because only the app schedules the next
+//  occurrence.
 //
 
 import CoreData
@@ -156,14 +158,15 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "resolve_follow_up",
             title: "Resolve Follow-Up",
-            description: "Mark a follow-up done: completes a todo, or resolves a student's "
-                + "open goal (focus item), by the id shown in list_open_follow_ups.",
+            description: "Mark a follow-up done: completes a todo, resolves a student's "
+                + "open goal (focus item), or clears an observation's follow-up flag, by the "
+                + "id shown in list_open_follow_ups.",
             inputSchema: [
                 "type": "object",
                 "properties": [
                     "id": [
                         "type": "string",
-                        "description": "The todo or focus item UUID from list_open_follow_ups"
+                        "description": "The todo, focus item or note UUID from list_open_follow_ups"
                     ]
                 ],
                 "required": ["id"]
@@ -203,20 +206,44 @@ extension MCPNotebookTools {
         }
 
         if let item = modelContext.object(CDStudentFocusItem.self, id: id) {
-            guard item.isActive else {
-                return "Goal [focusItem id=\(idString)] \"\(item.text)\" is already "
-                    + "\(item.status.rawValue)."
-            }
-            // Resolved outside a meeting, so no resolving meeting is recorded.
-            item.status = .resolved
-            item.resolvedAt = Date()
-            guard modelContext.safeSave() else {
-                modelContext.rollback()
-                throw MCPToolError("The goal could not be saved.")
-            }
-            return "Resolved goal [focusItem id=\(idString)] \"\(item.text)\"."
+            return try resolveGoal(item, idString: idString, in: modelContext)
         }
 
-        throw MCPToolError("No follow-up or goal with id \(idString) was found.")
+        if let note = modelContext.object(CDNote.self, id: id) {
+            return try clearFlag(on: note, idString: idString, in: modelContext)
+        }
+
+        throw MCPToolError("No follow-up, goal or flagged note with id \(idString) was found.")
+    }
+
+    /// Resolved outside a meeting, so no resolving meeting is recorded.
+    private static func resolveGoal(
+        _ item: CDStudentFocusItem, idString: String, in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        guard item.isActive else {
+            return "Goal [focusItem id=\(idString)] \"\(item.text)\" is already "
+                + "\(item.status.rawValue)."
+        }
+        FocusItemService.resolve(item)
+        guard modelContext.safeSave() else {
+            modelContext.rollback()
+            throw MCPToolError("The goal could not be saved.")
+        }
+        return "Resolved goal [focusItem id=\(idString)] \"\(item.text)\"."
+    }
+
+    /// The same path the note editor's flag toggle takes, so `updatedAt` moves.
+    private static func clearFlag(
+        on note: CDNote, idString: String, in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        guard note.needsFollowUp, let id = note.id else {
+            return "The follow-up flag on [note id=\(idString)] is already cleared."
+        }
+        NoteRepository(context: modelContext).updateNote(id: id, needsFollowUp: false)
+        guard modelContext.safeSave() else {
+            modelContext.rollback()
+            throw MCPToolError("The note could not be saved.")
+        }
+        return "Cleared the follow-up flag on [note id=\(idString)]."
     }
 }

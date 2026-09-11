@@ -46,6 +46,7 @@ extension TodayView {
         dayCardsListSection
         agendaListSection
         todosListSection
+        watchingListSection
         readyForNextListSection
         followingPresentationsListSection
         recentNotesListSection
@@ -80,6 +81,7 @@ extension TodayView {
         rightNowListSection
         dayCardsListSection
         todosListSection
+        watchingListSection
         readyForNextListSection
         followingPresentationsListSection
         recentNotesListSection

@@ -137,13 +137,20 @@ extension MCPNotebookTools {
             title: "List Open Follow-Ups",
             description: "Everything currently open: the guide's follow-up todos, each "
                 + "student's open goals (focus items), and observation notes flagged for "
-                + "follow-up. Optionally narrowed to one student.",
+                + "follow-up. Optionally narrowed to one student, or to the app's Watching "
+                + "list.",
             inputSchema: [
                 "type": "object",
                 "properties": [
                     "student_name": [
                         "type": "string",
                         "description": "Only follow-ups concerning this student (first name, full name, or nickname)"
+                    ],
+                    "watching_only": [
+                        "type": "boolean",
+                        "description": .string("Only what the app's Watching list shows — flagged "
+                            + "notes, open todos beginning with Watch that name a child, and open "
+                            + "goals — grouped per child (default false)")
                     ]
                 ]
             ],
@@ -166,6 +173,10 @@ extension MCPNotebookTools {
             }
             filterID = id
             filterName = student.fullName
+        }
+
+        if arguments["watching_only"]?.boolValue ?? false {
+            return listWatching(studentID: filterID, studentName: filterName, in: modelContext)
         }
 
         let students = modelContext.safeFetch(CDFetchRequest(CDStudent.self))
