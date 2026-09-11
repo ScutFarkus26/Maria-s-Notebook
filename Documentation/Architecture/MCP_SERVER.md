@@ -78,12 +78,12 @@ ambiguity errors:
 | `search_albums` | `AlbumCorpusLookup.search` — teaching-album PDFs |
 | `get_album_page` | `AlbumCorpusLookup.page` — one album page's full text |
 | **Observations & presentations** | |
-| `student_observations` | `CDNote` fetch + `NoteScope` filter |
+| `student_observations` | `CDNote` fetch + `NoteScope` filter — `days_back` (default 30) or an explicit `since` / `until` window (`DayWindow`, YYYY-MM-DD, inclusive days), `limit` 1–200 (default 40), newest first with a "showing N of M" trailer |
 | `student_presentation_history` | presented `CDLessonAssignment`s, newest first — `limit` 1–200 (default 10), `since` (YYYY-MM-DD), and `lesson` (id or name) narrow it; with `lesson` the child's `CDLessonPresentation` record is read as well, so a checklist mark with no dated presentation is reported rather than read as "never had it" |
-| `presentations_missing_observations` | `PresentationObservationCoverageService`, judged child by child: a group presentation is listed while any child on it has no observation about her, and the line names those children |
-| `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent`; an optional `date` back-dates the note the way `create_meeting_entry` does |
+| `presentations_missing_observations` | `PresentationObservationCoverageService`, judged child by child: a group presentation is listed while any child on it has no observation about her, and the line names those children; takes the same `since` / `until` window |
+| `create_observation` (write) | `CDNote` + `syncStudentLinks` + `safeSave`, mirroring `LogObservationIntent`; an optional `date` back-dates the note the way `create_meeting_entry` does. A `notes` array files several in one call — every name and date resolves before anything is written, one save covers them all. An identical note (same trimmed body, same student scope, same day) is reported and cited rather than filed again, unless `force` is true; the guard also catches a duplicate inside one batch |
 | `update_observation` (write) | `NoteRepository.updateNote` + `safeSave` — body, tags, follow-up and report flags, and the children the note is about, by note id. `student_names` replaces the note's scope rather than adding to it (`.all` on an empty list, as `UnifiedNoteEditor.determineScope` reads an empty selection) and re-syncs the link rows; the presentation relationship is left alone, matching the in-app editor, which attaches a note to its context only at creation |
-| `record_presentation` (write) | `LifecycleService.recordPresentation` + `PresentationOutcomePersistenceService.persistObservations` + `safeSave`, mirroring the command bar's `saveCaptureProposal` — completes a planned presentation when one matches, and re-recording the same lesson/students/day edits that presentation instead of duplicating it |
+| `record_presentation` (write) | `LifecycleService.recordPresentation` + `PresentationOutcomePersistenceService.persistObservations` + `CaptureFollowUpPersistence.persist` + `safeSave`, mirroring the command bar's `saveCaptureProposal` — completes a planned presentation when one matches, and re-recording the same lesson/students/day edits that presentation instead of duplicating it. Each `student_observations` item may carry the guide's decision as `follow_up` (`practice`, `follow_up_work`, `re_present`, `ready_for_next_lesson`, `continue_observing`) plus `follow_up_detail`; a `presentations` array files a whole day — every item resolves first, then one save |
 | `mark_mastered` (write) | the Mastered pill's `updateProficiencyState` and the checklist's `upsertLessonPresentation` shape — the child's latest `CDLessonPresentation` for the lesson flipped to `mastered` in place with `masteredAt` set (today, or an explicit `date`), then `SequenceTrackService.checkAndCompleteTrackIfNeeded`; this is the only write that advances a track step. Refuses the whole call, writing nothing, if any named child has no presentation of the lesson on record — it never manufactures a row. An already-mastered row keeps its original date |
 | `update_student` (write) | `StudentRepository.updateStudent` + `safeSave` — nickname, names, birthday, level; accepts a name or a student id |
 | **Schedule** | |
@@ -101,21 +101,21 @@ ambiguity errors:
 | **Attendance** | |
 | `attendance_for_day` | `attendanceStatuses(for:on:)` — deduplicated per student/day |
 | `student_attendance` | `CDAttendanceRecord` + `deduplicatedPerStudentDay()`, with a tally |
-| `mark_attendance` (write) | `CDAttendanceStore` — the permission + attribution + store-assignment chokepoint |
+| `mark_attendance` (write) | `CDAttendanceStore` — the permission + attribution + store-assignment chokepoint. One `student_name` + `status`, or a `students` array, or `mark_all_present` (everyone not named in `students` is marked present); every name resolves before any write, and `absence_reason` / `note` are refused alongside the batch forms because they are per-student |
 | **Todos & follow-ups** | |
 | `list_open_follow_ups` | open `CDTodoItem`s + active `CDStudentFocusItem`s + `needsFollowUp` notes, optionally filtered to one student |
 | `list_todos` | `CDTodoItem` filtered by status, student, due window, someday, tag |
-| `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo`; takes priority, scheduled date and the someday flag at creation, so a follow-up no longer needs a second `update_todo` |
+| `add_follow_up` (write) | `CDTodoItem` + `TodoTagHelper.syncStudentTags` + `safeSave`, mirroring `NewTodoForm.createTodo`; takes priority, scheduled date and the someday flag at creation, so a follow-up no longer needs a second `update_todo`. An identical open todo from today (same trimmed title, same students) is reported and cited rather than added, unless `force` is true |
 | `update_todo` (write) | title, notes, dates, priority, someday, students (+ retagging via `TodoTagHelper`) |
 | `resolve_follow_up` (write) | completes a `CDTodoItem` (refusing recurring todos, whose next occurrence only the app schedules) or resolves a `CDStudentFocusItem` by id |
 | **Meetings** | |
 | `create_meeting_entry` (write) | `CDStudentMeeting` + `FocusItemService` + `safeSave`, mirroring `MeetingFormPane.saveAndContinue` — reflection, lesson requests, guide notes, goals-as-focus-items; then `MeetingScheduler.completeBooking` deletes the student's booking for that day (or an earlier one still pending), as the Today agenda does when a started meeting is completed |
-| `student_meetings` | `CDStudentMeeting` history with its work reviews and linked notes — the read side of `create_meeting_entry` |
+| `student_meetings` | `CDStudentMeeting` history with its work reviews and linked notes — the read side of `create_meeting_entry`; `limit` 1–100 (default 5) and a `since` / `until` window |
 | `scheduled_meetings` | `CDScheduledMeeting`; uses `allStudentIDs`, so a group sitting lists its whole party; shows each booking's `purpose` and the work it is about |
 | `schedule_meeting` (write) | `CDScheduledMeeting` via `MeetingScheduler.bookMeeting`, the meetings tab's date-picker path: one individual booking per student (another day moves it, the same day keeps it), group sittings untouched; refuses a day `SchoolCalendarService.isNonSchoolDaySync` says school is out |
 | **Observation depth** | |
-| `practice_sessions` | `CDPracticeSession` — duration, quality, independence, and the flagged behaviours (`activeBehaviours`), filterable by signal |
-| `recall_checks` | `CDLessonRecallCheck` — retained / shaky / forgotten, weeks after mastery |
+| `practice_sessions` | `CDPracticeSession` — duration, quality, independence, and the flagged behaviours (`activeBehaviours`), filterable by signal and by a `since` / `until` window |
+| `recall_checks` | `CDLessonRecallCheck` — retained / shaky / forgotten, weeks after mastery, filterable by a `since` / `until` window |
 | **Families** | |
 | `list_guardians` | `CDGuardian`, optionally only those flagged `receivesReports` |
 | `update_guardian` (write) | adds or edits a `CDGuardian` — name, email, relationship, report flag, notes |
@@ -150,6 +150,8 @@ ambiguity errors:
 | `list_templates` | meeting / note / todo templates and sample work with steps, in one tool keyed by `kind` |
 | **Operations** | |
 | `sync_status` | `CloudKitSyncStatusService.shared` — health, last sync, pending uploads, and the terminal mirroring-delegate failure |
+| `create_backup` (write) | `AutoBackupManager.performManualBackup` — the `.manual` trigger, never change-gated and independent of the auto-backup switch, so a call always writes a `ManualBackup-<timestamp>` archive into the auto-backup folder and reports its path and size. The call to make before a bulk write |
+| `draft_parent_report` (write) | `MonthlyReportDraftService.generateDraft` + `upsertReport`, the Parent Reports screen's Generate button: drafts one child's month from the recorded evidence (AI when available, the deterministic assembly otherwise — the receipt says which) and files it as a `draft` `CDParentCommunication`. Refuses to touch a `reviewed` or `sent` report, and keeps an existing draft's text unless `overwrite` is true; says so and writes nothing when the month has no evidence. Never sends |
 | **Reference & progression** | |
 | `list_procedures` | `CDProcedure`; a single match returns its full text |
 | `list_stories` | `CDStory` metadata (the PDFs themselves are not returned) |
@@ -216,14 +218,17 @@ features behind them are built. `NoteStudentLink`, `TodayAgendaOrder` and
 `GoingOutChecklistItem` and `IssueAction` already surface through their
 parents.
 
-**Not exposed for want of an entry point, not by policy.** Triggering a
-backup (`AutoBackupManager`) and generating an AI parent-report draft
-(`MonthlyReportDraftService`) are both reached through `AppDependencies`,
-which is injected into the SwiftUI environment rather than resolvable from a
-static tool handler. Wiring either up means giving the MCP layer a way to
-reach app-level services — a small service locator populated at bootstrap —
-not a new tool. `sync_status` works today only because
-`CloudKitSyncStatusService` is a singleton.
+**App-level services.** `AutoBackupManager` and `MonthlyReportDraftService`
+are reached through `AppDependencies`, which is injected into the SwiftUI
+environment rather than resolvable from a static tool handler. `MCPAppServices`
+is the one-slot locator that bridges the gap: `performStartupBootstrap`
+registers the app's container just before `MCPServerService` starts, and
+`makeTools(context:dependencies:)` hands the two tools that need it
+(`create_backup`, `draft_parent_report`) a provider closure — nil before
+startup and under tests, where they answer that the app is still starting,
+or a container built on the in-memory stack when a test supplies one.
+`sync_status` needs none of this because `CloudKitSyncStatusService` is a
+singleton.
 
 `find_lessons` + `record_presentation` are the pair that lets a guide
 describe a presentation in prose and have it filed: the model names the
@@ -236,9 +241,19 @@ and scope against the presentation they hang off. Its one divergence from
 the in-app flow is deliberate: notes are stamped with the presentation's
 date, not the moment they were written, because presentations filed this way
 are often caught up in the evening or a day later. The per-student
-follow-up outcomes the capture review offers (practice, follow-up work,
-re-present, ready for the next lesson) are not exposed yet — only the
-`needs_follow_up` flag that puts an observation in the follow-up inbox.
+decisions the capture review offers ride on each `student_observations`
+item as `follow_up`: `practice` and `follow_up_work` create one work item
+per (presentation, child, kind), titled from `follow_up_detail` when given;
+`re_present` puts the lesson back on the child's planning list unless a plan
+naming her is already waiting; `ready_for_next_lesson` confirms her on the
+presentation; `continue_observing` (or the older `needs_follow_up` flag)
+sends the observation to the follow-up inbox. They are written by
+`CaptureFollowUpPersistence`, the command bar's own follow-up code lifted out
+of `CommandBarViewModel` so both paths share one implementation. The
+`presentations` array is the evening-catch-up form: every item is resolved
+before anything is written, each item is written without saving, and one
+save covers the batch — a bad name in the fourth item leaves nothing behind
+from the first three, and the error names the item (`presentations[3]: …`).
 
 The two curriculum-map tools are the Three-Year View over MCP. They read
 nothing the screens do not: `CurriculumMapLoader` reduces the notebook to
@@ -437,6 +452,25 @@ can be lost.
   — `students_pending`: planned, promoted and calendar-only children, behind
   pace, the group on a scheduled presentation, the given / no-plan trailer,
   and a withdrawn child kept out.
+- `Maria's Notebook Tests/Services/MCPServer/MCPPresentationOutcomeToolsTests.swift`
+  — the `follow_up` decisions on `record_presentation` (work items, the
+  re-present plan, confirmation, the inbox flag, an unknown value refused)
+  and the `presentations` batch (one receipt per lesson, all-or-nothing,
+  the failing item named).
+- `Maria's Notebook Tests/Services/MCPServer/MCPAppServiceToolsTests.swift`
+  — `create_backup` and `draft_parent_report` through a container built on
+  the in-memory stack: the still-starting refusal when none is registered,
+  an archive written and cited, a month with no evidence, and the reviewed /
+  sent / existing-draft protections.
+- `Maria's Notebook Tests/Services/MCPServer/MCPObservationBatchToolsTests.swift`,
+  `MCPFollowUpGuardToolsTests.swift`, `MCPAttendanceBatchToolsTests.swift`
+  — the duplicate guards and `force` on `create_observation` and
+  `add_follow_up`, the `notes` batch, and `students` / `mark_all_present`
+  on `mark_attendance`, each all-or-nothing on name resolution.
+- `Maria's Notebook Tests/Services/MCPServer/MCPDateRangeReadToolsTests.swift`
+  — `since` / `until` on the observation, meeting, practice and recall
+  reads: a note beyond `days_back`'s reach, `until` excluding newer rows,
+  `since > until` refused, and old arguments unchanged.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash
