@@ -66,16 +66,35 @@ nonisolated extension CDYearPlanEntry {
         satisfaction.isSatisfied(self)
     }
 
+    /// Whether this intention was made for a school year that has since ended:
+    /// still planned, dated, and dated before this year's first day. See
+    /// `YearPlanStaleness` for why that is not the same as being behind.
+    ///
+    /// Pass `yearStart` at any call site that asks this more than once — the
+    /// default recomputes (from a cache, but still) per call.
+    func isCarriedOver(yearStart: Date = YearPlanStaleness.currentYearStart()) -> Bool {
+        YearPlanStaleness.isCarriedOver(
+            plannedDate: plannedDate, status: status, yearStart: yearStart
+        )
+    }
+
     /// Whether this entry's planned date is in the past, it hasn't been
     /// promoted, and the lesson has not in fact been given.
     ///
-    /// The last clause is what stops a lesson given without being scheduled
-    /// first — the ordinary case, a child ready this morning — from reading as
-    /// behind pace for the rest of the year. "Behind pace" still means the same
-    /// thing it always did: a target date that has passed with the lesson still
-    /// ahead of her.
-    func isBehindPace(satisfiedBy satisfaction: YearPlanSatisfaction) -> Bool {
+    /// The satisfaction clause is what stops a lesson given without being
+    /// scheduled first — the ordinary case, a child ready this morning — from
+    /// reading as behind pace for the rest of the year. The carried-over clause
+    /// is the same idea one year out: a target from last April is last year's
+    /// intention, not this year's debt, and the guide re-dates or skips it
+    /// rather than chasing it. "Behind pace" keeps meaning what it always did:
+    /// a target date *in this school year* that has passed with the lesson
+    /// still ahead of her.
+    func isBehindPace(
+        satisfiedBy satisfaction: YearPlanSatisfaction,
+        schoolYearStart: Date = YearPlanStaleness.currentYearStart()
+    ) -> Bool {
         guard isPlanned, !isSatisfied(by: satisfaction) else { return false }
+        guard !isCarriedOver(yearStart: schoolYearStart) else { return false }
         guard let date = plannedDate else { return false }
         return date < AppCalendar.startOfDay(Date())
     }
