@@ -119,7 +119,10 @@ extension MCPNotebookTools {
                 + "dates and whether each is still planned, has been promoted onto the calendar, "
                 + "or was skipped. An entry here is an intention, not a scheduled presentation. "
                 + "Entries whose lesson has since been given drop out of the planned list — the "
-                + "record answers them — and are counted at the end.",
+                + "record answers them — and are counted at the end. An entry whose target "
+                + "date falls before this school year started reads as carried over from last "
+                + "year rather than behind pace: it is last year's intention, not this year's "
+                + "debt, and is re-dated or skipped rather than chased.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -178,11 +181,29 @@ extension MCPNotebookTools {
             return "\(student.fullName) has no \(status.rawValue) year-plan entries." + givenNote
         }
 
+        // One boundary for the whole reply: a line must not say "behind pace"
+        // for a target the summary is about to call carried over.
+        let yearStart = YearPlanStaleness.currentYearStart()
         let lessons = lessonNameIndex(in: modelContext)
         // The header already says which status these are, so the lines don't repeat it.
-        let lines = entries.map { "- " + yearPlanEntryLine($0, lessons: lessons, satisfiedBy: satisfaction) }
+        let lines = entries.map {
+            "- " + yearPlanEntryLine(
+                $0, lessons: lessons, satisfiedBy: satisfaction, yearStart: yearStart
+            )
+        }
         return "\(student.fullName), \(status.rawValue) (\(entries.count)):\n"
-            + lines.joined(separator: "\n") + givenNote
+            + lines.joined(separator: "\n") + carriedOverNote(entries, yearStart: yearStart) + givenNote
+    }
+
+    /// The closing line that names the carried-over entries as a group and says
+    /// what clears them, so the count is never a silent one.
+    static func carriedOverNote(_ entries: [CDYearPlanEntry], yearStart: Date) -> String {
+        let carried = entries.filter { $0.isCarriedOver(yearStart: yearStart) }.count
+        guard carried > 0 else { return "" }
+        let verb = carried == 1 ? "is" : "are"
+        return "\n\n\(carried) of them \(verb) carried over from last year (targets before "
+            + "\(dayString(yearStart))) — re-date or skip them in Settings → School Calendar, "
+            + "or with clear_year_plan."
     }
 
     /// One year-plan entry as a line, without a list marker. Shared so
@@ -191,7 +212,8 @@ extension MCPNotebookTools {
         _ entry: CDYearPlanEntry,
         lessons: [UUID: String],
         includeStatus: Bool = false,
-        satisfiedBy satisfaction: YearPlanSatisfaction = .none
+        satisfiedBy satisfaction: YearPlanSatisfaction = .none,
+        yearStart: Date = YearPlanStaleness.currentYearStart()
     ) -> String {
         let id: String = entry.id?.uuidString ?? "unknown"
         let lesson: String = entry.lessonUUID.flatMap { lessons[$0] } ?? "a lesson"
@@ -205,7 +227,9 @@ extension MCPNotebookTools {
         if entry.isSatisfied(by: satisfaction) {
             details.append("already given")
         }
-        if entry.isBehindPace(satisfiedBy: satisfaction) {
+        if entry.isCarriedOver(yearStart: yearStart) {
+            details.append("carried over from \(YearPlanStaleness.previousSchoolYear().label)")
+        } else if entry.isBehindPace(satisfiedBy: satisfaction, schoolYearStart: yearStart) {
             details.append("behind pace")
         }
         if let group = nonEmpty(entry.sequenceGroupKey) {

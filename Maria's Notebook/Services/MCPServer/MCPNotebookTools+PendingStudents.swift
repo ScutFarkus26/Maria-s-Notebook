@@ -29,7 +29,8 @@ extension MCPNotebookTools {
             name: "students_pending",
             title: "Students Pending a Lesson",
             description: "Every enrolled child who still has one lesson ahead of her, in one call: "
-                + "her year-plan target date, whether she is behind pace, and whether the lesson is "
+                + "her year-plan target date, whether she is behind pace (or carried over from "
+                + "last school year), and whether the lesson is "
                 + "already on a scheduled presentation for her (with its day, time and group), "
                 + "soonest target first. Closes with who has already had it and who has no plan for "
                 + "it, so a group can be formed and handed to schedule_presentation without a "
@@ -58,6 +59,9 @@ extension MCPNotebookTools {
         let student: CDStudent
         let entry: CDYearPlanEntry?
         let behindPace: Bool
+        /// Her target fell in a school year that has ended. Said as such —
+        /// "behind pace" would be the wrong instruction to act on.
+        let carriedOver: Bool
         let assignment: CDLessonAssignment?
     }
 
@@ -115,8 +119,11 @@ extension MCPNotebookTools {
         let openByStudent: [String: CDLessonAssignment]
         let givenIDs: Set<String>
         let satisfaction: YearPlanSatisfaction
+        /// One boundary for the whole reply, read once.
+        let yearStart: Date
 
         init(lessonID: String, enrolledIDs: Set<String>, in modelContext: NSManagedObjectContext) {
+            yearStart = YearPlanStaleness.currentYearStart()
             let entries = yearPlanEntries(lessonID: lessonID, in: modelContext)
                 .filter { enrolledIDs.contains($0.studentID) }
             satisfaction = YearPlanSatisfaction.index(for: entries, in: modelContext)
@@ -146,15 +153,21 @@ extension MCPNotebookTools {
             }
             if let entry, entry.isPromoted {
                 return .pending(PendingRow(student: student, entry: entry, behindPace: false,
-                                           assignment: promoted ?? open))
+                                           carriedOver: false, assignment: promoted ?? open))
             }
             if let entry, entry.isPlanned {
-                return .pending(PendingRow(student: student, entry: entry,
-                                           behindPace: entry.isBehindPace(satisfiedBy: satisfaction),
-                                           assignment: open))
+                return .pending(PendingRow(
+                    student: student, entry: entry,
+                    behindPace: entry.isBehindPace(
+                        satisfiedBy: satisfaction, schoolYearStart: yearStart
+                    ),
+                    carriedOver: entry.isCarriedOver(yearStart: yearStart),
+                    assignment: open
+                ))
             }
             if let open {
-                return .pending(PendingRow(student: student, entry: nil, behindPace: false, assignment: open))
+                return .pending(PendingRow(student: student, entry: nil, behindPace: false,
+                                           carriedOver: false, assignment: open))
             }
             return .unplanned
         }
@@ -239,7 +252,11 @@ extension MCPNotebookTools {
         var parts: [String] = ["[student id=\(id)] \(row.student.fullName)"]
         if let entry = row.entry {
             var target = entry.plannedDate.map { "target \(dayString($0))" } ?? "in the year plan, no target date"
-            if row.behindPace { target += " (behind pace)" }
+            if row.carriedOver {
+                target += " (carried over)"
+            } else if row.behindPace {
+                target += " (behind pace)"
+            }
             parts.append(target)
         } else {
             parts.append("no year-plan entry")

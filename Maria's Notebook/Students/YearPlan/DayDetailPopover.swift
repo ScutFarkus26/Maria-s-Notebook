@@ -119,6 +119,10 @@ struct DayDetailPopover: View {
             Text("Behind")
                 .font(.caption)
                 .foregroundStyle(.red)
+        case .carriedOver:
+            Text("Carried over")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         case .planned:
             Text("Planned")
                 .font(.caption)

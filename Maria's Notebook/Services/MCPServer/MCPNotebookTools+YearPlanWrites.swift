@@ -166,7 +166,11 @@ extension MCPNotebookTools {
             return "\(student.fullName) has no planned year-plan entries to skip."
         }
         let satisfaction = YearPlanSatisfaction.index(for: entries, in: modelContext)
-        let behind = entries.filter { $0.isBehindPace(satisfiedBy: satisfaction) }.count
+        let yearStart = YearPlanStaleness.currentYearStart()
+        let behind = entries.filter {
+            $0.isBehindPace(satisfiedBy: satisfaction, schoolYearStart: yearStart)
+        }.count
+        let carried = entries.filter { $0.isCarriedOver(yearStart: yearStart) }.count
         let skipped = StudentDeparturePlans.skip(entries: entries)
 
         guard modelContext.safeSave() else {
@@ -174,9 +178,12 @@ extension MCPNotebookTools {
             throw MCPToolError("The year-plan entries could not be saved.")
         }
         let behindNote = behind > 0 ? " \(behind) of them had gone behind pace." : ""
+        let carriedNote = carried > 0
+            ? " \(carried) of them \(carried == 1 ? "is" : "are") carried over from last year."
+            : ""
         return "Skipped \(skipped) year-plan \(skipped == 1 ? "entry" : "entries") for "
-            + "\(student.fullName).\(behindNote) Nothing was deleted — read them back with "
-            + "year_plan status \"skipped\"."
+            + "\(student.fullName).\(behindNote)\(carriedNote) Nothing was deleted — read them "
+            + "back with year_plan status \"skipped\"."
     }
 
     // MARK: - Shared
