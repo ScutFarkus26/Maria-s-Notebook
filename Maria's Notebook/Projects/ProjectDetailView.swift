@@ -49,6 +49,24 @@ struct ProjectDetailView: View {
         )
     }
 
+    /// Children on this project's member list who are no longer in the class.
+    /// `studentsByID` is deliberately enrolled-only; this is how a departed
+    /// member gets named instead of showing as "Unknown".
+    var formerStudentsByID: [UUID: CDStudent] {
+        let departed = Array(studentsRaw).uniqueByID.filter { !$0.isEnrolled }
+        return Dictionary(
+            departed.compactMap { s -> (UUID, CDStudent)? in guard let id = s.id else { return nil }; return (id, s) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    /// Members still in the class — what the "Students" tile counts, since a
+    /// project that has lost half its group is not still a group of six.
+    var enrolledMemberCount: Int {
+        let enrolled = Set(students.compactMap { $0.id?.uuidString })
+        return club.memberStudentIDsArray.filter { enrolled.contains($0) }.count
+    }
+
     var lessonsByID: [UUID: CDLesson] {
         Dictionary(
             Array(lessonsRaw).compactMap { lesson in lesson.id.map { ($0, lesson) } },
