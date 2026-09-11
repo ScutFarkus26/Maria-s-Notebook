@@ -32,9 +32,10 @@ enum MCPNotebookTools {
     /// Builds the full toolset backed by the given context provider.
     static func makeTools(
         context: @escaping MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext },
-        dependencies: @escaping MCPDependenciesProvider = { MCPAppServices.dependencies }
+        dependencies: @escaping MCPDependenciesProvider = { MCPAppServices.dependencies },
+        journal: MCPWriteJournal = .shared
     ) -> [MCPToolDefinition] {
-        rosterAndLessonTools(context: context)
+        rosterAndLessonTools(context: context, journal: journal)
             + observationTools(context: context)
             + scheduleAndWorkTools(context: context)
             + dayToDayTools(context: context)
@@ -54,7 +55,8 @@ enum MCPNotebookTools {
     }
 
     private static func rosterAndLessonTools(
-        context: @escaping MCPContextProvider
+        context: @escaping MCPContextProvider,
+        journal: MCPWriteJournal
     ) -> [MCPToolDefinition] {
         [
             listStudentsTool(context: context),
@@ -62,6 +64,7 @@ enum MCPNotebookTools {
             searchNotebookTool(),
             classroomSnapshotTool(context: context),
             syncStatusTool(),
+            recentMCPWritesTool(journal: journal),
             findLessonsTool(context: context),
             listLessonsByAreaTool(context: context),
             createLessonTool(context: context),

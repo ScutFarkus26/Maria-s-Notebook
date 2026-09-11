@@ -19,6 +19,20 @@ struct MCPRequestHandler: Sendable {
 
     let serverVersion: String
     let tools: [MCPToolDefinition]
+    /// Called once for every successful call of a tool that changes the
+    /// notebook, so provenance can be journalled without any entity field
+    /// having to carry it. Never called for reads or for failures.
+    let onWrite: (@Sendable (MCPWriteRecord) async -> Void)?
+
+    init(
+        serverVersion: String,
+        tools: [MCPToolDefinition],
+        onWrite: (@Sendable (MCPWriteRecord) async -> Void)? = nil
+    ) {
+        self.serverVersion = serverVersion
+        self.tools = tools
+        self.onWrite = onWrite
+    }
 
     /// Handles one newline-delimited JSON-RPC message.
     /// Returns the encoded response, or nil when no response is due
@@ -127,6 +141,14 @@ struct MCPRequestHandler: Sendable {
         let arguments = request.params?["arguments"]?.objectValue ?? [:]
         do {
             let text = try await tool.handler(arguments)
+            // Only a call that returned — a thrown error falls to the catch —
+            // and only one that could have changed something.
+            if let onWrite, !tool.annotations.readOnlyHint {
+                await onWrite(MCPWriteRecord(
+                    tool: tool.name, arguments: arguments, result: text,
+                    destructive: tool.annotations.destructiveHint
+                ))
+            }
             return .success(id: request.id, result: Self.toolResult(text: text, isError: false))
         } catch {
             let message = (error as? MCPToolError)?.message ?? error.localizedDescription
