@@ -29,6 +29,7 @@ extension TodayViewModel: Equatable {
         lhs.inputsMatch(rhs)
             && lhs.listIDsMatch(rhs)
             && lhs.listCountsMatch(rhs)
+            && lhs.followUpIDsMatch(rhs)
             && lhs.attendanceMatches(rhs)
         // Cache internals (studentsByID, lessonsByID, workByID, etc.) are intentionally
         // not compared — they don't directly affect rendering.
@@ -76,6 +77,16 @@ extension TodayViewModel: Equatable {
             && staleFollowUps.count == other.staleFollowUps.count
             && overdueReminders.count == other.overdueReminders.count
             && anytimeReminders.count == other.anytimeReminders.count
+    }
+
+    /// The due check-in rows: a row's id is its check-in, so completing one
+    /// changes the id list; rescheduling keeps the id and moves the day, so
+    /// the days are compared too. Its own function — the others sit near the
+    /// type-check budget.
+    private func followUpIDsMatch(_ other: TodayViewModel) -> Bool {
+        followUpCheckIns.count == other.followUpCheckIns.count
+            && followUpCheckIns.map(\.id) == other.followUpCheckIns.map(\.id)
+            && followUpCheckIns.map(\.dueDay) == other.followUpCheckIns.map(\.dueDay)
     }
 
     /// Attendance summary affecting the header.

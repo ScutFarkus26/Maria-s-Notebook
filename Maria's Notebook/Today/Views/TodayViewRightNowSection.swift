@@ -60,8 +60,12 @@ extension TodayView {
 
     /// The first agenda item that hasn't been completed yet. Falls back to the first
     /// future item; if everything is done or empty, returns nil.
+    ///
+    /// Due check-ins moved out of the agenda and into the todo list, so when
+    /// nothing on the agenda is pending the first due check-in still stands
+    /// in as "Next up" — the hero kept proposing one before the move.
     var nextAgendaItem: AgendaItem? {
-        viewModel.agendaItems.first { item in
+        let pending = viewModel.agendaItems.first { item in
             switch item {
             case .lesson(let sl):
                 return !sl.isPresented
@@ -71,6 +75,9 @@ extension TodayView {
                  .groupedScheduledWork, .groupedFollowUp:
                 return true
             }
+        }
+        return pending ?? viewModel.followUpCheckIns.first.map {
+            .scheduledWork(ScheduledWorkItem(work: $0.work, checkIn: $0.checkIn))
         }
     }
 

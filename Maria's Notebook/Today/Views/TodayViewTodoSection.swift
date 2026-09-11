@@ -73,52 +73,86 @@ extension TodayView {
         return TodosPartition(all: todos, overdue: overdue, dueOnDay: dueOnDay, highPriority: highPriority)
     }
 
+    /// Due work check-ins split the way the todos are, computed once per body.
+    struct FollowUpPartition {
+        let overdue: [WorkCheckInFollowUp]
+        let dueOnDay: [WorkCheckInFollowUp]
+
+        var isEmpty: Bool { overdue.isEmpty && dueOnDay.isEmpty }
+        var count: Int { overdue.count + dueOnDay.count }
+    }
+
+    private var followUpPartition: FollowUpPartition {
+        let rows = viewModel.followUpCheckIns
+        return FollowUpPartition(
+            overdue: rows.filter(\.isOverdue),
+            dueOnDay: rows.filter { !$0.isOverdue }
+        )
+    }
+
     var todosListSection: some View {
         let partition = todosPartition
+        let followUps = followUpPartition
         return Section {
-            todosSectionContent(partition)
+            todosSectionContent(partition, followUps)
         } header: {
-            todosSectionHeader(count: partition.all.count)
+            todosSectionHeader(count: partition.all.count + followUps.count)
         }
     }
 
     @ViewBuilder
-    private func todosSectionContent(_ partition: TodosPartition) -> some View {
-        if partition.all.isEmpty {
+    private func todosSectionContent(_ partition: TodosPartition, _ followUps: FollowUpPartition) -> some View {
+        if partition.all.isEmpty && followUps.isEmpty {
             emptyStateText("No todos for today")
         } else {
-            todosOverdueGroup(partition)
-            todosDueOnDayGroup(partition)
-            todosHighPriorityGroup(partition)
+            todosOverdueGroup(partition, followUps)
+            todosDueOnDayGroup(partition, followUps)
+            todosHighPriorityGroup(partition, followUps)
         }
     }
 
     @ViewBuilder
-    private func todosOverdueGroup(_ partition: TodosPartition) -> some View {
-        if !partition.overdue.isEmpty {
+    private func todosOverdueGroup(_ partition: TodosPartition, _ followUps: FollowUpPartition) -> some View {
+        if !partition.overdue.isEmpty || !followUps.overdue.isEmpty {
             overdueSubheader
             ForEach(partition.overdue) { todo in
                 overdueTodoRow(todo)
             }
+            overdueFollowUpRows(followUps)
         }
     }
 
     @ViewBuilder
-    private func todosDueOnDayGroup(_ partition: TodosPartition) -> some View {
-        if !partition.dueOnDay.isEmpty {
-            if !partition.overdue.isEmpty {
+    private func overdueFollowUpRows(_ followUps: FollowUpPartition) -> some View {
+        ForEach(followUps.overdue) { item in
+            checkInFollowUpRow(item)
+        }
+    }
+
+    @ViewBuilder
+    private func todosDueOnDayGroup(_ partition: TodosPartition, _ followUps: FollowUpPartition) -> some View {
+        if !partition.dueOnDay.isEmpty || !followUps.dueOnDay.isEmpty {
+            if !partition.overdue.isEmpty || !followUps.overdue.isEmpty {
                 tertiarySubheader("Today")
             }
             ForEach(partition.dueOnDay) { todo in
                 completableTodoRow(todo)
             }
+            dueOnDayFollowUpRows(followUps)
         }
     }
 
     @ViewBuilder
-    private func todosHighPriorityGroup(_ partition: TodosPartition) -> some View {
+    private func dueOnDayFollowUpRows(_ followUps: FollowUpPartition) -> some View {
+        ForEach(followUps.dueOnDay) { item in
+            checkInFollowUpRow(item)
+        }
+    }
+
+    @ViewBuilder
+    private func todosHighPriorityGroup(_ partition: TodosPartition, _ followUps: FollowUpPartition) -> some View {
         if !partition.highPriority.isEmpty {
-            if !partition.overdue.isEmpty || !partition.dueOnDay.isEmpty {
+            if !partition.overdue.isEmpty || !partition.dueOnDay.isEmpty || !followUps.isEmpty {
                 tertiarySubheader("High Priority")
             }
             ForEach(partition.highPriority) { todo in
