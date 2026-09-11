@@ -37,10 +37,14 @@ struct SchedulePresentationSheet: View {
     ])
     private var allStudentsRaw: FetchedResults<CDStudent>
     // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Filter out test students when setting is disabled.
+    // A child who has left the classroom is deliberately NOT filtered out here:
+    // `StudentPickerModel` lists her disabled with the reason, which is the
+    // whole point — a departure should be visible where the group is formed,
+    // not a silent gap in the roster.
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID.filterEnrolled(), show: showTestStudents,
+            Array(allStudentsRaw).uniqueByID, show: showTestStudents,
             namesRaw: testStudentNamesRaw
         )
     }
@@ -49,19 +53,26 @@ struct SchedulePresentationSheet: View {
     @State private var studentSearchText: String = ""
     /// What the record says about this lesson, read once per lesson.
     @State private var recordIndex: PresentationRecordIndex?
+    /// The same record, keyed by student id for the rows and chips.
+    @State private var records: [UUID: PresentationRecordIndex.Given] = [:]
     /// How many of the selected children are already on record, while the
     /// second-pass/review question is up.
     @State private var repeatCount: Int?
 
-    private var filteredStudents: [CDStudent] {
-        let query = studentSearchText.normalizedForComparison()
-        guard !query.isEmpty else { return allStudents }
+    /// The rows the search leaves on screen.
+    private var filteredRows: [StudentPickerRow] { rows(matching: studentSearchText) }
 
-        return allStudents.filter { student in
-            student.firstName.lowercased().contains(query) ||
-            student.lastName.lowercased().contains(query) ||
-            student.fullName.lowercased().contains(query)
-        }
+    /// Every child the sheet knows about, searched or not — what the ticked
+    /// selection is judged against, so a child who has left can never be
+    /// planned for just because the search hid her row.
+    private var allRows: [StudentPickerRow] { rows(matching: "") }
+
+    private func rows(matching search: String) -> [StudentPickerRow] {
+        StudentPickerModel.rows(
+            candidates: StudentPickerModel.candidates(allStudents),
+            query: StudentPickerModel.Query(search: search, formerStudents: .shownBlocked),
+            records: records
+        )
     }
 
     var body: some View {
@@ -87,7 +98,7 @@ struct SchedulePresentationSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Plan") { attemptPlan() }
-                        .disabled(selectedStudentIDs.isEmpty)
+                        .disabled(selectedStudents.isEmpty)
                 }
             }
         }
@@ -146,8 +157,8 @@ struct SchedulePresentationSheet: View {
             }
 
             List {
-                ForEach(filteredStudents, id: \.id) { student in
-                    studentRow(student)
+                ForEach(filteredRows) { row in
+                    studentRow(row)
                 }
             }
             .listStyle(.plain)
@@ -162,6 +173,9 @@ struct SchedulePresentationSheet: View {
                     HStack(spacing: 4) {
                         Text(StudentFormatter.displayName(for: student))
                             .font(.caption)
+                        if let given = student.id.flatMap({ records[$0] }) {
+                            StudentRecordCaption(given: given, compact: true)
+                        }
                         Button {
                             if let studentID = student.id {
                                 selectedStudentIDs.remove(studentID)
@@ -184,28 +198,39 @@ struct SchedulePresentationSheet: View {
     }
 
     @ViewBuilder
-    private func studentRow(_ student: CDStudent) -> some View {
+    private func studentRow(_ row: StudentPickerRow) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(StudentFormatter.displayName(for: student))
-                if let given = record(for: student) {
-                    StudentRecordCaption(given: given)
-                }
+                Text(row.candidate.displayName)
+                    .foregroundStyle(row.isSelectable ? .primary : .secondary)
+                rowCaption(row)
             }
             Spacer()
-            if let studentID = student.id, selectedStudentIDs.contains(studentID) {
+            if selectedStudentIDs.contains(row.id), row.isSelectable {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.accent)
             }
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            guard let studentID = student.id else { return }
-            if selectedStudentIDs.contains(studentID) {
-                selectedStudentIDs.remove(studentID)
-            } else {
-                selectedStudentIDs.insert(studentID)
-            }
+            selectedStudentIDs = StudentPickerModel.toggling(
+                row.id, in: selectedStudentIDs, rows: allRows
+            )
+        }
+        .accessibilityHint(row.block?.shortReason ?? "")
+        // Last, so the tap gesture above is inside the disabled subtree.
+        .disabled(!row.isSelectable)
+    }
+
+    /// Why she cannot be planned for, or what the record already holds for her.
+    @ViewBuilder
+    private func rowCaption(_ row: StudentPickerRow) -> some View {
+        if let block = row.block {
+            Text(block.shortReason)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else if let given = row.record {
+            StudentRecordCaption(given: given)
         }
     }
 
@@ -215,18 +240,14 @@ struct SchedulePresentationSheet: View {
         if selectedStudentIDs.isEmpty, !initialSelection.isEmpty {
             selectedStudentIDs = initialSelection
         }
-        guard let lessonID = lesson.id?.uuidString else {
+        guard let lessonID = lesson.id else {
             recordIndex = nil
+            records = [:]
             return
         }
-        recordIndex = PresentationRecordIndex(lessonIDs: [lessonID], in: viewContext)
-    }
-
-    private func record(for student: CDStudent) -> PresentationRecordIndex.Given? {
-        guard let index = recordIndex,
-              let lessonID = lesson.id?.uuidString,
-              let studentID = student.id?.uuidString else { return nil }
-        return index.given(student: studentID, lesson: lessonID)
+        let index = PresentationRecordIndex(lessonIDs: [lessonID.uuidString], in: viewContext)
+        recordIndex = index
+        records = StudentPickerModel.records(from: index, lesson: lessonID)
     }
 
     // MARK: - Planning
@@ -248,7 +269,7 @@ struct SchedulePresentationSheet: View {
 
     private func complete(with purpose: RepeatPurpose?) {
         repeatCount = nil
-        onPlan(selectedStudentIDs, purpose)
+        onPlan(Set(selectedStudents.compactMap(\.id)), purpose)
         dismiss()
     }
 
@@ -263,13 +284,17 @@ struct SchedulePresentationSheet: View {
     private var repeatPromptTitle: String {
         let count = repeatCount ?? 0
         let verb = count == 1 ? "has" : "have"
-        return "\(count) of \(selectedStudentIDs.count) already \(verb) this lesson"
+        return "\(count) of \(selectedStudents.count) already \(verb) this lesson"
     }
 
+    /// The ticked children the sheet may actually plan for. A child who has
+    /// left the classroom is filtered out here as well as blocked in the list,
+    /// so nothing she was ticked for before she left reaches `onPlan`.
     private var selectedStudents: [CDStudent] {
-        allStudents.filter { student in
+        let plannable = Set(StudentPickerModel.selectableIDs(allRows))
+        return allStudents.filter { student in
             guard let studentID = student.id else { return false }
-            return selectedStudentIDs.contains(studentID)
+            return selectedStudentIDs.contains(studentID) && plannable.contains(studentID)
         }
     }
 }
