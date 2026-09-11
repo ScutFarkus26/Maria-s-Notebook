@@ -193,18 +193,29 @@ A view presents sheets by setting `appRouter.navigationDestination`.
 ### Root Navigation Items
 
 ```swift
-enum NavigationItem: String, CaseIterable {
-    case today
-    case students, lessons, attendance
-    case planningAgenda, planningWork, planningProjects, planningChecklist
-    case supplies, procedures, todos, notes
-    case community, schedules, issues, resources
-    case askAI, logs, settings
-    // ... 45+ items
+// AppCore/RootView+NavigationItem.swift
+enum NavigationItem: String, Hashable, Identifiable, CaseIterable {
+    case today, todos
+    case students, attendance, meetings, parentReports, progressDashboard
+    case planningAgenda, lessons
+    case planningChecklist, curriculumMap, planningCalendar, smallSequencePlanner
+    case logs, notes
+    case teachingAlbums, stories, bookClub, procedures, resourceLibrary, supplies, goingOut,
+         community, schedules, thisWeeksParsha, parshaCalendar, lessonRecall, planningProjects
+    case askAI, settings
+    case note, more, perpetualCalendar   // aliases: kept so a saved raw value still decodes
 }
 ```
 
 Navigation happens by setting `appRouter.selectedNavItem = .students`.
+
+**Raw values are frozen.** They live in `@SceneStorage("RootView.selectedNavItem")`, so renaming one silently resets every device's selection. `NavigationGroupTests.rawValuesArePinned` holds every literal; a case that stops being a destination stays in the enum and is mapped by `NavigationItem.aliases` → `canonical` (`.perpetualCalendar → .planningCalendar`, `.note`/`.more → .today`). A case that is removed outright is handled by `NavigationSelectionRestorer` (same file), the pure function that turns the saved raw value, the pre-`NavigationItem` `Tab` string, and the old Planning mode into today's destination.
+
+### Navigation groups
+
+`RootView.NavigationGroup` (`AppCore/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Groups in order: Today, Children, Lessons & Work, Planning, Records, Library (the only group collapsed by default), System. `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, and the group order.
+
+The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.sidebarGroupExpanded(groupID)` and auto-expands the group holding a selection that arrives from outside the sidebar (⌘7 Stories, an album deep link, a restored selection), so nothing lands invisibly inside a collapsed Library.
 
 ### Special Routing
 
@@ -223,8 +234,8 @@ RootView
 +-- Warning Banners (restore in progress, sync issues)
 +-- Divider
 +-- Main Content Area
-|   +-- Sidebar (RootSidebar) — navigation items grouped by section
-|   +-- Detail (RootDetailContent) — routes NavigationItem to the right view
+|   +-- Sidebar (RootSidebar on macOS/visionOS, RootAdaptiveTabs on iOS) — rows from RootView.NavigationGroup
+|   +-- Detail (RootDetailContent) — routes NavigationItem.canonical to the right view
 +-- Overlays
     +-- QuickNoteGlassButton (floating action button)
     +-- TipView (TipKit feature hints)
@@ -235,9 +246,9 @@ RootView
 
 | Feature | iOS | macOS |
 |---------|-----|-------|
-| Layout | Adaptive tab bar | NavigationSplitView |
+| Layout | `TabView(.sidebarAdaptable)` — tab bar on iPhone, sidebar on iPad | NavigationSplitView |
 | Detail windows | Sheets | Separate windows via `openWindow` |
-| Sidebar | Bottom tabs | Left sidebar |
+| Sidebar | iPhone: Today, Students, Attendance, Lessons & Work, More; iPad: grouped sidebar | Grouped sidebar with persisted collapse state |
 
 ### State Persistence
 
@@ -1470,7 +1481,7 @@ struct SimpleListView: View {
 }
 ```
 
-4. **Register the navigation route** in `RootView+NavigationItem` and `RootDetailContent`.
+4. **Register the navigation route:** add the case to `RootView+NavigationItem` (the display name, icon and accessibility hint switches are exhaustive), place it in exactly one group in `RootView+NavigationGroup`, route it in `RootDetailContent`, and pin its raw value in `NavigationGroupTests.rawValuesArePinned`. Never rename an existing raw value.
 
 ## Adding a Command Bar Intent
 
@@ -1583,10 +1594,13 @@ Maria's Notebook/
 |   +-- AppDependencies.swift            DI container
 |   +-- AppRouter.swift                  Navigation coordinator
 |   +-- RootView.swift                   Main shell
+|   +-- RootView+NavigationItem.swift    NavigationItem, aliases, selection restore
+|   +-- RootView+NavigationGroup.swift   The sidebar / tab grouping table
 |   +-- RootView/
 |       +-- PieMenu.swift                Floating action menu
 |       +-- QuickNoteGlassButton.swift   Floating button
-|       +-- RootSidebar.swift            Sidebar navigation
+|       +-- RootSidebar.swift            macOS / visionOS sidebar
+|       +-- RootAdaptiveTabs.swift       iPhone tab bar / iPad sidebar
 |       +-- RootDetailContent.swift      Content routing
 |
 +-- Models/

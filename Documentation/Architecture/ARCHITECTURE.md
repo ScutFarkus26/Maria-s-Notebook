@@ -33,20 +33,22 @@ App Launch
 
 ## Navigation
 
-Pill-based navigation with two layouts:
-- **Split View** (iPad/Mac) — `NavigationSplitView` with sidebar
-- **Compact** (iPhone) — Tab-based via `RootCompactTabs`
+Two layouts over one table:
+- **macOS / visionOS** — `NavigationSplitView` with `RootSidebar`; each group's collapsed state persists (`UserDefaultsKeys.sidebarGroupExpanded`)
+- **iOS** — `RootAdaptiveTabs`, a `TabView(.sidebarAdaptable)`: a tab bar on iPhone (Today, Students, Attendance, Lessons & Work, More) and a grouped sidebar on iPad
 
 ```swift
-enum NavigationItem: String, Hashable {
-    case today, attendance, note, students, supplies
-    case procedures, meetings, lessons, more, todos
+// AppCore/RootView+NavigationGroup.swift — the single source for every sidebar and the More list
+enum NavigationGroupID { case today, children, lessonsAndWork, planning, records, library, system }
+struct NavigationGroup { let id: ID; let title: String; let items: [NavigationItem]; let isExpandedByDefault: Bool }
 
-    // Planning Sub-items
-    case planningChecklist, planningAgenda, planningWork
-    case planningProgression, planningProjects
-
-    case community, schedules, issues, askAI, logs, settings
+// AppCore/RootView+NavigationItem.swift — raw values are persisted and frozen (NavigationGroupTests)
+enum NavigationItem: String, Hashable, Identifiable, CaseIterable {
+    case today, todos, students, attendance, meetings, parentReports, progressDashboard,
+         planningAgenda, lessons, planningChecklist, curriculumMap, planningCalendar, smallSequencePlanner,
+         logs, notes, teachingAlbums, stories, bookClub, procedures, resourceLibrary, supplies, goingOut,
+         community, schedules, thisWeeksParsha, parshaCalendar, lessonRecall, planningProjects, askAI, settings
+    case note, more, perpetualCalendar   // aliases — `canonical` maps them to a live destination
 }
 ```
 

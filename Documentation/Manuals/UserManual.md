@@ -19,20 +19,29 @@ Tap **Next** to move through each page, or tap **Skip** to jump straight into th
 
 ## The Main Screen
 
-After setup, you'll land on the **Today** view — your daily dashboard. Along the top of the screen you'll see navigation pills for the main areas of the app:
+After setup, you'll land on the **Today** view — your daily dashboard. On iPhone the bar along the bottom holds the four places you go every day, and **More** holds everything else; on iPad and Mac the same groups appear in the sidebar:
 
 | Tab | What it does |
 |-----|-------------|
 | Today | Your daily hub — lessons, work, reminders, attendance |
-| Attendance | Mark students present, tardy, or absent |
-| Note | Quick observation entry |
 | Students | Your student roster and profiles |
-| Supplies | Classroom inventory |
-| Procedures | Documented classroom routines |
-| Meetings | Student meeting scheduler |
-| Lessons | Your full lesson library |
+| Attendance | Mark students present, tardy, or absent |
 | Lessons & Work | Plan upcoming presentations, follow what needs attention, review children’s active work, and browse presentations and completed work |
-| More | Access to planning tools, projects, AI chat, settings, and everything else |
+| More | Everything else, in groups |
+
+The groups under **More** (and in the sidebar) are:
+
+| Group | What it holds |
+|-------|---------------|
+| Today | Today, Todos |
+| Children | Students, Attendance, Meetings, Parent Reports, Progress Dashboard |
+| Lessons & Work | Lessons & Work, Lessons (your full lesson library) |
+| Planning | Checklist, Three-Year View, Calendar, Group Planner |
+| Records | Logs, Notes (your observations) |
+| Library | Albums, Stories, Book Club, Procedures, Resources, Supplies, Going Out, Community, Schedules, This Week’s Parsha, Parsha Calendar, Lesson Recall, Projects |
+| System | Ask AI, Settings |
+
+On the Mac, click a group's heading to collapse or expand it; the app remembers your choice. **Library** starts collapsed because it holds reference material you reach for a few times a term. Choosing something inside a collapsed group — with a keyboard shortcut, say — opens the group for you.
 
 ## Switching Between My Class and Sample Class
 
@@ -558,7 +567,7 @@ Procedures are searchable and filterable by category.
 
 # Planning Tools
 
-Tap **More** in the navigation to access the full set of planning tools.
+**Lessons & Work** is on the iPhone bar; the rest of the planning tools are under **More ▸ Planning** (or the Planning group in the sidebar).
 
 ## Lessons & Work
 
@@ -737,7 +746,7 @@ The AI has access to your classroom data and can answer questions like:
 
 ## How to Access
 
-Tap **Ask AI** from the More menu. You'll see a chat interface where you can type questions and receive responses. The AI reads your actual student, lesson, and work data to give relevant answers.
+Tap **Ask AI** under **More ▸ System** (the System group in the sidebar), or use the floating companion button. You'll see a chat interface where you can type questions and receive responses. The AI reads your actual student, lesson, and work data to give relevant answers.
 
 ---
 
@@ -775,7 +784,7 @@ If you enable CloudKit in Settings, your data automatically syncs across your de
 
 # Settings
 
-Access Settings from the **More** menu. Here's what you can configure:
+Access Settings from **More ▸ System** (the last row of the sidebar on Mac and iPad). Here's what you can configure:
 
 ## Classroom Setup
 

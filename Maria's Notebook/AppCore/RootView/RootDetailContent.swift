@@ -8,11 +8,13 @@ import CoreData
 struct RootDetailContent: View {
     let selectedNavItem: RootView.NavigationItem
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.appRouter) private var appRouter
-    @State private var isShowingQuickNote = false
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
+
+    /// The destination actually shown: an aliased case (`.note`, `.more`,
+    /// `.perpetualCalendar`) renders as its target.
+    private var item: RootView.NavigationItem { selectedNavItem.canonical }
 
     /// Returns true if we're on iPhone compact layout
     private var isIPhoneCompact: Bool {
@@ -25,10 +27,10 @@ struct RootDetailContent: View {
 
     var body: some View {
         Group {
-            switch selectedNavItem {
-            case .today, .attendance, .note:
+            switch item {
+            case .today, .attendance, .note, .more:
                 dailyContent
-            case .students, .parentReports, .meetings, .goingOut, .more:
+            case .students, .parentReports, .meetings, .goingOut:
                 studentsContent
             case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
                  .planningAgenda,
@@ -41,7 +43,7 @@ struct RootDetailContent: View {
             case .supplies, .procedures, .schedules,
                  .community, .resourceLibrary:
                 resourcesContent
-            case .askAI, .logs, .settings:
+            case .askAI, .logs, .notes, .settings:
                 toolsContent
             case .thisWeeksParsha:
                 ThisWeeksParshaView()
@@ -52,17 +54,16 @@ struct RootDetailContent: View {
     }
 
     private var dailyContent: AnyView {
-        switch selectedNavItem {
+        switch item {
         case .today: AnyView(TodayView(context: viewContext))
         case .attendance: AnyView(attendanceContent)
-        case .note: AnyView(noteTabContent)
         default: AnyView(EmptyView())
         }
     }
 
     @ViewBuilder
     private var planningContent: some View {
-        switch selectedNavItem {
+        switch item {
         case .todos: TodoMainView()
         case .planningCalendar, .perpetualCalendar: PlanningCalendarView()
         default: EmptyView()
@@ -71,19 +72,18 @@ struct RootDetailContent: View {
 
     @ViewBuilder
     private var studentsContent: some View {
-        switch selectedNavItem {
+        switch item {
         case .students: StudentsView()
         case .parentReports: ParentReportsQueueView()
         case .meetings: MeetingsWorkflowView()
         case .goingOut: GoingOutRootView()
-        case .more: MoreMenuView()
         default: EmptyView()
         }
     }
 
     @ViewBuilder
     private var curriculumContent: some View {
-        switch selectedNavItem {
+        switch item {
         case .lessons, .teachingAlbums, .stories, .bookClub, .planningChecklist,
              .planningAgenda:
             curriculumPlanningContent
@@ -95,7 +95,7 @@ struct RootDetailContent: View {
 
     @ViewBuilder
     private var curriculumPlanningContent: some View {
-        switch selectedNavItem {
+        switch item {
         case .lessons: LessonsMenuRootView()
         case .teachingAlbums: AlbumsRootView()
         case .stories: StoriesRootView()
@@ -108,7 +108,7 @@ struct RootDetailContent: View {
 
     @ViewBuilder
     private var curriculumAdvancedContent: some View {
-        switch selectedNavItem {
+        switch item {
         case .planningProjects: ProjectsRootView()
         case .smallSequencePlanner: SmallSequencePlannerView()
         default: EmptyView()
@@ -117,7 +117,7 @@ struct RootDetailContent: View {
 
     @ViewBuilder
     private var progressContent: some View {
-        switch selectedNavItem {
+        switch item {
         case .progressDashboard: ProgressDashboardView()
         case .curriculumMap: ClassCurriculumMapView()
         case .lessonRecall: RecallQueueView()
@@ -127,7 +127,7 @@ struct RootDetailContent: View {
 
     @ViewBuilder
     private var resourcesContent: some View {
-        switch selectedNavItem {
+        switch item {
         case .supplies: SuppliesListView()
         case .procedures: ProceduresListView()
         case .schedules: SchedulesView()
@@ -137,10 +137,14 @@ struct RootDetailContent: View {
         }
     }
 
+    // Logs and Notes share one view type, so each gets its own identity or
+    // switching between them would reuse the first and skip `onAppear`.
     private var toolsContent: AnyView {
-        switch selectedNavItem {
+        switch item {
         case .askAI: AnyView(ChatView())
-        case .logs: AnyView(LogsMenuRootView())
+        case .logs: AnyView(LogsMenuRootView().id(RootView.NavigationItem.logs))
+        case .notes:
+            AnyView(LogsMenuRootView(initialMode: .observations).id(RootView.NavigationItem.notes))
         case .settings: AnyView(SettingsView())
         default: AnyView(EmptyView())
         }
@@ -154,19 +158,6 @@ struct RootDetailContent: View {
             AttendanceMacView()
         }
     }
-
-    private var noteTabContent: some View {
-        Color.clear
-            .onAppear {
-                isShowingQuickNote = true
-            }
-            .sheet(isPresented: $isShowingQuickNote) {
-                QuickNoteSheet()
-                    .onDisappear {
-                        appRouter.navigateTo(.today)
-                    }
-            }
-    }
 }
 
 /// Thin wrapper to host the Lessons root inside the main container.
@@ -178,4 +169,3 @@ struct LessonsMenuRootView: View {
 }
 
 // `RootAdaptiveTabs` (iOS-only) lives in `RootAdaptiveTabs.swift`.
-// `MoreMenuView` lives in `MoreMenuView.swift`.

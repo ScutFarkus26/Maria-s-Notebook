@@ -3,9 +3,12 @@
 //
 // Split into multiple files for maintainability:
 // - RootView.swift (this file) - Main view structure and body
-// - RootSidebar.swift - Sidebar navigation component
-// - RootDetailContent.swift - Detail content routing
-// - RootViewComponents.swift - Supporting components (QuickNoteGlassButton, warning banners)
+// - RootView+NavigationItem.swift - NavigationItem, legacy Tab, selection restore
+// - RootView+NavigationGroup.swift - The sidebar / tab grouping table
+// - RootView/RootSidebar.swift - macOS / visionOS sidebar
+// - RootView/RootAdaptiveTabs.swift - iPhone tab bar / iPad sidebar
+// - RootView/RootDetailContent.swift - Detail content routing
+// - RootView/QuickNoteGlassButton.swift, WarningBanners.swift - Overlays
 
 import Combine
 import SwiftUI
@@ -74,56 +77,19 @@ struct RootView: View {
     }
 
     // MARK: - Computed
-    /// The raw value of a retired navigation item that pointed at the same
-    /// workspace as `.planningAgenda`, opened on the children's-work lens. The
-    /// case is gone; this keeps a device that last selected it landing where it
-    /// expects instead of falling back to Today.
-    private static let retiredOpenWorkNavItemRaw = "planningWork"
-
-    /// The retired "Needs Lesson" destination. The list it showed — which
-    /// children have waited longest — now lives beside the presentations in To
-    /// Schedule, so a device restoring this selection lands there rather than
-    /// falling through to Today.
-    private static let retiredNeedsLessonNavItemRaw = "needsLesson"
-
+    /// The saved selection, migrated by `NavigationSelectionRestorer` (retired
+    /// raw values, the legacy `Tab` enum, aliased cases). A restore that lands
+    /// on the Lessons & Work workspace also carries which lens to open.
     private func resolvedPersistedNavItem() -> NavigationItem {
-        if let raw = selectedNavItemRaw {
-            if raw == Self.retiredOpenWorkNavItemRaw {
-                appRouter.lessonsAndWorkRequest = .init(scope: .attention)
-                return .planningAgenda
-            }
-            if raw == Self.retiredNeedsLessonNavItemRaw {
-                appRouter.lessonsAndWorkRequest = .init(scope: .toSchedule)
-                return .planningAgenda
-            }
-            if let item = NavigationItem(rawValue: raw) {
-                return item
-            }
+        let resolution = NavigationSelectionRestorer.resolve(
+            navItemRaw: selectedNavItemRaw,
+            legacyTabRaw: selectedTabRaw,
+            planningModeRaw: UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode)
+        )
+        if let scope = resolution.lessonsAndWorkScope {
+            appRouter.lessonsAndWorkRequest = .init(scope: scope)
         }
-        if let legacyRaw = selectedTabRaw, let legacyTab = Tab(rawValue: legacyRaw) {
-            return resolvedLegacyTab(legacyTab)
-        }
-        return .today
-    }
-
-    /// Maps a selection saved by a build that still used the old `Tab` enum.
-    private func resolvedLegacyTab(_ legacyTab: Tab) -> NavigationItem {
-        guard legacyTab == .planning else {
-            return NavigationItem(fromLegacyTab: legacyTab) ?? .today
-        }
-        guard let modeRaw = UserDefaults.standard.string(forKey: UserDefaultsKeys.planningRootViewMode) else {
-            return .planningAgenda
-        }
-        switch modeRaw {
-        case "Open Work":
-            appRouter.lessonsAndWorkRequest = .init(scope: .attention)
-            return .planningAgenda
-        case "Projects": return .planningProjects
-        case "Checklist": return .planningChecklist
-        default:
-            appRouter.lessonsAndWorkRequest = .init(scope: .toSchedule)
-            return .planningAgenda
-        }
+        return resolution.item
     }
 
     // MARK: - Body
@@ -647,8 +613,9 @@ struct RootView: View {
 
     private func handleSelectedNavItemChange(_ oldValue: RootView.NavigationItem?, _ item: RootView.NavigationItem?) {
         if let item {
-            if selectedNavItem != item {
-                selectedNavItem = item
+            let destination = item.canonical
+            if selectedNavItem != destination {
+                selectedNavItem = destination
             }
             self.appRouter.selectedNavItem = nil
         }

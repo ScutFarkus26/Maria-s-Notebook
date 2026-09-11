@@ -205,6 +205,14 @@ nonisolated enum UserDefaultsKeys {
     /// (`CurriculumGranularity` raw value).
     static let curriculumMapGranularity = "CurriculumMap.granularity"
 
+    // MARK: - Sidebar
+    /// Dynamic per-group keys for the macOS sidebar's collapsed/expanded
+    /// state: "Sidebar.expanded.<NavigationGroup.ID raw value>".
+    static let sidebarGroupExpandedPrefix = "Sidebar.expanded."
+    static func sidebarGroupExpanded(_ groupID: String) -> String {
+        sidebarGroupExpandedPrefix + groupID
+    }
+
     // MARK: - Albums
     /// Security-scoped bookmarks ([Data]) for the folders holding the guide's
     /// teaching-album PDFs. The PDFs stay where they live; the app only reads them.

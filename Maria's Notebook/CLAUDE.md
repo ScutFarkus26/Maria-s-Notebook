@@ -92,6 +92,8 @@ Scripts/                 # Repository structure checks
 Documentation/           # Repository-level architecture, ADRs, plans, and manuals
 ```
 
+Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`).
+
 ## Architecture
 
 **MVVM with Services pattern:**
