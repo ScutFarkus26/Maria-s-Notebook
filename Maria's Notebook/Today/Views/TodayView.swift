@@ -252,6 +252,7 @@ struct TodayView: View {
             // What's next, then today's surfaces
             rightNowListSection
             followingPresentationsListSection
+            readyForNextListSection
             deadlinesListSection
             parentReportsListSection
             dayCardsListSection
@@ -279,6 +280,7 @@ struct TodayView: View {
             List {
                 rightNowListSection
                 followingPresentationsListSection
+                readyForNextListSection
                 deadlinesListSection
                 parentReportsListSection
                 dayCardsListSection

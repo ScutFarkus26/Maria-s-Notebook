@@ -45,7 +45,8 @@ extension PresentationDetailContentView {
             StudentPickerPopover(
                 students: studentsAll,
                 selectedIDs: $vm.selectedStudentIDs,
-                onDone: { vm.showingStudentPickerPopover = false }
+                onDone: { vm.showingStudentPickerPopover = false },
+                lessonOnRecord: currentLesson
             )
             .padding(12)
             .frame(minWidth: 320)

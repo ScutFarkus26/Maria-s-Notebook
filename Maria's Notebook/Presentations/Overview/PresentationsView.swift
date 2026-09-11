@@ -15,12 +15,13 @@ struct PresentationsView: View {
     @Environment(\.calendar) var calendar
     @Environment(\.appRouter) var appRouter
     @Environment(\.dependencies) private var dependencies
+    @Environment(SaveCoordinator.self) var saveCoordinator
     #if os(macOS)
     @Environment(\.openWindow) var openWindow
     #endif
 
-    var embeddedSearchText: String? = nil
-    var focusedPresentationID: UUID? = nil
+    var embeddedSearchText: String?
+    var focusedPresentationID: UUID?
     /// Owned by the To Schedule pane so the waiting-students rail beside this
     /// view can drive the same student filter and the same search.
     let coordinator: PresentationsCoordinator

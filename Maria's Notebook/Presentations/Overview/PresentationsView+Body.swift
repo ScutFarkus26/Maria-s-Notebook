@@ -60,37 +60,46 @@ extension PresentationsView {
         }
         #endif
         .sheet(item: activeModalSheet) { sheet in
-            switch sheet {
-            case .lessonAssignmentDetail(let la):
-                PresentationDetailView(lessonAssignment: la) {
-                    coordinator.dismissSheet()
-                }
-                #if os(macOS)
-                .presentationSizingFitted()
-                #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                #endif
+            sheetContent(sheet)
+        }
+    }
 
-            case .schedulePresentationFor(let lesson):
-                SchedulePresentationSheet(
-                    lesson: lesson,
-                    onPlan: { _ in coordinator.dismissSheet() },
-                    onCancel: { coordinator.dismissSheet() }
-                )
-
-            case .consolidatePresentations:
-                ConsolidatePresentationsSheet(onDismiss: { coordinator.dismissSheet() })
-                #if os(macOS)
-                .presentationSizingFitted()
-                #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                #endif
-
-            case .postPresentation, .unifiedWorkflow, .lessonAssignmentHistory:
-                Text("Sheet not yet implemented")
+    /// What each coordinator sheet puts on screen.
+    @ViewBuilder
+    private func sheetContent(_ sheet: PresentationsCoordinator.Sheet) -> some View {
+        switch sheet {
+        case .lessonAssignmentDetail(let la):
+            PresentationDetailView(lessonAssignment: la) {
+                coordinator.dismissSheet()
             }
+            #if os(macOS)
+            .presentationSizingFitted()
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+
+        case .schedulePresentationFor(let lesson):
+            SchedulePresentationSheet(
+                lesson: lesson,
+                onPlan: { studentIDs, purpose in
+                    planPresentation(for: lesson, studentIDs: studentIDs, purpose: purpose)
+                    coordinator.dismissSheet()
+                },
+                onCancel: { coordinator.dismissSheet() }
+            )
+
+        case .consolidatePresentations:
+            ConsolidatePresentationsSheet(onDismiss: { coordinator.dismissSheet() })
+            #if os(macOS)
+            .presentationSizingFitted()
+            #else
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            #endif
+
+        case .postPresentation, .unifiedWorkflow, .lessonAssignmentHistory:
+            Text("Sheet not yet implemented")
         }
     }
 
@@ -117,6 +126,17 @@ extension PresentationsView {
         coordinator.dismissSheet()
     }
     #endif
+
+    /// Files the draft the schedule sheet asked for, with the reason when the
+    /// children on it already have the lesson.
+    private func planPresentation(
+        for lesson: CDLesson, studentIDs: Set<UUID>, purpose: RepeatPurpose?
+    ) {
+        guard PresentationPlanner.planDraft(
+            lesson: lesson, studentIDs: studentIDs, purpose: purpose, in: viewContext
+        ) != nil else { return }
+        saveCoordinator.save(viewContext, reason: "Plan presentation")
+    }
 
     /// The Upcoming pane of the Lessons & Work workspace: what is ready to
     /// present, what is on the calendar, and who has been waiting longest.

@@ -8,10 +8,19 @@ struct StudentPickerPopover: View {
     /// When false the footer offers "Show All" instead of "New Student…". Filter call sites
     /// want to widen the selection back out, not create a student mid-filter.
     var allowsCreatingStudents: Bool = true
+    /// The lesson the group being picked is for, when there is one. Given it,
+    /// each row says whether the record already has that child on this lesson —
+    /// the same caption the schedule sheet shows. Note and filter call sites
+    /// have no lesson and leave it nil.
+    var lessonOnRecord: CDLesson?
 
     @State private var filterLevel: LevelFilter = .all
     @State private var searchText: String = ""
     @State private var showingAddStudent: Bool = false
+    /// What the record holds for `lessonOnRecord`, read once when there is one.
+    @State private var recordIndex: PresentationRecordIndex?
+
+    @Environment(\.managedObjectContext) private var viewContext
 
     @AppStorage(UserDefaultsKeys.studentPickerSortOrder)
     private var sortModeRaw: String = SortMode.name.rawValue
@@ -169,61 +178,9 @@ struct StudentPickerPopover: View {
         .help("Sort students")
     }
 
-    @ViewBuilder
-    private func studentRow(for student: CDStudent) -> some View {
-        let isSelected = student.id.map { selectedIDs.contains($0) } ?? false
-        HStack(spacing: 8) {
-            Text(displayName(for: student))
-                .foregroundStyle(.primary)
-
-            Spacer(minLength: 8)
-
-            if let birthday = student.birthday {
-                Text(AgeUtils.quarterGlyphAgeString(for: birthday))
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(AgeUtils.verboseQuarterAgeString(for: birthday))
-            }
-
-            // The tick keeps its slot when a row is unselected, so the ages stay in a column.
-            Image(systemName: "checkmark")
-                .foregroundStyle(Color.accentColor)
-                .opacity(isSelected ? 1 : 0)
-                .accessibilityHidden(!isSelected)
-                .frame(width: 14)
-        }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
-    }
-
     var body: some View {
         VStack(spacing: 12) {
-            HStack {
-                TextField("Search…", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .disableAutocorrection(true)
-#if os(iOS) || os(tvOS) || os(visionOS)
-                    .textInputAutocapitalization(.never)
-#endif
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            Picker("Level", selection: $filterLevel) {
-                ForEach(LevelFilter.allCases) { level in
-                    Text(level.rawValue).tag(level)
-                }
-            }
-            .pickerStyle(.segmented)
+            searchAndLevelControls
 
             HStack {
                 Button(selectAllTitle) {
@@ -244,26 +201,7 @@ struct StudentPickerPopover: View {
                 sortMenu
             }
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4) {
-                    ForEach(filteredStudentsForPicker) { student in
-                        Button {
-                            adaptiveWithAnimation {
-                                guard let studentID = student.id else { return }
-                                if selectedIDs.contains(studentID) {
-                                    selectedIDs.remove(studentID)
-                                } else {
-                                    selectedIDs.insert(studentID)
-                                }
-                            }
-                        } label: {
-                            studentRow(for: student)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
+            studentList
 
             Divider()
 
@@ -296,6 +234,119 @@ struct StudentPickerPopover: View {
         .sheet(isPresented: $showingAddStudent) {
             AddStudentView()
         }
+        .task(id: lessonOnRecord?.id) { loadRecord() }
+    }
+
+}
+
+// MARK: - Rows and the Lesson's Record
+
+extension StudentPickerPopover {
+
+    /// The search field and level segments. Split out of `body` to keep either
+    /// half inside the 100 ms type-check budget.
+    var searchAndLevelControls: some View {
+        VStack(spacing: 12) {
+            HStack {
+                TextField("Search…", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+                    .disableAutocorrection(true)
+#if os(iOS) || os(tvOS) || os(visionOS)
+                    .textInputAutocapitalization(.never)
+#endif
+
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Picker("Level", selection: $filterLevel) {
+                ForEach(LevelFilter.allCases) { level in
+                    Text(level.rawValue).tag(level)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    /// The scrolling roster. Split out of `body` to keep either half inside
+    /// the 100 ms type-check budget.
+    var studentList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 4) {
+                ForEach(filteredStudentsForPicker) { student in
+                    Button {
+                        adaptiveWithAnimation {
+                            guard let studentID = student.id else { return }
+                            if selectedIDs.contains(studentID) {
+                                selectedIDs.remove(studentID)
+                            } else {
+                                selectedIDs.insert(studentID)
+                            }
+                        }
+                    } label: {
+                        studentRow(for: student)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
+    private func studentRow(for student: CDStudent) -> some View {
+        let isSelected = student.id.map { selectedIDs.contains($0) } ?? false
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayName(for: student))
+                    .foregroundStyle(.primary)
+                if let given = record(for: student) {
+                    StudentRecordCaption(given: given)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if let birthday = student.birthday {
+                Text(AgeUtils.quarterGlyphAgeString(for: birthday))
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(AgeUtils.verboseQuarterAgeString(for: birthday))
+            }
+
+            // The tick keeps its slot when a row is unselected, so the ages stay in a column.
+            Image(systemName: "checkmark")
+                .foregroundStyle(Color.accentColor)
+                .opacity(isSelected ? 1 : 0)
+                .accessibilityHidden(!isSelected)
+                .frame(width: 14)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+    }
+
+    private func loadRecord() {
+        guard let lessonID = lessonOnRecord?.id?.uuidString else {
+            recordIndex = nil
+            return
+        }
+        recordIndex = PresentationRecordIndex(lessonIDs: [lessonID], in: viewContext)
+    }
+
+    /// What the record says about this child and the picker's lesson.
+    private func record(for student: CDStudent) -> PresentationRecordIndex.Given? {
+        guard let recordIndex,
+              let lessonID = lessonOnRecord?.id?.uuidString,
+              let studentID = student.id?.uuidString else { return nil }
+        return recordIndex.given(student: studentID, lesson: lessonID)
     }
 }
 

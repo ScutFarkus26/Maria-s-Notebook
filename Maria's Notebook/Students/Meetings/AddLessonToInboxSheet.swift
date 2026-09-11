@@ -19,6 +19,9 @@ struct AddLessonToInboxSheet: View {
     @State private var selectedLessonID: UUID?
     @State private var lessonSearchText: String = ""
     @State private var isSaving: Bool = false
+    /// What the record holds for this child, so a lesson she has already had
+    /// says so before it goes back in her inbox.
+    @State private var record: PresentationRecordIndex?
     
     // Popover state
     @State private var showingLessonPopover: Bool = false
@@ -96,6 +99,18 @@ struct AddLessonToInboxSheet: View {
                 lessonSearchText = lesson.name
             }
         }
+        .task(id: student.id) {
+            guard let studentID = student.id?.uuidString else { return }
+            record = PresentationRecordIndex(students: [studentID], in: viewContext)
+        }
+    }
+
+    /// What the record says about this child and that lesson, if anything.
+    private func given(for lesson: CDLesson) -> PresentationRecordIndex.Given? {
+        guard let record,
+              let studentID = student.id?.uuidString,
+              let lessonID = lesson.id?.uuidString else { return nil }
+        return record.given(student: studentID, lesson: lessonID)
     }
     
     // MARK: - CDLesson Section
@@ -152,6 +167,9 @@ struct AddLessonToInboxSheet: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        if let given = given(for: lesson) {
+                            StudentRecordCaption(given: given)
+                        }
                     }
                     Spacer()
                     Button {
@@ -189,6 +207,9 @@ struct AddLessonToInboxSheet: View {
                                 Text("\(lesson.area) • \(lesson.sequence)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                            }
+                            if let given = given(for: lesson) {
+                                StudentRecordCaption(given: given)
                             }
                         }
                         Spacer()

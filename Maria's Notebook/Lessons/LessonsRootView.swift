@@ -221,7 +221,9 @@ struct LessonsRootView: View {
     private func lessonScheduleSheet(_ lesson: CDLesson) -> some View {
         SchedulePresentationSheet(
             lesson: lesson,
-            onPlan: { studentIDs in planPresentation(for: lesson, studentIDs: studentIDs) },
+            onPlan: { studentIDs, purpose in
+                planPresentation(for: lesson, studentIDs: studentIDs, purpose: purpose)
+            },
             onCancel: { lessonToSchedule = nil }
         )
     }

@@ -197,7 +197,7 @@ extension LessonsRootView {
 
     // MARK: - Plan Presentation
 
-    func planPresentation(for lesson: CDLesson, studentIDs: Set<UUID>) {
+    func planPresentation(for lesson: CDLesson, studentIDs: Set<UUID>, purpose: RepeatPurpose? = nil) {
         guard !studentIDs.isEmpty else { return }
 
         // NOTE: SwiftData #Predicate doesn't support capturing local Array/Set variables,
@@ -243,10 +243,11 @@ extension LessonsRootView {
             lessonToSchedule = nil
             return
         }
-        _ = PresentationFactory.makeDraft(
+        PresentationPlanner.planDraft(
             lesson: lesson,
             students: students,
-            context: viewContext
+            purpose: purpose,
+            in: viewContext
         )
         saveCoordinator.save(viewContext, reason: "Plan presentation")
 

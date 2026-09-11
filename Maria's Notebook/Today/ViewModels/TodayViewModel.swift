@@ -84,6 +84,10 @@ final class TodayViewModel {
     var recentNotes: [CDNote] = []
     var recentNoteStudentsByID: [UUID: CDStudent] = [:]
 
+    /// Who the record says is waiting on a next lesson — the capture-time
+    /// confirmations and mastery marks, turned into the lessons they point at.
+    var readyForNext: [ReadyForNextItem] = []
+
     // MARK: - Cache Accessors (delegate to cacheManager)
 
     /// Students lookup dictionary (read-only access to cache)
@@ -296,6 +300,7 @@ final class TodayViewModel {
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs
         recentNotes = notesResult.notes
         recentNoteStudentsByID = updatedRecentNoteStudents
+        readyForNext = loadReadyForNext()
 
         // 8. Build unified agenda
         agendaItems = TodayAgendaBuilder.buildAgenda(
@@ -312,6 +317,27 @@ final class TodayViewModel {
         if errorCollector.hasErrors {
             showFetchErrorToast(errorCollector)
         }
+    }
+
+    // MARK: - Ready For a Next Lesson
+
+    /// The ready queue, built the way `students_ready` builds it: the enrolled
+    /// roster, the whole lesson library, and one record index over all three
+    /// record shapes. Three fetches and dictionary lookups from there — no
+    /// per-child or per-row work, so it costs the same whatever Today holds.
+    private func loadReadyForNext() -> [ReadyForNextItem] {
+        let students = DataQueryService(context: context)
+            .fetchAllStudents(excludeTest: true, excludeWithdrawn: true)
+        let studentIDs = students.compactMap { $0.id?.uuidString }
+        guard !studentIDs.isEmpty else { return [] }
+
+        let lessons = context.safeFetch(CDFetchRequest(CDLesson.self))
+        guard !lessons.isEmpty else { return [] }
+
+        let index = PresentationRecordIndex(students: Set(studentIDs), in: context)
+        return ReadyForNextEngine.items(
+            studentIDs: studentIDs, lessons: lessons, index: index, in: context
+        )
     }
 
     // MARK: - Agenda Reordering
@@ -344,74 +370,4 @@ final class TodayViewModel {
         )
     }
 
-}
-
-// MARK: - Equatable Conformance
-
-extension TodayViewModel: Equatable {
-    /// Compare only properties that affect UI rendering
-    /// This allows SwiftUI to skip re-rendering when nothing visual has changed
-    ///
-    /// FUTURE OPTIMIZATION: For even more granular control, individual view sections
-    /// could use `withObservationTracking` to track only specific properties they access.
-    /// This would enable per-section updates instead of whole-view updates.
-    /// Example:
-    /// ```swift
-    /// withObservationTracking {
-    ///     ForEach(viewModel.todaysLessons) { lesson in
-    ///         LessonRow(lesson: lesson)
-    ///     }
-    /// } onChange: {
-    ///     // View updates only when todaysLessons changes, not when reminders change
-    /// }
-    /// ```
-    static func == (lhs: TodayViewModel, rhs: TodayViewModel) -> Bool {
-        lhs.inputsMatch(rhs)
-            && lhs.listIDsMatch(rhs)
-            && lhs.listCountsMatch(rhs)
-            && lhs.attendanceMatches(rhs)
-        // Cache internals (studentsByID, lessonsByID, workByID, etc.) are intentionally
-        // not compared — they don't directly affect rendering.
-    }
-
-    /// Inputs that trigger reloads.
-    private func inputsMatch(_ other: TodayViewModel) -> Bool {
-        date == other.date && levelFilter == other.levelFilter
-    }
-
-    /// Identity comparison of the rendered collections (count + element ids).
-    private func listIDsMatch(_ other: TodayViewModel) -> Bool {
-        let lessonsMatch: Bool = todaysLessons.count == other.todaysLessons.count
-            && todaysLessons.map(\.id) == other.todaysLessons.map(\.id)
-        let workMatch: Bool = completedWork.count == other.completedWork.count
-            && completedWork.map(\.id) == other.completedWork.map(\.id)
-        let remindersMatch: Bool = todaysReminders.count == other.todaysReminders.count
-            && todaysReminders.map(\.id) == other.todaysReminders.map(\.id)
-        let calendarMatch: Bool = todaysCalendarEvents.count == other.todaysCalendarEvents.count
-            && todaysCalendarEvents.map(\.id) == other.todaysCalendarEvents.map(\.id)
-        let meetingsMatch: Bool = scheduledMeetings.count == other.scheduledMeetings.count
-            && scheduledMeetings.map(\.id) == other.scheduledMeetings.map(\.id)
-            && completedMeetings.count == other.completedMeetings.count
-            && completedMeetings.map(\.id) == other.completedMeetings.map(\.id)
-        let notesMatch: Bool = recentNotes.count == other.recentNotes.count
-            && recentNotes.map(\.id) == other.recentNotes.map(\.id)
-        return lessonsMatch && workMatch && remindersMatch
-            && calendarMatch && meetingsMatch && notesMatch
-    }
-
-    /// Counts of the remaining rendered collections.
-    private func listCountsMatch(_ other: TodayViewModel) -> Bool {
-        overdueSchedule.count == other.overdueSchedule.count
-            && todaysSchedule.count == other.todaysSchedule.count
-            && staleFollowUps.count == other.staleFollowUps.count
-            && overdueReminders.count == other.overdueReminders.count
-            && anytimeReminders.count == other.anytimeReminders.count
-    }
-
-    /// Attendance summary affecting the header.
-    private func attendanceMatches(_ other: TodayViewModel) -> Bool {
-        attendanceSummary == other.attendanceSummary
-            && absentToday == other.absentToday
-            && leftEarlyToday == other.leftEarlyToday
-    }
 }
