@@ -7,6 +7,13 @@
 //  the guide mean"; this answers "what is in the notebook", which is what an
 //  album-versus-notebook comparison needs in one call.
 //
+//  Within a sub-area the lessons sit under their section headings, in the
+//  same bands the scope map and the Checklist draw (`LessonSectionGrouping`),
+//  because this is the only read that shows a lesson's `section` — without
+//  it a section set over MCP could never be checked from outside the app.
+//  Positions stay 1-based across the whole sub-area, so a number here is the
+//  one reorder_lessons and create_lesson report.
+//
 
 import CoreData
 import Foundation
@@ -22,7 +29,9 @@ extension MCPNotebookTools {
                 + "before create_lesson or reorder_lessons. Lines are numbered by position within "
                 + "their sub-area (1-based) and cite each lesson as [lesson id=<uuid>], the same id "
                 + "find_lessons returns. An area listing groups by sub-area in the order the "
-                + "scope map shows them.",
+                + "scope map shows them. Within a sub-area, lessons that carry a section sit "
+                + "under a \"Section: <name>\" heading in the map's band order, with the rest "
+                + "under \"No section\"; a sub-area with no sections is a plain numbered list.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -64,10 +73,27 @@ extension MCPNotebookTools {
         return "\(area): \(total) lesson(s) in \(blocks.count) sub-area(s)\n\n" + blocks.joined(separator: "\n\n")
     }
 
+    /// One sub-area: a header line, then its lessons under their section
+    /// headings. `lessons` arrive in taught order and keep those positions
+    /// whichever band they land in. A sub-area with no sections prints the
+    /// plain numbered list it always did.
     private static func sequenceBlock(_ sequence: String, area: String, lessons: [CDLesson]) -> String {
-        let label = sequence == ungroupedSequenceLabel
-            ? filingLabel(area: area, sequence: "")
-            : filingLabel(area: area, sequence: sequence)
-        return "\(label) — \(lessons.count) lesson(s)\n" + numberedLessonLines(lessons)
+        let storedSequence: String = sequence == ungroupedSequenceLabel ? "" : sequence
+        let header = "\(filingLabel(area: area, sequence: storedSequence)) — \(lessons.count) lesson(s)"
+        let bands = LessonSectionGrouping.bands(for: lessons, area: area, sequence: storedSequence)
+        guard bands.contains(where: { !$0.name.isEmpty }) else {
+            return header + "\n" + numberedLessonLines(lessons)
+        }
+        let positions: [NSManagedObjectID: Int] = Dictionary(
+            uniqueKeysWithValues: lessons.enumerated().map { ($0.element.objectID, $0.offset + 1) }
+        )
+        let blocks: [String] = bands.map { band in
+            let heading: String = band.name.isEmpty ? "No section" : "Section: \(band.name)"
+            let lines: [String] = band.lessons.map { lesson in
+                "\(positions[lesson.objectID] ?? 0). \(describeLesson(lesson))"
+            }
+            return ([heading] + lines).joined(separator: "\n")
+        }
+        return header + "\n" + blocks.joined(separator: "\n")
     }
 }

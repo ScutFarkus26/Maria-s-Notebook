@@ -108,7 +108,7 @@ ambiguity errors:
 | `classroom_snapshot` | `ChatContextAssembler.buildClassroomSnapshot` |
 | **Lessons & albums** | |
 | `find_lessons` | `CDLesson` fetch ranked exact name > partial name > area/sequence |
-| `list_lessons_by_area` | one area or sub-area in taught order, no cap — `orderInSequence` then name within a sub-area, sub-areas in the scope map's saved order (`LessonsViewModel.groups`) |
+| `list_lessons_by_area` | one area or sub-area in taught order, no cap — `orderInSequence` then name within a sub-area, sub-areas in the scope map's saved order (`LessonsViewModel.groups`); within a sub-area the lessons sit under `Section: <name>` headings in the map's band order (`LessonSectionGrouping.bands`), the unsectioned ones under `No section` — the only read that shows a lesson's `section` |
 | `create_lesson` (write) | `LessonRepository.createLesson` + the sub-area renumbered and the area's `sortIndex` rebuilt the way `LessonsRootViewReordering` does after a drag, then AddLessonView's best-effort `SequenceTrackService.getOrCreateTrack`; idempotent on name within a sub-area, creates a sub-area but never an area |
 | `update_lesson` (write) | the lesson detail's Save path (fields set in place, one save); a sub-area move mirrors `moveLessonToSequence` — end of the target, both areas' `sortIndex` rebuilt |
 | `reorder_lessons` (write) | `moveLessonsInArea`'s write — `orderInSequence` renumbered across the sub-area, `sortIndex` rebuilt across the area; unlisted lessons keep their relative order after the listed ones |
@@ -349,8 +349,8 @@ it proposes, and writes nothing.
 
 The four curriculum tools exist so an AMI album can be reconciled with the
 notebook without opening the app: `list_lessons_by_area` reads a whole
-area or sub-area uncapped (`find_lessons` stops at 25 because it answers a
-different question), `create_lesson` adds what is missing, `update_lesson`
+area or sub-area uncapped, each sub-area under its section headings
+(`find_lessons` stops at 25 because it answers a different question), `create_lesson` adds what is missing, `update_lesson`
 renames or refiles, and `reorder_lessons` makes the sub-area run in album
 order. They all settle the two ordering columns exactly as a drag in the
 scope map does — `orderInSequence` is the truth within a sub-area and
