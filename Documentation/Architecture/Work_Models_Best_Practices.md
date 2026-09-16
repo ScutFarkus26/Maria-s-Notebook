@@ -74,11 +74,11 @@ The core work assignment model.
 - `id: UUID` - Unique identifier
 - `title: String` - Work title/description
 - `kind: WorkKind?` - Type of work (practice, followUp, research, report)
-- `status: WorkStatus` - Lifecycle status (active, review, complete)
+- `status: WorkStatus` - The row's one verdict (active, review, mastered, keepPracticing, incomplete, done)
 - `dueAt: Date?` - Due date (optional)
 - `assignedAt: Date` - When assigned
 - `completedAt: Date?` - When work was fully completed
-- `completionOutcome: CompletionOutcome?` - How it went (mastered, needsMorePractice, etc.)
+- `completionOutcomeRaw: String?` - **Legacy.** Folded into `status` by `WorkStatusMigration` (launch repair + backup importer); nothing else reads it
 
 **Relationships:**
 - `participants: [WorkParticipantEntity]` - Students assigned to this work
@@ -89,7 +89,7 @@ The core work assignment model.
 **Best Practices:**
 - Always set `kind` when creating new work
 - Use `WorkRepository.createWork()` for consistent initialization
-- Use `WorkCompletionService` for marking completions
+- Change `status` only through `WorkLogService.log` — it stamps `completedAt`, writes the `CDWorkCompletionRecord`, settles the row's check-ins (today's → completed, later ones on a closed row → skipped, dates kept) and files the note; every in-app control and `update_work` go through it
 - Set `dueAt` for time-sensitive work
 
 ### WorkKind Enum
@@ -114,21 +114,46 @@ let icon = kind.iconName // "pencil.circle"
 ```
 
 ### WorkStatus Enum
-Describes the lifecycle status of work.
+The one verdict a work row carries, per child. Until 2026-09-15 a row had a
+lifecycle status *and* a completion outcome that were only ever set together.
 
-**Values:**
-- `.active` - Work is currently in progress
-- `.review` - Needs teacher review
-- `.complete` - Fully completed
+**Open (`isOpen`):**
+- `.active` - "Working"
+- `.review` - "Needs Review": the guide has to look before it moves on
 
-**UI Properties:**
-- `color: Color` - Status color (blue, orange, green)
-- `iconName: String` - SF Symbol icon
+**Closed (`isClosed`):**
+- `.mastered` - the practice evidence `mastery_candidates` weights 3
+- `.keepPracticing` - this invitation is done, the child is not there yet
+- `.incomplete` - set aside unfinished
+- `.done` - raw value `"complete"`; legacy closed-with-no-verdict, never offered in a picker
 
-**When to Use:**
-- Set to `.active` when work is assigned
-- Move to `.review` when student submits for feedback
-- Set to `.complete` when fully done
+**Helpers:** `pickable` (the five a picker offers), `openCases` / `closedCases`,
+`openRawValues` / `closedRawValues`, and `openPredicate` / `closedPredicate`
+(`statusRaw IN %@`) — the one spelling of "open work" for a fetch. Never
+compare `statusRaw` to a string literal.
+
+**Migration:** `WorkStatusMigration.merged(statusRaw:outcomeRaw:)` is the
+single table: `complete` + `mastered` → `mastered`, + `needsMorePractice` →
+`keepPracticing`, + `incomplete` → `incomplete`, anything else → `complete`
+(Done). `DataCleanupService.mergeWorkCompletionOutcomes` runs it every launch
+(not flag-gated — CloudKit can deliver an old-shape row late) and
+`BackupEntityImporter.importWorkModels` runs it on restore.
+
+### WorkLogService
+Logging a work check is the only way a row's status changes.
+
+```swift
+let receipt = try WorkLogService.log(
+    [.init(work: row, status: .mastered, note: "Matched every card")],
+    on: day, context: context, saveCoordinator: saveCoordinator
+)
+// receipt.token → WorkLogService.undo(token, context:, saveCoordinator:)
+```
+
+An entry with `status: nil` means "seen, unchanged": the day's check-in is
+still marked completed. `WorkLogTargets.resolve(work:students:in:)` turns a
+gesture into rows — everyone on a fan-out group, or the copies a set of
+children own; a `.shared` row refuses a subset rather than being split.
 
 ### WorkCompletionRecord
 Historical record of work completion events.
@@ -162,7 +187,7 @@ Links students to work assignments.
 - `work: CDWorkModel?` - Back-reference to work
 
 **Best Practices:**
-- Don't directly set `completedAt` - use WorkCompletionService instead
+- Don't directly set `completedAt` - `WorkLogService` sets it when a row closes
 - Used primarily for determining which students are assigned to work
 - The completion date is automatically synced from WorkCompletionRecord
 

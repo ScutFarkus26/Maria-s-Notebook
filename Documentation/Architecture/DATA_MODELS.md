@@ -163,11 +163,11 @@ Tracks student work items through their lifecycle.
 | `createdAt` | Date | Creation date |
 | `completedAt` | Date? | Completion date |
 | `kindRaw` | String? | Work kind raw value |
-| `statusRaw` | String | Status ("active", "review", "complete") |
+| `statusRaw` | String | Status ("active", "review", "mastered", "keepPracticing", "incomplete", "complete" = Done) |
 | `assignedAt` | Date | Assignment date |
 | `lastTouchedAt` | Date? | Last activity date (for aging) |
 | `dueAt` | Date? | Due date |
-| `completionOutcomeRaw` | String? | Completion outcome |
+| `completionOutcomeRaw` | String? | Legacy: folded into `statusRaw` by `WorkStatusMigration`; not read elsewhere |
 | `studentID` | String | Primary student ID (CloudKit string) |
 | `lessonID` | String | Lesson ID (CloudKit string) |
 | `presentationID` | String? | Related presentation ID |
@@ -183,9 +183,8 @@ Tracks student work items through their lifecycle.
 **Computed Properties:**
 - `workType: WorkType` - Work type enum
 - `kind: WorkKind?` - Work kind enum
-- `status: WorkStatus` - Status enum (.active, .review, .complete)
-- `completionOutcome: CompletionOutcome?` - Completion outcome enum
-- `isCompleted`, `isOpen`, `isActive`, `isReview`, `isComplete` - Status helpers
+- `status: WorkStatus` - The one verdict (.active, .review, .mastered, .keepPracticing, .incomplete, .done)
+- `isCompleted`, `isOpen`, `isActive`, `isReview`, `isClosed` - Status helpers
 
 **Relationships:**
 - `participants: [WorkParticipantEntity]?` - Student participants
@@ -432,9 +431,8 @@ File attachments for students.
 ## Enum Reference
 
 ### WorkStatus
-- `active` - Work is in progress
-- `review` - Work is ready for review
-- `complete` - Work is finished
+Open: `active` (Working), `review` (Needs Review). Closed: `mastered`,
+`keepPracticing`, `incomplete`, `done` (raw `"complete"`, legacy no-verdict).
 
 ### WorkKind
 - `practice` - Practice work
@@ -443,9 +441,9 @@ File attachments for students.
 - `report` - Report/documentation
 
 ### CompletionOutcome
-- `mastered` - Student mastered the content
-- `needsReview` - Needs additional review
-- `needsReteach` - Requires re-teaching
+Per work *step* only (`CDWorkStep.completionOutcomeRaw`): `mastered`
+(case `proficient`), `needsMorePractice`, `needsReview`, `incomplete`,
+`notApplicable`. On a work row it is a legacy column — see WorkStatus.
 
 ### LessonSource
 - `album` - Standard curriculum lesson

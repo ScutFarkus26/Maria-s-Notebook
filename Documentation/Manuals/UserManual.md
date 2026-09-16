@@ -354,7 +354,7 @@ Each work item shows:
 - **Title** — The name of the work (often matching the lesson name)
 - **Student(s)** — Who is assigned
 - **Lesson** — The lesson this work relates to
-- **Status** — Active, Review, or Complete
+- **Status** — Working, Needs Review, Mastered, Keep Practicing, or Incomplete
 - **Due Date** — When you expect the work to be finished (optional)
 - **Steps** — A breakdown of the work into individual steps (optional)
 - **Check-Ins** — Your observations recorded during the work period
@@ -362,17 +362,25 @@ Each work item shows:
 
 ## The Work Lifecycle
 
-```
-Active → Review → Complete
-```
+A work item has one status, and it is per child. Two statuses keep the work open; three close it.
 
 | Status | What it means |
 |--------|-------------|
-| Active | The student is currently working on this |
-| Review | The student may be ready — you need to assess |
-| Complete | The student has finished — record the outcome |
+| Working | The child is working on it |
+| Needs Review | She may be ready — you need to look before it moves on |
+| Mastered | Closed: she has it. This is the practice evidence the mastery candidates read |
+| Keep Practicing | Closed: this invitation is done, but she is not there yet |
+| Incomplete | Closed: set aside unfinished |
 
-When you mark work as complete, you can record a **completion outcome**: mastered, needs review, or needs more practice. This informs the curriculum progression tracking.
+Work closed before September 2026 with no verdict shows as **Done**. It cannot be chosen for new work.
+
+Closing a work logs it, like recording a presentation: the completion is recorded for the child, that day's check-in is marked done, any later check-ins are skipped, and the work leaves the Scheduled strip. Changing the status back to Working or Needs Review reopens it.
+
+### Logging a check
+
+- **Right-click a work** — on a pill in the Scheduled strip or on a card in Lessons & Work — and pick a status under **Log as**. When several children share the work, the menu offers **Everyone** and then one submenu per child, so one right-click can say "all three mastered it, but Naomi needs another go".
+- **Click a pill in the Scheduled strip** to open the log sheet: one row per child with her status and a note. Nothing is written until you press **Log Check**. A child you leave untouched still has her check-in marked done, because the check happened.
+- Every log can be undone from the toast for a few seconds.
 
 ## Check-Ins
 
