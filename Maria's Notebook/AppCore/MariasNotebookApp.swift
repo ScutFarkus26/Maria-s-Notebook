@@ -43,6 +43,12 @@ struct MariasNotebookApp: App {
         let appInit = LaunchSignposts.begin("AppInit")
         defer { LaunchSignposts.end("AppInit", appInit) }
 
+        #if os(macOS)
+        // Before any window exists: the toolbar NaN assertion has to be caught
+        // on the main thread, and this is the first main-thread code we own.
+        ToolbarLayoutAssertionGuard.install()
+        #endif
+
         AppBootstrapping.performInitialSetup()
         let stack = AppBootstrapping.getSharedCoreDataStack()
         coreDataStack = stack
