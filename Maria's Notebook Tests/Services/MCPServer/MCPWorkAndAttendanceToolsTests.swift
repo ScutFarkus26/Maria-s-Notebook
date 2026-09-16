@@ -172,4 +172,91 @@ struct MCPWorkAndAttendanceToolsTests {
         #expect(output.contains("1 tardy"))
         #expect(output.contains("Days away or late:"))
     }
+
+    // MARK: - update_work: one status, per child
+
+    @Test("update_work with a closing status settles the row's check-ins")
+    func updateWorkClosingStatusSettlesCheckIns() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Bead Frame", area: "Math", sequence: "Operations")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Sam", lastName: "Lee")
+        CoreDataTestHelpers.save(context)
+        _ = try await tool(named: "assign_work", in: tools).handler([
+            "lesson": .string("Bead Frame"),
+            "student_names": .array([.string("Sam")])
+        ])
+        let work = try #require(workItems(in: context).first)
+        let today = AppCalendar.startOfDay(Date())
+        let todays = CDWorkCheckIn.make(for: work, on: today, purpose: "progressCheck", in: context)
+        let later = CDWorkCheckIn.make(for: work, on: AppCalendar.addingDays(7, to: today), in: context)
+        CoreDataTestHelpers.save(context)
+
+        let receipt = try await tool(named: "update_work", in: tools).handler([
+            "work_id": .string(try #require(work.id).uuidString),
+            "status": .string("keepPracticing"),
+            "note": .string("Needs the trinomial cube again")
+        ])
+
+        #expect(receipt.contains("logged as Keep Practicing"))
+        #expect(work.status == .keepPracticing)
+        #expect(work.completedAt != nil)
+        #expect(todays.status == .completed)
+        #expect(later.status == .skipped)
+    }
+
+    @Test("update_work with students logs only those children's linked copies")
+    func updateWorkStudentsNarrowsToTheirCopies() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedLesson(in: context, name: "Checkerboard", area: "Math", sequence: "Operations")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Simma", lastName: "Zeller")
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Fried")
+        CoreDataTestHelpers.save(context)
+        _ = try await tool(named: "assign_work", in: tools).handler([
+            "lesson": .string("Checkerboard"),
+            "student_names": .array([.string("Simma"), .string("Naomi")])
+        ])
+        let items = workItems(in: context)
+        #expect(items.count == 2)
+        let simmas = try #require(items.first { $0.title.isEmpty || true })
+
+        let receipt = try await tool(named: "update_work", in: tools).handler([
+            "work_id": .string(try #require(simmas.id).uuidString),
+            "status": .string("mastered"),
+            "students": .array([.string("Naomi")])
+        ])
+
+        #expect(receipt.contains("for Naomi Fried"))
+        let byStudent = Dictionary(uniqueKeysWithValues: items.map { ($0.studentID, $0) })
+        let naomi = try #require(context.safeFetch(CDFetchRequest(CDStudent.self)).first { $0.firstName == "Naomi" })
+        let simma = try #require(context.safeFetch(CDFetchRequest(CDStudent.self)).first { $0.firstName == "Simma" })
+        #expect(byStudent[try #require(naomi.id).uuidString]?.status == .mastered)
+        #expect(byStudent[try #require(simma.id).uuidString]?.status == .active)
+    }
+
+    @Test("update_work with students refuses a shared project row")
+    func updateWorkStudentsRefusesSharedRow() async throws {
+        let (tools, context) = try makeTools()
+        let simma = CoreDataTestHelpers.seedStudent(in: context, firstName: "Simma", lastName: "Zeller")
+        let naomi = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Fried")
+        let shared = CoreDataTestHelpers.seedWorkModel(
+            in: context, title: "Fundamental Needs poster",
+            studentID: try #require(simma.id), lessonID: UUID()
+        )
+        for student in [simma, naomi] {
+            let participant = CDWorkParticipantEntity(context: context)
+            participant.id = UUID()
+            participant.studentID = try #require(student.id).uuidString
+            participant.work = shared
+        }
+        CoreDataTestHelpers.save(context)
+
+        await #expect(throws: MCPToolError.self) {
+            _ = try await tool(named: "update_work", in: tools).handler([
+                "work_id": .string(try #require(shared.id).uuidString),
+                "status": .string("mastered"),
+                "students": .array([.string("Naomi")])
+            ])
+        }
+        #expect(shared.status == .active)
+    }
 }

@@ -210,11 +210,13 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "update_work",
             title: "Update Work",
-            description: "Change a work item: move it between active, review and complete, "
-                + "set or clear its due date, record which student finished it, complete a "
-                + "scheduled check-in, or move a scheduled check-in to another day. Completing a "
-                + "work item writes the same completion history the in-app work detail does. "
-                + "Only the fields provided are changed.",
+            description: "Change a work item: log its status (the one verdict per child — "
+                + "active and review keep it open; mastered, keepPracticing and incomplete close "
+                + "it, record the completion, mark the day's check-in done and skip later ones, so "
+                + "it leaves the schedule), set or clear its due date, record which student "
+                + "finished it, complete a scheduled check-in, or move a scheduled check-in to "
+                + "another day. A status applies to every linked copy of the work unless "
+                + "students names some of them. Only the fields provided are changed.",
             inputSchema: updateWorkSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
@@ -276,9 +278,15 @@ extension MCPNotebookTools {
                 "description": .string("Move only this row's check-in and leave the linked copies "
                     + "on their day; the reply says how many stayed")
             ],
+            "students": [
+                "type": "array",
+                "items": ["type": "string"],
+                "description": .string("With status: log it only for these children's rows. Default is "
+                    + "every linked copy; a shared project row can only be logged for everyone")
+            ],
             "note": [
                 "type": "string",
-                "description": "A note to file against the completion"
+                "description": "A note filed with the status, or against a completed_by completion"
             ]
         ],
         "required": ["work_id"]
@@ -352,42 +360,5 @@ extension MCPNotebookTools {
         guard let due = try dayArgument(arguments, "due_date") else { return [] }
         work.dueAt = due
         return ["due \(dayString(due))"]
-    }
-
-    private static func applyStatus(
-        _ arguments: [String: JSONValue], to work: CDWorkModel, workID: UUID,
-        in modelContext: NSManagedObjectContext
-    ) throws -> [String] {
-        let outcome = try completionOutcomeArgument(arguments, "outcome")
-        // `outcome` alone used to mean "close it with this verdict"; it still does.
-        guard let statusRaw = nonEmpty(arguments["status"]?.stringValue) ?? outcome.map({ _ in WorkStatus.done.rawValue })
-        else { return [] }
-        guard WorkStatus(rawValue: statusRaw) != nil else {
-            let allowed = WorkStatus.allCases.map(\.rawValue).joined(separator: ", ")
-            throw MCPToolError("status must be one of: \(allowed). Got \"\(statusRaw)\".")
-        }
-        let status = WorkStatusMigration.mergedStatus(statusRaw: statusRaw, outcomeRaw: outcome?.rawValue)
-        guard status.isClosed else {
-            work.status = status
-            return ["moved to \(status.displayName.lowercased())"]
-        }
-        // Closing runs through the repository so the completion date and any
-        // note land exactly as the in-app control writes them.
-        WorkRepository(context: modelContext).markWorkCompleted(
-            id: workID, status: status,
-            note: nonEmpty(arguments["note"]?.stringValue)
-        )
-        return ["logged as \(status.displayName)"]
-    }
-
-    private static func completionOutcomeArgument(
-        _ arguments: [String: JSONValue], _ key: String
-    ) throws -> CompletionOutcome? {
-        guard let raw = nonEmpty(arguments[key]?.stringValue) else { return nil }
-        guard let outcome = CompletionOutcome(rawValue: raw) else {
-            let allowed = CompletionOutcome.allCases.map(\.rawValue).joined(separator: ", ")
-            throw MCPToolError("\(key) must be one of: \(allowed). Got \"\(raw)\".")
-        }
-        return outcome
     }
 }
