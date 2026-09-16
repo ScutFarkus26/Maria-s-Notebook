@@ -50,6 +50,7 @@ struct AlbumsRootView: View {
         }
         .task {
             library.bootstrapIfNeeded()
+            intelligence.refreshAvailability()
             // The library may already be loaded from an earlier visit, in
             // which case no state change will arrive to trigger these.
             library.repairAlbumIdentities(in: context)

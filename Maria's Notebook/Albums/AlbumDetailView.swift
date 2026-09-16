@@ -94,8 +94,15 @@ struct AlbumDetailView: View {
                 library.markSeen(album)
                 album.applyHighlights(albumHighlights)
                 loadInk()
-                consumeTarget()
-                restorePositionIfNeeded()
+                // One turn later, not inside this appearance pass: both calls
+                // write `currentPage`, which the bookmark and notes items, the
+                // page indicator, and the window subtitle all read. Written
+                // while AppKit is still measuring the toolbar, that poisons an
+                // item's size to NaN and takes the window down (2026-09-10).
+                Task { @MainActor in
+                    consumeTarget()
+                    restorePositionIfNeeded()
+                }
             }
             .onChange(of: nav.pageTarget) { consumeTarget() }
             .onChange(of: albumHighlights) { album.applyHighlights(albumHighlights) }
@@ -413,6 +420,9 @@ struct AlbumDetailView: View {
             Label("Bookmark This Page",
                   systemImage: isBookmarked ? "bookmark.fill" : "bookmark")
                 .foregroundStyle(isBookmarked ? album.subject.color : Color.accentColor)
+                // Fixed width: the glyph swaps with `currentPage`, and an item
+                // whose size tracks state can be re-measured mid-layout.
+                .frame(width: 28)
         }
         .help("Bookmark this page (⌘D)")
     }
@@ -433,6 +443,9 @@ struct AlbumDetailView: View {
         } label: {
             Label("Notes for This Page",
                   systemImage: pageNoteCount > 0 ? "note.text" : "square.and.pencil")
+                // Fixed width for the same reason as the bookmark item; the
+                // badge draws outside the frame and does not change it.
+                .frame(width: 28)
         }
         .badge(pageNoteCount)
         .help("Notes for this page (⇧⌘N)")

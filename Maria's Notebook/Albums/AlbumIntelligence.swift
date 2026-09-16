@@ -22,32 +22,58 @@ final class AlbumIntelligence {
         }
     }
 
-    var isAvailable: Bool {
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        if case .available = SystemLanguageModel.default.availability { return true }
-        #endif
-        return false
+    /// Whether the on-device model can take requests right now.
+    ///
+    /// Stored, not computed: `SystemLanguageModel.default.availability` is a
+    /// synchronous call into the model service, and the album toolbar's
+    /// Summarize item reads this in `.disabled` and `.help` — i.e. inside
+    /// AppKit's toolbar layout pass. Probing the framework from there is what
+    /// tripped "NSToolbarItemViewer's min/max size is nan" on 2026-09-10
+    /// (four `ModelBundle: Creating` log lines, then the assertion). The probe
+    /// now runs off the main thread and only its result is observed.
+    private(set) var isAvailable = false
+
+    /// Why the model is unavailable, in words the guide can act on; `nil`
+    /// when it is available. Same probe as `isAvailable`.
+    private(set) var unavailableExplanation: String? = AlbumIntelligence.notProbedExplanation
+
+    private static let notProbedExplanation = "Checking whether Apple Intelligence is available…"
+
+    init() {
+        refreshAvailability()
     }
 
-    var unavailableExplanation: String? {
+    /// Re-probes availability off the main thread and publishes the result.
+    /// Call it when a view that gates on availability appears, so a model that
+    /// finished downloading since launch is picked up.
+    func refreshAvailability() {
+        Task { [weak self] in
+            let probe = await Task.detached(priority: .utility) { Self.probeAvailability() }.value
+            guard let self else { return }
+            if isAvailable != probe.available { isAvailable = probe.available }
+            if unavailableExplanation != probe.explanation { unavailableExplanation = probe.explanation }
+        }
+    }
+
+    nonisolated private static func probeAvailability() -> (available: Bool, explanation: String?) {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         switch SystemLanguageModel.default.availability {
         case .available:
-            return nil
+            return (true, nil)
         case .unavailable(.deviceNotEligible):
-            return "This device doesn't support Apple Intelligence, so Ask and Summarize aren't "
-                + "available. Search, bookmarks, and notes all still work."
+            return (false, "This device doesn't support Apple Intelligence, so Ask and Summarize aren't "
+                + "available. Search, bookmarks, and notes all still work.")
         case .unavailable(.appleIntelligenceNotEnabled):
-            return "Turn on Apple Intelligence in System Settings to use Ask and Summarize."
+            return (false, "Turn on Apple Intelligence in System Settings to use Ask and Summarize.")
         case .unavailable(.modelNotReady):
-            return "The on-device model is still getting ready (it may be downloading). "
-                + "Try again in a little while."
+            return (false, "The on-device model is still getting ready (it may be downloading). "
+                + "Try again in a little while.")
         case .unavailable:
-            return "Apple Intelligence isn't available right now."
+            return (false, "Apple Intelligence isn't available right now.")
         }
         #else
-        return "Ask and Summarize need an Apple Intelligence build of the app. "
-            + "Search, bookmarks, and notes all still work."
+        return (false, "Ask and Summarize need an Apple Intelligence build of the app. "
+            + "Search, bookmarks, and notes all still work.")
         #endif
     }
 
