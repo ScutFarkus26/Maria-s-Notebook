@@ -31,11 +31,25 @@ extension WorksAgendaView {
         #endif
     }
 
-    func markCompleted(_ w: CDWorkModel) {
-        guard let workID = w.id else { return }
-        // Route through the canonical completion path so completedAt is set
-        // and the readiness auto-unlock check runs (handles save + haptic).
-        WorkRepository(context: viewContext).markWorkCompleted(id: workID)
+    /// Logs one status on the given rows in a single write, with Undo in the
+    /// toast. The grid re-triages itself from the save notification.
+    func logStatus(_ rows: [CDWorkModel], as status: WorkStatus) {
+        do {
+            let receipt = try WorkLogService.log(
+                rows.map { WorkLogService.Entry(work: $0, status: status) },
+                context: viewContext, saveCoordinator: saveCoordinator
+            )
+            let noun = receipt.rows == 1 ? "1 work item" : "\(receipt.rows) work items"
+            ToastService.shared.show("Logged \(noun) as \(status.displayName)", type: .success, duration: 5) {
+                do {
+                    try WorkLogService.undo(receipt.token, context: viewContext, saveCoordinator: saveCoordinator)
+                } catch {
+                    ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
+                }
+            }
+        } catch {
+            ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
+        }
     }
 
     /// Puts a work item on `day` to be checked: its earliest check-in moves

@@ -186,7 +186,7 @@ private struct WorkCardGridPreview: View {
             needsAttention: true,
             ageSchoolDays: 7,
             onOpen: { _ in },
-            onMarkCompleted: { _ in },
+            onLog: { _, _ in },
             onSchedule: { _, _ in }
         )
         .padding()

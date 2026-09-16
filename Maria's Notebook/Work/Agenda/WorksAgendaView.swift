@@ -281,7 +281,7 @@ struct WorksAgendaView: View {
                 studentFilter: $workStudentFilter,
                 visibleKinds: visibleKinds,
                 onOpenWork: openDetail,
-                onMarkCompleted: markCompleted,
+                onLog: logStatus,
                 onSchedule: schedule,
                 onDeleted: refreshAfterSave
             )

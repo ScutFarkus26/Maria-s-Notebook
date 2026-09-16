@@ -165,11 +165,11 @@ struct StudentOverviewTab: View {
                                 onOpen: { w in
                                     selectedWorkID = w.id ?? UUID()
                                 },
-                                onMarkCompleted: { w in
-                                    guard let id = w.id else { return }
-                                    WorkRepository(context: viewContext).markWorkCompleted(id: id)
+                                onLog: { rows, status in
+                                    let entries = rows.map { WorkLogService.Entry(work: $0, status: status) }
+                                    _ = try? WorkLogService.log(entries, context: viewContext)
                                     // Re-fetch from the source of truth: the "Working on" fetch
-                                    // excludes closed work, so the just-closed card drops out.
+                                    // excludes closed work, so a just-closed card drops out.
                                     onWorkChanged()
                                 },
                                 onSchedule: { w, day in

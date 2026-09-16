@@ -20,6 +20,8 @@ struct WorkCheckInFollowUpRow: View {
     var onComplete: () -> Void
     var onOpen: () -> Void
     var onReschedule: (Date) -> Void
+    /// Logs a status on the work — the check-in is marked done with it.
+    var onLog: (WorkStatus) -> Void = { _ in }
 
     @State private var isPickingDay = false
 
@@ -77,6 +79,8 @@ struct WorkCheckInFollowUpRow: View {
             Button { isPickingDay = true } label: {
                 Label("Reschedule…", systemImage: SFSymbol.Time.calendar)
             }
+            Divider()
+            WorkLogStatusMenu(targets: [item.work]) { _, status in onLog(status) }
         }
         .modifier(DayPickerPresentation(isPresented: $isPickingDay, onPick: onReschedule))
     }
@@ -179,7 +183,8 @@ extension TodayView {
             detail: followUpDetail(for: item),
             onComplete: { completeCheckInFollowUp(item) },
             onOpen: { selectedWorkID = item.work.id },
-            onReschedule: { day in rescheduleCheckInFollowUp(item, to: day) }
+            onReschedule: { day in rescheduleCheckInFollowUp(item, to: day) },
+            onLog: { status in logCheckInFollowUp(item, as: status) }
         )
         .id(item.id)
         .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
@@ -218,6 +223,22 @@ extension TodayView {
         guard saveCoordinator.save(viewContext, reason: "Complete work check-in") else { return }
         viewModel.reload()
         toast("Checked in")
+    }
+
+    /// A status from the row's menu: the same write as the Scheduled strip,
+    /// so the check-in is marked done and a closed row's later checks skipped.
+    func logCheckInFollowUp(_ item: WorkCheckInFollowUp, as status: WorkStatus) {
+        do {
+            try WorkLogService.log(
+                [.init(work: item.work, status: status)],
+                context: viewContext, saveCoordinator: saveCoordinator
+            )
+        } catch {
+            Logger.app_.warning("Failed to log work status: \(error.localizedDescription)")
+            return
+        }
+        viewModel.reload()
+        toast("Logged as \(status.displayName)")
     }
 
     /// The week-plan rule: the check-in date and the work's `dueAt` move together.

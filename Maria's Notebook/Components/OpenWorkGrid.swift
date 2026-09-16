@@ -15,7 +15,8 @@ struct OpenWorkGrid: View {
     var selection: WorkspaceMultiSelection?
 
     let onOpen: (CDWorkModel) -> Void
-    let onMarkCompleted: (CDWorkModel) -> Void
+    /// Logs one status on some rows; the card menu decides which.
+    let onLog: ([CDWorkModel], WorkStatus) -> Void
     /// Puts a work item on a day to be checked, wherever the card's Schedule
     /// menu got the day from.
     let onSchedule: (CDWorkModel, Date) -> Void
@@ -77,7 +78,7 @@ struct OpenWorkGrid: View {
                                             ? nil
                                             : { pendingDeletion = $0 },
                                         onOpen: onOpen,
-                                        onMarkCompleted: onMarkCompleted,
+                                        onLog: onLog,
                                         onSchedule: onSchedule
                                     )
                                     .padding(2)
@@ -314,7 +315,7 @@ private struct OpenWorkGridPreview: View {
             attentionWorkIDs: [],
             sortMode: .lesson,
             onOpen: { _ in },
-            onMarkCompleted: { _ in },
+            onLog: { _, _ in },
             onSchedule: { _, _ in }
         )
         .previewEnvironment()

@@ -42,7 +42,9 @@ struct WorkCard: View {
         /// passing by is not where a record should be destroyed.
         let onRequestDelete: (([CDWorkModel]) -> Void)?
         let onOpen: (CDWorkModel) -> Void
-        let onMarkCompleted: (CDWorkModel) -> Void
+        /// Logs one status on these rows — this card, or the selection it is
+        /// part of — the host adds its own refresh and toast.
+        let onLog: ([CDWorkModel], WorkStatus) -> Void
         /// Puts this work on a day to be checked. The day comes from the
         /// caller — the Schedule menu, or the calendar it opens — so a card
         /// has one scheduling path rather than one per date it can name.
@@ -58,7 +60,7 @@ struct WorkCard: View {
             menuTargets: (() -> [CDWorkModel])? = nil,
             onRequestDelete: (([CDWorkModel]) -> Void)? = nil,
             onOpen: @escaping (CDWorkModel) -> Void,
-            onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
+            onLog: @escaping ([CDWorkModel], WorkStatus) -> Void = { _, _ in },
             onSchedule: @escaping (CDWorkModel, Date) -> Void = { _, _ in }
         ) {
             self.work = work
@@ -70,7 +72,7 @@ struct WorkCard: View {
             self.menuTargets = menuTargets
             self.onRequestDelete = onRequestDelete
             self.onOpen = onOpen
-            self.onMarkCompleted = onMarkCompleted
+            self.onLog = onLog
             self.onSchedule = onSchedule
         }
     }
@@ -171,7 +173,7 @@ extension WorkCard {
         menuTargets: (() -> [CDWorkModel])? = nil,
         onRequestDelete: (([CDWorkModel]) -> Void)? = nil,
         onOpen: @escaping (CDWorkModel) -> Void,
-        onMarkCompleted: @escaping (CDWorkModel) -> Void = { _ in },
+        onLog: @escaping ([CDWorkModel], WorkStatus) -> Void = { _, _ in },
         onSchedule: @escaping (CDWorkModel, Date) -> Void = { _, _ in }
     ) -> WorkCard {
         WorkCard(config: .grid(GridConfig(
@@ -184,7 +186,7 @@ extension WorkCard {
             menuTargets: menuTargets,
             onRequestDelete: onRequestDelete,
             onOpen: onOpen,
-            onMarkCompleted: onMarkCompleted,
+            onLog: onLog,
             onSchedule: onSchedule
         )))
     }

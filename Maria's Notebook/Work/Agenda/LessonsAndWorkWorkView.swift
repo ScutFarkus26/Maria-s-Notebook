@@ -46,7 +46,8 @@ struct LessonsAndWorkWorkView: View {
     /// different axis from the state pills, so it keeps its own row.
     @Binding var visibleKinds: Set<WorkKind>
     let onOpenWork: (CDWorkModel) -> Void
-    let onMarkCompleted: (CDWorkModel) -> Void
+    /// Logs one status on some rows — a card's menu targets, or the selection.
+    let onLog: ([CDWorkModel], WorkStatus) -> Void
     /// Puts a work item on a day to be checked. The day is the caller's — this
     /// half names today, tomorrow, and whatever the calendar returns.
     let onSchedule: (CDWorkModel, Date) -> Void
@@ -154,9 +155,16 @@ struct LessonsAndWorkWorkView: View {
                             isPickingCheckDay = false
                         }
                     }
-                Button("Mark Completed") { applyToSelection(onMarkCompleted) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                Menu {
+                    ForEach(WorkStatus.pickable) { status in
+                        if status == WorkStatus.closedCases.first { Divider() }
+                        Button(status.displayName, systemImage: status.iconName) { logSelection(as: status) }
+                    }
+                } label: {
+                    Label("Log as", systemImage: "checkmark.circle")
+                }
+                .controlSize(.small)
+                .fixedSize()
             }
             content
         }
@@ -183,7 +191,7 @@ struct LessonsAndWorkWorkView: View {
                 focusedWorkID: focusedWorkID,
                 selection: selection,
                 onOpen: onOpenWork,
-                onMarkCompleted: onMarkCompleted,
+                onLog: onLog,
                 onSchedule: onSchedule,
                 onDeleted: onDeleted
             )
@@ -218,6 +226,14 @@ struct LessonsAndWorkWorkView: View {
     /// Puts every selected item on one day to be checked.
     private func schedule(on day: Date) {
         applyToSelection { onSchedule($0, day) }
+    }
+
+    /// Logs one status on every selected item in a single write, then lets
+    /// the selection go — the cards have moved pill or left the list.
+    private func logSelection(as status: WorkStatus) {
+        let rows = slice.filter { selection.contains($0.id) }
+        selection.clear()
+        onLog(rows, status)
     }
 
     /// Runs a per-item action across the selection, then lets it go — the

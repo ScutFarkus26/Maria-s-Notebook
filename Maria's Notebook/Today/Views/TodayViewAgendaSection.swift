@@ -106,6 +106,10 @@ extension TodayView {
             } label: {
                 Label("Add Note", systemImage: "square.and.pencil")
             }
+            Divider()
+            WorkLogStatusMenu(targets: [scheduled.work]) { rows, status in
+                logWorkStatus(rows, as: status)
+            }
         }
     }
 
@@ -127,6 +131,10 @@ extension TodayView {
                 quickNoteAboutWork(followUp.work)
             } label: {
                 Label("Add Note", systemImage: "square.and.pencil")
+            }
+            Divider()
+            WorkLogStatusMenu(targets: [followUp.work]) { rows, status in
+                logWorkStatus(rows, as: status)
             }
         }
     }
@@ -248,6 +256,22 @@ extension TodayView {
             viewModel.reload()
             toast("Bumped to tomorrow")
         }
+    }
+
+    /// The same write as the Scheduled strip's menu: today's check-in is
+    /// marked done and the row leaves the agenda on reload.
+    func logWorkStatus(_ rows: [CDWorkModel], as status: WorkStatus) {
+        do {
+            try WorkLogService.log(
+                rows.map { WorkLogService.Entry(work: $0, status: status) },
+                context: viewContext
+            )
+        } catch {
+            toast(error.localizedDescription)
+            return
+        }
+        viewModel.reload()
+        toast("Logged as \(status.displayName)")
     }
 
     func quickNoteAboutWork(_ work: CDWorkModel) {

@@ -7,7 +7,8 @@
 //     right-clicking the title, the badge, or anywhere else on the card did
 //     nothing at all. It is on the whole card now.
 //  2. Change Status ▸ Practice / Follow-Up had empty bodies. Two menu items
-//     that looked live, clicked fine, and changed nothing.
+//     that looked live, clicked fine, and changed nothing. (The status items
+//     are `WorkLogStatusMenu` now, shared with the Scheduled strip's pills.)
 //  3. It ignored the command-click selection. Right-clicking one of four
 //     selected cards acted on one of them, which is the worst possible answer:
 //     it looks like it worked.
@@ -57,16 +58,14 @@ extension WorkCardGridContent {
             Divider()
         }
 
-        Button {
-            for work in targets { config.onMarkCompleted(work) }
-        } label: {
-            Label(
-                menuLabel("Mark Completed") { "Mark \($0) Completed" },
-                systemImage: "checkmark.circle"
-            )
-        }
-
-        statusMenu(targets)
+        // The five statuses, for the selection or — on one card whose work was
+        // assigned to several children — for everyone on it or for one child.
+        let group = isBulk ? nil : WorkGrouping.group(containing: config.work, in: viewContext)
+        WorkLogStatusMenu(
+            targets: group?.members ?? targets,
+            children: group.map { WorkLogStatusMenu.children(of: $0, in: viewContext) } ?? [],
+            onLog: config.onLog
+        )
         scheduleMenu(targets)
         restMenu(targets)
 
@@ -97,34 +96,6 @@ extension WorkCardGridContent {
     }
 
     // MARK: - Submenus
-
-    /// Practice or Follow-Up. These two used to be empty closures; they write
-    /// through `WorkRepository` now, the same path the detail view uses.
-    @ViewBuilder
-    private func statusMenu(_ targets: [CDWorkModel]) -> some View {
-        Menu {
-            statusButton("Practice", status: .active, targets: targets)
-            statusButton("Follow-Up", status: .review, targets: targets)
-        } label: {
-            Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
-        }
-    }
-
-    @ViewBuilder
-    private func statusButton(
-        _ title: String,
-        status: WorkStatus,
-        targets: [CDWorkModel]
-    ) -> some View {
-        // A checkmark only when every target already agrees; a mixed selection
-        // shows neither rather than claiming one of them.
-        let isCurrent = targets.allSatisfy { $0.status == status }
-        Button {
-            setStatus(status, on: targets)
-        } label: {
-            Label(title, systemImage: isCurrent ? "checkmark" : "circle")
-        }
-    }
 
     /// Today, tomorrow, and — the point of the submenu — any other day.
     ///
@@ -194,14 +165,6 @@ extension WorkCardGridContent {
     /// the calendar's chosen one land the same way.
     func schedule(_ targets: [CDWorkModel], on day: Date) {
         for work in targets { config.onSchedule(work, day) }
-    }
-
-    private func setStatus(_ status: WorkStatus, on targets: [CDWorkModel]) {
-        let repository = WorkRepository(context: viewContext)
-        for work in targets {
-            guard let id = work.id else { continue }
-            repository.updateWorkStatus(id: id, status: status)
-        }
     }
 
     private func setAside(until date: Date?, on targets: [CDWorkModel]) {

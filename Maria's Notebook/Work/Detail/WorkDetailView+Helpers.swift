@@ -157,6 +157,16 @@ extension WorkDetailView {
                     }
                 }
                 .popoverTip(WorkLifecycleTip(), arrowEdge: .top)
+
+                // Saved with the status on Save — "Keep Practicing, needs the
+                // trinomial cube again" is one gesture, not two sections.
+                TextField("Add a note with this status…", text: $viewModel.completionNote)
+                    .font(AppTheme.ScaledFont.body)
+                    .padding(AppTheme.Spacing.compact)
+                    .background(
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                    )
             }
 
             // Check-in style
