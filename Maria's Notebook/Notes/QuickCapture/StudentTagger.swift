@@ -4,7 +4,7 @@ import OSLog
 
 // MARK: - CDStudent Data Structures
 
-struct StudentData: Sendable {
+nonisolated struct StudentData: Sendable {
     let id: UUID
     let firstName: String
     let lastName: String

@@ -5,7 +5,7 @@ import Foundation
 
 // MARK: - CDLesson Data (lightweight struct for off-main-thread use)
 
-struct LessonData: Sendable {
+nonisolated struct LessonData: Sendable {
     let id: UUID
     let name: String
     let area: String

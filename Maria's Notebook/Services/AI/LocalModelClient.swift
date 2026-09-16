@@ -232,7 +232,7 @@ final class LocalModelClient: MCPClientProtocol {
 
 // MARK: - Errors
 
-enum LocalModelError: Error, LocalizedError {
+nonisolated enum LocalModelError: Error, LocalizedError {
     case unavailable(String)
     case contextTooLarge
     case rateLimited
@@ -273,7 +273,7 @@ enum LocalModelError: Error, LocalizedError {
 
 /// Placeholder error type available regardless of FoundationModels flag.
 /// Used by AIClientRouter to compile on all platforms.
-enum LocalModelError: Error, LocalizedError {
+nonisolated enum LocalModelError: Error, LocalizedError {
     case unavailable(String)
     case contextTooLarge
     case rateLimited

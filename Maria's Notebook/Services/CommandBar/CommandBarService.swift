@@ -78,20 +78,32 @@ final class CommandBarService {
     ) async {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         if #available(macOS 26.0, iOS 26.0, *) {
-            let appleParser = AppleIntelligenceCommandParser()
-            if appleParser.isAvailable {
+            // Off the main actor on purpose: the availability probe, the prompt
+            // assembly over every lesson name, and the session open all happen
+            // here, and none of it may run on the thread AppKit is laying out
+            // the sheet's toolbar on. Only the Sendable proposal comes back.
+            let outcome: Result<CaptureProposal, Error>? = await Task.detached(priority: .userInitiated) {
+                let appleParser = AppleIntelligenceCommandParser()
+                guard appleParser.isAvailable else { return nil }
                 do {
-                    let proposal = try await appleParser.parseCapture(
+                    return .success(try await appleParser.parseCapture(
                         input: input,
                         students: students,
                         lessons: lessons
-                    )
-                    Self.logger.info("Apple Intelligence organized an editable classroom capture")
-                    parseState = .capture(proposal)
-                    return
+                    ))
                 } catch {
-                    Self.logger.warning("On-device capture organization failed: \(error)")
+                    return .failure(error)
                 }
+            }.value
+            switch outcome {
+            case .success(let proposal):
+                Self.logger.info("Apple Intelligence organized an editable classroom capture")
+                parseState = .capture(proposal)
+                return
+            case .failure(let error):
+                Self.logger.warning("On-device capture organization failed: \(error)")
+            case nil:
+                break
             }
         }
         #endif

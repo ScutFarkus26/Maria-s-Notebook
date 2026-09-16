@@ -65,7 +65,7 @@ nonisolated struct ParsedCommand: Sendable {
 /// Identifies how an editable capture proposal was organized. Both paths stay
 /// on the device; the deterministic path is used when the Foundation Models
 /// framework or the system model is unavailable.
-enum CaptureProposalSource: Sendable {
+nonisolated enum CaptureProposalSource: Sendable {
     case appleIntelligence
     case deterministic
 
@@ -88,7 +88,7 @@ enum CaptureProposalSource: Sendable {
 
 /// A guide-confirmed next step. `.none` is deliberately the default: the app
 /// never invents practice, readiness, or follow-up work from an observation.
-enum CaptureFollowUp: String, CaseIterable, Identifiable, Sendable {
+nonisolated enum CaptureFollowUp: String, CaseIterable, Identifiable, Sendable {
     case none
     case continueObserving
     case practice
@@ -122,7 +122,7 @@ enum CaptureFollowUp: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// One child's editable portion of a classroom capture.
-struct StudentCaptureProposal: Identifiable, Sendable {
+nonisolated struct StudentCaptureProposal: Identifiable, Sendable {
     let id: UUID
     var studentID: UUID
     var studentName: String
@@ -148,7 +148,7 @@ struct StudentCaptureProposal: Identifiable, Sendable {
 
 /// A reviewable proposal produced from one spoken or typed classroom account.
 /// This value is intentionally separate from Core Data: parsing cannot save.
-struct CaptureProposal: Sendable {
+nonisolated struct CaptureProposal: Sendable {
     var rawText: String
     var recordsPresentation: Bool
     var lessonID: UUID?

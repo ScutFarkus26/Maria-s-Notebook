@@ -59,7 +59,12 @@ struct CommandBarSheet: View {
             }
         }
         #if os(macOS)
-        .frame(minWidth: 500, minHeight: 400)
+        // Fixed, not min-sized: `contentSection` swaps wholesale (examples →
+        // spinner → review) and a fitted sheet re-sizes its window inside the
+        // same layout pass that measures the sheet's toolbar. That trips
+        // "NSToolbarItemViewer's min/max size is nan" (2026-09-10). A constant
+        // frame keeps every state inside one stable window.
+        .frame(width: 560, height: 500)
         .presentationSizingFitted()
         #else
         .presentationDetents([.medium, .large])

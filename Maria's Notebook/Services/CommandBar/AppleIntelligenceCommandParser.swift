@@ -11,7 +11,7 @@ import FoundationModels
 
 @available(macOS 26.0, iOS 26.0, *)
 @Generable(description: "Parsed teacher command from natural language input")
-struct ParsedTeacherCommand {
+nonisolated struct ParsedTeacherCommand {
     // swiftlint:disable:next line_length
     @Guide(description: "The intent: recordPresentation (gave/showed a lesson), assignWork (assign practice/follow-up), addNote (observation about a student), or addTodo (reminder/task for the teacher)")
     var intent: String
@@ -28,7 +28,7 @@ struct ParsedTeacherCommand {
 
 @available(macOS 26.0, iOS 26.0, *)
 @Generable(description: "A guide's explicitly stated next step for one child")
-enum GeneratedCaptureFollowUp {
+nonisolated enum GeneratedCaptureFollowUp {
     case none
     case continueObserving
     case practice
@@ -39,7 +39,7 @@ enum GeneratedCaptureFollowUp {
 
 @available(macOS 26.0, iOS 26.0, *)
 @Generable(description: "One child's explicitly stated observation and next step")
-struct GeneratedStudentCapture {
+nonisolated struct GeneratedStudentCapture {
     @Guide(description: "One exact student name from the provided roster")
     var studentName: String
 
@@ -61,7 +61,7 @@ struct GeneratedStudentCapture {
 
 @available(macOS 26.0, iOS 26.0, *)
 @Generable(description: "An editable proposal organized from one Montessori classroom account")
-struct GeneratedClassroomCapture {
+nonisolated struct GeneratedClassroomCapture {
     @Guide(description: "True only when the teacher says the lesson was given, shown, or presented")
     var recordsPresentation: Bool
 
@@ -83,8 +83,13 @@ struct GeneratedClassroomCapture {
 
 // MARK: - Apple Intelligence Command Parser
 
+/// Deliberately off the main actor: the availability probe and the session
+/// are synchronous calls into the model service, and doing them on the main
+/// thread right after a state change put a toolbar layout pass inside them
+/// (the 2026-09-10 Capture-sheet crash). `CommandBarService` runs this parser
+/// in a detached task; it holds no state, so it is safely `Sendable`.
 @available(macOS 26.0, iOS 26.0, *)
-final class AppleIntelligenceCommandParser {
+nonisolated final class AppleIntelligenceCommandParser: Sendable {
     private static let logger = Logger.ai
 
     /// Returns true if Apple Intelligence is available on this device.
