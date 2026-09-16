@@ -17,7 +17,9 @@ extension ClassAreaChecklistViewModel {
 
         // PERF: Filter by lessonID in predicate to avoid loading all non-complete work.
         let workRequest = CDFetchRequest(CDWorkModel.self)
-        workRequest.predicate = NSPredicate(format: "statusRaw IN %@ AND lessonID == %@", WorkStatus.openRawValues, lidString)
+        workRequest.predicate = NSPredicate(
+            format: "statusRaw IN %@ AND lessonID == %@", WorkStatus.openRawValues, lidString
+        )
         let matchingWorkModels = context.safeFetch(workRequest)
 
         if let existingWork = matchingWorkModels.first(where: { work in
@@ -25,8 +27,9 @@ extension ClassAreaChecklistViewModel {
                 (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
             return participants.contains { $0.studentID == sid.uuidString }
         }) {
-            existingWork.status = .done
-            existingWork.completedAt = AppCalendar.startOfDay(Date())
+            _ = try? WorkLogService.log(
+                [.init(work: existingWork, status: .done)], context: context, saveImmediately: false
+            )
             return
         }
 
@@ -40,8 +43,7 @@ extension ClassAreaChecklistViewModel {
                 presentationID: nil as UUID?,
                 scheduledDate: nil as Date?
             )
-            work.status = .done
-            work.completedAt = AppCalendar.startOfDay(Date())
+            try WorkLogService.log([.init(work: work, status: .done)], context: context, saveImmediately: false)
         } catch {
             Self.logger.warning("Failed to create work for student \(sid): \(error)")
         }

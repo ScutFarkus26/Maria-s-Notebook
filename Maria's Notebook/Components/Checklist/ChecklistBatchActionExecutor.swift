@@ -338,8 +338,9 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
             let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
             return parts.contains { $0.studentID == sid.uuidString }
         }) {
-            existingWork.status = .done
-            existingWork.completedAt = AppCalendar.startOfDay(Date())
+            _ = try? WorkLogService.log(
+                [.init(work: existingWork, status: .done)], context: context, saveImmediately: false
+            )
             return
         }
 
@@ -353,8 +354,7 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
                 presentationID: nil,
                 scheduledDate: nil
             )
-            work.status = .done
-            work.completedAt = AppCalendar.startOfDay(Date())
+            try WorkLogService.log([.init(work: work, status: .done)], context: context, saveImmediately: false)
         } catch {
             logger.warning("Failed to create work: \(error)")
         }

@@ -328,7 +328,6 @@ extension UnifiedPresentationWorkflowPanel {
     }
 
     @ViewBuilder
-    // swiftlint:disable:next function_body_length
     func workDraftCompletionSection(draft: WorkItemDraft, studentID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ExpandableSectionButton(

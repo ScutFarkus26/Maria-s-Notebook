@@ -174,25 +174,24 @@ struct WorkRepository: Repository {
 
     // MARK: - Update
 
-    /// Close a CDWorkModel with a verdict (`.done` when the guide gave none).
+    /// Closes a work row with a verdict (`.done` when the guide gave none).
+    /// Goes through `WorkLogService`, so the completion record, the row's
+    /// check-ins and the note land exactly as they do from the Scheduled strip.
     func markWorkCompleted(id: UUID, status: WorkStatus = .done, note: String? = nil) {
-        guard let work = fetchWorkModel(id: id) else { return }
-        work.status = status.isClosed ? status : .done
-        work.completedAt = AppCalendar.startOfDay(Date())
-        if let note, !note.isEmpty {
-            work.setLegacyNoteText(note, in: context)
-        }
-        // Only signal success and run downstream unlocking if the save actually persisted —
-        // a success haptic / auto-unlock on a failed save would be misleading.
-        guard context.safeSave() else { return }
-        HapticService.shared.notification(.success)
+        updateWorkStatus(id: id, status: status.isClosed ? status : .done, note: note)
     }
 
-    /// Update a CDWorkModel's status
-    func updateWorkStatus(id: UUID, status: WorkStatus) {
+    /// Logs a status on a work row and saves. The success haptic fires only
+    /// when the save actually persisted — one on a failed save would mislead.
+    func updateWorkStatus(id: UUID, status: WorkStatus, note: String? = nil) {
         guard let work = fetchWorkModel(id: id) else { return }
-        work.status = status
-        context.safeSave()
+        do {
+            try WorkLogService.log([.init(work: work, status: status, note: note)], context: context)
+        } catch {
+            Self.logger.error("Failed to log work status \(id): \(error)")
+            return
+        }
+        if status.isClosed { HapticService.shared.notification(.success) }
     }
 
     // MARK: - Delete
@@ -207,29 +206,5 @@ struct WorkRepository: Repository {
         } catch {
             Self.logger.error("Failed to delete work \(id): \(error)")
         }
-    }
-
-    // MARK: - Completion Toggle
-
-    /// Toggle completion for a student on a CDWorkModel
-    /// Uses WorkCompletionService for proper historical tracking
-    func toggleCompletion(workID: UUID, studentID: UUID) throws {
-        guard let work = fetchWorkModel(id: workID) else { return }
-
-        if work.isStudentCompleted(studentID) {
-            // Un-complete: Remove from participant (historical records preserved)
-            if let participant = work.participant(for: studentID) {
-                participant.completedAt = nil
-            }
-        } else {
-            // Complete: Use WorkCompletionService for proper historical tracking
-            try WorkCompletionService.markCompleted(workID: workID, studentID: studentID, in: context)
-            // Also update participant for backwards compatibility
-            if let participant = work.participant(for: studentID) {
-                participant.completedAt = Date()
-            }
-        }
-
-        context.safeSave()
     }
 }

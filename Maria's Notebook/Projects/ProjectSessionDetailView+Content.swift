@@ -231,16 +231,9 @@ private struct ProjectWorkProgressRow: View {
     }
 
     private func updateStatus(_ status: WorkStatus) {
-        let wasComplete = work.status.isClosed
-        work.status = status
-        work.lastTouchedAt = Date()
-
-        if status.isClosed, work.completedAt == nil {
-            work.completedAt = Date()
-        } else if wasComplete, status.isOpen {
-            work.completedAt = nil
-        }
-
+        do {
+            try WorkLogService.log([.init(work: work, status: status)], context: modelContext, saveImmediately: false)
+        } catch { return }
         persist(reason: "Update Project Progress")
     }
 

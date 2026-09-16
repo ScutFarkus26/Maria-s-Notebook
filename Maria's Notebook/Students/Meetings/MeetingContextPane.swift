@@ -227,8 +227,11 @@ struct MeetingContextPane: View {
                 Picker("Status", selection: Binding(
                     get: { work.status },
                     set: { newStatus in
-                        work.status = newStatus
-                        work.completedAt = newStatus.isClosed ? Date() : nil
+                        do {
+                            try WorkLogService.log(
+                                [.init(work: work, status: newStatus)], context: viewContext, saveImmediately: false
+                            )
+                        } catch { return }
                         markReviewed(workID, touching: work)
                         trySave()
                     }

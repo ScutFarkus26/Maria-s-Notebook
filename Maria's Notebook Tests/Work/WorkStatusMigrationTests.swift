@@ -58,9 +58,9 @@ struct WorkStatusMigrationTests {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
 
-        let mastered = CoreDataTestHelpers.seedWorkModel(in: context, title: "Mastered")
-        mastered.statusRaw = "complete"
-        mastered.completionOutcomeRaw = "mastered"
+        let proficientRow = CoreDataTestHelpers.seedWorkModel(in: context, title: "Mastered")
+        proficientRow.statusRaw = "complete"
+        proficientRow.completionOutcomeRaw = "mastered"
 
         let practicing = CoreDataTestHelpers.seedWorkModel(in: context, title: "Keep practicing")
         practicing.statusRaw = "complete"
@@ -75,12 +75,12 @@ struct WorkStatusMigrationTests {
         #expect(CoreDataTestHelpers.save(context))
 
         #expect(DataCleanupService.mergeWorkCompletionOutcomes(using: context) == 2)
-        #expect(mastered.status == .mastered)
+        #expect(proficientRow.status == .mastered)
         #expect(practicing.status == .keepPracticing)
         #expect(plainDone.status == .done)
         #expect(open.status == .review)
         // The old column is the record of what was there; nothing clears it.
-        #expect(mastered.completionOutcomeRaw == "mastered")
+        #expect(proficientRow.completionOutcomeRaw == "mastered")
 
         // A second pass on a merged store finds nothing to do.
         #expect(DataCleanupService.mergeWorkCompletionOutcomes(using: context) == 0)
@@ -102,7 +102,7 @@ struct WorkStatusMigrationTests {
             checkInStyleRaw: nil, restingUntil: nil
         )
 
-        try BackupEntityImporter.importWorkModels([dto], into: context, existing: { _ in nil })
+        BackupEntityImporter.importWorkModels([dto], into: context, existing: { _ in nil })
 
         let request = CDFetchRequest(CDWorkModel.self)
         let restored = try #require(context.safeFetch(request).first)
