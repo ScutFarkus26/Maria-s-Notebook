@@ -134,7 +134,7 @@ ambiguity errors:
 | `student_work` | `CDWorkModel` owned by or participated in by the student |
 | `work_detail` | one work item: steps, check-ins, participants, linked notes |
 | `assign_work` (write) | `WorkRepository.createWork` + participant cross-links + optional `CDWorkCheckIn` (through `CDWorkCheckIn.make`), mirroring the Quick New Work sheet; refuses a withdrawn or transferred student by name and status, as the repository itself does |
-| `update_work` (write) | `WorkRepository.markWorkCompleted` / `WorkCompletionService.markCompleted`; status, due date, per-student completion, check-in completion |
+| `update_work` (write) | `WorkRepository.markWorkCompleted` / `WorkCompletionService.markCompleted`; status, due date, per-student completion, check-in completion, and check-in moves (`move_check_in_from` / `move_check_in_to`, required together — a closed day lands on the next open one like `update_year_plan_entry`; linked copies move together unless `move_check_in_for_this_child_only`, and a sibling whose check-in is already completed keeps its day and is named in the reply) |
 | `remove_student_from_work` (write) | `WorkDeletionService.removalPlan` / `apply`; refuses until called with `confirm: true`, and reports owner promotion, passenger drops and linked-copy deletion before doing any of it |
 | **Attendance** | |
 | `attendance_for_day` | `attendanceStatuses(for:on:)` — deduplicated per student/day |

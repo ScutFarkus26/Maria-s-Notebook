@@ -211,9 +211,10 @@ extension MCPNotebookTools {
             name: "update_work",
             title: "Update Work",
             description: "Change a work item: move it between active, review and complete, "
-                + "set or clear its due date, record which student finished it, or complete a "
-                + "scheduled check-in. Completing a work item writes the same completion history "
-                + "the in-app work detail does. Only the fields provided are changed.",
+                + "set or clear its due date, record which student finished it, complete a "
+                + "scheduled check-in, or move a scheduled check-in to another day. Completing a "
+                + "work item writes the same completion history the in-app work detail does. "
+                + "Only the fields provided are changed.",
             inputSchema: updateWorkSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
@@ -256,6 +257,22 @@ extension MCPNotebookTools {
                 "type": "string",
                 "description": "Mark the check-in scheduled for this day as completed, YYYY-MM-DD"
             ],
+            "move_check_in_from": [
+                "type": "string",
+                "description": .string("Move the check-in scheduled on this day, YYYY-MM-DD; "
+                    + "pair with move_check_in_to. On work assigned to several children the "
+                    + "linked copies move together unless move_check_in_for_this_child_only is set")
+            ],
+            "move_check_in_to": [
+                "type": "string",
+                "description": .string("The day the check-in moves to, YYYY-MM-DD. A day the school "
+                    + "is closed moves forward to the next open one, and the reply says so")
+            ],
+            "move_check_in_for_this_child_only": [
+                "type": "boolean",
+                "description": .string("Move only this row's check-in and leave the linked copies "
+                    + "on their day; the reply says how many stayed")
+            ],
             "note": [
                 "type": "string",
                 "description": "A note to file against the completion"
@@ -273,10 +290,18 @@ extension MCPNotebookTools {
         }
 
         var changes: [String] = []
-        changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
-        changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
-        changes += try applyDueDate(arguments, to: work)
-        changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
+        do {
+            changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
+            changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
+            changes += try applyCheckInMove(arguments, to: work, in: modelContext)
+            changes += try applyDueDate(arguments, to: work)
+            changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
+        } catch {
+            // One argument refused after another was applied would otherwise
+            // leave the earlier edit sitting unsaved in the shared context.
+            modelContext.rollback()
+            throw error
+        }
 
         guard !changes.isEmpty else {
             throw MCPToolError("Nothing to change — pass at least one field to update.")
@@ -312,23 +337,6 @@ extension MCPNotebookTools {
         }
         work.participant(for: studentID)?.completedAt = Date()
         return ["recorded \(student.fullName) as finished"]
-    }
-
-    private static func applyCheckInCompletion(
-        _ arguments: [String: JSONValue], to work: CDWorkModel,
-        in modelContext: NSManagedObjectContext
-    ) throws -> [String] {
-        guard let day = try dayArgument(arguments, "complete_check_in_on") else { return [] }
-        let target = AppCalendar.startOfDay(day)
-        let match = checkIns(of: work, in: modelContext).first { checkIn in
-            guard let date = checkIn.date else { return false }
-            return AppCalendar.startOfDay(date) == target && checkIn.status == .scheduled
-        }
-        guard let checkIn = match else {
-            throw MCPToolError("No check-in is scheduled on \(dayString(day)) for this work.")
-        }
-        checkIn.status = .completed
-        return ["completed the check-in on \(dayString(day))"]
     }
 
     private static func applyDueDate(
