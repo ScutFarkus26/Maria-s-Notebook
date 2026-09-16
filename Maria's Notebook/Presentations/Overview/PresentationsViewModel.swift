@@ -186,7 +186,7 @@ final class PresentationsViewModel {
         if Task.isCancelled { return }
 
         let workRequest = CDFetchRequest(CDWorkModel.self)
-        workRequest.predicate = NSPredicate(format: "statusRaw != %@", "complete")
+        workRequest.predicate = WorkStatus.openPredicate
         let workModels = viewContext.safeFetch(workRequest)
         await Task.yield()
         if Task.isCancelled { return }

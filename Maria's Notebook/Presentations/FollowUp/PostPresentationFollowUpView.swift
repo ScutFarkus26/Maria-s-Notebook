@@ -686,7 +686,7 @@ private extension PostPresentationFollowUpView {
     }
 
     var openLinkedWork: [CDWorkModel] {
-        allLinkedWork.filter { $0.status != .complete }
+        allLinkedWork.filter { $0.status.isOpen }
     }
 
     var preferredOpenWork: CDWorkModel? {
@@ -864,7 +864,7 @@ private extension PostPresentationFollowUpView {
             $0.presentationID == presentationID
                 && $0.lessonID == lessonID
                 && studentIDs.contains($0.studentID)
-                && $0.status != .complete
+                && $0.status.isOpen
         }
     }
 

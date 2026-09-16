@@ -228,43 +228,20 @@ struct MeetingContextPane: View {
                     get: { work.status },
                     set: { newStatus in
                         work.status = newStatus
-                        if newStatus == .complete {
-                            work.completedAt = Date()
-                        }
+                        work.completedAt = newStatus.isClosed ? Date() : nil
                         markReviewed(workID, touching: work)
                         trySave()
                     }
                 )) {
-                    Text("Active").tag(WorkStatus.active)
-                    Text("Review").tag(WorkStatus.review)
-                    Text("Complete").tag(WorkStatus.complete)
+                    ForEach(WorkStatus.pickable) { status in
+                        Text(status.displayName).tag(status)
+                    }
+                    if work.status == .done {
+                        Text(WorkStatus.done.displayName).tag(WorkStatus.done)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .fixedSize()
-            }
-
-            // Completion outcome (only if complete)
-            if work.status == .complete {
-                HStack(spacing: 8) {
-                    Text("Outcome")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Picker("Outcome", selection: Binding(
-                        get: { work.completionOutcome ?? .proficient },
-                        set: { newOutcome in
-                            work.completionOutcome = newOutcome
-                            markReviewed(workID, touching: work)
-                            trySave()
-                        }
-                    )) {
-                        Text("Proficient").tag(CompletionOutcome.proficient)
-                        Text("Needs Practice").tag(CompletionOutcome.needsMorePractice)
-                        Text("Needs Review").tag(CompletionOutcome.needsReview)
-                    }
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                }
             }
 
             // Review note

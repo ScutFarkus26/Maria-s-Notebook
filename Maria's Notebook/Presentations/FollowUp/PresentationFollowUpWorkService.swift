@@ -197,11 +197,11 @@ struct PresentationFollowUpWorkService {
 
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(
-            format: "presentationID == %@ AND lessonID == %@ AND studentID IN %@ AND statusRaw != %@",
+            format: "presentationID == %@ AND lessonID == %@ AND studentID IN %@ AND statusRaw IN %@",
             presentationID.uuidString,
             lessonID.uuidString,
             Array(studentIDs),
-            WorkStatus.complete.rawValue
+            WorkStatus.openRawValues
         )
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)
@@ -374,7 +374,7 @@ private extension PresentationFollowUpWorkService {
         presentationID: UUID,
         lessonID: UUID
     ) -> Bool {
-        work.status != .complete
+        work.status.isOpen
             && work.studentID == studentID.uuidString
             && work.presentationID == presentationID.uuidString
             && work.lessonID == lessonID.uuidString

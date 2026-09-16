@@ -113,7 +113,7 @@ nonisolated extension CDLessonAssignment {
     /// Returns work completion statistics for this presentation
     func workCompletionStats(from context: NSManagedObjectContext) -> (completed: Int, total: Int) {
         let work = fetchRelatedWork(from: context)
-        let completed = work.filter { $0.status == .complete }.count
+        let completed = work.filter { $0.status.isClosed }.count
         return (completed, work.count)
     }
 }

@@ -258,7 +258,7 @@ extension UnifiedPresentationWorkflowPanel {
                 LabeledFieldSection(label: "Status") {
                     HStack(spacing: 8) {
                         PillButtonGroup(
-                            items: WorkStatus.allCases,
+                            items: WorkStatus.pickable,
                             selection: draft.status,
                             color: { $0.color },
                             icon: { $0.iconName },
@@ -310,8 +310,8 @@ extension UnifiedPresentationWorkflowPanel {
                     lineLimit: 2...
                 )
 
-                // Completion details (if complete)
-                if draft.status == .complete {
+                // Completion details (once the draft closes the work)
+                if draft.status.isClosed {
                     workDraftCompletionSection(draft: draft, studentID: studentID)
                 }
 
@@ -345,26 +345,7 @@ extension UnifiedPresentationWorkflowPanel {
 
             if draft.showMoreDetails {
                 VStack(alignment: .leading, spacing: 12) {
-                    // Outcome picker
-                    LabeledFieldSection(label: "Outcome") {
-                        FlowLayout(spacing: 8) {
-                            PillButtonGroup(
-                                items: CompletionOutcome.allCases,
-                                selection: draft.completionOutcome,
-                                color: { $0.color },
-                                icon: { $0.iconName },
-                                label: { $0.displayName },
-                                isSelected: { $0 == draft.completionOutcome },
-                                onSelect: { outcome in
-                                    updateWorkDraft(studentID: studentID, draftID: draft.id) {
-                                        $0.completionOutcome = outcome
-                                    }
-                                }
-                            )
-                        }
-                    }
-
-                    // Completion note
+                    // Completion note (the verdict itself is the status pill above)
                     WorkflowTextField(
                         label: "Completion Note",
                         text: Binding(

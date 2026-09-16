@@ -139,7 +139,6 @@ struct WorkRepository: Repository {
         work.assignedAt = Date()
         work.lastTouchedAt = nil
         work.dueAt = scheduledDate
-        work.completionOutcome = nil
 
         // Populate identity fields for UI resolution. presentationID must carry the
         // resolved assignment ID (not just the raw parameter, which most callers omit):
@@ -175,14 +174,11 @@ struct WorkRepository: Repository {
 
     // MARK: - Update
 
-    /// Mark a CDWorkModel as completed
-    func markWorkCompleted(id: UUID, outcome: CompletionOutcome? = nil, note: String? = nil) {
+    /// Close a CDWorkModel with a verdict (`.done` when the guide gave none).
+    func markWorkCompleted(id: UUID, status: WorkStatus = .done, note: String? = nil) {
         guard let work = fetchWorkModel(id: id) else { return }
-        work.status = .complete
+        work.status = status.isClosed ? status : .done
         work.completedAt = AppCalendar.startOfDay(Date())
-        if let outcome {
-            work.completionOutcome = outcome
-        }
         if let note, !note.isEmpty {
             work.setLegacyNoteText(note, in: context)
         }

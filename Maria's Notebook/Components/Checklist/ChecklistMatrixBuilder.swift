@@ -141,7 +141,7 @@ enum ChecklistMatrixBuilder {
                 let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
                 return participants.contains { $0.studentID == studentKey }
             }
-            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status == WorkStatus.complete }
+            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status.isClosed }
             if studentWorks.isEmpty || !allComplete {
                 needsPractice = true
             }
@@ -179,7 +179,7 @@ enum ChecklistMatrixBuilder {
 
         let workModelForLesson = studentWorkModels.first
         let isActive = workModelForLesson?.isOpen ?? false
-        let isComplete = workModelForLesson?.status == WorkStatus.complete
+        let isComplete = workModelForLesson?.status.isClosed == true
         let isWorkActive = studentWorkModels.contains { $0.status == WorkStatus.active }
         let isWorkReview = studentWorkModels.contains { $0.status == WorkStatus.review }
 

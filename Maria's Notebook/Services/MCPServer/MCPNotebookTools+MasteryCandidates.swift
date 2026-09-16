@@ -205,10 +205,10 @@ extension MCPNotebookTools {
             var practice: [String: Bool] = [:]
             let works = CDFetchRequest(CDWorkModel.self)
             works.predicate = NSPredicate(format: "kindRaw == %@", WorkKind.practiceLesson.rawValue)
-            for work in modelContext.safeFetch(works) where work.isCompleted || work.status == .complete {
+            for work in modelContext.safeFetch(works) where work.isCompleted || work.status.isClosed {
                 guard let key = Self.key(work.studentID, work.lessonID) else { continue }
                 if practice[key] == true { continue }
-                practice[key] = work.completionOutcome == .proficient
+                practice[key] = work.status == .mastered
             }
 
             var recall: [String: MasteryRecallCheck] = [:]
@@ -240,7 +240,7 @@ extension MCPNotebookTools {
             }
             if let proficient = key.flatMap({ practice[$0] }) {
                 items.append(proficient
-                    ? MasteryEvidenceItem(phrase: "practice complete (proficient)", weight: 3)
+                    ? MasteryEvidenceItem(phrase: "practice mastered", weight: 3)
                     : MasteryEvidenceItem(phrase: "practice complete", weight: 2))
             }
             if let check = key.flatMap({ recall[$0] }) {

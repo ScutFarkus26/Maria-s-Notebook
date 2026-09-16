@@ -166,14 +166,11 @@ struct StudentOverviewTab: View {
                                     selectedWorkID = w.id ?? UUID()
                                 },
                                 onMarkCompleted: { w in
-                                    // Mark as complete
-                                    w.status = .complete
-                                    w.completedAt = AppCalendar.startOfDay(Date())
-                                    if viewContext.safeSave() {
-                                        // Re-fetch from the source of truth: the "Working on" fetch
-                                        // excludes complete work, so the just-completed card drops out.
-                                        onWorkChanged()
-                                    }
+                                    guard let id = w.id else { return }
+                                    WorkRepository(context: viewContext).markWorkCompleted(id: id)
+                                    // Re-fetch from the source of truth: the "Working on" fetch
+                                    // excludes closed work, so the just-closed card drops out.
+                                    onWorkChanged()
                                 },
                                 onSchedule: { w, day in
                                     // A student's overview has no calendar of

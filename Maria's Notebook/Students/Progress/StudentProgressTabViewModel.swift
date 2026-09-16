@@ -84,7 +84,7 @@ final class StudentProgressTabViewModel {
         activeEnrollments = allEnrollments.filter { $0.studentID == studentIDString && $0.isActive }
         activeProjects = allProjects.filter { $0.memberStudentIDsArray.contains(studentIDString) && $0.isActive }
         activeReports = allWorkModels.filter {
-            $0.studentID == studentIDString && $0.kind == .report && $0.status != .complete
+            $0.studentID == studentIDString && $0.kind == .report && $0.status.isOpen
         }
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         tracksByID = Dictionary(

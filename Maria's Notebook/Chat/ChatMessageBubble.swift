@@ -130,7 +130,7 @@ struct ChatMessageBubble: View {
     }
 
     private func openWorkSource(_ id: UUID) {
-        guard viewContext.object(CDWorkModel.self, id: id)?.status != .complete else {
+        guard viewContext.object(CDWorkModel.self, id: id)?.status.isClosed != true else {
             appRouter.navigateToHistory(.work)
             return
         }

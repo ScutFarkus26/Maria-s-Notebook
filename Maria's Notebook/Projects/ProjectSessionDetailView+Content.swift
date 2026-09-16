@@ -165,7 +165,7 @@ private struct ProjectWorkProgressRow: View {
                     get: { work.status },
                     set: { updateStatus($0) }
                 )) {
-                    ForEach(WorkStatus.allCases) { status in
+                    ForEach(WorkStatus.pickable) { status in
                         Label(status.displayName, systemImage: status.iconName).tag(status)
                     }
                 }
@@ -231,13 +231,13 @@ private struct ProjectWorkProgressRow: View {
     }
 
     private func updateStatus(_ status: WorkStatus) {
-        let wasComplete = work.status == .complete
+        let wasComplete = work.status.isClosed
         work.status = status
         work.lastTouchedAt = Date()
 
-        if status == .complete, work.completedAt == nil {
+        if status.isClosed, work.completedAt == nil {
             work.completedAt = Date()
-        } else if wasComplete, status != .complete {
+        } else if wasComplete, status.isOpen {
             work.completedAt = nil
         }
 

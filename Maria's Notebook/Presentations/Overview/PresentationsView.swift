@@ -79,7 +79,7 @@ struct PresentationsView: View {
 
     private var activeWorkIDs: [UUID] {
         workModelsForChangeDetection
-            .filter { $0.statusRaw != "complete" }
+            .filter { $0.status.isOpen }
             .compactMap(\.id)
     }
 
@@ -107,9 +107,9 @@ struct PresentationsView: View {
         )
     }
 
-    // Active WorkModels: unresolved work items (statusRaw != "complete")
+    // Active WorkModels: unresolved work items (open status)
     private var activeWork: [CDWorkModel] {
-        workModelsForChangeDetection.filter { $0.statusRaw != "complete" }
+        workModelsForChangeDetection.filter { $0.status.isOpen }
     }
 
     // Helper: All WorkModels from the existing @Query
@@ -117,9 +117,9 @@ struct PresentationsView: View {
         Array(workModelsForChangeDetection)
     }
 
-    // Helper: Open WorkModels (statusRaw != "complete")
+    // Helper: Open WorkModels (open status)
     private var openWorkModels: [CDWorkModel] {
-        allWorkModels.filter { $0.statusRaw != "complete" }
+        allWorkModels.filter { $0.status.isOpen }
     }
 
     // Dictionary for fast lookup: Group open WorkModels by presentationID

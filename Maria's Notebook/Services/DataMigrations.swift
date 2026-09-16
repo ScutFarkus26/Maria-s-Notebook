@@ -75,4 +75,11 @@ nonisolated enum DataMigrations {
     static func repairPresentationNoteScopes(using context: NSManagedObjectContext) -> Int {
         DataCleanupService.repairPresentationNoteScopes(using: context)
     }
+
+    /// Fold the retired `completionOutcomeRaw` into `statusRaw` on rows that
+    /// still carry the pair. Cheap and idempotent, so it runs every launch.
+    @discardableResult
+    static func mergeWorkCompletionOutcomes(using context: NSManagedObjectContext) -> Int {
+        DataCleanupService.mergeWorkCompletionOutcomes(using: context)
+    }
 }

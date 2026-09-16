@@ -264,16 +264,12 @@ private struct CheckInStudentRow: View {
         switch work.status {
         case .active: return 2
         case .review: return 4
-        case .complete: return 5
+        case .mastered, .keepPracticing, .incomplete, .done: return 5
         }
     }
 
     private func dotColor(for work: CDWorkModel) -> Color {
-        switch work.status {
-        case .active: return .orange
-        case .review: return .green
-        case .complete: return .blue
-        }
+        work.status.color
     }
 }
 

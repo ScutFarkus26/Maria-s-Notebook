@@ -86,7 +86,7 @@ final class ProgressDashboardViewModel {
             let assignmentsForStudent = allAssignments.filter { $0.studentIDs.contains(studentIDStr) }
             let workForStudent = allWork.filter { $0.studentID == studentIDStr }
             let openWorkByLesson = Dictionary(
-                grouping: workForStudent.filter { $0.status != .complete },
+                grouping: workForStudent.filter { $0.status.isOpen },
                 by: { $0.lessonID }
             )
             let workByLesson = Dictionary(grouping: workForStudent) { $0.lessonID }
@@ -105,7 +105,7 @@ final class ProgressDashboardViewModel {
             }
 
             // From open (non-complete) work items.
-            for work in workForStudent where work.status != .complete {
+            for work in workForStudent where work.status.isOpen {
                 guard let lessonIDUUID = UUID(uuidString: work.lessonID),
                       let lesson = lessonByID[lessonIDUUID] else { continue }
                 let area = lesson.area.trimmed()
@@ -205,7 +205,7 @@ final class ProgressDashboardViewModel {
         openLessonWork: [CDWorkModel]
     ) -> LessonNodeStatus {
         if presentation != nil {
-            let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status == .complete }
+            let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status.isClosed }
             let hasReview = lessonWork.contains { $0.status == .review }
             let hasActive = !openLessonWork.isEmpty
 

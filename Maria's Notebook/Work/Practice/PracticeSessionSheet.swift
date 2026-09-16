@@ -263,7 +263,7 @@ struct PracticeSessionSheet: View {
         return allWork.first { work in
             work.studentID == studentIDString &&
             work.lessonID == initialWorkItem.lessonID &&
-            work.status != .complete
+            work.status.isOpen
         }
     }
     

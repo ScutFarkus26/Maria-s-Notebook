@@ -76,7 +76,7 @@ extension UnifiedPresentationWorkflowPanel {
 
                     // Combine notes and completion note if present
                     var allNotes = draft.notes
-                    if draft.status == .complete && !draft.completionNote.isEmpty {
+                    if draft.status.isClosed && !draft.completionNote.isEmpty {
                         if !allNotes.isEmpty {
                             allNotes += "\n\nCompletion: " + draft.completionNote
                         } else {
@@ -87,17 +87,12 @@ extension UnifiedPresentationWorkflowPanel {
                         work.setLegacyNoteText(allNotes, in: viewContext)
                     }
 
-                    // Set completion outcome if status is complete
-                    if draft.status == .complete, let outcome = draft.completionOutcome {
-                        work.completionOutcome = outcome
-                    }
-
                     // Honor the draft's scheduled check-in date. Previously the
                     // date set in the workflow's DatePicker was silently dropped
                     // (no CDWorkCheckIn was created), so it never appeared on the
                     // work calendar or factored into aging. Skip when the work is
                     // already complete — a scheduled check-in there is moot.
-                    if let checkInDate = draft.checkInDate, draft.status != .complete {
+                    if let checkInDate = draft.checkInDate, draft.status.isOpen {
                         try WorkCheckInService(context: viewContext)
                             .createCheckIn(for: work, date: checkInDate)
                     }

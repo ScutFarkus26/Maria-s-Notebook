@@ -70,7 +70,7 @@ struct MCPWorkAndAttendanceToolsTests {
 
     // MARK: - update_work
 
-    @Test("update_work completing an item records its outcome")
+    @Test("update_work folds the legacy status + outcome pair into one status")
     func updateWorkCompletesWithOutcome() async throws {
         let (tools, context) = try makeTools()
         CoreDataTestHelpers.seedLesson(in: context, name: "Fraction Circles", area: "Math", sequence: "Fractions")
@@ -89,9 +89,9 @@ struct MCPWorkAndAttendanceToolsTests {
             "status": .string("complete"),
             "outcome": .string("mastered")
         ])
-        #expect(receipt.contains("marked complete"))
-        #expect(work.status == .complete)
-        #expect(work.completionOutcome == .proficient)
+        #expect(receipt.contains("logged as Mastered"))
+        #expect(work.status == .mastered)
+        #expect(work.completedAt != nil)
     }
 
     @Test("update_work refuses an empty change")

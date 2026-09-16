@@ -149,8 +149,8 @@ enum TodayDataFetcher {
             // PERFORMANCE: Add fetch limit to prevent unbounded result sets
             let workRequest = CDFetchRequest(CDWorkModel.self)
             workRequest.predicate = NSPredicate(
-                format: "(statusRaw == %@ OR statusRaw == %@) AND createdAt >= %@",
-                "active", "review", cutoffDate as NSDate
+                format: "statusRaw IN %@ AND createdAt >= %@",
+                WorkStatus.openRawValues, cutoffDate as NSDate
             )
             workRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
             workRequest.fetchLimit = 1000 // Reasonable limit for active work items

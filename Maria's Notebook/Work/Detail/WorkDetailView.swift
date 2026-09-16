@@ -42,9 +42,7 @@ struct WorkDetailView: View {
     // PERF: Uses ViewModel's cached resolvedLessonID/resolvedStudentID
     // instead of parsing UUID(uuidString:) on every body evaluation.
     var unlockInfo: (lessonID: UUID, studentID: UUID)? {
-        guard viewModel.status == .complete,
-              let outcome = viewModel.completionOutcome,
-              outcome == .proficient || outcome == .needsReview,
+        guard viewModel.status == .mastered,
               let lessonID = viewModel.resolvedLessonID,
               let studentID = viewModel.resolvedStudentID else {
             return nil
@@ -151,7 +149,6 @@ struct WorkDetailView: View {
 
                     nextPresentationStatusSection
 
-                    if viewModel.status == .complete { completionSection() }
                     let hasSteps = viewModel.work.map {
                         !($0.steps?.allObjects as? [CDWorkStep] ?? []).isEmpty
                     } ?? false

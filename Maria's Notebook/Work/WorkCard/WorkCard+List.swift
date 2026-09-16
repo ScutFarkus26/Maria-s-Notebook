@@ -69,7 +69,7 @@ private struct WorkCardListPreview: View {
         let w1 = CDWorkModel(context: ctx)
         w1.status = .active; w1.studentID = UUID().uuidString; w1.lessonID = UUID().uuidString
         let w2 = CDWorkModel(context: ctx)
-        w2.status = .complete; w2.studentID = UUID().uuidString; w2.lessonID = UUID().uuidString
+        w2.status = .mastered; w2.studentID = UUID().uuidString; w2.lessonID = UUID().uuidString
 
         return List {
             WorkCard.list(
@@ -84,7 +84,7 @@ private struct WorkCardListPreview: View {
                 work: w2,
                 title: "Research Project",
                 subtitle: "Science • Jan 10, 2025",
-                badge: .status("complete"),
+                badge: .status("mastered"),
                 onOpen: { _ in }
             )
         }

@@ -45,7 +45,7 @@ struct CurriculumMapEngineTests {
     ) -> CurriculumWorkRef {
         CurriculumWorkRef(
             id: UUID(), lessonID: lesson.id, studentIDs: students ?? [student], statusRaw: status.rawValue,
-            assignedAt: day(assigned), completedAt: status == .complete ? day(assigned) : nil, lastTouchedAt: nil
+            assignedAt: day(assigned), completedAt: status.isClosed ? day(assigned) : nil, lastTouchedAt: nil
         )
     }
 
@@ -218,7 +218,7 @@ struct CurriculumMapEngineTests {
         let b = lesson("B", order: 1)
         var input = CurriculumMapInput(lessons: [a, b])
         input.presentations = [presentation(a, on: "2026-01-10"), presentation(b, on: "2026-03-10")]
-        input.work = [work(a, status: .complete, assigned: "2026-01-11")]
+        input.work = [work(a, status: .mastered, assigned: "2026-01-11")]
         let cells = CurriculumMapEngine.cells(for: student, input: input)
 
         let summary = CurriculumMapEngine.aggregate(Array(cells.values), lessonCount: 2)

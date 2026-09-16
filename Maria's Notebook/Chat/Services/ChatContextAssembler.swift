@@ -187,9 +187,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         guard !completedWork.isEmpty else { return }
         lines.append("Completed work (last 30 days):")
         for work in completedWork.prefix(5) {
-            let outcome = work.completionOutcomeRaw
-                .flatMap { CompletionOutcome(rawValue: $0)?.displayName } ?? ""
-            let outcomeStr = outcome.isEmpty ? "" : " [\(outcome)]"
+            let outcomeStr = " [\(work.status.displayName)]"
             let date = work.completedAt.map { formattedDate($0) } ?? ""
             lines.append("  • \(work.title)\(outcomeStr) — \(date)")
         }
@@ -313,9 +311,10 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
     }
 
     private func fetchCompletedWorkForStudent(studentID: String, since date: Date) -> [CDWorkModel] {
-        let completeRaw = WorkStatus.complete.rawValue
         let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "statusRaw == %@ AND studentID == %@", completeRaw, studentID)
+        request.predicate = NSPredicate(
+            format: "statusRaw IN %@ AND studentID == %@", WorkStatus.closedRawValues, studentID
+        )
         request.sortDescriptors = [NSSortDescriptor(key: "completedAt", ascending: false)]
         return context.safeFetch(request).filter { work in
             guard let completedAt = work.completedAt else { return false }

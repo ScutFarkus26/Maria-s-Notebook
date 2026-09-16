@@ -100,7 +100,6 @@ struct SequenceRecapWorkItem: Sendable, Equatable, Identifiable {
     let title: String
     let kind: WorkKind?
     let status: WorkStatus
-    let completionOutcome: CompletionOutcome?
     let assignedAt: Date?
     let completedAt: Date?
     /// Free-form CDNote rows whose `work` relationship points at this work item

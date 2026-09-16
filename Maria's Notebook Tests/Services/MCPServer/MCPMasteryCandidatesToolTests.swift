@@ -124,7 +124,7 @@ struct MCPMasteryCandidatesToolTests {
             studentID: try #require(etty.id), lessonID: try #require(distributive.id)
         )
         practice.kind = .practiceLesson
-        practice.status = .complete
+        practice.status = .done
         practice.completedAt = try day("2026-02-20")
         #expect(CoreDataTestHelpers.save(context))
     }
@@ -193,7 +193,7 @@ struct MCPMasteryCandidatesToolTests {
         #expect(output.contains("Etty Krinsky:"))
         #expect(output.contains("- [lesson id=\(distributiveID)] The Distributive Law of Multiplication "
             + "— practice complete"))
-        #expect(!output.contains("practice complete (proficient)"), "the work has no proficient outcome")
+        #expect(!output.contains("practice mastered"), "the work closed as Done, not Mastered")
     }
 
     // MARK: - Shape of the report

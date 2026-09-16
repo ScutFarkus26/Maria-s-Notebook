@@ -196,7 +196,7 @@ extension WorksAgendaView {
     }
 
     func openWorksFiltered() -> [CDWorkModel] {
-        // Filter open work in memory (anything NOT .complete)
+        // Filter open work in memory (anything with an open status)
         var works = Array(openWork).uniqueByID
 
         // Hide scheduled work, which only means anything under the All pill —
@@ -269,11 +269,7 @@ extension WorksAgendaView {
     #endif
 
     func statusLabel(for w: CDWorkModel) -> String {
-        switch w.status {
-        case .active: return "Practice"
-        case .review: return "Follow-Up"
-        case .complete: return "Completed"
-        }
+        w.status.displayName
     }
 
     func ageDays(for w: CDWorkModel) -> Int {

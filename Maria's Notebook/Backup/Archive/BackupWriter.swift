@@ -37,6 +37,10 @@ nonisolated public enum BackupWriter {
     ///   milestone flag. Purely additive; entry layout is otherwise unchanged.
     /// - v24: `ScheduledMeeting` entries carry `purpose`. Purely additive;
     ///   entry layout is otherwise unchanged.
+    /// - v26: `WorkModel.statusRaw` may carry the merged vocabulary
+    ///   (`mastered`, `keepPracticing`, `incomplete`) alongside the old
+    ///   `active` / `review` / `complete`; `completionOutcomeRaw` is still
+    ///   written but is legacy. Entry layout is unchanged.
     /// - v23: Preferences entry grows from 15 keys to the full set of
     ///   user-chosen settings (school year, recall, AI models, view state,
     ///   per-date attendance locks, album folder bookmarks + fingerprints) and
@@ -50,7 +54,7 @@ nonisolated public enum BackupWriter {
     ///   CDLessonSequenceSettings, CDStory, CDBookClubPacket, CDBookClubSession,
     ///   CDBookClubMeeting. Purely additive NDJSON entries.
     /// - v17: AppleArchive-framed NDJSON (replaced the legacy v16 JSON envelope).
-    public static let formatVersion: Int = 25
+    public static let formatVersion: Int = 26
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

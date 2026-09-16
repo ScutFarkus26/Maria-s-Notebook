@@ -130,11 +130,18 @@ struct LessonsAndWorkTriageTests {
 
     // MARK: - Work: the other buckets
 
-    @Test("Completed work leaves the workspace")
-    func completeIsDone() {
-        #expect(bucket(work(.complete)) == .done)
-        // Completion outranks everything, including a stale overdue date.
-        #expect(bucket(work(.complete, dueAt: yesterday, staleDays: 40)) == .done)
+    @Test("Closed work leaves the workspace", arguments: WorkStatus.closedCases)
+    func closedIsDone(status: WorkStatus) {
+        #expect(bucket(work(status)) == .done)
+        // Closing outranks everything, including a stale overdue date.
+        #expect(bucket(work(status, dueAt: yesterday, staleDays: 40)) == .done)
+    }
+
+    @Test("Only Working and Needs Review are open")
+    func openCases() {
+        #expect(WorkStatus.openCases == [.active, .review])
+        #expect(Set(WorkStatus.closedCases) == [.mastered, .keepPracticing, .incomplete, .done])
+        #expect(WorkStatus.done.rawValue == "complete")
     }
 
     @Test("Open work with no date of any kind has to be scheduled")

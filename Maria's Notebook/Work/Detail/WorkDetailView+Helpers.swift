@@ -103,12 +103,12 @@ extension WorkDetailView {
                         .foregroundStyle(.secondary)
                     #if os(macOS)
                     Text("")
-                        .help("Active = in progress, Review = checking work, Complete = finished")
+                        .help("Working and Needs Review keep it open; Mastered, Keep Practicing and Incomplete log it and clear its check-ins from the calendar")
                     #endif
                 }
 
                 HStack(spacing: 8) {
-                    ForEach(WorkStatus.allCases) { s in
+                    ForEach(viewModel.statusChoices) { s in
                         SelectablePillButton(
                             item: s,
                             isSelected: viewModel.status == s,
@@ -124,7 +124,7 @@ extension WorkDetailView {
                                     checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)
                                 }
                             }
-                            if s == .complete {
+                            if s.isClosed {
                                 HapticService.shared.notification(.success)
                             } else {
                                 HapticService.shared.selection()
@@ -134,7 +134,7 @@ extension WorkDetailView {
 
                     Spacer()
 
-                    if viewModel.status != .complete, likelyNextLesson != nil {
+                    if viewModel.status.isOpen, likelyNextLesson != nil {
                         Button {
                             if let info = unlockNextLessonInfo {
                                 checkAndOfferUnlock(lessonID: info.lessonID, studentID: info.studentID)

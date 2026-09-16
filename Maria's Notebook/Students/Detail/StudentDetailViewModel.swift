@@ -142,11 +142,9 @@ final class StudentDetailViewModel {
     func fetchWorkModelsForStudent(viewContext: NSManagedObjectContext) -> [CDWorkModel] {
         guard let studentID = student.id else { return [] }
         let sid = studentID.uuidString
-        let completeStatusRaw = WorkStatus.complete.rawValue
-
         let predicate = NSPredicate(
-            format: "(studentID == %@ OR ANY participants.studentID == %@) AND statusRaw != %@",
-            sid, sid, completeStatusRaw
+            format: "(studentID == %@ OR ANY participants.studentID == %@) AND statusRaw IN %@",
+            sid, sid, WorkStatus.openRawValues
         )
         let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
         descriptor.predicate = predicate

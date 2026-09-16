@@ -107,7 +107,7 @@ struct WorkCardGridContent: View {
         Rectangle()
             .fill(ageColor)
             .frame(width: UIConstants.ageIndicatorWidth)
-            .opacity(config.work.status == .complete ? 0.0 : 1.0)
+            .opacity(config.work.status.isClosed ? 0.0 : 1.0)
             .accessibilityHidden(true)
     }
 

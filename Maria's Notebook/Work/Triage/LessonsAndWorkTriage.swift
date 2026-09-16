@@ -172,7 +172,7 @@ enum LessonsAndWorkTriage {
     static func bucket(for work: WorkTriageInput, asOf now: Date = Date()) -> TriageBucket {
         let today = AppCalendar.startOfDay(now)
 
-        if work.status == .complete { return .done }
+        if work.status.isClosed { return .done }
 
         // Work the guide deliberately set aside comes back on its own date. It
         // is planned, not neglected — the same reason `WorkAgingPolicy`

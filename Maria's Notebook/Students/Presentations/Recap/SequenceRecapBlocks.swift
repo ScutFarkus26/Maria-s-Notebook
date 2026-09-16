@@ -390,9 +390,6 @@ struct SequenceRecapWorkBlock: View {
             }
             .buttonStyle(.plain)
             statusButton
-            if let outcome = work.completionOutcome {
-                outcomePill(outcome: outcome)
-            }
         }
     }
 
@@ -410,21 +407,14 @@ struct SequenceRecapWorkBlock: View {
         .buttonStyle(.plain)
     }
 
+    /// Working → Needs Review → Mastered → Working; any other closed
+    /// status reopens on the next tap.
     private func nextStatus(after status: WorkStatus) -> WorkStatus {
         switch status {
         case .active: return .review
-        case .review: return .complete
-        case .complete: return .active
+        case .review: return .mastered
+        case .mastered, .keepPracticing, .incomplete, .done: return .active
         }
-    }
-
-    private func outcomePill(outcome: CompletionOutcome) -> some View {
-        Text(outcome.displayName)
-            .font(AppTheme.ScaledFont.captionSmallSemibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(outcome.color.opacity(0.18)))
-            .foregroundStyle(outcome.color)
     }
 
     private var dateLine: String? {

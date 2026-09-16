@@ -101,12 +101,12 @@ struct ProjectDetailView: View {
 
     var openFollowUps: [CDWorkModel] {
         projectWorks
-            .filter { $0.status != .complete }
+            .filter { $0.status.isOpen }
             .sorted { ($0.dueAt ?? .distantFuture) < ($1.dueAt ?? .distantFuture) }
     }
 
     var completedWorkCount: Int {
-        projectWorks.filter { $0.status == .complete }.count
+        projectWorks.filter { $0.status.isClosed }.count
     }
 
     var openQuestions: [ProjectQuestion] {

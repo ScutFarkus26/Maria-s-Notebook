@@ -63,7 +63,7 @@ struct StudentCategorizer {
 
         // Check if they're a co-learner
         if let studentID = student.id, coLearnerIDs.contains(studentID) {
-            let activeWork = studentWork.first { $0.status != .complete }
+            let activeWork = studentWork.first { $0.status.isOpen }
             return CategorizedStudent(
                 student: student,
                 category: .withInitialStudent,
@@ -74,7 +74,7 @@ struct StudentCategorizer {
         }
 
         // Check for active work (practicing)
-        if let activeWork = studentWork.first(where: { $0.status != .complete }) {
+        if let activeWork = studentWork.first(where: { $0.status.isOpen }) {
             return CategorizedStudent(
                 student: student,
                 category: .practicing,
@@ -85,7 +85,7 @@ struct StudentCategorizer {
         }
 
         // Check for completed work (recently passed)
-        if let completedWork = studentWork.first(where: { $0.status == .complete }) {
+        if let completedWork = studentWork.first(where: { $0.status.isClosed }) {
             let daysSince = completedWork.completedAt.map {
                 AppCalendar.shared.dateComponents([.day], from: $0, to: Date()).day ?? Int.max
             } ?? Int.max

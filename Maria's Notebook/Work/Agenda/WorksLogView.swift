@@ -81,7 +81,7 @@ struct WorksLogView: View {
     /// Filtered works based on current filter selections
     private var filteredWorks: [CDWorkModel] {
         allWorks.filter { work in
-            if completedOnly && work.status != .complete { return false }
+            if completedOnly && work.status.isOpen { return false }
 
             // A one-shot route to a particular record takes precedence over
             // stale local filters. Keep the requested item in the collection
@@ -327,7 +327,7 @@ struct WorksLogView: View {
                             work: work,
                             title: workTitle(work),
                             subtitle: workSubtitle(work),
-                            badge: .status(work.isOpen ? "active" : "complete"),
+                            badge: .status(work.status.displayName.lowercased()),
                             onOpen: openWork
                         )
                         .id(workID)

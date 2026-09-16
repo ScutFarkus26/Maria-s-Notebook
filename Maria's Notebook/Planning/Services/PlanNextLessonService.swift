@@ -203,7 +203,7 @@ struct PlanNextLessonService {
 
             if work.isEmpty && assignment.needsPractice {
                 reasons.append("practice not yet assigned")
-            } else if work.contains(where: { $0.status != .complete }) {
+            } else if work.contains(where: { $0.status.isOpen }) {
                 reasons.append("practice not yet complete")
             }
         }

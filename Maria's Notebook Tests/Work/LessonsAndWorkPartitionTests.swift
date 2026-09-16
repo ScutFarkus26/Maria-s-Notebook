@@ -126,7 +126,7 @@ struct LessonsAndWorkPartitionTests {
             WorkTriageInput(status: .active, dueAt: nextWeek),                 // scheduled
             WorkTriageInput(status: .active, restingUntil: nextWeek),          // scheduled
             WorkTriageInput(status: .active),                                  // toSchedule
-            WorkTriageInput(status: .complete)                                 // done
+            WorkTriageInput(status: .mastered)                                 // done
         ]
 
         let split = TriageSplit(inputs) { LessonsAndWorkTriage.bucket(for: $0, asOf: today) }

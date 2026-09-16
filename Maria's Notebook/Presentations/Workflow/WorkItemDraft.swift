@@ -6,7 +6,6 @@ struct WorkItemDraft: Identifiable {
     var title: String
     var kind: WorkKind
     var status: WorkStatus
-    var completionOutcome: CompletionOutcome?
     var completionNote: String
     var checkInDate: Date?
     var dueDate: Date?
@@ -25,7 +24,6 @@ struct WorkItemDraft: Identifiable {
         self.title = title
         self.kind = kind
         self.status = status
-        self.completionOutcome = nil
         self.completionNote = ""
         self.checkInDate = nil
         self.dueDate = nil

@@ -162,9 +162,8 @@ struct FollowUpInboxEngine {
     }
 
     private static func fetchOpenWorkModels(context: NSManagedObjectContext) -> [CDWorkModel] {
-        let completeRaw = WorkStatus.complete.rawValue
         let request = CDFetchRequest(CDWorkModel.self)
-        request.predicate = NSPredicate(format: "statusRaw != %@", completeRaw)
+        request.predicate = WorkStatus.openPredicate
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         return context.safeFetch(request)
             .filter(\.isOpen)
@@ -395,9 +394,8 @@ struct FollowUpInboxEngine {
         for work in ctx.openWorkModels {
             guard let workID = work.id else { continue }
             let status = work.status
+            guard status.isOpen else { continue }
             let isActive = status == .active
-            let isReview = status == .review
-            guard isActive || isReview else { continue }
 
             let workCheckIns = ctx.checkInsByWorkID[workID] ?? []
             let workNotes = ctx.notesByWorkID[workID] ?? []
@@ -435,7 +433,7 @@ struct FollowUpInboxEngine {
         for work in ctx.openWorkModels {
             guard let workID = work.id else { continue }
             let status = work.status
-            guard status == .active || status == .review else { continue }
+            guard status.isOpen else { continue }
             guard !addedWorkIDs.contains(workID) else { continue }
 
             let workCheckIns = ctx.checkInsByWorkID[workID] ?? []

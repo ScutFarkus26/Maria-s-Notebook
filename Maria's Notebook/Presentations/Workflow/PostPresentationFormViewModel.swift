@@ -303,7 +303,6 @@ final class PostPresentationFormViewModel {
             || !draft.completionNote.trimmed().isEmpty
             || draft.checkInDate != nil
             || draft.dueDate != nil
-            || draft.completionOutcome != nil
     }
 }
 

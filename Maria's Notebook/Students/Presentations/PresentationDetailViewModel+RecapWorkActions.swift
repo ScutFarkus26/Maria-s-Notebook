@@ -35,7 +35,7 @@ extension PresentationDetailViewModel {
         }
     }
 
-    /// Cycles a CDWorkModel's status. When transitioning to `.complete`, routes through
+    /// Cycles a CDWorkModel's status. A closing status routes through
     /// `markWorkCompleted` so `completedAt` is stamped and readiness auto-unlock runs.
     func cycleRecapWorkStatus(
         workID: UUID,
@@ -44,8 +44,8 @@ extension PresentationDetailViewModel {
         students: [CDStudent]
     ) {
         let repo = WorkRepository(context: viewContext)
-        if status == .complete {
-            repo.markWorkCompleted(id: workID, outcome: nil, note: nil)
+        if status.isClosed {
+            repo.markWorkCompleted(id: workID, status: status, note: nil)
         } else {
             repo.updateWorkStatus(id: workID, status: status)
         }

@@ -65,7 +65,6 @@ final class PlanningEvidenceTests {
             lessonID: lessonID
         )
         work.status = .review
-        work.completionOutcome = .proficient
 
         let practice = CDPracticeSession(context: fixture.context)
         practice.studentIDsArray = [studentID.uuidString]

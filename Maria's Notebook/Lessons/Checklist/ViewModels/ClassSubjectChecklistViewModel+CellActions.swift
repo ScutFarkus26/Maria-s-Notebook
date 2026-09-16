@@ -265,7 +265,7 @@ extension ClassAreaChecklistViewModel {
         // Take her off the rows rather than deleting every row that names her:
         // a shared row also carries the other children on it.
         let workRequest = CDFetchRequest(CDWorkModel.self)
-        workRequest.predicate = NSPredicate(format: "statusRaw != %@ AND lessonID == %@", "complete", lidString)
+        workRequest.predicate = NSPredicate(format: "statusRaw IN %@ AND lessonID == %@", WorkStatus.openRawValues, lidString)
         WorkDeletionService.removeWithoutSaving(
             studentID: sid, from: context.safeFetch(workRequest), in: context
         )

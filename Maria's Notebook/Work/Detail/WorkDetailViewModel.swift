@@ -43,8 +43,14 @@ final class WorkDetailViewModel {
     var workKind: WorkKind = .practiceLesson
     var workTitle: String = ""
     var checkInStyle: CheckInStyle = .flexible
-    var completionOutcome: CompletionOutcome?
     var completionNote: String = ""
+
+    /// The pills the header offers: the five a guide can choose, plus the
+    /// legacy `Done` only while the row already is Done, so it can be shown
+    /// without being offered.
+    var statusChoices: [WorkStatus] {
+        status == .done ? WorkStatus.pickable + [.done] : WorkStatus.pickable
+    }
 
     var newPlanDate: Date = Date()
     var newPlanPurpose: String = "progressCheck"
@@ -96,7 +102,6 @@ final class WorkDetailViewModel {
         self.workTitle = fetchedWork.title
         self.workKind = fetchedWork.kind ?? .practiceLesson
         self.checkInStyle = fetchedWork.checkInStyle
-        self.completionOutcome = fetchedWork.completionOutcome
         // PERF: Parse UUIDs once on load instead of on every body evaluation
         self.resolvedLessonID = UUID(uuidString: fetchedWork.lessonID)
         self.resolvedStudentID = UUID(uuidString: fetchedWork.studentID)
@@ -255,10 +260,10 @@ final class WorkDetailViewModel {
             guard seenStudentIDs.insert(studentUUID).inserted else { continue }
 
             var currentWorkTitle: String?
-            if w.status == .complete {
+            if w.status.isClosed {
                 // Find their current active work in the same area/sequence progression
                 let progressionWork = allWork
-                    .filter { $0.studentID == w.studentID && $0.status != .complete }
+                    .filter { $0.studentID == w.studentID && $0.status.isOpen }
                     .compactMap { (aw: CDWorkModel) -> (lessonID: String, order: Int64)? in
                         guard let lesson = lessonsByIDString[aw.lessonID] else { return nil }
                         return (lessonID: aw.lessonID, order: lesson.orderInSequence)
@@ -305,8 +310,7 @@ final class WorkDetailViewModel {
     // MARK: - Actions
     // PERF: Uses pre-loaded relatedLessons and relatedLessonAssignments
     func checkAndOfferUnlock() {
-        guard status == .complete,
-              completionOutcome == .proficient,
+        guard status == .mastered,
               relatedLesson != nil,
               let studentID = UUID(uuidString: work?.studentID ?? ""),
               let nextLesson = likelyNextLesson() else {
@@ -345,7 +349,6 @@ final class WorkDetailViewModel {
         work.kind = workKind
         work.title = workTitle
         work.checkInStyle = checkInStyle
-        work.completionOutcome = completionOutcome
         
         saveCoordinator.save(modelContext)
     }
@@ -388,7 +391,7 @@ struct LessonCohortEntry {
         switch status {
         case .active: return 0
         case .review: return 1
-        case .complete: return 2
+        case .mastered, .keepPracticing, .incomplete, .done: return 2
         }
     }
 }

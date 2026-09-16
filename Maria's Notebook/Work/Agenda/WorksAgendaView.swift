@@ -36,7 +36,7 @@ struct WorksAgendaView: View {
     @FetchRequest(fetchRequest: {
         let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
-        request.predicate = NSPredicate(format: "statusRaw != %@", "complete")
+        request.predicate = WorkStatus.openPredicate
         request.relationshipKeyPathsForPrefetching = ["checkIns", "unifiedNotes", "participants"]
         return request
     }())

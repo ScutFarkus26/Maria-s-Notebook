@@ -273,7 +273,6 @@ enum SequenceRecapResolver {
             title: work.title,
             kind: work.kind,
             status: work.status,
-            completionOutcome: work.completionOutcome,
             assignedAt: work.assignedAt,
             completedAt: work.completedAt,
             attachedNotes: workNotes,

@@ -98,8 +98,8 @@ enum WorkPeers {
         naming detail: Detail,
         in context: NSManagedObjectContext
     ) -> WorkPeerList {
-        let open = rows.filter { $0.status != .complete }
-        let finished = rows.filter { $0.status == .complete }
+        let open = rows.filter { $0.status.isOpen }
+        let finished = rows.filter { $0.status.isClosed }
 
         // Owners first, so a child who has a copy of her own is pointed at it
         // rather than at a row she is only named on.

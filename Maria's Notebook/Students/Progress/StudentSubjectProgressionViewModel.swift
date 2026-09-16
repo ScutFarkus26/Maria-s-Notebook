@@ -106,9 +106,9 @@ final class StudentAreaProgressionViewModel {
             // Determine status
             let status: LessonNodeStatus
             if presentation != nil {
-                let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status == .complete }
+                let allComplete = !lessonWork.isEmpty && lessonWork.allSatisfy { $0.status.isClosed }
                 let hasReview = lessonWork.contains { $0.status == .review }
-                let hasActive = lessonWork.contains { $0.status != .complete }
+                let hasActive = lessonWork.contains { $0.status.isOpen }
 
                 if allComplete {
                     status = .completed

@@ -70,7 +70,7 @@ struct StudentReadinessAssessor {
             presentations: studentPresentations, work: studentWork
         )
         let daysSinceLastPresentation = computeDaysSinceLastPresentation(studentPresentations)
-        let activeWorkCount = studentWork.filter { $0.status != WorkStatus.complete }.count
+        let activeWorkCount = studentWork.filter { $0.status.isOpen }.count
         return StudentReadinessProfile(
             studentID: student.id ?? UUID(),
             studentName: student.fullName,
@@ -147,7 +147,7 @@ struct StudentReadinessAssessor {
                 progress.presentedInSequence += 1
                 progress.currentLesson = lesson
                 let lessonWork = work.filter { $0.lessonID == lessonIDStr }
-                let activeWork = lessonWork.filter { $0.status != WorkStatus.complete }
+                let activeWork = lessonWork.filter { $0.status.isOpen }
                 progress.activeWorkInGroup += activeWork.count
                 progress.proficiency = determinePlanningSignal(
                     studentID: studentID,

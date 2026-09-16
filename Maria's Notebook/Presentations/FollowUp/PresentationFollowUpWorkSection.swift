@@ -284,7 +284,7 @@ private extension PresentationFollowUpWorkSection {
             work.presentationID == presentationID.uuidString
                 && work.lessonID == lesson.id?.uuidString
                 && scopedStudentIDs.contains(work.studentID)
-                && work.status != .complete
+                && work.status.isOpen
         }.uniqueByID
     }
 

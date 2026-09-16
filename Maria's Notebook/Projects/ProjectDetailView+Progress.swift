@@ -59,7 +59,7 @@ private struct ProjectStudentProgressRow: View {
     let studentName: String
     let works: [CDWorkModel]
 
-    private var completed: Int { works.filter { $0.status == .complete }.count }
+    private var completed: Int { works.filter { $0.status.isClosed }.count }
     private var reviewing: Int { works.filter { $0.status == .review }.count }
     private var active: Int { works.filter { $0.status == .active }.count }
 

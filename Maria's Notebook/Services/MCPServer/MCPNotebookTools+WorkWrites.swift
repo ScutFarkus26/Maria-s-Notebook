@@ -232,13 +232,16 @@ extension MCPNotebookTools {
             ],
             "status": [
                 "type": "string",
-                "enum": ["active", "review", "complete"],
-                "description": "Move the whole work item to this status"
+                "enum": ["active", "review", "mastered", "keepPracticing", "incomplete", "complete"],
+                "description": .string("The work's one status: active (Working) and review (Needs Review) "
+                    + "keep it open; mastered, keepPracticing and incomplete close and log it, and "
+                    + "complete (Done) closes it with no verdict")
             ],
             "outcome": [
                 "type": "string",
                 "enum": ["mastered", "needsMorePractice", "needsReview", "incomplete", "notApplicable"],
-                "description": "How it turned out, recorded when completing it"
+                "description": .string("Deprecated — the old completion outcome, folded into status: mastered → "
+                    + "mastered, needsMorePractice → keepPracticing, incomplete → incomplete, the rest → complete")
             ],
             "due_date": [
                 "type": "string",
@@ -356,26 +359,25 @@ extension MCPNotebookTools {
         in modelContext: NSManagedObjectContext
     ) throws -> [String] {
         let outcome = try completionOutcomeArgument(arguments, "outcome")
-        guard let statusRaw = nonEmpty(arguments["status"]?.stringValue) else {
-            guard let outcome else { return [] }
-            work.completionOutcome = outcome
-            return ["outcome \(outcome.displayName)"]
-        }
-        guard let status = WorkStatus(rawValue: statusRaw) else {
+        // `outcome` alone used to mean "close it with this verdict"; it still does.
+        guard let statusRaw = nonEmpty(arguments["status"]?.stringValue) ?? outcome.map({ _ in WorkStatus.done.rawValue })
+        else { return [] }
+        guard WorkStatus(rawValue: statusRaw) != nil else {
             let allowed = WorkStatus.allCases.map(\.rawValue).joined(separator: ", ")
             throw MCPToolError("status must be one of: \(allowed). Got \"\(statusRaw)\".")
         }
-        guard status == .complete else {
+        let status = WorkStatusMigration.mergedStatus(statusRaw: statusRaw, outcomeRaw: outcome?.rawValue)
+        guard status.isClosed else {
             work.status = status
             return ["moved to \(status.displayName.lowercased())"]
         }
-        // Completing runs through the repository so the completion date, outcome
-        // and any note land exactly as the in-app control writes them.
+        // Closing runs through the repository so the completion date and any
+        // note land exactly as the in-app control writes them.
         WorkRepository(context: modelContext).markWorkCompleted(
-            id: workID, outcome: outcome,
+            id: workID, status: status,
             note: nonEmpty(arguments["note"]?.stringValue)
         )
-        return ["marked complete" + (outcome.map { " (\($0.displayName))" } ?? "")]
+        return ["logged as \(status.displayName)"]
     }
 
     private static func completionOutcomeArgument(

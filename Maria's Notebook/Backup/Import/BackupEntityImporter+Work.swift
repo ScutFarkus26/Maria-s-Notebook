@@ -27,7 +27,10 @@ extension BackupEntityImporter {
                 work.studentLessonID = dto.studentLessonID
                 work.createdAt = dto.createdAt
                 work.completedAt = dto.completedAt
-                work.statusRaw = (WorkStatus(rawValue: dto.statusRaw) ?? .active).rawValue
+                // Older backups carry `complete` + an outcome; fold them the way the launch repair does.
+                work.statusRaw = WorkStatusMigration.mergedStatus(
+                    statusRaw: dto.statusRaw, outcomeRaw: dto.completionOutcomeRaw
+                ).rawValue
                 work.assignedAt = dto.assignedAt
                 work.lastTouchedAt = dto.lastTouchedAt
                 work.dueAt = dto.dueAt

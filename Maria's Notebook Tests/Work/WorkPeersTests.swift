@@ -155,7 +155,7 @@ struct WorkPeersTests {
         let lessonID = UUID()
         let naomis = room.work("Compound Skyscraper Drawers", for: naomi, on: lessonID)
         room.work("Compound Skyscraper Drawers", for: simma, on: lessonID)
-        room.work("Compound Skyscraper Drawers", for: ora, on: lessonID, status: .complete)
+        room.work("Compound Skyscraper Drawers", for: ora, on: lessonID, status: .mastered)
         CoreDataTestHelpers.save(room.context)
 
         let list = WorkPeers.others(doing: naomis, in: room.context)

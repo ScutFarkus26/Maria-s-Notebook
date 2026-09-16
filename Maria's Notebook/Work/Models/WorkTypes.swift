@@ -25,25 +25,69 @@ nonisolated public enum WorkKind: String, Codable, CaseIterable, Hashable, Ident
 }
 
 // MARK: - Work Status
-/// Describes the lifecycle status of a work item
+/// The one verdict a work row carries, per child.
+///
+/// Until 2026-09-15 a row had a lifecycle status (active / review / complete)
+/// *and* a completion outcome (mastered / keep practicing / …) that were only
+/// ever set together. They are one field now. Two states are open and keep
+/// the work on the guide's radar; the rest close it, log it, and clear its
+/// check-ins from the Scheduled strip. `done` keeps the legacy raw value
+/// `"complete"` so rows closed before the merge need no rewrite; it is never
+/// offered in a picker.
 nonisolated public enum WorkStatus: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+    // Open
+    /// The child is working on it.
     case active
+    /// The guide needs to look at it before it can move on.
     case review
-    case complete
+    // Closed
+    case mastered
+    case keepPracticing
+    case incomplete
+    /// Closed with no verdict — legacy rows, raw value `"complete"`.
+    case done = "complete"
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
-        case .active: return "Active"
-        case .review: return "Review"
-        case .complete: return "Complete"
+        case .active: return "Working"
+        case .review: return "Needs Review"
+        case .mastered: return "Mastered"
+        case .keepPracticing: return "Keep Practicing"
+        case .incomplete: return "Incomplete"
+        case .done: return "Done"
         }
+    }
+
+    /// Still on the guide's radar.
+    public var isOpen: Bool { self == .active || self == .review }
+    /// Logged and off the Scheduled strip.
+    public var isClosed: Bool { !isOpen }
+
+    /// The statuses a picker offers. `done` is legacy only.
+    public static let pickable: [WorkStatus] = [.active, .review, .mastered, .keepPracticing, .incomplete]
+    public static let openCases: [WorkStatus] = allCases.filter(\.isOpen)
+    public static let closedCases: [WorkStatus] = allCases.filter(\.isClosed)
+    public static let openRawValues: [String] = openCases.map(\.rawValue)
+    public static let closedRawValues: [String] = closedCases.map(\.rawValue)
+
+    /// `statusRaw IN {open raws}` — the one spelling of "open work" for a fetch.
+    public static var openPredicate: NSPredicate {
+        NSPredicate(format: "statusRaw IN %@", openRawValues)
+    }
+    /// `statusRaw IN {closed raws}`.
+    public static var closedPredicate: NSPredicate {
+        NSPredicate(format: "statusRaw IN %@", closedRawValues)
     }
 }
 
 // MARK: - Completion Outcome
-/// Describes the outcome when work is completed
+/// The outcome of one *step* of a work item (`CDWorkStep.completionOutcome`).
+///
+/// A work row no longer carries one: its `completionOutcomeRaw` column is a
+/// legacy field that `WorkStatusMigration` folds into `WorkStatus` and nothing
+/// else reads.
 nonisolated public enum CompletionOutcome: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case proficient = "mastered"
     case needsMorePractice
@@ -198,7 +242,10 @@ nonisolated public extension WorkStatus {
         switch self {
         case .active: return .blue
         case .review: return .orange
-        case .complete: return .green
+        case .mastered: return .green
+        case .keepPracticing: return .orange
+        case .incomplete: return .red
+        case .done: return .gray
         }
     }
 
@@ -207,7 +254,10 @@ nonisolated public extension WorkStatus {
         switch self {
         case .active: return "circle"
         case .review: return "eye.circle"
-        case .complete: return "checkmark.circle.fill"
+        case .mastered: return "star.fill"
+        case .keepPracticing: return "arrow.clockwise"
+        case .incomplete: return "xmark.circle"
+        case .done: return "checkmark.circle.fill"
         }
     }
 }

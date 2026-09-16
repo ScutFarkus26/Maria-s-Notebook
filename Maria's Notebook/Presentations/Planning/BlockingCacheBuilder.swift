@@ -168,7 +168,7 @@ enum BlockingCacheBuilder {
             if let work = openWork.first(where: { w in
                 w.presentationID == presentationID &&
                 w.studentID == studentIDString &&
-                w.statusRaw != "complete"
+                w.status.isOpen
             }) {
                 blocking[studentID] = work
             }

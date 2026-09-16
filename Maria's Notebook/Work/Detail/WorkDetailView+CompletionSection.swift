@@ -2,46 +2,9 @@ import SwiftUI
 import CoreData
 import Foundation
 
-// MARK: - Completion & Presentation Sections
+// MARK: - Steps, Presentation & Peer Sections
 
 extension WorkDetailView {
-
-    @ViewBuilder
-    func completionSection() -> some View {
-        DetailSectionCard(title: "Completion", icon: "checkmark.seal.fill", accentColor: .green) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Outcome picker styled as pills
-                Text("Outcome")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.secondary)
-
-                FlowLayout(spacing: 8) {
-                    ForEach(CompletionOutcome.allCases, id: \.self) { outcome in
-                        SelectablePillButton(
-                            item: outcome,
-                            isSelected: viewModel.completionOutcome == outcome,
-                            color: outcome.color,
-                            icon: outcome.iconName,
-                            label: outcome.displayName
-                        ) {
-                            adaptiveWithAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                viewModel.completionOutcome = outcome
-                            }
-                        }
-                    }
-                }
-
-                // Completion note
-                TextField("Add a completion note...", text: $viewModel.completionNote)
-                    .font(AppTheme.ScaledFont.body)
-                    .padding(AppTheme.Spacing.compact)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                    )
-            }
-        }
-    }
 
     @ViewBuilder
     func stepsSection() -> some View {
@@ -397,11 +360,11 @@ extension WorkDetailView {
     @ViewBuilder
     private func cohortRow(_ entry: LessonCohortEntry) -> some View {
         let detail: PeerRowDetail = {
-            if entry.status == .complete {
+            if entry.status.isClosed {
                 if let title = entry.currentWorkTitle {
                     return .subtitle("now on: \(title)")
                 }
-                return .badge("complete", color: .green)
+                return .badge(entry.status.displayName.lowercased(), color: entry.status.color)
             }
             if entry.status != viewModel.status {
                 return .badge(entry.status.displayName.lowercased(), color: entry.status.color)
@@ -457,7 +420,7 @@ extension WorkDetailView {
     }
 
     private func participantDetail(completedAt: Date?) -> PeerRowDetail {
-        guard viewModel.status != .complete, completedAt != nil else { return .none }
+        guard viewModel.status.isOpen, completedAt != nil else { return .none }
         return .badge("completed", color: .green)
     }
 }

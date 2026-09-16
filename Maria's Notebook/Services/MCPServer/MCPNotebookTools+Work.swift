@@ -64,9 +64,9 @@ extension MCPNotebookTools {
         in modelContext: NSManagedObjectContext
     ) -> String {
         let all = allWork(for: studentID, in: modelContext)
-        let open = all.filter { !$0.isComplete }
+        let open = all.filter { !$0.isClosed }
             .sorted { ($0.dueAt ?? .distantFuture) < ($1.dueAt ?? .distantFuture) }
-        let done = all.filter(\.isComplete)
+        let done = all.filter(\.isClosed)
             .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
             .prefix(limit)
 
@@ -83,9 +83,8 @@ extension MCPNotebookTools {
         if includeCompleted && !done.isEmpty {
             let lines = done.map { work -> String in
                 let id = work.id?.uuidString ?? "unknown"
-                let outcome = work.completionOutcome?.displayName ?? "no outcome recorded"
                 return "- [work id=\(id)] \(title(of: work)) — finished "
-                    + "\(dayString(work.completedAt)) (\(outcome))"
+                    + "\(dayString(work.completedAt)) (\(work.status.displayName))"
             }
             sections.append("Recently completed:\n" + lines.joined(separator: "\n"))
         }
@@ -208,8 +207,7 @@ extension MCPNotebookTools {
         let id = work.id?.uuidString ?? "unknown"
         var lines = ["[work id=\(id)] \(title(of: work))"]
 
-        lines.append("  Status: \(work.status.displayName)"
-            + (work.completionOutcome.map { " — \($0.displayName)" } ?? ""))
+        lines.append("  Status: \(work.status.displayName)")
         if let kind = work.kind {
             lines.append("  Kind: \(kind.displayName)")
         }

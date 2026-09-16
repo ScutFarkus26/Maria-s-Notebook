@@ -92,16 +92,11 @@ nonisolated extension CDWorkModel {
         set { kindRaw = newValue?.rawValue }
     }
 
-    /// Work status (active, review, complete)
+    /// The row's one verdict. `completionOutcomeRaw` is legacy — folded into
+    /// this by `WorkStatusMigration` and read by nothing else.
     var status: WorkStatus {
         get { WorkStatus(rawValue: statusRaw) ?? .active }
         set { statusRaw = newValue.rawValue }
-    }
-
-    /// Completion outcome (mastered, needsReview, etc.)
-    var completionOutcome: CompletionOutcome? {
-        get { completionOutcomeRaw.flatMap { CompletionOutcome(rawValue: $0) } }
-        set { completionOutcomeRaw = newValue?.rawValue }
     }
 
     /// Source context type (e.g., projectSession)
@@ -129,7 +124,7 @@ nonisolated extension CDWorkModel {
 
     /// A work item is considered open if any participant has not completed their work.
     var isOpen: Bool {
-        if status == .complete { return false }
+        if status.isClosed { return false }
         let parts = (participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
         if parts.isEmpty { return true }
         return parts.contains { $0.completedAt == nil }
@@ -139,7 +134,7 @@ nonisolated extension CDWorkModel {
 
     var isActive: Bool { status == .active }
     var isReview: Bool { status == .review }
-    var isComplete: Bool { status == .complete }
+    var isClosed: Bool { status.isClosed }
 
     func participant(for studentID: UUID) -> CDWorkParticipantEntity? {
         let studentIDString = studentID.uuidString

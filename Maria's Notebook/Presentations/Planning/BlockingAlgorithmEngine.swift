@@ -299,14 +299,14 @@ enum BlockingAlgorithmEngine {
 
     // MARK: - Work Completion Checks
 
-    /// Check if work is complete (either statusRaw == "complete" OR all relevant participants have completedAt).
+    /// Check if work is complete (either its status is closed OR all relevant participants have completedAt).
     ///
     /// - Parameters:
     ///   - work: The CDWorkModel to check
     ///   - requiredStudentIDs: The student IDs that need to have completed the work
     /// - Returns: True if work is complete for all required students
     nonisolated static func isWorkComplete(work: CDWorkModel, requiredStudentIDs: [UUID]) -> Bool {
-        if work.statusRaw == "complete" {
+        if work.status.isClosed {
             return true
         }
 
@@ -334,7 +334,7 @@ enum BlockingAlgorithmEngine {
 
     /// Check if work is complete for a single student.
     private static func isWorkCompleteForStudent(work: CDWorkModel, studentID: UUID) -> Bool {
-        if work.statusRaw == "complete" {
+        if work.status.isClosed {
             return true
         }
 

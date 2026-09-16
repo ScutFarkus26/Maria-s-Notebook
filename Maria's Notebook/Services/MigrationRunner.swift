@@ -22,6 +22,8 @@ enum MigrationRunner {
             // written on a presentation (see +CheckInAndNoteRepairs).
             DataMigrations.repairWorkCheckInLinks(using: bgContext)
             DataMigrations.repairPresentationNoteScopes(using: bgContext)
+            // Rows still carrying the retired completion outcome (see +WorkStatusMerge).
+            DataMigrations.mergeWorkCompletionOutcomes(using: bgContext)
             if bgContext.hasChanges {
                 bgContext.safeSave()
             }
