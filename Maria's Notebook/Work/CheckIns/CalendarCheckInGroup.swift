@@ -44,6 +44,17 @@ struct CalendarCheckInGroup: Identifiable {
 
 enum CalendarCheckInGrouper {
 
+    /// The strip's fetch: check-ins still `.scheduled` inside a day range. A
+    /// check-in `WorkLogService` completes or skips stops matching, which is
+    /// what takes its pill off the calendar — the work-side twin of a
+    /// presentation leaving the strip once it is given.
+    static func scheduledPredicate(start: Date, end: Date) -> NSPredicate {
+        NSPredicate(
+            format: "statusRaw == %@ AND date >= %@ AND date < %@",
+            WorkCheckInStatus.scheduled.rawValue, start as NSDate, end as NSDate
+        )
+    }
+
     /// Resolves and groups check-ins for one day.
     ///
     /// Pass `lookup` built once for the whole visible range — see

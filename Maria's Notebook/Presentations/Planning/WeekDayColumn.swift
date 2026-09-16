@@ -44,8 +44,12 @@ struct WeekDayColumn: View {
     let onOpenCheckInGroup: (CalendarCheckInGroup) -> Void
     let onDropWorkCheckIns: ([UUID], Date) -> Void
     let onDropWork: (UUID, Date) -> Void
+    /// What a check-in pill's right-click menu can do — see WeekDayColumn+Bands.
+    let pillActions: WorkCheckPillActions
 
     @State var itemFrames: [UUID: CGRect] = [:]
+    /// The pill whose "Pick a Day…" calendar is up.
+    @State var reschedulingGroupID: UUID?
     @State var zoneSpaceID = UUID()
     @State var isTargeted: Bool = false
     @State var insertionIndex: Int?

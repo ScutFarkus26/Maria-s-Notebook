@@ -166,23 +166,76 @@ extension WeekDayColumn {
         // Every check-in under the pill, not just the one it is keyed on — see
         // `CalendarCheckInGroup.dragPayload`.
         let payload = group.dragPayload
+        let isRescheduling = Binding(
+            get: { reschedulingGroupID == group.id },
+            set: { if !$0 { reschedulingGroupID = nil } }
+        )
 
-        if group.isGrouped {
-            GroupedWorkCheckInPill(sequence: group) {
-                onOpenCheckInGroup(group)
+        Group {
+            if group.isGrouped {
+                GroupedWorkCheckInPill(sequence: group) {
+                    onOpenCheckInGroup(group)
+                }
+                .draggable(payload) {
+                    GroupedWorkCheckInPill(sequence: group)
+                        .opacity(UIConstants.OpacityConstants.almostOpaque)
+                }
+            } else {
+                WorkCheckInPill(checkIn: group.primary, isDulled: false) {
+                    onOpenCheckInGroup(group)
+                }
+                .draggable(payload) {
+                    WorkCheckInPill(checkIn: group.primary, isDulled: false)
+                        .opacity(UIConstants.OpacityConstants.almostOpaque)
+                        .environment(\.managedObjectContext, viewContext)
+                }
             }
-            .draggable(payload) {
-                GroupedWorkCheckInPill(sequence: group)
-                    .opacity(UIConstants.OpacityConstants.almostOpaque)
+        }
+        .contextMenu { checkInMenu(group) }
+        .popover(isPresented: isRescheduling) {
+            WorkCheckDayPicker(count: group.checkIns.count) { day in
+                reschedulingGroupID = nil
+                onDropWorkCheckIns(group.checkIns.compactMap(\.id), day)
+            } onCancel: {
+                reschedulingGroupID = nil
             }
-        } else {
-            WorkCheckInPill(checkIn: group.primary, isDulled: false) {
-                onOpenCheckInGroup(group)
+        }
+    }
+
+    /// The pill's right-click menu. Logging a status here is the same write
+    /// the sheet makes, without the note; the pill leaves the strip either way.
+    @ViewBuilder
+    func checkInMenu(_ group: CalendarCheckInGroup) -> some View {
+        Button {
+            onOpenCheckInGroup(group)
+        } label: {
+            Label("Log Check…", systemImage: "square.and.pencil")
+        }
+        Divider()
+        WorkLogStatusMenu(
+            targets: pillActions.rows(group),
+            children: pillActions.children(group)
+        ) { rows, status in
+            pillActions.log(group, rows, status)
+        }
+        Divider()
+        Menu {
+            let ids = group.checkIns.compactMap(\.id)
+            Button("Today") { onDropWorkCheckIns(ids, AppCalendar.startOfDay(Date())) }
+            Button("Tomorrow") {
+                onDropWorkCheckIns(ids, AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date())))
             }
-            .draggable(payload) {
-                WorkCheckInPill(checkIn: group.primary, isDulled: false)
-                    .opacity(UIConstants.OpacityConstants.almostOpaque)
-                    .environment(\.managedObjectContext, viewContext)
+            Divider()
+            Button("Pick a Day…") { reschedulingGroupID = group.id }
+        } label: {
+            Label("Reschedule", systemImage: "calendar")
+        }
+        if !group.isGrouped, let workID = group.primary.workID.asUUID {
+            Divider()
+            Button {
+                pillActions.openWork(workID)
+            } label: {
+                Label("Open Work", systemImage: "arrow.forward.circle")
             }
         }
     }
@@ -239,4 +292,16 @@ extension WeekDayColumn {
                 .foregroundStyle(Color.accentColor)
         }
     }
+}
+
+/// What a check-in pill's right-click menu can do, handed down from
+/// `WeekPlanSection`, which owns the check-in lookup, the save and the toast.
+struct WorkCheckPillActions {
+    /// The rows under a pill, one per child.
+    let rows: (CalendarCheckInGroup) -> [CDWorkModel]
+    /// The same rows named for per-child submenus.
+    let children: (CalendarCheckInGroup) -> [WorkLogStatusMenu.Child]
+    /// Logs a status on some of a pill's rows for the pill's day.
+    let log: (CalendarCheckInGroup, [CDWorkModel], WorkStatus) -> Void
+    let openWork: (UUID) -> Void
 }

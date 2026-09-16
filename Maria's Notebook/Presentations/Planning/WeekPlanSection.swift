@@ -8,6 +8,7 @@
 // accepted drags the other refused. This one owns its own day window, so the
 // hosts just mount it and say what to open.
 
+import Combine
 import SwiftUI
 import CoreData
 import OSLog
@@ -97,16 +98,29 @@ struct WeekPlanSection: View {
                 refreshCardData()
                 Task { await refreshCheckIns() }
             }
+            // A status logged from the grid, Today, the editor or over MCP
+            // settles check-ins this strip is showing. Saves arrive in bursts,
+            // so coalesce them — the same pattern as WorksAgendaView.
+            .onReceive(
+                NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                    .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            ) { _ in
+                Task { await refreshCheckIns() }
+            }
         }
         .sheet(item: $selectedGroup) { group in
-            GroupedCheckInDetailSheet(sequence: group) { workID in
-                selectedGroup = nil
-                Task { @MainActor in
-                    // Let the sequence sheet finish dismissing first.
-                    try? await Task.sleep(for: .milliseconds(350))
-                    onOpenWork(workID)
+            WorkLogSheet(
+                group: group,
+                onLog: { entries in logWork(entries, on: group.sortDate) },
+                onOpenWork: { workID in
+                    selectedGroup = nil
+                    Task { @MainActor in
+                        // Let the sheet finish dismissing first.
+                        try? await Task.sleep(for: .milliseconds(350))
+                        onOpenWork(workID)
+                    }
                 }
-            }
+            )
         }
         .sheet(item: $prompt) { active in
             PlanPromptSheetView(
@@ -265,7 +279,8 @@ struct WeekPlanSection: View {
                         onSelect: onSelectPresentation,
                         onOpenCheckInGroup: openCheckInGroup,
                         onDropWorkCheckIns: rescheduleCheckIns,
-                        onDropWork: beginPlanningWork
+                        onDropWork: beginPlanningWork,
+                        pillActions: pillActions
                     )
                     .id(day)
                 }

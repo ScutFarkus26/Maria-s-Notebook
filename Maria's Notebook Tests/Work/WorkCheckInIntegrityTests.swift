@@ -119,4 +119,22 @@ struct WorkCheckInIntegrityTests {
         #expect(output.contains("orphaned check-in"))
         #expect(!output.contains("unassigned"))
     }
+
+    @Test("A check-in the log settles leaves the Scheduled strip's fetch")
+    func settledCheckInLeavesTheStrip() throws {
+        let context = try makeContext()
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Racks and tubes")
+        let today = AppCalendar.startOfDay(Date())
+        let checkIn = CDWorkCheckIn.make(for: work, on: today, purpose: "progressCheck", in: context)
+        CoreDataTestHelpers.save(context)
+        let (start, end) = AppCalendar.dayRange(for: today)
+        let request = CDFetchRequest(CDWorkCheckIn.self)
+        request.predicate = CalendarCheckInGrouper.scheduledPredicate(start: start, end: end)
+        #expect(context.safeFetch(request).contains { $0 === checkIn })
+
+        try WorkLogService.log([.init(work: work, status: .mastered)], on: today, context: context)
+
+        #expect(checkIn.status == .completed)
+        #expect(!context.safeFetch(request).contains { $0 === checkIn })
+    }
 }

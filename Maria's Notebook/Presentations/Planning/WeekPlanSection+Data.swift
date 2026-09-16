@@ -97,10 +97,7 @@ extension WeekPlanSection {
         let (start, _) = AppCalendar.dayRange(for: firstDay)
         let (_, end) = AppCalendar.dayRange(for: lastDay)
         let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
-        request.predicate = NSPredicate(
-            format: "statusRaw == %@ AND date >= %@ AND date < %@",
-            WorkCheckInStatus.scheduled.rawValue, start as NSDate, end as NSDate
-        )
+        request.predicate = CalendarCheckInGrouper.scheduledPredicate(start: start, end: end)
         let fetched = viewContext.safeFetch(request)
         cachedCheckIns = fetched
         checkInLookup = CalendarCheckInGrouper.Lookup.build(for: fetched, in: viewContext)
@@ -108,11 +105,61 @@ extension WeekPlanSection {
 
     // MARK: - Actions
 
+    /// Every pill opens the log sheet — one child or six. A single child used
+    /// to jump straight to the work window, which had no way to log the check.
     func openCheckInGroup(_ group: CalendarCheckInGroup) {
-        if group.isGrouped {
-            selectedGroup = group
-        } else if let workID = group.primary.workID.asUUID {
-            onOpenWork(workID)
+        selectedGroup = group
+    }
+
+    // MARK: - Logging
+
+    /// The rows under a pill, one per child — what its menu and sheet act on.
+    func rows(of group: CalendarCheckInGroup) -> [CDWorkModel] {
+        var seen: Set<NSManagedObjectID> = []
+        return group.checkIns.compactMap { checkIn in
+            guard let work = checkIn.resolvedWork(in: viewContext),
+                  seen.insert(work.objectID).inserted else { return nil }
+            return work
+        }
+    }
+
+    func children(of group: CalendarCheckInGroup) -> [WorkLogStatusMenu.Child] {
+        rows(of: group).compactMap { work in
+            guard let id = work.id else { return nil }
+            let name = checkInLookup.studentName(for: work)
+            return WorkLogStatusMenu.Child(id: id, name: name.isEmpty ? "Student" : name, work: work)
+        }
+    }
+
+    var pillActions: WorkCheckPillActions {
+        WorkCheckPillActions(
+            rows: rows(of:),
+            children: children(of:),
+            log: { group, rows, status in
+                logWork(rows.map { WorkLogService.Entry(work: $0, status: status) }, on: group.sortDate)
+            },
+            openWork: onOpenWork
+        )
+    }
+
+    /// Logs the entries for `day`, refreshes the strip, and offers Undo.
+    func logWork(_ entries: [WorkLogService.Entry], on day: Date) {
+        do {
+            let receipt = try WorkLogService.log(
+                entries, on: day, context: viewContext, saveCoordinator: saveCoordinator
+            )
+            Task { await refreshCheckIns() }
+            let message = receipt.rows == 1 ? "Logged 1 work check" : "Logged \(receipt.rows) work checks"
+            ToastService.shared.show(message, type: .success, duration: 5) {
+                do {
+                    try WorkLogService.undo(receipt.token, context: viewContext, saveCoordinator: saveCoordinator)
+                } catch {
+                    ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
+                }
+                Task { await refreshCheckIns() }
+            }
+        } catch {
+            ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
         }
     }
 
