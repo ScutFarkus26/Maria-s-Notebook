@@ -1,0 +1,23 @@
+{
+  "skill_name": "efficiency-pass",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "The iPad gets warm when the app just sits on Today during class. Find out what is running and calm it down without changing any behavior.",
+      "expected_output": "An audit that measures or reasons from the sync/maintenance pipeline, names specific hot paths with file:line, applies only behavior-preserving changes (gating, debouncing, background contexts, shared instances), consults EnergyPolicy, and verifies with a build of both targets plus the full test suite on the iOS simulator.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Memory climbs to over a gigabyte on the Mac after I open a few student profiles. Please fix it.",
+      "expected_output": "Uses the Allocations approach or code reading to find whole-table fetches / unbounded caches in the per-student loaders, applies fetch limits, batch sizes, faulting, or pressure-aware caches, keeps outputs identical, adds or extends tests where a cache changes shape, and runs verify.sh.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Do a battery pass on the week planner views.",
+      "expected_output": "Runs the audit script scoped to the planner files, fixes computed-property recomputation or a comparable per-body cost in the planner files (the per-card @FetchRequests were already removed on 2026-09-10, so finding none of those is correct), avoids touching CKShare or Core Data schema, measures body evaluations or fetch counts before/after, and records a baseline note.",
+      "files": []
+    }
+  ]
+}

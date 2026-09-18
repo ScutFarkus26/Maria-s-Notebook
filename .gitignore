@@ -7,7 +7,9 @@ build_temp/
 *.profraw
 
 # Claude
-.claude/
+# Keep Claude Code settings/worktrees private, but version the project skills.
+.claude/*
+!.claude/skills/
 
 # macOS
 .DS_Store
