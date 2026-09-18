@@ -3,10 +3,11 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-// The post-import pass used to sweep every entity after any remote insert.
-// The history processor already knows which entities the import inserted, so
-// the pass is now scoped to them; the launch pass and the import-event
-// safety net still sweep everything. Efficiency pass 2026-09-17.
+// The post-import pass used to sweep every entity after any import, written
+// or not. The history processor already knows which entities the import
+// inserted, so the pass is now scoped to them, an import event alone runs
+// nothing, and only the launch pass and a failed history read sweep
+// everything. Efficiency pass 2026-09-17.
 
 @Suite("Deduplication Scope")
 @MainActor
@@ -155,13 +156,14 @@ struct DeduplicationScopeTests {
         #expect(coordinator.lastRunScope == DeduplicationScope(insertedEntities: ["Note", "AttendanceRecord"]))
     }
 
-    @Test("An import event with no history report falls back to the full pass")
-    func importEventAloneRunsEverything() async {
+    @Test("An import event with no history report runs no pass at all")
+    func importEventAloneRunsNothing() async {
         let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1))
         coordinator.requestDeduplicationAfterImport()
 
-        #expect(await waitUntil { coordinator.runAttemptCount == 1 })
-        #expect(coordinator.lastRunScope == .everything)
+        #expect(await waitUntil { coordinator.cycleCount == 1 })
+        #expect(coordinator.runAttemptCount == 0)
+        #expect(coordinator.lastRunScope == nil)
     }
 
     @Test("An import event beside a history report keeps the report's scope")

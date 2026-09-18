@@ -28,7 +28,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Calendar math | `AppCalendar.shared`; Hebrew: `HebrewParshaService.gregorian` / `.hebrew` | `AppCore/AppCalendar.swift` |
 | Thumbnail from a Core Data blob | `CachedThumbnail.image(from:cacheKey:)` | `Components/CachedThumbnail.swift` |
 | Image from a file in the photos dir | `AsyncCachedImage` | `Components/AsyncCachedImage.swift` |
-| Post-import dedup, scoped to what an import inserted | `DeduplicationCoordinator.requestDeduplication(insertedEntities:)` from the history processor; `requestDeduplicationAfterImport()` is the full-sweep safety net | `Services/DeduplicationCoordinator.swift` |
+| Post-import dedup, scoped to what an import inserted | `DeduplicationCoordinator.requestDeduplication(insertedEntities:)` from the history processor; an import event alone (`requestDeduplicationAfterImport()`) runs nothing; a failed history read asks for the full sweep | `Services/DeduplicationCoordinator.swift` |
 | Debounced remote-change handling | `CloudKitSyncStatusService.scheduleRemoteChangeHandling` (500 ms) | `Services/CloudKitSyncStatusService.swift` |
 | Sync event log | `SyncEventLogger` (coalesces repeats, 1 s debounced write) | `Services/` |
 | Preceding-lesson lookups in a loop | `BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)` | Services |
@@ -55,7 +55,8 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    inserted (an import that inserts nothing runs no pass), the same-name lesson and
    same-title track merges read only their key columns before materialising anything,
    and attendance/album indexing had already been fixed (column pre-check; `.utility`).
-   Only the launch pass and the import-event safety net still sweep every entity.
+   An import event with no history report (an empty CloudKit poll) runs no pass; only the
+   launch pass and a failed history read still sweep every entity.
 2. **View layer**: computed properties doing filter/sort/group per body pass (the audit
    script ranks these by read count); per-keystroke search in `AppSearchView` with no
    debounce. The per-card `@FetchRequest`s in `PresentationPill`, `PresentationPlannerCard`

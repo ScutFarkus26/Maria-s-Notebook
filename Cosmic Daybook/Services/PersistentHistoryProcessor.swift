@@ -89,40 +89,64 @@ actor PersistentHistoryProcessor {
         case let .processed(newToken, remoteCount, totalCount, insertedEntityNames, changedEntityNames):
             lastToken = newToken
             Self.saveToken(newToken)
-
-            let inserted = insertedEntityNames.sorted().joined(separator: ",")
-            Self.logger.debug(
-                "Processed \(totalCount) transaction(s), \(remoteCount) remote, inserts: \(inserted, privacy: .public)"
+            Self.react(
+                remoteCount: remoteCount, totalCount: totalCount,
+                insertedEntityNames: insertedEntityNames, changedEntityNames: changedEntityNames
             )
 
-            if !changedEntityNames.isDisjoint(with: Self.schoolDayEntityNames) {
-                Self.postSchoolDayDataDidChange()
-            }
-
-            // The companion app has no dedup coordinator: it writes only
-            // attendance, through the store that already collapses duplicates
-            // per student-day on read.
-            #if !ASSISTANT_APP
-            // Report every remote batch, inserts or not: a duplicate is two rows
-            // for one record, so only the inserted entities need a pass, and an
-            // empty report tells the coordinator the import-event safety net
-            // has nothing to sweep either.
-            if remoteCount > 0 {
-                Task { @MainActor in
-                    DeduplicationCoordinator.shared.requestDeduplication(insertedEntities: insertedEntityNames)
-                }
-            }
-            #endif
-
         case .failed:
-            // Fail open: we don't know what changed, so assume the calendar might have.
+            // Fail open: we don't know what changed, so assume the calendar might have,
+            // and ask for the full dedup sweep the import event no longer triggers.
             Self.postSchoolDayDataDidChange()
+            Self.requestFullDeduplication()
             if lastToken != nil {
                 Self.logger.info("Resetting stale history token for next attempt")
                 lastToken = nil
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.persistentHistoryLastToken)
             }
         }
+    }
+
+    /// What a processed batch triggers: the school-day cache invalidation and
+    /// the scoped dedup report.
+    nonisolated private static func react(
+        remoteCount: Int,
+        totalCount: Int,
+        insertedEntityNames: Set<String>,
+        changedEntityNames: Set<String>
+    ) {
+        let inserted: String = insertedEntityNames.sorted().joined(separator: ",")
+        logger.debug(
+            "Processed \(totalCount) transaction(s), \(remoteCount) remote, inserts: \(inserted, privacy: .public)"
+        )
+
+        if !changedEntityNames.isDisjoint(with: schoolDayEntityNames) {
+            postSchoolDayDataDidChange()
+        }
+
+        // Report every remote batch, inserts or not: a duplicate is two rows
+        // for one record, so only the inserted entities need a pass, and an
+        // empty report tells the coordinator there is nothing to sweep.
+        guard remoteCount > 0 else { return }
+        requestDeduplication(insertedEntities: insertedEntityNames)
+    }
+
+    // The companion app has no dedup coordinator: it writes only attendance,
+    // through the store that already collapses duplicates per student-day on read.
+    nonisolated private static func requestDeduplication(insertedEntities: Set<String>) {
+        #if !ASSISTANT_APP
+        Task { @MainActor in
+            DeduplicationCoordinator.shared.requestDeduplication(insertedEntities: insertedEntities)
+        }
+        #endif
+    }
+
+    nonisolated private static func requestFullDeduplication() {
+        #if !ASSISTANT_APP
+        Task { @MainActor in
+            DeduplicationCoordinator.shared.requestDeduplication()
+        }
+        #endif
     }
 
     nonisolated private static func postSchoolDayDataDidChange() {

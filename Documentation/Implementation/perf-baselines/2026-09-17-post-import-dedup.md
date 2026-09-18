@@ -22,7 +22,7 @@ store.
 |---|---|---|
 | Objects registered after a clean full pass (300 lessons + 30 tracks) | 330 | 0 |
 | Entities read per post-import pass | all 41 steps | only the entities the import inserted |
-| Passes per import that inserted nothing | 1 full pass | 0 (context never created) |
+| Passes per import that wrote nothing (every empty CloudKit poll) | 1 full pass | 0 (no pass; a failed history read still sweeps everything) |
 | Launch pass (`MigrationRunner`) | every entity | every entity (unchanged) |
 
 The live store is larger than the fixture (the whole curriculum is in `Lesson`), so
