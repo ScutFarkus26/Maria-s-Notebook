@@ -32,14 +32,53 @@ nonisolated extension DataCleanupService {
 
     /// Tracks that share one title, keyed case- and whitespace-insensitively.
     static func sameTitleTrackGroups(using context: NSManagedObjectContext) -> [[CDTrackEntity]] {
-        let tracks = context.safeFetch(CDFetchRequest(CDTrackEntity.self)).filter { !$0.isDeleted }
+        // Cheap pre-check on the title column alone; see `sameNameLessonGroups`.
+        let request = CDFetchRequest(CDTrackEntity.self)
+        if let collidingIDs = sameTitleTrackObjectIDs(in: context) {
+            if collidingIDs.isEmpty { return [] }
+            request.predicate = NSPredicate(format: "SELF IN %@", collidingIDs)
+        }
+        let tracks = context.safeFetch(request).filter { !$0.isDeleted }
         let grouped = Dictionary(grouping: tracks, by: trackTitleKey)
         return grouped.values.filter { $0.count > 1 }
             .sorted { lhs, rhs in trackTitleKey(lhs[0]) < trackTitleKey(rhs[0]) }
     }
 
     static func trackTitleKey(_ track: CDTrackEntity) -> String {
-        track.title.trimmed().folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        trackTitleKey(title: track.title)
+    }
+
+    static func trackTitleKey(title: String) -> String {
+        title.trimmed().folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    /// Object IDs of every track whose folded title repeats, read from the
+    /// title column alone. `nil` when the context has pending changes.
+    private static func sameTitleTrackObjectIDs(in context: NSManagedObjectContext) -> [NSManagedObjectID]? {
+        guard !context.hasChanges, let entityName = CDFetchRequest(CDTrackEntity.self).entityName else { return nil }
+
+        let objectIDColumn = NSExpressionDescription()
+        objectIDColumn.name = "objectID"
+        objectIDColumn.expression = NSExpression.expressionForEvaluatedObject()
+        objectIDColumn.expressionResultType = .objectIDAttributeType
+
+        let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = [objectIDColumn, "title"]
+
+        let rows: [NSDictionary]
+        do {
+            rows = try context.fetch(request)
+        } catch {
+            return nil
+        }
+
+        var byKey: [String: [NSManagedObjectID]] = [:]
+        for row in rows {
+            guard let objectID = row["objectID"] as? NSManagedObjectID else { continue }
+            byKey[trackTitleKey(title: row["title"] as? String ?? ""), default: []].append(objectID)
+        }
+        return byKey.values.filter { $0.count > 1 }.flatMap { $0 }
     }
 
     /// Folds every same-title group down to its oldest record and returns

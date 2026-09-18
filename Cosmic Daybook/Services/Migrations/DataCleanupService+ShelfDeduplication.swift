@@ -39,17 +39,18 @@ nonisolated extension DataCleanupService {
     /// shared classroom they reach the assistant's device too.
     static func shelfDuplicates(
         in context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer? = nil
+        container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything
     ) -> [String: Int] {
         var results: [String: Int] = [:]
         results["Supply"] = deduplicate(
-            CDSupply.self, using: context, container: container, merge: mergeSupply
+            CDSupply.self, using: context, container: container, scope: scope, merge: mergeSupply
         )
         results["SupplyTransaction"] = deduplicate(
-            CDSupplyTransaction.self, using: context, container: container
+            CDSupplyTransaction.self, using: context, container: container, scope: scope
         )
         // Resource holds no relationships, so there is nothing to rescue first.
-        results["Resource"] = deduplicate(CDResource.self, using: context, container: container)
+        results["Resource"] = deduplicate(CDResource.self, using: context, container: container, scope: scope)
         return results.filter { $0.value > 0 }
     }
 

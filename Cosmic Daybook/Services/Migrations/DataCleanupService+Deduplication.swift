@@ -3,6 +3,45 @@ import CoreData
 import CloudKit
 import os
 
+// MARK: - Scope
+
+/// Which entities a deduplication pass reads.
+///
+/// The launch pass sweeps everything. The post-import pass only needs the
+/// entities the import inserted — a duplicate is two rows for one record, and
+/// only an insert can add a row — and the history processor already knows
+/// which those were. An entity outside the scope is not fetched at all, not
+/// even its `id` column.
+nonisolated struct DeduplicationScope: Sendable, Equatable {
+    /// Core Data entity names, or `nil` for every entity.
+    let entityNames: Set<String>?
+
+    static let everything = DeduplicationScope(entityNames: nil)
+
+    init(insertedEntities: Set<String>) {
+        self.entityNames = insertedEntities
+    }
+
+    private init(entityNames: Set<String>?) {
+        self.entityNames = entityNames
+    }
+
+    func includes(_ entityName: String) -> Bool {
+        entityNames?.contains(entityName) ?? true
+    }
+
+    /// True when no entity is in scope, so a pass has nothing to read.
+    var isEmpty: Bool {
+        entityNames?.isEmpty == true
+    }
+
+    func includes<T: NSManagedObject>(_ type: T.Type) -> Bool {
+        guard let entityNames else { return true }
+        guard let name = CDFetchRequest(type).entityName else { return false }
+        return entityNames.contains(name)
+    }
+}
+
 // MARK: - Deduplication
 
 nonisolated extension DataCleanupService {
@@ -117,8 +156,11 @@ nonisolated extension DataCleanupService {
         _ type: T.Type,
         using context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything,
         merge: ((T, T) -> Void)? = nil
     ) -> Int {
+        guard scope.includes(T.self) else { return 0 }
+
         // Cheap pre-check: read only the `id` column to learn whether this table
         // has duplicates at all. The answer is almost always "no", and finding
         // that out shouldn't fault every row of every entity into the context —
@@ -230,33 +272,40 @@ nonisolated extension DataCleanupService {
     @discardableResult
     static func deduplicateStudentsStrong(
         using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer? = nil
+        container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything
     ) -> Int {
-        deduplicate(CDStudent.self, using: context, container: container, merge: mergeStudent)
+        deduplicate(CDStudent.self, using: context, container: container, scope: scope, merge: mergeStudent)
     }
 
     @discardableResult
     static func deduplicateLessonsStrong(
         using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer? = nil
+        container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything
     ) -> Int {
-        deduplicate(CDLesson.self, using: context, container: container, merge: mergeLesson)
+        deduplicate(CDLesson.self, using: context, container: container, scope: scope, merge: mergeLesson)
     }
 
     @discardableResult
     static func deduplicateLessonPresentationsStrong(
         using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer? = nil
+        container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything
     ) -> Int {
-        deduplicate(CDLessonPresentation.self, using: context, container: container, merge: mergeLessonPresentation)
+        deduplicate(
+            CDLessonPresentation.self, using: context, container: container, scope: scope,
+            merge: mergeLessonPresentation
+        )
     }
 
     @discardableResult
     static func deduplicateWorkModelsStrong(
         using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer? = nil
+        container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything
     ) -> Int {
-        deduplicate(CDWorkModel.self, using: context, container: container) { canonical, duplicate in
+        deduplicate(CDWorkModel.self, using: context, container: container, scope: scope) { canonical, duplicate in
             mergeWorkModel(canonical: canonical, duplicate: duplicate, context: context)
         }
     }
@@ -264,9 +313,10 @@ nonisolated extension DataCleanupService {
     @discardableResult
     static func deduplicateNotesStrong(
         using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer? = nil
+        container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything
     ) -> Int {
-        deduplicate(CDNote.self, using: context, container: container, merge: mergeNote)
+        deduplicate(CDNote.self, using: context, container: container, scope: scope, merge: mergeNote)
     }
 
     /// Semantic deduplication for attendance records.
@@ -287,7 +337,12 @@ nonisolated extension DataCleanupService {
     /// so moving them first prevents note loss), then deletes the duplicates. The
     /// context-level deletes produce proper CloudKit delete tombstones.
     @discardableResult
-    static func deduplicateAttendanceRecordsStrong(using context: NSManagedObjectContext) -> Int {
+    static func deduplicateAttendanceRecordsStrong(
+        using context: NSManagedObjectContext,
+        scope: DeduplicationScope = .everything
+    ) -> Int {
+        guard scope.includes(CDAttendanceRecord.self) else { return 0 }
+
         // Cheap pre-check: read only the two columns that make up the grouping key
         // to learn whether any (student, day) repeats at all. This runs on every
         // launch and after every CloudKit import, and the answer is almost always
@@ -675,80 +730,116 @@ nonisolated extension DataCleanupService {
     @discardableResult
     static func deduplicateAllModels(
         using context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer? = nil
+        container: NSPersistentCloudKitContainer? = nil,
+        scope: DeduplicationScope = .everything
+    ) -> [String: Int] {
+        // Every step is gated on `scope` inside `deduplicate`; the two name-based
+        // merges are gated on the entity they read.
+        var results = curriculumDuplicates(in: context, container: container, scope: scope)
+        results.merge(recordDuplicates(in: context, container: container, scope: scope)) { $1 }
+        // Supplies, their history, and resources — see +ShelfDeduplication.
+        results.merge(shelfDuplicates(in: context, container: container, scope: scope)) { $1 }
+        return results.filter { $0.value > 0 }
+    }
+
+    /// Students, lessons, presentations, work, projects and tracks.
+    private static func curriculumDuplicates(
+        in context: NSManagedObjectContext,
+        container c: NSPersistentCloudKitContainer?,
+        scope s: DeduplicationScope
     ) -> [String: Int] {
         var results: [String: Int] = [:]
 
         // Core models
-        results["Student"] = deduplicateStudentsStrong(using: context, container: container)
-        results["Lesson"] = deduplicateLessonsStrong(using: context, container: container)
+        results["Student"] = deduplicateStudentsStrong(using: context, container: c, scope: s)
+        results["Lesson"] = deduplicateLessonsStrong(using: context, container: c, scope: s)
         // Same name filed twice in one sub-area under two ids — see +LessonNameMerge.
-        results["Lesson (same name)"] = mergeSameNameLessons(using: context, container: container)
+        if s.includes(CDLesson.self) {
+            results["Lesson (same name)"] = mergeSameNameLessons(using: context, container: c)
+        }
         results["LessonAssignment"] = deduplicate(
-            CDLessonAssignment.self, using: context, container: container, merge: mergeLessonAssignment
+            CDLessonAssignment.self, using: context, container: c, scope: s, merge: mergeLessonAssignment
         )
-        results["LessonPresentation"] = deduplicateLessonPresentationsStrong(using: context, container: container)
+        results["LessonPresentation"] = deduplicateLessonPresentationsStrong(
+            using: context, container: c, scope: s
+        )
 
         // Work-related models
-        results["WorkModel"] = deduplicateWorkModelsStrong(using: context, container: container)
+        results["WorkModel"] = deduplicateWorkModelsStrong(using: context, container: c, scope: s)
         results["WorkCheckIn"] = deduplicate(
-            CDWorkCheckIn.self, using: context, container: container, merge: mergeWorkCheckIn
+            CDWorkCheckIn.self, using: context, container: c, scope: s, merge: mergeWorkCheckIn
         )
         results["WorkCompletionRecord"] = deduplicate(
-            CDWorkCompletionRecord.self, using: context, container: container, merge: mergeWorkCompletionRecord
+            CDWorkCompletionRecord.self, using: context, container: c, scope: s, merge: mergeWorkCompletionRecord
         )
-        results["WorkParticipantEntity"] = deduplicate(CDWorkParticipantEntity.self, using: context, container: container)
-        results["WorkStep"] = deduplicate(CDWorkStep.self, using: context, container: container)
+        results["WorkParticipantEntity"] = deduplicate(
+            CDWorkParticipantEntity.self, using: context, container: c, scope: s
+        )
+        results["WorkStep"] = deduplicate(CDWorkStep.self, using: context, container: c, scope: s)
 
         // CDProject models
-        results["Project"] = deduplicate(CDProject.self, using: context, container: container)
-        results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context, container: container)
+        results["Project"] = deduplicate(CDProject.self, using: context, container: c, scope: s)
+        results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context, container: c, scope: s)
         results["ProjectSession"] = deduplicate(
-            CDProjectSession.self, using: context, container: container, merge: mergeProjectSession
+            CDProjectSession.self, using: context, container: c, scope: s, merge: mergeProjectSession
         )
         // ProjectAssignmentTemplate, ProjectTemplateWeek, and ProjectWeekRoleAssignment
         // deduplication removed — these entities are deprecated
 
         // CDTrackEntity models
-        results["Track"] = deduplicate(CDTrackEntity.self, using: context, container: container)
+        results["Track"] = deduplicate(CDTrackEntity.self, using: context, container: c, scope: s)
         // One title defined twice under two ids — see +TrackTitleMerge.
-        results["Track (same title)"] = mergeSameTitleTracks(using: context, container: container)
-        results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context, container: container)
-        results["SequenceTrack"] = deduplicate(CDSequenceTrackEntity.self, using: context, container: container)
+        if s.includes(CDTrackEntity.self) {
+            results["Track (same title)"] = mergeSameTitleTracks(using: context, container: c)
+        }
+        results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context, container: c, scope: s)
+        results["SequenceTrack"] = deduplicate(CDSequenceTrackEntity.self, using: context, container: c, scope: s)
         results["StudentTrackEnrollment"] = deduplicate(
-            CDStudentTrackEnrollmentEntity.self, using: context, container: container
+            CDStudentTrackEnrollmentEntity.self, using: context, container: c, scope: s
         )
+        return results
+    }
+
+    /// Notes, attendance, calendar, community and the smaller record types.
+    private static func recordDuplicates(
+        in context: NSManagedObjectContext,
+        container c: NSPersistentCloudKitContainer?,
+        scope s: DeduplicationScope
+    ) -> [String: Int] {
+        var results: [String: Int] = [:]
 
         // Notes and documents
-        results["Note"] = deduplicateNotesStrong(using: context, container: container)
-        results["NoteTemplate"] = deduplicate(CDNoteTemplateEntity.self, using: context, container: container)
-        results["NoteStudentLink"] = deduplicate(CDNoteStudentLink.self, using: context, container: container)
-        results["Document"] = deduplicate(CDDocument.self, using: context, container: container)
+        results["Note"] = deduplicateNotesStrong(using: context, container: c, scope: s)
+        results["NoteTemplate"] = deduplicate(CDNoteTemplateEntity.self, using: context, container: c, scope: s)
+        results["NoteStudentLink"] = deduplicate(CDNoteStudentLink.self, using: context, container: c, scope: s)
+        results["Document"] = deduplicate(CDDocument.self, using: context, container: c, scope: s)
 
         // Attendance and calendar
-        results["AttendanceRecord"] = deduplicateAttendanceRecordsStrong(using: context)
+        results["AttendanceRecord"] = deduplicateAttendanceRecordsStrong(using: context, scope: s)
         results["StudentMeeting"] = deduplicate(
-            CDStudentMeeting.self, using: context, container: container, merge: mergeStudentMeeting
+            CDStudentMeeting.self, using: context, container: c, scope: s, merge: mergeStudentMeeting
         )
-        results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context, container: container)
-        results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context, container: container)
-        results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context, container: container)
-        results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context, container: container)
+        results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context, container: c, scope: s)
+        results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context, container: c, scope: s)
+        results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context, container: c, scope: s)
+        results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context, container: c, scope: s)
 
         // Community models
-        results["CommunityTopic"] = deduplicate(CDCommunityTopicEntity.self, using: context, container: container)
-        results["ProposedSolution"] = deduplicate(CDProposedSolutionEntity.self, using: context, container: container)
+        results["CommunityTopic"] = deduplicate(CDCommunityTopicEntity.self, using: context, container: c, scope: s)
+        results["ProposedSolution"] = deduplicate(
+            CDProposedSolutionEntity.self, using: context, container: c, scope: s
+        )
         results["CommunityAttachment"] = deduplicate(
-            CDCommunityAttachmentEntity.self, using: context, container: container
+            CDCommunityAttachmentEntity.self, using: context, container: c, scope: s
         )
 
         // Other models
-        results["Reminder"] = deduplicate(CDReminder.self, using: context, container: container, merge: mergeReminder)
-        results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context, container: container)
-        results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context, container: container)
-
-        // Supplies, their history, and resources — see +ShelfDeduplication.
-        return results.merging(shelfDuplicates(in: context, container: container)) { $1 }.filter { $0.value > 0 }
+        results["Reminder"] = deduplicate(
+            CDReminder.self, using: context, container: c, scope: s, merge: mergeReminder
+        )
+        results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context, container: c, scope: s)
+        results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context, container: c, scope: s)
+        return results
     }
 }
 // swiftlint:enable cyclomatic_complexity

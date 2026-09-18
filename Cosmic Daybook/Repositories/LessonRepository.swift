@@ -95,7 +95,13 @@ struct LessonRepository: SavingRepository {
     /// Whether a lesson takes part in the name-uniqueness rule. Parsha lessons
     /// are keyed by week, not name, so they are left out on both sides.
     nonisolated static func participatesInNameUniqueness(_ lesson: CDLesson) -> Bool {
-        (lesson.parshaKey ?? "").trimmed().isEmpty
+        participatesInNameUniqueness(parshaKey: lesson.parshaKey)
+    }
+
+    /// The same rule on the raw column, for callers that read `parshaKey`
+    /// without materialising the lesson.
+    nonisolated static func participatesInNameUniqueness(parshaKey: String?) -> Bool {
+        (parshaKey ?? "").trimmed().isEmpty
     }
 
     /// The lesson already filed under `name` in this sub-area, if any.

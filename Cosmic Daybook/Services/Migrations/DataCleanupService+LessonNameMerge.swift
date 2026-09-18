@@ -40,13 +40,60 @@ nonisolated extension DataCleanupService {
     /// folded name key. Parsha lessons are left out: they repeat their names
     /// by design, one per week.
     static func sameNameLessonGroups(using context: NSManagedObjectContext) -> [[CDLesson]] {
-        let lessons = context.safeFetch(CDFetchRequest(CDLesson.self))
+        // Cheap pre-check: read only the columns the name key is built from, so a
+        // curriculum with no same-name pair (the usual case, after every CloudKit
+        // import) never faults the whole Lesson table into the context. `nil`
+        // means the columns can't stand in for the objects (unsaved changes), so
+        // fall back to the full-table pass.
+        let request = CDFetchRequest(CDLesson.self)
+        if let collidingIDs = sameNameLessonObjectIDs(in: context) {
+            if collidingIDs.isEmpty { return [] }
+            request.predicate = NSPredicate(format: "SELF IN %@", collidingIDs)
+        }
+        let lessons = context.safeFetch(request)
             .filter { !$0.isDeleted && LessonRepository.participatesInNameUniqueness($0) }
         let grouped = Dictionary(grouping: lessons, by: LessonRepository.nameKey(for:))
         return grouped.values.filter { $0.count > 1 }
             .sorted { lhs, rhs in
                 LessonRepository.nameKey(for: lhs[0]) < LessonRepository.nameKey(for: rhs[0])
             }
+    }
+
+    /// Object IDs of every lesson whose folded name key repeats, read from the
+    /// key columns alone. Requires a context with no pending changes — a
+    /// dictionary fetch reads the store, not the context.
+    private static func sameNameLessonObjectIDs(in context: NSManagedObjectContext) -> [NSManagedObjectID]? {
+        guard !context.hasChanges, let entityName = CDFetchRequest(CDLesson.self).entityName else { return nil }
+
+        let objectIDColumn = NSExpressionDescription()
+        objectIDColumn.name = "objectID"
+        objectIDColumn.expression = NSExpression.expressionForEvaluatedObject()
+        objectIDColumn.expressionResultType = .objectIDAttributeType
+
+        let request = NSFetchRequest<NSDictionary>(entityName: entityName)
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = [objectIDColumn, "name", "area", "sequence", "parshaKey"]
+
+        let rows: [NSDictionary]
+        do {
+            rows = try context.fetch(request)
+        } catch {
+            return nil
+        }
+
+        var byKey: [String: [NSManagedObjectID]] = [:]
+        for row in rows {
+            guard let objectID = row["objectID"] as? NSManagedObjectID,
+                  LessonRepository.participatesInNameUniqueness(parshaKey: row["parshaKey"] as? String)
+            else { continue }
+            let key = LessonRepository.nameKey(
+                name: row["name"] as? String ?? "",
+                area: row["area"] as? String ?? "",
+                sequence: row["sequence"] as? String ?? ""
+            )
+            byKey[key, default: []].append(objectID)
+        }
+        return byKey.values.filter { $0.count > 1 }.flatMap { $0 }
     }
 
     /// Folds every same-name group down to its oldest record and returns

@@ -285,7 +285,9 @@ extension CloudKitSyncStatusService {
         guard type != .setup else { return }
 
         if type == .import {
-            DeduplicationCoordinator.shared.requestDeduplication()
+            // Safety net for an import whose history the processor could not
+            // read; when it could, its scoped report wins (see the coordinator).
+            DeduplicationCoordinator.shared.requestDeduplicationAfterImport()
         }
 
         if type == .export {

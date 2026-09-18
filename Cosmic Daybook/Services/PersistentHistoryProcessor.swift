@@ -86,12 +86,13 @@ actor PersistentHistoryProcessor {
         case .noTransactions:
             break
 
-        case let .processed(newToken, remoteCount, totalCount, hasInserts, changedEntityNames):
+        case let .processed(newToken, remoteCount, totalCount, insertedEntityNames, changedEntityNames):
             lastToken = newToken
             Self.saveToken(newToken)
 
+            let inserted = insertedEntityNames.sorted().joined(separator: ",")
             Self.logger.debug(
-                "Processed \(totalCount) history transaction(s), \(remoteCount) remote, inserts: \(hasInserts)"
+                "Processed \(totalCount) transaction(s), \(remoteCount) remote, inserts: \(inserted, privacy: .public)"
             )
 
             if !changedEntityNames.isDisjoint(with: Self.schoolDayEntityNames) {
@@ -102,9 +103,13 @@ actor PersistentHistoryProcessor {
             // attendance, through the store that already collapses duplicates
             // per student-day on read.
             #if !ASSISTANT_APP
-            if hasInserts {
+            // Report every remote batch, inserts or not: a duplicate is two rows
+            // for one record, so only the inserted entities need a pass, and an
+            // empty report tells the coordinator the import-event safety net
+            // has nothing to sweep either.
+            if remoteCount > 0 {
                 Task { @MainActor in
-                    DeduplicationCoordinator.shared.requestDeduplication()
+                    DeduplicationCoordinator.shared.requestDeduplication(insertedEntities: insertedEntityNames)
                 }
             }
             #endif
@@ -217,17 +222,7 @@ actor PersistentHistoryProcessor {
                 return advanceToken(after: token, in: context)
             }
 
-            var hasInserts = false
-            var changedEntityNames: Set<String> = []
-            for transaction in transactions {
-                guard let changes = transaction.changes else { continue }
-                for change in changes {
-                    if change.changeType == .insert { hasInserts = true }
-                    if let name = change.changedObjectID.entity.name {
-                        changedEntityNames.insert(name)
-                    }
-                }
-            }
+            let (insertedEntityNames, changedEntityNames) = entityNames(in: transactions)
 
             guard let lastToken = transactions.last?.token else {
                 return .noTransactions
@@ -237,13 +232,29 @@ actor PersistentHistoryProcessor {
                 newToken: lastToken,
                 remoteCount: transactions.count,
                 totalCount: transactions.count,
-                hasInserts: hasInserts,
+                insertedEntityNames: insertedEntityNames,
                 changedEntityNames: changedEntityNames
             )
         } catch {
             logger.error("Failed to process history: \(error.localizedDescription)")
             return .failed
         }
+    }
+
+    /// The entities the transactions inserted into, and every entity they touched.
+    private static func entityNames(
+        in transactions: [NSPersistentHistoryTransaction]
+    ) -> (inserted: Set<String>, changed: Set<String>) {
+        var inserted: Set<String> = []
+        var changed: Set<String> = []
+        let changes: [NSPersistentHistoryChange] = transactions.flatMap { $0.changes ?? [] }
+        for change in changes {
+            guard let name: String = change.changedObjectID.entity.name else { continue }
+            changed.insert(name)
+            let isInsert: Bool = change.changeType == .insert
+            if isInsert { inserted.insert(name) }
+        }
+        return (inserted, changed)
     }
 
     /// Fetches the latest token even when there are no remote transactions,
@@ -265,7 +276,7 @@ actor PersistentHistoryProcessor {
             newToken: lastToken,
             remoteCount: 0,
             totalCount: transactions.count,
-            hasInserts: false,
+            insertedEntityNames: [],
             changedEntityNames: []
         )
     }
@@ -305,7 +316,7 @@ private enum HistoryProcessingResult: @unchecked Sendable {
         newToken: NSPersistentHistoryToken,
         remoteCount: Int,
         totalCount: Int,
-        hasInserts: Bool,
+        insertedEntityNames: Set<String>,
         changedEntityNames: Set<String>
     )
     case failed
