@@ -46,7 +46,7 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
     ) throws -> CDSequenceTrackEntity? {
         let trimmedArea = area.trimmed()
         let trimmedSequence = sequence.trimmed()
-        let allTracks = context.safeFetch(CDFetchRequest(CDSequenceTrackEntity.self))
+        let allTracks = sequenceTrackCandidates(area: trimmedArea, sequence: trimmedSequence, context: context)
         return allTracks.first(where: { track in
             track.area.trimmed().caseInsensitiveCompare(trimmedArea) == .orderedSame &&
             track.sequence.trimmed().caseInsensitiveCompare(trimmedSequence) == .orderedSame
@@ -61,7 +61,7 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
     ) throws -> CDSequenceTrackEntity {
         let trimmedArea = area.trimmed()
         let trimmedSequence = sequence.trimmed()
-        let allTracks = context.safeFetch(CDFetchRequest(CDSequenceTrackEntity.self))
+        let allTracks = sequenceTrackCandidates(area: trimmedArea, sequence: trimmedSequence, context: context)
         if let existing = allTracks.first(where: { track in
             track.area.trimmed().caseInsensitiveCompare(trimmedArea) == .orderedSame &&
             track.sequence.trimmed().caseInsensitiveCompare(trimmedSequence) == .orderedSame
@@ -93,7 +93,7 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         }
 
         let trackTitle = "\(trimmedArea) — \(trimmedSequence)"
-        let allTracks = context.safeFetch(CDFetchRequest(CDTrackEntity.self))
+        let allTracks = trackCandidates(title: trackTitle, context: context)
 
         let sequenceTrack = try? cdGetSequenceTrack(area: trimmedArea, sequence: trimmedSequence, context: context)
 
@@ -136,7 +136,7 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         let trimmedArea = area.trimmed()
         let trimmedSequence = sequence.trimmed()
         let trackTitle = "\(trimmedArea) — \(trimmedSequence)"
-        let allTracks = context.safeFetch(CDFetchRequest(CDTrackEntity.self))
+        let allTracks = trackCandidates(title: trackTitle, context: context)
         return preferredTrack(among: allTracks.filter { $0.title.trimmed() == trackTitle })
     }
 
@@ -176,15 +176,16 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         // so the gate is skipped there.
         guard !shouldDeferSharedStoreWrites(context: context) else { return }
 
-        let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
-        let matchingLessons = allLessons.filter { lesson in
-            lesson.area.trimmed().caseInsensitiveCompare(area) == .orderedSame &&
-            lesson.sequence.trimmed().caseInsensitiveCompare(sequence) == .orderedSame
-        }
-        .sorted { Int($0.orderInSequence) < Int($1.orderInSequence) }
+        let matchingLessons = sequenceLessons(area: area, sequence: sequence, context: context)
+            .sorted { Int($0.orderInSequence) < Int($1.orderInSequence) }
 
-        let allSteps = context.safeFetch(CDFetchRequest(CDTrackStepEntity.self))
-        let existingSteps = allSteps.filter { $0.track?.id == track.id }
+        // Steps of any track object carrying this id, not just `track.steps`:
+        // a cross-zone twin's steps are folded in as before.
+        let stepRequest = CDFetchRequest(CDTrackStepEntity.self)
+        if let trackID = track.id {
+            stepRequest.predicate = NSPredicate(format: "track.id == %@", trackID as CVarArg)
+        }
+        let existingSteps = context.safeFetch(stepRequest).filter { $0.track?.id == track.id }
 
         var existingStepsByLessonID: [UUID: CDTrackStepEntity] = [:]
         for step in existingSteps {
@@ -275,8 +276,17 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         }
 
         let trackID = track.id?.uuidString ?? ""
-        let allEnrollments = context.safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
-        let allStudents = context.safeFetch(CDFetchRequest(CDStudent.self))
+        let enrollmentRequest = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
+        enrollmentRequest.predicate = NSPredicate(format: "trackID == %@ AND studentID IN %@", trackID, studentIDs)
+        let allEnrollments = context.safeFetch(enrollmentRequest)
+        // Only canonical uuidStrings ever matched `id?.uuidString == studentID`.
+        let studentUUIDs = studentIDs.compactMap { id -> UUID? in
+            guard let uuid = UUID(uuidString: id), uuid.uuidString == id else { return nil }
+            return uuid
+        }
+        let studentRequest = CDFetchRequest(CDStudent.self)
+        studentRequest.predicate = NSPredicate(format: "id IN %@", studentUUIDs)
+        let allStudents = context.safeFetch(studentRequest)
 
         for studentID in studentIDs {
             let existingEnrollment = allEnrollments.first { enrollment in
@@ -355,34 +365,30 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
             return
         }
 
-        let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
-        let trackLessons = allLessons.filter { l in
-            l.area.trimmed().caseInsensitiveCompare(lessonArea.trimmed()) == .orderedSame &&
-            l.sequence.trimmed().caseInsensitiveCompare(lessonSequence.trimmed()) == .orderedSame
-        }
+        let trackLessons = sequenceLessons(
+            area: lessonArea.trimmed(), sequence: lessonSequence.trimmed(), context: context
+        )
 
         guard !trackLessons.isEmpty else { return }
 
-        let allLessonPresentations = context.safeFetch(CDFetchRequest(CDLessonPresentation.self))
-        let studentPresentations = allLessonPresentations.filter { $0.studentID == studentID }
-
         let trackLessonIDs = Set(trackLessons.compactMap { $0.id?.uuidString })
-        let proficientLessonIDs = Set(studentPresentations
-            .filter {
-                $0.stateRaw == LessonPresentationState.proficient.rawValue
-                    && trackLessonIDs.contains($0.lessonID)
-            }
-            .map(\.lessonID))
+        let markRequest = CDFetchRequest(CDLessonPresentation.self)
+        markRequest.predicate = NSPredicate(
+            format: "studentID == %@ AND stateRaw == %@ AND lessonID IN %@",
+            studentID, LessonPresentationState.proficient.rawValue, Array(trackLessonIDs)
+        )
+        let proficientLessonIDs = Set(context.safeFetch(markRequest).map(\.lessonID))
 
         let allProficient = trackLessonIDs.isSubset(of: proficientLessonIDs)
         guard allProficient else { return }
 
         let trackID = track.id?.uuidString ?? ""
-        let allEnrollments = context.safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
+        let enrollmentRequest = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
+        enrollmentRequest.predicate = NSPredicate(
+            format: "studentID == %@ AND trackID == %@ AND isActive == YES", studentID, trackID
+        )
 
-        if let enrollment = allEnrollments.first(where: {
-            $0.studentID == studentID && $0.trackID == trackID && $0.isActive
-        }) {
+        if let enrollment = context.safeFetch(enrollmentRequest).first {
             enrollment.isActive = false
             if let coordinator = saveCoordinator {
                 coordinator.save(context, reason: "Completing track enrollment")
@@ -391,5 +397,4 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
             }
         }
     }
-
 }

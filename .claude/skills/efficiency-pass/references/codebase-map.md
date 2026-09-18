@@ -31,6 +31,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Post-import dedup, scoped to what an import inserted | `DeduplicationCoordinator.requestDeduplication(insertedEntities:)` from the history processor; an import event alone (`requestDeduplicationAfterImport()`) runs nothing; a failed history read asks for the full sweep | `Services/DeduplicationCoordinator.swift` |
 | Debounced remote-change handling | `CloudKitSyncStatusService.scheduleRemoteChangeHandling` (500 ms) | `Services/CloudKitSyncStatusService.swift` |
 | Sync event log | `SyncEventLogger` (coalesces repeats, 1 s debounced write) | `Services/` |
+| Scoped reads for a sequence / track / student | `SequenceTrackService+ScopedReads` (`sequenceLessons`, `trackCandidates`, …) | Services |
 | Preceding-lesson lookups in a loop | `BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)` | Services |
 | Entity-scoped reaction to remote changes | `PersistentHistoryProcessor.processHistory` (posts `.schoolDayDataDidChange` etc.) | Services |
 | Zone repair gating | `SharedStoreZoneRepair+HistoryGate` (`gateDecision`, clean watermark) | Services |
@@ -62,9 +63,14 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    debounce. The per-card `@FetchRequest`s in `PresentationPill`, `PresentationPlannerCard`
    and `PracticeSessionCard` were removed in the 2026-09-10 audit (cards now take
    non-optional arrays from the parent); do not go looking for them.
-3. **Per-student loaders**: `StudentProgressTabViewModel.load` pulls 8 whole tables per
-   student; `SequenceTrackService` refetches whole tables per (student, lesson) cell in
-   checklist batch loops.
+3. **Per-student loaders**: fixed 2026-09-18 (`perf-baselines/2026-09-18-per-student-loaders.md`).
+   `StudentProgressTabViewModel.loadData` fetches by student / active track and looks
+   lessons up one at a time; `SequenceTrackService` reads through
+   `SequenceTrackService+ScopedReads` (a `CONTAINS[cd]` superset of the trimmed,
+   case-insensitive match it still applies in memory). Both keep managed-object
+   fetches so unsaved rows in the caller's context are still seen. Remaining
+   per-student whole-table reads: `StudentAnalysisService` (Insights) and
+   `StudentTrackDetailView` (all lessons + all marks).
 4. **Memory residents**: `AlbumLibrary` (page text of every album PDF, covers, embeddings;
    now pressure-aware), `ImageCache`, `SearchIndexService` (ids only now), the
    `PresentationRecordIndex`.
@@ -87,6 +93,11 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   suite, and read failures from the `.xcresult` (the log does not contain them).
 - Two `xcodebuild`s at once lock the build DB. Serial only. Never pipe xcodebuild through
   `tail`: the exit code becomes tail's.
+- `makeSplitStoreContext()` (the SQLite test store) has a shared configuration and no
+  CKShare, so `SequenceTrackService.getOrCreateTrack` throws there by design; seed
+  tracks directly when a SQLite read test needs one.
+- A predicate on a `UUID` attribute needs a `UUID` argument; a `uuidString` matches on
+  SQLite and silently finds nothing on the in-memory store (`UUIDPredicateArgumentTests`).
 - Two Core Data models in one process (migration-style tests) crash the `CD…(context:)`
   initialisers; use `NSEntityDescription.insertNewObject(forEntityName:into:)`.
 - The 100 ms type-check warning is per file; long `+` interpolation chains and literal date
