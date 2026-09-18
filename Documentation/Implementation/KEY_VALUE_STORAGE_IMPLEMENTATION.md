@@ -7,7 +7,7 @@ Key-Value Storage (iCloud KVS) has been fully enabled and integrated into the ap
 ## What Was Done
 
 ### 1. ✅ Entitlement Configuration
-- Added `com.apple.developer.ubiquity-kvstore-identifier` to `Maria_s_Notebook.entitlements`
+- Added `com.apple.developer.ubiquity-kvstore-identifier` to `CosmicDaybook.entitlements`
 - Configured with iCloud container: `iCloud.DanielSDeBerry.MariasNoteBook`
 
 ### 2. ✅ SyncedPreferencesStore Implementation
@@ -138,7 +138,7 @@ Potential improvements:
 
 ## Files Modified
 
-1. `Maria_s_Notebook.entitlements` - Added KVS entitlement
+1. `CosmicDaybook.entitlements` - Added KVS entitlement
 2. `Utils/SyncedPreferencesStore.swift` - New file (implementation)
 3. `Settings/AgeSettingsViews.swift` - Updated to use @SyncedAppStorage
 4. `Attendance/AttendanceEmail.swift` - Updated preferences and helpers

@@ -1,6 +1,6 @@
 # Private Cloud Compute (Apple server model)
 
-Maria's Notebook can use Apple's server-side model on **Private Cloud Compute
+Cosmic Daybook can use Apple's server-side model on **Private Cloud Compute
 (PCC)** for deliberately chosen jobs such as long report-card drafts. PCC is
 stateless, does not retain prompts, and is independently verifiable, while
 offering a larger context window and optional reasoning than the on-device
@@ -54,16 +54,16 @@ explicit Apple Private Cloud selection.
 ## Activating PCC (one-time, requires Apple approval)
 
 PCC uses a **managed entitlement**, so it is intentionally *not* in
-`Maria_s_Notebook.entitlements` yet — adding a managed entitlement that isn't in
+`CosmicDaybook.entitlements` yet — adding a managed entitlement that isn't in
 the provisioning profile breaks code-signing on every dev build.
 
 1. Request access at <https://developer.apple.com/private-cloud-compute/>.
    (Free of cloud API cost for App Store Small Business Program apps with under
-   2M first-time downloads — Maria's Notebook qualifies.)
+   2M first-time downloads — Cosmic Daybook qualifies.)
 2. After approval, in Xcode → target → **Signing & Capabilities**, add the
    **Private Cloud Compute** capability. Xcode adds the entitlement and updates
    the provisioning profile.
-3. Confirm `Maria_s_Notebook.entitlements` now contains:
+3. Confirm `CosmicDaybook.entitlements` now contains:
    ```xml
    <key>com.apple.developer.private-cloud-compute</key>
    <true/>

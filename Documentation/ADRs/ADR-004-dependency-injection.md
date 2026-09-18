@@ -76,7 +76,7 @@ final class AppDependencies {
 ```swift
 // In App
 @main
-struct MariasNotebookApp: App {
+struct CosmicDaybookApp: App {
     @State private var dependencies: AppDependencies
 
     init() {
@@ -380,7 +380,7 @@ extension AppDependencies {
     static func makeTest() throws -> AppDependencies {
         let description = NSPersistentStoreDescription()
         description.type = NSInMemoryStoreType
-        let container = NSPersistentContainer(name: "MariasNotebook")
+        let container = NSPersistentContainer(name: "CosmicDaybook")
         container.persistentStoreDescriptions = [description]
         container.loadPersistentStores { _, error in
             if let error { fatalError("Test store failed: \(error)") }

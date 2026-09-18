@@ -4,7 +4,7 @@ Command (fresh DerivedData, index store on, Debug, iPhone 17 simulator, Xcode 27
 
 ```bash
 DEVELOPER_DIR="/Applications/Xcode-beta.app/Contents/Developer" \
-  xcodebuild -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" \
+  xcodebuild -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" \
   -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   -derivedDataPath <fresh> -showBuildTimingSummary clean build
 ```
@@ -90,13 +90,13 @@ Build with `-warn-long-function-bodies=100 -warn-long-expression-type-checking=1
 - 117 ms — `Resources/ResourceTagPicker.swift:49:25` — getter for property 'body'
 - 116 ms — `Students/Detail/StudentLearningWorkspace.swift:31:25` — getter for property 'body'
 - 116 ms — `SmallSequencePlanner/SmallSequencePlannerViewModel.swift:87:18` — instance method 'buildCandidates(students:context:)'
-- 116 ms — `AppCore/MariasNotebookApp+MainWindow.swift:31:35` — getter for property 'appFlowContent'
+- 116 ms — `AppCore/CosmicDaybookApp+MainWindow.swift:31:35` — getter for property 'appFlowContent'
 - 114 ms — `Components/ClassSubjectChecklistView.swift:17:28` — expression
 - 111 ms — `Backup/Core/BackupPreferencesService.swift:65:16` — expression
 - 111 ms — `AppCore/RootView/RootDetailContent.swift:103:34` — expression
 - 109 ms — `Parsha/ParshaCalendarView.swift:73:25` — getter for property 'body'
 - 108 ms — `Students/Presentations/PresentationDetailView.swift:332:51` — getter for property 'postPresentationCaptureContent'
-- 107 ms — `AppCore/MariasNotebookApp+MainWindow.swift:48:33` — getter for property 'readyContent'
+- 107 ms — `AppCore/CosmicDaybookApp+MainWindow.swift:48:33` — getter for property 'readyContent'
 - 106 ms — `Components/SubjectGrainPill.swift:92:25` — getter for property 'body'
 - 106 ms — `AppCore/RootView.swift:665:5` — expression
 - 105 ms — `Today/ViewModels/TodayViewModel.swift:383:18` — instance method 'listIDsMatch'

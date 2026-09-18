@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-07-09
 
-> Authoritative summary lives in `Maria's Notebook/CLAUDE.md` ("Backup System").
+> Authoritative summary lives in `Cosmic Daybook/CLAUDE.md` ("Backup System").
 > This file is the longer-form companion. If they disagree, CLAUDE.md wins.
 
 ## Overview
@@ -53,7 +53,7 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 |------|---------|
 | `AppCore/AutoBackupAppDelegate.swift` | macOS quit — `applicationShouldTerminate` returns `.terminateLater`, backup runs async, then replies. |
 | `AppCore/BackupBackgroundTaskManager.swift` | iOS — `BGProcessingTask` registration + scheduling. |
-| `AppCore/MariasNotebookApp.swift` | iOS scene-phase `.background` trigger (under a `UIApplication` background-task assertion); starts the interval loop. |
+| `AppCore/CosmicDaybookApp.swift` | iOS scene-phase `.background` trigger (under a `UIApplication` background-task assertion); starts the interval loop. |
 
 ---
 
@@ -176,15 +176,15 @@ entity without backup coverage turns a test red.
 
 ## Testing
 
-- `Maria's Notebook Tests/Backup/BackupRoundTripTests.swift` — end-to-end round trips, encryption/verification, merge mode, corruption rejection, v18 entity fidelity.
-- `Maria's Notebook Tests/Backup/BackupCoverageTests.swift` — coverage exhaustiveness (registry ≡ writer ≡ importer ≡ model − exclusions).
-- `Maria's Notebook Tests/Backup/BackupCheckpointSafetyTests.swift` — checkpoint failure aborts before any destructive delete.
+- `Cosmic Daybook Tests/Backup/BackupRoundTripTests.swift` — end-to-end round trips, encryption/verification, merge mode, corruption rejection, v18 entity fidelity.
+- `Cosmic Daybook Tests/Backup/BackupCoverageTests.swift` — coverage exhaustiveness (registry ≡ writer ≡ importer ≡ model − exclusions).
+- `Cosmic Daybook Tests/Backup/BackupCheckpointSafetyTests.swift` — checkpoint failure aborts before any destructive delete.
 
 ```bash
 DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \
-  xcodebuild test -project "Maria's Notebook.xcodeproj" -scheme "Maria's Notebook" \
+  xcodebuild test -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" \
     -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
-    -only-testing:"Maria's Notebook Tests/BackupRoundTripTests" \
-    -only-testing:"Maria's Notebook Tests/BackupCoverageTests" \
-    -only-testing:"Maria's Notebook Tests/BackupCheckpointSafetyTests"
+    -only-testing:"Cosmic Daybook Tests/BackupRoundTripTests" \
+    -only-testing:"Cosmic Daybook Tests/BackupCoverageTests" \
+    -only-testing:"Cosmic Daybook Tests/BackupCheckpointSafetyTests"
 ```

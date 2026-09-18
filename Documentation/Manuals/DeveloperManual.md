@@ -1,4 +1,4 @@
-# Maria's Notebook — Developer Technical Reference Manual
+# Cosmic Daybook — Developer Technical Reference Manual
 
 **Version:** March 2026
 **Platform:** iOS 26+ / macOS 26+
@@ -11,12 +11,12 @@
 
 ## What the App Is
 
-Maria's Notebook is a Montessori teacher's all-in-one classroom management app. It tracks students, lessons, presentations, student work, attendance, observations, scheduling, curriculum progression, and more. It runs natively on iOS and macOS using SwiftUI, with Core Data (NSPersistentCloudKitContainer) for persistence and optional CloudKit for iCloud sync.
+Cosmic Daybook is a Montessori teacher's all-in-one classroom management app. It tracks students, lessons, presentations, student work, attendance, observations, scheduling, curriculum progression, and more. It runs natively on iOS and macOS using SwiftUI, with Core Data (NSPersistentCloudKitContainer) for persistence and optional CloudKit for iCloud sync.
 
 ## High-Level Module Map
 
 ```
-MariasNotebookApp (entry point)
+CosmicDaybookApp (entry point)
     |
     v
 AppBootstrapper (startup state machine)
@@ -89,9 +89,9 @@ CloudKit (iCloud)
 
 ## Entry Point
 
-**File:** `AppCore/MariasNotebookApp.swift`
+**File:** `AppCore/CosmicDaybookApp.swift`
 
-The `@main` struct `MariasNotebookApp` conforms to `App`. Its `init()` runs synchronously before any UI renders.
+The `@main` struct `CosmicDaybookApp` conforms to `App`. Its `init()` runs synchronously before any UI renders.
 
 ### Synchronous Init (`AppBootstrapping.performInitialSetup()`)
 
@@ -1317,7 +1317,7 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 
 ## Adding a New Entity
 
-1. **Add the entity in the Core Data model editor** (`MariasNotebook.xcdatamodeld`) with attributes.
+1. **Add the entity in the Core Data model editor** (`CosmicDaybook.xcdatamodeld`) with attributes.
 
 2. **Create the NSManagedObject subclass** in the appropriate feature directory or `Models/`:
 
@@ -1352,7 +1352,7 @@ public class CDMyNewEntity: NSManagedObject {
 
 3. **Add indexes** for frequently queried fields in the model editor.
 
-4. **Register in the Core Data model** — add the entity to `MariasNotebook.xcdatamodeld`.
+4. **Register in the Core Data model** — add the entity to `CosmicDaybook.xcdatamodeld`.
 
 5. **Add a lightweight migration** if modifying an existing entity's schema.
 
@@ -1561,7 +1561,7 @@ When modifying any model or adding new features:
 | `PerformanceLogger` | Frame timing and stutter detection |
 | `SyncEventLogger` | CloudKit event logging |
 | Settings > Data | Database statistics, export, integrity checks |
-| Console.app | Filter by `MariasNotebook` subsystem |
+| Console.app | Filter by `CosmicDaybook` subsystem |
 
 ## Build Configuration
 
@@ -1586,9 +1586,9 @@ When modifying any model or adding new features:
 # Appendix A: File Directory Map
 
 ```
-Maria's Notebook/
+Cosmic Daybook/
 +-- AppCore/
-|   +-- MariasNotebookApp.swift          App entry point
+|   +-- CosmicDaybookApp.swift          App entry point
 |   +-- AppBootstrapper.swift            Startup state machine
 |   +-- AppBootstrapping.swift           Synchronous init
 |   +-- AppDependencies.swift            DI container

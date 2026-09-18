@@ -2,7 +2,7 @@
 
 **Date:** April 2026
 **Status:** Preparation — ready to adopt when Swift 6.2 is stable
-**Applies to:** Maria's Notebook (Core Data + NSPersistentCloudKitContainer rewrite)
+**Applies to:** Cosmic Daybook (Core Data + NSPersistentCloudKitContainer rewrite)
 
 ---
 

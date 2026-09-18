@@ -1,7 +1,7 @@
 # Work Models Best Practices Guide
 
 ## Overview
-This document provides best practices for working with the Work-related models in Maria's Notebook. It reflects improvements made through systematic refactoring to eliminate redundancy and confusion.
+This document provides best practices for working with the Work-related models in Cosmic Daybook. It reflects improvements made through systematic refactoring to eliminate redundancy and confusion.
 
 ## Quick Reference
 

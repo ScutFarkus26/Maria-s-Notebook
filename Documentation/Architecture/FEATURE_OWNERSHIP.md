@@ -1,6 +1,6 @@
 # Feature Ownership Conventions
 
-These conventions define where new and existing code belongs. They describe source ownership, not new Swift modules; Maria's Notebook remains a single app target unless a separate modularization decision is made later.
+These conventions define where new and existing code belongs. They describe source ownership, not new Swift modules; Cosmic Daybook remains a single app target unless a separate modularization decision is made later.
 
 ## Core rule
 

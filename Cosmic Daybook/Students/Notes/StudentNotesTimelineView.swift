@@ -1,0 +1,487 @@
+// swiftlint:disable file_length
+//
+//  StudentNotesTimelineView.swift
+//  Cosmic Daybook
+//
+//  Created by Danny De Berry on 12/27/25.
+//
+
+import SwiftUI
+import CoreData
+
+extension StudentNotesViewModel {
+    // Hooks that the real view model can set; safe no-ops by default
+    var reloadItems: (() -> Void)? {
+        get { objc_getAssociatedObject(self, &AssociatedKeys.reload) as? () -> Void }
+        set { objc_setAssociatedObject(self, &AssociatedKeys.reload, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+    private struct AssociatedKeys {
+        nonisolated(unsafe) static var reload: UInt8 = 0
+    }
+}
+
+struct StudentNotesTimelineView: View {
+    let student: CDStudent
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(SaveCoordinator.self) private var saveCoordinator
+    @State private var viewModel: StudentNotesViewModel?
+
+    var body: some View {
+        Group {
+            if let viewModel {
+                StudentNotesTimelineList(viewModel: viewModel)
+            } else {
+                ProgressView()
+            }
+        }
+        .onAppear {
+            if viewModel == nil {
+                let newViewModel = StudentNotesViewModel(
+                    student: student,
+                    viewContext: viewContext,
+                    saveCoordinator: saveCoordinator
+                )
+                // Set up the reload function
+                newViewModel.reloadItems = {
+                    newViewModel.fetchAllNotes()
+                }
+                viewModel = newViewModel
+            }
+        }
+    }
+}
+
+// MARK: - Internal List View
+// swiftlint:disable:next type_body_length
+struct StudentNotesTimelineList: View {
+    @Bindable var viewModel: StudentNotesViewModel
+    @Environment(\.calendar) var calendar
+    @Environment(\.dependencies) var dependencies
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
+
+    enum NoteFilter: String, CaseIterable, Identifiable {
+        case all = "All Notes"
+        case reportItems = "Report Items Only"
+        case followUp = "Needs Follow-Up"
+
+        var id: String { rawValue }
+    }
+
+    @State var selectedFilter: NoteFilter = .all
+    @State private var newNoteText: String = ""
+    @State private var noteBeingEdited: CDNote?
+
+    // Search and tag filtering state
+    @State var searchText: String = ""
+    @State var debouncedSearchText: String = ""
+    @State var selectedFilterTags: Set<String> = []
+    @State private var showingTagFilter: Bool = false
+
+    // Batch selection state
+    @State var isSelecting: Bool = false
+    @State var selectedNoteIDs: Set<UUID> = []
+    @State private var showingDeleteConfirmation: Bool = false
+
+    // Pagination state
+    @State var displayedCount: Int = 30
+    let pageSize: Int = 30
+
+    var body: some View {
+        VStack(spacing: 0) {
+            searchBar
+            filterBar
+            if showingTagFilter { tagFilterSection }
+            if hasActiveFilters { activeFiltersSummary }
+            Divider()
+            notesListContent
+            Divider()
+            quickNoteBar
+        }
+        #if os(iOS)
+        .sheet(item: $noteBeingEdited) { note in
+            NoteEditSheet(note: note) {
+                // Reload the view model after edits to reflect changes
+                viewModel.reload()
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        #else
+        .onChange(of: noteBeingEdited?.id) { _, _ in
+            guard let noteID = noteBeingEdited?.id else { return }
+            openWindow(id: "NoteEditorWindow", value: noteID)
+            noteBeingEdited = nil
+        }
+        #endif
+        .onReceive(NotificationCenter.default.publisher(for: .noteDidSave)) { _ in
+            viewModel.reload()
+        }
+        .toolbar {
+            // Selection mode toggle
+            ToolbarItem(placement: .automatic) {
+                Button(isSelecting ? "Done" : "Select") {
+                    adaptiveWithAnimation {
+                        if isSelecting {
+                            selectedNoteIDs.removeAll()
+                        }
+                        isSelecting.toggle()
+                    }
+                }
+            }
+
+            // Batch actions menu (only when selecting and items are selected)
+            if isSelecting && !selectedNoteIDs.isEmpty {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Button(role: .destructive) {
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete (\(selectedNoteIDs.count))", systemImage: "trash")
+                        }
+
+                        Divider()
+
+                        // Add tags from common tags
+                        Menu {
+                            ForEach(TagHelper.commonTags, id: \.0) { name, color in
+                                Button {
+                                    batchAddTag(TagHelper.createTag(name: name, color: color))
+                                } label: {
+                                    Label(name, systemImage: "tag")
+                                }
+                            }
+                        } label: {
+                            Label("Add Tag", systemImage: "tag.fill")
+                        }
+
+                        // Remove tags used by selected notes
+                        let selectedItems = viewModel.items.filter { selectedNoteIDs.contains($0.id) }
+                        let usedTags = Set(selectedItems.flatMap { $0.tags })
+                        if !usedTags.isEmpty {
+                            Menu {
+                                ForEach(
+                                    usedTags.sorted { TagHelper.tagName($0) < TagHelper.tagName($1) },
+                                    id: \.self
+                                ) { tag in
+                                    Button {
+                                        batchRemoveTag(tag)
+                                    } label: {
+                                        Label(TagHelper.tagName(tag), systemImage: "minus.circle")
+                                    }
+                                }
+                            } label: {
+                                Label("Remove Tag", systemImage: "tag.slash")
+                            }
+                        }
+
+                        Divider()
+
+                        Button {
+                            batchToggleFollowUp()
+                        } label: {
+                            Label("Toggle Follow-Up", systemImage: "flag")
+                        }
+
+                        Button {
+                            batchToggleReportFlag()
+                        } label: {
+                            Label("Toggle Report Flag", systemImage: "doc.text")
+                        }
+
+                        Button {
+                            batchTogglePin()
+                        } label: {
+                            Label("Toggle Pin", systemImage: "pin")
+                        }
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "Delete \(selectedNoteIDs.count) note\(selectedNoteIDs.count == 1 ? "" : "s")?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                batchDelete()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This action cannot be undone.")
+        }
+    }
+
+    // MARK: - Extracted Sections
+
+    private var searchBar: some View {
+        DebouncedSearchField("Search notes...", text: $searchText) { debounced in
+            debouncedSearchText = debounced
+            resetPagination()
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private var filterBar: some View {
+        HStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(NoteFilter.allCases) { filter in
+                        PillButton(
+                            title: filter.rawValue,
+                            isSelected: selectedFilter == filter
+                        ) {
+                            adaptiveWithAnimation {
+                                selectedFilter = filter
+                                resetPagination()
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button {
+                showingTagFilter.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                    if !selectedFilterTags.isEmpty {
+                        Text("\(selectedFilterTags.count)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                }
+                .foregroundStyle(selectedFilterTags.isEmpty ? Color.secondary : Color.accentColor)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Filter by tag")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.background)
+    }
+
+    private var notesListContent: some View {
+        let items = makeDisplayedItems()
+        return Group {
+            if items.displayed.isEmpty {
+                ContentUnavailableView(
+                    label: {
+                        Label("No Notes Found", systemImage: "note.text")
+                    },
+                    description: {
+                        Text(emptyStateMessage)
+                    }
+                )
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        if !items.pinned.isEmpty {
+                            Section {
+                                ForEach(items.pinned) { item in
+                                    noteRow(for: item)
+                                }
+                            } header: {
+                                pinnedSectionHeader
+                            }
+                        }
+
+                        ForEach(items.grouped, id: \.key) { sequence in
+                            Section {
+                                ForEach(sequence.items) { item in
+                                    noteRow(for: item)
+                                }
+                            } header: {
+                                Text(monthYearHeader(for: sequence.key))
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                    .textCase(nil)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(.background)
+                            }
+                        }
+
+                        if items.hasMore {
+                            loadMoreButton(remaining: items.remainingCount)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var quickNoteBar: some View {
+        HStack(spacing: 10) {
+            TextField("Add a note...", text: $newNoteText)
+                .textFieldStyle(.roundedBorder)
+
+            Button(action: addNote) {
+                Image(systemName: "paperplane.fill")
+                    .font(.headline)
+                    .foregroundStyle(canAdd ? Color.accentColor : Color.secondary)
+            }
+            .disabled(!canAdd)
+        }
+        .padding()
+        .background(.bar)
+    }
+
+    private var canAdd: Bool {
+        !newNoteText.trimmed().isEmpty
+    }
+    
+    private func addNote() {
+        guard canAdd else { return }
+        adaptiveWithAnimation {
+            viewModel.addGeneralNote(body: newNoteText)
+            newNoteText = ""
+        }
+    }
+    
+    private var emptyStateMessage: String {
+        if hasActiveFilters {
+            return "No notes match your current filters."
+        }
+        switch selectedFilter {
+        case .all:
+            return "This student has no notes recorded yet."
+        case .reportItems:
+            return "No notes are flagged for reports."
+        case .followUp:
+            return "No notes need follow-up."
+        }
+    }
+
+    private func resolveEditableNote(from item: UnifiedNoteItem) -> CDNote? {
+        // Attempt to look up the CDNote by ID.
+        // If it returns a valid CDNote object (whether attached to Work, CDLesson, or General), it will be editable.
+        return viewModel.note(by: item.id)
+    }
+
+    // MARK: - CDNote Row
+
+    @ViewBuilder
+    private func noteRow(for item: UnifiedNoteItem) -> some View {
+        HStack(spacing: 12) {
+            // Selection checkbox (only in selection mode)
+            if isSelecting {
+                Button {
+                    toggleSelection(for: item.id)
+                } label: {
+                    Image(systemName: selectedNoteIDs.contains(item.id)
+                          ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(selectedNoteIDs.contains(item.id)
+                                         ? Color.accentColor : Color.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // CDNote content
+            Button {
+                if isSelecting {
+                    toggleSelection(for: item.id)
+                } else if let note = resolveEditableNote(from: item) {
+                    noteBeingEdited = note
+                }
+            } label: {
+                StudentNoteRowView(item: item)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .contextMenu {
+            if !isSelecting, let note = resolveEditableNote(from: item) {
+                Button {
+                    noteBeingEdited = note
+                } label: {
+                    Label("Edit Note", systemImage: "pencil")
+                }
+
+                Button {
+                    togglePin(note)
+                } label: {
+                    Label(note.isPinned ? "Unpin" : "Pin to Top",
+                          systemImage: note.isPinned ? "pin.slash" : "pin")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    viewModel.delete(item: item)
+                } label: {
+                    Label("Delete Note", systemImage: "trash")
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+
+        Divider()
+            .padding(.leading, isSelecting ? 52 : 16)
+    }
+
+    private func toggleSelection(for id: UUID) {
+        if selectedNoteIDs.contains(id) {
+            selectedNoteIDs.remove(id)
+        } else {
+            selectedNoteIDs.insert(id)
+        }
+    }
+
+    // MARK: - Load More Button
+
+    private func loadMoreButton(remaining: Int) -> some View {
+        Button {
+            loadMoreItems()
+        } label: {
+            HStack {
+                Spacer()
+                VStack(spacing: 4) {
+                    Text("Load More")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("\(remaining) more notes")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 16)
+            .background(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Pinned Section Header
+
+    private var pinnedSectionHeader: some View {
+        SectionHeaderView(title: "Pinned", icon: "pin.fill", iconColor: .orange)
+    }
+
+    // MARK: - Pin/Unpin
+
+    private func togglePin(_ note: CDNote) {
+        adaptiveWithAnimation {
+            note.isPinned.toggle()
+            note.updatedAt = Date()
+            viewModel.viewContext.safeSave()
+            viewModel.fetchAllNotes()
+        }
+    }
+
+}
+
+extension StudentNotesViewModel {
+    func reload() { self.reloadItems?() }
+}

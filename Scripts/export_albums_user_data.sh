@@ -1,6 +1,6 @@
 #!/bin/bash
 # Exports the standalone Albums app's annotations to JSON for import into
-# Maria's Notebook (Albums → Library Options → Import Albums App Data…).
+# Cosmic Daybook (Albums → Library Options → Import Albums App Data…).
 #
 # The notebook is sandboxed and can't read another app's container, so this
 # script does the reading and writes a file you then pick in the app.

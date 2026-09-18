@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.developer.aps-environment</key>
+	<string>development</string>
+	<!--
+	  The app is Cosmic Daybook, but its bundle identifier is still
+	  DanielSDeBerry.MariasNoteBook, so every derived id below resolves to the
+	  historical iCloud.DanielSDeBerry.MariasNoteBook container. CloudKit
+	  containers cannot be renamed and this one holds the live classroom data,
+	  so the bundle id (and everything derived from it) stays as is.
+	-->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.$(CFBundleIdentifier)</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudDocuments</string>
+		<string>CloudKit</string>
+	</array>
+	<key>com.apple.developer.ubiquity-container-identifiers</key>
+	<array>
+		<string>iCloud.$(CFBundleIdentifier)</string>
+	</array>
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+	<!--
+	  Security-scoped bookmarks must survive relaunch: the Albums feature keeps
+	  reading the guide's teaching-album folders, and the backup destination
+	  folder is remembered the same way (Backup/Core/BackupDestination.swift).
+	-->
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
+	<array>
+		<string>/Library/Preferences/com.apple.networkd.plist</string>
+	</array>
+	<!--
+	  MCP server (macOS): the per-install auth token that Claude Desktop's
+	  bridge script reads lives in ~/.cosmic-daybook/ — the sandbox
+	  container would be unreadable to external MCP clients (macOS
+	  container-protection TCC). Scoped to that one hidden folder; see
+	  Documentation/Architecture/MCP_SERVER.md.
+	-->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
+	<array>
+		<string>/.cosmic-daybook/</string>
+	</array>
+	<!--
+	  Private Cloud Compute: once Apple grants the managed entitlement
+	  (request at https://developer.apple.com/private-cloud-compute/ and add the
+	  capability in Signing & Capabilities), add:
+	      <key>com.apple.developer.private-cloud-compute</key><true/>
+	  Until then PrivateCloudModelClient reports unavailable and routing falls
+	  back to Claude — see Documentation/Architecture/PrivateCloudCompute.md.
+	-->
+</dict>
+</plist>

@@ -9,10 +9,10 @@ Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit 
 ---
 
 ## Phase 0 — Honesty pass (quick correctness wins)
-- [x] Remove the dead "<App> Help" menu item + its ⌘? binding (`MariasNotebookApp.swift`). *(wire to real hosted help later)*
+- [x] Remove the dead "<App> Help" menu item + its ⌘? binding (`CosmicDaybookApp.swift`). *(wire to real hosted help later)*
 - [x] Wire ⌘F → the app-wide search sheet (`RootView` observes `.focusSearch` → `isShowingSearch`).
-- [x] Add `SidebarCommands()` so View ▸ Show/Hide Sidebar (⌃⌘S) exists (`MariasNotebookApp.swift`).
-- [x] Remove the hand-rolled ⌘W Close; rely on SwiftUI's automatic Close (`MariasNotebookApp.swift`).
+- [x] Add `SidebarCommands()` so View ▸ Show/Hide Sidebar (⌃⌘S) exists (`CosmicDaybookApp.swift`).
+- [x] Remove the hand-rolled ⌘W Close; rely on SwiftUI's automatic Close (`CosmicDaybookApp.swift`).
 - [x] Title the detail windows with their object (`StudentDetailWindowHost`/`WorkDetailWindowHost`/`LessonDetailWindowHost` → `.navigationTitle`).
 - [ ] Move the sync/database troubleshooting toggles out of the Help menu → **deferred to Phase 2** (folded into the Settings rebuild, with confirmation gating).
 - [x] Made default window size (1000×720) ≥ the enforced minimum so a new window isn't snapped wider. Full removal of the `EnsureResizableWindow` AppKit hack → **deferred to Phase 3** (window-chrome rework; keep `SheetWindowResizer`).
@@ -32,7 +32,7 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 - **Still pre-existing / untouched:** ⌘N quadruple-binding (menu New Lesson vs screen-local New Student/New Todo buttons) pre-dates the branch.
 
 ## Phase 1 — Accessibility baseline + radial-menu compliance
-- [x] Radial menu kept and made compliant: 5 actions added to File ▸ New with ⌃⌘P/R/T/K shortcuts (via new `AppRouter.triggerNewTodo`/`triggerNewNote` + RootView handlers); macOS `.contextMenu` (right-click) on the button; per-action `.accessibilityAction(named:)` + "Open Command Bar"; de-touched the accessibility hint on macOS. (`QuickNoteGlassButton.swift`, `MariasNotebookApp.swift`, `AppRouter.swift`, `RootView.swift`)
+- [x] Radial menu kept and made compliant: 5 actions added to File ▸ New with ⌃⌘P/R/T/K shortcuts (via new `AppRouter.triggerNewTodo`/`triggerNewNote` + RootView handlers); macOS `.contextMenu` (right-click) on the button; per-action `.accessibilityAction(named:)` + "Open Command Bar"; de-touched the accessibility hint on macOS. (`QuickNoteGlassButton.swift`, `CosmicDaybookApp.swift`, `AppRouter.swift`, `RootView.swift`)
 - [x] Honor Reduce Motion on macOS in `adaptiveWithAnimation` (`AdaptiveAnimationModifier.swift` now checks `NSWorkspace…ShouldReduceMotion`).
 - [x] Accessibility labels/state: "Sync Now → Syncing/Idle" (`accessibilityValue`) and launch spinners (`accessibilityElement(.combine)`) done. Today's date chevrons now identify "Previous School Day" and "Next School Day" and provide matching macOS help text.
 - [~] `.help()` tooltips: QuickNote button + global Search button done. Broader icon-only tooltip + hover/pointer-style sweep → folded into Phase 5 polish.

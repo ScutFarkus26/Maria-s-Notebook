@@ -1,6 +1,6 @@
 # CloudKit Verification Guide
 
-This guide explains how to verify CloudKit sync is working correctly in Maria's Notebook.
+This guide explains how to verify CloudKit sync is working correctly in Cosmic Daybook.
 
 **Last Updated**: January 2026
 

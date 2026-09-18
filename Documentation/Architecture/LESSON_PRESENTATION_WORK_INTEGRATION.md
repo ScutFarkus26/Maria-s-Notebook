@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the cohesive integration between Lessons, Presentations, and Work in Maria's Notebook. The integration creates a complete journey from curriculum content through teaching sessions to student practice and follow-up work.
+This document describes the cohesive integration between Lessons, Presentations, and Work in Cosmic Daybook. The integration creates a complete journey from curriculum content through teaching sessions to student practice and follow-up work.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ Lesson
 
 ## Implementation Components
 
-### 1. Model Extensions (`Maria's Notebook/Models/ModelExtensions.swift`)
+### 1. Model Extensions (`Cosmic Daybook/Models/ModelExtensions.swift`)
 
 Provides convenience methods for traversing relationships:
 
@@ -52,7 +52,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 ### 2. Enhanced WorkDetailView
 
-**Location**: `Maria's Notebook/Work/Detail/WorkDetailView.swift`
+**Location**: `Cosmic Daybook/Work/Detail/WorkDetailView.swift`
 
 **New Features**:
 - Displays presentation context section showing:
@@ -73,7 +73,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 ### 3. Presentation Detail with Work Summary
 
-**Location**: `Maria's Notebook/Presentations/Assignments/LessonAssignmentDetailSheet.swift`
+**Location**: `Cosmic Daybook/Presentations/Assignments/LessonAssignmentDetailSheet.swift`
 
 **New Features**:
 - Work summary section showing:
@@ -89,7 +89,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 ### 4. Enhanced GroupPracticeSheet
 
-**Location**: `Maria's Notebook/Work/GroupPracticeSheet.swift`
+**Location**: `Cosmic Daybook/Work/GroupPracticeSheet.swift`
 
 **New Features**:
 - Presentation & lesson context section showing:
@@ -111,7 +111,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 ### 5. LessonJourneyTimeline Component
 
-**Location**: `Maria's Notebook/Components/LessonJourneyTimeline.swift`
+**Location**: `Cosmic Daybook/Components/LessonJourneyTimeline.swift`
 
 **Purpose**: Visual timeline showing the complete journey from lesson to outcomes
 
@@ -135,7 +135,7 @@ LessonJourneyTimeline(lesson: lesson, context: context)
 
 ### 6. LessonProgressView
 
-**Location**: `Maria's Notebook/Lessons/LessonProgressView.swift`
+**Location**: `Cosmic Daybook/Lessons/LessonProgressView.swift`
 
 **Purpose**: Unified view showing complete progress and usage for a lesson
 
@@ -186,7 +186,7 @@ LessonProgressView(lesson: lesson) {
 
 ### 7. FollowUpWorkService
 
-**Location**: `Maria's Notebook/Services/FollowUpWorkService.swift`
+**Location**: `Cosmic Daybook/Services/FollowUpWorkService.swift`
 
 **Purpose**: Automate creation of follow-up work from presentation flags
 

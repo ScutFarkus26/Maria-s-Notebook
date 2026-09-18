@@ -1,4 +1,4 @@
-# Maria's Notebook — User Guide for Teachers
+# Cosmic Daybook — User Guide for Teachers
 
 **A complete guide to managing your Montessori classroom**
 
@@ -8,7 +8,7 @@
 
 ## First Launch
 
-When you open Maria's Notebook for the first time, you'll see a four-page welcome walkthrough:
+When you open Cosmic Daybook for the first time, you'll see a four-page welcome walkthrough:
 
 1. **Welcome** — An overview of what the app does: manage students, lessons, work, and observations all in one place.
 2. **Add Your Students** — A reminder to start by adding your students. You can organize them by level and track their lesson history.
@@ -730,7 +730,7 @@ Create templates in Settings for common meeting types (e.g., "Progress Check," "
 
 # AI Assistant
 
-Maria's Notebook includes an AI chat feature powered by Claude. It can analyze your classroom data and answer questions.
+Cosmic Daybook includes an AI chat feature powered by Claude. It can analyze your classroom data and answer questions.
 
 ## Setup
 

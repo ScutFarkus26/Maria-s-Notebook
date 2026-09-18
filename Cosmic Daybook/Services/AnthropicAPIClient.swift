@@ -1,0 +1,443 @@
+//
+//  AnthropicAPIClient.swift
+//  Cosmic Daybook
+//
+//  Direct Anthropic API client for student analysis
+//
+
+import Foundation
+import OSLog
+
+/// Direct implementation that connects to Anthropic's Claude API
+final class AnthropicAPIClient: MCPClientProtocol {
+    static let logger = Logger.ai
+
+    let apiKey: String
+    let session: URLSession
+    private let baseURL: URL
+
+    init(apiKey: String? = nil, session: URLSession = .shared) {
+        // Try to load API key from Keychain (auto-migrates from UserDefaults if needed)
+        self.apiKey = apiKey ?? Self.loadAPIKey()
+        self.session = session
+
+        // Hardcoded URL should always be valid, but make it explicit
+        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
+            preconditionFailure("Invalid hardcoded Anthropic API URL. This is a programming error.")
+        }
+        self.baseURL = url
+    }
+
+    // MARK: - API Key Validation
+
+    /// Shared guard that throws `AnthropicAPIError.noAPIKey` when the key is empty.
+    func validateAPIKey() throws {
+        guard !apiKey.isEmpty else {
+            throw AnthropicAPIError.noAPIKey
+        }
+    }
+
+    // MARK: - MCPClientProtocol Implementation
+
+    func generateText(prompt: String, temperature: Double) async throws -> String {
+        try await generateText(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
+    }
+
+    func generateText(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?
+    ) async throws -> String {
+        try await generateText(
+            prompt: prompt, systemMessage: systemMessage,
+            temperature: temperature, maxTokens: maxTokens,
+            model: nil, timeout: nil
+        )
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    func generateText(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?,
+        model: String?, timeout: TimeInterval?
+    ) async throws -> String {
+        try validateAPIKey()
+
+        let response = try await sendClaudeRequest(
+            prompt: prompt,
+            systemMessage: systemMessage,
+            temperature: temperature,
+            maxTokens: maxTokens ?? 2048,
+            model: model,
+            timeout: timeout
+        )
+
+        return response
+    }
+
+    func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
+        try await generateStructuredJSON(prompt: prompt, systemMessage: nil, temperature: temperature, maxTokens: nil)
+    }
+
+    func generateStructuredJSON(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?
+    ) async throws -> String {
+        try await generateStructuredJSON(
+            prompt: prompt, systemMessage: systemMessage,
+            temperature: temperature, maxTokens: maxTokens,
+            model: nil, timeout: nil
+        )
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    func generateStructuredJSON(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?,
+        model: String?, timeout: TimeInterval?
+    ) async throws -> String {
+        try validateAPIKey()
+
+        // Enhance prompt to ensure JSON output
+        // swiftlint:disable:next line_length
+        let jsonInstruction = "IMPORTANT: Return ONLY valid JSON in your response. Do not include any markdown formatting, code blocks, or explanatory text. Just the raw JSON object."
+        let enhancedPrompt = """
+        \(prompt)
+
+        \(jsonInstruction)
+        """
+
+        let response = try await sendClaudeRequest(
+            prompt: enhancedPrompt,
+            systemMessage: systemMessage,
+            temperature: temperature,
+            maxTokens: maxTokens ?? 4096,
+            model: model,
+            timeout: timeout
+        )
+
+        return try cleanAndValidateJSON(response)
+    }
+
+    // MARK: - Private Helpers
+
+    private func sendClaudeRequest(
+        prompt: String, systemMessage: String? = nil,
+        temperature: Double, maxTokens: Int,
+        model: String? = nil, timeout: TimeInterval? = nil
+    ) async throws -> String {
+        try validateAPIKey()
+
+        let resolvedModel = model ?? "claude-sonnet-4-20250514"
+        let resolvedTimeout = timeout ?? 60
+
+        Self.logger.debug(
+            "Making request to \(self.baseURL, privacy: .public) with model \(resolvedModel, privacy: .public)"
+        )
+
+        let messages: [[String: String]] = [["role": "user", "content": prompt]]
+        let config = ClaudeRequestConfig(
+            model: resolvedModel, maxTokens: maxTokens,
+            temperature: temperature, timeout: resolvedTimeout
+        )
+        let request = try buildAPIRequest(messages: messages, systemMessage: systemMessage, config: config)
+
+        do {
+            Self.logger.debug("Sending request...")
+            let (data, response) = try await session.data(for: request)
+            Self.logger.debug("Received response")
+
+            let httpResponse = try validateHTTPResponse(response, data: data)
+            let (responseBody, text) = try parseResponseBody(data)
+
+            trackAPIUsage(responseBody: responseBody, model: resolvedModel)
+            _ = httpResponse // used for validation only
+            return text
+        } catch let error as AnthropicAPIError {
+            throw error
+        } catch {
+            throw mapNetworkError(error)
+        }
+    }
+
+    // MARK: - Multi-Turn Conversation
+
+    /// Send a multi-turn conversation to the Anthropic API.
+    func sendConversation(
+        messages: [[String: String]],
+        systemMessage: String? = nil,
+        temperature: Double = 0.7,
+        maxTokens: Int = 2048,
+        model: String? = nil,
+        timeout: TimeInterval? = nil
+    ) async throws -> String {
+        try validateAPIKey()
+
+        let resolvedModel = model ?? "claude-sonnet-4-20250514"
+        let resolvedTimeout = timeout ?? 90
+
+        Self.logger.debug(
+            "Sending conversation with \(messages.count) messages using \(resolvedModel, privacy: .public)"
+        )
+
+        let config = ClaudeRequestConfig(
+            model: resolvedModel, maxTokens: maxTokens,
+            temperature: temperature, timeout: resolvedTimeout
+        )
+        let request = try buildAPIRequest(messages: messages, systemMessage: systemMessage, config: config)
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            _ = try validateHTTPResponse(response, data: data)
+            let (_, text) = try parseResponseBody(data)
+            return text
+        } catch let error as AnthropicAPIError {
+            throw error
+        } catch {
+            throw mapNetworkError(error)
+        }
+    }
+
+}
+
+// MARK: - Request Building & Response Handling
+
+extension AnthropicAPIClient {
+
+    func buildAPIRequest(
+        messages: Any, systemMessage: String?, config: ClaudeRequestConfig
+    ) throws -> URLRequest {
+        var request = URLRequest(url: baseURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.timeoutInterval = config.timeout
+
+        var requestBody: [String: Any] = [
+            "model": config.model,
+            "max_tokens": config.maxTokens,
+            "temperature": config.temperature,
+            "messages": messages
+        ]
+        if let systemMessage, !systemMessage.isEmpty {
+            requestBody["system"] = systemMessage
+        }
+        if config.stream { requestBody["stream"] = true }
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        return request
+    }
+
+    @discardableResult
+    func validateHTTPResponse(
+        _ response: URLResponse, data: Data
+    ) throws -> HTTPURLResponse {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AnthropicAPIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            throw buildHTTPError(statusCode: httpResponse.statusCode, data: data)
+        }
+        return httpResponse
+    }
+
+    func buildHTTPError(statusCode: Int, data: Data) -> AnthropicAPIError {
+        let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+        Self.logger.debug("HTTP Status Code: \(statusCode, privacy: .public)")
+
+        guard let errorBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let error = errorBody["error"] as? [String: Any],
+              let message = error["message"] as? String else {
+            return .apiError(statusCode: statusCode, message: "Unknown error. Response: \(responseString)")
+        }
+
+        let helpfulMessage: String
+        switch statusCode {
+        case 401:
+            helpfulMessage = "Invalid API key. Please check your API key in Settings. \(message)"
+        case 429:
+            helpfulMessage = "Rate limit exceeded. Please wait a moment and try again. \(message)"
+        case 529:
+            helpfulMessage = "Claude API is temporarily overloaded. " +
+                "Please try again in a few moments. \(message)"
+        default:
+            helpfulMessage = message
+        }
+        return .apiError(statusCode: statusCode, message: helpfulMessage)
+    }
+
+    func parseResponseBody(_ data: Data) throws -> ([String: Any], String) {
+        let responseBody: [String: Any]
+        do {
+            guard let body = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw AnthropicAPIError.invalidResponse
+            }
+            responseBody = body
+        } catch {
+            throw AnthropicAPIError.invalidResponse
+        }
+        guard let content = responseBody["content"] as? [[String: Any]],
+              let firstContent = content.first,
+              let text = firstContent["text"] as? String else {
+            throw AnthropicAPIError.invalidResponseFormat
+        }
+        return (responseBody, text)
+    }
+
+    func trackAPIUsage(responseBody: [String: Any], model: String) {
+        let usage = responseBody["usage"] as? [String: Any]
+        let inputTokens = usage?["input_tokens"] as? Int
+        let outputTokens = usage?["output_tokens"] as? Int
+        Task { @MainActor in
+            APIUsageTracker.shared.logUsage(
+                model: model, inputTokens: inputTokens, outputTokens: outputTokens
+            )
+        }
+    }
+
+    func mapNetworkError(_ error: Error) -> AnthropicAPIError {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet:
+                return .apiError(statusCode: 0, message: "No internet connection. Please check your network settings.")
+            case .cannotFindHost, .cannotConnectToHost:
+                Self.logger.debug(
+                    // swiftlint:disable:next line_length
+                    "URLError: \(urlError.code.rawValue, privacy: .public) - \(urlError.localizedDescription, privacy: .public)"
+                )
+                return .apiError(
+                    statusCode: 0,
+                    message: "Cannot reach api.anthropic.com. Check your internet connection or firewall settings."
+                )
+            case .timedOut:
+                return .apiError(statusCode: 0, message: "Request timed out. Please try again.")
+            case .secureConnectionFailed:
+                return .apiError(statusCode: 0,
+                                message: "Secure connection failed. Check your system date/time settings.")
+            default:
+                return .apiError(statusCode: 0, message: "Network error: \(urlError.localizedDescription)")
+            }
+        }
+        Self.logger.debug("Unknown error: \(error.localizedDescription)")
+        return .apiError(statusCode: 0, message: "Network error: \(error.localizedDescription)")
+    }
+
+    func stripMarkdownCodeBlock(_ response: String) -> String {
+        var cleaned = response.trimmed()
+        if cleaned.hasPrefix("```json") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```json\n", with: "")
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmed()
+        } else if cleaned.hasPrefix("```") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```", with: "")
+                .trimmed()
+        }
+        return cleaned
+    }
+
+    func cleanAndValidateJSON(_ response: String) throws -> String {
+        let cleaned = stripMarkdownCodeBlock(response)
+
+        do {
+            _ = try JSONSerialization.jsonObject(with: Data(cleaned.utf8))
+        } catch {
+            throw AnthropicAPIError.invalidJSON(cleaned)
+        }
+
+        return cleaned
+    }
+}
+
+// MARK: - API Key Management
+
+extension AnthropicAPIClient {
+
+    private static let keychain = KeychainStore(
+        service: "com.danielsdeberry.MariasNoteBook",
+        account: "anthropicAPIKey"
+    )
+
+    private static func loadAPIKey() -> String {
+        // Try Keychain first (secure storage)
+        if let data = try? keychain.get(), let key = String(data: data, encoding: .utf8), !key.isEmpty {
+            return key
+        }
+
+        // Fall back to UserDefaults and auto-migrate to Keychain
+        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+            if let data = key.data(using: .utf8) {
+                try? keychain.set(data)
+                UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+                logger.info("Migrated API key from UserDefaults to Keychain")
+            }
+            return key
+        }
+
+        return ""
+    }
+
+    /// Save API key to Keychain
+    static func saveAPIKey(_ key: String) {
+        guard let data = key.data(using: .utf8) else { return }
+        do {
+            try keychain.set(data)
+        } catch {
+            logger.error("Failed to save API key to Keychain: \(error.localizedDescription)")
+        }
+    }
+
+    /// Check if API key is configured
+    static func hasAPIKey() -> Bool {
+        let key = loadAPIKey()
+        return !key.isEmpty && (key.hasPrefix("sk-ant-api03-") || key.hasPrefix("sk-ant-"))
+    }
+
+    /// Clear saved API key
+    static func clearAPIKey() {
+        try? keychain.delete()
+        UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+    }
+
+    struct ClaudeRequestConfig {
+        let model: String
+        let maxTokens: Int
+        let temperature: Double
+        let timeout: TimeInterval
+        let stream: Bool
+
+        init(
+            model: String, maxTokens: Int, temperature: Double,
+            timeout: TimeInterval, stream: Bool = false
+        ) {
+            self.model = model; self.maxTokens = maxTokens; self.temperature = temperature
+            self.timeout = timeout; self.stream = stream
+        }
+    }
+}
+
+// MARK: - Errors
+
+enum AnthropicAPIError: Error, LocalizedError {
+    case noAPIKey
+    case invalidResponse
+    case invalidResponseFormat
+    case invalidJSON(String)
+    case apiError(statusCode: Int, message: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .noAPIKey:
+            return "Anthropic API key not configured. Please add your API key in Settings."
+        case .invalidResponse:
+            return "Invalid response from Anthropic API"
+        case .invalidResponseFormat:
+            return "Unexpected response format from Anthropic API"
+        case .invalidJSON(let json):
+            return "Claude returned invalid JSON: \(json.prefix(100))..."
+        case .apiError(let statusCode, let message):
+            return "Anthropic API error (\(statusCode)): \(message)"
+        }
+    }
+}

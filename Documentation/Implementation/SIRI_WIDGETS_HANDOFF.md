@@ -17,18 +17,18 @@ data through an **App Group** container.
 
 ## One‑time Xcode setup (≈10 min)
 
-1. **File ▸ New ▸ Target… ▸ Widget Extension.** Name it `MariasNotebookWidgets`.
+1. **File ▸ New ▸ Target… ▸ Widget Extension.** Name it `CosmicDaybookWidgets`.
    Uncheck "Include Live Activity" / "Include Configuration App Intent" for now.
    Set its **iOS Deployment Target to 27.0** to match the app.
 2. **App Group on both targets.** Select the app target ▸ Signing & Capabilities
    ▸ + Capability ▸ **App Groups** ▸ add `group.DanielSDeBerry.MariasNoteBook`.
-   Repeat on the `MariasNotebookWidgets` target, selecting the same group.
+   Repeat on the `CosmicDaybookWidgets` target, selecting the same group.
    (The existing `TodoWidgetProvider.swift` comment mentions
    `sequence.com.marianotebook.shared`; prefer a `group.<bundleID>` identifier so
    it matches the app's CloudKit/bundle naming — just keep both targets identical.)
 3. **Share the existing widget UI.** The repo already has
-   `Maria's Notebook/Services/TodoWidgetProvider.swift` with finished Small/Medium/
-   Large layouts. In the File Inspector, add it to the `MariasNotebookWidgets`
+   `Cosmic Daybook/Services/TodoWidgetProvider.swift` with finished Small/Medium/
+   Large layouts. In the File Inspector, add it to the `CosmicDaybookWidgets`
    target membership (or move it into the extension folder).
 4. **Share any types the widget needs** the same way (e.g. `AppColors`). Keep this
    list small — widgets should read a tiny precomputed snapshot, not the whole app.
@@ -47,8 +47,8 @@ import SwiftUI
 import WidgetKit
 
 // Self-contained launch intent for the control (lives in the extension target).
-struct LaunchMariasNotebookIntent: AppIntent {
-    static let title: LocalizedStringResource = "Open Maria's Notebook"
+struct LaunchCosmicDaybookIntent: AppIntent {
+    static let title: LocalizedStringResource = "Open Cosmic Daybook"
     static let openAppWhenRun = true
     func perform() async throws -> some IntentResult { .result() }
 }
@@ -56,11 +56,11 @@ struct LaunchMariasNotebookIntent: AppIntent {
 struct OpenNotebookControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "DanielSDeBerry.MariasNoteBook.control.open") {
-            ControlWidgetButton(action: LaunchMariasNotebookIntent()) {
-                Label("Maria's Notebook", systemImage: "square.and.pencil")
+            ControlWidgetButton(action: LaunchCosmicDaybookIntent()) {
+                Label("Cosmic Daybook", systemImage: "square.and.pencil")
             }
         }
-        .displayName("Open Maria's Notebook")
+        .displayName("Open Cosmic Daybook")
         .description("Open the notebook to log an observation.")
     }
 }
@@ -73,7 +73,7 @@ launch): add a parameterless `StartObservationIntent` in the **app** target's
 present the Quick Note sheet when that flag flips — mirror the existing
 `triggerRecordPractice` / `triggerNewWorkItem` pattern in
 `AppCore/RootView.swift`. Share that intent file with the extension target and
-use it as the control's `action:` instead of `LaunchMariasNotebookIntent`.
+use it as the control's `action:` instead of `LaunchCosmicDaybookIntent`.
 
 ## Widget bundle (entry point)
 
@@ -82,7 +82,7 @@ import WidgetKit
 import SwiftUI
 
 @main
-struct MariasNotebookWidgets: WidgetBundle {
+struct CosmicDaybookWidgets: WidgetBundle {
     var body: some Widget {
         TodoWidget()            // wraps the provider/views in TodoWidgetProvider.swift
         OpenNotebookControl()   // the Control Center control above
@@ -109,7 +109,7 @@ from the app whenever todos change.
 
 ## Acceptance check
 
-- Widget gallery shows "Maria's Notebook" widgets; Add a Control (Control Center
+- Widget gallery shows "Cosmic Daybook" widgets; Add a Control (Control Center
   edit / Lock Screen) shows the Open control.
 - Tapping the control opens the app.
 - The Todo widget shows real counts after a todo change + reload.

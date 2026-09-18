@@ -97,7 +97,7 @@ Goal: a repeatable clean-build number and a signposted cold launch.
 | Item | Change | File |
 |------|--------|------|
 | 1 | Add `-Xfrontend -warn-long-expression-type-checking=100` and lower `-warn-long-function-bodies` to 100 | `project.pbxproj`, project-level Debug `OTHER_SWIFT_FLAGS` |
-| 22 | Wrap each `Bootstrap:` timing in an `OSSignposter` interval (`.beginInterval` / `.endInterval`) so the phases show in the App Launch template | `AppCore/AppBootstrapper.swift`, `AppCore/CoreDataStack.swift` (init), `AppCore/MariasNotebookApp+Startup.swift` |
+| 22 | Wrap each `Bootstrap:` timing in an `OSSignposter` interval (`.beginInterval` / `.endInterval`) so the phases show in the App Launch template | `AppCore/AppBootstrapper.swift`, `AppCore/CoreDataStack.swift` (init), `AppCore/CosmicDaybookApp+Startup.swift` |
 | 7 | Record the baseline: Product → Perform Action → Build With Timing Summary on a clean build; save the summary to `Documentation/Implementation/perf-baselines/` | none |
 
 Verification: one clean build (timing summary saved) and one cold launch under
@@ -113,12 +113,12 @@ No code changes; all reversible by editing the same line.
 
 | Item | Change | Where |
 |------|--------|-------|
-| 16 | Uncheck the `-InitializeCloudKitSchema` launch argument (set `isEnabled = "NO"`; keep the argument so it is one click to re-enable after a model change) | `Maria's Notebook.xcodeproj/xcshareddata/xcschemes/Maria's Notebook.xcscheme` |
-| 10 | Add `COMPILER_INDEX_STORE_ENABLE=NO` to the two `xcodebuild` recipes | `Maria's Notebook/CLAUDE.md`, any `Scripts/` build invocations |
-| 11 | Split the test recipe into `build-for-testing` and `test-without-building` | `Maria's Notebook/CLAUDE.md` |
+| 16 | Uncheck the `-InitializeCloudKitSchema` launch argument (set `isEnabled = "NO"`; keep the argument so it is one click to re-enable after a model change) | `Cosmic Daybook.xcodeproj/xcshareddata/xcschemes/Cosmic Daybook.xcscheme` |
+| 10 | Add `COMPILER_INDEX_STORE_ENABLE=NO` to the two `xcodebuild` recipes | `Cosmic Daybook/CLAUDE.md`, any `Scripts/` build invocations |
+| 11 | Split the test recipe into `build-for-testing` and `test-without-building` | `Cosmic Daybook/CLAUDE.md` |
 | 9 | Delete the two stale DerivedData folders (the 0 B one and the older of the two full ones); open the project from one path only | `~/Library/Developer/Xcode/DerivedData/` — outside the repo, safe |
-| 12 | Add a one-line rule to `CLAUDE.md`: any future script phase must declare input and output file lists | `Maria's Notebook/CLAUDE.md` |
-| 8, 14 | No change. Document in the same `CLAUDE.md` note that explicit modules, incremental Debug compilation, and DWARF-only Debug info are intentional | `Maria's Notebook/CLAUDE.md` |
+| 12 | Add a one-line rule to `CLAUDE.md`: any future script phase must declare input and output file lists | `Cosmic Daybook/CLAUDE.md` |
+| 8, 14 | No change. Document in the same `CLAUDE.md` note that explicit modules, incremental Debug compilation, and DWARF-only Debug info are intentional | `Cosmic Daybook/CLAUDE.md` |
 
 Verification: cold launch under Instruments; the `CoreDataStack.init` interval should
 drop by the CloudKit round-trip. No build-time change is expected from this phase.
@@ -130,11 +130,11 @@ All four changes are local, testable, and land in `AppCore/`.
 | Item | Change | File |
 |------|--------|------|
 | 17 | Add `@ObservationIgnored` to all 25 `_service` caches (only `schoolDayChangeObserver` had it). Services are created once and never replaced, so they are not view state. **Corrected expectation:** a write that happens inside the same body evaluation that first read the cache does not fire Observation, so this does not remove a cascade; it removes registrar bookkeeping from every `dependencies.<service>` read in a body and documents intent | `AppCore/AppDependencies.swift` |
-| 21 | Replace the per-body `Logger.app(category: "App")` and the two `logger.info` calls with a static logger, logged from `.onChange(of: bootstrapper.state)` instead of on every evaluation | `AppCore/MariasNotebookApp+MainWindow.swift` |
+| 21 | Replace the per-body `Logger.app(category: "App")` and the two `logger.info` calls with a static logger, logged from `.onChange(of: bootstrapper.state)` instead of on every evaluation | `AppCore/CosmicDaybookApp+MainWindow.swift` |
 | ~~20~~ | **Dropped.** Both backfills already return on their UserDefaults flag before any fetch, `repairScopeForContextualNotes` is `MigrationFlag`-gated, and `runPostLaunchMigrations` is itself main-actor isolated, so the `MainActor.run` wrappers are not hops. Nothing to save | — |
 | 18 | Cache `incoherentSchemaFindings` per store. Key = model digest + SHA-256 of `sqlite_master` (type, name, CREATE statement for every table and index). Not mtime (changes on every WAL checkpoint) and not `PRAGMA schema_version` (Core Data bumps it ~1 per entity on every launch with transient DDL, so it never matched twice on the simulator). The `sqlite_master` digest is the physical schema, so it changes on exactly the events the check guards against, including a foreign build's half-finished migration. Recorded in UserDefaults on a clean result | `AppCore/CoreDataStack+SchemaVersion.swift` |
 
-Tests added in `Maria's Notebook Tests/AppCore/SchemaCoherenceCacheTests.swift`: key stable
+Tests added in `Cosmic Daybook Tests/AppCore/SchemaCoherenceCacheTests.swift`: key stable
 for an unchanged store; missing file has no key; record-then-verify; DDL from a foreign
 SQLite connection invalidates; row writes through Core Data keep the key; entries are per
 store. (No `AppDependencies` observation test: the behavior it would assert is unchanged by
@@ -235,7 +235,7 @@ Constraints from the codebase:
   `SWIFT_STRICT_CONCURRENCY = complete` in `swiftSettings` to match the app, or the
   main-actor-default rules break at the module boundary.
 - The Core Data model must stay in one bundle; `CoreDataStack.sharedModel()` loads it
-  by name, so the package that owns `MariasNotebook.xcdatamodeld` exposes
+  by name, so the package that owns `CosmicDaybook.xcdatamodeld` exposes
   `Bundle.module`.
 - Keep the two-store configuration names and entity routing exactly as they are;
   nothing in this phase touches the schema.

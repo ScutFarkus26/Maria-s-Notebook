@@ -4,7 +4,7 @@
 
 Make **Students** a calm workspace for a Montessori Guide: observe first, decide
 second, and keep the day-to-day next action visible without removing the deeper
-record-keeping tools already in Maria's Notebook.
+record-keeping tools already in Cosmic Daybook.
 
 This is a presentation and workflow redesign. It does not change the Student,
 Note, Work, Lesson Assignment, Meeting, Document, Track, or Year Plan data

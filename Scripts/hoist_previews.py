@@ -9,8 +9,8 @@ which is type-checked once. `@Previewable @State` declarations become
 `@State private var` on the generated struct. See CLAUDE.md, Build-setting rules.
 
 Usage:
-    python3 Scripts/hoist_previews.py "Maria's Notebook"          # dry run, lists files
-    python3 Scripts/hoist_previews.py --apply "Maria's Notebook"  # rewrite in place
+    python3 Scripts/hoist_previews.py "Cosmic Daybook"          # dry run, lists files
+    python3 Scripts/hoist_previews.py --apply "Cosmic Daybook"  # rewrite in place
 
 Idempotent: a preview whose body is already a single `<Name>Preview()` call is skipped.
 """

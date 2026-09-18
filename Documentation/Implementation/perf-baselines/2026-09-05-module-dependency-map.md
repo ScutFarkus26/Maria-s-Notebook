@@ -2,7 +2,7 @@
 
 Input to Phase 6 of `BUILD_AND_LAUNCH_PERFORMANCE_PLAN.md`. Computed from the source tree at
 `491e297d`: every `struct`/`class`/`enum`/`protocol`/`actor`/`typealias` declared under
-`Maria's Notebook/<Folder>/` is attributed to that folder; each file is then scanned for
+`Cosmic Daybook/<Folder>/` is attributed to that folder; each file is then scanned for
 identifiers that name a type declared in a *different* folder. "out→folders" is how many other
 folders a folder references; "in←refs" is how many (file, type) references point at it. Name
 collisions between folders are counted once, by first declaration seen, so treat single-digit

@@ -165,7 +165,7 @@ enum SchoolYearFilter {
 - `SchoolYearStore.swift` — `@Observable @MainActor`. Reads configured start + selection
   from `AppStorage`; computes `availableYears`, `current`, `currentCycle`; vends
   `range(for:)`, the predicate factories, and `cycle(for student:)`. Injected via
-  `.environment` in `MariasNotebookApp` / `RootView`.
+  `.environment` in `CosmicDaybookApp` / `RootView`.
 - `SchoolYearPicker` — toolbar `Menu`: `This year` / `This cycle` / `All time` + each
   available year.
 - Non-current-year **banner** — tinted "Viewing 2024–2025" whenever the selection isn't

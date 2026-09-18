@@ -16,15 +16,15 @@ if git ls-files | grep '/xcuserdata/' >/dev/null 2>&1; then
 fi
 
 for path in \
-    "Maria's Notebook/Backup2" \
-    "Maria's Notebook/AppCore/TodayView" \
-    "Maria's Notebook/ViewModels/Today" \
-    "Maria's Notebook/Components/Todo" \
-    "Maria's Notebook/Components/QuickNote" \
-    "Maria's Notebook/Components/Observations" \
-    "Maria's Notebook/Components/UnifiedNoteEditor" \
+    "Cosmic Daybook/Backup2" \
+    "Cosmic Daybook/AppCore/TodayView" \
+    "Cosmic Daybook/ViewModels/Today" \
+    "Cosmic Daybook/Components/Todo" \
+    "Cosmic Daybook/Components/QuickNote" \
+    "Cosmic Daybook/Components/Observations" \
+    "Cosmic Daybook/Components/UnifiedNoteEditor" \
     "docs" \
-    "Maria's Notebook/Docs"
+    "Cosmic Daybook/Docs"
 do
     if [ -e "$path" ]; then
         fail "legacy path still exists: $path"
@@ -32,10 +32,10 @@ do
 done
 
 for directory in \
-    "Maria's Notebook/Students" \
-    "Maria's Notebook/Work" \
-    "Maria's Notebook/Presentations" \
-    "Maria's Notebook Tests"
+    "Cosmic Daybook/Students" \
+    "Cosmic Daybook/Work" \
+    "Cosmic Daybook/Presentations" \
+    "Cosmic Daybook Tests"
 do
     loose_file=$(find "$directory" -maxdepth 1 -type f -name '*.swift' -print -quit)
     if [ -n "$loose_file" ]; then
@@ -43,7 +43,7 @@ do
     fi
 done
 
-empty_directory=$(find "Maria's Notebook" "Maria's Notebook Tests" Documentation -type d -empty -print -quit)
+empty_directory=$(find "Cosmic Daybook" "Cosmic Daybook Tests" Documentation -type d -empty -print -quit)
 if [ -n "$empty_directory" ]; then
     fail "empty source, test, or documentation directory found: $empty_directory"
 fi

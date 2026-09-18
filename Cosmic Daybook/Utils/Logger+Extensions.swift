@@ -1,0 +1,16 @@
+//
+//  Logger+Extensions.swift
+//  Cosmic Daybook
+//
+//  Created by Refactoring on 2/8/26.
+//
+
+import OSLog
+
+nonisolated extension Logger {
+    /// Creates a logger for the app with the specified category.
+    /// Uses the main bundle identifier as the subsystem, falling back to "com.cosmicdaybook" if unavailable.
+    nonisolated static func app(category: String) -> Logger {
+        Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.cosmicdaybook", category: category)
+    }
+}

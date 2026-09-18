@@ -1,10 +1,10 @@
 # Data Models
 
-This document describes the Core Data models used in Maria's Notebook.
+This document describes the Core Data models used in Cosmic Daybook.
 
 ## Overview
 
-All models are NSManagedObject subclasses (with `CD` prefix) defined in `MariasNotebook.xcdatamodeld` and follow CloudKit compatibility patterns:
+All models are NSManagedObject subclasses (with `CD` prefix) defined in `CosmicDaybook.xcdatamodeld` and follow CloudKit compatibility patterns:
 - UUID primary keys (no unique constraints — CloudKit incompatible)
 - Enum properties stored as raw strings
 - Foreign keys stored as `String` (not UUID)
@@ -490,7 +490,7 @@ var status: WorkStatus {
 
 ### Relationships
 
-Relationships are configured in `MariasNotebook.xcdatamodeld`. In code, they are accessed via `NSSet`:
+Relationships are configured in `CosmicDaybook.xcdatamodeld`. In code, they are accessed via `NSSet`:
 
 ```swift
 // Core Data relationship (configured in xcdatamodeld with cascade delete rule)
@@ -514,6 +514,6 @@ Large data uses external storage (configured via "Allows External Storage" in xc
 
 ## Migration Notes
 
-The migration from SwiftData to Core Data (`NSManagedObject` subclasses with `NSPersistentCloudKitContainer`) is complete. All entities are now defined in `MariasNotebook.xcdatamodeld` with `CD`-prefixed classes.
+The migration from SwiftData to Core Data (`NSManagedObject` subclasses with `NSPersistentCloudKitContainer`) is complete. All entities are now defined in `CosmicDaybook.xcdatamodeld` with `CD`-prefixed classes.
 
 Data migration functions are located in `Services/DataMigrations.swift`.

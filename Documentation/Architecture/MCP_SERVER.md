@@ -8,7 +8,7 @@ CloudKit stores; nothing touches the SQLite files from outside.
 ## Architecture
 
 ```
-Claude Desktop ──stdio──▶ Scripts/mcp/marias-notebook-mcp (nc relay)
+Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
                                    │ AUTH <token> preamble, then MCP bytes
                                    ▼
                             127.0.0.1:43117
@@ -28,7 +28,7 @@ Claude Desktop ──stdio──▶ Scripts/mcp/marias-notebook-mcp (nc relay)
   Sandbox only permits *binding* Unix sockets inside the app's own (group)
   container — a `temporary-exception.files...read-write` entitlement grants
   file I/O but not the sandbox's `network-bind` operation, so binding in
-  `~/.marias-notebook/` fails with EPERM. And every path the app *can* bind
+  `~/.cosmic-daybook/` fails with EPERM. And every path the app *can* bind
   (container, group container) is TCC-gated by macOS container protection
   for external processes, which would break or prompt every MCP client.
   Loopback TCP via `ENABLE_INCOMING_NETWORK_CONNECTIONS = YES` is the
@@ -38,7 +38,7 @@ Claude Desktop ──stdio──▶ Scripts/mcp/marias-notebook-mcp (nc relay)
 - **Auth token.** Because any local process may connect to loopback, the
   server requires a preamble line `AUTH <token>` before any MCP traffic;
   otherwise it drops the connection. The per-install random token lives at
-  `~/.marias-notebook/mcp.token` (`0600` in a `0700` dir) — written by the
+  `~/.cosmic-daybook/mcp.token` (`0600` in a `0700` dir) — written by the
   app via a scoped home-relative entitlement exception (the app resolves
   the real home via `getpwuid`, since `NSHomeDirectory()` is the container
   under sandboxing) and read by the bridge script.
@@ -444,19 +444,19 @@ ambiguity comes back as a tool error naming the candidates.
    ```json
    {
      "mcpServers": {
-       "marias-notebook": {
-         "command": "/Users/dannydeberry/Developer/Maria's Notebook/Scripts/mcp/marias-notebook-mcp"
+       "cosmic-daybook": {
+         "command": "/Users/dannydeberry/Developer/Cosmic Daybook/Scripts/mcp/cosmic-daybook-mcp"
        }
      }
    }
    ```
 
 3. Restart Claude Desktop. The bridge launches the app (backgrounded) if it
-   isn't running; set `MARIAS_NOTEBOOK_NO_AUTOLAUNCH=1` in the server's
+   isn't running; set `COSMIC_DAYBOOK_NO_AUTOLAUNCH=1` in the server's
    `env` to disable that.
 
 The same bridge works for Claude Code:
-`claude mcp add marias-notebook -- "/Users/dannydeberry/Developer/Maria's Notebook/Scripts/mcp/marias-notebook-mcp"`.
+`claude mcp add cosmic-daybook -- "/Users/dannydeberry/Developer/Cosmic Daybook/Scripts/mcp/cosmic-daybook-mcp"`.
 The repo also carries a project-scope registration in `.mcp.json`, so Claude
 Code sessions opened in this repository pick the server up automatically
 (each client asks once for approval to use a project-scope server). The
@@ -473,7 +473,7 @@ can be lost.
   states that discussed data reaches Anthropic.
 - The listener binds `127.0.0.1` only and rejects any connection whose
   first line is not the correct `AUTH` token, so other local users and
-  processes that cannot read `~/.marias-notebook/mcp.token` (`0600`) get
+  processes that cannot read `~/.cosmic-daybook/mcp.token` (`0600`) get
   nothing. Same-user processes could read the token — but they already
   have equivalent reach on a single-user Mac; this is not a new boundary.
 - Claude Desktop prompts the teacher before each tool call; the write
@@ -485,87 +485,87 @@ can be lost.
 
 ## Testing
 
-- `Maria's Notebook Tests/Services/MCPServer/MCPRequestHandlerTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPRequestHandlerTests.swift`
   — protocol conformance (version negotiation, ping, tool listing/calls,
   error taxonomy, parse errors).
-- `Maria's Notebook Tests/Services/MCPServer/MCPNotebookToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPNotebookToolsTests.swift`
   — tools against an in-memory stack (roster, scoped note reads, the
   observation write path, ambiguity handling).
-- `Maria's Notebook Tests/Services/MCPServer/MCPMeetingToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPMeetingToolsTests.swift`
   — meeting entries, follow-up todos, goal resolution, and the open
   follow-ups listing.
-- `Maria's Notebook Tests/Services/MCPServer/MCPPresentationToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPPresentationToolsTests.swift`
   — lesson lookup ranking, the presentation write (planned-lesson reuse,
   same-day idempotency, observation linking and dating), and its refusals.
-- `Maria's Notebook Tests/Services/MCPServer/MCPMasteryToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPMasteryToolsTests.swift`
   — `mark_mastered`: an MCP mark and a checklist mark read identically to
   `TrackProgressResolver`, the row is mutated rather than duplicated, the
   refusal for a child with no presentation on record writes nothing, and
   today-default versus back-dated assessment.
-- `Maria's Notebook Tests/Services/MCPServer/MCPMasteryBatchToolTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPMasteryBatchToolTests.swift`
   — the `marks` batch: two lessons for two children in one call, an
   unrecorded child in the second item leaving every row untouched, the
   single form and `marks` together refused, and an empty array refused.
-- `Maria's Notebook Tests/Services/MCPServer/MCPMasteryCandidatesToolTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPMasteryCandidatesToolTests.swift`
   — `mastery_candidates`: a confirmed unmarked child listed with her day, an
   already-marked pair, a never-presented lesson and a withdrawn child all
   kept out, completed practice work standing as evidence on its own,
   `group_by: lesson` gathering the names, `area` and `limit`, and the
   closing JSON parsing and feeding straight back into `mark_mastered`.
-- `Maria's Notebook Tests/Services/MCPServer/MCPCurriculumToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPCurriculumToolsTests.swift`
   — the curriculum tools: uncapped listing, create (append, after-anchor,
   idempotency, area refusal, track refresh), rename and move, partial
   reorder carrying unlisted lessons, and store routing on a split stack.
-- `Maria's Notebook Tests/Services/MCPServer/MCPPlanningEditToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPPlanningEditToolsTests.swift`
   — discard (preview, confirmed delete with note cascade and year-plan
   entry restored, refusal when given), roster edits and their refusals,
   and `clear_year_plan` scoped by track and date, previewed then applied.
-- `Maria's Notebook Tests/Services/MCPServer/MCPScheduleToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPScheduleToolsTests.swift`
   — the calendar tools, including the `time` argument on
   `schedule_presentation` and `reschedule_presentation` (default morning
   slot, `HH:MM` placement, time-only re-timing, malformed times refused).
-- `Maria's Notebook Tests/Services/MCPServer/MCPRepeatGuardToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPRepeatGuardToolsTests.swift`
   — the regive guard on both write tools: per-child dates in the refusal and
   nothing written, `second_pass` flagging the earlier record, `review`
   leaving it alone, a purpose with nothing to explain, an unknown purpose, a
   non-school day, a batch refused whole for one repeat, and the same-day and
   planned-lesson exemptions.
-- `Maria's Notebook Tests/Services/MCPServer/MCPPresentationHistoryToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPPresentationHistoryToolsTests.swift`
   — `student_presentation_history`: the default cap and what it says when it
   holds rows back, `limit`, `since`, and the `lesson` filter reading the
   presentation record beside the dated rows, and the ordinal-and-purpose
   suffix on a lesson given more than once.
-- `Maria's Notebook Tests/Services/MCPServer/MCPPendingStudentsToolTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPPendingStudentsToolTests.swift`
   — `students_pending`: planned, promoted and calendar-only children, behind
   pace, the group on a scheduled presentation, the given / no-plan trailer,
   and a withdrawn child kept out.
-- `Maria's Notebook Tests/Services/MCPServer/MCPReadyForNextToolTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPReadyForNextToolTests.swift`
   — `students_ready`: both groupings, the closing `schedule_presentation`
   call decoded rather than pattern-matched (right lesson, right names, a day
   school is in), the `basis` / `include_almost_ready` / `student` / `area`
   filters, the empty-queue sentence, and a withdrawn child kept out. The
   queue's own rules are pinned separately in
-  `Maria's Notebook Tests/Planning/ReadyForNextEngineTests.swift`.
-- `Maria's Notebook Tests/Services/MCPServer/MCPPresentationOutcomeToolsTests.swift`
+  `Cosmic Daybook Tests/Planning/ReadyForNextEngineTests.swift`.
+- `Cosmic Daybook Tests/Services/MCPServer/MCPPresentationOutcomeToolsTests.swift`
   — the `follow_up` decisions on `record_presentation` (work items, the
   re-present plan, confirmation, the inbox flag, an unknown value refused)
   and the `presentations` batch (one receipt per lesson, all-or-nothing,
   the failing item named).
-- `Maria's Notebook Tests/Services/MCPServer/MCPAppServiceToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPAppServiceToolsTests.swift`
   — `create_backup` and `draft_parent_report` through a container built on
   the in-memory stack: the still-starting refusal when none is registered,
   an archive written and cited, a month with no evidence, and the reviewed /
   sent / existing-draft protections.
-- `Maria's Notebook Tests/Services/MCPServer/MCPObservationBatchToolsTests.swift`,
+- `Cosmic Daybook Tests/Services/MCPServer/MCPObservationBatchToolsTests.swift`,
   `MCPFollowUpGuardToolsTests.swift`, `MCPAttendanceBatchToolsTests.swift`
   — the duplicate guards and `force` on `create_observation` and
   `add_follow_up`, the `notes` batch, and `students` / `mark_all_present`
   on `mark_attendance`, each all-or-nothing on name resolution.
-- `Maria's Notebook Tests/Services/MCPServer/MCPDateRangeReadToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPDateRangeReadToolsTests.swift`
   — `since` / `until` on the observation, meeting, practice and recall
   reads: a note beyond `days_back`'s reach, `until` excluding newer rows,
   `since > until` refused, and old arguments unchanged.
-- `Maria's Notebook Tests/Services/MCPServer/MCPWriteJournalToolsTests.swift`
+- `Cosmic Daybook Tests/Services/MCPServer/MCPWriteJournalToolsTests.swift`
   — the journal round-trip in a temporary directory (newest first, window
   and tool filters, a malformed line skipped, the cap rewrite keeping the
   newest half) and `recent_mcp_writes` over a seeded journal; the handler
@@ -579,5 +579,5 @@ can be lost.
   printf '%s\n%s\n' \
     '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
     '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-    | MARIAS_NOTEBOOK_NO_AUTOLAUNCH=1 "/Users/dannydeberry/Developer/Maria's Notebook/Scripts/mcp/marias-notebook-mcp"
+    | COSMIC_DAYBOOK_NO_AUTOLAUNCH=1 "/Users/dannydeberry/Developer/Cosmic Daybook/Scripts/mcp/cosmic-daybook-mcp"
   ```

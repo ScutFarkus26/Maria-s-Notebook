@@ -1,4 +1,4 @@
-# AI in Maria's Notebook
+# AI in Cosmic Daybook
 
 How the app's AI features are built, where they live, and how to extend them.
 
@@ -8,7 +8,7 @@ How the app's AI features are built, where they live, and how to extend them.
 
 ## 1. Plain-English overview
 
-Maria's Notebook uses AI to save the guide time on writing and lookups — drafting
+Cosmic Daybook uses AI to save the guide time on writing and lookups — drafting
 parent emails and report cards, summarizing observations, suggesting note tags,
 turning plain-English commands into records, describing photos of student work,
 and answering questions about the classroom.
@@ -268,7 +268,7 @@ build-flag document.
 
 **Private Cloud Compute entitlement** — PCC needs the managed entitlement
 `com.apple.developer.private-cloud-compute`, which Apple must grant. It is
-deliberately **not** in `Maria_s_Notebook.entitlements` yet, because adding an
+deliberately **not** in `CosmicDaybook.entitlements` yet, because adding an
 un-granted managed entitlement breaks code-signing on dev builds. Until it's
 added, `PrivateCloudModelClient.isAvailable` is false and automatic routing stays
 on-device. Activation steps: `PrivateCloudCompute.md`.

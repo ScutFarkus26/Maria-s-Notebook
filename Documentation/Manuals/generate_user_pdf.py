@@ -168,7 +168,7 @@ def header_footer(canvas, doc):
     # Footer
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(MUTED_COLOR)
-    canvas.drawString(inch, 0.5 * inch, "Maria's Notebook — User Guide for Teachers")
+    canvas.drawString(inch, 0.5 * inch, "Cosmic Daybook — User Guide for Teachers")
     canvas.drawRightString(w - inch, 0.5 * inch, f"Page {doc.page}")
 
     # Top accent line
@@ -194,7 +194,7 @@ def title_page(canvas, doc):
     # Title
     canvas.setFillColor(white)
     canvas.setFont('Helvetica-Bold', 38)
-    canvas.drawString(inch, h - 1.6 * inch, "Maria's Notebook")
+    canvas.drawString(inch, h - 1.6 * inch, "Cosmic Daybook")
 
     canvas.setFont('Helvetica', 20)
     canvas.drawString(inch, h - 2.2 * inch, "User Guide for Teachers")
@@ -247,7 +247,7 @@ def title_page(canvas, doc):
     canvas.setFont('Helvetica', 9)
     canvas.setFillColor(MUTED_COLOR)
     canvas.drawString(inch, 0.75 * inch, "iOS & macOS")
-    canvas.drawRightString(w - inch, 0.75 * inch, "mariasnotebook.app")
+    canvas.drawRightString(w - inch, 0.75 * inch, "cosmicdaybook.app")
 
     canvas.restoreState()
 
@@ -482,7 +482,7 @@ def build_pdf():
     doc = ManualDocTemplate(
         pdf_path,
         pagesize=letter,
-        title="Maria's Notebook — User Guide for Teachers",
+        title="Cosmic Daybook — User Guide for Teachers",
         author="Danny DeBerry",
         subject="User Guide",
     )

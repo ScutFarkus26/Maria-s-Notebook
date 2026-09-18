@@ -9,7 +9,7 @@ Every organization commit must:
 1. Cover one coherent area.
 2. Update affected documentation and path references in the same commit.
 3. Pass `git diff --cached --check`.
-4. Run SwiftLint with `Maria's Notebook/.swiftlint.yml`; while the recorded baseline has violations, changed Swift files must introduce none.
+4. Run SwiftLint with `Cosmic Daybook/.swiftlint.yml`; while the recorded baseline has violations, changed Swift files must introduce none.
 5. Preserve the macOS and iOS build baselines.
 6. Run relevant tests, with the full suite at phase boundaries.
 7. Record validation results, exceptions, and the commit below.
@@ -61,7 +61,7 @@ Commit: `9bc5a837 docs(repo): add incremental organization plan`
 - Commit: `ecee4122`
 - Validation: Local Markdown links resolved; manual generators parsed; workspace XML and entitlements validated; macOS and generic iOS builds passed. Xcode confirmed the old developer documents were removed from app resources.
 - Move developer documentation out of the synchronized app source root.
-- Merge the current `docs/` and `Maria's Notebook/Docs/` trees under repository-level `Documentation/`.
+- Merge the current `docs/` and `Cosmic Daybook/Docs/` trees under repository-level `Documentation/`.
 - Use `Architecture/`, `ADRs/`, `Implementation/`, `Manuals/`, and `Generated/` as the top-level documentation categories.
 - Update relative links, scripts, README references, source comments, and stale directory maps.
 - Commit target: `docs(repo): consolidate project documentation`

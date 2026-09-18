@@ -38,7 +38,7 @@ log stream --level debug --signpost --style compact \
   --predicate 'subsystem == "DanielSDeBerry.MariasNoteBook" AND category == "Launch"'
 
 # Terminal 2 — cold-launch the Debug build (or Run Without Building in Xcode)
-open -a "Montessori Daybook"
+open -a "Cosmic Daybook"
 ```
 
 Or in Instruments: App Launch template → the intervals appear under **os_signpost**,

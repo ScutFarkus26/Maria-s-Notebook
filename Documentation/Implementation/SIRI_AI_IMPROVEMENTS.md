@@ -49,7 +49,7 @@ Two of the ten goals turned out to be **already satisfied** in the codebase (Wri
 
 ## 3. Technical summary
 
-### 3.1 Files added (`Maria's Notebook/Siri/`)
+### 3.1 Files added (`Cosmic Daybook/Siri/`)
 
 | File | Type | Purpose |
 |------|------|---------|
@@ -66,8 +66,8 @@ Two of the ten goals turned out to be **already satisfied** in the codebase (Wri
 
 | File | Change |
 |------|--------|
-| `AppCore/AppIntents.swift` | Registered the new intents in `MariasNotebookAppShortcuts` (now exactly 10 shortcuts) with natural + parameterized phrases |
-| `AppCore/MariasNotebookApp.swift` | Added `Task { await SpotlightIndexer.reindexAll() }` at the end of `performStartupBootstrap()` |
+| `AppCore/AppIntents.swift` | Registered the new intents in `CosmicDaybookAppShortcuts` (now exactly 10 shortcuts) with natural + parameterized phrases |
+| `AppCore/CosmicDaybookApp.swift` | Added `Task { await SpotlightIndexer.reindexAll() }` at the end of `performStartupBootstrap()` |
 | `Students/Notes/SummarizeTodaysObservationsIntent.swift` | Replaced mock data with a live, async-loading snippet view + interactive button; added `authenticationPolicy` |
 | `Settings/SettingsView+Sections.swift` | Added a "Siri & Shortcuts" group (`SiriTipView` on iOS, text fallback on macOS) |
 
@@ -104,7 +104,7 @@ Two of the ten goals turned out to be **already satisfied** in the codebase (Wri
 - ✅ `xcodebuild ... -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' build` — **BUILD SUCCEEDED** (clean build)
 - ✅ `xcodebuild ... -destination 'platform=iOS Simulator,...' build-for-testing` — **TEST BUILD SUCCEEDED**
 - ✅ `xcodebuild ... -destination 'platform=macOS' build` — **BUILD SUCCEEDED**
-- ✅ SwiftLint clean on all new/changed files (one pre-existing, unrelated `file_length` note on `MariasNotebookApp.swift`, which was already over the limit before this work).
+- ✅ SwiftLint clean on all new/changed files (one pre-existing, unrelated `file_length` note on `CosmicDaybookApp.swift`, which was already over the limit before this work).
 - ⚠️ **On-device Siri behavior is not yet verified** — only compilation. Needs a real device run.
 
 ### How to test on device (≈5 min)

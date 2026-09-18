@@ -2,7 +2,7 @@
 
 ## Overview
 
-Maria's Notebook follows a modular MVVM architecture with services:
+Cosmic Daybook follows a modular MVVM architecture with services:
 
 - **SwiftUI** for the view layer
 - **Core Data** for persistence (77 NSManagedObject subclasses)
@@ -14,7 +14,7 @@ Maria's Notebook follows a modular MVVM architecture with services:
 
 ```
 App Launch
-    ├─► MariasNotebookApp.init()
+    ├─► CosmicDaybookApp.init()
     │       └─► Configure Core Data stack (NSPersistentCloudKitContainer)
     │       └─► Initialize CloudKit (if enabled)
     ├─► AppBootstrapper.bootstrap()
@@ -26,7 +26,7 @@ App Launch
 ```
 
 **Key files:**
-- `AppCore/MariasNotebookApp.swift` — App entry point, container config
+- `AppCore/CosmicDaybookApp.swift` — App entry point, container config
 - `AppCore/AppBootstrapper.swift` — Startup migrations
 - `AppCore/RootView.swift` — Root navigation container
 - `AppCore/AppRouter.swift` — Programmatic navigation

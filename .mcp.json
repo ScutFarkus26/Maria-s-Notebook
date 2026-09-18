@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "marias-notebook": {
+    "cosmic-daybook": {
       "type": "stdio",
-      "command": "/Users/dannydeberry/Developer/Maria's Notebook/Scripts/mcp/marias-notebook-mcp"
+      "command": "/Users/dannydeberry/Developer/Maria's Notebook/Scripts/mcp/cosmic-daybook-mcp"
     }
   }
 }
