@@ -216,6 +216,14 @@ extension MCPNotebookTools {
         return "Updated \(describeLesson(lesson)): \(changes.joined(separator: "; "))."
     }
 
+    /// One free-text lesson field: the tool argument that carries it, the word
+    /// the change log uses for it, and where it is stored.
+    private struct LessonTextField {
+        let key: String
+        let label: String
+        let keyPath: ReferenceWritableKeyPath<CDLesson, String>
+    }
+
     /// Notes fields replace wholesale; an empty string clears, so the raw
     /// value is read rather than `nonEmpty`.
     private static func applyLessonText(_ arguments: [String: JSONValue], to lesson: CDLesson) -> [String] {
@@ -224,9 +232,11 @@ extension MCPNotebookTools {
             lesson.section = section
             changes.append(section.isEmpty ? "cleared section" : "section \(section)")
         }
-        let notes: [(key: String, label: String, keyPath: ReferenceWritableKeyPath<CDLesson, String>)] = [
-            ("write_up", "write-up", \.writeUp), ("teacher_notes", "teacher notes", \.teacherNotes),
-            ("purpose", "purpose", \.purpose), ("materials", "materials", \.materials)
+        let notes: [LessonTextField] = [
+            LessonTextField(key: "write_up", label: "write-up", keyPath: \.writeUp),
+            LessonTextField(key: "teacher_notes", label: "teacher notes", keyPath: \.teacherNotes),
+            LessonTextField(key: "purpose", label: "purpose", keyPath: \.purpose),
+            LessonTextField(key: "materials", label: "materials", keyPath: \.materials)
         ]
         for field in notes {
             guard let value = arguments[field.key]?.stringValue,

@@ -34,53 +34,71 @@ enum AppErrorMessages {
         }
 
         switch nsError.domain {
-
-        // MARK: Network errors
         case NSURLErrorDomain:
-            switch nsError.code {
-            case NSURLErrorNotConnectedToInternet, NSURLErrorDataNotAllowed:
-                return "You appear to be offline. Check your connection and try \(activity) again."
-            case NSURLErrorTimedOut:
-                return "The request timed out while \(activity). Try again in a moment."
-            case NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost:
-                return "Couldn't reach the server while \(activity). Try again later."
-            default:
-                return "A network issue prevented \(activity). Check your connection and try again."
-            }
-
-        // MARK: CloudKit errors
+            return networkMessage(code: nsError.code, activity: activity)
         case "CKErrorDomain":
-            switch nsError.code {
-            case 1: // CKError.internalError
-                return "iCloud is temporarily unavailable. Your changes are saved locally and " +
-                    "will sync when iCloud recovers."
-            case 6: // CKError.notAuthenticated
-                return "No iCloud account found. Sign in to iCloud in Settings to sync your data."
-            case 9: // CKError.quotaExceeded
-                return "Your iCloud storage is full. Free up space so your data can continue syncing."
-            case 3, 7: // CKError.networkUnavailable, networkFailure
-                return "Couldn't reach iCloud while \(activity). Your changes are saved locally."
-            case 11: // CKError.zoneNotFound
-                return "The shared classroom data isn't available yet. Ask the lead guide to re-share."
-            case 15: // CKError.permissionFailure
-                return "You don't have permission for this action. Check with the lead guide."
-            default:
-                return "An iCloud issue prevented \(activity). Your changes are saved locally and will sync later."
-            }
-
-        // MARK: Core Data errors
+            return cloudKitMessage(code: nsError.code, activity: activity)
         case NSCocoaErrorDomain:
-            if (256...1024).contains(nsError.code) {
-                return "There was a problem reading your data. Try closing and reopening the app."
-            }
-            if nsError.code >= 1550 && nsError.code <= 1599 {
-                return "Couldn't save your changes. Try again, or restart the app if the problem persists."
-            }
-            return "An unexpected issue occurred while \(activity). Try again."
-
+            return coreDataMessage(code: nsError.code, activity: activity)
         default:
-            return "An unexpected issue occurred while \(activity). Try again."
+            return unexpectedMessage(activity: activity)
         }
+    }
+
+    /// The fallback for a domain — or a Core Data code — we have nothing
+    /// specific to say about.
+    private static func unexpectedMessage(activity: String) -> String {
+        "An unexpected issue occurred while \(activity). Try again."
+    }
+
+    // MARK: Network errors
+
+    private static func networkMessage(code: Int, activity: String) -> String {
+        switch code {
+        case NSURLErrorNotConnectedToInternet, NSURLErrorDataNotAllowed:
+            return "You appear to be offline. Check your connection and try \(activity) again."
+        case NSURLErrorTimedOut:
+            return "The request timed out while \(activity). Try again in a moment."
+        case NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost:
+            return "Couldn't reach the server while \(activity). Try again later."
+        default:
+            return "A network issue prevented \(activity). Check your connection and try again."
+        }
+    }
+
+    // MARK: CloudKit errors
+
+    /// Codes are `CKError.Code` raw values; CloudKit is not imported here.
+    private static func cloudKitMessage(code: Int, activity: String) -> String {
+        switch code {
+        case 1: // CKError.internalError
+            return "iCloud is temporarily unavailable. Your changes are saved locally and " +
+                "will sync when iCloud recovers."
+        case 6: // CKError.notAuthenticated
+            return "No iCloud account found. Sign in to iCloud in Settings to sync your data."
+        case 9: // CKError.quotaExceeded
+            return "Your iCloud storage is full. Free up space so your data can continue syncing."
+        case 3, 7: // CKError.networkUnavailable, networkFailure
+            return "Couldn't reach iCloud while \(activity). Your changes are saved locally."
+        case 11: // CKError.zoneNotFound
+            return "The shared classroom data isn't available yet. Ask the lead guide to re-share."
+        case 15: // CKError.permissionFailure
+            return "You don't have permission for this action. Check with the lead guide."
+        default:
+            return "An iCloud issue prevented \(activity). Your changes are saved locally and will sync later."
+        }
+    }
+
+    // MARK: Core Data errors
+
+    private static func coreDataMessage(code: Int, activity: String) -> String {
+        if (256...1024).contains(code) {
+            return "There was a problem reading your data. Try closing and reopening the app."
+        }
+        if code >= 1550 && code <= 1599 {
+            return "Couldn't save your changes. Try again, or restart the app if the problem persists."
+        }
+        return unexpectedMessage(activity: activity)
     }
 
     // MARK: - Domain-Specific Messages

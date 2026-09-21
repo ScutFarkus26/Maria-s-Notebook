@@ -110,9 +110,7 @@ final class MeetingInsightsService {
         let studentLevel = student.level.rawValue
 
         let prompt = buildPrompt(
-            studentName: studentName,
-            studentAge: studentAge,
-            studentLevel: studentLevel,
+            student: StudentProfile(name: studentName, age: studentAge, level: studentLevel),
             meetings: meetingData,
             workSnapshot: workSnapshot,
             lessonNames: lessonNames,
@@ -136,10 +134,15 @@ final class MeetingInsightsService {
 
     // MARK: - Private Helpers
 
+    /// Who the insights are about — the three facts the prompt opens with.
+    struct StudentProfile {
+        let name: String
+        let age: Int
+        let level: String
+    }
+
     private func buildPrompt(
-        studentName: String,
-        studentAge: Int,
-        studentLevel: String,
+        student: StudentProfile,
         meetings: [MeetingSnapshot],
         workSnapshot: WorkContextSnapshot,
         lessonNames: [String],
@@ -174,7 +177,7 @@ final class MeetingInsightsService {
         return """
         Analyze the following \(meetings.count) student meetings from the last \(timeframeDays) days.
 
-        Student: \(studentName) (Age: \(studentAge), Level: \(studentLevel))
+        Student: \(student.name) (Age: \(student.age), Level: \(student.level))
 
         CURRENT WORK STATUS:
         - Open work items: \(workSnapshot.openCount)

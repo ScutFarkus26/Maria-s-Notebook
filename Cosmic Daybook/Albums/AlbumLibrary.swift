@@ -518,7 +518,7 @@ final class AlbumLibrary {
     }
 
     /// Per-lesson titles and body texts used to build the semantic index.
-    private func semanticItems() -> [(id: String, modified: Date, titles: [String], bodies: [String])] {
+    private func semanticItems() -> [AlbumSemanticIndex.BuildItem] {
         albums.map { album in
             let texts = pageTexts[album.id] ?? []
             let bodies = album.lessons.enumerated().map { i, lesson in
@@ -530,8 +530,8 @@ final class AlbumLibrary {
                     .joined(separator: " ")
                 return lesson.title + ". " + String(body.prefix(700))
             }
-            return (album.id, modDates[album.id] ?? .distantPast,
-                    album.lessons.map(\.title), bodies)
+            return AlbumSemanticIndex.BuildItem(id: album.id, modified: modDates[album.id] ?? .distantPast,
+                                                titles: album.lessons.map(\.title), bodies: bodies)
         }
     }
 

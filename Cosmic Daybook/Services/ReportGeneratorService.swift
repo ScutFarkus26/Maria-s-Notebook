@@ -243,12 +243,14 @@ struct ReportGeneratorService {
             notes: notes,
             style: style,
             dateRange: dateRange,
-            aiNarrative: aiNarrative,
-            attendanceRate: attendanceRate,
-            daysPresent: daysPresent,
-            totalSchoolDays: totalSchoolDays,
-            masteryBreakdown: masteryBreakdown,
-            lessonCount: lessonCount
+            figures: ReportFigures(
+                aiNarrative: aiNarrative,
+                attendanceRate: attendanceRate,
+                daysPresent: daysPresent,
+                totalSchoolDays: totalSchoolDays,
+                masteryBreakdown: masteryBreakdown,
+                lessonCount: lessonCount
+            )
         )
 
         // Create PDF using CGContext, flowing the text across as many pages as it needs
@@ -486,17 +488,25 @@ extension ReportGeneratorService {
 
 extension ReportGeneratorService {
     #if canImport(AppKit)
+    /// The computed figures a report prints above the notes: the optional AI
+    /// summary, the attendance tally, the mastery breakdown, and the lesson
+    /// count. Grouped so the text builder takes one value instead of six
+    /// numbers that always travel together.
+    struct ReportFigures {
+        let aiNarrative: String?
+        let attendanceRate: Double?
+        let daysPresent: Int
+        let totalSchoolDays: Int
+        let masteryBreakdown: AIReportService.MasteryBreakdown?
+        let lessonCount: Int
+    }
+
     private func buildReportText(
         student: CDStudent,
         notes: [CDNote],
         style: ReportStyle,
         dateRange: ClosedRange<Date>,
-        aiNarrative: String?,
-        attendanceRate: Double?,
-        daysPresent: Int,
-        totalSchoolDays: Int,
-        masteryBreakdown: AIReportService.MasteryBreakdown?,
-        lessonCount: Int
+        figures: ReportFigures
     ) -> NSAttributedString {
         let result = NSMutableAttributedString()
         // swiftlint:disable line_length
@@ -509,15 +519,8 @@ extension ReportGeneratorService {
         let dateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.secondaryLabelColor]
         result.append(NSAttributedString(string: "\(rangeStart) - \(rangeEnd)\n\n", attributes: dateAttrs))
         result.append(NSAttributedString(string: "─────────────────────────────────────\n\n"))
-        appendStatsText(
-            to: result,
-            attendanceRate: attendanceRate,
-            daysPresent: daysPresent,
-            totalSchoolDays: totalSchoolDays,
-            mastery: masteryBreakdown,
-            lessonCount: lessonCount
-        )
-        if let narrative = aiNarrative {
+        appendStatsText(to: result, figures: figures)
+        if let narrative = figures.aiNarrative {
             appendNarrativeText(to: result, narrative: narrative)
         }
         appendGroupedNotesText(to: result, notes: notes, style: style)
@@ -551,14 +554,12 @@ extension ReportGeneratorService {
         }
     }
 
-    private func appendStatsText(
-        to result: NSMutableAttributedString,
-        attendanceRate: Double?,
-        daysPresent: Int,
-        totalSchoolDays: Int,
-        mastery: AIReportService.MasteryBreakdown?,
-        lessonCount: Int
-    ) {
+    private func appendStatsText(to result: NSMutableAttributedString, figures: ReportFigures) {
+        let attendanceRate = figures.attendanceRate
+        let daysPresent = figures.daysPresent
+        let totalSchoolDays = figures.totalSchoolDays
+        let mastery = figures.masteryBreakdown
+        let lessonCount = figures.lessonCount
         guard attendanceRate != nil || mastery != nil || lessonCount > 0 else { return }
 
         let headingAttrs: [NSAttributedString.Key: Any] = [

@@ -6,22 +6,24 @@ enum SupplyService {
 
     // MARK: - Core Data Methods
 
+    /// The fields the Add Supply sheet collects before a row exists.
+    struct SupplyDraft {
+        let name: String
+        let category: SupplyCategory
+        let location: String
+        let currentQuantity: Int
+        let notes: String
+    }
+
     /// Creates a new supply
-    static func createSupply(
-        name: String,
-        category: SupplyCategory,
-        location: String,
-        currentQuantity: Int,
-        notes: String,
-        in context: NSManagedObjectContext
-    ) -> CDSupply {
+    static func createSupply(_ draft: SupplyDraft, in context: NSManagedObjectContext) -> CDSupply {
         let supply = CDSupply(context: context)
         supply.id = UUID()
-        supply.name = name
-        supply.category = category
-        supply.location = location
-        supply.currentQuantity = Int64(currentQuantity)
-        supply.notes = notes
+        supply.name = draft.name
+        supply.category = draft.category
+        supply.location = draft.location
+        supply.currentQuantity = Int64(draft.currentQuantity)
+        supply.notes = draft.notes
         supply.createdAt = Date()
         supply.modifiedAt = Date()
 

@@ -748,11 +748,13 @@ final class Backup2RoundTripTests {
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         _ = try await service.importPayload(
             payload: reconstructed,
-            envelopeFormatVersion: BackupWriter.formatVersion,
-            envelopeEncrypted: false,
-            envelopeCreatedAt: Date(),
-            envelopeFileName: "v18-roundtrip",
-            envelopeEntityCounts: manifest.entityCounts,
+            envelope: BackupEnvelope(
+                formatVersion: BackupWriter.formatVersion,
+                encrypted: false,
+                createdAt: Date(),
+                fileName: "v18-roundtrip",
+                entityCounts: manifest.entityCounts
+            ),
             viewContext: destStack.viewContext,
             mode: .merge,
             appRouter: AppRouter.shared,

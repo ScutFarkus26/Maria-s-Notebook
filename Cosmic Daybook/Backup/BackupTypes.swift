@@ -276,6 +276,38 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     public var preferences: PreferencesDTO
 }
 
+// MARK: - BackupEnvelope
+
+/// The file-level facts about a backup being restored — everything the
+/// resulting `BackupOperationSummary` reports that isn't derived from the
+/// payload itself. Grouped so `importPayload` takes one value instead of five
+/// parallel `envelope*` parameters.
+///
+/// `Sendable` because the decode half of the import pipeline
+/// (`BackupImporter.decodeArchive`) is `nonisolated async`, so these values
+/// cross an isolation boundary on their way to the main-actor import.
+nonisolated public struct BackupEnvelope: Sendable {
+    public let formatVersion: Int
+    public let encrypted: Bool
+    public let createdAt: Date
+    public let fileName: String
+    public let entityCounts: [String: Int]
+
+    public init(
+        formatVersion: Int,
+        encrypted: Bool,
+        createdAt: Date,
+        fileName: String,
+        entityCounts: [String: Int]
+    ) {
+        self.formatVersion = formatVersion
+        self.encrypted = encrypted
+        self.createdAt = createdAt
+        self.fileName = fileName
+        self.entityCounts = entityCounts
+    }
+}
+
 // MARK: - BackupOperationSummary
 nonisolated public struct BackupOperationSummary: Identifiable, Sendable {
     public enum Kind: Sendable, Equatable {

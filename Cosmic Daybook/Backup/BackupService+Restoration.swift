@@ -61,7 +61,6 @@ enum CloudExportWaitResult: Sendable {
 extension BackupService {
     private static let logger = Logger.backup
 
-    // swiftlint:disable:next function_parameter_count function_body_length
     /// Post-decode import path. Shared by:
     ///   - `BackupCoordinator` for archive imports (which reconstructs
     ///     a `BackupPayload` from archive entries then calls this)
@@ -70,11 +69,7 @@ extension BackupService {
     /// code path across format versions.
     func importPayload(
         payload loadedPayload: BackupPayload,
-        envelopeFormatVersion: Int,
-        envelopeEncrypted: Bool,
-        envelopeCreatedAt: Date,
-        envelopeFileName: String,
-        envelopeEntityCounts: [String: Int],
+        envelope: BackupEnvelope,
         viewContext: NSManagedObjectContext,
         mode: RestoreMode,
         appRouter: AppRouter,
@@ -193,11 +188,11 @@ extension BackupService {
         progress(RestoreProgress.done, "Done")
         return BackupOperationSummary(
             kind: .import,
-            fileName: envelopeFileName,
-            formatVersion: envelopeFormatVersion,
-            encryptUsed: envelopeEncrypted,
-            createdAt: envelopeCreatedAt,
-            entityCounts: envelopeEntityCounts,
+            fileName: envelope.fileName,
+            formatVersion: envelope.formatVersion,
+            encryptUsed: envelope.encrypted,
+            createdAt: envelope.createdAt,
+            entityCounts: envelope.entityCounts,
             warnings: warnings
         )
     }
