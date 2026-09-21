@@ -3,6 +3,9 @@
 //
 // Presentations reorder and merge; work check-ins and work cards are handed
 // back up to the host, which owns the save coordinator and the purpose prompt.
+//
+// The highlight, the insertion indicator and the pasteboard read come from
+// `PresentationDropTarget`; what is here is the day column itself.
 
 import SwiftUI
 import CoreData
@@ -10,7 +13,7 @@ import UniformTypeIdentifiers
 
 // MARK: - Drop Delegate for day column
 
-struct WeekDayColumnDropDelegate: DropDelegate {
+struct WeekDayColumnDropDelegate: PresentationDropTarget {
     let calendar: Calendar
     let viewContext: NSManagedObjectContext
     let allLessonAssignments: [CDLessonAssignment]
@@ -26,72 +29,34 @@ struct WeekDayColumnDropDelegate: DropDelegate {
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
 
-    func dropEntered(info: DropInfo) {
-        onTargetChange(true)
-        onInsertionIndexChange(computeIndex(info))
+    // MARK: - PresentationDropTarget
+
+    func insertionIndex(at location: CGPoint) -> Int? {
+        PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: presentationFrames())
     }
 
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        onInsertionIndexChange(computeIndex(info))
-        return DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        onTargetChange(false)
-        onInsertionIndexChange(nil)
-    }
-
-    func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [UTType.text])
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        onTargetChange(false)
-        onInsertionIndexChange(nil)
-        let providers = info.itemProviders(for: [UTType.text])
-        return performDropFromProvidersAsync(providers: providers, location: info.location)
+    func handleDroppedText(_ text: String, location: CGPoint) {
+        // A command-click selection arrives as one item carrying every record
+        // in it, so a day accepts a whole morning in one drop.
+        let payloads = UnifiedCalendarDragPayload.parseAll(text)
+        guard !payloads.isEmpty else { return }
+        // Check-ins are collected and applied together; everything else lands
+        // in the order it was dragged.
+        var checkInIDs: [UUID] = []
+        for payload in payloads {
+            if case .workCheckIn(let id) = payload {
+                checkInIDs.append(id)
+            } else {
+                applyDrop(payload: payload, locationY: location.y)
+            }
+        }
+        if !checkInIDs.isEmpty {
+            onDropWorkCheckIns(checkInIDs, AppCalendar.startOfDay(day))
+        }
     }
 
     private func presentationFrames() -> [UUID: CGRect] {
-        let frames = itemFramesProvider()
-        return Dictionary(
-            orderedPresentationIDs().compactMap { id -> (UUID, CGRect)? in
-                guard let rect = frames[id] else { return nil }
-                return (id, rect)
-            },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
-
-    private func computeIndex(_ info: DropInfo) -> Int? {
-        PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: presentationFrames())
-    }
-
-    private func performDropFromProvidersAsync(providers: [NSItemProvider], location: CGPoint) -> Bool {
-        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else { return false }
-        provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let ns = reading as? NSString else { return }
-            // A command-click selection arrives as one item carrying every
-            // record in it, so a day accepts a whole morning in one drop.
-            let payloads = UnifiedCalendarDragPayload.parseAll(ns as String)
-            guard !payloads.isEmpty else { return }
-            Task { @MainActor in
-                // Check-ins are collected and applied together; everything else
-                // lands in the order it was dragged.
-                var checkInIDs: [UUID] = []
-                for payload in payloads {
-                    if case .workCheckIn(let id) = payload {
-                        checkInIDs.append(id)
-                    } else {
-                        applyDrop(payload: payload, locationY: location.y)
-                    }
-                }
-                if !checkInIDs.isEmpty {
-                    onDropWorkCheckIns(checkInIDs, AppCalendar.startOfDay(day))
-                }
-            }
-        }
-        return true
+        PresentationDropHandling.frames(for: orderedPresentationIDs(), in: itemFramesProvider())
     }
 
     private func applyDrop(payload: UnifiedCalendarDragPayload, locationY: CGFloat) {
@@ -101,7 +66,7 @@ struct WeekDayColumnDropDelegate: DropDelegate {
         case .work(let id):
             onDropWork(id, AppCalendar.startOfDay(day))
         case .workCheckIn:
-            // Batched by the caller — see performDropFromProvidersAsync.
+            // Batched by the caller — see handleDroppedText.
             break
         case .yearPlanEntry:
             // Year plan entries belong to the student Year Plan calendar.
@@ -109,26 +74,16 @@ struct WeekDayColumnDropDelegate: DropDelegate {
         }
     }
 
-    /// A drop landing on a pill for the same lesson merges the two rather than
-    /// reordering — this is the consolidate-duplicates gesture. Returns the
-    /// assignment to merge into, or nil to fall through to reordering.
-    private func mergeTarget(for id: UUID, locationY: CGFloat) -> CDLessonAssignment? {
-        guard let source = allLessonAssignments.first(where: { $0.id == id }), !source.isGiven else {
-            return nil
-        }
-        let frames = presentationFrames()
-        return orderedPresentationIDs()
-            .compactMap { pid in allLessonAssignments.first { $0.id == pid } }
-            .first { candidate in
-                guard let candidateID = candidate.id, candidateID != id, !candidate.isGiven,
-                      candidate.resolvedLessonID == source.resolvedLessonID,
-                      let frame = frames[candidateID] else { return false }
-                return locationY >= frame.minY && locationY <= frame.maxY
-            }
-    }
-
     private func applyPresentationDrop(id: UUID, locationY: CGFloat) {
-        if let target = mergeTarget(for: id, locationY: locationY) {
+        let ordered = orderedPresentationIDs()
+        let frames = presentationFrames()
+        if let target = PresentationDropHandling.mergeTarget(
+            for: id,
+            locationY: locationY,
+            among: ordered.compactMap { pid in allLessonAssignments.first { $0.id == pid } },
+            in: allLessonAssignments,
+            frames: frames
+        ) {
             PresentationMergeService.merge(
                 sourceID: id,
                 targetID: target.id ?? UUID(),
@@ -138,10 +93,10 @@ struct WeekDayColumnDropDelegate: DropDelegate {
         }
 
         let ids = PlanningDropUtils.reordered(
-            ids: orderedPresentationIDs(),
+            ids: ordered,
             moving: id,
             toLocationY: locationY,
-            frames: presentationFrames()
+            frames: frames
         )
         // One pass over the day's assignments instead of a linear scan per id —
         // every drop now writes and saves for real, so a big day would repeat
@@ -163,16 +118,10 @@ struct WeekDayColumnDropDelegate: DropDelegate {
         }
         guard viewContext.safeSave() else { return }
 
-        // Auto-populate year plan entries for the dropped presentation's sequence
-        if let droppedItem = allLessonAssignments.first(where: { $0.id == id }),
-           droppedItem.state == .scheduled {
-            Task {
-                await SequenceAutoPopulateService.autoPopulateSequence(
-                    for: droppedItem,
-                    scheduledDate: droppedItem.scheduledFor ?? day,
-                    context: viewContext
-                )
-            }
+        if let droppedItem = assignmentsByID[id] {
+            PresentationDropHandling.autoPopulateSequence(
+                for: droppedItem, fallbackDate: { day }, context: viewContext
+            )
         }
     }
 

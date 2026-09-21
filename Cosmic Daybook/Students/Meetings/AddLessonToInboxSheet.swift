@@ -123,29 +123,19 @@ struct AddLessonToInboxSheet: View {
                 .font(.headline)
             
             // Search field with popover
-            TextField("Search lessons...", text: $lessonSearchText)
-                .textFieldStyle(.roundedBorder)
-                .focused($lessonFieldFocused)
-                .onChange(of: lessonSearchText) { _, newValue in
-                    if !newValue.trimmed().isEmpty {
-                        showingLessonPopover = true
-                    }
-                }
-                .onSubmit {
-                    // If user typed an exact lesson name, select it
-                    let trimmed = lessonSearchText.trimmed()
+            LessonPopoverSearchField(
+                text: $lessonSearchText,
+                isShowingCandidates: $showingLessonPopover,
+                isFocused: $lessonFieldFocused,
+                onSubmit: { trimmed in
                     if let match = filteredLessons.first(where: {
                         $0.name.caseInsensitiveCompare(trimmed) == .orderedSame
                     }) {
                         selectLesson(match)
                     }
-                }
-                .onTapGesture {
-                    showingLessonPopover = true
-                }
-                .popover(isPresented: $showingLessonPopover, arrowEdge: .bottom) {
-                    lessonPopoverContent()
-                }
+                },
+                candidates: { lessonPopoverContent() }
+            )
             
             // Selected lesson display
             if let lesson = selectedLesson {

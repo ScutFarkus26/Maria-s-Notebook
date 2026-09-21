@@ -55,7 +55,7 @@ struct AttendanceMacView: View {
         )) { box in
             AttendanceStudentHistorySheet(studentID: box.id)
         }
-        .overlay(alignment: .top) { toastOverlay }
+        .toastBanner(toastMessage)
     }
 
     // MARK: Layout
@@ -173,38 +173,8 @@ struct AttendanceMacView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    @ViewBuilder
-    private var toastOverlay: some View {
-        if let message = toastMessage {
-            Text(message)
-                .font(AppTheme.ScaledFont.captionSemibold)
-                .padding(.horizontal, AppTheme.Spacing.compact)
-                .padding(.vertical, AppTheme.Spacing.small)
-                .background(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .fill(Color.black.opacity(UIConstants.OpacityConstants.nearSolid))
-                )
-                .foregroundStyle(.white)
-                .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .padding(.top, 8)
-        }
-    }
-
     private func toast(_ message: String) {
-        adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-            toastMessage = message
-        }
-        Task { @MainActor in
-            do {
-                try await Task.sleep(for: .seconds(2.0))
-            } catch {
-                Self.logger.warning("Failed to sleep for toast dismissal: \(error)")
-            }
-            adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
-                toastMessage = nil
-            }
-        }
+        showToast(message, in: $toastMessage, logger: Self.logger)
     }
 
     // MARK: Data

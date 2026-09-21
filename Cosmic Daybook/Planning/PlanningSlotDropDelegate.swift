@@ -8,7 +8,10 @@ import UniformTypeIdentifiers
 /// 1. Plain UUID — reorder or merge a CDLessonAssignment within a slot
 /// 2. `STUDENT_TO_INBOX:` / `STUDENT_TO_SLOT:` — move a student into a slot
 /// 3. `UnifiedCalendarDragPayload` — presentation or work check-in scheduling
-struct PlanningSlotDropDelegate: DropDelegate {
+///
+/// The highlight, the insertion indicator and the pasteboard read come from
+/// `PresentationDropTarget`; what is here is the slot itself.
+struct PlanningSlotDropDelegate: PresentationDropTarget {
     let calendar: Calendar
     let viewContext: NSManagedObjectContext
     let allLessonAssignments: [CDLessonAssignment]
@@ -20,58 +23,18 @@ struct PlanningSlotDropDelegate: DropDelegate {
     let onTargetChange: (Bool) -> Void
     let onInsertionIndexChange: (Int?) -> Void
 
-    // MARK: - DropDelegate
+    // MARK: - PresentationDropTarget
 
-    func dropEntered(info: DropInfo) {
-        onTargetChange(true)
-        onInsertionIndexChange(computeIndex(info))
+    func insertionIndex(at location: CGPoint) -> Int? {
+        PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: currentFrames())
     }
 
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        onInsertionIndexChange(computeIndex(info))
-        return DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        onTargetChange(false)
-        onInsertionIndexChange(nil)
-    }
-
-    func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [UTType.text])
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        onTargetChange(false)
-        onInsertionIndexChange(nil)
-        let providers = info.itemProviders(for: [UTType.text])
-        return loadAndHandleDrop(providers: providers, location: info.location)
-    }
-
-    // MARK: - Async loading
-
-    private func loadAndHandleDrop(providers: [NSItemProvider], location: CGPoint) -> Bool {
-        guard let provider = providers.first, provider.canLoadObject(ofClass: NSString.self) else {
-            return false
-        }
-        provider.loadObject(ofClass: NSString.self) { reading, _ in
-            guard let ns = reading as? NSString else { return }
-            let payload = ns as String
-            Task { @MainActor in
-                self.handleDropPayload(payload: payload, location: location)
-            }
-        }
-        return true
-    }
-
-    // MARK: - Payload routing
-
-    private func handleDropPayload(payload: String, location: CGPoint) {
-        if payload.hasPrefix("STUDENT_TO_INBOX:") || payload.hasPrefix("STUDENT_TO_SLOT:") {
-            handleStudentToSlotPayload(payload: payload, location: location)
+    func handleDroppedText(_ text: String, location: CGPoint) {
+        if text.hasPrefix("STUDENT_TO_INBOX:") || text.hasPrefix("STUDENT_TO_SLOT:") {
+            handleStudentToSlotPayload(payload: text, location: location)
             return
         }
-        handlePlainIDPayload(payload: payload, location: location)
+        handlePlainIDPayload(payload: text, location: location)
     }
 
     // MARK: - CDStudent-to-slot drops
@@ -87,8 +50,9 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
         let current = getCurrent()
         var ids = current.compactMap(\.id)
-        let dict = buildFramesDictionary(current: current)
-        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
+        let insertionIndex = PlanningDropUtils.computeInsertionIndex(
+            locationY: location.y, frames: currentFrames(current)
+        )
 
         let targetLA = findOrCreateTargetLessonAssignment(lessonID: lessonID, studentID: studentID)
         guard let targetID = targetLA.id else { return }
@@ -106,16 +70,9 @@ struct PlanningSlotDropDelegate: DropDelegate {
         removeStudentFromSource(srcID: srcID, studentID: studentID)
         saveContext("student move")
 
-        // Auto-populate year plan entries for the newly scheduled presentation
-        if targetLA.state == .scheduled {
-            Task {
-                await SequenceAutoPopulateService.autoPopulateSequence(
-                    for: targetLA,
-                    scheduledDate: targetLA.scheduledFor ?? baseDateProvider(),
-                    context: viewContext
-                )
-            }
-        }
+        PresentationDropHandling.autoPopulateSequence(
+            for: targetLA, fallbackDate: baseDateProvider, context: viewContext
+        )
     }
 
     // MARK: - Plain UUID (reorder / merge) drops
@@ -128,24 +85,18 @@ struct PlanningSlotDropDelegate: DropDelegate {
         let current = getCurrent()
 
         // Check if the drop landed on a pill for the same lesson — merge instead of reorder
-        if let source = allLessonAssignments.first(where: { $0.id == id }), !source.isGiven {
-            let frames = itemFramesProvider()
-            let dropY = location.y
-            if let targetLA = current.first(where: { la in
-                guard let laID = la.id, laID != id, !la.isGiven,
-                      la.resolvedLessonID == source.resolvedLessonID,
-                      let frame = frames[laID] else { return false }
-                return dropY >= frame.minY && dropY <= frame.maxY
-            }) {
-                if let targetLAID = targetLA.id {
-                    PresentationMergeService.merge(
-                        sourceID: id,
-                        targetID: targetLAID,
-                        context: viewContext
-                    )
-                }
-                return
+        if let targetLA = PresentationDropHandling.mergeTarget(
+            for: id, locationY: location.y, among: current,
+            in: allLessonAssignments, frames: itemFramesProvider()
+        ) {
+            if let targetLAID = targetLA.id {
+                PresentationMergeService.merge(
+                    sourceID: id,
+                    targetID: targetLAID,
+                    context: viewContext
+                )
             }
+            return
         }
 
         var ids = current.compactMap(\.id)
@@ -153,8 +104,9 @@ struct PlanningSlotDropDelegate: DropDelegate {
             ids.remove(at: existing)
         }
 
-        let dict = buildFramesDictionary(current: current)
-        let insertionIndex = PlanningDropUtils.computeInsertionIndex(locationY: location.y, frames: dict)
+        let insertionIndex = PlanningDropUtils.computeInsertionIndex(
+            locationY: location.y, frames: currentFrames(current)
+        )
         let bounded = max(0, min(insertionIndex, ids.count))
         ids.insert(id, at: bounded)
 
@@ -168,14 +120,10 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
     // MARK: - Helpers
 
-    private func buildFramesDictionary(current: [CDLessonAssignment]) -> [UUID: CGRect] {
-        let frames = itemFramesProvider()
-        return Dictionary(
-            current.compactMap { item -> (UUID, CGRect)? in
-                guard let itemID = item.id, let rect = frames[itemID] else { return nil }
-                return (itemID, rect)
-            },
-            uniquingKeysWith: { first, _ in first }
+    private func currentFrames(_ current: [CDLessonAssignment]? = nil) -> [UUID: CGRect] {
+        PresentationDropHandling.frames(
+            for: (current ?? getCurrent()).compactMap(\.id),
+            in: itemFramesProvider()
         )
     }
 
@@ -239,12 +187,6 @@ struct PlanningSlotDropDelegate: DropDelegate {
         if src.studentIDs.isEmpty {
             viewContext.delete(src)
         }
-    }
-
-    private func computeIndex(_ info: DropInfo) -> Int {
-        let current = getCurrent()
-        let dict = buildFramesDictionary(current: current)
-        return PlanningDropUtils.computeInsertionIndex(locationY: info.location.y, frames: dict)
     }
 
     private func saveContext(_ operation: String) {

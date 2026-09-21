@@ -35,11 +35,7 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
     // defaults rather than the guide's settings, because five store lookups per
     // chip was too much to spend here — reading them once means the phone's dots
     // and the Mac's bars can finally agree.
-    @SyncedAppStorage private var ageWarningDays: Int
-    @SyncedAppStorage private var ageOverdueDays: Int
-    @SyncedAppStorage private var ageFreshColorHex: String
-    @SyncedAppStorage private var ageWarningColorHex: String
-    @SyncedAppStorage private var ageOverdueColorHex: String
+    private var ageSettings: StudentAgePaletteReader
 
     init(
         vocabulary: StudentWaitVocabulary,
@@ -57,24 +53,10 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
         self.onSelect = onSelect
         self.scopeMenu = scopeMenu()
         self.expanded = expanded()
-
-        let keys = vocabulary.ageKeys
-        _ageWarningDays = SyncedAppStorage(wrappedValue: LessonAgeDefaults.warningDays, keys.warningDays)
-        _ageOverdueDays = SyncedAppStorage(wrappedValue: LessonAgeDefaults.overdueDays, keys.overdueDays)
-        _ageFreshColorHex = SyncedAppStorage(wrappedValue: LessonAgeDefaults.freshColorHex, keys.freshColorHex)
-        _ageWarningColorHex = SyncedAppStorage(wrappedValue: LessonAgeDefaults.warningColorHex, keys.warningColorHex)
-        _ageOverdueColorHex = SyncedAppStorage(wrappedValue: LessonAgeDefaults.overdueColorHex, keys.overdueColorHex)
+        ageSettings = StudentAgePaletteReader(vocabulary)
     }
 
-    private var palette: StudentAgePalette {
-        StudentAgePalette(
-            warningDays: ageWarningDays,
-            overdueDays: ageOverdueDays,
-            fresh: ColorUtils.color(from: ageFreshColorHex),
-            warning: ColorUtils.color(from: ageWarningColorHex),
-            overdue: ColorUtils.color(from: ageOverdueColorHex)
-        )
-    }
+    private var palette: StudentAgePalette { ageSettings.palette }
 
     var body: some View {
         HStack(spacing: AppTheme.Spacing.small) {

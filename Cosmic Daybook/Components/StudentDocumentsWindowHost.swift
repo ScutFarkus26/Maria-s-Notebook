@@ -6,19 +6,19 @@ import SwiftUI
 /// instead of sharing a cramped sheet with the student record.
 struct StudentDocumentsWindowHost: View {
     let studentID: UUID
-    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        if let student = viewContext.object(CDStudent.self, id: studentID) {
-            StudentFilesTab(student: student)
-                .navigationTitle("Documents — \(student.fullName)")
-        } else {
-            ContentUnavailableView(
+        EntityWindowHost(
+            id: studentID,
+            notFound: WindowHostNotFound(
                 "Student Not Found",
                 systemImage: "person.crop.circle.badge.questionmark",
-                description: Text("This student may have been removed.")
+                description: Text("This student may have been removed."),
+                minSize: CGSize(width: 560, height: 420)
             )
-            .frame(minWidth: 560, minHeight: 420)
+        ) { (student: CDStudent) in
+            StudentFilesTab(student: student)
+                .navigationTitle("Documents — \(student.fullName)")
         }
     }
 }

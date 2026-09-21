@@ -21,23 +21,7 @@ struct StudentListRow: View {
     // MARK: - Birthday Computations
 
     private var nextBirthdayDate: Date {
-        let today = Date()
-        let comps = calendar.dateComponents([.month, .day], from: student.birthday ?? Date())
-        let currentYear = calendar.component(.year, from: today)
-        var thisYear = calendar.date(from: DateComponents(year: currentYear, month: comps.month, day: comps.day))
-        // Handle Feb 29 on non-leap years by using Feb 28
-        if thisYear == nil, comps.month == 2, comps.day == 29 {
-            thisYear = calendar.date(from: DateComponents(year: currentYear, month: 2, day: 28))
-        }
-        guard let this = thisYear else { return today }
-        let startOfToday = calendar.startOfDay(for: today)
-        if this >= startOfToday { return this }
-        let nextYear = currentYear + 1
-        var next = calendar.date(from: DateComponents(year: nextYear, month: comps.month, day: comps.day))
-        if next == nil, comps.month == 2, comps.day == 29 {
-            next = calendar.date(from: DateComponents(year: nextYear, month: 2, day: 28))
-        }
-        return next ?? this
+        RosterBirthday.nextOccurrence(of: student.birthday, using: calendar)
     }
 
     private var daysUntilNextBirthday: Int {

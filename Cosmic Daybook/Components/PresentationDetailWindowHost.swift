@@ -1,14 +1,20 @@
-import SwiftUI
 import CoreData
+import SwiftUI
 
 #if os(macOS)
 struct PresentationDetailWindowHost: View {
     let lessonAssignmentID: UUID
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        if let lessonAssignment = viewContext.object(CDLessonAssignment.self, id: lessonAssignmentID) {
+        EntityWindowHost(
+            id: lessonAssignmentID,
+            notFound: WindowHostNotFound(
+                "Presentation Not Found",
+                systemImage: "rectangle.badge.magnifyingglass",
+                minSize: CGSize(width: 400, height: 300)
+            )
+        ) { (lessonAssignment: CDLessonAssignment) in
             // Done, Cancel and Delete all mean "close this window", so the
             // window is named rather than left to the ambient `dismiss`, which
             // has no presentation to close out here and quietly does nothing.
@@ -18,9 +24,6 @@ struct PresentationDetailWindowHost: View {
             .frame(minWidth: 720, minHeight: 640)
             .navigationTitle(windowTitle(for: lessonAssignment))
             .background(FullScreenAuxiliaryWindow())
-        } else {
-            ContentUnavailableView("Presentation Not Found", systemImage: "rectangle.badge.magnifyingglass")
-                .frame(minWidth: 400, minHeight: 300)
         }
     }
 

@@ -22,41 +22,6 @@ enum StudentColumn {
     static let preferredWidth: CGFloat = 240
 }
 
-/// The age thresholds and colours, resolved once for a whole list.
-struct StudentAgePalette {
-    let warningDays: Int
-    let overdueDays: Int
-    let fresh: Color
-    let warning: Color
-    let overdue: Color
-
-    /// A child there is nothing to measure for is the most overdue thing on the
-    /// list, not an unknown.
-    func status(forDays days: Int?) -> LessonAgeStatus {
-        guard let days else { return .overdue }
-        if days >= max(0, overdueDays) { return .overdue }
-        if days >= max(0, warningDays) { return .warning }
-        return .fresh
-    }
-
-    func color(forDays days: Int?) -> Color {
-        switch status(forDays: days) {
-        case .fresh: fresh
-        case .warning: warning
-        case .overdue: overdue
-        }
-    }
-
-    /// The metadata line stays secondary until the child is actually late, so
-    /// the colour means something when it arrives.
-    func detailTint(forDays days: Int?) -> Color {
-        switch status(forDays: days) {
-        case .fresh: .secondary
-        case .warning, .overdue: color(forDays: days)
-        }
-    }
-}
-
 struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
     let vocabulary: StudentWaitVocabulary
     let entries: [WaitingStudent]
@@ -68,11 +33,7 @@ struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
     // Read here, once per list, rather than in each row. The keys come from the
     // vocabulary, so the bar down a row is coloured by the same settings as the
     // cards beside it.
-    @SyncedAppStorage private var ageWarningDays: Int
-    @SyncedAppStorage private var ageOverdueDays: Int
-    @SyncedAppStorage private var ageFreshColorHex: String
-    @SyncedAppStorage private var ageWarningColorHex: String
-    @SyncedAppStorage private var ageOverdueColorHex: String
+    private var ageSettings: StudentAgePaletteReader
 
     init(
         vocabulary: StudentWaitVocabulary,
@@ -88,24 +49,10 @@ struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
         self.onSelect = onSelect
         self.scopePicker = scopePicker()
         self.emptyState = emptyState()
-
-        let keys = vocabulary.ageKeys
-        _ageWarningDays = SyncedAppStorage(wrappedValue: LessonAgeDefaults.warningDays, keys.warningDays)
-        _ageOverdueDays = SyncedAppStorage(wrappedValue: LessonAgeDefaults.overdueDays, keys.overdueDays)
-        _ageFreshColorHex = SyncedAppStorage(wrappedValue: LessonAgeDefaults.freshColorHex, keys.freshColorHex)
-        _ageWarningColorHex = SyncedAppStorage(wrappedValue: LessonAgeDefaults.warningColorHex, keys.warningColorHex)
-        _ageOverdueColorHex = SyncedAppStorage(wrappedValue: LessonAgeDefaults.overdueColorHex, keys.overdueColorHex)
+        ageSettings = StudentAgePaletteReader(vocabulary)
     }
 
-    private var palette: StudentAgePalette {
-        StudentAgePalette(
-            warningDays: ageWarningDays,
-            overdueDays: ageOverdueDays,
-            fresh: ColorUtils.color(from: ageFreshColorHex),
-            warning: ColorUtils.color(from: ageWarningColorHex),
-            overdue: ColorUtils.color(from: ageOverdueColorHex)
-        )
-    }
+    private var palette: StudentAgePalette { ageSettings.palette }
 
     var body: some View {
         VStack(spacing: 0) {
