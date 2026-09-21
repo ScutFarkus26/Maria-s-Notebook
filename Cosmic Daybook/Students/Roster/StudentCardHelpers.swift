@@ -32,12 +32,6 @@ enum SymbolSupportCache {
 
 extension Color {
     static var cardBackground: Color {
-        #if canImport(AppKit)
-        return Color(NSColor.windowBackgroundColor)
-        #elseif canImport(UIKit)
-        return Color(UIColor.secondarySystemBackground)
-        #else
-        return Color.white
-        #endif
+        AppTheme.Colors.paneBackground
     }
 }

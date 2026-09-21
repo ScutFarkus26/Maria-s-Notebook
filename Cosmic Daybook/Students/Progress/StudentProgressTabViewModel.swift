@@ -275,11 +275,7 @@ final class StudentProgressTabViewModel {
     }
 
     var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color(uiColor: .systemBackground)
-        #endif
+        Color.windowBackgroundColor()
     }
 
     // MARK: - Auto-Complete CDTrackEntity

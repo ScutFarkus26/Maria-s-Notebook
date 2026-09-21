@@ -108,24 +108,8 @@ extension TodayView {
     }
 
     private func resolveLessonPlanBookmark(_ bookmark: Data) -> URL? {
-        var stale = false
-
         do {
-#if os(macOS)
-            let url = try URL(
-                resolvingBookmarkData: bookmark,
-                options: [.withSecurityScope],
-                relativeTo: nil,
-                bookmarkDataIsStale: &stale
-            )
-#else
-            let url = try URL(
-                resolvingBookmarkData: bookmark,
-                options: [],
-                relativeTo: nil,
-                bookmarkDataIsStale: &stale
-            )
-#endif
+            let url = try SecurityScopedBookmark.resolve(bookmark).url
             _ = url.startAccessingSecurityScopedResource()
             return url
         } catch {

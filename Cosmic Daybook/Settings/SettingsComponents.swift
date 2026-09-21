@@ -21,11 +21,7 @@ enum SettingsStyle {
 
     /// Platform-specific background color for settings groups
     static var groupBackgroundColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
+        Color.controlBackgroundColor()
     }
 
     /// Border opacity for settings cards

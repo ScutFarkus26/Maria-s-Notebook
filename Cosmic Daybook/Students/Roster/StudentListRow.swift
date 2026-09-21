@@ -195,12 +195,7 @@ struct StudentListRow: View {
     }
 
     private func copyStudentName() {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(student.fullName, forType: .string)
-        #else
-        UIPasteboard.general.string = student.fullName
-        #endif
+        Pasteboard.copy(student.fullName)
     }
 }
 

@@ -135,11 +135,7 @@ struct AttendanceInsightsSidebar: View {
     }
 
     private var nsOrSystemBackground: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .systemBackground)
-        #endif
+        AppTheme.Colors.controlBackground
     }
 
     // MARK: Reload

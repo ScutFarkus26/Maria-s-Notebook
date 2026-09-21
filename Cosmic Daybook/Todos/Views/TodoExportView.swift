@@ -149,12 +149,7 @@ struct TodoExportView: View {
     }
     
     private func copyToClipboard() {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(exportedContent, forType: .string)
-        #else
-        UIPasteboard.general.string = exportedContent
-        #endif
+        Pasteboard.copy(exportedContent)
         showCopiedAlert = true
     }
     

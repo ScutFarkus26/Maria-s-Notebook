@@ -145,11 +145,7 @@ extension StudentInsightsView {
             }
         }
         .padding()
-        #if os(iOS)
-        .background(Color(.systemBackground))
-        #else
-        .background(Color(NSColor.controlBackgroundColor))
-        #endif
+        .background(AppTheme.Colors.controlBackground)
         .cornerRadius(12)
         .shadow(radius: 2)
     }

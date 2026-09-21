@@ -10,11 +10,7 @@ import UIKit
 enum CardStyle {
     /// Standard card background color (platform-adaptive)
     static var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
+        Color.controlBackgroundColor()
     }
     
     /// Standard card corner radius

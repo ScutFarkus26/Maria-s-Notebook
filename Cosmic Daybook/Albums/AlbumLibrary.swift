@@ -232,14 +232,7 @@ final class AlbumLibrary {
     static func hasResolvableFolderBookmark() -> Bool {
         let bookmarkList = (UserDefaults.standard.array(forKey: bookmarksKey) as? [Data]) ?? []
         return bookmarkList.contains { data in
-            var stale = false
-            #if os(macOS)
-            let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope,
-                               relativeTo: nil, bookmarkDataIsStale: &stale)
-            #else
-            let url = try? URL(resolvingBookmarkData: data, relativeTo: nil, bookmarkDataIsStale: &stale)
-            #endif
-            return url != nil
+            (try? SecurityScopedBookmark.resolve(data)) != nil
         }
     }
 
@@ -283,13 +276,7 @@ final class AlbumLibrary {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         do {
-            #if os(macOS)
-            let data = try url.bookmarkData(options: .withSecurityScope,
-                                            includingResourceValuesForKeys: nil, relativeTo: nil)
-            #else
-            let data = try url.bookmarkData(options: .minimalBookmark,
-                                            includingResourceValuesForKeys: nil, relativeTo: nil)
-            #endif
+            let data = try SecurityScopedBookmark.make(for: url, unscopedOptions: .minimalBookmark)
             var list = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
             list.append(data)
             UserDefaults.standard.set(list, forKey: Self.bookmarksKey)
@@ -335,14 +322,7 @@ final class AlbumLibrary {
     }
 
     private func resolveBookmark(_ data: Data) -> URL? {
-        var stale = false
-        #if os(macOS)
-        guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope,
-                                 relativeTo: nil, bookmarkDataIsStale: &stale) else { return nil }
-        #else
-        guard let url = try? URL(resolvingBookmarkData: data,
-                                 relativeTo: nil, bookmarkDataIsStale: &stale) else { return nil }
-        #endif
+        guard let url = try? SecurityScopedBookmark.resolve(data).url else { return nil }
         guard url.startAccessingSecurityScopedResource() else { return nil }
         return url
     }

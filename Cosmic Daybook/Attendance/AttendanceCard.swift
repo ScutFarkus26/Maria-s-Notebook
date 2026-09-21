@@ -154,13 +154,7 @@ struct AttendanceCard: View {
 
     private var background: some View {
         // Neutral card background with subtle elevation
-        let bgColor: Color = {
-#if os(macOS)
-            return Color(nsColor: .windowBackgroundColor)
-#else
-            return Color(uiColor: .systemBackground)
-#endif
-        }()
+        let bgColor = Color.windowBackgroundColor()
 
         return RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(bgColor)

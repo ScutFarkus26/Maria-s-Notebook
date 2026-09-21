@@ -60,7 +60,7 @@ struct NoteEditSheet: View {
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 20)
-            .background(Color(NSColor.controlBackgroundColor))
+            .background(Color.controlBackgroundColor())
             
             Divider()
             

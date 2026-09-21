@@ -13,21 +13,11 @@ extension LessonDetailView {
             return nil
         }
 
-        var isStale = false
         do {
-#if os(macOS)
-            let url = try URL(
-                resolvingBookmarkData: bookmarkData,
-                options: [.withoutUI, .withSecurityScope],
-                relativeTo: nil, bookmarkDataIsStale: &isStale
+            let (url, isStale) = try SecurityScopedBookmark.resolve(
+                bookmarkData,
+                options: [.withoutUI]
             )
-#else
-            let url = try URL(
-                resolvingBookmarkData: bookmarkData,
-                options: [.withoutUI],
-                relativeTo: nil, bookmarkDataIsStale: &isStale
-            )
-#endif
 
 #if os(iOS)
             if url.startAccessingSecurityScopedResource() {
@@ -59,29 +49,11 @@ extension LessonDetailView {
     }
 
     func savePagesBookmark(from url: URL) {
-#if os(iOS)
         do {
-            let bookmark = try url.bookmarkData(
-                options: [],
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-            lesson.pagesFileBookmark = bookmark
+            lesson.pagesFileBookmark = try SecurityScopedBookmark.make(for: url)
         } catch {
             // ignore error
         }
-#elseif os(macOS)
-        do {
-            let bookmark = try url.bookmarkData(
-                options: [.withSecurityScope],
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-            lesson.pagesFileBookmark = bookmark
-        } catch {
-            // ignore error
-        }
-#endif
     }
 
     func openInPages(_ url: URL) {

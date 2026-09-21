@@ -45,12 +45,8 @@ struct TodoLocationPickerView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                #if os(iOS)
-                .background(Color(.systemBackground))
-                #else
-                .background(Color(nsColor: .controlBackgroundColor))
-                #endif
-                
+                .background(AppTheme.Colors.controlBackground)
+
                 Divider()
                 
                 ZStack(alignment: .bottom) {

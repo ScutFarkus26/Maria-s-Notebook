@@ -116,10 +116,6 @@ struct PresentationCard: View {
     }
 
     private var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
+        AppTheme.Colors.paneBackground
     }
 }

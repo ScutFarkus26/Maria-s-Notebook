@@ -180,6 +180,20 @@ enum AppTheme {
             #endif
         }
 
+        /// Background for a control-like surface that sits directly on a
+        /// pane: sidebars, insight cards, list cards. Maps to control
+        /// background on macOS, plain system background on iOS.
+        ///
+        /// Not the same pair as `Color.controlBackgroundColor()`, which
+        /// takes the *secondary* system background on iOS.
+        nonisolated static var controlBackground: Color {
+            #if os(macOS)
+            return Color(NSColor.controlBackgroundColor)
+            #else
+            return Color(uiColor: .systemBackground)
+            #endif
+        }
+
     }
 
     // MARK: - Tracking (Letter Spacing) Constants (#12-14)
