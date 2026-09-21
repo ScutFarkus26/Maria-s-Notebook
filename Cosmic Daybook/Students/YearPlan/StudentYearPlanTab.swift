@@ -146,23 +146,15 @@ struct StudentYearPlanTab: View {
         startComps.year = range.lowerBound
         startComps.month = 8
         startComps.day = 1
-        var endComps = DateComponents()
-        endComps.year = range.upperBound
-        endComps.month = 8
-        endComps.day = 1
-        guard let start = cal.date(from: startComps),
-              let end = cal.date(from: endComps) else { return }
+        guard let start = cal.date(from: startComps) else { return }
 
-        let dates = await SchoolCalendarService.shared.nonSchoolDays(in: start..<end, using: viewContext)
-        var cells = Set<CellID>()
-        for date in dates {
-            cells.insert(CellID(
-                year: cal.component(.year, from: date),
-                month: cal.component(.month, from: date),
-                day: cal.component(.day, from: date)
-            ))
-        }
-        nonSchoolCells = cells
+        // August 1 of the first year through August 1 of the last: the same
+        // window as before, loaded through the shared calendar-cell loader.
+        nonSchoolCells = await NonSchoolDayCells.load(
+            years: range.upperBound - range.lowerBound,
+            from: start,
+            context: viewContext
+        )
     }
 
     // MARK: - Pace Summary
