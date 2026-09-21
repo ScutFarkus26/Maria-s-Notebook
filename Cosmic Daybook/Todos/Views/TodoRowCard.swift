@@ -4,7 +4,6 @@
 import SwiftUI
 import CoreData
 
-// swiftlint:disable:next type_body_length
 struct TodoRowCard: View {
     @ObservedObject var todo: CDTodoItem
     @Environment(\.managedObjectContext) private var viewContext
@@ -12,8 +11,6 @@ struct TodoRowCard: View {
     let onSelect: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
-
-    @State private var checkboxScale: CGFloat = 1.0
 
     /// Persists a reschedule/date change via `SaveCoordinator` (which surfaces a
     /// "Couldn't Save" alert on failure). Extracted from `body` so the swipe and
@@ -34,9 +31,7 @@ struct TodoRowCard: View {
         .swipeActions(edge: .leading) { leadingSwipeActions }
         .contextMenu { rowContextMenu }
         .accessibilityAction(named: Text(todo.isCompleted ? "Mark Incomplete" : "Mark Complete")) {
-            todo.isCompleted.toggle()
-            todo.completedAt = todo.isCompleted ? Date() : nil
-            viewContext.safeSave()
+            toggleCompletion()
         }
         .accessibilityAction(named: Text("Edit")) {
             onEdit()
@@ -49,52 +44,26 @@ struct TodoRowCard: View {
     @ViewBuilder
     private var rowLabel: some View {
         HStack(spacing: 0) {
-            // Priority left-edge bar
-            if todo.priority != .none {
-                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .fill(priorityColor(todo.priority))
-                    .frame(width: 3)
-                    .padding(.vertical, 6)
-                    .padding(.trailing, 11)
-            } else {
-                Spacer()
-                    .frame(width: 14)
-            }
+            TodoRowComponents.priorityEdge(
+                priority: todo.priority,
+                trailingPadding: 11,
+                gutterWidth: 14
+            )
 
-            checkboxButton
+            TodoCheckboxButton(isCompleted: todo.isCompleted, action: { toggleCompletion() })
 
             Spacer().frame(width: 14)
 
             // Content
             VStack(alignment: .leading, spacing: 3) {
-                Text(todo.title)
-                    .font(AppTheme.ScaledFont.titleSmall)
-                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                    .strikethrough(todo.isCompleted, color: .secondary.opacity(UIConstants.OpacityConstants.half))
-
-                if !todo.notes.isEmpty {
-                    Text(todo.notes)
-                        .font(AppTheme.ScaledFont.body)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
+                TodoRowComponents.titleAndNotes(todo: todo)
 
                 if todo.effectiveDate != nil || todo.isSomeday ||
                     !todo.tagsArray.isEmpty || todo.recurrence != .none {
                     HStack(spacing: 6) {
-                        if todo.effectiveDate != nil || todo.isSomeday {
-                            TodoDateChip(todo: todo)
-                        }
+                        TodoRowComponents.dateChip(todo: todo)
 
-                        if todo.recurrence != .none {
-                            HStack(spacing: 3) {
-                                Image(systemName: "repeat")
-                                    .font(.system(size: 10))
-                                Text(todo.recurrence.shortLabel)
-                                    .font(AppTheme.ScaledFont.captionSemibold)
-                            }
-                            .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
-                        }
+                        TodoRowComponents.recurrenceChip(todo: todo)
 
                         if !todo.tagsArray.isEmpty {
                             tagBadgeStack
@@ -107,50 +76,19 @@ struct TodoRowCard: View {
             Spacer(minLength: 8)
 
             // Subtask count
-            if let progressText = todo.subtasksProgressText {
-                HStack(spacing: 3) {
-                    Image(systemName: "checklist")
-                        .font(.system(size: 11))
-                    Text(progressText)
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                }
-                .foregroundStyle(
-                    todo.allSubtasksCompleted
-                        ? .green.opacity(UIConstants.OpacityConstants.prominent)
-                        : .secondary.opacity(UIConstants.OpacityConstants.half)
-                )
-            }
+            TodoRowComponents.subtaskProgressChip(todo: todo, iconSize: 11)
         }
         .padding(.trailing, 16)
         .padding(.vertical, 12)
         .contentShape(Rectangle())
     }
 
-    private var checkboxButton: some View {
-        Button {
-            adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
-                checkboxScale = 0.8
-            }
-            Task {
-                try? await Task.sleep(for: .milliseconds(100))
-                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
-                    todo.isCompleted.toggle()
-                    todo.completedAt = todo.isCompleted ? Date() : nil
-                    checkboxScale = 1.0
-                    viewContext.safeSave()
-                }
-            }
-        } label: {
-            Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 24, weight: .light))
-                .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
-                .contentTransition(.symbolEffect(.replace))
-                .scaleEffect(checkboxScale)
-        }
-        .buttonStyle(.plain)
-        #if os(iOS)
-        .sensoryFeedback(.success, trigger: todo.isCompleted)
-        #endif
+    /// Flips the to-do and stamps its completion date. Runs inside
+    /// `TodoCheckboxButton`'s animation, and backs the accessibility action.
+    private func toggleCompletion() {
+        todo.isCompleted.toggle()
+        todo.completedAt = todo.isCompleted ? Date() : nil
+        viewContext.safeSave()
     }
 
     @ViewBuilder
@@ -272,15 +210,6 @@ struct TodoRowCard: View {
         case .high: todo.priority = .none
         }
         viewContext.safeSave()
-    }
-
-    private func priorityColor(_ priority: TodoPriority) -> Color {
-        switch priority {
-        case .none: return .gray
-        case .low: return .blue
-        case .medium: return .orange
-        case .high: return .red
-        }
     }
 
     private func nextMonday() -> Date {
