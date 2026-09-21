@@ -43,13 +43,7 @@ enum BackupDestination {
     static func setDefaultFolder(_ url: URL) throws {
         try validateFolder(url)
 
-        #if os(macOS)
-        let options: URL.BookmarkCreationOptions = [.withSecurityScope]
-        #else
-        let options: URL.BookmarkCreationOptions = []
-        #endif
-
-        let data = try url.bookmarkData(options: options, includingResourceValuesForKeys: nil, relativeTo: nil)
+        let data = try SecurityScopedBookmark.make(for: url)
         UserDefaults.standard.set(data, forKey: bookmarkKey)
     }
 
@@ -72,21 +66,9 @@ enum BackupDestination {
     /// Used by migration logic to detect whether a custom folder is in use.
     static func resolveBookmarkedFolder() -> URL? {
         guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
-        var stale = false
-
-        #if os(macOS)
-        let options: URL.BookmarkResolutionOptions = [.withSecurityScope]
-        #else
-        let options: URL.BookmarkResolutionOptions = []
-        #endif
 
         do {
-            let url = try URL(
-                resolvingBookmarkData: data,
-                options: options,
-                relativeTo: nil,
-                bookmarkDataIsStale: &stale
-            )
+            let (url, stale) = try SecurityScopedBookmark.resolve(data)
 
             if stale {
                 logger.debug("Bookmark is stale. Refreshing...")

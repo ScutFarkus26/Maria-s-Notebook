@@ -312,11 +312,7 @@ extension TodoMainView {
                     }
                 }
             }
-            #if os(iOS)
-            .background(Color(.systemBackground))
-            #else
-            .background(Color(nsColor: .controlBackgroundColor))
-            #endif
+            .background(AppTheme.Colors.controlBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }

@@ -522,10 +522,6 @@ struct ProgressCardContainer<Content: View>: View {
     }
 
     private var cardBackgroundColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
+        Color.controlBackgroundColor()
     }
 }

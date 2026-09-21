@@ -234,11 +234,7 @@ struct ProcedureDetailView: View {
     // MARK: - Helpers
 
     private var sheetBackground: Color {
-        #if os(macOS)
-        Color(NSColor.windowBackgroundColor)
-        #else
-        Color(uiColor: .systemBackground)
-        #endif
+        Color.windowBackgroundColor()
     }
 
     private func parseMarkdown(_ markdown: String) -> AttributedString? {

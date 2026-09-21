@@ -105,8 +105,7 @@ struct StudentsTableView: View {
         }
         Divider()
         Button("Copy Name", systemImage: "doc.on.doc") {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(row.name, forType: .string)
+            Pasteboard.copy(row.name)
         }
     }
 

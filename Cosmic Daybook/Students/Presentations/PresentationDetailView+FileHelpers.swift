@@ -90,23 +90,8 @@ extension PresentationDetailContentView {
 
     func resolveBookmarkURL(_ bookmark: Data?) -> URL? {
         guard let bookmark else { return nil }
-        var stale = false
         do {
-#if os(macOS)
-            let url = try URL(
-                resolvingBookmarkData: bookmark,
-                options: [.withSecurityScope],
-                relativeTo: nil,
-                bookmarkDataIsStale: &stale
-            )
-#else
-            let url = try URL(
-                resolvingBookmarkData: bookmark,
-                options: [],
-                relativeTo: nil,
-                bookmarkDataIsStale: &stale
-            )
-#endif
+            let url = try SecurityScopedBookmark.resolve(bookmark).url
             _ = url.startAccessingSecurityScopedResource()
             return url
         } catch {

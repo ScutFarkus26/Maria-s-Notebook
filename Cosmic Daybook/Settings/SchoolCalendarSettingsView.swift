@@ -290,11 +290,7 @@ private struct GradeGuidelineRow: View {
     let grade: String
     
     private var backgroundColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemBackground)
-        #endif
+        Color.controlBackgroundColor()
     }
     
     var body: some View {

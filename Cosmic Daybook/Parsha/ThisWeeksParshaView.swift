@@ -153,12 +153,7 @@ private struct ParshaContentList: View {
     }
 
     private func copyParshaName() {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(displayName, forType: .string)
-        #else
-        UIPasteboard.general.string = displayName
-        #endif
+        Pasteboard.copy(displayName)
     }
 
     var body: some View {

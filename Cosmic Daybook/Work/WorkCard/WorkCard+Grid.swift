@@ -161,12 +161,7 @@ struct WorkCardGridContent: View {
     }
 
     func copyWorkTitle() {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(displayTitle, forType: .string)
-        #else
-        UIPasteboard.general.string = displayTitle
-        #endif
+        Pasteboard.copy(displayTitle)
     }
 }
 

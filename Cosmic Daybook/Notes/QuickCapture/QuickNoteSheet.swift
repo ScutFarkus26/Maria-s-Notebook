@@ -187,7 +187,7 @@ struct QuickNoteSheet: View {
                 }
                 .padding()
                 .frame(width: 200)
-                .background(Color(nsColor: .controlBackgroundColor).opacity(UIConstants.OpacityConstants.half))
+                .background(Color.controlBackgroundColor(opacity: UIConstants.OpacityConstants.half))
                 
                 Divider()
                 
@@ -313,7 +313,7 @@ struct QuickNoteSheet: View {
                             }
                         }
                     )
-                    .background(Color(uiColor: .secondarySystemBackground).opacity(UIConstants.OpacityConstants.semi))
+                    .background(Color.controlBackgroundColor(opacity: UIConstants.OpacityConstants.semi))
                     Divider()
                 }
 
@@ -330,7 +330,7 @@ struct QuickNoteSheet: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 4)
-                    .background(Color(uiColor: .secondarySystemBackground).opacity(UIConstants.OpacityConstants.semi))
+                    .background(Color.controlBackgroundColor(opacity: UIConstants.OpacityConstants.semi))
                     Divider()
                 }
 

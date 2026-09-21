@@ -143,12 +143,7 @@ struct StudentsCardsGridView: View {
     }
 
     private func copyStudentName(_ student: CDStudent) {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(student.fullName, forType: .string)
-        #else
-        UIPasteboard.general.string = student.fullName
-        #endif
+        Pasteboard.copy(student.fullName)
     }
 
     @ViewBuilder
