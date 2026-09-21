@@ -340,11 +340,12 @@ final class LessonPlanningViewModel {
         self.currentStep = .presentingPlan
     }
     
+    /// The visible roster by last name only (no first-name tiebreak).
     private func fetchStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)]
-        let all = context.safeFetch(request)
-        return TestStudentsFilter.filterVisible(all.filterEnrolled())
+        DataQueryService(context: context).fetchAllStudents(
+            excludeTest: true, excludeWithdrawn: true,
+            sortBy: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)]
+        )
     }
 }
 

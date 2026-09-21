@@ -20,7 +20,7 @@ struct StudentReadinessAssessor {
         for students: [CDStudent],
         context: NSManagedObjectContext
     ) -> [StudentReadinessProfile] {
-        let allLessons = fetchAllLessons(context: context)
+        let allLessons = DataQueryService(context: context).fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)
         let allPresentations = fetchPresentations(context: context)
         let allWork = fetchAllWork(context: context)
 
@@ -252,16 +252,6 @@ extension StudentReadinessAssessor {
 // MARK: - Core Data Fetching
 
 extension StudentReadinessAssessor {
-    private static func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDFetchRequest(CDLesson.self)
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "area", ascending: true),
-            NSSortDescriptor(key: "sequence", ascending: true),
-            NSSortDescriptor(key: "orderInSequence", ascending: true)
-        ]
-        return context.safeFetch(request)
-    }
-
     private static func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
         let request = CDFetchRequest(CDLessonAssignment.self)
         return context.safeFetch(request)

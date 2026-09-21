@@ -115,19 +115,16 @@ extension LessonPlanningService {
     // MARK: - Data Fetching (Core Data)
 
     func fetchAllLessons() -> [CDLesson] {
-        let request = CDFetchRequest(CDLesson.self)
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "area", ascending: true),
-            NSSortDescriptor(key: "sequence", ascending: true),
-            NSSortDescriptor(key: "orderInSequence", ascending: true)
-        ]
-        return managedObjectContext.safeFetch(request)
+        DataQueryService(context: managedObjectContext).fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)
     }
 
+    /// Every student on file, by last name only — planning modes resolve ids
+    /// against the full roster, withdrawn and test students included.
     func fetchAllStudents() -> [CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
-        request.sortDescriptors = [NSSortDescriptor(key: "lastName", ascending: true)]
-        return managedObjectContext.safeFetch(request)
+        DataQueryService(context: managedObjectContext).fetchAllStudents(
+            excludeTest: false, excludeWithdrawn: false,
+            sortBy: [NSSortDescriptor(key: "lastName", ascending: true)]
+        )
     }
 
     func fetchStudents(for mode: PlanningMode) -> [CDStudent] {

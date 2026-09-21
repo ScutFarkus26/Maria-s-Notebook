@@ -43,6 +43,16 @@ struct StudentRepository: SavingRepository {
         return context.safeFetch(request)
     }
 
+    /// Every student whose `id` is in `ids`, in store order (a CloudKit duplicate
+    /// comes back twice). Throws when the fetch fails, so a caller about to write
+    /// can refuse instead of treating the failure as an empty roster.
+    func fetchStudents(ids: [UUID]) throws -> [CDStudent] {
+        guard !ids.isEmpty else { return [] }
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSPredicate(format: "id IN %@", ids)
+        return try context.fetch(request)
+    }
+
     // MARK: - Create
 
     /// Create a new CDStudent and insert into context
