@@ -182,7 +182,7 @@ nonisolated extension CDPracticeSession {
     }
 
     /// Returns student UUIDs from the stored string IDs
-    var studentUUIDs: [UUID] {
+    var resolvedStudentIDs: [UUID] {
         studentIDsArray.compactMap { UUID(uuidString: $0) }
     }
 

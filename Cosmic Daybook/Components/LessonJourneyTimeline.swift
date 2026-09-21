@@ -130,7 +130,7 @@ struct LessonJourneyTimeline: View {
                 .foregroundStyle(.secondary)
 
             ForEach(students.prefix(3)) { student in
-                Text("• \(StudentFormatter.displayName(for: student))")
+                Text("• \(student.shortName)")
                     .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.secondary)
             }

@@ -107,11 +107,6 @@ nonisolated extension CDLessonAssignment {
         set { lessonID = newValue?.uuidString ?? "" }
     }
 
-    /// CDStudent IDs as UUIDs.
-    var studentUUIDs: [UUID] {
-        studentIDs.compactMap { UUID(uuidString: $0) }
-    }
-
     /// Whether this presentation is scheduled.
     var isScheduled: Bool { state == .scheduled || scheduledFor != nil }
 
@@ -221,7 +216,7 @@ nonisolated extension CDLessonAssignment {
         LessonAssignmentSnapshot(
             id: id ?? UUID(),
             lessonID: lessonIDUUID ?? UUID(),
-            studentIDs: studentUUIDs,
+            studentIDs: resolvedStudentIDs,
             createdAt: createdAt ?? Date(),
             scheduledFor: scheduledFor,
             presentedAt: presentedAt,

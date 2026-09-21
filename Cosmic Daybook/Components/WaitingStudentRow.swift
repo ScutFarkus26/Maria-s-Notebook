@@ -29,7 +29,7 @@ struct WaitingStudentRow: View {
     let onTap: () -> Void
 
     private var accessibilityDescription: String {
-        "\(StudentFormatter.displayName(for: entry.student)), \(detail.lowercased())"
+        "\(entry.student.shortName), \(detail.lowercased())"
     }
 
     var body: some View {
@@ -44,7 +44,7 @@ struct WaitingStudentRow: View {
                     StudentAvatarView(student: entry.student, size: 28)
 
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                        Text(StudentFormatter.displayName(for: entry.student))
+                        Text(entry.student.shortName)
                             .font(AppTheme.ScaledFont.bodySemibold)
                             .foregroundStyle(.primary)
                             .lineLimit(1)

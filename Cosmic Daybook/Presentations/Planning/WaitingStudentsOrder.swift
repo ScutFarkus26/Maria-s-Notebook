@@ -103,7 +103,7 @@ enum WaitingStudentsOrder {
                 guard let id = student.id else { return false }
                 if excluded.contains(id) { return false }
                 guard !query.isEmpty else { return true }
-                return StudentFormatter.displayName(for: student).lowercased().contains(query)
+                return student.shortName.lowercased().contains(query)
             }
             .map { student in
                 WaitingStudent(
@@ -127,8 +127,8 @@ enum WaitingStudentsOrder {
         case let (left?, right?):
             if left != right { return left > right }
         }
-        return StudentFormatter.displayName(for: lhs.student)
-            .localizedCaseInsensitiveCompare(StudentFormatter.displayName(for: rhs.student))
+        return lhs.student.shortName
+            .localizedCaseInsensitiveCompare(rhs.student.shortName)
             == .orderedAscending
     }
 

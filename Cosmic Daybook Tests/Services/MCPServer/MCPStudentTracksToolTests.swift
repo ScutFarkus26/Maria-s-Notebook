@@ -30,9 +30,9 @@ struct MCPStudentTracksToolTests {
     ) throws -> CDTrackEntity {
         let track = CDTrackEntity(context: context)
         track.title = title
-        var rows: [CDTrackStepEntity] = []
+        var rows: [CDTrackStep] = []
         for (index, lesson) in lessons.enumerated() {
-            let step = CDTrackStepEntity(context: context)
+            let step = CDTrackStep(context: context)
             step.track = track
             step.lessonTemplateID = try #require(lesson.id)
             step.orderIndex = Int64(index)

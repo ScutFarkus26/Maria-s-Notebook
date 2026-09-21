@@ -296,8 +296,8 @@ extension MCPNotebookTools {
     private static func meetingTemplateSection(
         in modelContext: NSManagedObjectContext
     ) -> [String] {
-        let templates: [CDMeetingTemplateEntity] = modelContext
-            .safeFetch(CDFetchRequest(CDMeetingTemplateEntity.self))
+        let templates: [CDMeetingTemplate] = modelContext
+            .safeFetch(CDFetchRequest(CDMeetingTemplate.self))
             .filter(\.isActive)
             .sorted { $0.sortOrder < $1.sortOrder }
         guard !templates.isEmpty else { return [] }
@@ -310,8 +310,8 @@ extension MCPNotebookTools {
     }
 
     private static func noteTemplateSection(in modelContext: NSManagedObjectContext) -> [String] {
-        let templates: [CDNoteTemplateEntity] = modelContext
-            .safeFetch(CDFetchRequest(CDNoteTemplateEntity.self))
+        let templates: [CDNoteTemplate] = modelContext
+            .safeFetch(CDFetchRequest(CDNoteTemplate.self))
             .sorted { $0.sortOrder < $1.sortOrder }
         guard !templates.isEmpty else { return [] }
         let lines = templates.map { template -> String in
@@ -323,8 +323,8 @@ extension MCPNotebookTools {
     }
 
     private static func todoTemplateSection(in modelContext: NSManagedObjectContext) -> [String] {
-        let templates: [CDTodoTemplateEntity] = modelContext
-            .safeFetch(CDFetchRequest(CDTodoTemplateEntity.self))
+        let templates: [CDTodoTemplate] = modelContext
+            .safeFetch(CDFetchRequest(CDTodoTemplate.self))
             .sorted { $0.useCount > $1.useCount }
         guard !templates.isEmpty else { return [] }
         let lines = templates.map { template -> String in
@@ -336,8 +336,8 @@ extension MCPNotebookTools {
     }
 
     private static func sampleWorkSection(in modelContext: NSManagedObjectContext) -> [String] {
-        let samples: [CDSampleWorkEntity] = modelContext
-            .safeFetch(CDFetchRequest(CDSampleWorkEntity.self))
+        let samples: [CDSampleWork] = modelContext
+            .safeFetch(CDFetchRequest(CDSampleWork.self))
             .sorted { $0.orderIndex < $1.orderIndex }
         guard !samples.isEmpty else { return [] }
         var lines: [String] = []
@@ -348,8 +348,8 @@ extension MCPNotebookTools {
             let lessonName: String? = (sample.lesson as? CDLesson)?.name
             let lesson: String = lessonName.map { " — \($0)" } ?? ""
             lines.append("- [sampleWork id=\(id)] \(sample.title)\(lesson)")
-            let steps: [CDSampleWorkStepEntity] =
-                ((sample.steps?.allObjects as? [CDSampleWorkStepEntity]) ?? [])
+            let steps: [CDSampleWorkStep] =
+                ((sample.steps?.allObjects as? [CDSampleWorkStep]) ?? [])
                 .sorted { $0.orderIndex < $1.orderIndex }
             for step in steps {
                 lines.append("    • \(step.title)")

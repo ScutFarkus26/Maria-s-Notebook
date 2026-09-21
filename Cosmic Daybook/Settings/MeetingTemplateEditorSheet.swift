@@ -156,7 +156,7 @@ struct MeetingTemplateEditorSheet: View {
                 customCount = 0
             }
 
-            let newTemplate = CDMeetingTemplateEntity(context: viewContext)
+            let newTemplate = CDMeetingTemplate(context: viewContext)
             newTemplate.id = UUID()
             newTemplate.name = trimmedName
             newTemplate.reflectionPrompt = trimmedReflection

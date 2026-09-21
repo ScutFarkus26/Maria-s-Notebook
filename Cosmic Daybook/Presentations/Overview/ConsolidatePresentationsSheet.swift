@@ -166,7 +166,7 @@ struct ConsolidatePresentationsSheet: View {
     private func duplicateStudentIDs(in group: DuplicateGroup) -> Set<UUID> {
         var counts: [UUID: Int] = [:]
         for presentation in group.presentations {
-            for id in presentation.studentUUIDs {
+            for id in presentation.resolvedStudentIDs {
                 counts[id, default: 0] += 1
             }
         }
@@ -226,7 +226,7 @@ private struct ConsolidateLessonCard: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(presentation.studentUUIDs.count)")
+                Text("\(presentation.resolvedStudentIDs.count)")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
@@ -266,7 +266,7 @@ private struct ConsolidateLessonCard: View {
 
     @ViewBuilder
     private var studentChips: some View {
-        let ids = presentation.studentUUIDs
+        let ids = presentation.resolvedStudentIDs
         if ids.isEmpty {
             Text("No students")
                 .font(.caption)
@@ -325,7 +325,7 @@ private struct DraggableStudentChip: View {
     let onRemove: () -> Void
 
     private var label: String {
-        if let student { return StudentFormatter.displayName(for: student) }
+        if let student { return student.shortName }
         return "(Removed)"
     }
 

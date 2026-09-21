@@ -217,7 +217,7 @@ private extension PostPresentationFollowUpView {
 
     var presentationContextText: String {
         let date = (assignment.presentedAt ?? Date()).formatted(date: .abbreviated, time: .omitted)
-        let names = students.map { StudentFormatter.displayName(for: $0) }.joined(separator: ", ")
+        let names = students.map { $0.shortName }.joined(separator: ", ")
         return names.isEmpty ? date : "\(names) • \(date)"
     }
 
@@ -709,7 +709,7 @@ private extension PostPresentationFollowUpView {
               let student = students.first(where: { $0.id == id }) else {
             return "Child"
         }
-        return StudentFormatter.displayName(for: student)
+        return student.shortName
     }
 
     func resolveNextLesson() {
@@ -798,7 +798,7 @@ private extension PostPresentationFollowUpView {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
         let existing = viewContext.safeFetch(request).contains {
-            !$0.isPresented && Set($0.studentUUIDs) == studentIDs
+            !$0.isPresented && Set($0.resolvedStudentIDs) == studentIDs
         }
         if !existing {
             let selected = students.filter { student in

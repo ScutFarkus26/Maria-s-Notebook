@@ -85,7 +85,7 @@ final class PostPresentationFormViewModel {
         self.entries = Dictionary(
             uniqueKeysWithValues: students.compactMap { student -> (UUID, PostPresentationStudentEntry)? in
                 guard let id = student.id else { return nil }
-                return (id, PostPresentationStudentEntry(id: id, name: StudentFormatter.displayName(for: student)))
+                return (id, PostPresentationStudentEntry(id: id, name: student.shortName))
             }
         )
 
@@ -183,7 +183,7 @@ final class PostPresentationFormViewModel {
         // Check for existing assignment (any state: inbox or scheduled)
         existingNextAssignment = lessonAssignments.first { la in
             nextLesson.id != nil && la.lessonIDUUID == nextLesson.id &&
-            Set(la.studentUUIDs) == studentIDs &&
+            Set(la.resolvedStudentIDs) == studentIDs &&
             !la.isPresented
         }
 
@@ -293,8 +293,8 @@ final class PostPresentationFormViewModel {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
         let unpresented = context.safeFetch(request).filter { !$0.isPresented }
-        return unpresented.first { Set($0.studentUUIDs) == studentIDs }
-            ?? unpresented.first { studentIDs.isSubset(of: Set($0.studentUUIDs)) }
+        return unpresented.first { Set($0.resolvedStudentIDs) == studentIDs }
+            ?? unpresented.first { studentIDs.isSubset(of: Set($0.resolvedStudentIDs)) }
     }
 
     nonisolated private static func isMeaningfulWorkDraft(_ draft: WorkItemDraft) -> Bool {

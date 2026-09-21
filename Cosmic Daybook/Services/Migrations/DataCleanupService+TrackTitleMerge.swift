@@ -185,14 +185,14 @@ nonisolated extension DataCleanupService {
     private static func mergeSteps(
         from duplicate: CDTrackEntity, into canonical: CDTrackEntity, in context: NSManagedObjectContext
     ) -> [String: String] {
-        let keptSteps = (canonical.steps?.allObjects as? [CDTrackStepEntity]) ?? []
-        var keptByLesson: [UUID: CDTrackStepEntity] = [:]
+        let keptSteps = (canonical.steps?.allObjects as? [CDTrackStep]) ?? []
+        var keptByLesson: [UUID: CDTrackStep] = [:]
         for step in keptSteps {
             if let lessonID = step.lessonTemplateID, keptByLesson[lessonID] == nil { keptByLesson[lessonID] = step }
         }
 
         var remap: [String: String] = [:]
-        let moving = ((duplicate.steps?.allObjects as? [CDTrackStepEntity]) ?? [])
+        let moving = ((duplicate.steps?.allObjects as? [CDTrackStep]) ?? [])
             .sorted { $0.orderIndex < $1.orderIndex }
         for step in moving {
             if let lessonID = step.lessonTemplateID, let kept = keptByLesson[lessonID] {

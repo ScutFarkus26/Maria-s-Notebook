@@ -131,7 +131,7 @@ struct BookClubSessionEditorSheet: View {
                         HStack {
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                            Text(StudentFormatter.displayName(for: student))
+                            Text(student.shortName)
                             Spacer()
                         }
                     }

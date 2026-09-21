@@ -72,7 +72,7 @@ final class ObservationReflectionTests {
         _ = try PresentationOutcomePersistenceService.persistObservations(
             groupObservation: "Exchanged independently after the first reminder.",
             studentObservations: [:],
-            studentIDs: presentation.studentUUIDs,
+            studentIDs: presentation.resolvedStudentIDs,
             presentationID: presentation.id,
             context: context
         )

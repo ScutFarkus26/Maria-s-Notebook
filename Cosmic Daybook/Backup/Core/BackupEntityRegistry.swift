@@ -25,7 +25,7 @@ struct BackupEntityRegistry {
         // Community
         CDCommunityTopicEntity.self,
         CDProposedSolutionEntity.self,
-        CDCommunityAttachmentEntity.self,
+        CDCommunityAttachment.self,
         // Attendance
         CDAttendanceRecord.self,
         // Work tracking
@@ -47,7 +47,7 @@ struct BackupEntityRegistry {
         CDIssueAction.self,
         // Tracks
         CDTrackEntity.self,
-        CDTrackStepEntity.self,
+        CDTrackStep.self,
         CDStudentTrackEnrollmentEntity.self,
         CDSequenceTrack.self,
         // Templates

@@ -201,7 +201,7 @@ struct WorksLogView: View {
             return "All Students"
         } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
                   let student = students.first(where: { $0.id == id }) {
-            return StudentFormatter.displayName(for: student)
+            return student.shortName
         } else {
             return "\(selectedStudentIDs.count) Students"
         }
@@ -228,7 +228,7 @@ struct WorksLogView: View {
                                 if selectedStudentIDs.contains(studentID) {
                                     Image(systemName: "checkmark")
                                 }
-                                Text(StudentFormatter.displayName(for: student))
+                                Text(student.shortName)
                             }
                         })
                     }

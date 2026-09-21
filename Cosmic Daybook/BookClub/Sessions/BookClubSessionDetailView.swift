@@ -150,7 +150,7 @@ struct BookClubSessionDetailView: View {
             } else {
                 FlowLayout(spacing: 6) {
                     ForEach(roster, id: \.objectID) { student in
-                        Text(StudentFormatter.displayName(for: student))
+                        Text(student.shortName)
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -351,7 +351,7 @@ private struct LeaderReassignSheet: View {
                             HStack {
                                 Image(systemName: "person.fill")
                                     .foregroundStyle(.secondary)
-                                Text(StudentFormatter.displayName(for: student))
+                                Text(student.shortName)
                                 Spacer()
                                 if student.id?.uuidString == meeting.leaderStudentID {
                                     Image(systemName: "checkmark")

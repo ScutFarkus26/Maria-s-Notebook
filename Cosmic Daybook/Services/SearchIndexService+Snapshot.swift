@@ -118,7 +118,7 @@ extension SearchIndexService {
     /// against `NSEntityDescription.managedObjectClassName` so no `+entity`
     /// lookup is needed (ambiguous under the two-store configuration).
     nonisolated static let searchableClassNames: Set<String> = Set(
-        [CDStudent.self, CDLesson.self, CDNote.self, CDTodoItemEntity.self, CDWorkModel.self]
+        [CDStudent.self, CDLesson.self, CDNote.self, CDTodoItem.self, CDWorkModel.self]
             .map { NSStringFromClass($0) }
     )
 
@@ -309,7 +309,7 @@ extension SearchIndexService {
         collect(CDStudent.self)
         collect(CDLesson.self)
         collect(CDNote.self)
-        collect(CDTodoItemEntity.self)
+        collect(CDTodoItem.self)
         collect(CDWorkModel.self)
         return entries
     }
@@ -323,7 +323,7 @@ extension SearchIndexService {
             guard let id = student.id else { return nil }
             return .init(
                 result: SearchResult(id: id, entityType: .student, title: student.fullName, snippet: student.level.rawValue),
-                text: "\(student.firstName) \(student.lastName) \(student.nickname ?? "")",
+                text: "\(student.fullName) \(student.nickname ?? "")",
                 objectURI: uri
             )
         case let lesson as CDLesson:
@@ -345,7 +345,7 @@ extension SearchIndexService {
                 text: "\(body) \(tags.joined(separator: " "))",
                 objectURI: uri
             )
-        case let todo as CDTodoItemEntity:
+        case let todo as CDTodoItem:
             guard let id = todo.id else { return nil }
             return .init(
                 result: SearchResult(id: id, entityType: .todo, title: todo.title, snippet: todo.notes, date: todo.createdAt),

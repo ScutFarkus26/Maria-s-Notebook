@@ -345,7 +345,7 @@ extension BackupService {
         try BackupEntityImporter.importCommunityAttachments(
             payload.communityAttachments,
             into: viewContext,
-            existing: { try index.existing(CDCommunityAttachmentEntity.self, id: $0) },
+            existing: { try index.existing(CDCommunityAttachment.self, id: $0) },
             topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
         )
 
@@ -543,7 +543,7 @@ extension BackupService {
             try BackupEntityImporter.importTrackSteps(
                 trackSteps,
                 into: viewContext,
-                existing: { try index.existing(CDTrackStepEntity.self, id: $0) },
+                existing: { try index.existing(CDTrackStep.self, id: $0) },
                 trackCheck: { try index.related(CDTrackEntity.self, id: $0) }
             )
         }

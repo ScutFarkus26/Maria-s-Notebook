@@ -177,7 +177,7 @@ final class MonthlyReportDraftService {
     func upsertReport(for student: CDStudent, month: ReportMonth, draft: Draft) -> CDParentCommunication {
         let studentID = student.id?.uuidString ?? ""
         let report = existingReport(studentID: studentID, monthKey: month.monthKey)
-            ?? makeReport(studentID: studentID, month: month, studentName: StudentFormatter.displayName(for: student))
+            ?? makeReport(studentID: studentID, month: month, studentName: student.shortName)
 
         report.body = draft.narrative
         report.aiGenerated = draft.aiGenerated

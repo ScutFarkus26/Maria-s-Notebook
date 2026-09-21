@@ -76,7 +76,7 @@ extension PracticeSessionCard {
     private var standardStudentsRow: some View {
         HStack(spacing: 6) {
             ForEach(students) { student in
-                Text(StudentFormatter.displayName(for: student))
+                Text(student.shortName)
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
 
@@ -196,7 +196,7 @@ extension PracticeSessionCard {
                         .fill(Color.blue.opacity(UIConstants.OpacityConstants.moderate))
                         .frame(width: 8, height: 8)
 
-                    Text(StudentFormatter.displayName(for: student))
+                    Text(student.shortName)
                         .font(AppTheme.ScaledFont.bodySemibold)
                 }
             }

@@ -63,7 +63,7 @@ final class TopicDetailViewModel {
 
         proposedSolutions = ((topic.proposedSolutions as? Set<CDProposedSolutionEntity>) ?? [])
             .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-        attachments = ((topic.attachments as? Set<CDCommunityAttachmentEntity>) ?? [])
+        attachments = ((topic.attachments as? Set<CDCommunityAttachment>) ?? [])
             .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         notes = topic.unifiedNotes
             .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }

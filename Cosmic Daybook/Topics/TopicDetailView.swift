@@ -292,9 +292,9 @@ private struct ProposedSolutionsSection: View {
 }
 
 private struct AttachmentsSection: View {
-    let attachments: [CDCommunityAttachmentEntity]
+    let attachments: [CDCommunityAttachment]
     @Binding var showingImagePicker: Bool
-    var onDelete: (CDCommunityAttachmentEntity) -> Void
+    var onDelete: (CDCommunityAttachment) -> Void
 
     var body: some View {
         GroupBox("Attachments") {

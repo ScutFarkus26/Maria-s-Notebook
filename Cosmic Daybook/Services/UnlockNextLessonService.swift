@@ -64,10 +64,10 @@ struct UnlockNextLessonService {
         let coveringAssignments = cdAssignments.filter { la in
             la.lessonID == nextLessonIDString &&
             la.presentedAt == nil &&
-            studentIDs.isSubset(of: Set(la.studentUUIDs))
+            studentIDs.isSubset(of: Set(la.resolvedStudentIDs))
         }
         let existingAssignment = coveringAssignments.first { la in
-            Set(la.studentUUIDs) == studentIDs && la.scheduledFor == nil
+            Set(la.resolvedStudentIDs) == studentIDs && la.scheduledFor == nil
         } ?? coveringAssignments.first
 
         if let existing = existingAssignment {

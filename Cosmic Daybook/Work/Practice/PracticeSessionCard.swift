@@ -46,7 +46,7 @@ struct PracticeSessionCard: View {
     // MARK: - Helpers
 
     var studentNames: String {
-        students.map { StudentFormatter.displayName(for: $0) }.joined(separator: ", ")
+        students.map { $0.shortName }.joined(separator: ", ")
     }
     
     func formatDate(_ date: Date) -> String {

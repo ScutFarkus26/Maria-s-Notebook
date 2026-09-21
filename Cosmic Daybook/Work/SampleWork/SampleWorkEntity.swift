@@ -30,7 +30,7 @@ nonisolated public class CDSampleWorkEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-nonisolated extension CDSampleWorkEntity {
+nonisolated extension CDSampleWork {
     /// The work kind this template produces (reuses WorkKind enum)
     var workKind: WorkKind? {
         get { WorkKind(rawValue: workKindRaw) }
@@ -38,24 +38,24 @@ nonisolated extension CDSampleWorkEntity {
     }
 
     /// Returns steps sorted by orderIndex for deterministic display
-    var orderedSteps: [CDSampleWorkStepEntity] {
-        let stepSet = steps as? Set<CDSampleWorkStepEntity> ?? []
+    var orderedSteps: [CDSampleWorkStep] {
+        let stepSet = steps as? Set<CDSampleWorkStep> ?? []
         return stepSet.sorted { $0.orderIndex < $1.orderIndex }
     }
 
     /// Number of steps in this template
     var stepCount: Int {
-        (steps as? Set<CDSampleWorkStepEntity>)?.count ?? 0
+        (steps as? Set<CDSampleWorkStep>)?.count ?? 0
     }
 }
 
 // MARK: - Generated Accessors for steps
-nonisolated extension CDSampleWorkEntity {
+nonisolated extension CDSampleWork {
     @objc(addStepsObject:)
-    @NSManaged public func addToSteps(_ value: CDSampleWorkStepEntity)
+    @NSManaged public func addToSteps(_ value: CDSampleWorkStep)
 
     @objc(removeStepsObject:)
-    @NSManaged public func removeFromSteps(_ value: CDSampleWorkStepEntity)
+    @NSManaged public func removeFromSteps(_ value: CDSampleWorkStep)
 
     @objc(addSteps:)
     @NSManaged public func addToSteps(_ values: NSSet)

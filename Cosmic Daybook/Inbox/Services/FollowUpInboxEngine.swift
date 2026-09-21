@@ -185,7 +185,7 @@ struct FollowUpInboxEngine {
         for ids: [UUID], studentsByID: [UUID: CDStudent]
     ) -> (UUID?, String) {
         if ids.count == 1, let id = ids.first, let s = studentsByID[id] {
-            return (id, StudentFormatter.displayName(for: s))
+            return (id, s.shortName)
         }
         return (nil, ids.isEmpty ? "Student" : "Group")
     }
@@ -300,13 +300,13 @@ struct FollowUpInboxEngine {
             if let presIDString = work.presentationID,
                let presUUID = UUID(uuidString: presIDString),
                let la = ctx.lasByID[presUUID] {
-                return la.studentUUIDs
+                return la.resolvedStudentIDs
             }
             return []
         }()
         let studentName: String = {
             if let firstID = studentIDs.first, let s = ctx.studentsByID[firstID] {
-                return StudentFormatter.displayName(for: s)
+                return s.shortName
             }
             return "Student"
         }()
@@ -356,7 +356,7 @@ struct FollowUpInboxEngine {
             let days = schoolDaysSince(presentedDate, ctx: ctx)
 
             let hasFollowUpWork = workByPresID.contains(laID) ||
-                la.studentUUIDs.map { sid in
+                la.resolvedStudentIDs.map { sid in
                     "\(sid.uuidString.lowercased())|\(la.lessonID.lowercased())"
                 }.contains(where: { workByLessonKey.contains($0) })
             guard !hasFollowUpWork else { continue }
@@ -370,7 +370,7 @@ struct FollowUpInboxEngine {
                 }
                 return "Lesson"
             }()
-            let (cid, cname) = childDisplayName(for: la.studentUUIDs, studentsByID: ctx.studentsByID)
+            let (cid, cname) = childDisplayName(for: la.resolvedStudentIDs, studentsByID: ctx.studentsByID)
             let status = formatStatusText(
                 bucket: bucket, days: days, threshold: threshold, suffix: "since presented"
             )

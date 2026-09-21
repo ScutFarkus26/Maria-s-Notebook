@@ -67,7 +67,7 @@ struct ProjectSessionDetailView: View {
     }
 
     func studentName(for sid: String) -> String {
-        studentsByID[uuidString: sid].map(StudentFormatter.displayName(for:)) ?? "Student"
+        studentsByID[uuidString: sid].map(\.shortName) ?? "Student"
     }
 
     /// Works grouped by student (for uniform mode or assigned works in choice mode)

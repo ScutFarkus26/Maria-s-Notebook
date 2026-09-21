@@ -28,7 +28,7 @@ struct ParentReportDraftEditorView: View {
     @State private var showingMacSentConfirmation = false
     @State private var sendErrorMessage: String?
 
-    private var studentName: String { StudentFormatter.displayName(for: student) }
+    private var studentName: String { student.shortName }
     private var hasDraft: Bool { report != nil && !narrative.isEmpty }
     private var isSent: Bool { report?.status == .sent }
 

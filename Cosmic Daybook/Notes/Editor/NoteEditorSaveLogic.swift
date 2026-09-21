@@ -42,7 +42,7 @@ extension UnifiedNoteEditor {
     private var contextRoster: [UUID] {
         switch context {
         case .presentation(let presentation):
-            return presentation.studentUUIDs
+            return presentation.resolvedStudentIDs
         default:
             return []
         }

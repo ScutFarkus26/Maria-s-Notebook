@@ -792,8 +792,8 @@ nonisolated extension DataCleanupService {
         if s.includes(CDTrackEntity.self) {
             results["Track (same title)"] = mergeSameTitleTracks(using: context, container: c)
         }
-        results["TrackStep"] = deduplicate(CDTrackStepEntity.self, using: context, container: c, scope: s)
-        results["SequenceTrack"] = deduplicate(CDSequenceTrackEntity.self, using: context, container: c, scope: s)
+        results["TrackStep"] = deduplicate(CDTrackStep.self, using: context, container: c, scope: s)
+        results["SequenceTrack"] = deduplicate(CDSequenceTrack.self, using: context, container: c, scope: s)
         results["StudentTrackEnrollment"] = deduplicate(
             CDStudentTrackEnrollmentEntity.self, using: context, container: c, scope: s
         )
@@ -810,7 +810,7 @@ nonisolated extension DataCleanupService {
 
         // Notes and documents
         results["Note"] = deduplicateNotesStrong(using: context, container: c, scope: s)
-        results["NoteTemplate"] = deduplicate(CDNoteTemplateEntity.self, using: context, container: c, scope: s)
+        results["NoteTemplate"] = deduplicate(CDNoteTemplate.self, using: context, container: c, scope: s)
         results["NoteStudentLink"] = deduplicate(CDNoteStudentLink.self, using: context, container: c, scope: s)
         results["Document"] = deduplicate(CDDocument.self, using: context, container: c, scope: s)
 
@@ -819,7 +819,7 @@ nonisolated extension DataCleanupService {
         results["StudentMeeting"] = deduplicate(
             CDStudentMeeting.self, using: context, container: c, scope: s, merge: mergeStudentMeeting
         )
-        results["MeetingTemplate"] = deduplicate(CDMeetingTemplateEntity.self, using: context, container: c, scope: s)
+        results["MeetingTemplate"] = deduplicate(CDMeetingTemplate.self, using: context, container: c, scope: s)
         results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context, container: c, scope: s)
         results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context, container: c, scope: s)
         results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context, container: c, scope: s)
@@ -830,15 +830,15 @@ nonisolated extension DataCleanupService {
             CDProposedSolutionEntity.self, using: context, container: c, scope: s
         )
         results["CommunityAttachment"] = deduplicate(
-            CDCommunityAttachmentEntity.self, using: context, container: c, scope: s
+            CDCommunityAttachment.self, using: context, container: c, scope: s
         )
 
         // Other models
         results["Reminder"] = deduplicate(
             CDReminder.self, using: context, container: c, scope: s, merge: mergeReminder
         )
-        results["TodoItem"] = deduplicate(CDTodoItemEntity.self, using: context, container: c, scope: s)
-        results["TodoSubtask"] = deduplicate(CDTodoSubtaskEntity.self, using: context, container: c, scope: s)
+        results["TodoItem"] = deduplicate(CDTodoItem.self, using: context, container: c, scope: s)
+        results["TodoSubtask"] = deduplicate(CDTodoSubtask.self, using: context, container: c, scope: s)
         return results
     }
 }

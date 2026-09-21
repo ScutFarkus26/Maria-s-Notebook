@@ -10,7 +10,7 @@ nonisolated public class CDTrackEntity: NSManagedObject {
 
     // MARK: - Relationships
     @NSManaged public var enrollments: NSSet?
-    @NSManaged public var sequenceTrack: CDSequenceTrackEntity?
+    @NSManaged public var sequenceTrack: CDSequenceTrack?
     @NSManaged public var steps: NSSet?
 
     // MARK: - Convenience Init
@@ -27,10 +27,10 @@ nonisolated public class CDTrackEntity: NSManagedObject {
 // MARK: - Generated Accessors for steps
 nonisolated extension CDTrackEntity {
     @objc(addStepsObject:)
-    @NSManaged public func addToSteps(_ value: CDTrackStepEntity)
+    @NSManaged public func addToSteps(_ value: CDTrackStep)
 
     @objc(removeStepsObject:)
-    @NSManaged public func removeFromSteps(_ value: CDTrackStepEntity)
+    @NSManaged public func removeFromSteps(_ value: CDTrackStep)
 
     @objc(addSteps:)
     @NSManaged public func addToSteps(_ values: NSSet)

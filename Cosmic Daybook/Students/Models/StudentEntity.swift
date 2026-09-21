@@ -77,6 +77,24 @@ nonisolated extension CDStudent {
         "\(firstName) \(lastName)"
     }
 
+    /// The shortened classroom form of the name: "FirstName L" (e.g. "Maya S"),
+    /// or just the first name when there is no last name.
+    ///
+    /// The rule lives here rather than in `StudentFormatter` because the Daybook
+    /// Assistant target compiles this file without the formatter.
+    var shortName: String {
+        Self.shortName(firstName: firstName, lastName: lastName)
+    }
+
+    /// Same rule as `shortName` for callers holding raw name fields (log rows, DTOs).
+    static func shortName(firstName: String, lastName: String) -> String {
+        let first = firstName.trimmed()
+        let last = lastName.trimmed()
+        guard !first.isEmpty else { return last }
+        guard let initial = last.first else { return first }
+        return "\(first) \(String(initial).uppercased())"
+    }
+
     /// Uppercased initials for avatar display (e.g. "JD" for John Doe).
     var initials: String {
         let parts = fullName.split(separator: " ")

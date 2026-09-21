@@ -29,7 +29,7 @@ final class TodayCacheManager {
     /// Returns the canonical short name ("Maya S") for a student ID.
     func displayName(for studentID: UUID) -> String {
         guard let student = studentsByID[studentID] else { return "Student" }
-        return StudentFormatter.displayName(for: student)
+        return student.shortName
     }
 
     /// Returns the lesson name for a lesson ID.

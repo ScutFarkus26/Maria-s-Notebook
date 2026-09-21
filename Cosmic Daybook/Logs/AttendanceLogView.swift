@@ -122,7 +122,7 @@ struct AttendanceLogView: View {
             if !searchText.isEmpty {
                 guard let studentID = record.studentIDUUID,
                       let student = studentsByID[studentID] else { return false }
-                let name = StudentFormatter.displayName(for: student).lowercased()
+                let name = student.shortName.lowercased()
                 let query = searchText.lowercased()
                 if !name.contains(query) { return false }
             }
@@ -182,7 +182,7 @@ struct AttendanceLogView: View {
             return "All Students"
         } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
                   let student = students.first(where: { $0.id == id }) {
-            return StudentFormatter.displayName(for: student)
+            return student.shortName
         } else {
             return "\(selectedStudentIDs.count) Students"
         }
@@ -255,7 +255,7 @@ struct AttendanceLogView: View {
                                 if selectedStudentIDs.contains(studentID) {
                                     Image(systemName: "checkmark")
                                 }
-                                Text(StudentFormatter.displayName(for: student))
+                                Text(student.shortName)
                             }
                         })
                     }
@@ -443,7 +443,7 @@ struct AttendanceLogView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // CDStudent name
                 if let studentID = record.studentIDUUID, let student = studentsByID[studentID] {
-                    Text(StudentFormatter.displayName(for: student))
+                    Text(student.shortName)
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
                     Text("Unknown Student")

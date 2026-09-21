@@ -174,7 +174,7 @@ enum WorkPeers {
         let visible = TestStudentsFilter.filterVisible(context.safeFetch(request))
         return Dictionary(
             visible.compactMap { student in
-                student.id.map { ($0, StudentFormatter.displayName(for: student)) }
+                student.id.map { ($0, student.shortName) }
             },
             // CloudKit sync can leave two rows with one id.
             uniquingKeysWith: { first, _ in first }

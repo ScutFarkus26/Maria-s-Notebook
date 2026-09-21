@@ -22,7 +22,7 @@ class TodoExportService {
     
     // MARK: - Text Export
     
-    static func exportAsText(todos: [CDTodoItemEntity]) -> String {
+    static func exportAsText(todos: [CDTodoItem]) -> String {
         var output = "TODO LIST EXPORT\n"
         output += "===============\n"
         output += "Exported: \(Date().formatted(date: .long, time: .shortened))\n"
@@ -57,7 +57,7 @@ class TodoExportService {
                 output += "    Reflection: \(todo.reflectionNotes)\n"
             }
 
-            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtask>) ?? []
             if !subtaskItems.isEmpty {
                 let completedCount = subtaskItems.filter(\.isCompleted).count
                 let totalCount = subtaskItems.count
@@ -75,7 +75,7 @@ class TodoExportService {
     
     // MARK: - CSV Export
     
-    static func exportAsCSV(todos: [CDTodoItemEntity]) -> String {
+    static func exportAsCSV(todos: [CDTodoItem]) -> String {
         var output = "Title,Status,Priority,Tags,Scheduled Date," +
             "Deadline,Created,Notes,Mood,Subtasks Completed,Subtasks Total\n"
         
@@ -94,7 +94,7 @@ class TodoExportService {
             let created = todo.createdAt.map { DateFormatters.shortDate.string(from: $0) } ?? ""
             let notes = escapeCSV(todo.notes)
             let mood = todo.mood?.rawValue ?? ""
-            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtask>) ?? []
             let subtasksCompleted = subtaskItems.filter(\.isCompleted).count
             let subtasksTotal = subtaskItems.count
 
@@ -117,7 +117,7 @@ class TodoExportService {
     // MARK: - Markdown Export
     
     // swiftlint:disable:next cyclomatic_complexity
-    static func exportAsMarkdown(todos: [CDTodoItemEntity]) -> String {
+    static func exportAsMarkdown(todos: [CDTodoItem]) -> String {
         var output = "# Todo List Export\n\n"
         output += "*Exported: \(Date().formatted(date: .long, time: .shortened))*\n\n"
         output += "**Total tasks:** \(todos.count)\n\n"
@@ -155,7 +155,7 @@ class TodoExportService {
                 output += "> \(todo.notes)\n\n"
             }
             
-            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtask>) ?? []
             if !subtaskItems.isEmpty {
                 output += "**Subtasks:**\n\n"
                 for subtask in subtaskItems.sorted(by: { $0.orderIndex < $1.orderIndex }) {
@@ -176,7 +176,7 @@ class TodoExportService {
     
     // MARK: - JSON Export
     
-    static func exportAsJSON(todos: [CDTodoItemEntity]) -> String? {
+    static func exportAsJSON(todos: [CDTodoItem]) -> String? {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -213,7 +213,7 @@ class TodoExportService {
                 dict["reflectionNotes"] = todo.reflectionNotes
             }
 
-            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            let subtaskItems = (todo.subtasks as? Set<CDTodoSubtask>) ?? []
             if !subtaskItems.isEmpty {
                 dict["subtasks"] = subtaskItems.sorted(by: { $0.orderIndex < $1.orderIndex }).map { subtask in
                     [

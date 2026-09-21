@@ -93,7 +93,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         question: String
     ) {
         lines.append("")
-        lines.append("--- \(student.firstName) \(student.lastName) ---")
+        lines.append("--- \(student.fullName) ---")
         let lower = question.lowercased()
         let asksAge = lower.contains("age") || lower.contains("birthday") || lower.contains("old")
         let asksPresentation = lower.contains("lesson") || lower.contains("present") || lower.contains("given")
@@ -151,7 +151,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
             for note in presNotes.prefix(2) where !note.body.isEmpty {
                 lines.append("    Observation: \(note.body.prefix(120))")
             }
-            let otherStudents = pres.studentUUIDs.filter { $0 != studentID }
+            let otherStudents = pres.resolvedStudentIDs.filter { $0 != studentID }
                 .compactMap { studentsDict[$0]?.firstName }
             if !otherStudents.isEmpty { lines.append("    Also with: \(otherStudents.joined(separator: ", "))") }
         }
@@ -322,10 +322,10 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         }
     }
 
-    private func fetchTodosForStudent(studentID: UUID) -> [CDTodoItemEntity] {
-        // CDTodoItemEntity stores studentIDs as Transformable [String], so we fetch all open and filter
+    private func fetchTodosForStudent(studentID: UUID) -> [CDTodoItem] {
+        // CDTodoItem stores studentIDs as Transformable [String], so we fetch all open and filter
         let studentIDString = studentID.uuidString
-        let request = CDFetchRequest(CDTodoItemEntity.self)
+        let request = CDFetchRequest(CDTodoItem.self)
         request.predicate = NSPredicate(format: "isCompleted == NO")
         return context.safeFetch(request).filter { $0.studentIDsArray.contains(studentIDString) }
     }

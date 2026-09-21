@@ -11,7 +11,7 @@ nonisolated public class CDSampleWorkStepEntity: NSManagedObject {
     @NSManaged public var createdAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var sampleWork: CDSampleWorkEntity?
+    @NSManaged public var sampleWork: CDSampleWork?
 
     // MARK: - Convenience Init
     @discardableResult

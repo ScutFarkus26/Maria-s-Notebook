@@ -43,7 +43,7 @@ extension UnifiedNoteEditor {
 
     private func detectedStudentButton(studentID: UUID, student: CDStudent) -> some View {
         let isSelected: Bool = selectedStudentIDs.contains(studentID)
-        let studentName: String = StudentFormatter.displayName(for: student)
+        let studentName: String = student.shortName
         return Button {
             if isSelected {
                 selectedStudentIDs.remove(studentID)
@@ -96,7 +96,7 @@ extension UnifiedNoteEditor {
     private var selectedStudentsScroll: some View {
         SelectedStudentChipsRow(
             students: Array(selectedStudentIDs).compactMap { id in students.first { $0.id == id } },
-            label: { StudentFormatter.displayName(for: $0) },
+            label: { $0.shortName },
             onRemove: { student in
                 if let id = student.id { selectedStudentIDs.remove(id) }
             }

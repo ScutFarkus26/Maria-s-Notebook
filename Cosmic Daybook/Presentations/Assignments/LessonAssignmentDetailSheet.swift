@@ -74,7 +74,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     }
 
     private func studentList(for la: CDLessonAssignment) -> [CDStudent] {
-        la.studentUUIDs.compactMap { studentsByID[$0] }
+        la.resolvedStudentIDs.compactMap { studentsByID[$0] }
     }
 
     var body: some View {
@@ -261,7 +261,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
             } else {
                 FlowLayout(spacing: 8) {
                     ForEach(list, id: \.id) { s in
-                        Text(StudentFormatter.displayName(for: s))
+                        Text(s.shortName)
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)

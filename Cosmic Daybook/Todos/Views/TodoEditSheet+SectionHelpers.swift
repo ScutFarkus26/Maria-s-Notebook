@@ -120,8 +120,8 @@ extension TodoEditSheet {
 
     func addSubtask() {
         guard let context = todo.managedObjectContext else { return }
-        let subtaskCount = (todo.subtasks as? Set<CDTodoSubtaskEntity>)?.count ?? 0
-        let newSubtask = CDTodoSubtaskEntity(context: context)
+        let subtaskCount = (todo.subtasks as? Set<CDTodoSubtask>)?.count ?? 0
+        let newSubtask = CDTodoSubtask(context: context)
         newSubtask.title = ""
         newSubtask.orderIndex = Int64(subtaskCount)
         todo.addToSubtasks(newSubtask)
@@ -155,7 +155,7 @@ extension TodoEditSheet {
     }
 
     func reorderSubtasks(from source: IndexSet, to destination: Int) {
-        var sorted = ((todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        var sorted = ((todo.subtasks as? Set<CDTodoSubtask>) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         sorted.move(fromOffsets: source, toOffset: destination)
         for (index, subtask) in sorted.enumerated() {
             subtask.orderIndex = Int64(index)
@@ -223,7 +223,7 @@ extension TodoEditSheet {
         }
 
         // Subtasks
-        let detailSubs = ((todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let detailSubs = ((todo.subtasks as? Set<CDTodoSubtask>) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         if !detailSubs.isEmpty {
             text += "\n✅ Subtasks (\(detailSubs.filter(\.isCompleted).count)/\(detailSubs.count)):\n"
             for subtask in detailSubs {

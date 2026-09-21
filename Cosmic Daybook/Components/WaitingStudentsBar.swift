@@ -145,7 +145,7 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
                 Circle()
                     .fill(palette.color(forDays: entry.daysWaiting))
                     .frame(width: 6, height: 6)
-                Text(StudentFormatter.displayName(for: entry.student))
+                Text(entry.student.shortName)
                     .font(AppTheme.ScaledFont.caption)
                     .fontWeight(isSelected ? .semibold : .regular)
                 Text(entry.daysWaiting.map { "\($0)d" } ?? "—")
@@ -174,7 +174,7 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(
-            "\(StudentFormatter.displayName(for: entry.student)), "
+            "\(entry.student.shortName), "
                 + vocabulary.spokenDetail(forDays: entry.daysWaiting)
         )
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])

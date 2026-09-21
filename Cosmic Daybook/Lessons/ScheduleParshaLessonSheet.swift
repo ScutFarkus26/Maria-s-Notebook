@@ -81,7 +81,7 @@ struct ScheduleParshaLessonSheet: View {
 
                     ForEach(filteredStudents, id: \.id) { student in
                         HStack {
-                            Text(StudentFormatter.displayName(for: student))
+                            Text(student.shortName)
                             Spacer()
                             if let studentID = student.id, selectedStudentIDs.contains(studentID) {
                                 Image(systemName: "checkmark.circle.fill")

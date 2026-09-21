@@ -27,7 +27,7 @@ extension WatchTodoInput {
         self.init(
             id: todo.id ?? UUID(),
             title: todo.title,
-            studentIDs: todo.studentUUIDs,
+            studentIDs: todo.resolvedStudentIDs,
             isCompleted: todo.isCompleted,
             isSomeday: todo.isSomeday,
             createdAt: todo.createdAt,

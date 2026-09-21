@@ -119,12 +119,12 @@ extension TodayView {
             return "All Students"
         case .student(let id):
             if let student = viewModel.recentNoteStudentsByID[id] {
-                return StudentFormatter.displayName(for: student)
+                return student.shortName
             }
             return "Student"
         case .students(let ids):
             let names = ids.compactMap { viewModel.recentNoteStudentsByID[$0] }
-                .map { StudentFormatter.displayName(for: $0) }
+                .map { $0.shortName }
             if names.isEmpty { return "\(ids.count) students" }
             if names.count <= 2 { return names.joined(separator: ", ") }
             return "\(names[0]), \(names[1]) +\(names.count - 2)"

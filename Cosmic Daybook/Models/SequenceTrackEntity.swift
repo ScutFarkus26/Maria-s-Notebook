@@ -29,7 +29,7 @@ nonisolated public class CDSequenceTrackEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-nonisolated extension CDSequenceTrackEntity {
+nonisolated extension CDSequenceTrack {
     /// Unique identifier for this (area, sequence) combination
     var sequenceKey: String {
         "\(area)|\(sequence)"

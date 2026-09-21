@@ -182,7 +182,7 @@ nonisolated extension DataCleanupService {
         for attachment in (duplicate.attachments?.allObjects as? [CDLessonAttachment]) ?? [] {
             attachment.lesson = canonical
         }
-        for sampleWork in (duplicate.sampleWorks?.allObjects as? [CDSampleWorkEntity]) ?? [] {
+        for sampleWork in (duplicate.sampleWorks?.allObjects as? [CDSampleWork]) ?? [] {
             sampleWork.lesson = canonical
         }
 
@@ -303,12 +303,12 @@ nonisolated extension DataCleanupService {
 
     /// A track that stepped through both copies keeps one step for the lesson.
     private static func repointTrackSteps(from old: UUID, to new: UUID, in context: NSManagedObjectContext) {
-        let request = CDFetchRequest(CDTrackStepEntity.self)
+        let request = CDFetchRequest(CDTrackStep.self)
         request.predicate = NSPredicate(format: "lessonTemplateID == %@", old as CVarArg)
         let moved = context.safeFetch(request)
         guard !moved.isEmpty else { return }
 
-        let existing = CDFetchRequest(CDTrackStepEntity.self)
+        let existing = CDFetchRequest(CDTrackStep.self)
         existing.predicate = NSPredicate(format: "lessonTemplateID == %@", new as CVarArg)
         let tracksAlreadyStepping = Set(context.safeFetch(existing).compactMap { $0.track?.objectID })
 

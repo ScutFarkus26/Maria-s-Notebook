@@ -154,7 +154,7 @@ struct ProjectDetailView: View {
     }
 
     func studentName(for sid: String) -> String {
-        studentsByID[uuidString: sid].map(StudentFormatter.displayName(for:)) ?? "Student"
+        studentsByID[uuidString: sid].map(\.shortName) ?? "Student"
     }
 
     func workModels(forStudentID sid: String) -> [CDWorkModel] {

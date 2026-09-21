@@ -32,7 +32,7 @@ struct WorkItemCompactRow: View {
 
                 HStack(spacing: 6) {
                     if let student = work.fetchStudent(from: viewContext) {
-                        Text(StudentFormatter.displayName(for: student))
+                        Text(student.shortName)
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                     }

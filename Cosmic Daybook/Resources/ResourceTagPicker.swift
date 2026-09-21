@@ -8,8 +8,8 @@ struct ResourceTagPicker: View {
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDResource.title, ascending: true)])
     private var allResources: FetchedResults<CDResource>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.createdAt, ascending: false)])
-    private var allTodos: FetchedResults<CDTodoItemEntity>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
+    private var allTodos: FetchedResults<CDTodoItem>
 
     @State private var searchText = ""
     @State private var isShowingNewTag = false

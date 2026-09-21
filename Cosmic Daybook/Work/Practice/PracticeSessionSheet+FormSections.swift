@@ -94,7 +94,7 @@ extension PracticeSessionSheet {
     func individualStudentCard(for student: CDStudent) -> some View {
         let studentID = student.id ?? UUID()
         VStack(alignment: .leading, spacing: 12) {
-            Text(StudentFormatter.displayName(for: student))
+            Text(student.shortName)
                 .font(AppTheme.ScaledFont.bodySemibold)
 
             StudentUnderstandingSelector(level: Binding(
@@ -108,7 +108,7 @@ extension PracticeSessionSheet {
                     .foregroundStyle(.secondary)
 
                 StyledNotesTextField(
-                    placeholder: "Add notes for \(StudentFormatter.displayName(for: student))...",
+                    placeholder: "Add notes for \(student.shortName)...",
                     text: Binding(
                         get: { individualNotes[studentID] ?? "" },
                         set: { individualNotes[studentID] = $0 }

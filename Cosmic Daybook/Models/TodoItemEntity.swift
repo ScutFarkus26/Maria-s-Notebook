@@ -79,7 +79,7 @@ nonisolated public class CDTodoItemEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-nonisolated extension CDTodoItemEntity {
+nonisolated extension CDTodoItem {
     var priority: TodoPriority {
         get { TodoPriority(rawValue: priorityRaw) ?? .none }
         set { priorityRaw = newValue.rawValue }
@@ -114,7 +114,7 @@ nonisolated extension CDTodoItemEntity {
     }
 
     /// Convenience computed property to get student IDs as UUIDs
-    var studentUUIDs: [UUID] {
+    var resolvedStudentIDs: [UUID] {
         get { studentIDsArray.compactMap { UUID(uuidString: $0) } }
         set { studentIDsArray = newValue.map(\.uuidString) }
     }
@@ -139,7 +139,7 @@ nonisolated extension CDTodoItemEntity {
 
     /// Get subtasks progress text
     var subtasksProgressText: String? {
-        let items = subtasks as? Set<CDTodoSubtaskEntity> ?? []
+        let items = subtasks as? Set<CDTodoSubtask> ?? []
         guard !items.isEmpty else { return nil }
         let completed = items.filter(\.isCompleted).count
         return "\(completed)/\(items.count)"
@@ -147,7 +147,7 @@ nonisolated extension CDTodoItemEntity {
 
     /// Check if all subtasks are completed
     var allSubtasksCompleted: Bool {
-        let items = subtasks as? Set<CDTodoSubtaskEntity> ?? []
+        let items = subtasks as? Set<CDTodoSubtask> ?? []
         guard !items.isEmpty else { return true }
         return items.allSatisfy { $0.isCompleted }
     }
@@ -185,12 +185,12 @@ nonisolated extension CDTodoItemEntity {
 }
 
 // MARK: - Generated Accessors for subtasks
-nonisolated extension CDTodoItemEntity {
+nonisolated extension CDTodoItem {
     @objc(addSubtasksObject:)
-    @NSManaged public func addToSubtasks(_ value: CDTodoSubtaskEntity)
+    @NSManaged public func addToSubtasks(_ value: CDTodoSubtask)
 
     @objc(removeSubtasksObject:)
-    @NSManaged public func removeFromSubtasks(_ value: CDTodoSubtaskEntity)
+    @NSManaged public func removeFromSubtasks(_ value: CDTodoSubtask)
 
     @objc(addSubtasks:)
     @NSManaged public func addToSubtasks(_ values: NSSet)

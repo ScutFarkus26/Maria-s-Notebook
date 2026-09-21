@@ -77,7 +77,7 @@ struct UnplannedStudentsStrip: View {
         Button {
             onSelect(student)
         } label: {
-            Text(StudentFormatter.displayName(for: student))
+            Text(student.shortName)
                 .font(.caption)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 10)

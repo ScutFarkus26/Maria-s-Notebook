@@ -98,7 +98,7 @@ nonisolated extension CDPlanningRecommendation {
         UUID(uuidString: lessonID)
     }
 
-    var studentUUIDs: [UUID] {
+    var resolvedStudentIDs: [UUID] {
         studentIDs.compactMap { UUID(uuidString: $0) }
     }
 }

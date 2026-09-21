@@ -194,7 +194,7 @@ struct SelectedStudentRow: View {
                 .font(.system(size: 16))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(StudentFormatter.displayName(for: student))
+                Text(student.shortName)
                     .font(AppTheme.ScaledFont.bodySemibold)
 
                 if let title = workTitle {

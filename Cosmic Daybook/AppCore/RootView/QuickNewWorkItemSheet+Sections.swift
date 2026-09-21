@@ -167,7 +167,7 @@ extension QuickNewWorkItemSheet {
     @ViewBuilder
     func studentChip(for student: CDStudent) -> some View {
         HStack(spacing: 4) {
-            Text(StudentFormatter.displayName(for: student))
+            Text(student.shortName)
                 .font(AppTheme.ScaledFont.bodySemibold)
                 .padding(.horizontal, AppTheme.Spacing.compact)
                 .padding(.vertical, AppTheme.Spacing.verySmall)

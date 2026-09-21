@@ -123,7 +123,7 @@ struct MeetingSessionView: View {
                 }
             }
         }
-        .navigationTitle(StudentFormatter.displayName(for: student))
+        .navigationTitle(student.shortName)
         .inlineNavigationTitle()
     }
 }

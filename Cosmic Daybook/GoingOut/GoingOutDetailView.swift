@@ -190,7 +190,7 @@ struct GoingOutDetailView: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
 
-            StudentChipsView(studentIDs: goingOut.studentUUIDs)
+            StudentChipsView(studentIDs: goingOut.resolvedStudentIDs)
         }
         .cardStyle()
     }

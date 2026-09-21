@@ -74,12 +74,12 @@ struct ReadyForNextSectionView: View {
                 Text(group.lesson.name)
                     .font(.subheadline.weight(.medium))
                 if !group.ready.isEmpty {
-                    Text(group.ready.map(StudentFormatter.displayName(for:)).joined(separator: ", "))
+                    Text(group.ready.map(\.shortName).joined(separator: ", "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 ForEach(group.almost) { entry in
-                    Text("\(StudentFormatter.displayName(for: entry.student)) — \(entry.reason)")
+                    Text("\(entry.student.shortName) — \(entry.reason)")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }

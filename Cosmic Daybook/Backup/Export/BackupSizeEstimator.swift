@@ -63,7 +63,7 @@ enum BackupSizeEstimator {
         counts["StudentMeeting"] = safeFetchCount(CDStudentMeeting.self, using: viewContext)
         counts["CommunityTopic"] = safeFetchCount(CDCommunityTopicEntity.self, using: viewContext)
         counts["ProposedSolution"] = safeFetchCount(CDProposedSolutionEntity.self, using: viewContext)
-        counts["CommunityAttachment"] = safeFetchCount(CDCommunityAttachmentEntity.self, using: viewContext)
+        counts["CommunityAttachment"] = safeFetchCount(CDCommunityAttachment.self, using: viewContext)
         counts["AttendanceRecord"] = safeFetchCount(CDAttendanceRecord.self, using: viewContext)
         counts["WorkCompletionRecord"] = safeFetchCount(CDWorkCompletionRecord.self, using: viewContext)
         counts["Project"] = safeFetchCount(CDProject.self, using: viewContext)

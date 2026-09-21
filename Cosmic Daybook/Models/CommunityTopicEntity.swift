@@ -99,10 +99,10 @@ nonisolated extension CDCommunityTopicEntity {
 // MARK: - Generated Accessors for attachments
 nonisolated extension CDCommunityTopicEntity {
     @objc(addAttachmentsObject:)
-    @NSManaged public func addToAttachments(_ value: CDCommunityAttachmentEntity)
+    @NSManaged public func addToAttachments(_ value: CDCommunityAttachment)
 
     @objc(removeAttachmentsObject:)
-    @NSManaged public func removeFromAttachments(_ value: CDCommunityAttachmentEntity)
+    @NSManaged public func removeFromAttachments(_ value: CDCommunityAttachment)
 
     @objc(addAttachments:)
     @NSManaged public func addToAttachments(_ values: NSSet)

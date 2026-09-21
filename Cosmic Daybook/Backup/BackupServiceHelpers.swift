@@ -293,7 +293,7 @@ enum BackupServiceHelpers {
         }
     }
 
-    static func toDTOs(_ communityAttachments: [CDCommunityAttachmentEntity]) -> [CommunityAttachmentDTO] {
+    static func toDTOs(_ communityAttachments: [CDCommunityAttachment]) -> [CommunityAttachmentDTO] {
         communityAttachments.compactMap { a in
             guard let aID = a.id else { return nil }
             return CommunityAttachmentDTO(

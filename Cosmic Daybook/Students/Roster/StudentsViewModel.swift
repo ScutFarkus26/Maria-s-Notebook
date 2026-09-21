@@ -411,7 +411,7 @@ extension StudentsViewModel {
             return context.safeFetch(request).map {
                 PresentedAssignment(
                     lessonID: $0.lessonIDUUID,
-                    studentIDs: $0.studentUUIDs,
+                    studentIDs: $0.resolvedStudentIDs,
                     when: $0.presentedAt ?? $0.scheduledFor ?? $0.createdAt ?? Date()
                 )
             }

@@ -17,13 +17,13 @@ struct DeadlinesSectionView: View {
     @Environment(\.calendar) private var calendar
 
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.dueDate, ascending: true)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.dueDate, ascending: true)],
         predicate: NSPredicate(format: "isCompleted == NO AND dueDate != nil")
-    ) private var todosRaw: FetchedResults<CDTodoItemEntity>
+    ) private var todosRaw: FetchedResults<CDTodoItem>
 
     private var startOfToday: Date { calendar.startOfDay(for: Date()) }
 
-    private var overdueTodos: [CDTodoItemEntity] {
+    private var overdueTodos: [CDTodoItem] {
         todosRaw.filter { ($0.dueDate ?? .distantFuture) < startOfToday }
     }
 

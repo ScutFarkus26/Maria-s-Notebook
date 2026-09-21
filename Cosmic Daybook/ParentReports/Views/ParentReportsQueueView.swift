@@ -42,7 +42,7 @@ struct ParentReportsQueueView: View {
                         selectedStudent = student
                     } label: {
                         ParentReportQueueRow(
-                            name: StudentFormatter.displayName(for: student),
+                            name: student.shortName,
                             level: student.level,
                             status: status(for: student),
                             sentAt: report(for: student)?.sentAt

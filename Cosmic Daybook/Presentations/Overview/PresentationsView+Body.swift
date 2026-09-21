@@ -183,7 +183,7 @@ extension PresentationsView {
                 coordinator.clearStudentFilter()
             } label: {
                 HStack(spacing: AppTheme.Spacing.xsmall) {
-                    Text("for \(StudentFormatter.displayName(for: student))")
+                    Text("for \(student.shortName)")
                         .font(AppTheme.ScaledFont.captionSemibold)
                     Image(systemName: "xmark.circle.fill")
                         .font(.caption)
@@ -194,7 +194,7 @@ extension PresentationsView {
             }
             .buttonStyle(.plain)
             .help("Show lessons for every child")
-            .accessibilityLabel("Showing lessons for \(StudentFormatter.displayName(for: student)). Clear filter.")
+            .accessibilityLabel("Showing lessons for \(student.shortName). Clear filter.")
         }
     }
 

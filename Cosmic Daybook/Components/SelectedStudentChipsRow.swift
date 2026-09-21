@@ -8,7 +8,7 @@ import CoreData
 
 struct SelectedStudentChipsRow: View {
     let students: [CDStudent]
-    var label: (CDStudent) -> String = { StudentFormatter.displayName(for: $0) }
+    var label: (CDStudent) -> String = { $0.shortName }
     var font: Font = AppTheme.ScaledFont.caption.weight(.medium)
     var textColor: Color = .primary
     let onRemove: (CDStudent) -> Void

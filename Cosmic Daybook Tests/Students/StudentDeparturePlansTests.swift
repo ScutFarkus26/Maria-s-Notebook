@@ -67,10 +67,10 @@ struct StudentDeparturePlansTests {
         CoreDataTestHelpers.save(context)
 
         #expect(result == .init(plansEdited: 1, plansDeleted: 1))
-        #expect(shared.studentUUIDs == [try #require(ora.id)])
+        #expect(shared.resolvedStudentIDs == [try #require(ora.id)])
         #expect(solo.isDeleted || solo.managedObjectContext == nil)
         // History is never edited.
-        #expect(given.studentUUIDs.contains(naomiID))
+        #expect(given.resolvedStudentIDs.contains(naomiID))
         #expect(StudentDeparturePlans.futurePlans(for: naomiID, in: context).isEmpty)
     }
 
@@ -93,7 +93,7 @@ struct StudentDeparturePlansTests {
         RolloverService.apply(plan, students: [leaving, staying], incomingYearLabel: "2026–2027", context: context)
 
         #expect(leaving.isWithdrawn)
-        #expect(shared.studentUUIDs == [try #require(staying.id)])
+        #expect(shared.resolvedStudentIDs == [try #require(staying.id)])
         #expect(StudentDeparturePlans.futurePlans(for: try #require(staying.id), in: context).count == 2)
     }
 }

@@ -10,7 +10,7 @@ import OSLog
 import CoreData
 
 struct NoteTemplateRepository: SavingRepository {
-    typealias Model = CDNoteTemplateEntity
+    typealias Model = CDNoteTemplate
 
     private static let logger = Logger.database
 
@@ -25,14 +25,14 @@ struct NoteTemplateRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a NoteTemplate by ID
-    func fetchTemplate(id: UUID) -> CDNoteTemplateEntity? { fetch(id: id) }
+    func fetchTemplate(id: UUID) -> CDNoteTemplate? { fetch(id: id) }
 
     /// Fetch multiple NoteTemplates with optional filtering and sorting
     func fetchTemplates(
         predicate: NSPredicate? = nil,
         sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "sortOrder", ascending: true)]
-    ) -> [CDNoteTemplateEntity] {
-        let request = CDFetchRequest(CDNoteTemplateEntity.self)
+    ) -> [CDNoteTemplate] {
+        let request = CDFetchRequest(CDNoteTemplate.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
         request.fetchBatchSize = 20
@@ -40,12 +40,12 @@ struct NoteTemplateRepository: SavingRepository {
     }
 
     /// Fetch only built-in templates
-    func fetchBuiltInTemplates() -> [CDNoteTemplateEntity] {
+    func fetchBuiltInTemplates() -> [CDNoteTemplate] {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == YES"))
     }
 
     /// Fetch only custom (user-created) templates
-    func fetchCustomTemplates() -> [CDNoteTemplateEntity] {
+    func fetchCustomTemplates() -> [CDNoteTemplate] {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == NO"))
     }
 

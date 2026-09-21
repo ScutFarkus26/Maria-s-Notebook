@@ -168,7 +168,7 @@ extension UnifiedPresentationWorkflowPanel {
             // CDStudent header with context indicators
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(StudentFormatter.displayName(for: student))
+                    Text(student.shortName)
                         .font(AppTheme.ScaledFont.bodyBold)
 
                     // Keep the observation visible as context without turning it

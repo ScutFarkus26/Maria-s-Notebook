@@ -195,7 +195,7 @@ final class WorkDetailViewModel {
         }
         var allLessonRecipientIDs = Set<UUID>()
         for la in sameLessonAssignments {
-            let studentIDs = la.studentUUIDs.filter { $0.uuidString != primaryStudentID }
+            let studentIDs = la.resolvedStudentIDs.filter { $0.uuidString != primaryStudentID }
             allLessonRecipientIDs.formUnion(studentIDs)
         }
         let awaitingFollowUpIDs = allLessonRecipientIDs.subtracting(peerWorkStudentIDs)
@@ -320,7 +320,7 @@ final class WorkDetailViewModel {
         // Find CDLessonAssignment for next lesson
         let nextLessonAssignment = relatedLessonAssignments.first { la in
             la.lessonIDUUID == nextLesson.id &&
-            la.studentUUIDs.contains(studentID)
+            la.resolvedStudentIDs.contains(studentID)
         }
 
         // Offer unlock if blocked

@@ -23,7 +23,7 @@ enum PresentationSplitService {
     ) -> CDLessonAssignment? {
         guard !readyStudentIDs.isEmpty else { return nil }
 
-        let allStudentIDs = assignment.studentUUIDs
+        let allStudentIDs = assignment.resolvedStudentIDs
         let readySet = Set(readyStudentIDs)
         let remainingIDs = allStudentIDs.filter { !readySet.contains($0) }
 

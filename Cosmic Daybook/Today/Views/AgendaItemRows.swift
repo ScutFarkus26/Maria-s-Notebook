@@ -6,7 +6,7 @@ import SwiftUI
 // MARK: - Todo Today Row
 
 struct TodoTodayRow: View {
-    let todo: CDTodoItemEntity
+    let todo: CDTodoItem
     var onToggle: () -> Void
     var onTap: () -> Void
 

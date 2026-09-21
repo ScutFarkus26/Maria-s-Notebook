@@ -239,7 +239,7 @@ extension MCPNotebookTools {
         let track: CDTrackEntity
         let total: Int
         let done: Int
-        let next: CDTrackStepEntity?
+        let next: CDTrackStep?
         let isActive: Bool
 
         /// The fuller record of a title wins: more steps mastered, then more

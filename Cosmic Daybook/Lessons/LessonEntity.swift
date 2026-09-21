@@ -241,8 +241,8 @@ nonisolated extension CDLesson {
     }
 
     /// Sample works sorted by orderIndex
-    var orderedSampleWorks: [CDSampleWorkEntity] {
-        ((sampleWorks?.allObjects as? [CDSampleWorkEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    var orderedSampleWorks: [CDSampleWork] {
+        ((sampleWorks?.allObjects as? [CDSampleWork]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
     }
 
     /// The art (or other) lesson this parsha lesson draws its technique from, if any.
@@ -292,10 +292,10 @@ nonisolated extension CDLesson {
     @NSManaged public func removeFromAttachments(_ values: NSSet)
 
     @objc(addSampleWorksObject:)
-    @NSManaged public func addToSampleWorks(_ value: CDSampleWorkEntity)
+    @NSManaged public func addToSampleWorks(_ value: CDSampleWork)
 
     @objc(removeSampleWorksObject:)
-    @NSManaged public func removeFromSampleWorks(_ value: CDSampleWorkEntity)
+    @NSManaged public func removeFromSampleWorks(_ value: CDSampleWork)
 
     @objc(addSampleWorks:)
     @NSManaged public func addToSampleWorks(_ values: NSSet)

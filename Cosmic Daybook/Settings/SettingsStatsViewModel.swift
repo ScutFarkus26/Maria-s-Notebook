@@ -139,7 +139,7 @@ class SettingsStatsViewModel {
             // Storage & Templates
             let documents = loadCount(for: CDDocument.self, context: context)
             let lessonAttachments = loadCount(for: CDLessonAttachment.self, context: context)
-            let communityAttachments = loadCount(for: CDCommunityAttachmentEntity.self, context: context)
+            let communityAttachments = loadCount(for: CDCommunityAttachment.self, context: context)
             let todoTemplates = loadCount(for: CDTodoTemplate.self, context: context)
             let developmentSnapshots = loadCount(for: CDDevelopmentSnapshotEntity.self, context: context)
 

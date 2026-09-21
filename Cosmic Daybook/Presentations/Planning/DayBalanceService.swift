@@ -44,7 +44,7 @@ enum DayBalanceService {
             return DayHalfBalancer.Booking(
                 id: id,
                 period: period,
-                studentIDs: Set(assignment.studentUUIDs)
+                studentIDs: Set(assignment.resolvedStudentIDs)
             )
         }
     }
@@ -177,6 +177,6 @@ enum DayBalanceService {
         let request = NSFetchRequest<CDStudent>(entityName: "Student")
         request.predicate = NSPredicate(format: "id IN %@", Array(ids))
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
-        return context.safeFetch(request).map(StudentFormatter.displayName(for:))
+        return context.safeFetch(request).map(\.shortName)
     }
 }

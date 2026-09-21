@@ -87,7 +87,7 @@ struct TodoTemplatesView: View {
     }
     
     private func createTodoFromTemplate(_ template: CDTodoTemplate) {
-        let todo = CDTodoItemEntity(context: viewContext)
+        let todo = CDTodoItem(context: viewContext)
         todo.title = template.title
         todo.notes = template.notes
         todo.priority = template.priority
@@ -341,7 +341,7 @@ private struct TodoTemplateEditSheet: View {
                     }
                 } label: {
                     HStack {
-                        Text("\(student.firstName) \(student.lastName)")
+                        Text(student.fullName)
                             .foregroundStyle(.primary)
                         Spacer()
                         if selectedStudentIDs.contains(student.id?.uuidString ?? "") {
@@ -412,7 +412,7 @@ private struct TodoTemplateEditSheet: View {
             existing.tagsArray = selectedTags
         } else {
             // Create new template
-            let newTemplate = CDTodoTemplateEntity(context: viewContext)
+            let newTemplate = CDTodoTemplate(context: viewContext)
             newTemplate.name = trimmedName
             newTemplate.title = trimmedTitle
             newTemplate.notes = trimmedNotes

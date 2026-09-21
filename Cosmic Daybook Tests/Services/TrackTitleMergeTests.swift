@@ -28,7 +28,7 @@ struct TrackTitleMergeTests {
         track.title = title
         track.createdAt = createdAt
         for (index, lesson) in lessons.enumerated() {
-            let step = CDTrackStepEntity(context: context)
+            let step = CDTrackStep(context: context)
             step.orderIndex = Int64(index)
             step.lessonTemplateID = lesson.id
             step.track = track
@@ -117,11 +117,11 @@ struct TrackTitleMergeTests {
         CoreDataTestHelpers.save(context)
         let olderID = try #require(older.id).uuidString
         let newerID = try #require(newer.id).uuidString
-        let newerSteps = try #require(newer.steps?.allObjects as? [CDTrackStepEntity])
+        let newerSteps = try #require(newer.steps?.allObjects as? [CDTrackStep])
             .sorted { $0.orderIndex < $1.orderIndex }
         let duplicateCommutativeStep = try #require(newerSteps.first?.id).uuidString
         let distributiveStep = try #require(newerSteps.last?.id).uuidString
-        let olderSteps = older.steps?.allObjects as? [CDTrackStepEntity]
+        let olderSteps = older.steps?.allObjects as? [CDTrackStep]
         let keptCommutativeStep = try #require(olderSteps?.first?.id).uuidString
 
         let assignment = seedAssignment(commutative, for: student, track: newerID, step: duplicateCommutativeStep,
@@ -140,7 +140,7 @@ struct TrackTitleMergeTests {
 
         let survivors = tracks(in: context)
         #expect(survivors.map { $0.id?.uuidString } == [olderID])
-        let steps = try #require(survivors.first?.steps?.allObjects as? [CDTrackStepEntity])
+        let steps = try #require(survivors.first?.steps?.allObjects as? [CDTrackStep])
         let stepLessons = Set(steps.compactMap(\.lessonTemplateID))
         #expect(steps.count == 2 && stepLessons == Set([commutative.id, distributive.id].compactMap { $0 }))
 

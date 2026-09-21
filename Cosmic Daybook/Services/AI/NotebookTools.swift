@@ -238,7 +238,7 @@ struct StudentPresentationHistoryTool: Tool {
             request.predicate = NSPredicate(format: "stateRaw == %@", LessonAssignmentState.presented.rawValue)
             request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)]
             let assignments = context.safeFetch(request)
-                .filter { $0.studentUUIDs.contains(studentID) }
+                .filter { $0.resolvedStudentIDs.contains(studentID) }
                 .prefix(limit)
             guard !assignments.isEmpty else {
                 return NotebookToolResult(text: "No presentations are recorded for \(student.fullName).", sources: [])

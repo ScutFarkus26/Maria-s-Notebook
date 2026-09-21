@@ -268,7 +268,7 @@ private extension PostPresentationCaptureSheet {
         let trimmed = observationText.trimmed()
         guard !trimmed.isEmpty, let lessonID else { return }
 
-        let names = students.map { StudentFormatter.displayName(for: $0) }.joined(separator: ", ")
+        let names = students.map { $0.shortName }.joined(separator: ", ")
         captureViewModel.inputText = "I presented \(lesson.name) to \(names). \(trimmed)"
 
         let studentData = students.compactMap { student -> StudentData? in
@@ -304,7 +304,7 @@ private extension PostPresentationCaptureSheet {
             guard let id = student.id else { return nil }
             var entry = existingByID[id] ?? StudentCaptureProposal(
                 studentID: id,
-                studentName: StudentFormatter.displayName(for: student)
+                studentName: student.shortName
             )
             // Reflection and planning are separate moments. AI may organize the
             // guide's words, but the following screen owns every planning choice.
@@ -334,7 +334,7 @@ private extension PostPresentationCaptureSheet {
                 guard let id = student.id else { return nil }
                 return StudentCaptureProposal(
                     studentID: id,
-                    studentName: StudentFormatter.displayName(for: student)
+                    studentName: student.shortName
                 )
             },
             unresolvedStudentNames: [],

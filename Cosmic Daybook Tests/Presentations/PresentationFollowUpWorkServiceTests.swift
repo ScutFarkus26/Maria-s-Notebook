@@ -249,12 +249,12 @@ final class PresentationFollowUpWorkServiceTests {
         let track = CDTrackEntity(context: fixture.context)
         track.title = "Language — Grammar"
 
-        let existingStep = CDTrackStepEntity(context: fixture.context)
+        let existingStep = CDTrackStep(context: fixture.context)
         existingStep.track = track
         existingStep.lessonTemplateID = lessonID
         existingStep.orderIndex = 99
 
-        let staleStep = CDTrackStepEntity(context: fixture.context)
+        let staleStep = CDTrackStep(context: fixture.context)
         staleStep.track = track
         staleStep.lessonTemplateID = UUID()
         staleStep.orderIndex = 42
@@ -284,7 +284,7 @@ final class PresentationFollowUpWorkServiceTests {
         #expect(!staleStep.isDeleted)
         #expect(staleStep.managedObjectContext === fixture.context)
 
-        let remainingSteps = fixture.context.safeFetch(CDFetchRequest(CDTrackStepEntity.self))
+        let remainingSteps = fixture.context.safeFetch(CDFetchRequest(CDTrackStep.self))
         #expect(Set(remainingSteps.compactMap(\.id)) == Set([existingStep.id, staleStep.id].compactMap { $0 }))
 
         let linked = service.linkedOpenWork(
@@ -300,12 +300,12 @@ final class PresentationFollowUpWorkServiceTests {
         let fixture = try makeFixture(rowCount: 1)
         let lessonID = try #require(fixture.lesson.id)
         let service = PresentationFollowUpWorkService(context: fixture.context)
-        let sampleWork = CDSampleWorkEntity(context: fixture.context)
+        let sampleWork = CDSampleWork(context: fixture.context)
         sampleWork.lesson = fixture.lesson
         sampleWork.title = "Prepared biography"
         sampleWork.workKind = .report
 
-        let sampleStep = CDSampleWorkStepEntity(context: fixture.context)
+        let sampleStep = CDSampleWorkStep(context: fixture.context)
         sampleStep.sampleWork = sampleWork
         sampleStep.title = "Choose three important moments"
         sampleStep.instructions = "Use your notes from the timeline."
