@@ -12,47 +12,21 @@ struct TodoRow: View {
         students.filter { todo.studentIDsArray.contains($0.id?.uuidString ?? "") }
     }
 
-    private func priorityColor(_ priority: TodoPriority) -> Color {
-        switch priority {
-        case .none: return .gray
-        case .low: return .blue
-        case .medium: return .orange
-        case .high: return .red
-        }
-    }
-
-    @State private var checkboxScale: CGFloat = 1.0
-
     var body: some View {
         HStack(spacing: 0) {
-            // Priority left-edge bar
-            if todo.priority != .none {
-                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .fill(priorityColor(todo.priority))
-                    .frame(width: 3)
-                    .padding(.vertical, 6)
-                    .padding(.trailing, 9)
-            } else {
-                Spacer().frame(width: 12)
-            }
+            TodoRowComponents.priorityEdge(
+                priority: todo.priority,
+                trailingPadding: 9,
+                gutterWidth: 12
+            )
 
-            checkboxButton
+            TodoCheckboxButton(isCompleted: todo.isCompleted, action: onToggle)
 
             Spacer().frame(width: 12)
 
             // Content
             VStack(alignment: .leading, spacing: 3) {
-                Text(todo.title)
-                    .font(AppTheme.ScaledFont.titleSmall)
-                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
-                    .strikethrough(todo.isCompleted, color: .secondary.opacity(UIConstants.OpacityConstants.half))
-
-                if !todo.notes.isEmpty {
-                    Text(todo.notes)
-                        .font(AppTheme.ScaledFont.body)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
+                TodoRowComponents.titleAndNotes(todo: todo)
 
                 badgeRow
             }
@@ -78,31 +52,6 @@ struct TodoRow: View {
             onDelete()
         }
         .contextMenu { rowContextMenu }
-    }
-
-    private var checkboxButton: some View {
-        Button {
-            adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
-                checkboxScale = 0.8
-            }
-            Task {
-                try? await Task.sleep(for: .milliseconds(100))
-                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
-                    checkboxScale = 1.0
-                    onToggle()
-                }
-            }
-        } label: {
-            Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 24, weight: .light))
-                .foregroundStyle(todo.isCompleted ? .secondary : .tertiary)
-                .contentTransition(.symbolEffect(.replace))
-                .scaleEffect(checkboxScale)
-        }
-        .buttonStyle(.plain)
-        #if os(iOS)
-        .sensoryFeedback(.success, trigger: todo.isCompleted)
-        #endif
     }
 
     @ViewBuilder
@@ -213,33 +162,11 @@ struct TodoRow: View {
                 .foregroundStyle(.blue.opacity(UIConstants.OpacityConstants.prominent))
             }
 
-            if todo.effectiveDate != nil || todo.isSomeday {
-                TodoDateChip(todo: todo)
-            }
+            TodoRowComponents.dateChip(todo: todo)
 
-            if todo.recurrence != .none {
-                HStack(spacing: 3) {
-                    Image(systemName: "repeat")
-                        .font(.system(size: 10))
-                    Text(todo.recurrence.shortLabel)
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                }
-                .foregroundStyle(.purple.opacity(UIConstants.OpacityConstants.prominent))
-            }
+            TodoRowComponents.recurrenceChip(todo: todo)
 
-            if let progressText = todo.subtasksProgressText {
-                HStack(spacing: 3) {
-                    Image(systemName: "checklist")
-                        .font(.system(size: 10))
-                    Text(progressText)
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                }
-                .foregroundStyle(
-                    todo.allSubtasksCompleted
-                        ? .green.opacity(UIConstants.OpacityConstants.prominent)
-                        : .secondary.opacity(UIConstants.OpacityConstants.half)
-                )
-            }
+            TodoRowComponents.subtaskProgressChip(todo: todo, iconSize: 10)
         }
         .padding(.top, 2)
     }
