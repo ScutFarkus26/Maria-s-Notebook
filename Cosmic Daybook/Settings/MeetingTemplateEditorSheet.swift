@@ -3,178 +3,113 @@
 
 import SwiftUI
 import CoreData
-import OSLog
 
-struct MeetingTemplateEditorSheet: View {
-    private static let logger = Logger.settings
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.dismiss) private var dismiss
+/// The editable copy of a meeting template's fields.
+struct MeetingTemplateDraft {
+    var name = ""
+    var reflectionPrompt = ""
+    var focusPrompt = ""
+    var requestsPrompt = ""
+    var guideNotesPrompt = ""
+}
 
-    let template: CDMeetingTemplate?
-    var onSaved: () -> Void
+/// Drives the shared template editor sheet for weekly meeting templates.
+enum MeetingTemplateEditing: TemplateEditing {
+    static let macOSMinSize = CGSize(width: 500, height: 550)
+    static var keyboardDismissMode: ScrollDismissesKeyboardMode { .interactively }
 
-    @State private var nameText: String
-    @State private var reflectionPromptText: String
-    @State private var focusPromptText: String
-    @State private var requestsPromptText: String
-    @State private var guideNotesPromptText: String
-    @State private var saveTrigger = 0
+    static func makeDraft(from template: CDMeetingTemplate?) -> MeetingTemplateDraft {
+        guard let template else { return MeetingTemplateDraft() }
+        return MeetingTemplateDraft(
+            name: template.name,
+            reflectionPrompt: template.reflectionPrompt,
+            focusPrompt: template.focusPrompt,
+            requestsPrompt: template.requestsPrompt,
+            guideNotesPrompt: template.guideNotesPrompt
+        )
+    }
 
-    private var isEditing: Bool { template != nil }
+    static func canSave(_ draft: MeetingTemplateDraft) -> Bool {
+        !draft.name.trimmed().isEmpty &&
+        !draft.reflectionPrompt.trimmed().isEmpty &&
+        !draft.focusPrompt.trimmed().isEmpty &&
+        !draft.requestsPrompt.trimmed().isEmpty &&
+        !draft.guideNotesPrompt.trimmed().isEmpty
+    }
 
-    init(template: CDMeetingTemplate?, onSaved: @escaping () -> Void) {
-        self.template = template
-        self.onSaved = onSaved
-        if let template {
-            nameText = template.name
-            reflectionPromptText = template.reflectionPrompt
-            focusPromptText = template.focusPrompt
-            requestsPromptText = template.requestsPrompt
-            guideNotesPromptText = template.guideNotesPrompt
-        } else {
-            nameText = ""
-            reflectionPromptText = ""
-            focusPromptText = ""
-            requestsPromptText = ""
-            guideNotesPromptText = ""
+    @ViewBuilder
+    static func fields(_ draft: Binding<MeetingTemplateDraft>) -> some View {
+        Section {
+            TextField("Name", text: draft.name, prompt: Text("e.g., Weekly Check-in"))
+                #if os(iOS)
+                .textInputAutocapitalization(.words)
+                #endif
+        } header: {
+            Text("Template Name")
+        } footer: {
+            Text("A descriptive name for this template")
+        }
+
+        Section {
+            TextEditor(text: draft.reflectionPrompt)
+                .frame(minHeight: 60)
+        } header: {
+            Text("Reflection Prompt")
+        } footer: {
+            Text("Placeholder shown in the student reflection field")
+        }
+
+        Section {
+            TextEditor(text: draft.focusPrompt)
+                .frame(minHeight: 60)
+        } header: {
+            Text("Focus Prompt")
+        } footer: {
+            Text("Placeholder shown in the focus/goals field")
+        }
+
+        Section {
+            TextEditor(text: draft.requestsPrompt)
+                .frame(minHeight: 60)
+        } header: {
+            Text("Requests Prompt")
+        } footer: {
+            Text("Placeholder shown in the lesson requests field")
+        }
+
+        Section {
+            TextEditor(text: draft.guideNotesPrompt)
+                .frame(minHeight: 60)
+        } header: {
+            Text("Guide Notes Prompt")
+        } footer: {
+            Text("Placeholder shown in the private guide notes field")
         }
     }
 
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Name", text: $nameText, prompt: Text("e.g., Weekly Check-in"))
-                        #if os(iOS)
-                        .textInputAutocapitalization(.words)
-                        #endif
-                } header: {
-                    Text("Template Name")
-                } footer: {
-                    Text("A descriptive name for this template")
-                }
-
-                Section {
-                    TextEditor(text: $reflectionPromptText)
-                        .frame(minHeight: 60)
-                } header: {
-                    Text("Reflection Prompt")
-                } footer: {
-                    Text("Placeholder shown in the student reflection field")
-                }
-
-                Section {
-                    TextEditor(text: $focusPromptText)
-                        .frame(minHeight: 60)
-                } header: {
-                    Text("Focus Prompt")
-                } footer: {
-                    Text("Placeholder shown in the focus/goals field")
-                }
-
-                Section {
-                    TextEditor(text: $requestsPromptText)
-                        .frame(minHeight: 60)
-                } header: {
-                    Text("Requests Prompt")
-                } footer: {
-                    Text("Placeholder shown in the lesson requests field")
-                }
-
-                Section {
-                    TextEditor(text: $guideNotesPromptText)
-                        .frame(minHeight: 60)
-                } header: {
-                    Text("Guide Notes Prompt")
-                } footer: {
-                    Text("Placeholder shown in the private guide notes field")
-                }
-            }
-            .navigationTitle(isEditing ? "Edit Template" : "New Template")
-            #if os(iOS)
-            .inlineNavigationTitle()
-            .scrollDismissesKeyboard(.interactively)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        save()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(!canSave)
-                }
-            }
-            .sensoryFeedback(.success, trigger: saveTrigger)
-        }
-        #if os(iOS)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        #endif
-        #if os(macOS)
-        .frame(minWidth: 500, minHeight: 550)
-        #endif
+    static func apply(_ draft: MeetingTemplateDraft, to template: CDMeetingTemplate) {
+        template.name = draft.name.trimmed()
+        template.reflectionPrompt = draft.reflectionPrompt.trimmed()
+        template.focusPrompt = draft.focusPrompt.trimmed()
+        template.requestsPrompt = draft.requestsPrompt.trimmed()
+        template.guideNotesPrompt = draft.guideNotesPrompt.trimmed()
     }
 
-    // MARK: - Helpers
-
-    private var canSave: Bool {
-        !nameText.trimmed().isEmpty &&
-        !reflectionPromptText.trimmed().isEmpty &&
-        !focusPromptText.trimmed().isEmpty &&
-        !requestsPromptText.trimmed().isEmpty &&
-        !guideNotesPromptText.trimmed().isEmpty
-    }
-
-    private func save() {
-        let trimmedName = nameText.trimmed()
-        let trimmedReflection = reflectionPromptText.trimmed()
-        let trimmedFocus = focusPromptText.trimmed()
-        let trimmedRequests = requestsPromptText.trimmed()
-        let trimmedGuideNotes = guideNotesPromptText.trimmed()
-
-        if let existing = template {
-            // Update existing template
-            existing.name = trimmedName
-            existing.reflectionPrompt = trimmedReflection
-            existing.focusPrompt = trimmedFocus
-            existing.requestsPrompt = trimmedRequests
-            existing.guideNotesPrompt = trimmedGuideNotes
-        } else {
-            // Create new template
-            let customCount: Int
-            do {
-                let countRequest = CDFetchRequest(CDMeetingTemplate.self)
-                countRequest.predicate = NSPredicate(format: "isBuiltIn == NO")
-                customCount = try viewContext.count(for: countRequest)
-            } catch {
-                Self.logger.warning("Failed to fetch custom template count: \(error, privacy: .public)")
-                customCount = 0
-            }
-
-            let newTemplate = CDMeetingTemplate(context: viewContext)
-            newTemplate.id = UUID()
-            newTemplate.name = trimmedName
-            newTemplate.reflectionPrompt = trimmedReflection
-            newTemplate.focusPrompt = trimmedFocus
-            newTemplate.requestsPrompt = trimmedRequests
-            newTemplate.guideNotesPrompt = trimmedGuideNotes
-            newTemplate.sortOrder = Int64(100 + customCount)
-            newTemplate.isActive = false
-            newTemplate.isBuiltIn = false
-        }
-
-        if viewContext.safeSave() {
-            saveTrigger &+= 1
-        }
-        onSaved()
-        dismiss()
+    static func insert(
+        _ draft: MeetingTemplateDraft,
+        sortOrder: Int64,
+        into context: NSManagedObjectContext
+    ) {
+        let newTemplate = CDMeetingTemplate(context: context)
+        newTemplate.id = UUID()
+        apply(draft, to: newTemplate)
+        newTemplate.sortOrder = sortOrder
+        newTemplate.isActive = false
+        newTemplate.isBuiltIn = false
     }
 }
+
+typealias MeetingTemplateEditorSheet = TemplateEditorSheet<MeetingTemplateEditing>
 
 // MARK: - Preview
 
