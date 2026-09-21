@@ -12,14 +12,13 @@ struct TodoListPanel: View {
         return request
     }())
     var todos: FetchedResults<CDTodoItem>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
-    private var studentsRaw: FetchedResults<CDStudent>
     @TestStudentVisibility private var testStudents
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )

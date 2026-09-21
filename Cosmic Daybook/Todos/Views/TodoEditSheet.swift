@@ -8,14 +8,12 @@ import QuickLookUI
 
 struct TodoEditSheet: View {
     @Environment(\.dismiss) var dismiss
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
-    ]) var studentsRaw: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
     @TestStudentVisibility var testStudents
 
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )

@@ -10,16 +10,14 @@ struct AttendanceStudentHistorySheet: View {
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
-    private var allStudentsRaw: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
 
     @State private var records: [CDAttendanceRecord] = []
 
     private static let logger = Logger.attendance
 
     private var student: CDStudent? {
-        Array(allStudentsRaw).first { $0.id == studentID }
+        dependencies.roster.student(id: studentID)
     }
 
     private var statusByDay: [Date: AttendanceStatus] {

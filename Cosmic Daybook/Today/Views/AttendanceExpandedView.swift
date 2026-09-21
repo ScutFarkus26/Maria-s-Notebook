@@ -17,11 +17,10 @@ struct AttendanceExpandedView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.horizontalSizeClass) var hSizeClass
     @Environment(SaveCoordinator.self) var saveCoordinator
+    @Environment(\.dependencies) private var dependencies
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)])
-    private var allStudentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    private var allStudents: [CDStudent] { Array(allStudentsRaw).uniqueByID.filterEnrolled() }
+    // The workspace's live roster; the store drops CloudKit's duplicate-ID rows.
+    private var allStudents: [CDStudent] { dependencies.roster.enrolled }
     private var allStudentIDs: [UUID] { allStudents.compactMap(\.id) }
 
     @State var viewModel = AttendanceViewModel()

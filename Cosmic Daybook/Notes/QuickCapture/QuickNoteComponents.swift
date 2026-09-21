@@ -309,13 +309,14 @@ struct QuickNoteLessonPicker: View {
     var onDone: (() -> Void)?
 
     @State private var searchText: String = ""
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
-    ) private var lessons: FetchedResults<CDLesson>
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dependencies) private var dependencies
+    private var lessons: [CDLesson] { // the live catalog, in this picker's own name order
+        dependencies.lessonCatalog.all.sorted { $0.name.compare($1.name) == .orderedAscending }
+    }
 
     private var filteredLessons: [CDLesson] {
-        if searchText.trimmed().isEmpty { return Array(lessons) }
+        if searchText.trimmed().isEmpty { return lessons }
         let query = searchText.trimmed()
         return lessons.filter {
             $0.name.localizedCaseInsensitiveContains(query) ||

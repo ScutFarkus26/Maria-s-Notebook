@@ -228,10 +228,7 @@ private struct TodoTemplateEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
-    ]) private var studentsRaw: FetchedResults<CDStudent>
-    private var students: [CDStudent] { studentsRaw.filterEnrolled() }
+    private var students: [CDStudent] { dependencies.roster.enrolled }
     
     let template: CDTodoTemplate?
     

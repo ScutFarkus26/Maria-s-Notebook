@@ -5,6 +5,7 @@ struct DayColumn: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
@@ -15,12 +16,10 @@ struct DayColumn: View {
     /// straight through to the drop zones' pills so no pill fetches its own.
     let lessons: [CDLesson]
     let pillStudents: [CDStudent]
-    @FetchRequest(sortDescriptors: CDStudent.sortByLastName) private var allStudentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )

@@ -9,9 +9,7 @@ struct SchedulesView: View {
     @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSchedule.name, ascending: true)])
     private var schedules: FetchedResults<CDSchedule>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
-    private var studentsRaw: FetchedResults<CDStudent>
-    private var students: [CDStudent] { studentsRaw.filterEnrolled() }
+    private var students: [CDStudent] { dependencies.roster.enrolled }
 
     @State private var showingAddSheet = false
     @State private var selectedSchedule: CDSchedule?

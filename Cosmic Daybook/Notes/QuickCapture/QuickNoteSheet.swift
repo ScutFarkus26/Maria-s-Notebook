@@ -11,27 +11,24 @@ struct QuickNoteSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
     // MARK: - Data
-    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var studentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
     }
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)])
-    private var lessons: FetchedResults<CDLesson>
     private var selectedLesson: CDLesson? {
         guard let id = viewModel.selectedLessonID else { return nil }
-        return lessons.first { $0.id == id }
+        return dependencies.lessonCatalog.lesson(id: id)
     }
 
     // MARK: - View Model
