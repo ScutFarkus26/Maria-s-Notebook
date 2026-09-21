@@ -163,46 +163,15 @@ final class OpenAIAPIClient {
 
 extension OpenAIAPIClient {
 
-    private static let keychain = KeychainStore(
-        service: "com.danielsdeberry.MariasNoteBook",
-        account: "openAIAPIKey"
-    )
+    /// Keychain-backed key storage shared with `AnthropicAPIClient` (see `APIKeyStore`);
+    /// service and account are unchanged, so existing keys are still found.
+    static let keyStore = APIKeyStore.openAI
 
-    static func loadAPIKey() -> String {
-        if let data = try? keychain.get(), let key = String(data: data, encoding: .utf8), !key.isEmpty {
-            return key
-        }
-        // Fall back to UserDefaults and auto-migrate.
-        if let key = UserDefaults.standard.string(forKey: UserDefaultsKeys.openAIAPIKey), !key.isEmpty {
-            if let data = key.data(using: .utf8) {
-                try? keychain.set(data)
-                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.openAIAPIKey)
-                logger.info("Migrated OpenAI key from UserDefaults to Keychain")
-            }
-            return key
-        }
-        return ""
-    }
-
-    static func saveAPIKey(_ key: String) {
-        guard let data = key.data(using: .utf8) else { return }
-        do {
-            try keychain.set(data)
-        } catch {
-            logger.error("Failed to save OpenAI API key: \(error.localizedDescription)")
-        }
-    }
-
+    static func loadAPIKey() -> String { keyStore.load() }
+    static func saveAPIKey(_ key: String) { keyStore.save(key) }
     /// Whether a non-empty, plausibly-shaped OpenAI key is configured.
-    static func hasAPIKey() -> Bool {
-        let key = loadAPIKey()
-        return !key.isEmpty && key.hasPrefix("sk-")
-    }
-
-    static func clearAPIKey() {
-        try? keychain.delete()
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.openAIAPIKey)
-    }
+    static func hasAPIKey() -> Bool { keyStore.hasKey() }
+    static func clearAPIKey() { keyStore.clear() }
 }
 
 // MARK: - Errors
