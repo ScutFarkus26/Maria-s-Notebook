@@ -89,7 +89,7 @@ extension StudentNotesViewModel {
     func fetchGeneralNotes(
         noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
-        let primaryFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        let primaryFetch = CDFetchRequest(CDNote.self)
         if let studentID = student.id {
             primaryFetch.predicate = NSPredicate(
                 format: "scopeIsAll == YES OR searchIndexStudentID == %@",
@@ -144,13 +144,13 @@ extension StudentNotesViewModel {
     func fetchWorkRelatedNotes(
         noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
-        let workFetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+        let workFetch = CDFetchRequest(CDWorkModel.self)
         workFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
         let workModels: [CDWorkModel] = viewContext.safeFetch(workFetch)
         let workIDs = Set(workModels.compactMap(\.id))
         guard !workIDs.isEmpty else { return [] }
 
-        let workNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        let workNoteFetch = CDFetchRequest(CDNote.self)
         workNoteFetch.predicate = NSPredicate(format: "work != nil")
         workNoteFetch.sortDescriptors = noteSort
         let workNotes: [CDNote] = viewContext.safeFetch(workNoteFetch)
@@ -180,7 +180,7 @@ extension StudentNotesViewModel {
     func fetchPresentationNotes(
         noteSort: [NSSortDescriptor], studentIDString: String
     ) -> [UnifiedNoteItem] {
-        let presentationNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        let presentationNoteFetch = CDFetchRequest(CDNote.self)
         presentationNoteFetch.predicate = NSPredicate(format: "lessonAssignment != nil")
         presentationNoteFetch.sortDescriptors = noteSort
         let presentationNotes: [CDNote] = viewContext.safeFetch(presentationNoteFetch)
@@ -221,7 +221,7 @@ extension StudentNotesViewModel {
 
     /// 4) Meeting-related notes.
     func fetchMeetingNotes(studentIDString: String) -> [UnifiedNoteItem] {
-        let meetingFetch: NSFetchRequest<CDStudentMeeting> = NSFetchRequest(entityName: "StudentMeeting")
+        let meetingFetch = CDFetchRequest(CDStudentMeeting.self)
         meetingFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString as CVarArg)
         meetingFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)]
         let studentMeetings: [CDStudentMeeting] = viewContext.safeFetch(meetingFetch)
@@ -257,7 +257,7 @@ extension StudentNotesViewModel {
             uniquingKeysWith: { first, _ in first }
         )
 
-        let attNoteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        let attNoteFetch = CDFetchRequest(CDNote.self)
         attNoteFetch.predicate = NSPredicate(
             format: "attendanceRecordID IN %@", Array(recordsByID.keys)
         )

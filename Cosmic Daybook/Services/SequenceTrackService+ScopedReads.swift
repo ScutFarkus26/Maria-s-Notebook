@@ -21,8 +21,8 @@ extension SequenceTrackService {
     /// Sequence tracks that could be the one for `area` / `sequence`.
     static func sequenceTrackCandidates(
         area: String, sequence: String, context: NSManagedObjectContext
-    ) -> [CDSequenceTrackEntity] {
-        let request = CDFetchRequest(CDSequenceTrackEntity.self)
+    ) -> [CDSequenceTrack] {
+        let request = CDFetchRequest(CDSequenceTrack.self)
         request.predicate = couldEqualPredicate(area: area, sequence: sequence)
         return context.safeFetch(request)
     }

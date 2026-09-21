@@ -90,7 +90,7 @@ struct SequenceTrackServiceScopeTests {
             try SequenceTrackService.cdGetTrack(area: "Math", sequence: "Chains", context: context)
         )
         #expect(trackID == track.id?.uuidString)
-        let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let steps = ((track.steps?.allObjects as? [CDTrackStep]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         #expect(steps.map { $0.lessonTemplateID?.uuidString ?? "" } == seeded.chainLessonIDs)
 
         let rows = enrollments(in: context)
@@ -161,7 +161,7 @@ struct SequenceTrackServiceScopeTests {
     @Test("On SQLite, padded and differently cased names still resolve to their track")
     func sqliteLookupsFoldCaseAndWhitespace() throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
-        let sequenceTrack = CDSequenceTrackEntity(context: context)
+        let sequenceTrack = CDSequenceTrack(context: context)
         sequenceTrack.area = " math "
         sequenceTrack.sequence = "CHAINS"
         sequenceTrack.isExplicitlyDisabled = true

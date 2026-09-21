@@ -61,7 +61,7 @@ extension WorksAgendaView {
     func schedule(_ w: CDWorkModel, on day: Date) {
         let checkDay = AppCalendar.startOfDay(day)
         let workIDString = w.id?.uuidString ?? ""
-        let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
+        let request = CDFetchRequest(CDWorkCheckIn.self)
         request.predicate = NSPredicate(format: "workID == %@", workIDString)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: true)]
         request.fetchLimit = 1

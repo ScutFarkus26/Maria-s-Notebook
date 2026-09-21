@@ -100,7 +100,7 @@ enum CalendarForwardShiftService {
     private static func scheduledPresentations(
         in context: NSManagedObjectContext
     ) -> [CDLessonAssignment] {
-        let request: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(
             format: "scheduledFor != nil AND stateRaw != %@",
             LessonAssignmentState.presented.rawValue
@@ -113,7 +113,7 @@ enum CalendarForwardShiftService {
     private static func scheduledCheckIns(
         in context: NSManagedObjectContext
     ) -> [CDWorkCheckIn] {
-        let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
+        let request = CDFetchRequest(CDWorkCheckIn.self)
         request.predicate = NSPredicate(
             format: "statusRaw == %@ AND date != nil",
             WorkCheckInStatus.scheduled.rawValue
@@ -129,7 +129,7 @@ enum CalendarForwardShiftService {
     ) -> [UUID: CDWorkModel] {
         let ids = Set(checkIns.compactMap { $0.workID.asUUID })
         guard !ids.isEmpty else { return [:] }
-        let request: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "id IN %@", ids as NSSet)
         return Dictionary(
             context.safeFetch(request).compactMap { work in work.id.map { ($0, work) } },

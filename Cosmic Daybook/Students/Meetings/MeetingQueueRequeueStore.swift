@@ -4,7 +4,7 @@ import Foundation
 /// even though they met recently, keyed by when they were requeued. Persisted
 /// in UserDefaults per device, like the queue's custom order.
 struct MeetingQueueRequeueStore {
-    private static let key = "MeetingsWorkflow.requeuedStudents"
+    private static let key = UserDefaultsKeys.meetingsWorkflowRequeuedStudents
 
     private(set) var requeuedAt: [UUID: Date] = [:]
 

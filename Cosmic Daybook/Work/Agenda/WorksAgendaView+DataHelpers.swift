@@ -12,10 +12,10 @@ extension WorksAgendaView {
     /// PERF: Lightweight change detection using fetchCount() instead of loading full tables.
     func refreshChangeTokens() {
         do {
-            let lRequest: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+            let lRequest = CDFetchRequest(CDLesson.self)
             let lCount = try viewContext.count(for: lRequest)
             if lCount != lessonChangeToken { lessonChangeToken = lCount }
-            let sRequest: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "Student")
+            let sRequest = CDFetchRequest(CDStudent.self)
             let sCount = try viewContext.count(for: sRequest)
             if sCount != studentChangeToken { studentChangeToken = sCount }
         } catch {

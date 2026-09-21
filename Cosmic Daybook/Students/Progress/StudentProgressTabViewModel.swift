@@ -67,7 +67,7 @@ final class StudentProgressTabViewModel {
 
         let allTracks = fetchTrackScopedRows(studentIDString: studentIDString, context: context)
 
-        let projectDescriptor: NSFetchRequest<CDProject> = NSFetchRequest(entityName: "Project")
+        let projectDescriptor = CDFetchRequest(CDProject.self)
         projectDescriptor.predicate = NSPredicate(format: "isActive == YES")
         projectDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         let allProjects = context.safeFetch(projectDescriptor)
@@ -112,7 +112,7 @@ final class StudentProgressTabViewModel {
 
         // Roster membership lives in an encoded blob, so the roster check
         // stays in `trackStats`; the track and state columns are indexed here.
-        let assignmentDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let assignmentDescriptor = CDFetchRequest(CDLessonAssignment.self)
         assignmentDescriptor.predicate = NSPredicate(
             format: "trackID IN %@ AND stateRaw == %@",
             activeTrackIDStrings, LessonAssignmentState.presented.rawValue
@@ -120,7 +120,7 @@ final class StudentProgressTabViewModel {
         assignmentDescriptor.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
         allLessonAssignments = context.safeFetch(assignmentDescriptor)
 
-        let workDescriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+        let workDescriptor = CDFetchRequest(CDWorkModel.self)
         workDescriptor.predicate = NSPredicate(format: "studentID == %@", studentIDString)
         workDescriptor.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         allWorkModels = context.safeFetch(workDescriptor)
@@ -128,7 +128,7 @@ final class StudentProgressTabViewModel {
         // `[c]` because the enrollment link is resolved through
         // `UUID(uuidString:)`, which accepts either case.
         let enrollmentIDStrings = activeEnrollments.compactMap { $0.id?.uuidString }
-        let noteDescriptor: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        let noteDescriptor = CDFetchRequest(CDNote.self)
         noteDescriptor.predicate = NSPredicate(format: "studentTrackEnrollmentID IN[c] %@", enrollmentIDStrings)
         noteDescriptor.sortDescriptors = [NSSortDescriptor(key: "updatedAt", ascending: false)]
         allNotes = context.safeFetch(noteDescriptor)
@@ -138,7 +138,7 @@ final class StudentProgressTabViewModel {
         stepDescriptor.sortDescriptors = [NSSortDescriptor(key: "orderIndex", ascending: true)]
         allTrackSteps = context.safeFetch(stepDescriptor)
 
-        let lpDescriptor = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+        let lpDescriptor = CDFetchRequest(CDLessonPresentation.self)
         lpDescriptor.predicate = NSPredicate(format: "studentID == %@", studentIDString)
         allLessonPresentations = context.safeFetch(lpDescriptor)
 
@@ -151,7 +151,7 @@ final class StudentProgressTabViewModel {
     private func lesson(for lessonID: UUID) -> CDLesson? {
         if let cached = lessonsByID[lessonID] { return cached }
         guard let context else { return nil }
-        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
         request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         request.fetchLimit = 1

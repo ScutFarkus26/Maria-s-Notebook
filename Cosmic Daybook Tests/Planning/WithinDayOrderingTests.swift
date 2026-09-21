@@ -104,7 +104,7 @@ struct WithinDayOrderingTests {
             calendar: AppCalendar.shared,
             spacingSeconds: UIConstants.scheduleSpacingSeconds
         )
-        let request: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let request = CDFetchRequest(CDLessonAssignment.self)
         let all = context.safeFetch(request)
         for assignment in all {
             if let id = assignment.id, let when = times[id] {

@@ -95,7 +95,7 @@ final class Phase6PostTests {
         // Allow merge to propagate (automaticallyMergesChangesFromParent)
         try await Task.sleep(for: .milliseconds(200))
 
-        let request: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "firstName == %@", "Phase6")
         let results = stack.viewContext.safeFetch(request)
         #expect(results.count == 1)

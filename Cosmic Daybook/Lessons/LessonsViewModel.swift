@@ -148,7 +148,7 @@ extension LessonsViewModel {
 
         // Fetch only un-presented CDLessonAssignment records (drafts and scheduled).
         let presentedRaw = LessonAssignmentState.presented.rawValue
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor = CDFetchRequest(CDLessonAssignment.self)
         descriptor.predicate = NSPredicate(format: "stateRaw != %@", presentedRaw as CVarArg)
         let assignments: [CDLessonAssignment]
         do {

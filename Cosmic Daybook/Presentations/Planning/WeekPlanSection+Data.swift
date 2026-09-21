@@ -96,7 +96,7 @@ extension WeekPlanSection {
         }
         let (start, _) = AppCalendar.dayRange(for: firstDay)
         let (_, end) = AppCalendar.dayRange(for: lastDay)
-        let request: NSFetchRequest<CDWorkCheckIn> = NSFetchRequest(entityName: "WorkCheckIn")
+        let request = CDFetchRequest(CDWorkCheckIn.self)
         request.predicate = CalendarCheckInGrouper.scheduledPredicate(start: start, end: end)
         let fetched = viewContext.safeFetch(request)
         cachedCheckIns = fetched

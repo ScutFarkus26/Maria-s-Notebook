@@ -23,7 +23,7 @@ enum ObservationsDataLoader {
         var allItems: [UnifiedObservationItem] = []
 
         do {
-            let noteFetch: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+            let noteFetch = CDFetchRequest(CDNote.self)
             noteFetch.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]
             let notes: [CDNote] = try context.fetch(noteFetch)
             for note in notes {

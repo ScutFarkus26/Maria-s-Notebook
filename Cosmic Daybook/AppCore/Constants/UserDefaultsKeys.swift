@@ -123,6 +123,7 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Students
     static let studentDetailViewActiveTab = "StudentDetailView.activeTab"
     static let meetingsWorkflowDaysSinceThreshold = "MeetingsWorkflow.daysSinceThreshold"
+    static let meetingsWorkflowRequeuedStudents = "MeetingsWorkflow.requeuedStudents"
     static let studentsViewSortOrder = "StudentsView.sortOrder"
     static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
     static let studentsViewStyle = "StudentsView.viewStyle"

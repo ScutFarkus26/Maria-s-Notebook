@@ -154,7 +154,7 @@ struct PresentationPill: View {
             presentedRaw, start as CVarArg, endExclusive as CVarArg
         )
         do {
-            let request: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+            let request = CDFetchRequest(CDLessonAssignment.self)
             request.predicate = predicate
             return try viewContext.fetch(request)
         } catch {

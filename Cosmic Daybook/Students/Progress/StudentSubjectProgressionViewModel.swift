@@ -190,7 +190,7 @@ final class StudentAreaProgressionViewModel {
     // MARK: - Fetching
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+        let descriptor = CDFetchRequest(CDLesson.self)
         descriptor.sortDescriptors = [
                 NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
                 NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),

@@ -37,7 +37,7 @@ enum PlanningActions {
         let endDate = calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay
         let end = calendar.startOfDay(for: endDate)
         let scheduledRaw = LessonAssignmentState.scheduled.rawValue
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor = CDFetchRequest(CDLessonAssignment.self)
         descriptor.predicate = NSPredicate(
             format: "stateRaw == %@ AND scheduledFor >= %@ AND scheduledFor < %@",
             scheduledRaw, start as CVarArg, end as CVarArg
@@ -45,7 +45,7 @@ enum PlanningActions {
         let scheduled: [CDLessonAssignment] = context.safeFetch(descriptor)
 
         // Fetch attendance records for the same range
-        let attDescriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
+        let attDescriptor = CDFetchRequest(CDAttendanceRecord.self)
         attDescriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", start as CVarArg, end as CVarArg)
         let attendance: [CDAttendanceRecord] = context.safeFetch(attDescriptor)
 
@@ -94,7 +94,7 @@ enum PlanningActions {
         let endDate = calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay
         let end = calendar.startOfDay(for: endDate)
         let scheduledRaw = LessonAssignmentState.scheduled.rawValue
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor = CDFetchRequest(CDLessonAssignment.self)
         descriptor.predicate = NSPredicate(
             format: "stateRaw == %@ AND scheduledFor >= %@ AND scheduledFor < %@",
             scheduledRaw, start as CVarArg, end as CVarArg

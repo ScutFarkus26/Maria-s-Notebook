@@ -44,7 +44,7 @@ final class StudentDetailViewModel {
     // MARK: - Data Loading
     /// Load lessons and lesson assignments from the database using NSFetchRequest.
     func loadData(viewContext: NSManagedObjectContext) {
-        let laDescriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let laDescriptor = CDFetchRequest(CDLessonAssignment.self)
         laDescriptor.sortDescriptors = [
                 NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledFor, ascending: true),
                 NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: true)
@@ -77,7 +77,7 @@ final class StudentDetailViewModel {
         // PERFORMANCE: Use predicate to filter at database level instead of loading all records
         // CDNote: Must use stateRaw (stored property) not state (computed property) in predicates
         let proficientStateRaw = LessonPresentationState.proficient.rawValue
-        let descriptor: NSFetchRequest<CDLessonPresentation> = NSFetchRequest(entityName: "LessonPresentation")
+        let descriptor = CDFetchRequest(CDLessonPresentation.self)
         descriptor.predicate = NSPredicate(
             format: "studentID == %@ AND stateRaw == %@",
             studentIDString,
@@ -146,7 +146,7 @@ final class StudentDetailViewModel {
             format: "(studentID == %@ OR ANY participants.studentID == %@) AND statusRaw IN %@",
             sid, sid, WorkStatus.openRawValues
         )
-        let descriptor: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+        let descriptor = CDFetchRequest(CDWorkModel.self)
         descriptor.predicate = predicate
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         descriptor.fetchLimit = 500 // Reasonable limit for incomplete work per student

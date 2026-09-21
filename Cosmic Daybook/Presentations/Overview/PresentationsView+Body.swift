@@ -229,7 +229,7 @@ extension PresentationsView {
 
     private func syncInboxOrderWithCurrentBase() {
         let draftRaw = LessonAssignmentState.draft.rawValue
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor = CDFetchRequest(CDLessonAssignment.self)
         descriptor.predicate = NSPredicate(format: "stateRaw == %@", draftRaw as CVarArg)
         let base: [CDLessonAssignment]
         do {

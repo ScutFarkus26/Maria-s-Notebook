@@ -99,7 +99,7 @@ struct StudentProgressTabLoadScopeTests {
         let track = CDTrackEntity(context: context)
         track.title = "Math — Chains"
         for (index, lesson) in lessons.enumerated() {
-            let step = CDTrackStepEntity(context: context)
+            let step = CDTrackStep(context: context)
             step.orderIndex = Int64(index)
             step.lessonTemplateID = lesson.id
             step.track = track
@@ -138,7 +138,7 @@ struct StudentProgressTabLoadScopeTests {
             )
             let otherTrack = CDTrackEntity(context: context)
             otherTrack.title = "Language — Seq \(index)"
-            let step = CDTrackStepEntity(context: context)
+            let step = CDTrackStep(context: context)
             step.lessonTemplateID = lesson.id
             step.track = otherTrack
             let otherEnrollment = CDStudentTrackEnrollmentEntity(context: context)

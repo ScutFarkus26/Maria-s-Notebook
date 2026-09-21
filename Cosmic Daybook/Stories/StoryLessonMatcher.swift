@@ -331,7 +331,7 @@ enum StoryLessonMatcher {
     // MARK: - Fetching
 
     private static func fetchAllLessons(in context: NSManagedObjectContext) -> [CDLesson] {
-        let request: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+        let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
         return context.safeFetch(request)
     }

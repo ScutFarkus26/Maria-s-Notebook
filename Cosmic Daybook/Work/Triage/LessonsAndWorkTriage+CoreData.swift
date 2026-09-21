@@ -118,7 +118,7 @@ extension LessonsAndWorkTriage {
     static func unresolvedFollowUpAssignmentIDs(
         in context: NSManagedObjectContext
     ) -> Set<UUID> {
-        let request: NSFetchRequest<CDLessonPresentation> = NSFetchRequest(entityName: "LessonPresentation")
+        let request = CDFetchRequest(CDLessonPresentation.self)
         request.predicate = NSPredicate(format: "followUpActionRaw != nil AND followUpResolvedAt == nil")
         return unresolvedFollowUpAssignmentIDs(from: context.safeFetch(request))
     }

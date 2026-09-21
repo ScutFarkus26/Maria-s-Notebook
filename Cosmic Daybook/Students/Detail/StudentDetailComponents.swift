@@ -256,7 +256,7 @@ struct AttendanceInfoRow: View {
         let studentIDString = student.id?.uuidString ?? ""
         let from = start
         let to = end
-        let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
+        let descriptor = CDFetchRequest(CDAttendanceRecord.self)
         descriptor.predicate = NSPredicate(
             format: "studentID == %@ AND date >= %@ AND date < %@",
             studentIDString, from as CVarArg, to as CVarArg
@@ -278,7 +278,7 @@ struct AttendanceInfoRow: View {
         let studentIDString = student.id?.uuidString ?? ""
         let from = start
         let to = end
-        let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
+        let descriptor = CDFetchRequest(CDAttendanceRecord.self)
         descriptor.predicate = NSPredicate(
             format: "studentID == %@ AND date >= %@ AND date < %@",
             studentIDString, from as CVarArg, to as CVarArg

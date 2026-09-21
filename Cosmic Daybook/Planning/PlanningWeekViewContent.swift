@@ -62,7 +62,7 @@ struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_lengt
         let weekEnd = calendar.date(byAdding: .day, value: 1, to: AppCalendar.startOfDay(lastDay)) ?? weekStart
         let presentedRaw = LessonAssignmentState.presented.rawValue
 
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor = CDFetchRequest(CDLessonAssignment.self)
         let predicateFormat = "stateRaw != %@ AND scheduledFor >= %@ AND scheduledFor < %@"
         descriptor.predicate = NSPredicate(
             format: predicateFormat,
@@ -259,7 +259,7 @@ struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_lengt
         let today = calendar.startOfDay(for: Date())
         let scheduledRaw = LessonAssignmentState.scheduled.rawValue
 
-        let descriptor: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        let descriptor = CDFetchRequest(CDLessonAssignment.self)
         descriptor.predicate = NSPredicate(format: "stateRaw == %@", scheduledRaw as CVarArg)
         descriptor.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
         descriptor.fetchLimit = 1

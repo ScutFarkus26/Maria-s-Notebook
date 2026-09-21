@@ -204,7 +204,7 @@ final class StudentsViewModel {
         // Load today's attendance records for the present-now filter and row indicators
         let today = calendar.startOfDay(for: Date())
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
-        let descriptor: NSFetchRequest<CDAttendanceRecord> = NSFetchRequest(entityName: "AttendanceRecord")
+        let descriptor = CDFetchRequest(CDAttendanceRecord.self)
         descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", today as CVarArg, tomorrow as CVarArg)
         cachedAttendanceRecords = viewContext.safeFetch(descriptor)
 
@@ -219,7 +219,7 @@ final class StudentsViewModel {
     private func loadTableCaches(students: [CDStudent], viewContext: NSManagedObjectContext) {
         let studentIDs = Set(students.compactMap(\.id))
 
-        let lessonRequest: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+        let lessonRequest = CDFetchRequest(CDLesson.self)
         let lessons = viewContext.safeFetch(lessonRequest)
         cachedLessons = Dictionary(
             lessons.compactMap { lesson in lesson.id.map { ($0, lesson) } },
@@ -234,7 +234,7 @@ final class StudentsViewModel {
             }
         )
 
-        let noteRequest: NSFetchRequest<CDNote> = NSFetchRequest(entityName: "Note")
+        let noteRequest = CDFetchRequest(CDNote.self)
         noteRequest.predicate = NSPredicate(format: "searchIndexStudentID != nil")
         let directNotes = viewContext.safeFetch(noteRequest)
 

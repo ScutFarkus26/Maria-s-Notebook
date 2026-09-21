@@ -33,7 +33,7 @@ final class BookClubSessionsViewModel {
     func roster(for session: CDBookClubSession, in context: NSManagedObjectContext) -> [CDStudent] {
         let ids = session.studentIDs
         guard !ids.isEmpty else { return [] }
-        let request: NSFetchRequest<CDStudent> = NSFetchRequest(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", ids as CVarArg)
         let students = context.safeFetch(request)
         let ordered: [CDStudent] = ids.compactMap { id in

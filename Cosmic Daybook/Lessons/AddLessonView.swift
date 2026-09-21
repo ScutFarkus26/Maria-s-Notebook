@@ -133,7 +133,7 @@ struct AddLessonView: View {
                     if lessonFormat == .story {
                         let storyRaw = LessonFormat.story.rawValue
                         let storyLessons: [CDLesson] = {
-                            let descriptor: NSFetchRequest<CDLesson> = NSFetchRequest(entityName: "Lesson")
+                            let descriptor = CDFetchRequest(CDLesson.self)
         descriptor.predicate = NSPredicate(format: "lessonFormatRaw == %@", storyRaw as CVarArg)
                             return viewContext.safeFetch(descriptor)
                         }()

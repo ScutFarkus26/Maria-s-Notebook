@@ -206,7 +206,7 @@ struct PresentationQuickActionsView: View {
                                 let activeRaw = WorkStatus.active.rawValue
                                 let reviewRaw = WorkStatus.review.rawValue
                                 let followRaw = WorkKind.followUpAssignment.rawValue
-                                let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+                                let fetch = CDFetchRequest(CDWorkModel.self)
                                 fetch.predicate = NSPredicate(
                                     format: "studentID == %@ AND lessonID == %@ " +
                                         "AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@",
@@ -362,7 +362,7 @@ struct PresentationQuickActionsView: View {
             let activeRaw = WorkStatus.active.rawValue
             let reviewRaw = WorkStatus.review.rawValue
             let practiceRaw = WorkKind.practiceLesson.rawValue
-            let fetch: NSFetchRequest<CDWorkModel> = NSFetchRequest(entityName: "WorkModel")
+            let fetch = CDFetchRequest(CDWorkModel.self)
             fetch.predicate = NSPredicate(
                 format: "studentID == %@ AND lessonID == %@ AND (statusRaw == %@ OR statusRaw == %@) AND kindRaw == %@",
                 sid, lidString, activeRaw, reviewRaw, practiceRaw
