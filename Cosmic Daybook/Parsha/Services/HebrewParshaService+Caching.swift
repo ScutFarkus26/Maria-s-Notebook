@@ -39,10 +39,7 @@ extension HebrewParshaService {
     static var scheduleCache: [Int: [String]?] = [:]
 
     // Cache for `shabbatotForHebrewYear`, keyed by the cycle year it resolved to.
-    // The element type mirrors that method's return type exactly, so the tuple shape
-    // is fixed by the existing API rather than chosen here.
-    // swiftlint:disable:next large_tuple
-    static var yearShabbatotCache: [Int: [(date: Date, parshaKey: String?, festivalName: String?)]] = [:]
+    static var yearShabbatotCache: [Int: [ShabbatEntry]] = [:]
 
     private static var didObserveTimeZoneChanges = false
 

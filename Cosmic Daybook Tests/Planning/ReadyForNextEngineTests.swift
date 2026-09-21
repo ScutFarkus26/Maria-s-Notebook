@@ -96,7 +96,7 @@ struct ReadyForNextEngineTests {
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
 
         // Etty: mastered only — the lesson is on her record with no confirmation.
-        PresentationFactory.makePresented(
+        _ = PresentationFactory.makePresented(
             lesson: library.commutative, students: [etty],
                 presentedAt: try CoreDataTestHelpers.day("2026-02-02"), context: context
         )
@@ -130,7 +130,7 @@ struct ReadyForNextEngineTests {
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
         try confirm(avital, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
-        PresentationFactory.makePresented(
+        _ = PresentationFactory.makePresented(
             lesson: library.distributive, students: [avital],
             presentedAt: try CoreDataTestHelpers.day("2026-04-01"), context: context
         )
@@ -144,7 +144,7 @@ struct ReadyForNextEngineTests {
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
         try confirm(avital, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
-        PresentationFactory.makeDraft(lesson: library.distributive, students: [avital], context: context)
+        _ = PresentationFactory.makeDraft(lesson: library.distributive, students: [avital], context: context)
 
         #expect(try items(for: [avital], library: library, in: context).isEmpty)
     }

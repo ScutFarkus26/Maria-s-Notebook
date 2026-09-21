@@ -1,11 +1,9 @@
-// swiftlint:disable file_length
 import SwiftUI
 import CoreData
 
-// swiftlint:disable:next type_body_length
 struct AttendanceLogView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.dependencies) private var dependencies
+    @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) var dependencies
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
@@ -54,7 +52,7 @@ struct AttendanceLogView: View {
 
     // Maps for quick lookup
     // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var studentsByID: [UUID: CDStudent] {
+    var studentsByID: [UUID: CDStudent] {
         Dictionary(students.compactMap { s in s.id.map { ($0, s) } }, uniquingKeysWith: { first, _ in first })
     }
 
@@ -123,7 +121,7 @@ struct AttendanceLogView: View {
     }
 
     // Summary stats for filtered records
-    private struct AttendanceSummary {
+    struct AttendanceSummary {
         var present = 0
         var absent = 0
         var tardy = 0
@@ -131,7 +129,7 @@ struct AttendanceLogView: View {
         var total: Int
     }
 
-    private var summaryStats: AttendanceSummary {
+    var summaryStats: AttendanceSummary {
         var present = 0, absent = 0, tardy = 0, leftEarly = 0
         for record in filteredRecords {
             switch record.status {
@@ -167,39 +165,8 @@ struct AttendanceLogView: View {
     }
 
     // Available statuses (exclude unmarked)
-    private var availableStatuses: [AttendanceStatus] {
+    var availableStatuses: [AttendanceStatus] {
         AttendanceStatus.allCases.filter { $0 != .unmarked }
-    }
-
-    // MARK: - Summary Stats View
-
-    private var summaryStatsView: some View {
-        HStack(spacing: 16) {
-            statBadge(count: summaryStats.present, label: "Present", color: .green)
-            statBadge(count: summaryStats.absent, label: "Absent", color: .red)
-            statBadge(count: summaryStats.tardy, label: "Tardy", color: .blue)
-            statBadge(count: summaryStats.leftEarly, label: "Left Early", color: .purple)
-            Spacer()
-            Text("\(summaryStats.total) records")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
-    }
-
-    private func statBadge(count: Int, label: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color.opacity(UIConstants.OpacityConstants.statusBg))
-                .frame(width: 10, height: 10)
-            Text("\(count)")
-                .font(AppTheme.ScaledFont.bodySemibold)
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
     }
 
     // MARK: - Filter Bar
@@ -326,107 +293,6 @@ struct AttendanceLogView: View {
         } else {
             allRecords.nsPredicate = nil
         }
-    }
-
-    // MARK: - Row
-
-    @ViewBuilder
-    // swiftlint:disable:next function_body_length
-    private func attendanceRow(for record: CDAttendanceRecord) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            // Status indicator
-            Circle()
-                .fill(record.status.color)
-                .frame(width: 12, height: 12)
-
-            VStack(alignment: .leading, spacing: 2) {
-                // CDStudent name
-                if let studentID = record.studentIDUUID, let student = studentsByID[studentID] {
-                    Text(student.shortName)
-                        .font(AppTheme.ScaledFont.bodySemibold)
-                } else {
-                    Text("Unknown Student")
-                        .font(AppTheme.ScaledFont.bodySemibold)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Status and reason
-                HStack(spacing: 6) {
-                    Text(record.status.displayName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if record.status == .absent && record.absenceReason != .none {
-                        Text("•")
-                            .foregroundStyle(.secondary)
-                        Image(systemName: record.absenceReason.icon)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(record.absenceReason.displayName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
-
-            // CDNote indicator
-            if !record.latestUnifiedNoteText.isEmpty {
-                Image(systemName: "note.text")
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-        )
-        .contentShape(Rectangle())
-        .contextMenu {
-            // Change status submenu
-            Menu {
-                ForEach(availableStatuses, id: \.self) { status in
-                    Button {
-                        updateRecordStatus(record, to: status)
-                    } label: {
-                        Label(status.displayName, systemImage: status == record.status ? "checkmark" : "circle")
-                    }
-                    .disabled(status == record.status)
-                }
-            } label: {
-                Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
-            }
-
-            if let studentID = record.studentIDUUID {
-                #if os(macOS)
-                Button {
-                    openStudentInNewWindow(studentID)
-                } label: {
-                    Label("View Student", systemImage: "person.text.rectangle")
-                }
-                #endif
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                deleteRecord(record)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-    }
-
-    private func updateRecordStatus(_ record: CDAttendanceRecord, to status: AttendanceStatus) {
-        record.status = status
-        dependencies.saveCoordinator.save(viewContext, reason: "Update attendance status")
-    }
-
-    private func deleteRecord(_ record: CDAttendanceRecord) {
-        viewContext.delete(record)
-        dependencies.saveCoordinator.save(viewContext, reason: "Delete attendance record")
     }
 }
 

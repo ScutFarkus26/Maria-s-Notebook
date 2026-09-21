@@ -34,7 +34,7 @@ struct MCPStudentTracksToolTests {
         for (index, lesson) in lessons.enumerated() {
             let step = CDTrackStep(context: context)
             step.track = track
-            step.lessonTemplateID = try #require(lesson.id)
+            step.lessonTemplateID = lesson.id
             step.orderIndex = Int64(index)
             rows.append(step)
         }

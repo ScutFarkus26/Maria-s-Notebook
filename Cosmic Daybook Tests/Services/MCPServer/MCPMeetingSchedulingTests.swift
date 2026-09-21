@@ -36,7 +36,7 @@ struct MCPMeetingSchedulingTests {
     ) throws -> CDScheduledMeeting {
         let sitting = CDScheduledMeeting(context: context)
         sitting.isGroupMeeting = true
-        sitting.studentIDUUID = try #require(student.id)
+        sitting.studentIDUUID = student.id
         sitting.participantStudentIDs = [student.id, other.id].compactMap { $0?.uuidString }
         sitting.date = try day(iso)
         return sitting

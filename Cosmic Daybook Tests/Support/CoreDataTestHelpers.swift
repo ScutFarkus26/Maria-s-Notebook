@@ -39,7 +39,7 @@ enum CoreDataTestHelpers {
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for configuration in [CoreDataStack.privateConfiguration, CoreDataStack.sharedConfiguration] {
-            try coordinator.addPersistentStore(
+            _ = try coordinator.addPersistentStore(
                 type: .sqlite,
                 configuration: configuration,
                 at: dir.appendingPathComponent("\(configuration).sqlite")

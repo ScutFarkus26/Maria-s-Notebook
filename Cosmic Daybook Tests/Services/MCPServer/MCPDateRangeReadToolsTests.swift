@@ -92,7 +92,7 @@ struct MCPDateRangeReadToolsTests {
     @Test("student_observations: the old arguments still read the last thirty days and nothing else")
     func observationsDefaultUnchanged() async throws {
         let (tools, context) = try DateRange.makeTools()
-        try seedObservedStudent(in: context)
+        _ = try seedObservedStudent(in: context)
 
         let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
             "student_name": .string("Ora")
@@ -105,7 +105,7 @@ struct MCPDateRangeReadToolsTests {
     @Test("student_observations: since reaches a note days_back could never see")
     func observationsSinceReachesOldNote() async throws {
         let (tools, context) = try DateRange.makeTools()
-        try seedObservedStudent(in: context)
+        _ = try seedObservedStudent(in: context)
 
         let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
             "student_name": .string("Ora"),
@@ -119,7 +119,7 @@ struct MCPDateRangeReadToolsTests {
     @Test("student_observations: until keeps the newer notes out")
     func observationsUntilExcludesNewer() async throws {
         let (tools, context) = try DateRange.makeTools()
-        try seedObservedStudent(in: context)
+        _ = try seedObservedStudent(in: context)
 
         let output = try await DateRange.tool(named: "student_observations", in: tools).handler([
             "student_name": .string("Ora"),
@@ -133,7 +133,7 @@ struct MCPDateRangeReadToolsTests {
     @Test("student_observations: a backwards window is an error, not an empty answer")
     func observationsRefusesBackwardsWindow() async throws {
         let (tools, context) = try DateRange.makeTools()
-        try seedObservedStudent(in: context)
+        _ = try seedObservedStudent(in: context)
 
         await #expect(throws: MCPToolError.self) {
             _ = try await DateRange.tool(named: "student_observations", in: tools).handler([
@@ -147,7 +147,7 @@ struct MCPDateRangeReadToolsTests {
     @Test("student_observations: an unparseable date names the argument")
     func observationsRefusesMalformedDate() async throws {
         let (tools, context) = try DateRange.makeTools()
-        try seedObservedStudent(in: context)
+        _ = try seedObservedStudent(in: context)
 
         do {
             _ = try await DateRange.tool(named: "student_observations", in: tools).handler([
@@ -221,7 +221,7 @@ struct MCPDateRangeHistoryToolsTests {
     @Test("student_meetings: the old arguments still read the whole history")
     func meetingsDefaultUnchanged() async throws {
         let (tools, context) = try DateRange.makeTools()
-        try seedMetStudent(in: context)
+        _ = try seedMetStudent(in: context)
 
         let output = try await DateRange.tool(named: "student_meetings", in: tools).handler([
             "student_name": .string("Maya")
@@ -234,7 +234,7 @@ struct MCPDateRangeHistoryToolsTests {
     @Test("student_meetings: since and until narrow the history to one stretch")
     func meetingsWindowNarrows() async throws {
         let (tools, context) = try DateRange.makeTools()
-        try seedMetStudent(in: context)
+        _ = try seedMetStudent(in: context)
         let toolDefinition = try DateRange.tool(named: "student_meetings", in: tools)
 
         let recent = try await toolDefinition.handler([
