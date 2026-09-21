@@ -459,11 +459,11 @@ struct ClassroomSharingView: View {
                 // auto-skip.
                 await zoneRepair.runManual(coreDataStack: dependencies.coreDataStack)
                 if zoneRepair.orphanCount == 0, zoneRepair.lastUnrecoverableOrphans.isEmpty {
-                    ToastService.shared.showSuccess("Sync repair complete")
+                    dependencies.toastService.showSuccess("Sync repair complete")
                 } else if !zoneRepair.lastUnrecoverableOrphans.isEmpty {
                     showingUnrecoverableSheet = true
                 } else {
-                    ToastService.shared.showInfo("No sync errors detected")
+                    dependencies.toastService.showInfo("No sync errors detected")
                 }
             }
         } label: {

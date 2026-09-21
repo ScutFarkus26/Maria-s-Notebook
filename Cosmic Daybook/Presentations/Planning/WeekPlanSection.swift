@@ -22,6 +22,7 @@ struct WeekPlanSection: View {
 
     @Environment(\.calendar) var calendar
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) var dependencies
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     // Sorted in the fetch as well as in the column, so the persisted order

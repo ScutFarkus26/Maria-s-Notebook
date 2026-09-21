@@ -13,6 +13,7 @@ struct PostPresentationFollowUpView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     @Environment(\.appRouter) private var appRouter
+    @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @FetchRequest private var followUpRows: FetchedResults<CDLessonPresentation>
@@ -762,23 +763,23 @@ private extension PostPresentationFollowUpView {
             )
 
             if result.createdCount > 0 && result.rescheduledCount > 0 {
-                ToastService.shared.showSuccess(
+                dependencies.toastService.showSuccess(
                     "Work check-ins scheduled and updated"
                 )
             } else if result.createdCount > 0 {
                 let suffix = result.createdCount == 1 ? "" : "s"
-                ToastService.shared.showSuccess(
+                dependencies.toastService.showSuccess(
                     "\(result.createdCount) work check-in\(suffix) scheduled"
                 )
             } else if result.rescheduledCount > 0 {
                 let suffix = result.rescheduledCount == 1 ? "" : "s"
-                ToastService.shared.showSuccess(
+                dependencies.toastService.showSuccess(
                     "\(result.rescheduledCount) work check-in date\(suffix) updated"
                 )
             } else if result.existingCount > 0 {
-                ToastService.shared.showInfo("Those work check-ins are already scheduled")
+                dependencies.toastService.showInfo("Those work check-ins are already scheduled")
             } else if !result.rowsWithoutLinkedWork.isEmpty {
-                ToastService.shared.showInfo("Add the child’s work above before scheduling its check-in")
+                dependencies.toastService.showInfo("Add the child’s work above before scheduling its check-in")
             }
         } catch {
             if saveErrorMessage == nil {
@@ -815,7 +816,7 @@ private extension PostPresentationFollowUpView {
         }
         if persist(reason: "Adding support presentation to On Deck") {
             synchronizeAfterChildWorkflow()
-            ToastService.shared.showSuccess("Support presentation added to On Deck")
+            dependencies.toastService.showSuccess("Support presentation added to On Deck")
         }
     }
 
@@ -836,7 +837,7 @@ private extension PostPresentationFollowUpView {
         }
         if persist(reason: "Applying next presentation plan") {
             synchronizeAfterChildWorkflow()
-            ToastService.shared.showSuccess("Next presentation planned")
+            dependencies.toastService.showSuccess("Next presentation planned")
         }
     }
 

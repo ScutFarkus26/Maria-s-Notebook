@@ -108,7 +108,7 @@ final class SettingsViewModel {
                     try FileManager.default.copyItem(at: tmp, to: dest)
                     setLastBackupNow()
                     resultSummary = "Exported backup to \(dest.lastPathComponent)."
-                    ToastService.shared.showSuccess("Backup saved successfully")
+                    dependencies.toastService.showSuccess("Backup saved successfully")
                     safeRemoveItem(at: tmp, context: "performExport-seamlessSave")
                     loadDefaultFolderName()
                     return
@@ -140,7 +140,7 @@ final class SettingsViewModel {
                     try FileManager.default.copyItem(at: tmp, to: finalURL)
                     setLastBackupNow()
                     resultSummary = "Exported backup to \(finalURL.lastPathComponent)."
-                    ToastService.shared.showSuccess("Backup saved successfully")
+                    dependencies.toastService.showSuccess("Backup saved successfully")
                     loadDefaultFolderName()
                 } catch {
                     importError = AppErrorMessages.backupMessage(for: error, operation: "save the backup")

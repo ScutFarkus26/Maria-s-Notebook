@@ -7,6 +7,7 @@ struct PresentationFollowUpObservationSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var evidence: Set<PresentationFollowUpEvidence>
@@ -173,7 +174,7 @@ private extension PresentationFollowUpObservationSheet {
             saveErrorMessage = saveCoordinator.lastSaveErrorMessage ?? "The observation could not be saved."
             return
         }
-        ToastService.shared.showSuccess("Observation saved")
+        dependencies.toastService.showSuccess("Observation saved")
         dismiss()
     }
 }

@@ -7,15 +7,13 @@ import EventKit
 public struct CalendarSyncSettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
-    @State private var syncService: CalendarSyncService
+    private var syncService: CalendarSyncService { dependencies.calendarSync }
     @State private var selectedCalendarIdentifiers: Set<String> = []
     @State private var availableCalendars: [CalendarSyncService.CalendarInfo] = []
     @State private var isRefreshing: Bool = false
     @State private var lastSyncStatus: String?
 
-    public init() {
-        syncService = AppDependenciesKey.defaultValue.calendarSync
-    }
+    public init() {}
 
     private var needsAuthorization: Bool {
         if #available(macOS 14.0, iOS 17.0, *) {

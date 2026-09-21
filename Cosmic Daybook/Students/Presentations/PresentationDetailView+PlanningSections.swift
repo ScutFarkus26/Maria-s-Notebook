@@ -267,7 +267,7 @@ extension PresentationDetailContentView {
             setPresentationState(isPresented: true, givenAt: presentedDay, needsAnother: false)
             postPresentationFlow.beginReflection()
 
-            ToastService.shared.show(
+            dependencies.toastService.show(
                 "Presentation recorded",
                 type: .success,
                 duration: 5,
@@ -295,7 +295,7 @@ extension PresentationDetailContentView {
             vm.needsAnotherPresentation = vm.lessonAssignment.needsAnotherPresentation
             postPresentationFlow.undoPresentation()
             showPostPresentationCapture = false
-            ToastService.shared.showInfo("Presentation recording undone")
+            dependencies.toastService.showInfo("Presentation recording undone")
             return nil
         } catch {
             presentationRecordErrorMessage = error.localizedDescription

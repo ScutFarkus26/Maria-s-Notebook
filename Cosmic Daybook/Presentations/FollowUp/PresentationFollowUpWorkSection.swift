@@ -13,6 +13,7 @@ struct PresentationFollowUpWorkSection: View {
     let onOpenWork: () -> Void
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var draftTitle: String
@@ -377,10 +378,10 @@ private extension PresentationFollowUpWorkSection {
             )
 
             if result.created.isEmpty {
-                ToastService.shared.showInfo("That work is already in Children Working")
+                dependencies.toastService.showInfo("That work is already in Children Working")
             } else {
                 let count = result.created.count
-                ToastService.shared.showSuccess(
+                dependencies.toastService.showSuccess(
                     count == 1 ? "Work added to Children Working" : "Work added for \(count) children"
                 )
             }

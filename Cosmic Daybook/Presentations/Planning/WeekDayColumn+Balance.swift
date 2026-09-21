@@ -78,7 +78,7 @@ extension WeekDayColumn {
         guard let result else { return }
 
         let restoring = result.previousTimes
-        ToastService.shared.show(
+        dependencies.toastService.show(
             DayBalanceService.summary(for: result, context: context),
             type: result.isClean ? .success : .warning,
             duration: 4,

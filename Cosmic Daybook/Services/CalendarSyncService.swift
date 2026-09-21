@@ -11,6 +11,10 @@ import OSLog
 final class CalendarSyncService {
     private static let logger = Logger.calendar_
 
+    /// The process-wide instance: the one `EKEventStore` observer and the
+    /// sync state the Today card watches. App code reaches it through
+    /// `AppDependencies.calendarSync`, which also binds `managedObjectContext`
+    /// to the active store; only the dependency container names `.shared`.
     static let shared = CalendarSyncService()
 
     private let eventStore = EKEventStore()
@@ -25,7 +29,7 @@ final class CalendarSyncService {
                 if !self.syncCalendarIdentifiers.isEmpty && self.hasFullAccess {
                     self.startObservingChanges()
                 } else {
-                    self.stopObservingChangesOnMainActor()
+                    self.storeChangeObserver.stop()
                 }
             }
         }
@@ -42,9 +46,7 @@ final class CalendarSyncService {
     var authorizationStatus: EKAuthorizationStatus = .notDetermined
 
     // MARK: - Change Observation
-    private var changeObserver: NSObjectProtocol?
-    private var isObserving = false
-    private var pendingChangeTask: Task<Void, Never>?
+    private let storeChangeObserver = EventKitChangeObserver()
 
     init(context: NSManagedObjectContext? = nil) {
         self.managedObjectContext = context
@@ -341,41 +343,17 @@ final class CalendarSyncService {
     // MARK: - Automatic Syncing
 
     private func startObservingChanges() {
-        guard !isObserving else { return }
         guard hasFullAccess else { return }
         guard !syncCalendarIdentifiers.isEmpty else { return }
 
-        changeObserver = NotificationCenter.default.addObserver(
-            forName: .EKEventStoreChanged,
-            object: eventStore,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                // Cancel any pending task to prevent accumulation
-                self.pendingChangeTask?.cancel()
-                self.pendingChangeTask = Task { @MainActor [weak self] in
-                    await self?.handleEventStoreChanged()
-                }
-            }
+        storeChangeObserver.start(eventStore: eventStore) { [weak self] in
+            await self?.handleEventStoreChanged()
         }
-
-        isObserving = true
-    }
-
-    private func stopObservingChangesOnMainActor() {
-        pendingChangeTask?.cancel()
-        pendingChangeTask = nil
-        if let observer = changeObserver {
-            NotificationCenter.default.removeObserver(observer)
-            changeObserver = nil
-        }
-        isObserving = false
     }
 
     private nonisolated func stopObservingChanges() {
         Task { @MainActor [weak self] in
-            self?.stopObservingChangesOnMainActor()
+            self?.storeChangeObserver.stop()
         }
     }
 

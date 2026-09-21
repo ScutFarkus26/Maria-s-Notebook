@@ -74,18 +74,15 @@ final class AppDependencies {
 
     // MARK: - Core Services
 
-    @ObservationIgnored private var _memoryPressureMonitor: MemoryPressureMonitor?
-    var memoryPressureMonitor: MemoryPressureMonitor {
-        if let monitor = _memoryPressureMonitor {
-            return monitor
-        }
+    /// Started on first access; `CosmicDaybookApp+Startup` touches it once
+    /// so monitoring begins at launch.
+    @ObservationIgnored lazy var memoryPressureMonitor: MemoryPressureMonitor = {
         let monitor = MemoryPressureMonitor()
         monitor.startMonitoring { [weak self] level in
             self?.handleMemoryPressure(level: level)
         }
-        _memoryPressureMonitor = monitor
         return monitor
-    }
+    }()
 
     // MARK: - Data Services
 
@@ -94,62 +91,74 @@ final class AppDependencies {
     // access directly (e.g., WorkCompletionService.someMethod())
 
     // MARK: - Sync Services
+    //
+    // Both EventKit services are process-wide singletons: each owns the
+    // `EKEventStore` change observer and the sync state the Today card
+    // watches, so every reader must reach the same object. They are rebound
+    // to this graph's store on each access so a prior Sample Class visit
+    // cannot leave one pointed at that classroom's store. The comparison
+    // keeps a read from a view body from mutating an observed property on
+    // every evaluation. Views read them here, never through `.shared`.
 
-    @ObservationIgnored private var _reminderSyncService: ReminderSyncService?
     var reminderSync: ReminderSyncService {
-        if let service = _reminderSyncService {
-            // ReminderSyncService is process-wide. Rebind it whenever the
-            // active classroom dependency graph asks for it so a prior Sample
-            // Class visit cannot leave the singleton pointed at that store.
-            service.managedObjectContext = viewContext
-            return service
-        }
         let service = ReminderSyncService.shared
-        service.managedObjectContext = viewContext
-        _reminderSyncService = service
+        if service.managedObjectContext !== viewContext {
+            service.managedObjectContext = viewContext
+        }
         return service
     }
 
-    @ObservationIgnored private var _calendarSyncService: CalendarSyncService?
     var calendarSync: CalendarSyncService {
-        if let service = _calendarSyncService {
-            return service
+        let service = CalendarSyncService.shared
+        if service.managedObjectContext !== viewContext {
+            service.managedObjectContext = viewContext
         }
-        let service = CalendarSyncService()
-        _calendarSyncService = service
         return service
     }
 
     // MARK: - Backup Services (backing stores for AppDependencies+BackupServices.swift)
     //
-    // Every `_service` cache below is `@ObservationIgnored`: it is set exactly once
+    // Every lazy store below is `@ObservationIgnored`: it is set exactly once
     // and never replaced, so it is not view state. Tracking it would only add
     // registrar bookkeeping to every `dependencies.<service>` read in a body.
+    // Extensions cannot declare stored properties, so the stores live here and
+    // the extension accessors are plain reads of them.
 
-    @ObservationIgnored var _backupService: BackupService?
-    @ObservationIgnored var _backupTransactionManager: BackupTransactionManager?
-    @ObservationIgnored var _autoBackupManager: AutoBackupManager?
-    @ObservationIgnored var _backupCoordinator: BackupCoordinator?
+    @ObservationIgnored lazy var _backupService = BackupService()
+    @ObservationIgnored lazy var _backupTransactionManager = BackupTransactionManager()
+    @ObservationIgnored lazy var _autoBackupManager = AutoBackupManager(coordinator: backupCoordinator)
+    @ObservationIgnored lazy var _backupCoordinator = BackupCoordinator(
+        backupService: _backupService,
+        transactionManager: _backupTransactionManager,
+        appRouter: appRouter
+    )
 
     // MARK: - AI Services (backing stores for AppDependencies+AIServices.swift)
 
-    @ObservationIgnored var _aiRouter: AIClientRouter?
-    @ObservationIgnored var _chatService: ChatService?
-    @ObservationIgnored var _studentAnalysisService: StudentAnalysisService?
-    @ObservationIgnored var _reportGeneratorService: ReportGeneratorService?
-    @ObservationIgnored var _meetingInsightsService: MeetingInsightsService?
-    @ObservationIgnored var _monthlyReportDraftService: MonthlyReportDraftService?
+    @ObservationIgnored lazy var _aiRouter = AIClientRouter()
+    @ObservationIgnored lazy var _chatService = ChatService(modelContext: viewContext, mcpClient: mcpClient)
+    @ObservationIgnored lazy var _studentAnalysisService = StudentAnalysisService(
+        modelContext: viewContext,
+        mcpClient: mcpClient
+    )
+    @ObservationIgnored lazy var _reportGeneratorService = ReportGeneratorService()
+    @ObservationIgnored lazy var _meetingInsightsService = MeetingInsightsService(
+        modelContext: viewContext,
+        mcpClient: mcpClient
+    )
+    @ObservationIgnored lazy var _monthlyReportDraftService = MonthlyReportDraftService(
+        modelContext: viewContext,
+        mcpClient: mcpClient,
+        reportService: reportGeneratorService
+    )
 
     // MARK: - UI Services
 
-    @ObservationIgnored private var _toastService: ToastService?
+    /// The one toast service. Views reach it here (`dependencies.toastService`)
+    /// so every toast goes through one access path; the singleton itself is
+    /// for code that has no environment.
     var toastService: ToastService {
-        if let service = _toastService {
-            return service
-        }
-        let service = ToastService.shared
-        _toastService = service
-        return service
+        ToastService.shared
     }
 
     // MARK: - Storage Services
@@ -159,18 +168,13 @@ final class AppDependencies {
 
     /// The global "viewing year" lens shared by every screen.
     /// See Documentation/Implementation/SCHOOL_YEAR_SEPARATION.md.
-    @ObservationIgnored private var _schoolYearStore: SchoolYearStore?
-    var schoolYearStore: SchoolYearStore {
-        if let store = _schoolYearStore {
-            return store
-        }
-        let store = SchoolYearStore()
-        _schoolYearStore = store
-        return store
-    }
+    @ObservationIgnored lazy var schoolYearStore = SchoolYearStore()
 
     // MARK: - Presentation Services
 
+    // Kept as an optional store rather than a lazy var: `handleMemoryPressure`
+    // reads `_presentationsViewModel` directly to clear caches without creating
+    // the view model, which a lazy accessor could not express.
     @ObservationIgnored private var _presentationsViewModel: PresentationsViewModel?
     var presentationsViewModel: PresentationsViewModel {
         if let vm = _presentationsViewModel {
@@ -196,19 +200,11 @@ final class AppDependencies {
         CloudKitSyncStatusService.shared
     }
 
-    @ObservationIgnored private var _classroomSharingService: ClassroomSharingService?
-    var classroomSharingService: ClassroomSharingService {
-        if let service = _classroomSharingService {
-            return service
-        }
-        let service = ClassroomSharingService(
-            container: coreDataStack.container,
-            context: viewContext,
-            coreDataStack: coreDataStack
-        )
-        _classroomSharingService = service
-        return service
-    }
+    @ObservationIgnored lazy var classroomSharingService = ClassroomSharingService(
+        container: coreDataStack.container,
+        context: viewContext,
+        coreDataStack: coreDataStack
+    )
 
     /// Singleton accessor for the observable shared-store zone repair
     /// service. Surfaces orphan counts and unrecoverable records to the
@@ -219,35 +215,13 @@ final class AppDependencies {
 
     // MARK: - Router & Coordinators
 
-    @ObservationIgnored private var _appRouter: AppRouter?
     var appRouter: AppRouter {
-        if let router = _appRouter {
-            return router
-        }
-        let router = AppRouter.shared
-        _appRouter = router
-        return router
+        AppRouter.shared
     }
 
-    @ObservationIgnored private var _saveCoordinator: SaveCoordinator?
-    var saveCoordinator: SaveCoordinator {
-        if let coordinator = _saveCoordinator {
-            return coordinator
-        }
-        let coordinator = SaveCoordinator()
-        _saveCoordinator = coordinator
-        return coordinator
-    }
+    @ObservationIgnored lazy var saveCoordinator = SaveCoordinator(toastService: toastService)
 
-    @ObservationIgnored private var _restoreCoordinator: RestoreCoordinator?
-    var restoreCoordinator: RestoreCoordinator {
-        if let coordinator = _restoreCoordinator {
-            return coordinator
-        }
-        let coordinator = RestoreCoordinator()
-        _restoreCoordinator = coordinator
-        return coordinator
-    }
+    @ObservationIgnored lazy var restoreCoordinator = RestoreCoordinator()
 
     // MARK: - Testing Support
 

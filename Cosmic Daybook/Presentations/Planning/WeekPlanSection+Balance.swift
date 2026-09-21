@@ -46,7 +46,7 @@ extension WeekPlanSection {
             }
         }
 
-        ToastService.shared.show(
+        dependencies.toastService.show(
             summary(daysRearranged: daysRearranged, unresolved: unresolved, context: context),
             type: unresolved.isEmpty ? .success : .warning,
             duration: 4,

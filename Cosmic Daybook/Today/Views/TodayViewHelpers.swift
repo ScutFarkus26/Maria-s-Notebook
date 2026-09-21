@@ -118,7 +118,7 @@ extension TodayView {
         // Two-way sync: Update EventKit with the completion change
         Task<Void, Never> {
             do {
-                try await ReminderSyncService.shared.updateReminderCompletionInEventKit(reminder)
+                try await dependencies.reminderSync.updateReminderCompletionInEventKit(reminder)
             } catch {
                 logger.warning("Failed to update reminder in EventKit: \(error)")
             }
