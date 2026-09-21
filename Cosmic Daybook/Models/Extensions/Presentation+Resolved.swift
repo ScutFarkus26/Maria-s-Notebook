@@ -11,8 +11,10 @@ import Foundation
 
 extension Presentation: DenormalizedSchedulable {
     /// Resolved student IDs from stored string IDs.
-    var resolvedStudentIDs: [UUID] {
-        studentUUIDs
+    ///
+    /// `nonisolated` so background contexts (e.g. `snapshot()`) can read it.
+    nonisolated var resolvedStudentIDs: [UUID] {
+        studentIDs.compactMap { UUID(uuidString: $0) }
     }
 
     // Bridge properties for protocol default implementations

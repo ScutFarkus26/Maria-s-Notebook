@@ -77,7 +77,7 @@ enum PresentationWorkRetraction {
         let students = StudentRepository(context: context)
         return plans.flatMap { plan -> [String] in
             let name = students.fetchStudent(id: plan.studentID)
-                .map { StudentFormatter.displayName(for: $0) } ?? "This child"
+                .map { $0.shortName } ?? "This child"
             return plan.steps.map { step in
                 let title = step.work.title.trimmed().isEmpty ? "Untitled work" : step.work.title
                 switch step.action {
@@ -85,7 +85,7 @@ enum PresentationWorkRetraction {
                     return "\(name) comes off “\(title)”"
                 case .promote(let heir):
                     let heirName = students.fetchStudent(id: heir)
-                        .map { StudentFormatter.displayName(for: $0) } ?? "another child"
+                        .map { $0.shortName } ?? "another child"
                     return "\(name) comes off “\(title)”; \(heirName) becomes its owner"
                 case .clearOwner:
                     return "\(name) comes off “\(title)”, which stays open and unclaimed"

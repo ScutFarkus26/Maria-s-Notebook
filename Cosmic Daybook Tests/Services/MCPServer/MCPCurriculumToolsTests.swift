@@ -119,7 +119,7 @@ struct MCPCurriculumToolsTests {
         let track = try SequenceTrackService.cdGetTrack(
             area: "Language", sequence: "Logical Analysis", context: context
         )
-        let steps = (track?.steps?.allObjects as? [CDTrackStepEntity]) ?? []
+        let steps = (track?.steps?.allObjects as? [CDTrackStep]) ?? []
         #expect(steps.contains { $0.lessonTemplateID == created.id })
     }
 

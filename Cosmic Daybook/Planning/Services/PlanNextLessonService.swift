@@ -67,7 +67,7 @@ struct PlanNextLessonService {
     ) -> Bool {
         existingLessonAssignments.contains { la in
             la.lessonIDUUID == lessonID &&
-            Set(la.studentUUIDs) == studentIDs &&
+            Set(la.resolvedStudentIDs) == studentIDs &&
             la.presentedAt == nil &&
             la.scheduledFor == nil
         }
@@ -98,7 +98,7 @@ struct PlanNextLessonService {
         }
 
         // Get the student IDs
-        let studentIDs = Set(lessonAssignment.studentUUIDs)
+        let studentIDs = Set(lessonAssignment.resolvedStudentIDs)
         guard !studentIDs.isEmpty else {
             return .noStudents
         }
@@ -210,7 +210,7 @@ struct PlanNextLessonService {
 
         // Gate 2: Teacher confirmation
         if rules.requiresTeacherConfirmation {
-            let studentIDs = assignment.studentUUIDs
+            let studentIDs = assignment.resolvedStudentIDs
             let unconfirmed = studentIDs.filter { !assignment.isStudentConfirmed($0) }
             if !unconfirmed.isEmpty {
                 reasons.append("teacher confirmation pending")

@@ -37,10 +37,10 @@ struct MCPWatchingToolsTests {
 
         let watch = CDTodoItem(context: context)
         watch.title = "Watch Alice with the stamp game"
-        watch.studentUUIDs = [alice]
+        watch.resolvedStudentIDs = [alice]
         let call = CDTodoItem(context: context)
         call.title = "Call parents"
-        call.studentUUIDs = [alice]
+        call.resolvedStudentIDs = [alice]
 
         let goal = FocusItemService.create(
             studentID: alice, text: "Finish racks and tubes", meetingID: UUID(), sortOrder: 0, context: context

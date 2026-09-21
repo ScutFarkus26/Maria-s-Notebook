@@ -105,8 +105,8 @@ final class InboxSheetViewModel {
             let groupIDs = group.compactMap(\.id)
             guard let targetID = currentOrder.first(where: { groupIDs.contains($0) }),
                   let target = lessonAssignments.first(where: { $0.id == targetID }) else { continue }
-            var union = Set<UUID>(target.studentUUIDs)
-            for la in group { union.formUnion(la.studentUUIDs) }
+            var union = Set<UUID>(target.resolvedStudentIDs)
+            for la in group { union.formUnion(la.resolvedStudentIDs) }
             let remainingIDs = Array(union)
             if remainingIDs.isEmpty {
                 deletedIDs.append(targetID)
@@ -256,7 +256,7 @@ extension InboxSheetViewModel {
     ) -> CDLessonAssignment {
         let matchesLesson = { (la: CDLessonAssignment) in la.lessonIDUUID == lessonID }
         let isUnscheduled = { (la: CDLessonAssignment) in la.scheduledFor == nil && !la.isGiven }
-        let matchesStudent = { (la: CDLessonAssignment) in Set(la.studentUUIDs) == Set([studentID]) }
+        let matchesStudent = { (la: CDLessonAssignment) in Set(la.resolvedStudentIDs) == Set([studentID]) }
         if let existing = lessonAssignments.first(where: { la in
             matchesLesson(la) && isUnscheduled(la) && matchesStudent(la)
         }) {

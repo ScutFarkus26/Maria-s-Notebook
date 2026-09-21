@@ -14,10 +14,6 @@ struct DefaultStudentCard: View {
         AppColors.color(forLevel: student.level)
     }
 
-    private var displayName: String {
-        StudentFormatter.displayName(for: student)
-    }
-
     private var levelBadge: some View {
         LevelBadge(level: student.level, backgroundColor: levelColor)
     }
@@ -35,7 +31,7 @@ struct DefaultStudentCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
-                Text(displayName)
+                Text(student.shortName)
                     .font(AppTheme.ScaledFont.titleSmall)
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
@@ -74,10 +70,6 @@ struct AgeStudentCard: View {
 
     private var levelColor: Color {
         AppColors.color(forLevel: student.level)
-    }
-
-    private var displayName: String {
-        StudentFormatter.displayName(for: student)
     }
 
     private var ageQuarter: (years: Int, months: Int) {
@@ -160,7 +152,7 @@ struct AgeStudentCard: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {
-                    Text(displayName)
+                    Text(student.shortName)
                         .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(.white)
                     Spacer(minLength: 0)

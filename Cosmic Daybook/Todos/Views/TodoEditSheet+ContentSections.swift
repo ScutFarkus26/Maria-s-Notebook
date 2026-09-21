@@ -19,7 +19,7 @@ extension TodoEditSheet {
 
                 Spacer()
 
-                let subtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+                let subtaskItems = (todo.subtasks as? Set<CDTodoSubtask>) ?? []
                 if !subtaskItems.isEmpty {
                     Text(todo.subtasksProgressText ?? "")
                         .font(AppTheme.ScaledFont.captionSemibold)
@@ -36,7 +36,7 @@ extension TodoEditSheet {
                 .buttonStyle(.plain)
             }
 
-            let allSubtaskItems = (todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []
+            let allSubtaskItems = (todo.subtasks as? Set<CDTodoSubtask>) ?? []
             if allSubtaskItems.isEmpty {
                 Text("No checklist items")
                     .foregroundStyle(.secondary)

@@ -268,7 +268,7 @@ private extension PresentationFollowUpWorkSection {
         lesson.id != nil && !scopedRows.isEmpty && !draftTitle.trimmed().isEmpty
     }
 
-    var selectedSampleWork: CDSampleWorkEntity? {
+    var selectedSampleWork: CDSampleWork? {
         guard let selectedSampleWorkID else { return nil }
         return lesson.orderedSampleWorks.first { $0.id == selectedSampleWorkID }
     }
@@ -339,7 +339,7 @@ private extension PresentationFollowUpWorkSection {
               let student = students.first(where: { $0.id == id }) else {
             return nil
         }
-        return StudentFormatter.displayName(for: student)
+        return student.shortName
     }
 
     func applySuggestion(

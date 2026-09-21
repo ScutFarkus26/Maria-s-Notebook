@@ -328,7 +328,7 @@ enum BackupPreviewAnalyzer {
 
         let attachmentCounts = countFiltered(
             payload.communityAttachments,
-            type: CDCommunityAttachmentEntity.self
+            type: CDCommunityAttachment.self
         ) { $0.id }
         assign("CommunityAttachment", attachmentCounts.ins, attachmentCounts.sk, 0)
 

@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 import OSLog
 
-// Sheet for adding or editing a CDSampleWorkEntity and its template steps.
+// Sheet for adding or editing a CDSampleWork and its template steps.
 struct SampleWorkEditorSheet: View {
     private static let logger = Logger.lessons
 
@@ -10,7 +10,7 @@ struct SampleWorkEditorSheet: View {
     @Environment(\.managedObjectContext) private var modelContext
 
     let lesson: CDLesson
-    var existingSampleWork: CDSampleWorkEntity?
+    var existingSampleWork: CDSampleWork?
     var onSave: () -> Void
 
     @State private var title: String = ""

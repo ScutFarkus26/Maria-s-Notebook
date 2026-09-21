@@ -83,7 +83,7 @@ struct MonthlyReportContextBuilder {
         }
 
         return MonthlyReportContext(
-            studentName: StudentFormatter.displayName(for: student),
+            studentName: student.shortName,
             level: student.level,
             month: month,
             lessonsPresented: (presentationItems.items + assignmentItems).sorted { $0.date < $1.date },

@@ -146,7 +146,7 @@ extension UnifiedPresentationWorkflowPanel {
         // single-student sheet derived from a multi-student assignment.
         for studentID in presentationViewModel.confirmedStudentIDs {
             let candidates = lessonAssignments.filter { la in
-                la.lessonIDUUID == lessonID && la.studentUUIDs.contains(studentID)
+                la.lessonIDUUID == lessonID && la.resolvedStudentIDs.contains(studentID)
             }
             // Prefer the presented assignment if multiple states exist for the student.
             guard let assignment = candidates.first(where: { $0.isPresented }) ?? candidates.first else {

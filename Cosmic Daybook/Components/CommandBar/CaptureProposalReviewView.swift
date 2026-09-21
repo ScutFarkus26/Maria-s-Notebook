@@ -224,7 +224,7 @@ private extension CaptureProposalReviewView {
                         setStudent(student, isSelected: !selected)
                     } label: {
                         Label(
-                            StudentFormatter.displayName(for: student),
+                            student.shortName,
                             systemImage: selected ? "checkmark.circle.fill" : "circle"
                         )
                     }
@@ -401,7 +401,7 @@ private extension CaptureProposalReviewView {
             guard !proposal.studentEntries.contains(where: { $0.studentID == id }) else { return }
             proposal.studentEntries.append(StudentCaptureProposal(
                 studentID: id,
-                studentName: StudentFormatter.displayName(for: student)
+                studentName: student.shortName
             ))
             proposal.studentEntries.sort { lhs, rhs in
                 let lhsName = lhs.studentName.localizedStandardCompare(rhs.studentName)

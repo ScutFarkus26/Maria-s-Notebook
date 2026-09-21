@@ -20,7 +20,7 @@ enum PresentationObservationCoverageService {
     /// The children on `assignment` with no linked observation about them.
     static func unobservedStudentIDs(on assignment: CDLessonAssignment) -> [UUID] {
         let notes = (assignment.unifiedNotes?.allObjects as? [CDNote]) ?? []
-        return assignment.studentUUIDs.filter { studentID in
+        return assignment.resolvedStudentIDs.filter { studentID in
             !notes.contains { observes($0, studentID) }
         }
     }
@@ -43,7 +43,7 @@ enum PresentationObservationCoverageService {
         return context.safeFetch(request).compactMap { assignment in
             guard let assignmentID = assignment.id else { return nil }
             if !studentIDs.isEmpty,
-               studentIDs.isDisjoint(with: Set(assignment.studentUUIDs)) {
+               studentIDs.isDisjoint(with: Set(assignment.resolvedStudentIDs)) {
                 return nil
             }
             // Missing for the children asked about (or any child on it), not

@@ -74,7 +74,7 @@ struct StudentPillsSection: View {
 
     private func studentChip(for student: CDStudent) -> some View {
         HStack(spacing: 6) {
-            Text(StudentFormatter.displayName(for: student))
+            Text(student.shortName)
                 .font(AppTheme.ScaledFont.captionSemibold)
             if let given = student.id.flatMap({ records[$0] }) {
                 StudentRecordCaption(given: given, compact: true)
@@ -85,7 +85,7 @@ struct StudentPillsSection: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(areaColor)
-            .accessibilityLabel("Remove \(StudentFormatter.displayName(for: student))")
+            .accessibilityLabel("Remove \(student.shortName)")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

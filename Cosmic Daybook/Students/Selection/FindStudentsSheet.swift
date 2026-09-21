@@ -111,7 +111,7 @@ struct FindStudentsSheet: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(StudentFormatter.displayName(for: candidate.student))
+                    Text(candidate.student.shortName)
                         .foregroundStyle(.primary)
                     Text(candidate.ageString)
                         .font(AppTheme.ScaledFont.caption)

@@ -21,7 +21,7 @@ struct StudentRecordHeader: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(StudentFormatter.displayName(for: student))
+                Text(student.shortName)
                     .font(AppTheme.ScaledFont.titleSmall)
                 Text("Student record")
                     .font(.caption)

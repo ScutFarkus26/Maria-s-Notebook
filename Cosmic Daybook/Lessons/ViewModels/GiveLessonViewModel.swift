@@ -403,7 +403,7 @@ final class LessonPickerViewModel {
     
     // MARK: - Formatting Helpers
     func displayName(for student: CDStudent) -> String {
-        StudentFormatter.displayName(for: student)
+        student.shortName
     }
 
     func lessonDisplayTitle(for lesson: CDLesson) -> String {

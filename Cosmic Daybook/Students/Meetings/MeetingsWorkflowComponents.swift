@@ -261,7 +261,7 @@ struct StudentQueueRow: View {
             StudentAvatarView(student: student, size: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(StudentFormatter.displayName(for: student))
+                Text(student.shortName)
                     .font(.subheadline.weight(.medium))
 
                 if let days = daysSinceLastMeeting {

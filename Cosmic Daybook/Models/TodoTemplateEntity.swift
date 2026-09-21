@@ -35,7 +35,7 @@ nonisolated public class CDTodoTemplateEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties
-nonisolated extension CDTodoTemplateEntity {
+nonisolated extension CDTodoTemplate {
     var priority: TodoPriority {
         get { TodoPriority(rawValue: priorityRaw) ?? .none }
         set { priorityRaw = newValue.rawValue }

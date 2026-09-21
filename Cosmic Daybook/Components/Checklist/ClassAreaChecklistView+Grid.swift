@@ -282,7 +282,7 @@ extension ClassAreaChecklistView {
                     if let studentID = student.id { AppRouter.shared.requestOpenStudentDetail(studentID) }
                 } label: {
                     VStack(spacing: 2) {
-                        Text(StudentFormatter.displayName(for: student))
+                        Text(student.shortName)
                         Text(AgeUtils.conciseAgeString(for: student.birthday ?? Date()))
                             .font(.caption2)
                             .foregroundStyle(.secondary)

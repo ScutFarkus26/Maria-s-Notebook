@@ -272,7 +272,7 @@ extension MCPNotebookTools {
                 : "not on the calendar"
         }
         let presentationID: String = assignment.id?.uuidString ?? "unknown"
-        let others = assignment.studentUUIDs.filter { $0 != row.student.id }
+        let others = assignment.resolvedStudentIDs.filter { $0 != row.student.id }
         let group = others.isEmpty ? "" : " with \(studentNames(for: others, in: modelContext))"
         guard let when = assignment.scheduledFor else {
             return "in the planning list, undated\(group) [presentation id=\(presentationID)]"

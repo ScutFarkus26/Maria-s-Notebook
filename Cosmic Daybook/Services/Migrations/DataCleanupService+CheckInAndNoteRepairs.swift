@@ -87,7 +87,7 @@ nonisolated extension DataCleanupService {
         var changed = 0
         for note in context.safeFetch(request) where !note.isDeleted {
             guard case .all = note.scope, let presentation = note.lessonAssignment else { continue }
-            let roster = presentation.studentUUIDs
+            let roster = presentation.resolvedStudentIDs
             guard !roster.isEmpty else { continue }
             note.scope = NoteScope.forSelection([], fallback: roster)
             note.syncStudentLinks(in: context)

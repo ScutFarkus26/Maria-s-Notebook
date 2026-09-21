@@ -26,7 +26,7 @@ extension PresentationsViewModel {
         let lookup = studentsByID
         let names = la.resolvedStudentIDs.compactMap { id -> String? in
             guard let student = lookup[id] else { return nil }
-            return StudentFormatter.displayName(for: student)
+            return student.shortName
         }
         return names.joined(separator: ", ")
     }
@@ -200,7 +200,7 @@ extension PresentationsViewModel {
     private func rationale(from factors: SuggestFactors) -> SuggestionRationale {
         SuggestionRationale(
             waitingChild: factors.longestWaiting.flatMap { waiting in
-                studentsByID[waiting.id].map { StudentFormatter.displayName(for: $0) }
+                studentsByID[waiting.id].map { $0.shortName }
             },
             waitingSchoolDays: factors.longestWaiting?.days,
             everyoneAlreadyScheduled: factors.everyoneAlreadyScheduled,

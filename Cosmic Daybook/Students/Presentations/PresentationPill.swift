@@ -95,7 +95,7 @@ struct PresentationPill: View {
 
     private var studentLine: String {
         let names = snapshot.studentIDs.compactMap { id -> String? in
-            students.first(where: { $0.id == id }).map { StudentFormatter.displayName(for: $0) } ?? "(Removed)"
+            students.first(where: { $0.id == id }).map { $0.shortName } ?? "(Removed)"
         }
         guard !names.isEmpty else {
             let count = snapshot.studentIDs.count
@@ -196,7 +196,7 @@ struct PresentationPill: View {
             if let s = students.first(where: { $0.id == id }) {
                 chips.append(StudentChip(
                     id: id,
-                    label: StudentFormatter.displayName(for: s),
+                    label: s.shortName,
                     isMissing: false,
                     status: statusesByStudent[id],
                     hasHad: recentlyPresentedStudentIDs.contains(id),

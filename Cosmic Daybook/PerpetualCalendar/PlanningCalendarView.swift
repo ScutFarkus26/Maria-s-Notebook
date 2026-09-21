@@ -24,9 +24,9 @@ struct PlanningCalendarView: View {
     ) private var allEvents: FetchedResults<CDCalendarEvent>
 
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItemEntity.dueDate, ascending: true)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.dueDate, ascending: true)],
         predicate: NSPredicate(format: "dueDate != nil AND isCompleted == NO")
-    ) private var openTodos: FetchedResults<CDTodoItemEntity>
+    ) private var openTodos: FetchedResults<CDTodoItem>
 
     @State private var editingCell: CellID?
     @State private var editText: String = ""
@@ -67,8 +67,8 @@ struct PlanningCalendarView: View {
         return lookup
     }
 
-    private var todosLookup: [CellID: [CDTodoItemEntity]] {
-        var lookup: [CellID: [CDTodoItemEntity]] = [:]
+    private var todosLookup: [CellID: [CDTodoItem]] {
+        var lookup: [CellID: [CDTodoItem]] = [:]
         let cal = AppCalendar.shared
         for todo in openTodos {
             guard let due = todo.dueDate else { continue }

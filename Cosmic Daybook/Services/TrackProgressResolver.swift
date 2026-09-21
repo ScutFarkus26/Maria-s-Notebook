@@ -5,7 +5,7 @@ import Foundation
 struct TrackProgressResolver {
     /// Returns the total number of steps in the track.
     static func totalSteps(track: CDTrackEntity) -> Int {
-        let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let steps = ((track.steps?.allObjects as? [CDTrackStep]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         return steps.count
     }
     
@@ -17,7 +17,7 @@ struct TrackProgressResolver {
     static func proficientCount(
         track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]
     ) -> Int {
-        let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+        let steps = ((track.steps?.allObjects as? [CDTrackStep]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.filter { step in
             isStepProficient(step: step, studentID: studentID, lessonPresentations: lessonPresentations)
@@ -27,8 +27,8 @@ struct TrackProgressResolver {
     /// Returns the first unmastered step in the track, or nil if all steps are mastered.
     static func currentStep(
         track: CDTrackEntity, studentID: String, lessonPresentations: [CDLessonPresentation]
-    ) -> CDTrackStepEntity? {
-        let steps = ((track.steps?.allObjects as? [CDTrackStepEntity]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
+    ) -> CDTrackStep? {
+        let steps = ((track.steps?.allObjects as? [CDTrackStep]) ?? []).sorted { $0.orderIndex < $1.orderIndex }
         
         return steps.first { step in
             !isStepProficient(step: step, studentID: studentID, lessonPresentations: lessonPresentations)
@@ -37,7 +37,7 @@ struct TrackProgressResolver {
     
     /// Helper function to determine if a step is mastered.
     private static func isStepProficient(
-        step: CDTrackStepEntity, studentID: String, lessonPresentations: [CDLessonPresentation]
+        step: CDTrackStep, studentID: String, lessonPresentations: [CDLessonPresentation]
     ) -> Bool {
         return lessonPresentations.contains { lp in
             // Check student ID matches

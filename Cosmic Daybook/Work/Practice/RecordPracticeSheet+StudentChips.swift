@@ -64,7 +64,7 @@ extension RecordPracticeSheet {
                                     Image(systemName: "plus.circle.fill")
                                         .font(.system(size: 16))
                                         .foregroundStyle(Color.accentColor)
-                                    Text(StudentFormatter.displayName(for: student))
+                                    Text(student.shortName)
                                         .font(AppTheme.ScaledFont.body)
                                         .foregroundStyle(.primary)
                                     Spacer()
@@ -101,7 +101,7 @@ extension RecordPracticeSheet {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .bold))
                 }
-                Text(StudentFormatter.displayName(for: student))
+                Text(student.shortName)
                     .font(AppTheme.ScaledFont.captionSemibold)
                 if hasOpenWork {
                     Image(systemName: "book.fill")

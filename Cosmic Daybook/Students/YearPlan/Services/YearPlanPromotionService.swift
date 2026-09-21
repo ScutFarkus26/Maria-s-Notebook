@@ -21,7 +21,7 @@ enum YearPlanPromotionService {
         let today = AppCalendar.startOfDay(Date())
 
         // For each student on this assignment, check for a matching Year Plan entry
-        for studentID in assignment.studentUUIDs {
+        for studentID in assignment.resolvedStudentIDs {
             guard let entry = findMatchingEntry(
                 lessonID: assignment.lessonID,
                 studentID: studentID,

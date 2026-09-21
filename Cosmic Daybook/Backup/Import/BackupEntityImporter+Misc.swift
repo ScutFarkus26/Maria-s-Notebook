@@ -219,11 +219,12 @@ extension BackupEntityImporter {
     static func importCommunityAttachments(
         _ dtos: [CommunityAttachmentDTO],
         into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDCommunityAttachmentEntity>,
+        existing: ExistingLookup<CDCommunityAttachment>,
         topicCheck: EntityLookup<CDCommunityTopicEntity>
     ) rethrows {
         for dto in dtos {
-            let attachment = existingEntity(id: dto.id, existing: existing) ?? CDCommunityAttachmentEntity(context: viewContext)
+            let attachment = existingEntity(id: dto.id, existing: existing)
+                ?? CDCommunityAttachment(context: viewContext)
             attachment.id = dto.id
             attachment.filename = dto.filename
             attachment.kind = CommunityAttachmentKind(rawValue: dto.kind) ?? .file

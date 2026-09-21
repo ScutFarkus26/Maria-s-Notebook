@@ -104,7 +104,7 @@ struct LessonAssignmentHistoryView: View {
             let li = s.lastName.trimmed().first.map { String($0).uppercased() } ?? ""
             return fi + li
         case .firstLastInitial:
-            return StudentFormatter.displayName(for: s)
+            return s.shortName
         }
     }
 
@@ -140,7 +140,7 @@ struct LessonAssignmentHistoryView: View {
 
             // CDStudent filter
             if !selectedStudentIDs.isEmpty {
-                let assignmentStudentIDs = Set(la.studentUUIDs)
+                let assignmentStudentIDs = Set(la.resolvedStudentIDs)
                 if assignmentStudentIDs.isDisjoint(with: selectedStudentIDs) { return false }
             }
 
@@ -202,7 +202,7 @@ struct LessonAssignmentHistoryView: View {
 
     // CDStudent names or count string
     func studentNamesOrCount(for la: CDLessonAssignment) -> String {
-        let ids = la.studentUUIDs
+        let ids = la.resolvedStudentIDs
         let names: [String] = ids.compactMap { studentNameCache[$0] }
         if names.isEmpty { return "0 students" }
         if names.count <= 3 {

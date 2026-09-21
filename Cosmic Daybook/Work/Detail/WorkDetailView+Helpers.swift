@@ -273,7 +273,7 @@ extension WorkDetailView {
 
         let existingLAs = viewModel.relatedLessonAssignments.filter { la in
             la.lessonIDUUID == nextLesson.id &&
-            la.studentUUIDs.contains(studentID)
+            la.resolvedStudentIDs.contains(studentID)
         }
 
         // Nothing to unlock if the next lesson is already unlocked, already on the

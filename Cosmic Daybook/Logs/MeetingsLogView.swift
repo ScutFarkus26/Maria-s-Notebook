@@ -86,7 +86,7 @@ struct MeetingsLogView: View {
 
                 if let studentID = meeting.studentIDUUID,
                    let student = studentsByID[studentID] {
-                    let name = StudentFormatter.displayName(for: student).lowercased()
+                    let name = student.shortName.lowercased()
                     if name.contains(query) { matches = true }
                 }
 
@@ -121,7 +121,7 @@ struct MeetingsLogView: View {
             return "All Students"
         } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
                   let student = students.first(where: { $0.id == id }) {
-            return StudentFormatter.displayName(for: student)
+            return student.shortName
         } else {
             return "\(selectedStudentIDs.count) Students"
         }
@@ -158,7 +158,7 @@ struct MeetingsLogView: View {
                                 if selectedStudentIDs.contains(studentID) {
                                     Image(systemName: "checkmark")
                                 }
-                                Text(StudentFormatter.displayName(for: student))
+                                Text(student.shortName)
                             }
                         })
                     }
@@ -295,7 +295,7 @@ struct MeetingsLogView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // CDStudent name
                 if let studentID = meeting.studentIDUUID, let student = studentsByID[studentID] {
-                    Text(StudentFormatter.displayName(for: student))
+                    Text(student.shortName)
                         .font(AppTheme.ScaledFont.bodySemibold)
                 } else {
                     Text("Unknown Student")

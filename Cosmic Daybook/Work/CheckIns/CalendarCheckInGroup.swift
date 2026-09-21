@@ -133,7 +133,7 @@ enum CalendarCheckInGrouper {
         func studentName(for work: CDWorkModel) -> String {
             work.studentID.asUUID
                 .flatMap { students[$0] }
-                .map(StudentFormatter.displayName(for:)) ?? ""
+                .map(\.shortName) ?? ""
         }
 
         static func build(

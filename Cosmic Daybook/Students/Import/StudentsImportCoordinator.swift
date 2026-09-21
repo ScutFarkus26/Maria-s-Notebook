@@ -52,7 +52,7 @@ struct StudentsImportCoordinator {
                 let data = try Data(contentsOf: url, options: [.mappedIfSafe])
 
                 let full = Set(students.map { StudentCSVImporter.duplicateKey(for: $0) })
-                let name = Set(students.map { ("\($0.firstName) \($0.lastName)").normalizedNameKey() })
+                let name = Set(students.map { $0.fullName.normalizedNameKey() })
 
                 let parsed = try StudentCSVImporter.parse(
                     data: data,

@@ -74,7 +74,7 @@ struct CaptureFollowUpPersistenceTests {
         let fixture: Fixture = try makeFixture()
         let drafts: [CDLessonAssignment] = try persistRepresent(fixture, times: 1)
         let flagged: Bool = fixture.assignment.needsAnotherPresentation
-        let madeFor: UUID? = drafts.first?.studentUUIDs.first
+        let madeFor: UUID? = drafts.first?.resolvedStudentIDs.first
         let notes: String? = drafts.first?.notes
         #expect(drafts.count == 1)
         #expect(flagged)

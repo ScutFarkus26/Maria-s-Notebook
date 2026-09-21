@@ -255,7 +255,7 @@ struct SmartNoteFormatter {
         case .all: return "General / Class-wide"
         case .student(let id):
             guard let student = students.first(where: { $0.id == id }) else { return "Unknown Student" }
-            return anonymize ? "Student \(student.firstName.prefix(1))" : "\(student.firstName) \(student.lastName)"
+            return anonymize ? "Student \(student.firstName.prefix(1))" : student.fullName
         case .students(let ids):
             if anonymize { return "Group of \(ids.count) Students" }
             let names = ids.compactMap { id in students.first(where: { $0.id == id })?.firstName }

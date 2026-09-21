@@ -68,7 +68,7 @@ struct GoingOutEditorSheet: View {
                                     .frame(width: 24, height: 24)
                                     .background(AppColors.color(forLevel: student.level).gradient, in: Circle())
 
-                                Text("\(student.firstName) \(student.lastName)")
+                                Text(student.fullName)
                                     .font(.subheadline)
                                     .foregroundStyle(.primary)
 
@@ -105,7 +105,7 @@ struct GoingOutEditorSheet: View {
                         proposedDate = date
                         hasDate = true
                     }
-                    selectedStudentIDs = Set(existing.studentUUIDs)
+                    selectedStudentIDs = Set(existing.resolvedStudentIDs)
                 }
             }
         }
@@ -119,7 +119,7 @@ struct GoingOutEditorSheet: View {
             goingOut.purpose = purpose
             goingOut.destination = destination
             goingOut.proposedDate = hasDate ? proposedDate : nil
-            goingOut.studentUUIDs = Array(selectedStudentIDs)
+            goingOut.resolvedStudentIDs = Array(selectedStudentIDs)
             goingOut.modifiedAt = Date()
         } else {
             goingOut = CDGoingOut(context: modelContext)
@@ -127,7 +127,7 @@ struct GoingOutEditorSheet: View {
             goingOut.purpose = purpose
             goingOut.destination = destination
             goingOut.proposedDate = hasDate ? proposedDate : nil
-            goingOut.studentUUIDs = Array(selectedStudentIDs)
+            goingOut.resolvedStudentIDs = Array(selectedStudentIDs)
         }
         modelContext.safeSave()
         onSave(goingOut)

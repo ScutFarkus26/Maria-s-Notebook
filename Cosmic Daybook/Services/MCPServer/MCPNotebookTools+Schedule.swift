@@ -120,7 +120,7 @@ extension MCPNotebookTools {
             .filter { !$0.isPresented }
             .filter { assignment in
                 guard let studentID else { return true }
-                return assignment.studentUUIDs.contains(studentID)
+                return assignment.resolvedStudentIDs.contains(studentID)
             }
 
         let checkInRequest = CDFetchRequest(CDWorkCheckIn.self)
@@ -169,7 +169,7 @@ extension MCPNotebookTools {
                 let id = assignment.id?.uuidString ?? "unknown"
                 let title = nonEmpty(assignment.lessonTitleSnapshot)
                     ?? assignment.lesson?.name ?? "Lesson"
-                let who = studentNames(for: assignment.studentUUIDs, in: modelContext)
+                let who = studentNames(for: assignment.resolvedStudentIDs, in: modelContext)
                 let when = whenText(assignment.scheduledFor)
                 return "    - [presentation id=\(id)] \(title)\(when) — \(who)"
             })

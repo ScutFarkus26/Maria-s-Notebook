@@ -36,10 +36,10 @@ struct WatchListFetcherTests {
 
         let watch = CDTodoItem(context: context)
         watch.title = "WATCH Alice with the stamp game"
-        watch.studentUUIDs = [alice]
+        watch.resolvedStudentIDs = [alice]
         let call = CDTodoItem(context: context)
         call.title = "Call parents"
-        call.studentUUIDs = [alice]
+        call.resolvedStudentIDs = [alice]
 
         let meetingID = UUID()
         let active = FocusItemService.create(

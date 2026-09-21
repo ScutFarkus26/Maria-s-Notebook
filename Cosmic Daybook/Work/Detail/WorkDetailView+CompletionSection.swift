@@ -264,7 +264,7 @@ extension WorkDetailView {
                 .foregroundStyle(AppColors.success)
 
                 ForEach(students.filter { $0.id?.uuidString != viewModel.work?.studentID }) { student in
-                    Text("\u{2022} \(StudentFormatter.displayName(for: student))")
+                    Text("\u{2022} \(student.shortName)")
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -380,7 +380,7 @@ extension WorkDetailView {
         let hasPeerWork = student.id.flatMap { viewModel.peerWorkIDs[$0] } != nil
 
         HStack(spacing: 8) {
-            Text(StudentFormatter.displayName(for: student))
+            Text(student.shortName)
                 .font(AppTheme.ScaledFont.caption)
 
             switch detail {

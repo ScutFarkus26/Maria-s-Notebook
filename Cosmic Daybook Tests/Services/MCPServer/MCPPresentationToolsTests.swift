@@ -97,7 +97,7 @@ struct MCPPresentationToolsTests {
         let assignment = try #require(assignments.first)
         #expect(assignment.isPresented)
         #expect(assignment.lessonIDUUID == lessonID)
-        #expect(Set(assignment.studentUUIDs) == [oraID, ettyID])
+        #expect(Set(assignment.resolvedStudentIDs) == [oraID, ettyID])
         #expect(MCPNotebookTools.dayString(assignment.presentedAt) == "2026-09-03")
 
         let notes = (assignment.unifiedNotes?.allObjects as? [CDNote]) ?? []

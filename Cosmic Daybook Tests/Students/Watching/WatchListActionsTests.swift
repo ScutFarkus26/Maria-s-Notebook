@@ -39,7 +39,7 @@ struct WatchListActionsTests {
         let due: Date = AppCalendar.startOfDay(Date())
         let todo: CDTodoItem = CDTodoItem(context: context)
         todo.title = "Watch Ora with the checkerboard"
-        todo.studentUUIDs = [student]
+        todo.resolvedStudentIDs = [student]
         todo.dueDate = due
         todo.recurrence = .weekly
         CoreDataTestHelpers.save(context)
@@ -59,7 +59,7 @@ struct WatchListActionsTests {
         let expectedStudents: [UUID] = [student]
         let expectedDue: Date = AppCalendar.addingDays(7, to: due)
         #expect(next.title == todo.title)
-        #expect(next.studentUUIDs == expectedStudents)
+        #expect(next.resolvedStudentIDs == expectedStudents)
         #expect(next.dueDate == expectedDue)
     }
 

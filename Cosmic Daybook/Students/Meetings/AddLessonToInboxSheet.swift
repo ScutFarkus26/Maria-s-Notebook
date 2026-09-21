@@ -59,7 +59,7 @@ struct AddLessonToInboxSheet: View {
                             Text("For:")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            Text(StudentFormatter.displayName(for: student))
+                            Text(student.shortName)
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.primary)
                         }

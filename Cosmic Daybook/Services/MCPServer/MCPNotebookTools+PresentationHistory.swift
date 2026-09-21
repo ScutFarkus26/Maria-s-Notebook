@@ -87,7 +87,7 @@ extension MCPNotebookTools {
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)
         ]
-        let matching = modelContext.safeFetch(request).filter { $0.studentUUIDs.contains(studentID) }
+        let matching = modelContext.safeFetch(request).filter { $0.resolvedStudentIDs.contains(studentID) }
         let shown = matching.prefix(limit)
 
         var scope: [String] = []

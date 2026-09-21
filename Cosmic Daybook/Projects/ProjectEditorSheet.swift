@@ -75,7 +75,7 @@ struct ProjectEditorSheet: View {
                                     get: { selectedMemberIDs.contains(sid) },
                                     set: { v in toggleMember(sid, v) }
                                 )) {
-                                    Text(StudentFormatter.displayName(for: s))
+                                    Text(s.shortName)
                                 }
                                 .toggleStyle(.checkboxOrSwitch)
                             }
@@ -130,7 +130,7 @@ struct ProjectEditorSheet: View {
                 student.firstName,
                 student.lastName,
                 student.fullName,
-                StudentFormatter.displayName(for: student),
+                student.shortName,
                 student.level.rawValue
             ]
             return values.contains { $0.normalizedForComparison().contains(query) }

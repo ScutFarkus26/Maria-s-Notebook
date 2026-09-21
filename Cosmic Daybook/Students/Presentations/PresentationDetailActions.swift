@@ -53,7 +53,7 @@ final class PresentationDetailActions {
 
         let movedStudentNames = studentsAll
             .filter { guard let sid = $0.id else { return false }; return studentsToMove.contains(sid) }
-            .map { StudentFormatter.displayName(for: $0) }
+            .map { $0.shortName }
 
         let currentLessonID = currentLesson.id ?? UUID()
         let targetSet = studentsToMove

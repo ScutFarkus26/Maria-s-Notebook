@@ -107,7 +107,7 @@ enum CaptureFollowUpPersistence {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
         let alreadyPlanned = try context.fetch(request).contains {
-            !$0.isPresented && $0.studentUUIDs.contains(studentID)
+            !$0.isPresented && $0.resolvedStudentIDs.contains(studentID)
         }
         guard !alreadyPlanned else { return }
 

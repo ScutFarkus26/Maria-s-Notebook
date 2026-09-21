@@ -43,7 +43,7 @@ enum SequenceAutoPopulateService {
         // StudentDeparturePlans); minting more here would put them straight
         // back, dated into a year she will not be here for. A student record
         // that cannot be found is left alone rather than silently dropped.
-        let studentIDs: [UUID] = assignment.studentUUIDs.filter { studentID in
+        let studentIDs: [UUID] = assignment.resolvedStudentIDs.filter { studentID in
             let student: CDStudent? = context.object(CDStudent.self, id: studentID)
             return student?.isEnrolled ?? true
         }

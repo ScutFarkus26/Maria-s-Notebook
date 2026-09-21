@@ -25,7 +25,7 @@ class TodoNotificationService {
     // MARK: - Core Data Notification Methods
 
     /// Schedule a notification for a Core Data todo item
-    func scheduleNotification(for todo: CDTodoItemEntity, at date: Date, context: NSManagedObjectContext) async throws {
+    func scheduleNotification(for todo: CDTodoItem, at date: Date, context: NSManagedObjectContext) async throws {
         // Cancel any existing notification
         if let existingID = todo.notificationID {
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [existingID])
@@ -65,7 +65,7 @@ class TodoNotificationService {
     }
 
     /// Cancel scheduled notification for a Core Data todo
-    func cancelNotification(for todo: CDTodoItemEntity, context: NSManagedObjectContext) {
+    func cancelNotification(for todo: CDTodoItem, context: NSManagedObjectContext) {
         guard let notificationID = todo.notificationID else { return }
 
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationID])

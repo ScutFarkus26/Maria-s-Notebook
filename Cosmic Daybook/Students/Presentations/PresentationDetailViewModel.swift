@@ -155,7 +155,7 @@ final class PresentationDetailViewModel {
     /// Work already generated from this presentation for children the edit
     /// removes from it. Empty when nothing downstream would disagree.
     func workRetractionPlans() -> [WorkRemovalPlan] {
-        let removed = Set(lessonAssignment.studentUUIDs).subtracting(selectedStudentIDs)
+        let removed = Set(lessonAssignment.resolvedStudentIDs).subtracting(selectedStudentIDs)
         guard !removed.isEmpty else { return [] }
         return PresentationWorkRetraction.plans(
             forRemoving: removed, from: lessonAssignment, in: viewContext

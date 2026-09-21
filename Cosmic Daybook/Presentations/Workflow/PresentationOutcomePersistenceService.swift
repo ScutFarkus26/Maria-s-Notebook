@@ -42,7 +42,7 @@ struct PresentationOutcomePersistenceService {
             throw PersistenceError.presentationNotFound(presentationID)
         }
 
-        let assignmentStudentIDs = Set(assignment.studentUUIDs)
+        let assignmentStudentIDs = Set(assignment.resolvedStudentIDs)
         let orderedStudentIDs = uniqueStudentIDs(studentIDs)
             .filter { assignmentStudentIDs.contains($0) }
             .sorted { $0.uuidString < $1.uuidString }

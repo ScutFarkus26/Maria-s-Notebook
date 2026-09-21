@@ -97,7 +97,7 @@ struct MCPPresentationOutcomeToolsTests {
         #expect(given.isStudentConfirmed(ettyID))
         #expect(!given.isStudentConfirmed(oraID))
         let replanned = try #require(all.first { !$0.isPresented })
-        #expect(replanned.studentUUIDs == [oraID])
+        #expect(replanned.resolvedStudentIDs == [oraID])
         #expect(works(in: context).isEmpty)
     }
 

@@ -80,7 +80,7 @@ nonisolated enum CurriculumMapLoader {
             return CurriculumPresentationRef(
                 id: id,
                 lessonID: lessonID,
-                studentIDs: assignment.studentUUIDs,
+                studentIDs: assignment.resolvedStudentIDs,
                 presentedAt: assignment.presentedAt,
                 confirmedStudentIDs: assignment.confirmedStudentIDs.compactMap(UUID.init(uuidString:))
             )
@@ -138,7 +138,7 @@ nonisolated enum CurriculumMapLoader {
             return CurriculumPracticeRef(
                 id: id,
                 date: session.date,
-                studentIDs: session.studentUUIDs,
+                studentIDs: session.resolvedStudentIDs,
                 workIDs: session.workItemIDsArray.compactMap(UUID.init(uuidString:))
             )
         }

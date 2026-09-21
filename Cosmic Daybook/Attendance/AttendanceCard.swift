@@ -45,10 +45,6 @@ struct AttendanceCard: View {
         }
     }
 
-    private var displayName: String {
-        StudentFormatter.displayName(for: student)
-    }
-
     private var accentColor: Color {
         switch status {
         case .present: return .green
@@ -74,7 +70,7 @@ struct AttendanceCard: View {
     @ViewBuilder
     private var originalLayout: some View {
         HStack(spacing: 8) {
-            Text(displayName)
+            Text(student.shortName)
                 .font(AppTheme.ScaledFont.titleSmall)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -207,7 +203,7 @@ struct AttendanceCard: View {
 
             // Name + subtitle
             VStack(alignment: .leading, spacing: 2) {
-                Text(displayName)
+                Text(student.shortName)
                     .font(AppTheme.ScaledFont.callout)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -276,7 +272,7 @@ struct AttendanceCard: View {
     }
 
     private var compactAccessibilityLabel: String {
-        "\(displayName), \(statusLabel)" +
+        "\(student.shortName), \(statusLabel)" +
         "\(status == .absent && absenceReason != .none ? ", \(absenceReason.displayName)" : "")" +
         "\(hasNote ? ", has note" : "")"
     }

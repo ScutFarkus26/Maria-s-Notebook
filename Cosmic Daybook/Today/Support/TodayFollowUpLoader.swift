@@ -135,6 +135,6 @@ enum TodayFollowUpLoader {
     ) -> String {
         guard let ownerID = row.studentIDs.first,
               let owner = studentsByID[ownerID] ?? departedStudentsByID[ownerID] else { return "" }
-        return "\(owner.firstName) \(owner.lastName)".lowercased()
+        return owner.fullName.lowercased()
     }
 }

@@ -169,7 +169,7 @@ struct SchedulePresentationSheet: View {
             HStack(spacing: 8) {
                 ForEach(selectedStudents, id: \.id) { student in
                     HStack(spacing: 4) {
-                        Text(StudentFormatter.displayName(for: student))
+                        Text(student.shortName)
                             .font(.caption)
                         if let given = student.id.flatMap({ records[$0] }) {
                             StudentRecordCaption(given: given, compact: true)

@@ -88,7 +88,7 @@ extension BackupService {
         payload.proposedSolutions = fetchAndTransformInBatches(
             CDProposedSolutionEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.communityAttachments = fetchAndTransformInBatches(
-            CDCommunityAttachmentEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDCommunityAttachment.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.36),
@@ -158,7 +158,7 @@ extension BackupService {
         payload.tracks = fetchAndTransformInBatches(
             CDTrackEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.trackSteps = fetchAndTransformInBatches(
-            CDTrackStepEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTrackStep.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.studentTrackEnrollments = fetchAndTransformInBatches(
             CDStudentTrackEnrollmentEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.sequenceTracks = fetchAndTransformInBatches(

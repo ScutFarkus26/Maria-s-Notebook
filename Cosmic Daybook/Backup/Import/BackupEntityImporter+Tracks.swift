@@ -31,12 +31,12 @@ extension BackupEntityImporter {
     static func importTrackSteps(
         _ dtos: [TrackStepDTO],
         into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDTrackStepEntity>,
+        existing: ExistingLookup<CDTrackStep>,
         trackCheck: EntityLookup<CDTrackEntity>
     ) rethrows {
         var imported = 0
         for dto in dtos {
-            let step = existingEntity(id: dto.id, existing: existing) ?? CDTrackStepEntity(context: viewContext)
+            let step = existingEntity(id: dto.id, existing: existing) ?? CDTrackStep(context: viewContext)
             step.id = dto.id
             step.orderIndex = Int64(dto.orderIndex)
             step.lessonTemplateID = dto.lessonTemplateID

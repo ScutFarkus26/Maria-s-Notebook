@@ -68,7 +68,7 @@ struct StudentOverviewTab: View {
     }
     
     private func studentDisplay(for work: CDWorkModel) -> String {
-        return StudentFormatter.displayName(for: student)
+        return student.shortName
     }
     
     private func needsAttention(for work: CDWorkModel) -> Bool {

@@ -72,7 +72,7 @@ struct PracticeSessionSheet: View {
             .filter { categorized in
                 // Apply search filter
                 if searchText.isEmpty { return true }
-                let displayName = StudentFormatter.displayName(for: categorized.student)
+                let displayName = categorized.student.shortName
                 return displayName.localizedCaseInsensitiveContains(searchText)
             }
 

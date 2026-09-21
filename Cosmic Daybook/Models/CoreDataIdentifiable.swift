@@ -16,11 +16,11 @@ nonisolated extension CDPracticeSession: Identifiable {}
 nonisolated extension CDStudentMeeting: Identifiable {}
 nonisolated extension CDCommunityTopicEntity: Identifiable {}
 nonisolated extension CDTrackEntity: Identifiable {}
-nonisolated extension CDTrackStepEntity: Identifiable {}
-nonisolated extension CDSampleWorkEntity: Identifiable {}
-nonisolated extension CDTodoItemEntity: Identifiable {}
-nonisolated extension CDTodoSubtaskEntity: Identifiable {}
-nonisolated extension CDTodoTemplateEntity: Identifiable {}
+nonisolated extension CDTrackStep: Identifiable {}
+nonisolated extension CDSampleWork: Identifiable {}
+nonisolated extension CDTodoItem: Identifiable {}
+nonisolated extension CDTodoSubtask: Identifiable {}
+nonisolated extension CDTodoTemplate: Identifiable {}
 nonisolated extension CDProject: Identifiable {}
 nonisolated extension CDProjectSession: Identifiable {}
 nonisolated extension CDProjectRole: Identifiable {}
@@ -30,12 +30,12 @@ nonisolated extension CDSchedule: Identifiable {}
 nonisolated extension CDScheduleSlot: Identifiable {}
 nonisolated extension CDScheduledMeeting: Identifiable {}
 nonisolated extension CDReminder: Identifiable {}
-nonisolated extension CDMeetingTemplateEntity: Identifiable {}
-nonisolated extension CDNoteTemplateEntity: Identifiable {}
+nonisolated extension CDMeetingTemplate: Identifiable {}
+nonisolated extension CDNoteTemplate: Identifiable {}
 nonisolated extension CDSupply: Identifiable {}
 nonisolated extension CDDocument: Identifiable {}
 nonisolated extension CDProposedSolutionEntity: Identifiable {}
-nonisolated extension CDCommunityAttachmentEntity: Identifiable {}
+nonisolated extension CDCommunityAttachment: Identifiable {}
 nonisolated extension CDWorkCompletionRecord: Identifiable {}
 nonisolated extension CDWorkStep: Identifiable {}
 nonisolated extension CDResource: Identifiable {}
@@ -55,13 +55,15 @@ nonisolated extension CDAlbumPageInk: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 
-typealias CDTodoItem = CDTodoItemEntity
-typealias CDTodoSubtask = CDTodoSubtaskEntity
-typealias CDTodoTemplate = CDTodoTemplateEntity
-typealias CDMeetingTemplate = CDMeetingTemplateEntity
-typealias CDNoteTemplate = CDNoteTemplateEntity
-typealias CDSequenceTrack = CDSequenceTrackEntity
-typealias CDSampleWork = CDSampleWorkEntity
-typealias CDSampleWorkStep = CDSampleWorkStepEntity
-typealias CDCommunityAttachment = CDCommunityAttachmentEntity
-typealias CDTrackStep = CDTrackStepEntity
+// Public so the entities' own public members can spell their types this way.
+
+public typealias CDTodoItem = CDTodoItemEntity
+public typealias CDTodoSubtask = CDTodoSubtaskEntity
+public typealias CDTodoTemplate = CDTodoTemplateEntity
+public typealias CDMeetingTemplate = CDMeetingTemplateEntity
+public typealias CDNoteTemplate = CDNoteTemplateEntity
+public typealias CDSequenceTrack = CDSequenceTrackEntity
+public typealias CDSampleWork = CDSampleWorkEntity
+public typealias CDSampleWorkStep = CDSampleWorkStepEntity
+public typealias CDCommunityAttachment = CDCommunityAttachmentEntity
+public typealias CDTrackStep = CDTrackStepEntity

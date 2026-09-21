@@ -78,7 +78,7 @@ struct LessonDetailView: View {
     @State private var showDeleteAlert = false
     @State private var showingGreatLessonTagEditor = false
     @State var showingSampleWorkEditor = false
-    @State var editingSampleWork: CDSampleWorkEntity?
+    @State var editingSampleWork: CDSampleWork?
 
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?

@@ -258,7 +258,7 @@ struct LessonsAndWorkWorkView: View {
         guard let studentFilter,
               let student = rosterStudents.first(where: { $0.id == studentFilter })
         else { return nil }
-        return StudentFormatter.displayName(for: student)
+        return student.shortName
     }
 
     private var emptyTitle: String {

@@ -91,7 +91,7 @@ extension ObservationsView {
                     HStack(spacing: 6) {
                         ForEach(item.studentIDs.prefix(3), id: \.self) { sid in
                             if let s = studentsByID[sid] {
-                                studentChip(StudentFormatter.displayName(for: s))
+                                studentChip(s.shortName)
                             }
                         }
                     }

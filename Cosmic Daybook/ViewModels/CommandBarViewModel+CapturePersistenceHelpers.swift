@@ -27,7 +27,7 @@ extension CommandBarViewModel {
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
         let expected = Set(studentIDs)
         return try context.fetch(request)
-            .filter { !$0.isPresented && Set($0.studentUUIDs) == expected }
+            .filter { !$0.isPresented && Set($0.resolvedStudentIDs) == expected }
             .sorted {
                 if $0.isScheduled != $1.isScheduled { return $0.isScheduled }
                 return ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast)
@@ -61,7 +61,7 @@ extension CommandBarViewModel {
                 "The reviewed lesson does not match the presentation you just recorded. Nothing was saved."
             )
         }
-        guard Set(assignment.studentUUIDs) == Set(studentIDs) else {
+        guard Set(assignment.resolvedStudentIDs) == Set(studentIDs) else {
             throw CaptureSaveError.invalid(
                 "The reviewed children do not match the presentation you just recorded. Nothing was saved."
             )

@@ -65,7 +65,7 @@ extension UnifiedNoteEditor {
             }
         case .presentation(let pres):
             // Only pre-select students for already-presented lessons
-            return pres.isPresented ? Set(pres.studentUUIDs) : []
+            return pres.isPresented ? Set(pres.resolvedStudentIDs) : []
         case .work(let work):
             let parts = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
             return Set(parts.compactMap { UUID(uuidString: $0.studentID) })
@@ -270,7 +270,7 @@ extension UnifiedNoteEditor {
                   candidates.count == 1,
                   let student = candidates.first else { return }
 
-            let replacement = StudentFormatter.displayName(for: student)
+            let replacement = student.shortName
 
             let loc = match.range.location + delta
             let len = match.range.length

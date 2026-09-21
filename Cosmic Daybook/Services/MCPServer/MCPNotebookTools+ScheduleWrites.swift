@@ -207,7 +207,7 @@ extension MCPNotebookTools {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
         return modelContext.safeFetch(request)
-            .filter { !$0.isPresented && Set($0.studentUUIDs) == studentIDs }
+            .filter { !$0.isPresented && Set($0.resolvedStudentIDs) == studentIDs }
             .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
             .first
     }

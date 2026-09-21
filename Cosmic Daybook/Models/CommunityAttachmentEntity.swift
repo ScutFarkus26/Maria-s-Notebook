@@ -30,7 +30,7 @@ nonisolated public class CDCommunityAttachmentEntity: NSManagedObject {
 }
 
 // MARK: - Computed Properties & Enums
-nonisolated extension CDCommunityAttachmentEntity {
+nonisolated extension CDCommunityAttachment {
     /// Kind enum matching the original SwiftData model
 
     var kind: Kind {

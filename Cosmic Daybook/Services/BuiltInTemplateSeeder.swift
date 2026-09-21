@@ -20,7 +20,7 @@ enum BuiltInTemplateSeeder {
     }
 
     private static func seedNoteTemplatesIfNeeded(context: NSManagedObjectContext) {
-        let fetch = CDFetchRequest(CDNoteTemplateEntity.self)
+        let fetch = CDFetchRequest(CDNoteTemplate.self)
         fetch.predicate = NSPredicate(format: "isBuiltIn == YES")
         fetch.fetchLimit = 1
         let existing = context.safeFetch(fetch)
@@ -56,7 +56,7 @@ enum BuiltInTemplateSeeder {
         ]
 
         for t in templates {
-            let template = CDNoteTemplateEntity(context: context)
+            let template = CDNoteTemplate(context: context)
             template.title = t.title
             template.body = t.body
             template.sortOrder = t.sortOrder
@@ -69,13 +69,13 @@ enum BuiltInTemplateSeeder {
     // MARK: - Meeting Templates
 
     private static func seedMeetingTemplatesIfNeeded(context: NSManagedObjectContext) {
-        let fetch = CDFetchRequest(CDMeetingTemplateEntity.self)
+        let fetch = CDFetchRequest(CDMeetingTemplate.self)
         fetch.predicate = NSPredicate(format: "isBuiltIn == YES")
         fetch.fetchLimit = 1
         let existing = context.safeFetch(fetch)
         guard existing.isEmpty else { return }
 
-        let meeting = CDMeetingTemplateEntity(context: context)
+        let meeting = CDMeetingTemplate(context: context)
         meeting.name = "Standard Student Meeting"
         meeting.reflectionPrompt = "How has your work been going? What are you most proud of recently?"
         meeting.focusPrompt = "What would you like to focus on next? Is there something new you'd like to try?"
@@ -85,7 +85,7 @@ enum BuiltInTemplateSeeder {
         meeting.isActive = true
         meeting.isBuiltIn = true
 
-        let checkIn = CDMeetingTemplateEntity(context: context)
+        let checkIn = CDMeetingTemplate(context: context)
         checkIn.name = "Quick Check-In"
         checkIn.reflectionPrompt = "How are you feeling about your work today?"
         checkIn.focusPrompt = "What's your plan for today?"

@@ -46,7 +46,7 @@ extension MCPNotebookTools {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", filing.lessonID.uuidString)
         let expected = Set(filing.studentIDs)
-        let candidates = modelContext.safeFetch(request).filter { Set($0.studentUUIDs) == expected }
+        let candidates = modelContext.safeFetch(request).filter { Set($0.resolvedStudentIDs) == expected }
 
         if let sameDay = candidates.first(where: { assignment in
             guard assignment.isPresented, let recordedAt = assignment.presentedAt else { return false }

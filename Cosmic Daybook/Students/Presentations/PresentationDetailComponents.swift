@@ -9,7 +9,7 @@ struct StudentChip: View {
     
     var body: some View {
         HStack(spacing: 6) {
-            Text(StudentFormatter.displayName(for: student))
+            Text(student.shortName)
                 .font(AppTheme.ScaledFont.captionSemibold)
             
             Button {
@@ -20,7 +20,7 @@ struct StudentChip: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(areaColor)
-            .accessibilityLabel("Remove \(StudentFormatter.displayName(for: student))")
+            .accessibilityLabel("Remove \(student.shortName)")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -124,7 +124,7 @@ struct MoveStudentRow: View {
                     .foregroundStyle(isSelected ? Color.orange : Color.secondary)
                     .font(.system(size: 20))
                 
-                Text(StudentFormatter.displayName(for: student))
+                Text(student.shortName)
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .foregroundStyle(.primary)
                 

@@ -75,7 +75,7 @@ enum TodoFilter: String, CaseIterable, Identifiable {
         case .highPriority:
             return todo.priority == .high && !todo.isCompleted
         case .hasSubtasks:
-            return !((todo.subtasks as? Set<CDTodoSubtaskEntity>) ?? []).isEmpty
+            return !((todo.subtasks as? Set<CDTodoSubtask>) ?? []).isEmpty
         }
     }
 }

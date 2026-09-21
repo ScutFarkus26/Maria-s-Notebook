@@ -71,7 +71,7 @@ nonisolated extension CDGoingOut {
         set { studentIDs = newValue as NSArray }
     }
 
-    var studentUUIDs: [UUID] {
+    var resolvedStudentIDs: [UUID] {
         get { studentIDsArray.compactMap { UUID(uuidString: $0) } }
         set { studentIDsArray = newValue.map(\.uuidString) }
     }

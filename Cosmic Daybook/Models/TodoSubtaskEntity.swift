@@ -12,7 +12,7 @@ nonisolated public class CDTodoSubtaskEntity: NSManagedObject {
     @NSManaged public var completedAt: Date?
 
     // MARK: - Relationships
-    @NSManaged public var todo: CDTodoItemEntity?
+    @NSManaged public var todo: CDTodoItem?
 
     // MARK: - Convenience Init
     @discardableResult

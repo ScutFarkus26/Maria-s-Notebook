@@ -40,7 +40,7 @@ struct PresentationCard: View {
         var chips: [StudentChip] = []
         for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
-                chips.append(StudentChip(id: id, label: StudentFormatter.displayName(for: s), isMissing: false))
+                chips.append(StudentChip(id: id, label: s.shortName, isMissing: false))
             } else {
                 chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true))
             }

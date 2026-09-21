@@ -59,7 +59,7 @@ struct WorkRepository: Repository {
 
         work.trackID = track.id?.uuidString
 
-        let stepRequest = CDFetchRequest(CDTrackStepEntity.self)
+        let stepRequest = CDFetchRequest(CDTrackStep.self)
         let steps = context.safeFetch(stepRequest)
         if let step = steps.first(where: {
             $0.track?.id == track.id && $0.lessonTemplateID == lessonID
@@ -159,7 +159,7 @@ struct WorkRepository: Repository {
 
         // If a sample work template was specified, copy its steps into the new work
         if let swID = sampleWorkID {
-            if let sampleWork = context.object(CDSampleWorkEntity.self, id: swID) {
+            if let sampleWork = context.object(CDSampleWork.self, id: swID) {
                 let stepService = WorkStepService(context: context)
                 let swService = SampleWorkService(context: context)
                 try swService.instantiate(sampleWork: sampleWork, into: work, stepService: stepService)

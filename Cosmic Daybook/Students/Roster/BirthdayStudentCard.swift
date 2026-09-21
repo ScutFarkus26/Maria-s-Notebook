@@ -21,7 +21,7 @@ struct BirthdayStudentCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Top: name + balloon (subtle, not competing)
                 HStack(alignment: .top) {
-                    Text(displayName)
+                    Text(student.shortName)
                         .font(AppTheme.ScaledFont.titleSmall)
                         .foregroundStyle(.white)
                     Spacer(minLength: 0)
@@ -103,10 +103,6 @@ struct BirthdayStudentCard: View {
     }
 
     // MARK: - Derived
-    private var displayName: String {
-        StudentFormatter.displayName(for: student)
-    }
-
     private var firstNameOnly: String {
         StudentFormatter.firstName(for: student)
     }

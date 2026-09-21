@@ -87,7 +87,7 @@ enum FollowingPresentationsService {
                 ?? date
             let children = groupRows.compactMap { row -> FollowingPresentationChild? in
                 guard let id = UUID(uuidString: row.studentID) else { return nil }
-                let name = studentByID[id].map(StudentFormatter.displayName(for:)) ?? "Child"
+                let name = studentByID[id].map(\.shortName) ?? "Child"
                 return FollowingPresentationChild(row: row, studentName: name)
             }
             .sorted { $0.studentName.localizedCaseInsensitiveCompare($1.studentName) == .orderedAscending }

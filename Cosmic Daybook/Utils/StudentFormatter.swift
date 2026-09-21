@@ -5,20 +5,18 @@ import Foundation
 /// The shortened form is the full `firstName` field followed by the last-name
 /// initial with no trailing period ("Maya S", "Mary Kate R"). A student with no
 /// last name shows just the first name.
+/// The rule itself lives on `CDStudent` (`shortName`), which the Daybook Assistant
+/// target also compiles; these are forwarders for callers holding raw name fields.
 /// All methods are nonisolated to allow calling from any actor context.
 enum StudentFormatter {
     /// Returns "FirstName L" (e.g. "Maya S"), or just the first name when the last name is empty.
     nonisolated static func displayName(for student: CDStudent) -> String {
-        displayName(firstName: student.firstName, lastName: student.lastName)
+        student.shortName
     }
 
     /// Same rule as `displayName(for:)` for callers holding raw name fields (log rows, DTOs).
     nonisolated static func displayName(firstName: String, lastName: String) -> String {
-        let first = firstName.trimmed()
-        let last = lastName.trimmed()
-        guard !first.isEmpty else { return last }
-        guard let initial = last.first else { return first }
-        return "\(first) \(String(initial).uppercased())"
+        CDStudent.shortName(firstName: firstName, lastName: lastName)
     }
 
     /// Returns just the trimmed first name, falling back to the full name when it is empty.

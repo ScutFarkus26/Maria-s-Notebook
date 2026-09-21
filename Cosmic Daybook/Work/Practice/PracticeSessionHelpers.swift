@@ -127,7 +127,7 @@ struct StudentCategorizer {
             guard let lessonUUID = UUID(uuidString: lessonID),
                   let studentID = student.id else { return false }
             return lessonAssignment.lessonIDUUID == lessonUUID &&
-                   lessonAssignment.studentUUIDs.contains(studentID) &&
+                   lessonAssignment.resolvedStudentIDs.contains(studentID) &&
                    lessonAssignment.isPresented
         }
 
@@ -163,12 +163,12 @@ struct StudentCategorizer {
 
         guard let lessonAssignment = allLessonAssignments.first(where: { lessonAssignment in
             lessonAssignment.lessonIDUUID == lessonUUID &&
-            lessonAssignment.studentUUIDs.contains(studentUUID)
+            lessonAssignment.resolvedStudentIDs.contains(studentUUID)
         }) else {
             return []
         }
 
-        return Set(lessonAssignment.studentUUIDs)
+        return Set(lessonAssignment.resolvedStudentIDs)
     }
 
     /// Sort categorized students by priority and internal ordering
@@ -221,7 +221,7 @@ struct StudentCategoryRow: View {
                     .font(.system(size: 20))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(StudentFormatter.displayName(for: categorizedStudent.student))
+                    Text(categorizedStudent.student.shortName)
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
 

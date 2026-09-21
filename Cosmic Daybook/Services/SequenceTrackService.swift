@@ -38,12 +38,12 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         }
     }
 
-    /// Get CDSequenceTrackEntity for area and sequence (Core Data)
+    /// Get CDSequenceTrack for area and sequence (Core Data)
     static func cdGetSequenceTrack(
         area: String,
         sequence: String,
         context: NSManagedObjectContext
-    ) throws -> CDSequenceTrackEntity? {
+    ) throws -> CDSequenceTrack? {
         let trimmedArea = area.trimmed()
         let trimmedSequence = sequence.trimmed()
         let allTracks = sequenceTrackCandidates(area: trimmedArea, sequence: trimmedSequence, context: context)
@@ -53,12 +53,12 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         })
     }
 
-    /// Get or create a CDSequenceTrackEntity (Core Data)
+    /// Get or create a CDSequenceTrack (Core Data)
     static func cdGetOrCreateSequenceTrack(
         area: String,
         sequence: String,
         context: NSManagedObjectContext
-    ) throws -> CDSequenceTrackEntity {
+    ) throws -> CDSequenceTrack {
         let trimmedArea = area.trimmed()
         let trimmedSequence = sequence.trimmed()
         let allTracks = sequenceTrackCandidates(area: trimmedArea, sequence: trimmedSequence, context: context)
@@ -68,7 +68,7 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         }) {
             return existing
         }
-        let newSequenceTrack = CDSequenceTrackEntity(context: context)
+        let newSequenceTrack = CDSequenceTrack(context: context)
         newSequenceTrack.area = trimmedArea
         newSequenceTrack.sequence = trimmedSequence
         newSequenceTrack.isSequential = true
@@ -166,7 +166,7 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         sequence: String,
         context: NSManagedObjectContext
     ) throws {
-        // CDTrackStepEntity is a shared-store entity. In the two-store
+        // CDTrackStep is a shared-store entity. In the two-store
         // CloudKit configuration, skip creation until a CKShare exists —
         // otherwise the new step records become orphans that poison the
         // CloudKit mirroring delegate (NSCocoaErrorDomain 134060). Steps
@@ -181,20 +181,20 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
 
         // Steps of any track object carrying this id, not just `track.steps`:
         // a cross-zone twin's steps are folded in as before.
-        let stepRequest = CDFetchRequest(CDTrackStepEntity.self)
+        let stepRequest = CDFetchRequest(CDTrackStep.self)
         if let trackID = track.id {
             stepRequest.predicate = NSPredicate(format: "track.id == %@", trackID as CVarArg)
         }
         let existingSteps = context.safeFetch(stepRequest).filter { $0.track?.id == track.id }
 
-        var existingStepsByLessonID: [UUID: CDTrackStepEntity] = [:]
+        var existingStepsByLessonID: [UUID: CDTrackStep] = [:]
         for step in existingSteps {
             if let lessonID = step.lessonTemplateID {
                 existingStepsByLessonID[lessonID] = step
             }
         }
 
-        var newSteps: [CDTrackStepEntity] = []
+        var newSteps: [CDTrackStep] = []
         for (index, lesson) in matchingLessons.enumerated() {
             guard let lessonID = lesson.id else { continue }
             if let existingStep = existingStepsByLessonID[lessonID] {
@@ -202,7 +202,7 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
                 existingStep.track = track
                 newSteps.append(existingStep)
             } else {
-                let newStep = CDTrackStepEntity(context: context)
+                let newStep = CDTrackStep(context: context)
                 newStep.track = track
                 newStep.orderIndex = Int64(index)
                 newStep.lessonTemplateID = lessonID

@@ -58,7 +58,7 @@ struct WorkLogSheet: View {
             guard let work = checkIn.resolvedWork(), seen.insert(work.objectID).inserted else { return nil }
             let name = WorkGrouping.owner(of: work)
                 .flatMap { work.managedObjectContext?.object(CDStudent.self, id: $0) }
-                .map(StudentFormatter.displayName(for:)) ?? "Student"
+                .map(\.shortName) ?? "Student"
             return Draft(
                 id: checkIn.id ?? UUID(),
                 work: work,

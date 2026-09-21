@@ -81,7 +81,7 @@ final class AddSequenceViewModel {
         var presentedLessonIDs = Set<String>()
         for assignment in presentedAssignments {
             guard lessonIDsInSequence.contains(assignment.lessonID) else { continue }
-            if assignment.studentUUIDs.contains(studentID) {
+            if assignment.resolvedStudentIDs.contains(studentID) {
                 presentedLessonIDs.insert(assignment.lessonID)
             }
         }

@@ -235,7 +235,7 @@ extension WorksAgendaView {
                     hay.append(s.firstName)
                     hay.append(s.lastName)
                     hay.append(s.fullName)
-                    hay.append(StudentFormatter.displayName(for: s))
+                    hay.append(s.shortName)
                 }
                 return hay.joined(separator: " ").lowercased().contains(query)
             }
@@ -254,7 +254,7 @@ extension WorksAgendaView {
             let title = lessonTitle(forLessonID: w.lessonID)
             let student = (UUID(uuidString: w.studentID))
                 .flatMap { studentsByID[$0] }
-                .map(StudentFormatter.displayName(for:)) ?? "Student"
+                .map(\.shortName) ?? "Student"
             return WorkPDFRenderer.PrintItem(
                 id: w.id ?? UUID(),
                 lessonTitle: title,

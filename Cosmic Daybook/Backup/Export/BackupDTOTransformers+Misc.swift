@@ -106,9 +106,9 @@ extension BackupDTOTransformers {
         TrackDTO(id: t.id ?? UUID(), title: t.title, createdAt: t.createdAt ?? Date())
     }
 
-    // MARK: - CDTrackStepEntity
+    // MARK: - CDTrackStep
 
-    static func toDTO(_ s: CDTrackStepEntity) -> TrackStepDTO {
+    static func toDTO(_ s: CDTrackStep) -> TrackStepDTO {
         TrackStepDTO(
             id: s.id ?? UUID(),
             trackID: s.track?.id,
@@ -398,7 +398,7 @@ extension BackupDTOTransformers {
         tracks.map { toDTO($0) }
     }
 
-    static func toDTOs(_ steps: [CDTrackStepEntity]) -> [TrackStepDTO] {
+    static func toDTOs(_ steps: [CDTrackStep]) -> [TrackStepDTO] {
         steps.map { toDTO($0) }
     }
 

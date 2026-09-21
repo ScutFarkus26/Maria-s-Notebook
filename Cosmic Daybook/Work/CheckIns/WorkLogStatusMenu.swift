@@ -85,7 +85,7 @@ struct WorkLogStatusMenu: View {
         }
         return group.members.compactMap { row in
             guard let id = row.id, let owner = WorkGrouping.owner(of: row) else { return nil }
-            let name = context.object(CDStudent.self, id: owner).map(StudentFormatter.displayName(for:)) ?? "Student"
+            let name = context.object(CDStudent.self, id: owner).map(\.shortName) ?? "Student"
             return Child(id: id, name: name, work: row)
         }
     }

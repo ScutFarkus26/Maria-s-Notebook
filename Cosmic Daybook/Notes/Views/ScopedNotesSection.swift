@@ -71,7 +71,7 @@ struct ScopedNotesSection: View {
             return "All"
         case let .student(id):
             if let student = studentsByID[id] {
-                return StudentFormatter.displayName(for: student)
+                return student.shortName
             } else {
                 return "Student"
             }
@@ -146,7 +146,7 @@ struct ScopedNotesSection: View {
                             id: \.objectID
                         ) { student in
                             if let studentID = student.id {
-                                Text(StudentFormatter.displayName(for: student))
+                                Text(student.shortName)
                                     .tag(ScopeChoice.student(studentID))
                             }
                         }

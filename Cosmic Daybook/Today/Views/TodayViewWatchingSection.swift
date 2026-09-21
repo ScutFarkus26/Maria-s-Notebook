@@ -71,7 +71,7 @@ struct TodayWatchingSectionView: View {
     private var namesByID: [UUID: String] {
         Dictionary(
             enrolledStudents.compactMap { student in
-                student.id.map { ($0, StudentFormatter.displayName(for: student)) }
+                student.id.map { ($0, student.shortName) }
             },
             uniquingKeysWith: { first, _ in first }
         )

@@ -80,7 +80,7 @@ struct WorkCheckInPill: View {
               let studentID = work.studentID.asUUID else { return "" }
         
         if let student = modelContext.object(CDStudent.self, id: studentID) {
-            return StudentFormatter.displayName(for: student)
+            return student.shortName
         }
         return ""
     }

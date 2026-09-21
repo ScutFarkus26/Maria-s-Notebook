@@ -153,7 +153,7 @@ struct MCPPlanningEditToolsTests {
                                  + "Ora Levi was already in the group."))
         #expect(output.contains("Now: Racks and Tubes — scheduled 2026-09-14 — Ora Levi, Maya Stern"))
         let expectedRoster: Set<UUID> = [try #require(ora.id), try #require(maya.id)]
-        #expect(Set(planned.studentUUIDs) == expectedRoster)
+        #expect(Set(planned.resolvedStudentIDs) == expectedRoster)
         #expect(planned.isScheduled)
         #expect(presentations(in: context).count == 1)
         #expect(planned.modifiedAt != before)

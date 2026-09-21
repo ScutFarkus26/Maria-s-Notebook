@@ -69,10 +69,10 @@ extension ProjectDetailView {
     @ViewBuilder
     private func memberChip(for sid: String) -> some View {
         if let student = studentsByID[uuidString: sid] {
-            ProjectChip(text: StudentFormatter.displayName(for: student), icon: "person.fill")
+            ProjectChip(text: student.shortName, icon: "person.fill")
         } else if let former = formerStudentsByID[uuidString: sid] {
             ProjectChip(
-                text: "\(StudentFormatter.displayName(for: former)) (former)",
+                text: "\(former.shortName) (former)",
                 icon: "person.fill.badge.minus"
             )
         } else {

@@ -180,7 +180,7 @@ enum SampleClassroomSeeder {
                     )
                 }
 
-            let sampleWorks = ((lesson.sampleWorks?.allObjects as? [CDSampleWorkEntity]) ?? [])
+            let sampleWorks = ((lesson.sampleWorks?.allObjects as? [CDSampleWork]) ?? [])
                 .compactMap { work -> SampleWorkSnapshot? in
                     guard let workID = work.id else { return nil }
                     let steps = work.orderedSteps.compactMap { step -> SampleWorkStepSnapshot? in
@@ -249,11 +249,11 @@ enum SampleClassroomSeeder {
         let existingAttachments = try context.fetch(CDFetchRequest(CDLessonAttachment.self))
         var attachmentsByID = firstByID(existingAttachments, id: \CDLessonAttachment.id)
 
-        let existingWorks = try context.fetch(CDFetchRequest(CDSampleWorkEntity.self))
-        var worksByID = firstByID(existingWorks, id: \CDSampleWorkEntity.id)
+        let existingWorks = try context.fetch(CDFetchRequest(CDSampleWork.self))
+        var worksByID = firstByID(existingWorks, id: \CDSampleWork.id)
 
-        let existingSteps = try context.fetch(CDFetchRequest(CDSampleWorkStepEntity.self))
-        var stepsByID = firstByID(existingSteps, id: \CDSampleWorkStepEntity.id)
+        let existingSteps = try context.fetch(CDFetchRequest(CDSampleWorkStep.self))
+        var stepsByID = firstByID(existingSteps, id: \CDSampleWorkStep.id)
 
         for snapshot in lessons {
             let lesson = lessonsByID[snapshot.id] ?? CDLesson(context: context)
@@ -305,7 +305,7 @@ enum SampleClassroomSeeder {
             }
 
             for workSnapshot in snapshot.sampleWorks {
-                let work = worksByID[workSnapshot.id] ?? CDSampleWorkEntity(context: context)
+                let work = worksByID[workSnapshot.id] ?? CDSampleWork(context: context)
                 work.id = workSnapshot.id
                 work.title = workSnapshot.title
                 work.workKindRaw = workSnapshot.workKindRaw
@@ -316,7 +316,7 @@ enum SampleClassroomSeeder {
                 worksByID[workSnapshot.id] = work
 
                 for stepSnapshot in workSnapshot.steps {
-                    let step = stepsByID[stepSnapshot.id] ?? CDSampleWorkStepEntity(context: context)
+                    let step = stepsByID[stepSnapshot.id] ?? CDSampleWorkStep(context: context)
                     step.id = stepSnapshot.id
                     step.title = stepSnapshot.title
                     step.orderIndex = stepSnapshot.orderIndex

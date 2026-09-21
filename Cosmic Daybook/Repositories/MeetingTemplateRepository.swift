@@ -10,7 +10,7 @@ import OSLog
 import CoreData
 
 struct MeetingTemplateRepository: SavingRepository {
-    typealias Model = CDMeetingTemplateEntity
+    typealias Model = CDMeetingTemplate
 
     private static let logger = Logger.database
 
@@ -25,14 +25,14 @@ struct MeetingTemplateRepository: SavingRepository {
     // MARK: - Fetch
 
     /// Fetch a MeetingTemplate by ID
-    func fetchTemplate(id: UUID) -> CDMeetingTemplateEntity? { fetch(id: id) }
+    func fetchTemplate(id: UUID) -> CDMeetingTemplate? { fetch(id: id) }
 
     /// Fetch multiple MeetingTemplates with optional filtering and sorting
     func fetchTemplates(
         predicate: NSPredicate? = nil,
         sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "sortOrder", ascending: true)]
-    ) -> [CDMeetingTemplateEntity] {
-        let request = CDFetchRequest(CDMeetingTemplateEntity.self)
+    ) -> [CDMeetingTemplate] {
+        let request = CDFetchRequest(CDMeetingTemplate.self)
         request.predicate = predicate
         request.sortDescriptors = sortBy
         request.fetchBatchSize = 20
@@ -40,12 +40,12 @@ struct MeetingTemplateRepository: SavingRepository {
     }
 
     /// Fetch only built-in templates
-    func fetchBuiltInTemplates() -> [CDMeetingTemplateEntity] {
+    func fetchBuiltInTemplates() -> [CDMeetingTemplate] {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == YES"))
     }
 
     /// Fetch only custom (user-created) templates
-    func fetchCustomTemplates() -> [CDMeetingTemplateEntity] {
+    func fetchCustomTemplates() -> [CDMeetingTemplate] {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == NO"))
     }
 

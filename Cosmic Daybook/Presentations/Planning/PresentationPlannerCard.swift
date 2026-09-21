@@ -185,7 +185,7 @@ struct PresentationPlannerCard: View {
     }
 
     private func studentChip(for student: CDStudent, sid: UUID) -> some View {
-        let name = StudentFormatter.displayName(for: student)
+        let name = student.shortName
         let isAbsent = attendanceCache[sid] == .absent
         let isDoubleBooked = doubleBookedStudentIDs.contains(sid)
         let isBlocking = blockingWork[sid] != nil
@@ -287,7 +287,7 @@ struct PresentationPlannerCard: View {
     private var accessibilityLabel: String {
         let names = snapshot.studentIDs.compactMap { sid -> String? in
             guard let student = students.first(where: { $0.id == sid }) else { return nil }
-            return StudentFormatter.displayName(for: student)
+            return student.shortName
         }.joined(separator: ", ")
         // The card combines its children, so the badge's own label is replaced
         // by this one — the half has to be spoken here or not at all.
