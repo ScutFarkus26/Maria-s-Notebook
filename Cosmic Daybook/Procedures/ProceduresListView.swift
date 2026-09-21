@@ -86,7 +86,7 @@ struct ProceduresListView: View {
         .sheet(item: $selectedProcedure) { procedure in
             ProcedureDetailView(procedure: procedure) { editProcedure in
                 selectedProcedure = nil
-                Task { @MainActor in
+                Task {
                     do {
                         try await Task.sleep(for: .milliseconds(300))
                     } catch {

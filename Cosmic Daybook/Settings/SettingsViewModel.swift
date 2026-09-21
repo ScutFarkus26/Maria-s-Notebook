@@ -63,7 +63,7 @@ final class SettingsViewModel {
     
     /// Calculates estimated backup size asynchronously
     func calculateEstimatedBackupSize(viewContext: NSManagedObjectContext) {
-        Task { @MainActor in
+        Task {
             estimatedBackupSize = coordinator.estimateBackupSize(viewContext: viewContext)
         }
     }

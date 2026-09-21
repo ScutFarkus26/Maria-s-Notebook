@@ -598,7 +598,7 @@ public enum MacOSMailSender {
         completion: @escaping (Bool) -> Void
     ) {
         guard let service = NSSharingService(named: .composeEmail) else {
-            Task { @MainActor in
+            Task {
                 completion(false)
             }
             return
@@ -613,7 +613,7 @@ public enum MacOSMailSender {
         
         // Timeout fallback: ensure completion is called even if delegate callbacks don't fire
         var hasCompleted = false
-        let timeoutTask = Task { @MainActor in
+        let timeoutTask = Task {
             do {
                 try await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
             } catch {
@@ -626,7 +626,7 @@ public enum MacOSMailSender {
         }
         
         let delegate = SharingDelegate { success in
-            Task { @MainActor in
+            Task {
                 if !hasCompleted {
                     hasCompleted = true
                     timeoutTask.cancel()

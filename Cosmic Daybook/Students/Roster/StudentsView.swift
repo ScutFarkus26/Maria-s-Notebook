@@ -148,7 +148,7 @@ struct StudentsView: View {
         .onChange(of: uniqueStudentIDs) { _, _ in
             ensureInitialManualOrderIfNeeded()
             if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
-                viewContext.safeSave()
+                dependencies.saveCoordinator.save(viewContext, reason: "Repair student order")
             }
         }
     }
@@ -282,7 +282,7 @@ struct StudentsView: View {
 
     /// Helper to reload data asynchronously (reduces duplication in onChange handlers)
     private func reloadDataAsync() {
-        Task { @MainActor in
+        Task {
             loadDataOnDemand()
         }
     }
@@ -322,7 +322,7 @@ struct StudentsView: View {
 
     private func ensureInitialManualOrderIfNeeded() {
         if viewModel.ensureInitialManualOrderIfNeeded(uniqueStudents) {
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Initialize student order")
         }
     }
 
@@ -345,7 +345,7 @@ struct StudentsView: View {
             allStudents: uniqueStudents
         )
         assignManualOrder(from: newAllIDs)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Reorder students")
     }
 
     // MARK: - Navigation Helpers

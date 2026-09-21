@@ -12,6 +12,7 @@ import UIKit
 struct StoryDetailView: View {
     @ObservedObject var story: CDStory
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     let onClose: () -> Void
     let onDelete: () -> Void
 
@@ -520,7 +521,7 @@ struct StoryDetailView: View {
         let objectID = story.objectID
         let context = viewContext
 
-        Task { @MainActor in
+        Task {
             defer { isGeneratingCover = false }
             do {
                 let data = try await StoryCoverGenerator.generateCover(
@@ -531,7 +532,7 @@ struct StoryDetailView: View {
                 if let target = context.existing(CDStory.self, objectID) {
                     target.generatedCoverData = data
                     target.modifiedAt = Date()
-                    if !context.safeSave() {
+                    if !dependencies.saveCoordinator.save(context, reason: "Save generated cover") {
                         Self.logger.warning("Failed to save generated cover")
                     }
                 }
@@ -557,7 +558,7 @@ struct StoryDetailView: View {
         let objectID = story.objectID
         let context = viewContext
 
-        Task { @MainActor in
+        Task {
             defer { isFindingConnections = false }
             do {
                 guard let target = context.existing(CDStory.self, objectID) else {
@@ -568,7 +569,7 @@ struct StoryDetailView: View {
                     in: context
                 )
                 target.storeRelatedLessons(matches.map { ($0.lessonID, $0.reason) })
-                if !context.safeSave() {
+                if !dependencies.saveCoordinator.save(context, reason: "Save related lessons") {
                     Self.logger.warning("Failed to save related lessons")
                 }
             } catch let error as StoryLessonMatcher.MatcherError {
@@ -605,7 +606,7 @@ struct StoryDetailView: View {
     }
 
     private func saveContext() {
-        if !viewContext.safeSave() {
+        if !dependencies.saveCoordinator.save(viewContext, reason: "Save story") {
             Self.logger.warning("Failed to save story changes")
         }
     }

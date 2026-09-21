@@ -77,7 +77,7 @@ extension ResourceLibraryView {
                     Button {
                         resource.category = category
                         resource.modifiedAt = Date()
-                        viewContext.safeSave()
+                        dependencies.saveCoordinator.save(viewContext, reason: "Update resource category")
                         resourceToRecategorize = nil
                     } label: {
                         HStack {

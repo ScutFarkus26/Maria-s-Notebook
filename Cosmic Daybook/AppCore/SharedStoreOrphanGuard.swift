@@ -30,7 +30,7 @@ final class SharedStoreOrphanGuard {
     private static let logger = Logger.sharedStoreOrphanGuard
 
     private weak var coreDataStack: CoreDataStack?
-    private var observer: (any NSObjectProtocol)?
+    private var observerTask: Task<Void, Never>?
     private var debounceTask: Task<Void, Never>?
 
     private init() {}
@@ -38,30 +38,20 @@ final class SharedStoreOrphanGuard {
     /// Begins observing view-context saves. Idempotent — calling more
     /// than once is a no-op.
     func start(coreDataStack: CoreDataStack) {
-        guard observer == nil else { return }
+        guard observerTask == nil else { return }
         self.coreDataStack = coreDataStack
 
-        let context = coreDataStack.viewContext
-        observer = NotificationCenter.default.addObserver(
-            forName: .NSManagedObjectContextDidSave,
-            object: context,
-            queue: .main
-        ) { [weak self] notification in
-            // Extract Sendable data from the notification BEFORE
-            // crossing the isolation boundary — Notification and
+        observerTask = Task { [weak self] in
+            guard let context = self?.coreDataStack?.viewContext else { return }
+            // Extract Sendable data from each notification before it
+            // reaches this main-actor loop — Notification and
             // NSManagedObject are not Sendable. We only need the set of
             // inserted entity names to decide whether to act.
-            let inserted = (notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>) ?? []
-            var insertedEntityNames: Set<String> = []
-            for object in inserted {
-                if let name = object.entity.name {
-                    insertedEntityNames.insert(name)
-                }
-            }
-            guard !insertedEntityNames.isEmpty else { return }
-
-            Task { @MainActor [weak self] in
-                self?.handleSave(insertedEntityNames: insertedEntityNames)
+            let saves = NotificationCenter.default
+                .notifications(named: .NSManagedObjectContextDidSave, object: context)
+                .map { Self.insertedEntityNames(in: $0) }
+            for await names in saves where !names.isEmpty {
+                self?.handleSave(insertedEntityNames: names)
             }
         }
         Self.logger.debug("SharedStoreOrphanGuard observing view-context saves")
@@ -69,16 +59,28 @@ final class SharedStoreOrphanGuard {
 
     /// Stops observing. Used in tests and when the stack is replaced.
     func stop() {
-        if let observer {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        observer = nil
+        observerTask?.cancel()
+        observerTask = nil
         debounceTask?.cancel()
         debounceTask = nil
         coreDataStack = nil
     }
 
     // MARK: - Save handling
+
+    /// Entity names of the objects a did-save notification reports as
+    /// inserted — read off object IDs so the sequence's transform is safe on
+    /// any thread.
+    private nonisolated static func insertedEntityNames(in notification: Notification) -> Set<String> {
+        let inserted = (notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>) ?? []
+        var names: Set<String> = []
+        for object in inserted {
+            if let name = object.objectID.entity.name {
+                names.insert(name)
+            }
+        }
+        return names
+    }
 
     private func handleSave(insertedEntityNames: Set<String>) {
         guard let coreDataStack else { return }
@@ -105,7 +107,7 @@ final class SharedStoreOrphanGuard {
     /// trigger at most one repair after the write storm settles.
     private func scheduleRepair(coreDataStack: CoreDataStack) {
         debounceTask?.cancel()
-        debounceTask = Task { @MainActor in
+        debounceTask = Task {
             do {
                 try await Task.sleep(for: .milliseconds(200))
             } catch {
@@ -120,7 +122,7 @@ final class SharedStoreOrphanGuard {
     /// duplicates from rapid saves are safe.
     private func scheduleAutoCreate(coreDataStack: CoreDataStack) {
         debounceTask?.cancel()
-        debounceTask = Task { @MainActor in
+        debounceTask = Task {
             do {
                 try await Task.sleep(for: .milliseconds(200))
             } catch {

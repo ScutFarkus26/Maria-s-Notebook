@@ -25,7 +25,7 @@ final class CalendarSyncService {
     var syncCalendarIdentifiers: [String] {
         didSet {
             UserDefaults.standard.set(syncCalendarIdentifiers, forKey: UserDefaultsKeys.calendarSyncIdentifiers)
-            Task { @MainActor in
+            Task {
                 if !self.syncCalendarIdentifiers.isEmpty && self.hasFullAccess {
                     self.startObservingChanges()
                 } else {

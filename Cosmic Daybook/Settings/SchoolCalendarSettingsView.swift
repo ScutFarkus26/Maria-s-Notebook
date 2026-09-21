@@ -245,7 +245,7 @@ struct SchoolCalendarSettingsView: View {
             }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update school calendar")
         Task {
             await reload()
         }
@@ -278,7 +278,7 @@ struct SchoolCalendarSettingsView: View {
             }
             d = cal.date(byAdding: .day, value: 1, to: d) ?? d
         }
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update school calendar")
         Task {
             await reload()
         }

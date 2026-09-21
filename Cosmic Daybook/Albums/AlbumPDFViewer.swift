@@ -190,7 +190,7 @@ struct AlbumPDFViewer {
             guard let view = pdfView, let doc = view.document,
                   let page = doc.page(at: jump.pageIndex) else { return }
             if view.bounds.isEmpty && attempt < 40 {
-                Task { @MainActor [weak self] in
+                Task { [weak self] in
                     try? await Task.sleep(for: .milliseconds(50))
                     self?.perform(jump, attempt: attempt + 1)
                 }
@@ -208,7 +208,7 @@ struct AlbumPDFViewer {
                 // Bounce off this notification callback before mutating state
                 // SwiftUI may already be reading.
                 let binding = parent.$currentPageIndex
-                Task { @MainActor in binding.wrappedValue = index }
+                Task { binding.wrappedValue = index }
             }
         }
 
@@ -220,7 +220,7 @@ struct AlbumPDFViewer {
                 // (notably when Live Text OCR lands on scanned pages), and the
                 // highlight toolbar item reads this flag — mutating it inside
                 // AppKit's layout pass trips NSToolbarItemViewer's size assertion.
-                Task { @MainActor in proxy.hasSelection = has }
+                Task { proxy.hasSelection = has }
             }
         }
 

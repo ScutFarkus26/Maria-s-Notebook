@@ -76,7 +76,7 @@ extension LessonsRootView {
             lesson.sortIndex = Int64(idx)
         }
 
-        viewContext.safeSave()
+        saveCoordinator.save(viewContext, reason: "Reorder lessons")
     }
 
     private func collectOrderedLessons(displaySequences: [String], ungroupedLabel: String) -> [CDLesson] {
@@ -149,7 +149,7 @@ extension LessonsRootView {
             lesson.sortIndex = Int64(idx)
         }
 
-        viewContext.safeSave()
+        saveCoordinator.save(viewContext, reason: "Reorder lessons")
     }
 
     // MARK: - Move CDLesson to Different Group
@@ -192,7 +192,7 @@ extension LessonsRootView {
             lesson.orderInSequence = Int64(idx)
         }
 
-        viewContext.safeSave()
+        saveCoordinator.save(viewContext, reason: "Reorder lesson sequence")
     }
 
     // MARK: - Plan Presentation

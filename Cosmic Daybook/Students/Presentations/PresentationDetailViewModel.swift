@@ -279,7 +279,7 @@ final class PresentationDetailViewModel {
         onDone?()
 
         // Perform deletion asynchronously
-        Task { @MainActor in
+        Task {
             if let toDelete = ctx.object(CDLessonAssignment.self, id: id) {
                 _ = toDelete.studentIDs
                 for row in PresentationFollowUpService.rows(for: id, in: ctx)

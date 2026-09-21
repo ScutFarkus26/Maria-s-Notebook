@@ -12,7 +12,7 @@ extension TodoMainView {
                 todo.isCompleted = true
                 todo.completedAt = Date()
             }
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Complete todos")
             selectedTodoIDs.removeAll()
             isSelectMode = false
         }
@@ -24,7 +24,7 @@ extension TodoMainView {
             for todo in todos {
                 todo.priority = .high
             }
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Set todo priority")
             selectedTodoIDs.removeAll()
             isSelectMode = false
         }
@@ -37,7 +37,7 @@ extension TodoMainView {
             for todo in todos {
                 todo.dueDate = today
             }
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Set todos due today")
             selectedTodoIDs.removeAll()
             isSelectMode = false
         }
@@ -49,7 +49,7 @@ extension TodoMainView {
             for todo in todosToDelete {
                 viewContext.delete(todo)
             }
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Delete todos")
             selectedTodoIDs.removeAll()
             isSelectMode = false
         }

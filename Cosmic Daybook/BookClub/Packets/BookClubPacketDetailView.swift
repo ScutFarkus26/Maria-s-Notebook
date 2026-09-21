@@ -11,6 +11,7 @@ import UIKit
 struct BookClubPacketDetailView: View {
     @ObservedObject var packet: CDBookClubPacket
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     let onClose: () -> Void
     let onDelete: () -> Void
 
@@ -287,7 +288,7 @@ struct BookClubPacketDetailView: View {
 
     private func touch() {
         packet.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update packet")
     }
 
     private func addTheme() {
@@ -356,7 +357,7 @@ struct BookClubPacketDetailView: View {
             try? BookClubFileStorage.deleteIfManaged(url)
         }
         viewContext.delete(packet)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete packet")
         onDelete()
     }
 }

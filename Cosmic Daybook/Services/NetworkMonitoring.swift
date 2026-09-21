@@ -62,7 +62,7 @@ final class NetworkMonitoring {
                 guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingNetworkTask?.cancel()
-                self.pendingNetworkTask = Task { @MainActor [weak self] in
+                self.pendingNetworkTask = Task { [weak self] in
                     self?.handleNetworkChange(path)
                 }
             }

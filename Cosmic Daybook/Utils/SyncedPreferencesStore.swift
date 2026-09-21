@@ -80,8 +80,8 @@ public final class SyncedPreferencesStore {
         "Attendance.locked."
     ]
     
-    @ObservationIgnored nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
-    @ObservationIgnored nonisolated(unsafe) private var lifecycleObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var changeTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var lifecycleTask: Task<Void, Never>?
     
     // ENERGY OPTIMIZATION: Batch sync operations to reduce network activity
     // Instead of syncing immediately on every set(), we debounce and batch multiple changes
@@ -100,12 +100,11 @@ public final class SyncedPreferencesStore {
 
         // Set up app lifecycle observers to ensure sync on backgrounding
         #if os(iOS)
-        lifecycleObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.willResignActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        lifecycleTask = Task { [weak self] in
+            let resignations = NotificationCenter.default
+                .notifications(named: UIApplication.willResignActiveNotification)
+                .map { _ in () }
+            for await _ in resignations {
                 self?.flushPendingSync()
             }
         }
@@ -113,62 +112,79 @@ public final class SyncedPreferencesStore {
     }
     
     deinit {
-        if let observer = changeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = lifecycleObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        changeTask?.cancel()
+        lifecycleTask?.cancel()
     }
     
     // MARK: - External Change Observation
     
     /// Observes changes from other devices via NSUbiquitousKeyValueStoreDidChangeExternallyNotification
     private func observeExternalChanges() {
-        changeObserver = NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: kvStore,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self else { return }
-            
-            if let userInfo = notification.userInfo,
-               let reason = userInfo[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int {
-                // NSUbiquitousKeyValueStoreChangeReasonKey values:
-                // 0 = serverChange, 1 = initialSyncChange, 2 = quotaViolationChange, 3 = accountChange
-                if reason == 0 { // serverChange - changes came from another device
-                    if let changedKeys = userInfo[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String] {
-                        self.logger.info("Received \(changedKeys.count) preference changes from iCloud")
-                        // Post notification so views can update
-                        NotificationCenter.default.post(
-                            name: .syncedPreferencesDidChange,
-                            object: self,
-                            userInfo: ["changedKeys": changedKeys]
-                        )
-                    }
-                    // Update quota after receiving changes
-                    Task { @MainActor in
-                        self.noteChange()
-                        self.updateQuotaUsage()
-                    }
-                } else if reason == 2 { // quotaViolationChange - storage limit exceeded
-                    self.logger.error("iCloud KVS quota violation detected!")
-                    Task { @MainActor in
-                        self.isQuotaViolation = true
-                        self.updateQuotaUsage()
-                        // Post notification for UI to display warning
-                        NotificationCenter.default.post(
-                            name: .syncedPreferencesQuotaViolation,
-                            object: self
-                        )
-                    }
-                } else if reason == 3 { // accountChange - user changed iCloud account
-                    self.logger.info("iCloud account changed, reloading preferences")
-                    Task { @MainActor in
-                        self.noteChange()
-                        self.updateQuotaUsage()
-                    }
-                }
+        changeTask = Task { [weak self] in
+            guard let kvStore = self?.kvStore else { return }
+            // `NSUbiquitousKeyValueStore` is explicitly non-Sendable, so it can't
+            // be the sequence's `object:` filter; match the poster by identity in
+            // the transform instead. Notification is not Sendable either — pull
+            // the reason and changed keys out there so this main-actor loop only
+            // receives values.
+            let kvStoreID = ObjectIdentifier(kvStore)
+            let changes = NotificationCenter.default
+                .notifications(named: NSUbiquitousKeyValueStore.didChangeExternallyNotification)
+                .map { Self.externalChange(in: $0, from: kvStoreID) }
+            for await change in changes {
+                guard let self, let change else { continue }
+                self.handleExternalChange(reason: change.reason, changedKeys: change.changedKeys)
+            }
+        }
+    }
+
+    /// The change reason and (for server changes) the changed keys carried by
+    /// a key-value-store did-change-externally notification posted by the
+    /// store `storeID` identifies; nil for any other poster.
+    private nonisolated static func externalChange(
+        in notification: Notification,
+        from storeID: ObjectIdentifier
+    ) -> (reason: Int, changedKeys: [String]?)? {
+        guard let object = notification.object as AnyObject?, ObjectIdentifier(object) == storeID,
+              let userInfo = notification.userInfo,
+              let reason = userInfo[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int else { return nil }
+        return (reason, userInfo[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String])
+    }
+
+    private func handleExternalChange(reason: Int, changedKeys: [String]?) {
+        // NSUbiquitousKeyValueStoreChangeReasonKey values:
+        // 0 = serverChange, 1 = initialSyncChange, 2 = quotaViolationChange, 3 = accountChange
+        if reason == 0 { // serverChange - changes came from another device
+            if let changedKeys {
+                logger.info("Received \(changedKeys.count) preference changes from iCloud")
+                // Post notification so views can update
+                NotificationCenter.default.post(
+                    name: .syncedPreferencesDidChange,
+                    object: self,
+                    userInfo: ["changedKeys": changedKeys]
+                )
+            }
+            // Update quota after receiving changes
+            Task {
+                self.noteChange()
+                self.updateQuotaUsage()
+            }
+        } else if reason == 2 { // quotaViolationChange - storage limit exceeded
+            logger.error("iCloud KVS quota violation detected!")
+            Task {
+                self.isQuotaViolation = true
+                self.updateQuotaUsage()
+                // Post notification for UI to display warning
+                NotificationCenter.default.post(
+                    name: .syncedPreferencesQuotaViolation,
+                    object: self
+                )
+            }
+        } else if reason == 3 { // accountChange - user changed iCloud account
+            logger.info("iCloud account changed, reloading preferences")
+            Task {
+                self.noteChange()
+                self.updateQuotaUsage()
             }
         }
     }
@@ -248,7 +264,7 @@ public final class SyncedPreferencesStore {
         syncTask?.cancel()
         
         // Schedule a new batched sync
-        syncTask = Task { @MainActor in
+        syncTask = Task {
             do {
                 // Wait 1.5 seconds to batch multiple rapid changes
                 try await Task.sleep(for: .seconds(1.5))

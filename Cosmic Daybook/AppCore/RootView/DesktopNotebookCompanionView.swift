@@ -212,7 +212,7 @@ struct DesktopNotebookCompanionView: View {
 
         // Give a newly reopened main window time to install its navigation
         // observers before sending the requested action.
-        Task { @MainActor in
+        Task {
             try? await Task.sleep(for: .milliseconds(100))
             action()
         }
@@ -251,7 +251,7 @@ private final class DetachedCompanionConfigurationView: NSView {
 
     func scheduleConfiguration() {
         guard !isConfigured, window != nil else { return }
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self, let window = self.window else { return }
             window.level = .floating
             window.backgroundColor = .clear

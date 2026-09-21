@@ -141,7 +141,7 @@ struct PresentationQuickActionsView: View {
                         }
                         didPlanNext = true
                         showPlannedBanner = true
-                        Task { @MainActor in
+                        Task {
                             do {
                                 try await Task.sleep(for: .seconds(2))
                             } catch {

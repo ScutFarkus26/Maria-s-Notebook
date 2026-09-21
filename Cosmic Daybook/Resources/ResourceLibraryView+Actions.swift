@@ -11,13 +11,13 @@ extension ResourceLibraryView {
 
     func deleteResource(_ resource: CDResource) {
         viewContext.delete(resource)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete resource")
     }
 
     func toggleFavorite(_ resource: CDResource) {
         resource.isFavorite.toggle()
         resource.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Toggle favorite")
     }
 
     // MARK: - Selection
@@ -45,7 +45,7 @@ extension ResourceLibraryView {
             resource.isFavorite = !allFavorited
             resource.modifiedAt = Date()
         }
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Toggle favorites")
     }
 
     func bulkSetCategory(_ category: ResourceCategory) {
@@ -53,7 +53,7 @@ extension ResourceLibraryView {
             resource.category = category
             resource.modifiedAt = Date()
         }
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update resource category")
     }
 
     func bulkAddTags(_ tags: [String]) {
@@ -66,14 +66,14 @@ extension ResourceLibraryView {
             }
             resource.modifiedAt = Date()
         }
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Add resource tags")
     }
 
     func bulkDelete() {
         for resource in selectedResources {
             viewContext.delete(resource)
         }
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete resources")
         exitSelectMode()
     }
 
@@ -124,7 +124,7 @@ extension ResourceLibraryView {
             resource.fileRelativePath = relativePath
             resource.fileSizeBytes = fileSize
             resource.thumbnailData = thumbnail
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Import dropped PDF")
         } catch {
             // Silently fail — resource wasn't imported
         }

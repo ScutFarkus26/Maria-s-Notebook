@@ -10,6 +10,7 @@ struct AlbumBookmarksView: View {
     @Environment(AlbumLibrary.self) private var library
     @Environment(AlbumsNavModel.self) private var nav
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDAlbumBookmark.albumID, ascending: true),
         NSSortDescriptor(keyPath: \CDAlbumBookmark.pageIndex, ascending: true)
@@ -72,13 +73,13 @@ struct AlbumBookmarksView: View {
         .contextMenu {
             Button("Remove Bookmark", role: .destructive) {
                 context.delete(bookmark)
-                context.safeSave()
+                dependencies.saveCoordinator.save(context, reason: "Remove bookmark")
             }
         }
         .swipeActions {
             Button("Remove", systemImage: "bookmark.slash", role: .destructive) {
                 context.delete(bookmark)
-                context.safeSave()
+                dependencies.saveCoordinator.save(context, reason: "Remove bookmark")
             }
         }
     }
@@ -88,6 +89,7 @@ struct AlbumNotesView: View {
     @Environment(AlbumLibrary.self) private var library
     @Environment(AlbumsNavModel.self) private var nav
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDAlbumPageNote.albumID, ascending: true),
         NSSortDescriptor(keyPath: \CDAlbumPageNote.pageIndex, ascending: true),
@@ -158,12 +160,15 @@ struct AlbumNotesView: View {
         .buttonStyle(.plain)
         .contextMenu {
             Button("Edit Note") { editingNote = note }
-            Button("Delete Note", role: .destructive) { context.delete(note); context.safeSave() }
+            Button("Delete Note", role: .destructive) {
+                context.delete(note)
+                dependencies.saveCoordinator.save(context, reason: "Delete note")
+            }
         }
         .swipeActions {
             Button("Delete", systemImage: "trash", role: .destructive) {
                 context.delete(note)
-                context.safeSave()
+                dependencies.saveCoordinator.save(context, reason: "Delete note")
             }
         }
     }
@@ -173,6 +178,7 @@ struct AlbumHighlightsView: View {
     @Environment(AlbumLibrary.self) private var library
     @Environment(AlbumsNavModel.self) private var nav
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDAlbumHighlight.albumID, ascending: true),
         NSSortDescriptor(keyPath: \CDAlbumHighlight.pageIndex, ascending: true),
@@ -238,13 +244,13 @@ struct AlbumHighlightsView: View {
         .contextMenu {
             Button("Remove Highlight", role: .destructive) {
                 context.delete(highlight)
-                context.safeSave()
+                dependencies.saveCoordinator.save(context, reason: "Remove highlight")
             }
         }
         .swipeActions {
             Button("Remove", systemImage: "trash", role: .destructive) {
                 context.delete(highlight)
-                context.safeSave()
+                dependencies.saveCoordinator.save(context, reason: "Remove highlight")
             }
         }
     }
@@ -253,6 +259,7 @@ struct AlbumHighlightsView: View {
 struct AlbumNoteEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.dependencies) private var dependencies
     let note: CDAlbumPageNote
     @State private var text = ""
 
@@ -270,7 +277,7 @@ struct AlbumNoteEditorSheet: View {
                 Button("Save") {
                     note.text = text
                     note.modifiedAt = Date()
-                    context.safeSave()
+                    dependencies.saveCoordinator.save(context, reason: "Save note")
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)

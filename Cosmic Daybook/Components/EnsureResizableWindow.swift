@@ -50,7 +50,7 @@ final class ResizableFlagView: NSView {
         }
         
         // Defer to next run loop to avoid triggering layout during active layout pass
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self, let win = self.window else {
                 self?.hasScheduledUpdate = false
                 return
@@ -123,7 +123,7 @@ final class SheetResizeView: NSView {
         guard targetSize != lastAppliedSize else { return }
         hasScheduledResize = true
 
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self, let win = self.window else {
                 self?.hasScheduledResize = false
                 return

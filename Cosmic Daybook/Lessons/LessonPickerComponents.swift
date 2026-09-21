@@ -81,7 +81,7 @@ struct LessonSearchField: View {
             }
             .onChange(of: isPresented) { _, presented in
                 if presented {
-                    Task { @MainActor in
+                    Task {
                         textFocused = true
                     }
                 }

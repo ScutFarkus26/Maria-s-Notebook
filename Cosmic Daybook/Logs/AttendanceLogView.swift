@@ -5,6 +5,7 @@ import CoreData
 // swiftlint:disable:next type_body_length
 struct AttendanceLogView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
@@ -428,12 +429,12 @@ struct AttendanceLogView: View {
 
     private func updateRecordStatus(_ record: CDAttendanceRecord, to status: AttendanceStatus) {
         record.status = status
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update attendance status")
     }
 
     private func deleteRecord(_ record: CDAttendanceRecord) {
         viewContext.delete(record)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete attendance record")
     }
 }
 

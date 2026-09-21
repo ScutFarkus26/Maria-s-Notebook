@@ -179,7 +179,7 @@ struct QuickNoteGlassButton: View {
     }
 
     private func startLongPressTask() {
-        longPressTask = Task { @MainActor in
+        longPressTask = Task {
             do {
                 try await Task.sleep(for: longPressDuration)
 

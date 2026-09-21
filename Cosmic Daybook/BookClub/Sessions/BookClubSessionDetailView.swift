@@ -5,6 +5,7 @@ import OSLog
 struct BookClubSessionDetailView: View {
     @ObservedObject var session: CDBookClubSession
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
     let onClose: () -> Void
     let onDelete: () -> Void
@@ -57,7 +58,7 @@ struct BookClubSessionDetailView: View {
                     meeting.leaderStudentID = studentID?.uuidString ?? ""
                     meeting.modifiedAt = Date()
                     session.modifiedAt = Date()
-                    viewContext.safeSave()
+                    dependencies.saveCoordinator.save(viewContext, reason: "Reassign meeting leader")
                     leaderReassignTarget = nil
                 },
                 onCancel: { leaderReassignTarget = nil }
@@ -172,7 +173,7 @@ struct BookClubSessionDetailView: View {
                 set: {
                     session.status = $0
                     session.modifiedAt = Date()
-                    viewContext.safeSave()
+                    dependencies.saveCoordinator.save(viewContext, reason: "Update session status")
                 }
             )) {
                 ForEach(BookClubSessionStatus.allCases) { status in
@@ -256,7 +257,7 @@ struct BookClubSessionDetailView: View {
             session.status = .active
         }
         session.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update session status")
     }
 
     private func regenerateSchedule() {
@@ -304,12 +305,12 @@ struct BookClubSessionDetailView: View {
             session.endDate = lastDate
         }
         session.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Generate session meetings")
     }
 
     private func deleteSession() {
         viewContext.delete(session)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete session")
         onDelete()
     }
 }

@@ -204,7 +204,7 @@ struct LessonsScopeMapView: View {
             hoverRowID = nil
         }
         // Outlive the mouse-up that ends the gesture, then let clicks drill in again.
-        Task { @MainActor in
+        Task {
             try? await Task.sleep(for: .milliseconds(250))
             moveGestureDidEngage = false
         }

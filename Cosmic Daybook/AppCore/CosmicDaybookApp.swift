@@ -58,7 +58,10 @@ struct CosmicDaybookApp: App {
             primaryStack: stack,
             primaryDependencies: deps
         )
-        saveCoordinator = SaveCoordinator(toastService: deps.toastService)
+        // One coordinator app-wide: the environment instance every view saves
+        // through must be the one `dependencies.saveCoordinator` hands out, or
+        // failures recorded on one never reach the other's "Couldn't Save" alert.
+        saveCoordinator = deps.saveCoordinator
         restoreCoordinator = RestoreCoordinator(appRouter: deps.appRouter)
 
         #if os(iOS)

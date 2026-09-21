@@ -33,7 +33,7 @@ final class EventKitChangeObserver {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.pendingChangeTask?.cancel()
-                self.pendingChangeTask = Task { @MainActor in
+                self.pendingChangeTask = Task {
                     await handler()
                 }
             }

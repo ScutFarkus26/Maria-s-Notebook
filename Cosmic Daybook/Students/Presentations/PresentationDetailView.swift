@@ -256,7 +256,7 @@ struct PresentationDetailContentView: View {
                 // a dismissal issued while the alert is still tearing itself
                 // down is swallowed, and the window this was deleted from
                 // stays open over a presentation that no longer exists.
-                vm.delete { Task { @MainActor in handleDone() } }
+                vm.delete { Task { handleDone() } }
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -417,7 +417,7 @@ struct PresentationDetailContentView: View {
         // Cleanup empty drafts if cancelling
         if vm.lessonAssignment.studentIDs.isEmpty {
             viewContext.delete(vm.lessonAssignment)
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Discard empty draft")
         }
         handleDone()
     }

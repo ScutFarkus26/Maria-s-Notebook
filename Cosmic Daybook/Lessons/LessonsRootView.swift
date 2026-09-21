@@ -229,7 +229,7 @@ struct LessonsRootView: View {
     }
 
     private func handleSearchTextChange(_ newValue: String) {
-        Task { @MainActor in
+        Task {
             searchTextRaw = newValue
         }
     }
@@ -309,7 +309,7 @@ struct LessonsRootView: View {
     }
 
     private func handleAreaChange(_ newValue: String?) {
-        Task { @MainActor in
+        Task {
             selectedAreaRaw = newValue ?? ""
             isEditingMap = false
             // Preserve the drilled-in thread when this area change is a side-effect of

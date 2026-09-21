@@ -57,7 +57,7 @@ struct DayPadEditor: View {
 
     private func scheduleSave(_ newValue: String) {
         saveTask?.cancel()
-        saveTask = Task { @MainActor in
+        saveTask = Task {
             do {
                 try await Task.sleep(for: .milliseconds(500))
                 guard !Task.isCancelled else { return }

@@ -99,7 +99,7 @@ struct AlbumDetailView: View {
                 // page indicator, and the window subtitle all read. Written
                 // while AppKit is still measuring the toolbar, that poisons an
                 // item's size to NaN and takes the window down (2026-09-10).
-                Task { @MainActor in
+                Task {
                     consumeTarget()
                     restorePositionIfNeeded()
                 }
@@ -654,7 +654,7 @@ struct AlbumDetailView: View {
         let state = AlbumSummaryState(lesson: lesson)
         // Presenting from the button action lands inside AppKit's toolbar layout
         // pass; hop to the next main-actor turn so the bar finishes measuring first.
-        Task { @MainActor in
+        Task {
             summary = state
             do {
                 state.result = try await intelligence.summarize(
@@ -848,6 +848,7 @@ struct AlbumOutlineListView: View {
 
 struct AlbumPageNotesPanel: View {
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDAlbumPageNote.createdAt, ascending: true)
     ])
@@ -882,7 +883,7 @@ struct AlbumPageNotesPanel: View {
                                     Spacer()
                                     Button(role: .destructive) {
                                         context.delete(note)
-                                        context.safeSave()
+                                        dependencies.saveCoordinator.save(context, reason: "Delete page note")
                                     } label: {
                                         Image(systemName: "trash")
                                             .font(.caption)

@@ -99,7 +99,7 @@ struct StudentInsightsView: View {
 
     func markAsReviewed(_ snapshot: CDDevelopmentSnapshotEntity) {
         snapshot.isReviewed = true
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Mark snapshot reviewed")
     }
 
     func generateParentSummary(_ snapshot: CDDevelopmentSnapshotEntity) {

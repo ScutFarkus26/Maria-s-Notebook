@@ -1,9 +1,12 @@
 import Foundation
 import SwiftUI
 import CoreData
+import OSLog
 
 @Observable
 final class SaveCoordinator {
+    private static let logger = Logger.database
+
     var lastSaveError: Error?
     var lastSaveErrorMessage: String?
     var isShowingSaveError: Bool = false
@@ -81,6 +84,9 @@ final class SaveCoordinator {
             try context.save()
             return true
         } catch {
+            // `.fault` survives release log capture, so a failed save is
+            // visible even when the alert below is suppressed or dismissed.
+            Self.logger.fault("Failed to save context (\(reason ?? "no reason")): \(error.localizedDescription)")
             self.lastSaveError = error
             self.lastSaveErrorMessage = AppErrorMessages.saveFailureMessage(for: error, reason: reason)
             if !self.suppressAlerts && !self.isShowingSaveError {

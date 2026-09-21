@@ -7,6 +7,7 @@ import CoreData
 struct GoingOutDetailView: View {
     @ObservedObject var goingOut: CDGoingOut
     @Environment(\.managedObjectContext) private var modelContext
+    @Environment(\.dependencies) private var dependencies
     @State private var showingEditor = false
     @State private var showingNoteEditor = false
 
@@ -130,7 +131,7 @@ struct GoingOutDetailView: View {
                         if newStatus == .completed {
                             goingOut.actualDate = Date()
                         }
-                        modelContext.safeSave()
+                        dependencies.saveCoordinator.save(modelContext, reason: "Update going-out status")
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -209,7 +210,7 @@ struct GoingOutDetailView: View {
                 ForEach(PermissionStatus.allCases) { status in
                     Button {
                         goingOut.permissionStatus = status
-                        modelContext.safeSave()
+                        dependencies.saveCoordinator.save(modelContext, reason: "Update permission status")
                     } label: {
                         Label(status.displayName, systemImage: status.icon)
                     }

@@ -4,6 +4,7 @@ import CoreData
 // Detail view for viewing and editing a supply
 struct SupplyDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(\.dismiss) private var dismiss
 
     @ObservedObject var supply: CDSupply
@@ -116,7 +117,7 @@ struct SupplyDetailView: View {
         supply.location = editLocation
         supply.notes = editNotes
         supply.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update supply")
     }
 
 }

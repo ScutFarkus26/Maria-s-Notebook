@@ -94,7 +94,7 @@ extension CosmicDaybookApp {
 
         let assertion = BackgroundTaskAssertion()
         assertion.begin(named: "AutoBackup")
-        Task { @MainActor in
+        Task {
             await BackupBackgroundTaskManager.schedule()
             await dependencies.autoBackupManager.performBackgroundBackup(
                 viewContext: coreDataStack.viewContext

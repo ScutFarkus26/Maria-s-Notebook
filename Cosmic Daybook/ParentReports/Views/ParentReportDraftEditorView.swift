@@ -123,7 +123,7 @@ struct ParentReportDraftEditorView: View {
             Toggle("Include student's reflection", isOn: $includeReflection)
                 .onChange(of: includeReflection) { _, newValue in
                     report?.includeStudentReflection = newValue
-                    viewContext.safeSave()
+                    dependencies.saveCoordinator.save(viewContext, reason: "Update report options")
                 }
                 .disabled(isSent)
         } footer: {
@@ -160,7 +160,7 @@ struct ParentReportDraftEditorView: View {
             Toggle("Attach PDF report", isOn: $attachPDF)
                 .onChange(of: attachPDF) { _, newValue in
                     report?.attachPDF = newValue
-                    viewContext.safeSave()
+                    dependencies.saveCoordinator.save(viewContext, reason: "Update report options")
                 }
                 .disabled(isSent)
 
@@ -236,7 +236,7 @@ struct ParentReportDraftEditorView: View {
         guard let report, report.body != narrative else { return }
         report.body = narrative
         report.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Save report narrative")
     }
 
     private func generateDraft() {
@@ -251,7 +251,7 @@ struct ParentReportDraftEditorView: View {
             let updated = service.upsertReport(for: student, month: month, draft: draft)
             updated.includeStudentReflection = includeReflection
             updated.attachPDF = attachPDF
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Save report draft")
             report = updated
             narrative = draft.narrative
             isGenerating = false

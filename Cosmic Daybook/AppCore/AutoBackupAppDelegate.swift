@@ -42,13 +42,13 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
         let viewContext = coreDataStack.viewContext
         didReplyToTermination = false
 
-        Task { @MainActor in
+        Task {
             await autoBackupManager.performBackupOnQuit(viewContext: viewContext)
             self.replyToTerminationOnce(sender)
         }
 
         // Safety net: never hold the quit hostage to a hung backup.
-        Task { @MainActor in
+        Task {
             try? await Task.sleep(for: Self.quitBackupTimeout)
             self.replyToTerminationOnce(sender)
         }

@@ -22,7 +22,7 @@ final class PresentationsFilterState {
     func updateSearchText(_ new: String) {
         searchText = new
         debounceTask?.cancel()
-        debounceTask = Task { @MainActor [weak self] in
+        debounceTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled, let self else { return }
             self.debouncedSearchText = new

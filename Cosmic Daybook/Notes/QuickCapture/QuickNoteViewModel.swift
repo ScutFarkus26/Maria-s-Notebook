@@ -281,7 +281,7 @@ class QuickNoteViewModel {
             do {
                 if let data = try await item.loadTransferable(type: Data.self),
                    let uiImage = PlatformImage(data: data) {
-                    await MainActor.run { processImage(uiImage) }
+                    processImage(uiImage)
                 }
             } catch {
                 Self.logger.warning("Failed to load photo: \(error)")

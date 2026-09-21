@@ -208,7 +208,7 @@ struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_lengt
             loadWeekLessonAssignments()
         }
         .onChange(of: startDate) { _, _ in
-            Task { @MainActor in
+            Task {
                 loadWeekLessonAssignments()
             }
         }

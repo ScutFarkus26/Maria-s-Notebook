@@ -111,7 +111,7 @@ struct RootView: View {
                 preSelectedStudentIDs: commandBarWorkStudentIDs
             ) { workID in
                 // Delay slightly to allow sheet dismiss animation to complete
-                Task { @MainActor in
+                Task {
                     do {
                         try await Task.sleep(for: .milliseconds(300))
                     } catch {
@@ -403,7 +403,7 @@ struct RootView: View {
     /// iOS toolbar trigger, the radial quick-command menu, and File > New.
     private func createPresentationDraft() {
         let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Create presentation draft")
         newPresentationDraftID = draft.id
     }
 

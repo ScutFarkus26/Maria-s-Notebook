@@ -88,18 +88,18 @@ struct PDFPageViewRepresentable: NSViewRepresentable {
 
         if let existingDocument = page.document {
             if nsView.document !== existingDocument {
-                Task { @MainActor in
+                Task {
                     nsView.document = existingDocument
                     nsView.go(to: targetPage)
                 }
             } else if nsView.currentPage !== page {
-                Task { @MainActor in
+                Task {
                     nsView.go(to: targetPage)
                 }
             }
         } else if nsView.document == nil {
             // Only create a new document if the page doesn't have one and view has no document
-            Task { @MainActor in
+            Task {
                 let newDocument = PDFDocument()
                 newDocument.insert(targetPage, at: 0)
                 nsView.document = newDocument

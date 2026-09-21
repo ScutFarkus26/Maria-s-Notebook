@@ -3,6 +3,7 @@ import CoreData
 
 struct MeetingsLogView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
@@ -275,12 +276,12 @@ struct MeetingsLogView: View {
 
     private func toggleMeetingCompletion(_ meeting: CDStudentMeeting) {
         meeting.completed.toggle()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Toggle meeting completion")
     }
 
     private func deleteMeeting(_ meeting: CDStudentMeeting) {
         viewContext.delete(meeting)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete meeting")
     }
 }
 

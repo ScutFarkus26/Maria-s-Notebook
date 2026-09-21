@@ -132,7 +132,7 @@ extension TodayView {
         adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toastMessage = message
         }
-        Task { @MainActor in
+        Task {
             do {
                 try await Task.sleep(for: .seconds(2.0))
             } catch {
@@ -190,7 +190,7 @@ extension TodayView {
             } else {
                 TodoCompletionService.complete(todo, calendar: calendar)
             }
-            viewContext.safeSave()
+            saveCoordinator.save(viewContext, reason: "Toggle todo")
         }
     }
 }

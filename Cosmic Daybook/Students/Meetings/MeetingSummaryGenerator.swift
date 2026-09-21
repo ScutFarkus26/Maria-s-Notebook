@@ -51,7 +51,7 @@ enum MeetingSummaryGenerator {
 
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         guard SystemLanguageModel.default.isAvailable else {
-            await MainActor.run { onSummaryGenerated(manualSummary, false) }
+            onSummaryGenerated(manualSummary, false)
             return
         }
 
@@ -59,7 +59,7 @@ enum MeetingSummaryGenerator {
         let totalLength = meeting.reflection.count + meeting.guideNotes.count
             + meeting.focus.count + meeting.requests.count
         guard totalLength > 30 else {
-            await MainActor.run { onSummaryGenerated(manualSummary, false) }
+            onSummaryGenerated(manualSummary, false)
             return
         }
 
@@ -83,22 +83,22 @@ enum MeetingSummaryGenerator {
             var aiGenerated = false
             for try await partial in stream {
                 if let overview = partial.content.overview, !overview.isEmpty {
-                    await MainActor.run { onSummaryGenerated(overview, true) }
+                    onSummaryGenerated(overview, true)
                     aiGenerated = true
                 }
             }
 
             if !aiGenerated {
-                await MainActor.run { onSummaryGenerated(manualSummary, false) }
+                onSummaryGenerated(manualSummary, false)
             }
         } catch {
             logger.warning("AI summary generation failed: \(error)")
-            await MainActor.run { onSummaryGenerated(manualSummary, false) }
+            onSummaryGenerated(manualSummary, false)
         }
 
         #else
         // Fallback: AI disabled
-        await MainActor.run { onSummaryGenerated(manualSummary, false) }
+        onSummaryGenerated(manualSummary, false)
         #endif
     }
 

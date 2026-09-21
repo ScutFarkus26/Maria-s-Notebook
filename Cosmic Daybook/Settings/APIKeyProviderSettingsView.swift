@@ -234,7 +234,7 @@ struct APIKeyProviderSettingsView: View {
 
     /// Clear message after 3 seconds
     private func dismissSaveMessageAfterDelay() {
-        Task { @MainActor in
+        Task {
             do {
                 try await Task.sleep(for: .seconds(3))
             } catch {

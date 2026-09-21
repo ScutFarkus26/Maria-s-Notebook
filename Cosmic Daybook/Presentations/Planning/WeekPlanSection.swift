@@ -113,7 +113,7 @@ struct WeekPlanSection: View {
                 onLog: { entries in logWork(entries, on: group.sortDate) },
                 onOpenWork: { workID in
                     selectedGroup = nil
-                    Task { @MainActor in
+                    Task {
                         // Let the sheet finish dismissing first.
                         try? await Task.sleep(for: .milliseconds(350))
                         onOpenWork(workID)

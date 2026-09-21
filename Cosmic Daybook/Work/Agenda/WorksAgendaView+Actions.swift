@@ -16,7 +16,7 @@ extension WorksAgendaView {
 
     func openDetail(_ w: CDWorkModel) {
         // Force save before opening
-        viewContext.safeSave()
+        saveCoordinator.save(viewContext, reason: "Save before opening work")
 
         guard let workID = w.id else { return }
 
@@ -25,7 +25,7 @@ extension WorksAgendaView {
         #else
         selected = nil
         let token = SelectionToken(id: UUID(), workID: workID)
-        Task { @MainActor in
+        Task {
             selected = token
         }
         #endif

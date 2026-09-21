@@ -31,7 +31,7 @@ final class ReminderSyncService {
         didSet {
             UserDefaults.standard.set(syncListIdentifier, forKey: UserDefaultsKeys.reminderSyncListIdentifier)
             // Restart observation if sync is enabled/disabled
-            Task { @MainActor in
+            Task {
                 if self.syncListIdentifier != nil && self.hasFullAccess {
                     self.startObservingChanges()
                 } else {

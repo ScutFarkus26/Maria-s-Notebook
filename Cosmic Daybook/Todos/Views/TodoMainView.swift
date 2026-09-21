@@ -7,6 +7,7 @@ import CoreData
 /// Main todo view with elegant layout inspired by Things and Bear
 struct TodoMainView: View {
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) var dependencies
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
     var allTodos: FetchedResults<CDTodoItem>
 
@@ -200,13 +201,13 @@ struct TodoMainView: View {
         for todo in completed {
             viewContext.delete(todo)
         }
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Clear completed todos")
     }
 
     func deleteTodo(_ todo: CDTodoItem) {
         adaptiveWithAnimation {
             viewContext.delete(todo)
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Delete todo")
         }
     }
 

@@ -358,7 +358,7 @@ final class AppRouter {
     func signalAppDataWillBeReplaced() {
         appDataWillBeReplaced = true
         // Reset after a brief moment to allow observers to react
-        Task { @MainActor in
+        Task {
             do {
                 try await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
             } catch {
@@ -372,7 +372,7 @@ final class AppRouter {
     func signalAppDataDidRestore() {
         appDataDidRestore = true
         // Reset after a brief moment to allow observers to react
-        Task { @MainActor in
+        Task {
             do {
                 try await Task.sleep(for: .seconds(UIConstants.navigationResetDelay))
             } catch {

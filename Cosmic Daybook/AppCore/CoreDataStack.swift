@@ -90,11 +90,11 @@ final class CoreDataStack {
     /// Persistent history processor for serialized remote change handling.
     private(set) var historyProcessor: PersistentHistoryProcessor?
 
-    /// Token for the remote change notification observer.
-    /// `nonisolated(unsafe)` so the (nonisolated) `deinit` can read it to remove
-    /// the observer — it is written once during init and read once at deinit, with
-    /// no concurrent access, so the unchecked annotation is safe here.
-    nonisolated(unsafe) private var remoteChangeObserver: (any NSObjectProtocol)?
+    /// The task that forwards remote-change notifications to the handler.
+    /// `nonisolated(unsafe)` so the (nonisolated) `deinit` can cancel it — it is
+    /// written once during init and read once at deinit, with no concurrent
+    /// access, so the unchecked annotation is safe here.
+    nonisolated(unsafe) private var remoteChangeTask: Task<Void, Never>?
 
     // MARK: - Store Configurations
 
@@ -451,16 +451,16 @@ final class CoreDataStack {
             historyProcessor = PersistentHistoryProcessor(container: container)
         }
 
-        // Listen for remote changes (must dispatch to main queue since this class is @MainActor
-        // but NSPersistentStoreRemoteChange fires on a background queue)
-        remoteChangeObserver = NotificationCenter.default.addObserver(
-            forName: .NSPersistentStoreRemoteChange,
-            object: container.persistentStoreCoordinator,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
-                self.handleRemoteChangeNotification()
+        // Listen for remote changes. `NSPersistentStoreRemoteChange` fires on a
+        // background queue; the notification sequence resumes this main-actor
+        // task, so the handler runs on the main actor without a manual hop.
+        remoteChangeTask = Task { [weak self] in
+            guard let coordinator = self?.container.persistentStoreCoordinator else { return }
+            let changes = NotificationCenter.default
+                .notifications(named: .NSPersistentStoreRemoteChange, object: coordinator)
+                .map { _ in () }
+            for await _ in changes {
+                self?.handleRemoteChangeNotification()
             }
         }
 
@@ -471,11 +471,9 @@ final class CoreDataStack {
     deinit {
         // The production stack lives for the whole process, but launch-time
         // fallbacks and tests create throwaway stacks; without this they leak a
-        // main-queue observer that keeps firing remote-change handlers on a dead
-        // stack. Reading `remoteChangeObserver` here is safe (see its declaration).
-        if let remoteChangeObserver {
-            NotificationCenter.default.removeObserver(remoteChangeObserver)
-        }
+        // task that keeps firing remote-change handlers on a dead stack.
+        // Reading `remoteChangeTask` here is safe (see its declaration).
+        remoteChangeTask?.cancel()
     }
 
     // MARK: - View Context Configuration

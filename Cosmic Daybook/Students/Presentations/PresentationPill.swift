@@ -441,7 +441,7 @@ struct PresentationPill: View {
 
     private func triggerMergeAcceptedPulse() {
         mergeAcceptedPulse = true
-        Task { @MainActor in
+        Task {
             try? await Task.sleep(for: .milliseconds(220))
             mergeAcceptedPulse = false
         }
