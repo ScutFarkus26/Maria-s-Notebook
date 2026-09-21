@@ -24,6 +24,7 @@ import OSLog
 struct WeekDayColumn: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
+    @Environment(\.dependencies) var dependencies
 
     let day: Date
     let allLessonAssignments: [CDLessonAssignment]

@@ -21,6 +21,7 @@ struct WorksAgendaView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @Environment(\.appRouter) var appRouter
+    @Environment(\.dependencies) var dependencies
     @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
     #if os(macOS)

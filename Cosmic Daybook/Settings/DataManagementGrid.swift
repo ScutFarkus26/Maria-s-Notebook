@@ -223,7 +223,7 @@ struct DataManagementGrid: View {
         case .moved(let count, _):
             let noun = count == 1 ? "backup" : "backups"
             resultMessage = "Moved \(count) \(noun) to iCloud Drive."
-            ToastService.shared.showSuccess("Backups moved")
+            dependencies.toastService.showSuccess("Backups moved")
         case .nothingToMove:
             resultMessage = "Cleared default folder. Future backups go to iCloud Drive."
         case .failed(let error):

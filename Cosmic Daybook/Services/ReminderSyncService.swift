@@ -35,7 +35,7 @@ final class ReminderSyncService {
                 if self.syncListIdentifier != nil && self.hasFullAccess {
                     self.startObservingChanges()
                 } else {
-                    self.stopObservingChangesOnMainActor()
+                    self.storeChangeObserver.stop()
                 }
             }
         }
@@ -53,9 +53,7 @@ final class ReminderSyncService {
     var authorizationStatus: EKAuthorizationStatus = .notDetermined
 
     // MARK: - Change Observation
-    private var changeObserver: NSObjectProtocol?
-    private var isObserving = false
-    private var pendingChangeTask: Task<Void, Never>?
+    private let storeChangeObserver = EventKitChangeObserver()
 
     init(context: NSManagedObjectContext? = nil) {
         self.managedObjectContext = context
@@ -200,50 +198,19 @@ final class ReminderSyncService {
     
     /// Start observing EventKit changes for automatic syncing
     private func startObservingChanges() {
-        guard !isObserving else { return }
         guard hasFullAccess else { return }
         guard syncListIdentifier != nil || syncListName != nil else { return }
-        
-        // Observe EventKit store changes
-        // CDNote: EKEventStoreChangedNotification is posted when reminders/events change
-        changeObserver = NotificationCenter.default.addObserver(
-            forName: .EKEventStoreChanged,
-            object: eventStore,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                // Cancel any pending task to prevent accumulation
-                self.pendingChangeTask?.cancel()
-                self.pendingChangeTask = Task { @MainActor [weak self] in
-                    await self?.handleEventStoreChanged()
-                }
-            }
-        }
 
-        isObserving = true
-    }
-    
-    /// Stop observing EventKit changes (MainActor implementation)
-    private func stopObservingChangesOnMainActor() {
-        // Cancel any pending sync tasks
-        pendingChangeTask?.cancel()
-        pendingChangeTask = nil
-        
-        // Remove notification observer - safe to call even if observer is nil
-        if let observer = changeObserver {
-            NotificationCenter.default.removeObserver(observer)
-            changeObserver = nil
+        storeChangeObserver.start(eventStore: eventStore) { [weak self] in
+            await self?.handleEventStoreChanged()
         }
-        
-        isObserving = false
     }
 
     /// Stop observing EventKit changes
     /// Safe to call from nonisolated contexts (e.g. `deinit`)
     private nonisolated func stopObservingChanges() {
         Task { @MainActor [weak self] in
-            self?.stopObservingChangesOnMainActor()
+            self?.storeChangeObserver.stop()
         }
     }
     

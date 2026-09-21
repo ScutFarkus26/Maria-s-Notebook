@@ -193,6 +193,7 @@ struct ConsolidatePresentationsSheet: View {
 private struct ConsolidateLessonCard: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.appRouter) private var appRouter
+    @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @ObservedObject var presentation: CDLessonAssignment
@@ -260,7 +261,7 @@ private struct ConsolidateLessonCard: View {
             canAccept: { isDropHighlighted },
             onDidMutate: { reason in saveCoordinator.save(viewContext, reason: reason) },
             onMergeReceived: {},
-            onSourceEmptied: { ToastService.shared.showSuccess("Presentation removed") }
+            onSourceEmptied: { dependencies.toastService.showSuccess("Presentation removed") }
         ))
     }
 
@@ -303,7 +304,7 @@ private struct ConsolidateLessonCard: View {
         }
         saveCoordinator.save(viewContext, reason: "Remove student from presentation")
         if didEmpty {
-            ToastService.shared.showSuccess("Presentation removed")
+            dependencies.toastService.showSuccess("Presentation removed")
         }
         appRouter.refreshPlanningInbox()
     }

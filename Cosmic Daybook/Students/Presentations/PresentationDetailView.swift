@@ -114,6 +114,7 @@ struct PresentationDetailContentView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
+    @Environment(\.dependencies) var dependencies
     @State var lessonPickerFocused: Bool = false
     @State var showUnsavedChangesAlert: Bool = false
     @State var showIndependentWorkflowWindow: Bool = false
@@ -352,7 +353,7 @@ struct PresentationDetailContentView: View {
                 onUndoPresentation: postPresentationUndoAction,
                 onDetailsSaved: {
                     presentationUndoToken = nil
-                    ToastService.shared.dismiss()
+                    dependencies.toastService.dismiss()
                 }
             )
         } else {

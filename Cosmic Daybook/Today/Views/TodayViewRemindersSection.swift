@@ -143,11 +143,11 @@ extension TodayView {
                 .tracking(0.8)
             Spacer()
             // Show sync status indicator
-            if ReminderSyncService.shared.isSyncing {
+            if dependencies.reminderSync.isSyncing {
                 ProgressView()
                     .scaleEffect(0.6)
                     .accessibilityLabel("Syncing reminders")
-            } else if let error = ReminderSyncService.shared.lastSyncError {
+            } else if let error = dependencies.reminderSync.lastSyncError {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
                     .foregroundStyle(.orange.opacity(UIConstants.OpacityConstants.prominent))
@@ -186,11 +186,11 @@ extension TodayView {
                 .tracking(0.8)
             Spacer()
             // Show sync status indicator
-            if CalendarSyncService.shared.isSyncing {
+            if dependencies.calendarSync.isSyncing {
                 ProgressView()
                     .scaleEffect(0.6)
                     .accessibilityLabel("Syncing calendar events")
-            } else if let error = CalendarSyncService.shared.lastSyncError {
+            } else if let error = dependencies.calendarSync.lastSyncError {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
                     .foregroundStyle(.orange.opacity(UIConstants.OpacityConstants.prominent))

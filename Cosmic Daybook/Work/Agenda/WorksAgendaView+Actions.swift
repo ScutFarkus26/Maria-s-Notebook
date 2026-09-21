@@ -40,15 +40,15 @@ extension WorksAgendaView {
                 context: viewContext, saveCoordinator: saveCoordinator
             )
             let noun = receipt.rows == 1 ? "1 work item" : "\(receipt.rows) work items"
-            ToastService.shared.show("Logged \(noun) as \(status.displayName)", type: .success, duration: 5) {
+            dependencies.toastService.show("Logged \(noun) as \(status.displayName)", type: .success, duration: 5) {
                 do {
                     try WorkLogService.undo(receipt.token, context: viewContext, saveCoordinator: saveCoordinator)
                 } catch {
-                    ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
+                    dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
                 }
             }
         } catch {
-            ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
+            dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
         }
     }
 

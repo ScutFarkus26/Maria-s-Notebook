@@ -150,16 +150,16 @@ extension WeekPlanSection {
             )
             Task { await refreshCheckIns() }
             let message = receipt.rows == 1 ? "Logged 1 work check" : "Logged \(receipt.rows) work checks"
-            ToastService.shared.show(message, type: .success, duration: 5) {
+            dependencies.toastService.show(message, type: .success, duration: 5) {
                 do {
                     try WorkLogService.undo(receipt.token, context: viewContext, saveCoordinator: saveCoordinator)
                 } catch {
-                    ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
+                    dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
                 }
                 Task { await refreshCheckIns() }
             }
         } catch {
-            ToastService.shared.show(error.localizedDescription, type: .error, duration: 4)
+            dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
         }
     }
 

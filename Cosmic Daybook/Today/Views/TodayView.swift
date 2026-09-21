@@ -30,6 +30,7 @@ struct TodayView: View {
     // MARK: - Environment
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) var appRouter
+    @Environment(\.dependencies) var dependencies
     @Environment(\.calendar) var calendar
     @Environment(\.scenePhase) private var scenePhase
     @Environment(RestoreCoordinator.self) var restoreCoordinator
@@ -396,8 +397,7 @@ struct TodayView: View {
     // PERF: Async functions instead of fire-and-forget Task blocks.
     // Callers use structured concurrency (async let / .task) for automatic cancellation.
     private func syncReminders() async {
-        let syncService = ReminderSyncService.shared
-        syncService.managedObjectContext = viewContext
+        let syncService = dependencies.reminderSync
         if syncService.syncListIdentifier != nil || syncService.syncListName != nil {
             do {
                 try await syncService.syncReminders()
@@ -414,8 +414,7 @@ struct TodayView: View {
     }
 
     private func syncCalendarEvents() async {
-        let calendarSyncService = CalendarSyncService.shared
-        calendarSyncService.managedObjectContext = viewContext
+        let calendarSyncService = dependencies.calendarSync
         if !calendarSyncService.syncCalendarIdentifiers.isEmpty {
             do {
                 try await calendarSyncService.syncEvents()

@@ -12,6 +12,7 @@ struct PostPresentationCaptureSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var captureViewModel = CommandBarViewModel()
@@ -353,7 +354,7 @@ private extension PostPresentationCaptureSheet {
                 recordedPresentationID: presentationID
             )
             onDetailsSaved()
-            ToastService.shared.showSuccess("Presentation observation saved")
+            dependencies.toastService.showSuccess("Presentation observation saved")
             dismiss()
         } catch {
             isSaving = false

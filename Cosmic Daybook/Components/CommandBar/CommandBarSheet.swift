@@ -338,7 +338,7 @@ struct CommandBarSheet: View {
                 saveCoordinator: saveCoordinator
             )
             let recordCount = (receipt.presentationID == nil ? 0 : 1) + receipt.noteCount + receipt.workCount
-            ToastService.shared.showSuccess(
+            dependencies.toastService.showSuccess(
                 recordCount == 1 ? "Classroom record saved" : "\(recordCount) classroom records saved"
             )
             dismiss()
