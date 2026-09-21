@@ -11,6 +11,19 @@ enum CoreDataTestHelpers {
         try CoreDataStack(enableCloudKit: false, inMemory: true)
     }
 
+    /// The view context of a fresh in-memory stack — what a test wants when it
+    /// only needs somewhere to insert. A suite that has to configure the stack
+    /// (resetting a cache first, say) keeps its own helper.
+    static func makeContext() throws -> NSManagedObjectContext {
+        try makeInMemoryStack().viewContext
+    }
+
+    /// Parses a "yyyy-MM-dd" day string the way the MCP tools print one, so a
+    /// test's dates and a tool's output agree on the calendar and the zone.
+    static func day(_ iso: String) throws -> Date {
+        try #require(MCPNotebookTools.isoDay.date(from: iso))
+    }
+
     /// A context backed by two on-disk stores carrying the real Private and
     /// Shared configurations.
     ///

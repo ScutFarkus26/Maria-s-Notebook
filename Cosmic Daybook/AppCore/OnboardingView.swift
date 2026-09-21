@@ -4,7 +4,7 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage(UserDefaultsKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
     @State private var currentPage = 0
 
     private let pages: [OnboardingPage] = [

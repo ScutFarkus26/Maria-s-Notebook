@@ -29,7 +29,7 @@ final class ReminderSyncService {
     /// If nil, syncing is disabled
     var syncListIdentifier: String? {
         didSet {
-            UserDefaults.standard.set(syncListIdentifier, forKey: "ReminderSync.syncListIdentifier")
+            UserDefaults.standard.set(syncListIdentifier, forKey: UserDefaultsKeys.reminderSyncListIdentifier)
             // Restart observation if sync is enabled/disabled
             Task { @MainActor in
                 if self.syncListIdentifier != nil && self.hasFullAccess {
@@ -45,7 +45,7 @@ final class ReminderSyncService {
     /// Stored alongside identifier for convenience
     var syncListName: String? {
         didSet {
-            UserDefaults.standard.set(syncListName, forKey: "ReminderSync.syncListName")
+            UserDefaults.standard.set(syncListName, forKey: UserDefaultsKeys.reminderSyncListName)
         }
     }
 
@@ -59,8 +59,8 @@ final class ReminderSyncService {
 
     init(context: NSManagedObjectContext? = nil) {
         self.managedObjectContext = context
-        self.syncListIdentifier = UserDefaults.standard.string(forKey: "ReminderSync.syncListIdentifier")
-        self.syncListName = UserDefaults.standard.string(forKey: "ReminderSync.syncListName")
+        self.syncListIdentifier = UserDefaults.standard.string(forKey: UserDefaultsKeys.reminderSyncListIdentifier)
+        self.syncListName = UserDefaults.standard.string(forKey: UserDefaultsKeys.reminderSyncListName)
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
 
         // Migrate from name-only storage to identifier-based storage

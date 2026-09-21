@@ -31,6 +31,8 @@ nonisolated enum UserDefaultsKeys {
     static let autoBackupRetentionCount = "AutoBackup.retentionCount"
     static let autoBackupScheduledEnabled = "AutoBackup.scheduledEnabled"
     static let autoBackupIntervalHours = "AutoBackup.intervalHours"
+    /// `timeIntervalSinceReferenceDate` of the last scheduled auto-backup run.
+    static let autoBackupLastScheduledDate = "AutoBackup.lastScheduledDate"
 
     // MARK: - Attendance
     static let attendanceEmailEnabled = "AttendanceEmail.enabled"
@@ -75,6 +77,10 @@ nonisolated enum UserDefaultsKeys {
     /// Off by default: exposing notebook data to MCP clients (Claude
     /// Desktop) is an explicit teacher choice. macOS only.
     static let aiMCPServerEnabled = "AI.mcpServerEnabled"
+    /// Legacy plaintext API keys. Read once on launch, copied into the
+    /// Keychain, then removed; never written again.
+    static let anthropicAPIKey = "anthropicAPIKey"
+    static let openAIAPIKey = "openAIAPIKey"
 
     // MARK: - Parent Reports
 
@@ -109,6 +115,10 @@ nonisolated enum UserDefaultsKeys {
 
     // MARK: - Lessons
     static let lessonsSortIndexMigrated = "Lessons.sortIndexMigrated"
+    /// The guide's hand-ordered curriculum areas, oldest spelling of the key.
+    static let lessonsAreaOrder = "Lessons.AreaOrder"
+    /// Which spine the Lessons map is grouped by (a `MapSpine` raw value).
+    static let lessonsMapSpine = "Lessons.mapSpine"
 
     // MARK: - Students
     static let studentDetailViewActiveTab = "StudentDetailView.activeTab"
@@ -117,6 +127,35 @@ nonisolated enum UserDefaultsKeys {
     static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
     static let studentsViewStyle = "StudentsView.viewStyle"
     static let studentPickerSortOrder = "StudentPicker.sortOrder"
+
+    // MARK: - Onboarding
+    static let hasCompletedOnboarding = "hasCompletedOnboarding"
+
+    // MARK: - Settings
+    /// Last-opened settings category (a `SettingsCategory` raw value).
+    static let settingsSelectedCategory = "settings_selectedCategory"
+    /// Version whose "What's New" banner the guide has already dismissed.
+    static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"
+
+    // MARK: - Resources
+    /// Grid or list on the resource library (a `ResourceViewMode` raw value).
+    static let resourceLibraryViewMode = "resourceLibrary.viewMode"
+
+    // MARK: - Planning Calendar
+    static let planningCalendarShowTodos = "PlanningCalendar.showTodos"
+    static let planningCalendarShowParsha = "PlanningCalendar.showParsha"
+    static let planningCalendarShowNotes = "PlanningCalendar.showNotes"
+    static let planningCalendarShowHolidays = "PlanningCalendar.showHolidays"
+    static let planningCalendarShowEvents = "PlanningCalendar.showEvents"
+
+    // MARK: - Calendar & Reminder Sync
+    static let calendarSyncIdentifiers = "CalendarSync.syncCalendarIdentifiers"
+    static let calendarSyncNames = "CalendarSync.syncCalendarNames"
+    /// Single-calendar spellings kept only so an old install migrates forward.
+    static let calendarSyncLegacyIdentifier = "CalendarSync.syncCalendarIdentifier"
+    static let calendarSyncLegacyName = "CalendarSync.syncCalendarName"
+    static let reminderSyncListIdentifier = "ReminderSync.syncListIdentifier"
+    static let reminderSyncListName = "ReminderSync.syncListName"
 
     // MARK: - Checklist
     static let checklistSelectedArea = "Checklist.selectedArea"

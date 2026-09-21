@@ -17,10 +17,6 @@ struct MCPPlanningEditToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     private func seedDivisionLesson(in context: NSManagedObjectContext) -> CDLesson {
         CoreDataTestHelpers.seedLesson(in: context, name: "Racks and Tubes", area: "Math", sequence: "Division")
     }
@@ -52,7 +48,8 @@ struct MCPPlanningEditToolsTests {
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
         let planned = PresentationFactory.makeScheduled(
-            lesson: lesson, students: [ora, etty], scheduledFor: try day("2026-09-14"), context: context
+            lesson: lesson, students: [ora, etty],
+                scheduledFor: try CoreDataTestHelpers.day("2026-09-14"), context: context
         )
         let note = CDNote(context: context)
         note.body = "Bring the small bead frame too."
@@ -82,7 +79,8 @@ struct MCPPlanningEditToolsTests {
         note.body = "Bring the small bead frame too."
         note.lessonAssignment = planned
         let entry = seedEntry(
-            in: context, student: ora, lesson: lesson, plannedDate: try day("2026-09-14"), status: .promoted
+            in: context, student: ora, lesson: lesson,
+                plannedDate: try CoreDataTestHelpers.day("2026-09-14"), status: .promoted
         )
         entry.promotedAssignmentID = planned.id?.uuidString
         #expect(CoreDataTestHelpers.save(context))
@@ -116,7 +114,7 @@ struct MCPPlanningEditToolsTests {
         let lesson = seedDivisionLesson(in: context)
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
         let given = PresentationFactory.makeDraft(lesson: lesson, students: [ora], context: context)
-        given.markPresented(at: try day("2026-09-01"))
+        given.markPresented(at: try CoreDataTestHelpers.day("2026-09-01"))
         #expect(CoreDataTestHelpers.save(context))
         let id = try #require(given.id).uuidString
 
@@ -139,7 +137,8 @@ struct MCPPlanningEditToolsTests {
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
         let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Stern")
         let planned = PresentationFactory.makeScheduled(
-            lesson: lesson, students: [ora, etty], scheduledFor: try day("2026-09-14"), context: context
+            lesson: lesson, students: [ora, etty],
+                scheduledFor: try CoreDataTestHelpers.day("2026-09-14"), context: context
         )
         #expect(CoreDataTestHelpers.save(context))
         let id = try #require(planned.id)
@@ -174,7 +173,7 @@ struct MCPPlanningEditToolsTests {
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
         let planned = PresentationFactory.makeDraft(lesson: lesson, students: [ora], context: context)
         let given = PresentationFactory.makeDraft(lesson: lesson, students: [ora], context: context)
-        given.markPresented(at: try day("2026-09-01"))
+        given.markPresented(at: try CoreDataTestHelpers.day("2026-09-01"))
         #expect(CoreDataTestHelpers.save(context))
         let plannedID = try #require(planned.id).uuidString
         let givenID = try #require(given.id).uuidString
@@ -213,13 +212,17 @@ struct MCPPlanningEditToolsTests {
         let beads = CoreDataTestHelpers.seedLesson(
             in: context, name: "Bead Frame", area: "Math", sequence: "Operations"
         )
-        let stale = seedEntry(in: context, student: ora, lesson: halves, plannedDate: try day("2026-03-02"))
-        let ahead = seedEntry(in: context, student: ora, lesson: thirds, plannedDate: try day("2099-05-04"))
+        let stale = seedEntry(in: context, student: ora, lesson: halves,
+            plannedDate: try CoreDataTestHelpers.day("2026-03-02"))
+        let ahead = seedEntry(in: context, student: ora, lesson: thirds,
+            plannedDate: try CoreDataTestHelpers.day("2099-05-04"))
         let other = seedEntry(
-            in: context, student: ora, lesson: beads, plannedDate: try day("2026-03-09"), track: "Math::Operations"
+            in: context, student: ora, lesson: beads,
+                plannedDate: try CoreDataTestHelpers.day("2026-03-09"), track: "Math::Operations"
         )
         let promoted = seedEntry(
-            in: context, student: ora, lesson: halves, plannedDate: try day("2026-03-01"), status: .promoted
+            in: context, student: ora, lesson: halves,
+                plannedDate: try CoreDataTestHelpers.day("2026-03-01"), status: .promoted
         )
         #expect(CoreDataTestHelpers.save(context))
 
@@ -263,7 +266,7 @@ struct MCPPlanningEditToolsTests {
         let beads = CoreDataTestHelpers.seedLesson(
             in: context, name: "Bead Frame", area: "Math", sequence: "Operations"
         )
-        seedEntry(in: context, student: ora, lesson: halves, plannedDate: try day("2026-03-02"))
+        seedEntry(in: context, student: ora, lesson: halves, plannedDate: try CoreDataTestHelpers.day("2026-03-02"))
         seedEntry(in: context, student: ora, lesson: beads, plannedDate: nil, track: "Math::Operations")
         #expect(CoreDataTestHelpers.save(context))
 

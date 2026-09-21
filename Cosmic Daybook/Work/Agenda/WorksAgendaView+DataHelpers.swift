@@ -130,7 +130,7 @@ extension WorksAgendaView {
         // Load only needed lessons
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededLessonIDs.isEmpty {
-            let all: [CDLesson] = viewContext.safeFetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
+            let all: [CDLesson] = viewContext.safeFetch(CDFetchRequest(CDLesson.self))
             let filtered = all.filter { neededLessonIDs.contains($0.id ?? UUID()) }
             lessonsByIDCache = Dictionary(
                 filtered.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
@@ -146,7 +146,7 @@ extension WorksAgendaView {
         // needs only the owners on screen, withdrawn children included so their
         // cards still have a name on them.
         let allStudents: [CDStudent] = viewContext.safeFetch(
-            NSFetchRequest<CDStudent>(entityName: "Student")
+            CDFetchRequest(CDStudent.self)
         )
 
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.

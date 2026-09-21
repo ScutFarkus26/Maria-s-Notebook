@@ -68,7 +68,7 @@ nonisolated struct SearchIndexContents: Sendable {
 @Observable
 final class SearchIndexService {
     static let shared = SearchIndexService()
-    nonisolated static let logger = Logger.app(category: "SearchIndex")
+    nonisolated static let logger = Logger.searchIndex
 
     /// How the most recent refresh produced its contents.
     enum RefreshSource: String, Sendable {

@@ -11,10 +11,6 @@ import Testing
 @MainActor
 struct YearPlanStalenessTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     /// A fixed September start, so no test depends on the guide's settings or
     /// on the day it runs.
     private func yearStart(_ year: Int = 2026, month: Int = 9, day: Int = 1) -> Date {
@@ -100,7 +96,7 @@ struct YearPlanStalenessTests {
 
     @Test("a carried-over entry is never behind pace; one dated after the start still is")
     func behindPaceStopsAtTheYearStart() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         // Measured against the real boundary, since `isBehindPace` compares the
         // target against today as well as against the year start.
         let start = YearPlanStaleness.currentYearStart()
@@ -124,7 +120,7 @@ struct YearPlanStalenessTests {
 
     @Test("the calendar draws a carried-over entry as carried over, and still lets it be dragged")
     func calendarItemReadsCarriedOver() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let start = YearPlanStaleness.currentYearStart()
         let entry = seedEntry(in: context, plannedDate: AppCalendar.addingDays(-10, to: start))
         CoreDataTestHelpers.save(context)

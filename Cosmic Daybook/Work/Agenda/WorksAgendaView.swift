@@ -34,7 +34,7 @@ struct WorksAgendaView: View {
     // triaging a classroom's worth of open work faults them one row at a time —
     // the same N+1 that `WorksLogView` already prefetches away.
     @FetchRequest(fetchRequest: {
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         request.predicate = WorkStatus.openPredicate
         request.relationshipKeyPathsForPrefetching = ["checkIns", "unifiedNotes", "participants"]

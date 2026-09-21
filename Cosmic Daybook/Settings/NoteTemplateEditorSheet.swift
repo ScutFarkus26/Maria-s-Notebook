@@ -143,7 +143,7 @@ struct NoteTemplateEditorSheet: View {
             // Get the next sort order for custom templates
             let customCount: Int
             do {
-                let countRequest = NSFetchRequest<CDNoteTemplate>(entityName: "NoteTemplate")
+                let countRequest = CDFetchRequest(CDNoteTemplate.self)
                 countRequest.predicate = NSPredicate(format: "isBuiltIn == NO")
                 customCount = try viewContext.count(for: countRequest)
             } catch {

@@ -32,10 +32,6 @@ struct MCPMasteryCandidatesToolTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ iso: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: iso))
-    }
-
     private func candidates(
         _ tools: [MCPToolDefinition], _ arguments: [String: JSONValue] = [:]
     ) async throws -> String {
@@ -72,7 +68,7 @@ struct MCPMasteryCandidatesToolTests {
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Krinsky", level: .upper)
         let leora = CoreDataTestHelpers.seedStudent(
             in: context, firstName: "Leora", lastName: "Fleishchmann", level: .upper,
-            enrollmentStatus: .withdrawn, dateWithdrawn: try day("2026-06-01")
+            enrollmentStatus: .withdrawn, dateWithdrawn: try CoreDataTestHelpers.day("2026-06-01")
         )
         let commutative = CoreDataTestHelpers.seedLesson(
             in: context, name: "The Commutative Law of Multiplication", area: "Math", sequence: "Laws"
@@ -99,33 +95,35 @@ struct MCPMasteryCandidatesToolTests {
         let distributive = classroom.distributive
         for student in [classroom.avital, classroom.nechama, classroom.dvora, classroom.leora] {
             let presentation = PresentationFactory.makePresented(
-                lesson: commutative, students: [student], presentedAt: try day("2026-03-11"), context: context
+                lesson: commutative, students: [student],
+                    presentedAt: try CoreDataTestHelpers.day("2026-03-11"), context: context
             )
             presentation.confirmStudent(try #require(student.id))
             let row = CDLessonPresentation(context: context)
             row.studentID = try #require(student.id).uuidString
             row.lessonID = try #require(commutative.id).uuidString
             row.state = .presented
-            row.presentedAt = try day("2026-03-11")
-            if student == classroom.dvora { row.masteredAt = try day("2026-04-01") }
+            row.presentedAt = try CoreDataTestHelpers.day("2026-03-11")
+            if student == classroom.dvora { row.masteredAt = try CoreDataTestHelpers.day("2026-04-01") }
         }
 
         let etty = classroom.etty
         _ = PresentationFactory.makePresented(
-            lesson: distributive, students: [etty], presentedAt: try day("2026-02-02"), context: context
+            lesson: distributive, students: [etty],
+                presentedAt: try CoreDataTestHelpers.day("2026-02-02"), context: context
         )
         let ettyRow = CDLessonPresentation(context: context)
         ettyRow.studentID = try #require(etty.id).uuidString
         ettyRow.lessonID = try #require(distributive.id).uuidString
         ettyRow.state = .presented
-        ettyRow.presentedAt = try day("2026-02-02")
+        ettyRow.presentedAt = try CoreDataTestHelpers.day("2026-02-02")
         let practice = CoreDataTestHelpers.seedWorkModel(
             in: context, title: "Distributive law practice",
             studentID: try #require(etty.id), lessonID: try #require(distributive.id)
         )
         practice.kind = .practiceLesson
         practice.status = .done
-        practice.completedAt = try day("2026-02-20")
+        practice.completedAt = try CoreDataTestHelpers.day("2026-02-20")
         #expect(CoreDataTestHelpers.save(context))
     }
 

@@ -5,7 +5,7 @@ import OSLog
 
 extension ClassroomSharingService {
 
-    private static let autoCreateLogger = Logger.app(category: "ClassroomSharing")
+    private static let autoCreateLogger = Logger.classroomSharing
 
     /// Zone-name prefix `NSPersistentCloudKitContainer` uses for the zones it
     /// creates to back a `CKShare` (e.g. `com.apple.coredata.cloudkit.share.<UUID>`).

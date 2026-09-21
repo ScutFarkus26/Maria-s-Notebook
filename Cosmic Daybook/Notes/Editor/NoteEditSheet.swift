@@ -7,10 +7,6 @@ import AppKit
 import UIKit
 #endif
 
-extension Notification.Name {
-    static let noteDidSave = Notification.Name("CosmicDaybook.noteDidSave")
-}
-
 struct NoteEditSheet: View {
     private static let logger = Logger.notes
 

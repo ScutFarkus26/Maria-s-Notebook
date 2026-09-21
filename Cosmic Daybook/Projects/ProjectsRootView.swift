@@ -13,7 +13,7 @@ struct ProjectsRootView: View {
 
     // MARK: - Data
     @FetchRequest(fetchRequest: {
-        let request = NSFetchRequest<CDProject>(entityName: "Project")
+        let request = CDFetchRequest(CDProject.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDProject.createdAt, ascending: false)]
         // Prefetch sessions so lastSessionDate(for:) reads each club's relationship
         // from the row cache instead of faulting it per sidebar row (N+1).

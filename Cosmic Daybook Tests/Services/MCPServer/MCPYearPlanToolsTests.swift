@@ -17,10 +17,6 @@ struct MCPYearPlanToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     @discardableResult
     private func seedEntry(
         in context: NSManagedObjectContext,
@@ -47,7 +43,7 @@ struct MCPYearPlanToolsTests {
         let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Soto")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Rhombus")
         let entry = seedEntry(
-            in: context, student: maya, lesson: lesson, plannedDate: try day("2026-06-19")
+            in: context, student: maya, lesson: lesson, plannedDate: try CoreDataTestHelpers.day("2026-06-19")
         )
         CoreDataTestHelpers.save(context)
         let entryID = try #require(entry.id).uuidString
@@ -71,7 +67,7 @@ struct MCPYearPlanToolsTests {
         let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Soto")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Trapezoid")
         let entry = seedEntry(
-            in: context, student: maya, lesson: lesson, plannedDate: try day("2026-06-24")
+            in: context, student: maya, lesson: lesson, plannedDate: try CoreDataTestHelpers.day("2026-06-24")
         )
         CoreDataTestHelpers.save(context)
 
@@ -80,7 +76,7 @@ struct MCPYearPlanToolsTests {
             "target_date": .string("2026-10-05")
         ])
 
-        let moved = AppCalendar.startOfDay(try day("2026-10-05"))
+        let moved = AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-10-05"))
         #expect(receipt.contains("The Trapezoid"))
         #expect(entry.plannedDate == moved)
         // Still planned: only the date was asked for.
@@ -94,7 +90,7 @@ struct MCPYearPlanToolsTests {
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Decagon")
         let entry = seedEntry(
             in: context, student: maya, lesson: lesson,
-            plannedDate: try day("2026-06-29"), status: .skipped
+            plannedDate: try CoreDataTestHelpers.day("2026-06-29"), status: .skipped
         )
         CoreDataTestHelpers.save(context)
 
@@ -113,12 +109,12 @@ struct MCPYearPlanToolsTests {
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Introduction to Angles")
         let entry = seedEntry(
             in: context, student: maya, lesson: lesson,
-            plannedDate: try day("2026-05-22"), status: .promoted
+            plannedDate: try CoreDataTestHelpers.day("2026-05-22"), status: .promoted
         )
         let assignmentID = UUID().uuidString
         entry.promotedAssignmentID = assignmentID
         CoreDataTestHelpers.save(context)
-        let originalTarget = try day("2026-05-22")
+        let originalTarget = try CoreDataTestHelpers.day("2026-05-22")
 
         await #expect(throws: MCPToolError.self) {
             _ = try await tool(named: "update_year_plan_entry", in: tools).handler([
@@ -139,7 +135,7 @@ struct MCPYearPlanToolsTests {
         let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Soto")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Parts of an Angle")
         let entry = seedEntry(
-            in: context, student: maya, lesson: lesson, plannedDate: try day("2026-06-04")
+            in: context, student: maya, lesson: lesson, plannedDate: try CoreDataTestHelpers.day("2026-06-04")
         )
         CoreDataTestHelpers.save(context)
 
@@ -184,7 +180,7 @@ struct MCPYearPlanToolsTests {
         let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Soto")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Bisecting an Angle")
         let entry = seedEntry(
-            in: context, student: maya, lesson: lesson, plannedDate: try day("2026-06-22")
+            in: context, student: maya, lesson: lesson, plannedDate: try CoreDataTestHelpers.day("2026-06-22")
         )
         CoreDataTestHelpers.save(context)
 
@@ -209,10 +205,10 @@ struct MCPYearPlanToolsTests {
         // is still ahead, one is promoted. The receipt names the first two as
         // carried over — last year's intentions, not debt she is behind on.
         let behindOne = seedEntry(
-            in: context, student: maytal, lesson: angles, plannedDate: try day("2026-05-22")
+            in: context, student: maytal, lesson: angles, plannedDate: try CoreDataTestHelpers.day("2026-05-22")
         )
         let behindTwo = seedEntry(
-            in: context, student: maytal, lesson: rhombus, plannedDate: try day("2026-06-19")
+            in: context, student: maytal, lesson: rhombus, plannedDate: try CoreDataTestHelpers.day("2026-06-19")
         )
         let ahead = seedEntry(
             in: context, student: maytal, lesson: rhombus,
@@ -220,11 +216,11 @@ struct MCPYearPlanToolsTests {
         )
         let promoted = seedEntry(
             in: context, student: maytal, lesson: angles,
-            plannedDate: try day("2026-05-01"), status: .promoted
+            plannedDate: try CoreDataTestHelpers.day("2026-05-01"), status: .promoted
         )
         // Another child's plan must not move.
         let orasEntry = seedEntry(
-            in: context, student: ora, lesson: angles, plannedDate: try day("2026-05-22")
+            in: context, student: ora, lesson: angles, plannedDate: try CoreDataTestHelpers.day("2026-05-22")
         )
         CoreDataTestHelpers.save(context)
 
@@ -252,7 +248,7 @@ struct MCPYearPlanToolsTests {
         let maytal = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maytal", lastName: "Meyer")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Decagon")
         let entry = seedEntry(
-            in: context, student: maytal, lesson: lesson, plannedDate: try day("2026-06-29")
+            in: context, student: maytal, lesson: lesson, plannedDate: try CoreDataTestHelpers.day("2026-06-29")
         )
         CoreDataTestHelpers.save(context)
 

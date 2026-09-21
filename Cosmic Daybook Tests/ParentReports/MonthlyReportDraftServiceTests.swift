@@ -161,7 +161,7 @@ final class MonthlyReportDraftServiceTests {
         let second = service.upsertReport(for: student, month: month, draft: draft)
         #expect(first.objectID == second.objectID)
 
-        let request = NSFetchRequest<CDParentCommunication>(entityName: "ParentCommunication")
+        let request = CDFetchRequest(CDParentCommunication.self)
         request.predicate = NSPredicate(format: "studentID == %@ AND monthKey == %@", studentID, month.monthKey)
         #expect(ctx.safeFetch(request).count == 1)
 

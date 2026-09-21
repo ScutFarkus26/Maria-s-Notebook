@@ -16,10 +16,6 @@ struct MCPScheduleToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     private func assignments(in context: NSManagedObjectContext) -> [CDLessonAssignment] {
         context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
     }
@@ -43,7 +39,7 @@ struct MCPScheduleToolsTests {
 
         let planned = try #require(assignments(in: context).first)
         #expect(planned.state == .scheduled)
-        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-14")))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-14")))
 
         let schedule = try await tool(named: "schedule_for_range", in: tools).handler([
             "start_date": .string("2026-09-14")
@@ -74,7 +70,7 @@ struct MCPScheduleToolsTests {
         #expect(second.contains("Moved the existing plan"))
         #expect(assignments(in: context).count == 1)
         let planned = try #require(assignments(in: context).first)
-        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-16")))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-16")))
     }
 
     @Test("schedule_presentation defaults to the morning half and honours an HH:MM time")
@@ -106,7 +102,7 @@ struct MCPScheduleToolsTests {
         #expect(timed.contains("Moved the existing plan for"))
         #expect(timed.contains("on 2026-09-17 at 10:30."))
         #expect(assignments(in: context).count == 1)
-        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-17")))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-17")))
         #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "10:30")
 
         let onTheDay = try await tool(named: "schedule_for_range", in: tools).handler([
@@ -157,14 +153,14 @@ struct MCPScheduleToolsTests {
             "presentation_id": .string(id), "date": .string("2026-09-18"), "time": .string("13:15")
         ])
         #expect(moved.contains("now scheduled for 2026-09-18 at 13:15."))
-        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-18")))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-18")))
         #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "13:15")
 
         let retimed = try await reschedule.handler([
             "presentation_id": .string(id), "time": .string("09:45")
         ])
         #expect(retimed.contains("stays on 2026-09-18, now at 09:45."))
-        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-18")))
+        #expect(planned.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-18")))
         #expect(MCPNotebookTools.timeString(planned.scheduledFor) == "09:45")
 
         // A bare date drops back into the morning half of the new day.

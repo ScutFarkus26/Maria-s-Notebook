@@ -9,17 +9,13 @@ import Testing
 @MainActor
 struct WatchListActionsTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     private func item(_ kind: WatchItemKind, sourceID: UUID, studentID: UUID? = UUID()) -> WatchItem {
         WatchItem(kind: kind, sourceID: sourceID, studentID: studentID, text: "", date: Date(), dueDate: nil)
     }
 
     @Test("Clearing a note row unflags the note and bumps its updated date")
     func clearNote() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let student = try #require(CoreDataTestHelpers.seedStudent(in: context).id)
         let note = CoreDataTestHelpers.seedNote(in: context, body: "Watch the carries.")
         note.scope = .student(student)
@@ -38,7 +34,7 @@ struct WatchListActionsTests {
 
     @Test("Clearing a todo row completes it, and a weekly todo spawns one new occurrence a week later")
     func clearRecurringTodo() throws {
-        let context: NSManagedObjectContext = try makeContext()
+        let context: NSManagedObjectContext = try CoreDataTestHelpers.makeContext()
         let student: UUID = UUID()
         let due: Date = AppCalendar.startOfDay(Date())
         let todo: CDTodoItem = CDTodoItem(context: context)
@@ -69,7 +65,7 @@ struct WatchListActionsTests {
 
     @Test("Clearing a goal row resolves it with a time and no meeting")
     func clearGoal() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let student = UUID()
         let goal = FocusItemService.create(
             studentID: student, text: "Finish racks and tubes", meetingID: UUID(), sortOrder: 0, context: context
@@ -88,7 +84,7 @@ struct WatchListActionsTests {
 
     @Test("Clearing a row whose source is gone returns false and throws nothing")
     func clearMissingSource() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         for kind in WatchItemKind.allCases {
             #expect(WatchListActions.clear(item(kind, sourceID: UUID()), in: context) == false)
         }
@@ -97,7 +93,7 @@ struct WatchListActionsTests {
 
     @Test("Opening a goal row finds its meeting, or falls back to the child")
     func openGoal() throws {
-        let context: NSManagedObjectContext = try makeContext()
+        let context: NSManagedObjectContext = try CoreDataTestHelpers.makeContext()
         let student: UUID = UUID()
         let meeting: CDStudentMeeting = CDStudentMeeting(context: context)
         meeting.studentIDUUID = student

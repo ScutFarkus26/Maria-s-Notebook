@@ -200,17 +200,17 @@ final class StudentAreaProgressionViewModel {
     }
 
     private func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        let descriptor = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        let descriptor = CDFetchRequest(CDLessonAssignment.self)
         return context.safeFetch(descriptor)
     }
 
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        let descriptor = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let descriptor = CDFetchRequest(CDWorkModel.self)
         return context.safeFetch(descriptor)
     }
 
     private func fetchCheckIns(context: NSManagedObjectContext) -> [CDWorkCheckIn] {
-        let descriptor = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
+        let descriptor = CDFetchRequest(CDWorkCheckIn.self)
         return context.safeFetch(descriptor)
     }
 }

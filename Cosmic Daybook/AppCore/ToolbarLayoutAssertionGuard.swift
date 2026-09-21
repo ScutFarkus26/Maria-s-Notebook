@@ -37,7 +37,7 @@ import OSLog
 /// the project memory under `album-toolbar-nan-crash`.)
 nonisolated final class ToolbarLayoutAssertionGuard: NSAssertionHandler {
 
-    private static let logger = Logger.app(category: "Toolbar")
+    private static let logger = Logger.toolbar
     private static let failureSelector =
         NSSelectorFromString("handleFailureInMethod:object:file:lineNumber:description:")
 

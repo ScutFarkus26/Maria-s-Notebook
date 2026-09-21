@@ -239,12 +239,7 @@ extension MCPNotebookTools {
         return trimmed
     }
 
-    static let isoTime: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
+    static let isoTime: DateFormatter = DateFormatters.time24Hour
 
     static func timeString(_ date: Date?) -> String {
         date.map { isoTime.string(from: $0) } ?? "—"
@@ -269,12 +264,7 @@ extension MCPNotebookTools {
         }
     }
 
-    static let weekdayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
+    static let weekdayFormatter: DateFormatter = DateFormatters.weekdayFullPOSIX
 
     static func weekdayName(_ date: Date) -> String {
         weekdayFormatter.string(from: date)

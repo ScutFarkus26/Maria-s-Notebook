@@ -10,7 +10,7 @@ struct FilterOrderStore {
 
     private static var shared = FilterOrderStore()
 
-    private static let areaOrderKey = "Lessons.AreaOrder"
+    private static let areaOrderKey = UserDefaultsKeys.lessonsAreaOrder
     private static let groupOrderPrefix = "Lessons.SequenceOrder."
     private static let sectionOrderPrefix = "Lessons.SectionOrder." // area+sequence
 

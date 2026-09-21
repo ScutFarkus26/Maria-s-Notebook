@@ -14,10 +14,6 @@ struct WorkDeletionServiceTests {
 
     // MARK: - Fixtures
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     /// One row carrying several children, `owner` in `studentID`.
     @discardableResult
     private func seedSharedRow(
@@ -74,7 +70,7 @@ struct WorkDeletionServiceTests {
 
     @Test("removing the owner of a one-row shared group promotes the other child and keeps the row")
     func removingOwnerOfSharedRowPromotes() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let ora = UUID()
         let naomi = UUID()
         let work = seedSharedRow(in: context, owner: ora, passengers: [naomi])
@@ -97,7 +93,7 @@ struct WorkDeletionServiceTests {
 
     @Test("removing a passenger drops only her participant row")
     func removingPassengerDropsHerRowOnly() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let avital = UUID()
         let naomi = UUID()
         let work = seedSharedRow(in: context, owner: avital, passengers: [naomi])
@@ -116,7 +112,7 @@ struct WorkDeletionServiceTests {
 
     @Test("the last child on a row is refused, not silently escalated to a delete")
     func lastChildIsRefused() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let only = UUID()
         let work = seedSharedRow(in: context, owner: only, passengers: [])
         CoreDataTestHelpers.save(context)
@@ -130,7 +126,7 @@ struct WorkDeletionServiceTests {
 
     @Test("offered project work may be left with nobody on it")
     func projectWorkMayBeEmptied() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let only = UUID()
         let work = seedSharedRow(in: context, owner: only, passengers: [])
         work.sourceContextType = .projectSession
@@ -144,7 +140,7 @@ struct WorkDeletionServiceTests {
 
     @Test("a child who is not on the work is refused")
     func strangerIsRefused() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let work = seedSharedRow(in: context, owner: UUID(), passengers: [UUID()])
         CoreDataTestHelpers.save(context)
 
@@ -157,7 +153,7 @@ struct WorkDeletionServiceTests {
 
     @Test("removing the owner of a linked copy deletes her row and drops her from the siblings")
     func removingOwnerOfLinkedCopyDeletesHerRow() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let leshem = UUID()
         let avigail = UUID()
         let works = seedLinkedCopies(in: context, studentIDs: [leshem, avigail])
@@ -181,7 +177,7 @@ struct WorkDeletionServiceTests {
     func passengerOnOneCopyComesOffThatCopy() throws {
         // Sarah Zakon's shape: named on Avigail's copy, not on Leshem's, with
         // no row of her own.
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let avigail = UUID()
         let leshem = UUID()
         let sarah = UUID()
@@ -211,7 +207,7 @@ struct WorkDeletionServiceTests {
 
     @Test("her completion records go with her; nobody else's are touched")
     func completionRecordsFollowHer() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let owner = UUID()
         let passenger = UUID()
         let work = seedSharedRow(in: context, owner: owner, passengers: [passenger])
@@ -234,7 +230,7 @@ struct WorkDeletionServiceTests {
 
     @Test("cascade counts check-ins reachable only through the workID string")
     func cascadeCountsStringKeyedCheckIns() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let work = seedSharedRow(in: context, owner: UUID(), passengers: [])
         let workID = try #require(work.id)
 
@@ -262,7 +258,7 @@ struct WorkDeletionServiceTests {
 
     @Test("cascade counts completion records, meeting reviews and scheduled meetings by string")
     func cascadeCountsStringKeyedRecords() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let owner = UUID()
         let work = seedSharedRow(in: context, owner: owner, passengers: [])
         let workID = try #require(work.id)
@@ -292,7 +288,7 @@ struct WorkDeletionServiceTests {
 
     @Test("deleting one linked copy strips its owner from the copies that survive")
     func deleteStripsOwnerFromSurvivingCopies() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let naomi = UUID()
         let ora = UUID()
         let works = seedLinkedCopies(in: context, studentIDs: [naomi, ora])
@@ -309,7 +305,7 @@ struct WorkDeletionServiceTests {
 
     @Test("a failed save rolls the removal back")
     func failedSaveRollsBack() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let owner = UUID()
         let passenger = UUID()
         let work = seedSharedRow(in: context, owner: owner, passengers: [passenger])

@@ -75,7 +75,7 @@ struct WorkDetailView: View {
         let workIDString = workID.uuidString
         let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
         _checkIns = FetchRequest(fetchRequest: {
-            let request = NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
+            let request = CDFetchRequest(CDWorkCheckIn.self)
             request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)]
             request.predicate = NSPredicate(
                 format: "workID == %@ AND statusRaw == %@", workIDString, scheduledStatus

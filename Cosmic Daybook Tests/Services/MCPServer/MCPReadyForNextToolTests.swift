@@ -20,10 +20,6 @@ struct MCPReadyForNextToolTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     // MARK: - Fixture
 
     /// Math › Laws runs Commutative → Distributive → Associative.
@@ -105,21 +101,22 @@ struct MCPReadyForNextToolTests {
         )
         #expect(CoreDataTestHelpers.save(context))
 
-        try confirm(avital, on: commutative, at: try day("2026-03-11"), in: context)
-        try confirm(etty, on: commutative, at: try day("2026-03-11"), in: context)
-        try confirm(ora, on: commutative, at: try day("2026-03-11"), in: context)
-        try confirm(rivka, on: commutative, at: try day("2026-03-11"), in: context)
+        try confirm(avital, on: commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
+        try confirm(etty, on: commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
+        try confirm(ora, on: commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
+        try confirm(rivka, on: commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
         // Avital is also ready in Music, so the area filter has work to do.
-        try confirm(avital, on: bells, at: try day("2026-03-04"), in: context)
+        try confirm(avital, on: bells, at: try CoreDataTestHelpers.day("2026-03-04"), in: context)
 
         PresentationFactory.makePresented(
-            lesson: distributive, students: [malka], presentedAt: try day("2026-01-20"), context: context
+            lesson: distributive, students: [malka],
+                presentedAt: try CoreDataTestHelpers.day("2026-01-20"), context: context
         )
         let proficiency = CDLessonPresentation(context: context)
         proficiency.studentID = try #require(malka.id).uuidString
         proficiency.lessonID = try #require(distributive.id).uuidString
-        proficiency.presentedAt = try day("2026-01-20")
-        proficiency.masteredAt = try day("2026-02-15")
+        proficiency.presentedAt = try CoreDataTestHelpers.day("2026-01-20")
+        proficiency.masteredAt = try CoreDataTestHelpers.day("2026-02-15")
 
         try seedPracticeGate(holding: ora, on: commutative, in: context)
         #expect(CoreDataTestHelpers.save(context))
@@ -245,7 +242,7 @@ struct MCPReadyForNextToolTests {
         )
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Sarah", lastName: "Adler")
         #expect(CoreDataTestHelpers.save(context))
-        try confirm(rivka, on: lesson, at: try day("2026-03-11"), in: context)
+        try confirm(rivka, on: lesson, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         let output = try await ready.handler([:])

@@ -19,10 +19,6 @@ struct MCPMasteryBatchToolTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ iso: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: iso))
-    }
-
     /// Two girls and a two-step track, each girl with a presented-but-unmarked
     /// row on both steps, so one batch has two lessons to mark.
     private struct Classroom {
@@ -54,7 +50,7 @@ struct MCPMasteryBatchToolTests {
                 row.studentID = try #require(student.id).uuidString
                 row.lessonID = try #require(lesson.id).uuidString
                 row.state = .presented
-                row.presentedAt = try day(presented)
+                row.presentedAt = try CoreDataTestHelpers.day(presented)
             }
         }
         #expect(CoreDataTestHelpers.save(context))
@@ -101,10 +97,10 @@ struct MCPMasteryBatchToolTests {
         for student in [classroom.avital, classroom.etty] {
             let commutative = try row(for: student, lesson: classroom.commutative, in: context)
             #expect(commutative.state == .proficient)
-            #expect(commutative.masteredAt == (try day("2026-09-09")))
+            #expect(commutative.masteredAt == (try CoreDataTestHelpers.day("2026-09-09")))
             let distributive = try row(for: student, lesson: classroom.distributive, in: context)
             #expect(distributive.state == .proficient)
-            #expect(distributive.masteredAt == (try day("2026-09-10")))
+            #expect(distributive.masteredAt == (try CoreDataTestHelpers.day("2026-09-10")))
         }
         #expect(output.contains("Marked mastered on 2026-09-09: [lesson id="))
         #expect(output.contains("Marked mastered on 2026-09-10: [lesson id="))

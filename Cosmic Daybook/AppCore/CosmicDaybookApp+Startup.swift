@@ -65,7 +65,7 @@ extension CosmicDaybookApp {
             // A hot device or Low Power Mode skips it for this launch; the pass
             // is change-gated, so the next launch indexes everything anyway.
             if EnergyPolicy.shared.shouldDeferMaintenance {
-                Logger.app(category: "Startup")
+                Logger.startup
                     .notice("Spotlight reindex skipped — device hot or in Low Power Mode")
             } else {
                 Task { await SpotlightIndexer.reindexAll() }

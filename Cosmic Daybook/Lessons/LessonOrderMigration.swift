@@ -13,7 +13,7 @@ enum LessonOrderMigration {
     /// - Parameter context: NSManagedObjectContext to migrate lessons
     /// - Returns: Number of lessons that were updated
     static func migrateSortIndices(context: NSManagedObjectContext) -> Int {
-        let descriptor = { let r = NSFetchRequest<CDLesson>(entityName: "Lesson"); r.sortDescriptors = [
+        let descriptor = { let r = CDFetchRequest(CDLesson.self); r.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true),

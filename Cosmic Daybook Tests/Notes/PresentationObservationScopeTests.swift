@@ -12,10 +12,6 @@ import Testing
 @MainActor
 struct PresentationObservationScopeTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     private func seedPresentation(
         of lesson: CDLesson, to students: [CDStudent], in context: NSManagedObjectContext
     ) throws -> CDLessonAssignment {
@@ -56,7 +52,7 @@ struct PresentationObservationScopeTests {
 
     @Test("Launch repair narrows a whole-class presentation note to the children who received it")
     func repairNarrowsWholeClassNotes() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Second Polygon Presentation")
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
@@ -80,7 +76,7 @@ struct PresentationObservationScopeTests {
 
     @Test("Coverage is judged child by child on a group presentation")
     func coverageIsPerStudent() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Second Polygon Presentation")
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
@@ -105,7 +101,7 @@ struct PresentationObservationScopeTests {
 
     @Test("MCP history counts a note for the child it is about and says when it is shared")
     func historyAndCoverageOverMCP() async throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Second Polygon Presentation")
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")

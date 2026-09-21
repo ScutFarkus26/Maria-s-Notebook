@@ -36,7 +36,7 @@ actor MCPSocketServer {
     /// `stop()`), so the owning service can stop reporting "listening".
     private let onFailure: (@Sendable (String) -> Void)?
     private let queue = DispatchQueue(label: "mcp-server.socket")
-    private let logger = Logger.app(category: "MCPServer")
+    private let logger = Logger.mcpServer
 
     private var listener: NWListener?
     private var connectionTasks: [ObjectIdentifier: Task<Void, Never>] = [:]

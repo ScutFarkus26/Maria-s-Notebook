@@ -16,7 +16,7 @@ struct WorksLogView: View {
     private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
 
     @FetchRequest(fetchRequest: {
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
         request.fetchBatchSize = 50
         // Prefetch unifiedNotes so latestUnifiedNoteText doesn't fault the relationship

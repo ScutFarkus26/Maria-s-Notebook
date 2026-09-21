@@ -13,10 +13,6 @@ import Testing
 @MainActor
 struct PrecedingLessonCacheTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     @discardableResult
     private func lesson(
         _ name: String,
@@ -33,7 +29,7 @@ struct PrecedingLessonCacheTests {
 
     @Test("Cache matches the per-lesson search for every lesson")
     func cacheMatchesPerLessonSearch() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         // Deliberately out of curriculum order, with case and whitespace
         // differences that the per-lesson search tolerated.
         let lessons = [
@@ -58,7 +54,7 @@ struct PrecedingLessonCacheTests {
 
     @Test("Cache resolves the sequence in curriculum order")
     func cacheFollowsCurriculumOrder() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let third = lesson("Third", area: "Math", sequence: "Counting", order: 30, in: context)
         let first = lesson("First", area: "Math", sequence: "Counting", order: 10, in: context)
         let second = lesson("Second", area: "Math", sequence: "Counting", order: 20, in: context)
@@ -72,7 +68,7 @@ struct PrecedingLessonCacheTests {
 
     @Test("Lessons with a blank area or sequence have no preceding lesson")
     func blankSectionsAreSkipped() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let anchored = lesson("Anchored", area: "Math", sequence: "Counting", order: 1, in: context)
         let blankArea = lesson("Blank Area", area: "", sequence: "Counting", order: 2, in: context)
         let blankSequence = lesson("Blank Sequence", area: "Math", sequence: "", order: 3, in: context)

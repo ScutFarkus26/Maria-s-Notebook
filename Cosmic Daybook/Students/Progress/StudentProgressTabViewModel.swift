@@ -77,7 +77,7 @@ final class StudentProgressTabViewModel {
         lessonDescriptor.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         allLessons = context.safeFetch(lessonDescriptor)
 
-        let lpDescriptor = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+        let lpDescriptor = CDFetchRequest(CDLessonPresentation.self)
         allLessonPresentations = context.safeFetch(lpDescriptor)
 
         // Compute filtered results

@@ -238,7 +238,7 @@ final class CloudKitHealthCheck {
         do {
             return try await ckContainer.accountStatus()
         } catch {
-            Logger.app(category: "CloudKitHealthCheck")
+            Logger.cloudKitHealthCheck
                 .warning("accountStatus failed: \(error.localizedDescription)")
             return nil
         }

@@ -194,7 +194,7 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
         let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
 
-        let lessonFetch = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        let lessonFetch = CDFetchRequest(CDLesson.self)
         lessonFetch.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
         lessonFetch.fetchLimit = 1
         do {

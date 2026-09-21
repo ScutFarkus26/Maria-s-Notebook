@@ -39,4 +39,51 @@ nonisolated extension Logger {
     nonisolated static let reports = Logger.app(category: "reports")
     nonisolated static let calendar_ = Logger.app(category: "calendar")
     nonisolated static let lifecycle = Logger.app(category: "lifecycle")
+
+    // MARK: - App lifecycle & infrastructure
+    /// Category "App" — distinct from `app_`'s lowercase "app"; the name avoids
+    /// colliding with the `app(category:)` factory.
+    nonisolated static let appMain = Logger.app(category: "App")
+    nonisolated static let bootstrapper = Logger.app(category: "Bootstrapper")
+    nonisolated static let container = Logger.app(category: "Container")
+    nonisolated static let startup = Logger.app(category: "Startup")
+    nonisolated static let performance = Logger.app(category: "Performance")
+    nonisolated static let energyPolicy = Logger.app(category: "EnergyPolicy")
+    nonisolated static let toolbar = Logger.app(category: "Toolbar")
+    nonisolated static let notebookCompanion = Logger.app(category: "NotebookCompanion")
+
+    // MARK: - Core Data & store maintenance
+    nonisolated static let coreDataStack = Logger.app(category: "CoreDataStack")
+    nonisolated static let coreDataSchemaVersion = Logger.app(category: "CoreDataSchemaVersion")
+    nonisolated static let coreDataPrimaryKeyRepair = Logger.app(category: "CoreDataPrimaryKeyRepair")
+    nonisolated static let coreDataOrphanCleanup = Logger.app(category: "CoreDataOrphanCleanup")
+    nonisolated static let databaseMaintenance = Logger.app(category: "DatabaseMaintenance")
+    nonisolated static let deduplicationCoordinator = Logger.app(category: "DeduplicationCoordinator")
+    nonisolated static let historyProcessor = Logger.app(category: "HistoryProcessor")
+    nonisolated static let sharedStoreOrphanGuard = Logger.app(category: "SharedStoreOrphanGuard")
+    nonisolated static let sharedStoreZoneRepair = Logger.app(category: "SharedStoreZoneRepair")
+
+    // MARK: - CloudKit & sharing
+    nonisolated static let cloudKit = Logger.app(category: "CloudKit")
+    nonisolated static let cloudKitHealthCheck = Logger.app(category: "CloudKitHealthCheck")
+    nonisolated static let cloudSharing = Logger.app(category: "CloudSharing")
+    nonisolated static let classroomSharing = Logger.app(category: "ClassroomSharing")
+    nonisolated static let classroomWorkspace = Logger.app(category: "ClassroomWorkspace")
+    nonisolated static let syncedPreferences = Logger.app(category: "SyncedPreferences")
+
+    // MARK: - Feature services
+    nonisolated static let curriculumMap = Logger.app(category: "CurriculumMap")
+    nonisolated static let parshaMetadataService = Logger.app(category: "ParshaMetadataService")
+    nonisolated static let parshaSuggestionService = Logger.app(category: "ParshaSuggestionService")
+    nonisolated static let searchIndex = Logger.app(category: "SearchIndex")
+    nonisolated static let searchIndexSnapshot = Logger.app(category: "SearchIndexSnapshot")
+    nonisolated static let sequenceAutoPopulate = Logger.app(category: "SequenceAutoPopulate")
+    nonisolated static let spotlight = Logger.app(category: "Spotlight")
+    nonisolated static let templateSeeder = Logger.app(category: "TemplateSeeder")
+    nonisolated static let yearPlanPromotion = Logger.app(category: "YearPlanPromotion")
+    nonisolated static let yearPlanRelease = Logger.app(category: "YearPlanRelease")
+
+    // MARK: - MCP
+    nonisolated static let mcpServer = Logger.app(category: "MCPServer")
+    nonisolated static let mcpWriteJournal = Logger.app(category: "MCPWriteJournal")
 }

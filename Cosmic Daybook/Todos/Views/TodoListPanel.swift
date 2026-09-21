@@ -4,7 +4,7 @@ import CoreData
 struct TodoListPanel: View {
     @Environment(\.dismiss) private var dismiss
     @FetchRequest(fetchRequest: {
-        let request = NSFetchRequest<CDTodoItem>(entityName: "TodoItem")
+        let request = CDFetchRequest(CDTodoItem.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDTodoItem.orderIndex, ascending: true)]
         // Prefetch subtasks so each TodoRow's progress/count reads from the row
         // cache instead of faulting the relationship per row (N+1).

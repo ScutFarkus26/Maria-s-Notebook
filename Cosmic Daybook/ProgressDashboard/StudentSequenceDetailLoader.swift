@@ -75,7 +75,7 @@ enum StudentSequenceDetailLoader {
         lessonIDs: [UUID],
         context: NSManagedObjectContext
     ) -> [UUID: CDLesson] {
-        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "id IN %@", lessonIDs)
         let lessons = context.safeFetch(request)
         return Dictionary(uniqueKeysWithValues: lessons.compactMap { lesson in
@@ -90,7 +90,7 @@ enum StudentSequenceDetailLoader {
         lessonMap: [UUID: CDLesson],
         context: NSManagedObjectContext
     ) -> [WorkDetailItem] {
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(
             format: "studentID == %@ AND lessonID IN %@",
             studentIDStr,
@@ -118,7 +118,7 @@ enum StudentSequenceDetailLoader {
         lessonMap: [UUID: CDLesson],
         context: NSManagedObjectContext
     ) -> [PresentationDetailItem] {
-        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        let request = CDFetchRequest(CDLessonAssignment.self)
         // Include undated "Previously Presented" records (stateRaw == presented,
         // presentedAt == nil) so the drill-in matches the dashboard grid.
         request.predicate = NSPredicate(
@@ -148,7 +148,7 @@ enum StudentSequenceDetailLoader {
         lessonMap: [UUID: CDLesson],
         context: NSManagedObjectContext
     ) -> [NoteDetailItem] {
-        let request = NSFetchRequest<CDNote>(entityName: "Note")
+        let request = CDFetchRequest(CDNote.self)
         request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDStrs)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]
         let scoped = context.safeFetch(request).filter { note in

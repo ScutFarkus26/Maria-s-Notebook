@@ -51,7 +51,7 @@ struct RecallService {
     /// Bumps `lastObservedAt` on the matching proficient presentation(s). Never touches
     /// `stateRaw` or `masteredAt` — recall must not overwrite mastery.
     private func bumpLastObserved(studentID: String, lessonID: UUID, at date: Date) {
-        let request = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+        let request = CDFetchRequest(CDLessonPresentation.self)
         // Predicate on both lessonID and studentID to avoid fetching the full table.
         // stateRaw filter added so we only load proficient rows.
         request.predicate = NSPredicate(
@@ -69,7 +69,7 @@ struct RecallService {
     /// frontier implies, skipping any already recorded this year (idempotent via the engine).
     private func stampCovered(for entry: RecallQueueEntry, yearKey: String, at date: Date) {
         // Scope to this student + year to avoid loading the full recall-check table.
-        let request = NSFetchRequest<CDLessonRecallCheck>(entityName: "LessonRecallCheck")
+        let request = CDFetchRequest(CDLessonRecallCheck.self)
         request.predicate = NSPredicate(
             format: "studentID == %@ AND schoolYearKey == %@",
             entry.studentID, yearKey
@@ -98,7 +98,7 @@ struct RecallService {
     /// Sets the existing follow-up flags on any assignment for this lesson + student, so recall
     /// fallout surfaces in the Follow-up Inbox (FollowUpInboxEngine already reads these flags).
     private func setFollowUp(entry: RecallQueueEntry, needsPractice: Bool, needsAnotherPresentation: Bool) {
-        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        let request = CDFetchRequest(CDLessonAssignment.self)
         // Predicate on lessonID (stored as String) to avoid a full-table scan.
         request.predicate = NSPredicate(format: "lessonID == %@", entry.frontierLessonID.uuidString)
         let sid = RecallFrontierEngine.normalize(entry.studentID)

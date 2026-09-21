@@ -250,8 +250,7 @@ public final class SchoolCalendarService {
 
         if isWeekend {
             // Weekend logic
-            let overrideFetch: NSFetchRequest<CDSchoolDayOverride> =
-                NSFetchRequest<CDSchoolDayOverride>(entityName: "SchoolDayOverride")
+            let overrideFetch: NSFetchRequest<CDSchoolDayOverride> = CDFetchRequest(CDSchoolDayOverride.self)
             overrideFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
             overrideFetch.fetchLimit = 1
             let overrides: [CDSchoolDayOverride] = try context.fetch(overrideFetch)
@@ -273,7 +272,7 @@ public final class SchoolCalendarService {
             return becameNonSchool
         } else {
             // Weekday logic
-            let nsFetch: NSFetchRequest<CDNonSchoolDay> = NSFetchRequest<CDNonSchoolDay>(entityName: "NonSchoolDay")
+            let nsFetch: NSFetchRequest<CDNonSchoolDay> = CDFetchRequest(CDNonSchoolDay.self)
             nsFetch.predicate = NSPredicate(format: "date == %@", day as NSDate)
             nsFetch.fetchLimit = 1
             let items: [CDNonSchoolDay] = try context.fetch(nsFetch)

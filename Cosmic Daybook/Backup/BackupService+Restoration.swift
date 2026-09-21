@@ -949,7 +949,7 @@ extension BackupService {
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {
         let assignmentsForRepair = try viewContext.fetch(
-            NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            CDFetchRequest(CDLessonAssignment.self)
         )
         var repairedCount = 0
         for la in assignmentsForRepair {

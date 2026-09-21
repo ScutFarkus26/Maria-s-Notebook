@@ -12,10 +12,6 @@ import Testing
 @MainActor
 struct LessonNameMergeTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     private func lessons(in context: NSManagedObjectContext) -> [CDLesson] {
         context.safeFetch(CDFetchRequest(CDLesson.self))
     }
@@ -33,7 +29,7 @@ struct LessonNameMergeTests {
 
     @Test("Same name in the same sub-area is a duplicate; other sub-areas and parsha lessons are not")
     func detectsOnlySameSubAreaDuplicates() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         seedAreaLesson("Rectangle", order: 0, in: context)
         seedAreaLesson("rectangle ", order: 5, in: context)
         seedAreaLesson("Triangle and Rectangle", order: 10, in: context)
@@ -53,7 +49,7 @@ struct LessonNameMergeTests {
 
     @Test("Merge keeps the older record and repoints presentations, marks, plans and work at it")
     func mergeRepointsEverything() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let older = seedAreaLesson("Parallelogram", order: 1, in: context)
         let newer = seedAreaLesson("Parallelogram", order: 6, in: context)
         newer.writeUp = "Cut and rearrange the parallelogram into a rectangle."
@@ -115,7 +111,7 @@ struct LessonNameMergeTests {
 
     @Test("A child left with two marks for one lesson keeps the earlier one with the later mastery date")
     func mergeFoldsDuplicateMarks() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let older = seedAreaLesson("Rectangle", order: 0, in: context)
         let newer = seedAreaLesson("Rectangle", order: 5, in: context)
         CoreDataTestHelpers.save(context)
@@ -144,7 +140,7 @@ struct LessonNameMergeTests {
 
     @Test("The launch dedupe pass reports same-name merges under their own key")
     func dedupePassIncludesNameMerge() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         seedAreaLesson("Obtuse Angled Triangle", order: 4, in: context)
         seedAreaLesson("Obtuse Angled Triangle", order: 9, in: context)
         CoreDataTestHelpers.save(context)
@@ -159,7 +155,7 @@ struct LessonNameMergeTests {
 
     @Test("createLesson refuses a name already filed in the same sub-area, case- and accent-insensitively")
     func createRefusesDuplicateName() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let repository = LessonRepository(context: context)
         let first = try repository.createLesson(name: "Right Angled Triangle", area: "Geometry", sequence: "Area")
         CoreDataTestHelpers.save(context)
@@ -174,7 +170,7 @@ struct LessonNameMergeTests {
 
     @Test("createLesson allows the same name in another sub-area and for parsha lessons")
     func createAllowsOtherFilings() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let repository = LessonRepository(context: context)
         _ = try repository.createLesson(name: "The Rhombus", area: "Geometry", sequence: "Area")
         _ = try repository.createLesson(
@@ -188,7 +184,7 @@ struct LessonNameMergeTests {
 
     @Test("create_lesson over MCP reports the existing lesson instead of adding a second")
     func mcpCreateLessonStaysIdempotent() async throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         seedAreaLesson("Rectangle", order: 0, in: context)
         CoreDataTestHelpers.save(context)
         let tools = MCPNotebookTools.makeTools(context: { context })

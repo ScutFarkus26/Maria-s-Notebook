@@ -17,7 +17,7 @@ struct PresentationNotesSectionUnified: View {
             // Only notes attached to work for this lesson. This used to fetch the
             // entire Note table and filter in Swift ("to avoid SwiftData
             // predicate limitations", which don't apply to Core Data).
-            let request = NSFetchRequest<CDNote>(entityName: "Note")
+            let request = CDFetchRequest(CDNote.self)
             request.predicate = NSPredicate(format: "work.lessonID == %@", lessonAssignment.lessonID)
             let workNotes = try viewContext.fetch(request)
 

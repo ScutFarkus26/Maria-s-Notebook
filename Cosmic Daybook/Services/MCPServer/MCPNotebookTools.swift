@@ -176,12 +176,7 @@ enum MCPNotebookTools {
 
 extension MCPNotebookTools {
     /// Formats dates for tool output; the server's instructions promise ISO 8601.
-    static let isoDay: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
+    static let isoDay: DateFormatter = DateFormatters.isoDayPOSIX
 
     static func dayString(_ date: Date?) -> String {
         date.map { isoDay.string(from: $0) } ?? "undated"

@@ -255,7 +255,7 @@ struct AttendanceStudentHistorySheet: View {
     // MARK: Data
 
     private func loadRecords() {
-        let request = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+        let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
         do {
             records = try viewContext.fetch(request)

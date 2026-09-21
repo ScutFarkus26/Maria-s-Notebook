@@ -20,7 +20,7 @@ final class CalendarSyncService {
     /// If empty, syncing is disabled
     var syncCalendarIdentifiers: [String] {
         didSet {
-            UserDefaults.standard.set(syncCalendarIdentifiers, forKey: "CalendarSync.syncCalendarIdentifiers")
+            UserDefaults.standard.set(syncCalendarIdentifiers, forKey: UserDefaultsKeys.calendarSyncIdentifiers)
             Task { @MainActor in
                 if !self.syncCalendarIdentifiers.isEmpty && self.hasFullAccess {
                     self.startObservingChanges()
@@ -34,7 +34,7 @@ final class CalendarSyncService {
     /// The display names of calendars (for UI display only)
     var syncCalendarNames: [String] {
         didSet {
-            UserDefaults.standard.set(syncCalendarNames, forKey: "CalendarSync.syncCalendarNames")
+            UserDefaults.standard.set(syncCalendarNames, forKey: UserDefaultsKeys.calendarSyncNames)
         }
     }
 
@@ -50,23 +50,24 @@ final class CalendarSyncService {
         self.managedObjectContext = context
 
         // Load calendar identifiers (with migration from legacy single-calendar storage)
-        if let identifiers = UserDefaults.standard.array(forKey: "CalendarSync.syncCalendarIdentifiers") as? [String] {
+        let defaults = UserDefaults.standard
+        if let identifiers = defaults.array(forKey: UserDefaultsKeys.calendarSyncIdentifiers) as? [String] {
             self.syncCalendarIdentifiers = identifiers
-        } else if let legacyIdentifier = UserDefaults.standard.string(forKey: "CalendarSync.syncCalendarIdentifier") {
+        } else if let legacyIdentifier = defaults.string(forKey: UserDefaultsKeys.calendarSyncLegacyIdentifier) {
             // Migrate from legacy single calendar
             self.syncCalendarIdentifiers = [legacyIdentifier]
-            UserDefaults.standard.set([legacyIdentifier], forKey: "CalendarSync.syncCalendarIdentifiers")
+            UserDefaults.standard.set([legacyIdentifier], forKey: UserDefaultsKeys.calendarSyncIdentifiers)
         } else {
             self.syncCalendarIdentifiers = []
         }
 
         // Load calendar names (with migration from legacy single-calendar storage)
-        if let names = UserDefaults.standard.array(forKey: "CalendarSync.syncCalendarNames") as? [String] {
+        if let names = UserDefaults.standard.array(forKey: UserDefaultsKeys.calendarSyncNames) as? [String] {
             self.syncCalendarNames = names
-        } else if let legacyName = UserDefaults.standard.string(forKey: "CalendarSync.syncCalendarName") {
+        } else if let legacyName = UserDefaults.standard.string(forKey: UserDefaultsKeys.calendarSyncLegacyName) {
             // Migrate from legacy single calendar
             self.syncCalendarNames = [legacyName]
-            UserDefaults.standard.set([legacyName], forKey: "CalendarSync.syncCalendarNames")
+            UserDefaults.standard.set([legacyName], forKey: UserDefaultsKeys.calendarSyncNames)
         } else {
             self.syncCalendarNames = []
         }

@@ -17,7 +17,7 @@ extension AppBootstrapping {
         AppBootstrapper.shared.setState(.initializingContainer)
 
         do {
-            let logger = Logger.app(category: "Container")
+            let logger = Logger.container
             let containerStart = Date()
             logger.info("CoreDataStack: Starting initialization...")
 
@@ -65,7 +65,7 @@ extension AppBootstrapping {
                 // missing/corrupt). Rather than crash-loop with no UI, launch into
                 // the database-error screen backed by an empty, always-constructible
                 // stack. The error was already recorded via DatabaseErrorCoordinator.
-                Logger.app(category: "Container").fault(
+                Logger.container.fault(
                     "CRITICAL: no real Core Data stack could be created; using empty fallback. \(errorDesc, privacy: .public)"
                 )
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)

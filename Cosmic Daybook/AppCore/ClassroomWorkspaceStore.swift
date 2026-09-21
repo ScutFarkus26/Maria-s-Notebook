@@ -30,7 +30,7 @@ enum ClassroomWorkspace: String, CaseIterable, Identifiable, Sendable {
 /// file; it cannot upload, fetch, edit, or delete records in My Class.
 @Observable
 final class ClassroomWorkspaceStore {
-    private static let logger = Logger.app(category: "ClassroomWorkspace")
+    private static let logger = Logger.classroomWorkspace
 
     let primaryStack: CoreDataStack
     let primaryDependencies: AppDependencies

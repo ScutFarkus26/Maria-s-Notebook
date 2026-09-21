@@ -89,7 +89,7 @@ final class AutoBackupManager {
         self.coordinator = coordinator
 
         // Load last scheduled backup date from UserDefaults
-        let timestamp = UserDefaults.standard.double(forKey: "AutoBackup.lastScheduledDate")
+        let timestamp = UserDefaults.standard.double(forKey: UserDefaultsKeys.autoBackupLastScheduledDate)
         if timestamp > 0 {
             lastScheduledBackupDate = Date(timeIntervalSinceReferenceDate: timestamp)
         }
@@ -261,8 +261,7 @@ final class AutoBackupManager {
         }
 
         // Create timestamped filename
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let formatter = DateFormatters.iso8601DateTimeWithFractionalSeconds
         let timestamp = formatter.string(from: Date())
         let filename = "\(prefix)-\(timestamp).\(BackupFile.fileExtension)"
         let url = backupDir.appendingPathComponent(filename)
@@ -313,7 +312,7 @@ final class AutoBackupManager {
         lastScheduledBackupDate = Date()
         UserDefaults.standard.set(
             Date().timeIntervalSinceReferenceDate,
-            forKey: "AutoBackup.lastScheduledDate"
+            forKey: UserDefaultsKeys.autoBackupLastScheduledDate
         )
     }
 

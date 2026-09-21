@@ -21,7 +21,7 @@ actor PersistentHistoryProcessor {
     // MARK: - Constants
 
     static let transactionAuthor = "CosmicDaybook"
-    nonisolated private static let logger = Logger.app(category: "HistoryProcessor")
+    nonisolated private static let logger = Logger.historyProcessor
 
     /// Entities whose remote changes must invalidate the school-day caches.
     /// `CoreDataStack` used to post `.schoolDayDataDidChange` on *every*

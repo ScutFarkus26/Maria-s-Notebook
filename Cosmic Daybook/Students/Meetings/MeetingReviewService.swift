@@ -11,7 +11,7 @@ enum MeetingReviewService {
         meetingID: UUID,
         context: NSManagedObjectContext
     ) -> [CDMeetingWorkReview] {
-        let request = NSFetchRequest<CDMeetingWorkReview>(entityName: "MeetingWorkReview")
+        let request = CDFetchRequest(CDMeetingWorkReview.self)
         request.predicate = NSPredicate(format: "meetingID == %@", meetingID.uuidString)
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         return (try? context.fetch(request)) ?? []

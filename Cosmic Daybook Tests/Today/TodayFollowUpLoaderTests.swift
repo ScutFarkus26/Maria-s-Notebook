@@ -10,14 +10,6 @@ import Testing
 @MainActor
 struct TodayFollowUpLoaderTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     private func enrolled(in context: NSManagedObjectContext) -> [UUID: CDStudent] {
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = CDStudent.enrolledPredicate
@@ -30,7 +22,7 @@ struct TodayFollowUpLoaderTests {
     private func build(
         on selected: String, levelFilter: LevelFilter = .all, in context: NSManagedObjectContext
     ) throws -> [WorkCheckInFollowUp] {
-        let (start, next) = AppCalendar.dayRange(for: try day(selected))
+        let (start, next) = AppCalendar.dayRange(for: try CoreDataTestHelpers.day(selected))
         let fetch = TodayDataFetcher.fetchWorkData(day: start, nextDay: next, referenceDate: start, context: context)
         return TodayFollowUpLoader.build(
             fetch: fetch, day: start, nextDay: next,
@@ -42,21 +34,21 @@ struct TodayFollowUpLoaderTests {
 
     @Test("A check-in before the selected day is overdue, on the day it is due, and a work shows its earliest once")
     func overdueAndDueTodayOnePerWork() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let ettyID = try #require(etty.id)
         let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Stamp Game", studentID: ettyID)
-        CDWorkCheckIn.make(for: work, on: try day("2026-09-09"), in: context)
-        CDWorkCheckIn.make(for: work, on: try day("2026-09-04"), in: context)
+        CDWorkCheckIn.make(for: work, on: try CoreDataTestHelpers.day("2026-09-09"), in: context)
+        CDWorkCheckIn.make(for: work, on: try CoreDataTestHelpers.day("2026-09-04"), in: context)
         let dueToday = CoreDataTestHelpers.seedWorkModel(in: context, title: "Bead Frame", studentID: ettyID)
-        CDWorkCheckIn.make(for: dueToday, on: try day("2026-09-11"), in: context)
+        CDWorkCheckIn.make(for: dueToday, on: try CoreDataTestHelpers.day("2026-09-11"), in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         let rows = try build(on: "2026-09-11", in: context)
         #expect(rows.count == 2)
         let first = try #require(rows.first)
         let second = try #require(rows.last)
-        let sep4 = try day("2026-09-04")
+        let sep4 = try CoreDataTestHelpers.day("2026-09-04")
         #expect(first.work === work)
         #expect(first.dueDay == sep4)
         #expect(first.isOverdue)
@@ -66,12 +58,12 @@ struct TodayFollowUpLoaderTests {
 
     @Test("Completed, skipped and future check-ins are not owed")
     func closedAndFutureExcluded() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let work = CoreDataTestHelpers.seedWorkModel(in: context, studentID: try #require(etty.id))
-        CDWorkCheckIn.make(for: work, on: try day("2026-09-04"), status: .completed, in: context)
-        CDWorkCheckIn.make(for: work, on: try day("2026-09-08"), status: .skipped, in: context)
-        CDWorkCheckIn.make(for: work, on: try day("2026-09-18"), in: context)
+        CDWorkCheckIn.make(for: work, on: try CoreDataTestHelpers.day("2026-09-04"), status: .completed, in: context)
+        CDWorkCheckIn.make(for: work, on: try CoreDataTestHelpers.day("2026-09-08"), status: .skipped, in: context)
+        CDWorkCheckIn.make(for: work, on: try CoreDataTestHelpers.day("2026-09-18"), in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         #expect(try build(on: "2026-09-11", in: context).isEmpty)
@@ -79,7 +71,7 @@ struct TodayFollowUpLoaderTests {
 
     @Test("A withdrawn participant marks the row, a withdrawn owner is listed and marked, an unknown owner is dropped")
     func departedChildrenAreMarkedNotHidden() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let naomi = CoreDataTestHelpers.seedStudent(
             in: context, firstName: "Naomi", lastName: "Levin", enrollmentStatus: .withdrawn
@@ -90,13 +82,13 @@ struct TodayFollowUpLoaderTests {
         let participant = CDWorkParticipantEntity(context: context)
         participant.studentID = naomiID.uuidString
         shared.addToParticipants(participant)
-        CDWorkCheckIn.make(for: shared, on: try day("2026-09-09"), in: context)
+        CDWorkCheckIn.make(for: shared, on: try CoreDataTestHelpers.day("2026-09-09"), in: context)
 
         let naomisOwn = CoreDataTestHelpers.seedWorkModel(in: context, title: "Racks and tubes", studentID: naomiID)
-        CDWorkCheckIn.make(for: naomisOwn, on: try day("2026-09-10"), in: context)
+        CDWorkCheckIn.make(for: naomisOwn, on: try CoreDataTestHelpers.day("2026-09-10"), in: context)
 
         let nobodys = CoreDataTestHelpers.seedWorkModel(in: context, title: "Ghost", studentID: UUID())
-        CDWorkCheckIn.make(for: nobodys, on: try day("2026-09-10"), in: context)
+        CDWorkCheckIn.make(for: nobodys, on: try CoreDataTestHelpers.day("2026-09-10"), in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         let rows = try build(on: "2026-09-11", in: context)
@@ -114,10 +106,10 @@ struct TodayFollowUpLoaderTests {
 
     @Test("The level filter drops an upper owner's row and .all keeps it")
     func levelFilterFollowsTheOwner() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Katz", level: .upper)
         let work = CoreDataTestHelpers.seedWorkModel(in: context, studentID: try #require(ora.id))
-        CDWorkCheckIn.make(for: work, on: try day("2026-09-10"), in: context)
+        CDWorkCheckIn.make(for: work, on: try CoreDataTestHelpers.day("2026-09-10"), in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         #expect(try build(on: "2026-09-11", levelFilter: .lower, in: context).isEmpty)
@@ -127,17 +119,17 @@ struct TodayFollowUpLoaderTests {
 
     @Test("Rows come earliest day first, then by the owner's first name")
     func orderIsDayThenName() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let zahava = CoreDataTestHelpers.seedStudent(in: context, firstName: "Zahava", lastName: "Wechsler")
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
         let zahavaID = try #require(zahava.id)
         let avitalID = try #require(avital.id)
         let zahavaOld = CoreDataTestHelpers.seedWorkModel(in: context, title: "Old", studentID: zahavaID)
-        CDWorkCheckIn.make(for: zahavaOld, on: try day("2026-09-04"), in: context)
+        CDWorkCheckIn.make(for: zahavaOld, on: try CoreDataTestHelpers.day("2026-09-04"), in: context)
         let zahavaNew = CoreDataTestHelpers.seedWorkModel(in: context, title: "New", studentID: zahavaID)
-        CDWorkCheckIn.make(for: zahavaNew, on: try day("2026-09-09"), in: context)
+        CDWorkCheckIn.make(for: zahavaNew, on: try CoreDataTestHelpers.day("2026-09-09"), in: context)
         let avitalNew = CoreDataTestHelpers.seedWorkModel(in: context, title: "New", studentID: avitalID)
-        CDWorkCheckIn.make(for: avitalNew, on: try day("2026-09-09"), in: context)
+        CDWorkCheckIn.make(for: avitalNew, on: try CoreDataTestHelpers.day("2026-09-09"), in: context)
         #expect(CoreDataTestHelpers.save(context))
 
         let rows = try build(on: "2026-09-11", in: context)
@@ -149,7 +141,7 @@ struct TodayFollowUpLoaderTests {
 
     @Test("reload fills the view model; completing empties it; rescheduling moves dueAt with the check-in")
     func viewModelRoundTrip() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let ettyID = try #require(etty.id)
         let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Stamp Game", studentID: ettyID)

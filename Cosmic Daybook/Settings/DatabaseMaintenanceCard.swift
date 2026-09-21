@@ -12,7 +12,7 @@ import OSLog
 /// migration flags, then clears the flag. The container reconstitutes from
 /// CloudKit.
 struct DatabaseMaintenanceCard: View {
-    private static let logger = Logger.app(category: "DatabaseMaintenance")
+    private static let logger = Logger.databaseMaintenance
 
     @State private var showingResetConfirmation = false
     @State private var showingRelaunchPrompt = false

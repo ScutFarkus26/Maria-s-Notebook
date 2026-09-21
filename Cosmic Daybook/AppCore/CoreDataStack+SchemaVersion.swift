@@ -31,7 +31,7 @@ import SQLite3
 
 extension CoreDataStack {
 
-    private static var schemaLogger: Logger { Logger.app(category: "CoreDataSchemaVersion") }
+    private static var schemaLogger: Logger { Logger.coreDataSchemaVersion }
 
     /// Monotonic stamp for the compiled Core Data model.
     ///

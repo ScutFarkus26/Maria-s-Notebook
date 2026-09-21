@@ -299,9 +299,9 @@ struct StudentsView: View {
             // which leaves the count unchanged. Fold in the latest modifiedAt so a
             // status flip also reloads the Here filter.
             let attendanceCount = try viewContext.count(
-                for: NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+                for: CDFetchRequest(CDAttendanceRecord.self)
             )
-            let latestRequest = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+            let latestRequest = CDFetchRequest(CDAttendanceRecord.self)
             latestRequest.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
             latestRequest.fetchLimit = 1
             let latestModified = try viewContext.fetch(latestRequest).first?.modifiedAt ?? .distantPast
@@ -310,12 +310,12 @@ struct StudentsView: View {
                 attendanceChangeToken = attendanceToken
             }
             let presentationCount = try viewContext.count(
-                for: NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+                for: CDFetchRequest(CDLessonAssignment.self)
             )
             if presentationCount != presentationChangeToken {
                 presentationChangeToken = presentationCount
             }
-            let lessonCount = try viewContext.count(for: NSFetchRequest<CDLesson>(entityName: "Lesson"))
+            let lessonCount = try viewContext.count(for: CDFetchRequest(CDLesson.self))
             if lessonCount != lessonChangeToken {
                 lessonChangeToken = lessonCount
             }

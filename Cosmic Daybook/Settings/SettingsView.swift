@@ -12,7 +12,7 @@ struct SettingsView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchText = ""
-    @AppStorage("settings_selectedCategory") private var selectedCategoryRaw: String = ""
+    @AppStorage(UserDefaultsKeys.settingsSelectedCategory) private var selectedCategoryRaw: String = ""
 
     init(showsPageHeader: Bool = true) {
         self.showsPageHeader = showsPageHeader

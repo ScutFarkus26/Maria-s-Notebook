@@ -18,14 +18,6 @@ struct PresentationPlannerTests {
         let prior: CDLessonAssignment
     }
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     private func seed(in context: NSManagedObjectContext) throws -> Fixture {
         let checkerboard = CoreDataTestHelpers.seedLesson(
             in: context, name: "Checkerboard", area: "Math", sequence: "Multiplication"
@@ -33,7 +25,8 @@ struct PresentationPlannerTests {
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
         let prior = PresentationFactory.makePresented(
-            lesson: checkerboard, students: [ora], presentedAt: try day("2026-03-11"), context: context
+            lesson: checkerboard, students: [ora],
+                presentedAt: try CoreDataTestHelpers.day("2026-03-11"), context: context
         )
         #expect(CoreDataTestHelpers.save(context))
         return Fixture(checkerboard: checkerboard, ora: ora, etty: etty, prior: prior)
@@ -43,9 +36,9 @@ struct PresentationPlannerTests {
 
     @Test("A second pass flags her earlier record and opens the draft with the purpose line")
     func secondPassFlagsAndAnnotates() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
-        let planned = try day("2026-04-02")
+        let planned = try CoreDataTestHelpers.day("2026-04-02")
 
         let draft = try #require(PresentationPlanner.planDraft(
             lesson: fixture.checkerboard,
@@ -64,9 +57,9 @@ struct PresentationPlannerTests {
 
     @Test("A review writes its line and flags nothing")
     func reviewAnnotatesWithoutFlagging() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
-        let planned = try day("2026-04-02")
+        let planned = try CoreDataTestHelpers.day("2026-04-02")
 
         let draft = try #require(PresentationPlanner.planDraft(
             lesson: fixture.checkerboard,
@@ -84,14 +77,14 @@ struct PresentationPlannerTests {
 
     @Test("No purpose flags nothing and writes no note, however the record reads")
     func noPurposeLeavesTheRecordAlone() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
 
         let draft = try #require(PresentationPlanner.planDraft(
             lesson: fixture.checkerboard,
             students: [fixture.ora],
             purpose: nil,
-            plannedOn: try day("2026-04-02"),
+            plannedOn: try CoreDataTestHelpers.day("2026-04-02"),
             in: context
         ))
 
@@ -102,9 +95,9 @@ struct PresentationPlannerTests {
 
     @Test("A second pass for a child nobody has on record flags nothing but still says why")
     func secondPassForANewcomer() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
-        let planned = try day("2026-04-02")
+        let planned = try CoreDataTestHelpers.day("2026-04-02")
 
         let draft = try #require(PresentationPlanner.planDraft(
             lesson: fixture.checkerboard,
@@ -120,7 +113,7 @@ struct PresentationPlannerTests {
 
     @Test("Nobody to plan for is no draft at all")
     func emptyRosterPlansNothing() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
 
         #expect(PresentationPlanner.planDraft(
@@ -135,7 +128,7 @@ struct PresentationPlannerTests {
 
     @Test("The picker's conflict list is the children the record already covers")
     func conflictsNameTheChildrenOnRecord() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
         let lessonID = try #require(fixture.checkerboard.id).uuidString
         let index = PresentationRecordIndex(lessonIDs: [lessonID], in: context)
@@ -143,12 +136,12 @@ struct PresentationPlannerTests {
         let conflicts = PresentationPlanner.repeatConflicts(
             lesson: fixture.checkerboard,
             students: [fixture.ora, fixture.etty],
-            on: try day("2026-04-02"),
+            on: try CoreDataTestHelpers.day("2026-04-02"),
             index: index
         )
 
         #expect(conflicts.count == 1)
         #expect(conflicts.first?.student.id == fixture.ora.id)
-        #expect(conflicts.first?.days == [AppCalendar.startOfDay(try day("2026-03-11"))])
+        #expect(conflicts.first?.days == [AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-03-11"))])
     }
 }

@@ -22,7 +22,7 @@ public final class SyncedPreferencesStore {
 
     let kvStore = NSUbiquitousKeyValueStore.default
     let userDefaults = UserDefaults.standard
-    let logger = Logger.app(category: "SyncedPreferences")
+    let logger = Logger.syncedPreferences
 
     // MARK: - Quota Monitoring
 
@@ -415,14 +415,6 @@ extension Notification.Name {
     nonisolated public static let syncedPreferencesDidChange = Notification.Name("syncedPreferencesDidChange")
     /// Posted when iCloud KVS quota is violated (1MB limit exceeded)
     nonisolated public static let syncedPreferencesQuotaViolation = Notification.Name("syncedPreferencesQuotaViolation")
-    /// Posted to request opening a student detail window (with UUID userInfo)
-    nonisolated static let openStudentDetailWindow = Notification.Name("openStudentDetailWindow")
-    /// Posted to request opening a lesson detail window (with UUID userInfo)
-    nonisolated static let openLessonDetailWindow = Notification.Name("openLessonDetailWindow")
-    /// Posted to request opening a work detail window (with UUID userInfo)
-    nonisolated static let openWorkDetailWindow = Notification.Name("openWorkDetailWindow")
-    /// Posted to request opening the keyboard shortcuts help window
-    nonisolated static let openKeyboardShortcutsWindow = Notification.Name("openKeyboardShortcutsWindow")
 }
 
 // MARK: - Property Wrapper for SwiftUI

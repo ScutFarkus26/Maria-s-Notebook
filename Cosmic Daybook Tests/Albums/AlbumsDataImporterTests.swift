@@ -8,10 +8,6 @@ import Testing
 @MainActor
 final class AlbumsDataImporterTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     private func writeFixture(_ json: String) throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("albums-import-\(UUID().uuidString).json")
@@ -38,7 +34,7 @@ final class AlbumsDataImporterTests {
 
     @Test("A 1.0 export imports bookmarks, notes, and recents")
     func importsLegacyShape() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let url = try writeFixture(legacyPayload)
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -54,7 +50,7 @@ final class AlbumsDataImporterTests {
 
     @Test("Re-importing the same file adds nothing")
     func importIsIdempotent() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let url = try writeFixture(legacyPayload)
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -68,7 +64,7 @@ final class AlbumsDataImporterTests {
 
     @Test("A full export also imports positions, highlights, and ink")
     func importsFullShape() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let url = try writeFixture("""
             {
               "bookmarks": [],
@@ -109,7 +105,7 @@ final class AlbumsDataImporterTests {
 
     @Test("A file that isn't an Albums export is reported, not imported")
     func rejectsUnrelatedJSON() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let url = try writeFixture("[1, 2, 3]")
         defer { try? FileManager.default.removeItem(at: url) }
 

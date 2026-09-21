@@ -29,7 +29,7 @@ struct ParshaMetadata: Decodable, Sendable {
 
 enum ParshaMetadataService {
 
-    private static let logger = Logger.app(category: "ParshaMetadataService")
+    private static let logger = Logger.parshaMetadataService
 
     private struct Library: Decodable {
         let version: Int

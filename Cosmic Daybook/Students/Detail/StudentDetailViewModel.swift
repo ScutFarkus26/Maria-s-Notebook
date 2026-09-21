@@ -56,7 +56,7 @@ final class StudentDetailViewModel {
         let neededLessonIDs = Set(filteredLAs.map(\.resolvedLessonID))
         let fetchedLessons: [CDLesson]
         if !neededLessonIDs.isEmpty {
-            let descriptor = NSFetchRequest<CDLesson>(entityName: "Lesson")
+            let descriptor = CDFetchRequest(CDLesson.self)
             descriptor.fetchLimit = 1000
             let allLessons = viewContext.safeFetch(descriptor)
             fetchedLessons = allLessons.filter { $0.id != nil && neededLessonIDs.contains($0.id!) }

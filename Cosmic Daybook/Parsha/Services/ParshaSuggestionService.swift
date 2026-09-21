@@ -26,7 +26,7 @@ final class ParshaSuggestionService {
 
     private let mcpClient: MCPClientProtocol
     private let context: NSManagedObjectContext
-    private let logger = Logger.app(category: "ParshaSuggestionService")
+    private let logger = Logger.parshaSuggestionService
 
     init(mcpClient: MCPClientProtocol, context: NSManagedObjectContext) {
         self.mcpClient = mcpClient

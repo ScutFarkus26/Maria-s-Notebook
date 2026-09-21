@@ -13,10 +13,6 @@ import Testing
 @MainActor
 struct WorkCheckInIntegrityTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     private func checkIns(in context: NSManagedObjectContext) -> [CDWorkCheckIn] {
         context.safeFetch(CDFetchRequest(CDWorkCheckIn.self))
     }
@@ -35,7 +31,7 @@ struct WorkCheckInIntegrityTests {
 
     @Test("The factory writes the workID string and the relationship together")
     func factoryLinksBothWays() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Racks and tubes")
         let checkIn = CDWorkCheckIn.make(for: work, on: Date(), purpose: " progressCheck ", in: context)
 
@@ -47,7 +43,7 @@ struct WorkCheckInIntegrityTests {
 
     @Test("resolvedWork follows the string when the relationship was never set")
     func resolvedWorkFallsBackToString() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Racks and tubes")
         CoreDataTestHelpers.save(context)
         let checkIn = seedStringOnlyCheckIn(workID: try #require(work.id?.uuidString), on: Date(), in: context)
@@ -59,7 +55,7 @@ struct WorkCheckInIntegrityTests {
 
     @Test("Launch repair relinks string-only check-ins and deletes true orphans only when told to")
     func repairRelinksAndDeletesOrphans() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Racks and tubes")
         CoreDataTestHelpers.save(context)
         let linked = seedStringOnlyCheckIn(workID: try #require(work.id?.uuidString), on: Date(), in: context)
@@ -79,7 +75,7 @@ struct WorkCheckInIntegrityTests {
 
     @Test("Deleting a work takes its check-ins with it, related or string-only")
     func deletingWorkCascadesToCheckIns() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Racks and tubes")
         let other = CoreDataTestHelpers.seedWorkModel(in: context, title: "Bead frame")
         CoreDataTestHelpers.save(context)
@@ -100,7 +96,7 @@ struct WorkCheckInIntegrityTests {
 
     @Test("schedule_for_range names the work of a string-only check-in and flags a true orphan")
     func scheduleNamesWorkByString() async throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Zahava", lastName: "Wechsler")
         let work = CoreDataTestHelpers.seedWorkModel(
             in: context, title: "Racks and tubes", studentID: try #require(student.id)
@@ -122,7 +118,7 @@ struct WorkCheckInIntegrityTests {
 
     @Test("A check-in the log settles leaves the Scheduled strip's fetch")
     func settledCheckInLeavesTheStrip() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Racks and tubes")
         let today = AppCalendar.startOfDay(Date())
         let checkIn = CDWorkCheckIn.make(for: work, on: today, purpose: "progressCheck", in: context)

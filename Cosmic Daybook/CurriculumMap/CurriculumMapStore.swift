@@ -13,7 +13,7 @@ import OSLog
 
 @Observable
 final class CurriculumMapStore {
-    private static let logger = Logger.app(category: "CurriculumMap")
+    private static let logger = Logger.curriculumMap
 
     private(set) var input: CurriculumMapInput?
     private(set) var isLoading = false

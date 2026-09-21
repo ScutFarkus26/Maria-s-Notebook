@@ -12,10 +12,6 @@ import Testing
 @MainActor
 struct StudentDepartureYearPlanTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     /// Explicitly typed: the literal arithmetic is cheap here and costly inside
     /// a `#expect`, which the project caps at 100 ms of type-checking.
     ///
@@ -57,7 +53,7 @@ struct StudentDepartureYearPlanTests {
 
     @Test("planned entries are hers alone, soonest first, and exclude promoted ones")
     func plannedEntriesAreHersAndStillPlanned() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let naomi = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Levin")
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Rhombus")
@@ -79,7 +75,7 @@ struct StudentDepartureYearPlanTests {
 
     @Test("skipping retires entries without deleting them")
     func skipRetiresWithoutDeleting() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let naomi = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Levin")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Trapezoid")
         let entry = seedEntry(in: context, student: naomi, lesson: lesson, plannedDate: Date())
@@ -99,7 +95,7 @@ struct StudentDepartureYearPlanTests {
 
     @Test("withdrawing at rollover skips the year plan and stops it going behind pace")
     func rolloverSkipsYearPlanForDepartingChild() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let leaving = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maytal", lastName: "Meyer")
         let staying = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Decagon")
@@ -157,7 +153,7 @@ struct StudentDepartureYearPlanTests {
 
     @Test("a departed child gets no new year-plan entries from an auto-populated sequence")
     func autoPopulateSkipsDepartedChildren() async throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let leaving = CoreDataTestHelpers.seedStudent(
             in: context, firstName: "Naomi", lastName: "Levin", enrollmentStatus: .withdrawn
         )

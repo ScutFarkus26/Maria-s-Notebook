@@ -12,13 +12,9 @@ import Testing
 @MainActor
 struct WorkAssignmentEnrollmentTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     @Test("createWork refuses a withdrawn student and names her status")
     func repositoryRefusesFormerStudent() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let naomi = CoreDataTestHelpers.seedStudent(
             in: context, firstName: "Naomi", lastName: "Levin", enrollmentStatus: .withdrawn
         )
@@ -33,7 +29,7 @@ struct WorkAssignmentEnrollmentTests {
 
     @Test("createWork accepts an enrolled student and an id with no record on file")
     func repositoryAcceptsEnrolledAndUnknown() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         CoreDataTestHelpers.save(context)
         let repository = WorkRepository(context: context)
@@ -45,7 +41,7 @@ struct WorkAssignmentEnrollmentTests {
 
     @Test("assign_work refuses a former student by status and creates nothing")
     func assignWorkRefusesFormerStudent() async throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         CoreDataTestHelpers.seedLesson(in: context, name: "Commutative Law", area: "Math", sequence: "Laws")
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         CoreDataTestHelpers.seedStudent(
@@ -71,7 +67,7 @@ struct WorkAssignmentEnrollmentTests {
 
     @Test("Work readers name a former student with her status")
     func readersMarkFormerStudents() async throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         let naomi = CoreDataTestHelpers.seedStudent(
             in: context, firstName: "Naomi", lastName: "Levin", enrollmentStatus: .withdrawn

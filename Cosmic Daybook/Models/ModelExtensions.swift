@@ -50,7 +50,7 @@ nonisolated extension CDLessonAssignment {
         let presentationIDString = id?.uuidString ?? ""
         guard !presentationIDString.isEmpty else { return [] }
 
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "presentationID == %@", presentationIDString)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: true)]
 
@@ -75,7 +75,7 @@ nonisolated extension CDLessonAssignment {
         // isn't queryable, but the students' own `id` is a plain UUID attribute —
         // so the already-parsed UUIDs go straight into the predicate instead of
         // faulting in every student row and filtering in Swift.
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", uuids)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
 
@@ -95,7 +95,7 @@ nonisolated extension CDLessonAssignment {
 
         // Fetch all practice sessions and filter in memory
         // Core Data predicates don't support complex array operations on Transformable
-        let request = NSFetchRequest<CDPracticeSession>(entityName: "PracticeSession")
+        let request = CDFetchRequest(CDPracticeSession.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
 
         let allSessions: [CDPracticeSession]
@@ -126,7 +126,7 @@ nonisolated extension CDLesson {
         let lessonIDString = id?.uuidString ?? ""
         guard !lessonIDString.isEmpty else { return [] }
 
-        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.scheduledFor, ascending: false)]
 
@@ -143,7 +143,7 @@ nonisolated extension CDLesson {
         let lessonIDString = id?.uuidString ?? ""
         guard !lessonIDString.isEmpty else { return [] }
 
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonIDString)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
 
@@ -163,7 +163,7 @@ nonisolated extension CDLesson {
 
         // Fetch all practice sessions and filter in memory
         // Core Data predicates don't support complex array operations on Transformable
-        let request = NSFetchRequest<CDPracticeSession>(entityName: "PracticeSession")
+        let request = CDFetchRequest(CDPracticeSession.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDPracticeSession.date, ascending: false)]
 
         let allSessions: [CDPracticeSession]
@@ -194,7 +194,7 @@ nonisolated extension CDPracticeSession {
 
         // Fetch students by UUIDs — the session's ID list is a Transformable, but
         // the students' own `id` is a queryable UUID attribute.
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", uuids)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
 

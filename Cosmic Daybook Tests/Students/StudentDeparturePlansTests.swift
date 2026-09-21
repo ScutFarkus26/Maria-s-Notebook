@@ -7,10 +7,6 @@ import Testing
 @MainActor
 struct StudentDeparturePlansTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     @discardableResult
     private func seedPlan(
         in context: NSManagedObjectContext, lesson: CDLesson, students: [CDStudent],
@@ -28,7 +24,7 @@ struct StudentDeparturePlansTests {
 
     @Test("future plans are the lessons not yet given that name her, soonest first")
     func futurePlansAreUngivenLessonsNamingHer() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let naomi = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Levin")
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         let fractions = CoreDataTestHelpers.seedLesson(in: context, name: "Fractions")
@@ -52,7 +48,7 @@ struct StudentDeparturePlansTests {
 
     @Test("retracting takes her off shared plans and deletes plans that named only her")
     func retractEditsAndDeletes() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let naomi = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Levin")
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Fractions")
@@ -76,7 +72,7 @@ struct StudentDeparturePlansTests {
 
     @Test("rollover takes departing children off their future plans and counts them")
     func rolloverRetractsFuturePlans() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let leaving = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", lastName: "Levin")
         let staying = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Fractions")

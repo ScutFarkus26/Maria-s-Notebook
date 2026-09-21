@@ -73,8 +73,7 @@ public final class BackupTransactionManager {
         )
 
         // Create timestamped filename
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
+        let formatter = DateFormatters.iso8601DateTime
         let timestamp = formatter.string(from: Date())
             .replacingOccurrences(of: ":", with: "-")
         let sanitizedName = operationName

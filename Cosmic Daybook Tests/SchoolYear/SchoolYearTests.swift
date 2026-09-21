@@ -199,7 +199,7 @@ final class SchoolYearTests {
         let undated = CDNote(context: ctx); undated.id = UUID(); undated.createdAt = nil
         #expect(CoreDataTestHelpers.save(ctx))
 
-        let request = NSFetchRequest<CDNote>(entityName: "Note")
+        let request = CDFetchRequest(CDNote.self)
         request.predicate = SchoolYearFilter.pointInTime("createdAt", in: range)
         let ids = Set(try ctx.fetch(request).compactMap(\.id))
 
@@ -225,7 +225,7 @@ final class SchoolYearTests {
         openInRange.createdAt = day(2026, 10, 1); openInRange.completedAt = nil; openInRange.lastTouchedAt = nil
         #expect(CoreDataTestHelpers.save(ctx))
 
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = SchoolYearFilter.span(
             createdAt: "createdAt", completedAt: "completedAt", touchedAt: "lastTouchedAt", in: range
         )
@@ -254,7 +254,7 @@ final class SchoolYearTests {
         undated.dateStarted = nil; undated.dateWithdrawn = nil
         #expect(CoreDataTestHelpers.save(ctx))
 
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.predicate = SchoolYearFilter.roster(in: range)
         let ids = Set(try ctx.fetch(request).compactMap(\.id))
 

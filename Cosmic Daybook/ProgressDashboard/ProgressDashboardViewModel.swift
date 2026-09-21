@@ -228,13 +228,13 @@ final class ProgressDashboardViewModel {
     // MARK: - Fetching
 
     private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.sortDescriptors = CDStudent.sortByName
         return context.safeFetch(request).filterEnrolled()
     }
 
     private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
@@ -245,13 +245,13 @@ final class ProgressDashboardViewModel {
     }
 
     private func fetchAllAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
-        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        let request = CDFetchRequest(CDLessonAssignment.self)
         request.fetchBatchSize = 200
         return context.safeFetch(request)
     }
 
     private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
-        let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
+        let request = CDFetchRequest(CDWorkModel.self)
         request.fetchBatchSize = 200
         return context.safeFetch(request)
     }

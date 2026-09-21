@@ -20,7 +20,7 @@ extension PresentationDetailViewModel {
 
         let allLessonPresentations: [CDLessonPresentation]
         do {
-            let req = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+            let req = CDFetchRequest(CDLessonPresentation.self)
             allLessonPresentations = try viewContext.fetch(req)
         } catch {
             Self.logger.warning("Failed to fetch CDLessonPresentation: \(error)")

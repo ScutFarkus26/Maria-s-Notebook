@@ -30,7 +30,7 @@ import Foundation
 import OSLog
 
 enum YearPlanReleaseService {
-    private static let logger = Logger.app(category: "YearPlanRelease")
+    private static let logger = Logger.yearPlanRelease
 
     /// What one call changed. Returned so callers can log something meaningful.
     struct Outcome: Equatable {

@@ -7,7 +7,7 @@ import OSLog
 /// Moves heavy synchronous work off the main UI rendering flow of the App struct.
 @Observable
 final class AppBootstrapper {
-    private static let logger = Logger.app(category: "Bootstrapper")
+    private static let logger = Logger.bootstrapper
 
     enum State {
         case idle
