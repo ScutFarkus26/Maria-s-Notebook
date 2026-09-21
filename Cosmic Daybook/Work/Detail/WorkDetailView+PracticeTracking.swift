@@ -158,7 +158,7 @@ extension WorkDetailView {
                             allStudents: practiceStudents,
                             allWork: practiceWorkItems
                         ) {
-                            selectedPracticeSession = session
+                            activeSheet = .practiceSession(session)
                         }
                     }
                 }
@@ -185,7 +185,7 @@ extension WorkDetailView {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
-                        selectedPracticeSession = nil
+                        activeSheet = nil
                     }
                 }
             }

@@ -13,7 +13,7 @@ extension WorkDetailView {
             icon: "list.bullet.clipboard.fill",
             accentColor: .green,
             trailing: {
-                Button { viewModel.showAddStepSheet = true } label: {
+                Button { activeSheet = .addStep } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(.green)
@@ -34,7 +34,7 @@ extension WorkDetailView {
                         VStack(spacing: 8) {
                             ForEach(orderedSteps) { step in
                                 WorkStepRow(step: step) {
-                                    viewModel.stepBeingEdited = step
+                                    activeSheet = .editStep(step)
                                 }
                             }
                         }
@@ -413,7 +413,7 @@ extension WorkDetailView {
         .onTapGesture {
             if let studentID = student.id,
                let workID = viewModel.peerWorkIDs[studentID] {
-                selectedWorkID = workID
+                activeSheet = .peerWork(workID)
             }
         }
         .disabled(!hasPeerWork)

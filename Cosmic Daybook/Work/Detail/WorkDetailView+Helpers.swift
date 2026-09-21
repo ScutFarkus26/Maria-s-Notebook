@@ -207,7 +207,7 @@ extension WorkDetailView {
             icon: "note.text",
             accentColor: .purple,
             trailing: {
-                Button { viewModel.showAddNoteSheet = true } label: {
+                Button { activeSheet = .addNote } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(.purple)
@@ -239,7 +239,7 @@ extension WorkDetailView {
 
     @ViewBuilder
     func noteRow(_ note: CDNote) -> some View {
-        NoteRowView(note: note, onEdit: { viewModel.noteBeingEdited = note }, onDelete: { deleteNote(note) })
+        NoteRowView(note: note, onEdit: { activeSheet = .editNote(note) }, onDelete: { deleteNote(note) })
     }
 
     // MARK: - Action Methods
@@ -314,18 +314,5 @@ extension WorkDetailView {
 
     func lessonTitle() -> String {
         return viewModel.relatedLesson?.name ?? "Lesson"
-    }
-
-    // MARK: - Peer Work Navigation
-
-    struct PeerWorkIDWrapper: Identifiable {
-        let id: UUID
-    }
-
-    var peerWorkSheetBinding: Binding<PeerWorkIDWrapper?> {
-        Binding(
-            get: { selectedWorkID.map { PeerWorkIDWrapper(id: $0) } },
-            set: { selectedWorkID = $0?.id }
-        )
     }
 }

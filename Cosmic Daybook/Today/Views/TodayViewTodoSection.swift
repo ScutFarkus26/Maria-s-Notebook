@@ -240,7 +240,7 @@ extension TodayView {
                     .background(Capsule().fill(Color.accentColor))
             }
             Button {
-                isShowingNewTodo = true
+                activeSheet = .newTodo
             } label: {
                 Image(systemName: "plus")
                     .font(.caption)

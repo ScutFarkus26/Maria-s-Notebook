@@ -186,7 +186,7 @@ extension WorkDetailView {
                     }
 
                     Button {
-                        showGroupMeetingDatePicker = true
+                        activeSheet = .groupMeetingDate
                     } label: {
                         Label("Pick a Date", systemImage: "calendar.badge.plus")
                             .font(AppTheme.ScaledFont.captionSemibold)
