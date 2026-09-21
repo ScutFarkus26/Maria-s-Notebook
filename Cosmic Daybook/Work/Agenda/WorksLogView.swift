@@ -178,132 +178,35 @@ struct WorksLogView: View {
         #endif
     }
 
-    // MARK: - Filter Labels
-
-    private var selectedKindLabel: String {
-        selectedKind?.displayName ?? "All Types"
-    }
-
-    private var selectedStatusLabel: String {
-        if selectedStatuses.isEmpty {
-            return "All Statuses"
-        } else if selectedStatuses.count == 1, let status = selectedStatuses.first {
-            return status.displayName
-        } else {
-            return "\(selectedStatuses.count) Statuses"
-        }
-    }
-
-    private var selectedStudentLabel: String {
-        if selectedStudentIDs.isEmpty {
-            return "All Students"
-        } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
-                  let student = students.first(where: { $0.id == id }) {
-            return student.shortName
-        } else {
-            return "\(selectedStudentIDs.count) Students"
-        }
-    }
-
     // MARK: - Filter Bar
 
     private var filterBar: some View {
         HStack(spacing: 12) {
-            // CDStudent Menu
-            Menu {
-                Button("All Students") { selectedStudentIDs.removeAll() }
-                Divider()
-                ForEach(students) { student in
-                    if let studentID = student.id {
-                        Button(action: {
-                            if selectedStudentIDs.contains(studentID) {
-                                selectedStudentIDs.remove(studentID)
-                            } else {
-                                selectedStudentIDs.insert(studentID)
-                            }
-                        }, label: {
-                            HStack {
-                                if selectedStudentIDs.contains(studentID) {
-                                    Image(systemName: "checkmark")
-                                }
-                                Text(student.shortName)
-                            }
-                        })
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.3")
-                    Text(selectedStudentLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
-            }
+            MultiSelectFilterMenu(
+                items: students,
+                selection: $selectedStudentIDs,
+                id: { $0.id },
+                label: { $0.shortName },
+                summary: FilterSelectionSummary(allLabel: "All Students"),
+                systemImage: "person.3"
+            )
 
-            // Work Type Menu
-            Menu {
-                Button("All Types") { selectedKind = nil }
-                Divider()
-                ForEach(WorkKind.allCases) { kind in
-                    Button(action: { selectedKind = kind }, label: {
-                        HStack {
-                            if selectedKind == kind {
-                                Image(systemName: "checkmark")
-                            }
-                            Text(kind.displayName)
-                        }
-                    })
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                    Text(selectedKindLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
-            }
+            SingleSelectFilterMenu(
+                items: WorkKind.allCases,
+                selection: $selectedKind,
+                label: { $0.displayName },
+                systemImage: "line.3.horizontal.decrease.circle",
+                allLabel: "All Types"
+            )
 
             if !completedOnly {
-                // Status Menu (multi-select)
-                Menu {
-                    Button("All Statuses") { selectedStatuses.removeAll() }
-                    Divider()
-                    ForEach(WorkStatus.allCases) { status in
-                        Button(action: {
-                            if selectedStatuses.contains(status) {
-                                selectedStatuses.remove(status)
-                            } else {
-                                selectedStatuses.insert(status)
-                            }
-                        }, label: {
-                            HStack {
-                                if selectedStatuses.contains(status) {
-                                    Image(systemName: "checkmark")
-                                }
-                                Text(status.displayName)
-                            }
-                        })
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle")
-                        Text(selectedStatusLabel)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                    )
-                }
+                MultiSelectFilterMenu(
+                    items: WorkStatus.allCases,
+                    selection: $selectedStatuses,
+                    label: { $0.displayName },
+                    summary: FilterSelectionSummary(allLabel: "All Statuses"),
+                    systemImage: "checkmark.circle"
+                )
             }
 
             Spacer()

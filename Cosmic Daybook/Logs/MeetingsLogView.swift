@@ -1,7 +1,6 @@
 import SwiftUI
 import CoreData
 
-// swiftlint:disable:next type_body_length
 struct MeetingsLogView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
@@ -114,130 +113,34 @@ struct MeetingsLogView: View {
         return days.map { ($0, dict[$0] ?? []) }
     }
 
-    // MARK: - Filter Labels
-
-    private var selectedStudentLabel: String {
-        if selectedStudentIDs.isEmpty {
-            return "All Students"
-        } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
-                  let student = students.first(where: { $0.id == id }) {
-            return student.shortName
-        } else {
-            return "\(selectedStudentIDs.count) Students"
-        }
-    }
-    
-    private var selectedAgeLabel: String {
-        if selectedAgeRanges.isEmpty {
-            return "All Ages"
-        } else if selectedAgeRanges.count == 1, let first = selectedAgeRanges.first {
-            return first.rawValue
-        } else {
-            return "\(selectedAgeRanges.count) Ages"
-        }
-    }
-
     // MARK: - Filter Bar
 
     private var filterBar: some View {
         HStack(spacing: 12) {
-            // CDStudent Menu (multi-select)
-            Menu {
-                Button("All Students") { selectedStudentIDs.removeAll() }
-                Divider()
-                ForEach(students) { student in
-                    if let studentID = student.id {
-                        Button(action: {
-                            if selectedStudentIDs.contains(studentID) {
-                                selectedStudentIDs.remove(studentID)
-                            } else {
-                                selectedStudentIDs.insert(studentID)
-                            }
-                        }, label: {
-                            HStack {
-                                if selectedStudentIDs.contains(studentID) {
-                                    Image(systemName: "checkmark")
-                                }
-                                Text(student.shortName)
-                            }
-                        })
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.3")
-                    Text(selectedStudentLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
-            }
+            MultiSelectFilterMenu(
+                items: students,
+                selection: $selectedStudentIDs,
+                id: { $0.id },
+                label: { $0.shortName },
+                summary: FilterSelectionSummary(allLabel: "All Students"),
+                systemImage: "person.3"
+            )
 
-            // Age Range Menu (multi-select)
-            Menu {
-                Button("All Ages") { selectedAgeRanges.removeAll() }
-                Divider()
-                ForEach(AgeRange.allCases) { range in
-                    Button(action: {
-                        if selectedAgeRanges.contains(range) {
-                            selectedAgeRanges.remove(range)
-                        } else {
-                            selectedAgeRanges.insert(range)
-                        }
-                    }, label: {
-                        HStack {
-                            if selectedAgeRanges.contains(range) {
-                                Image(systemName: "checkmark")
-                            }
-                            Text(range.rawValue)
-                        }
-                    })
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar.badge.clock")
-                    Text(selectedAgeLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(
-                            selectedAgeRanges.isEmpty
-                                ? Color.primary.opacity(UIConstants.OpacityConstants.hint)
-                                : Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
-                        )
-                )
-                .foregroundStyle(selectedAgeRanges.isEmpty ? Color.primary : Color.accentColor)
-            }
+            MultiSelectFilterMenu(
+                items: AgeRange.allCases,
+                selection: $selectedAgeRanges,
+                label: { $0.rawValue },
+                summary: FilterSelectionSummary(allLabel: "All Ages"),
+                systemImage: "calendar.badge.clock",
+                accentsSelection: true
+            )
 
-            // Completion Menu
-            Menu {
-                ForEach(CompletionFilter.allCases) { filter in
-                    Button(action: { selectedCompletion = filter }, label: {
-                        HStack {
-                            if selectedCompletion == filter {
-                                Image(systemName: "checkmark")
-                            }
-                            Text(filter.rawValue)
-                        }
-                    })
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle")
-                    Text(selectedCompletion.rawValue)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
-            }
+            SingleSelectFilterMenu(
+                items: CompletionFilter.allCases,
+                selection: $selectedCompletion,
+                label: { $0.rawValue },
+                systemImage: "checkmark.circle"
+            )
 
             Spacer()
         }
