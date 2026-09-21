@@ -4,10 +4,12 @@ import Testing
 
 /// The suite runs in parallel with every other suite, and a main-actor task
 /// can wait seconds for a turn under that contention — so timing assertions
-/// poll for the expected state instead of sleeping a fixed interval.
+/// poll for the expected state instead of sleeping a fixed interval. The
+/// deadline is generous on purpose: on a machine also running several
+/// xcodebuilds the debounced task has been seen to wait over ten seconds.
 @MainActor
 private func waitUntil(
-    timeout: Duration = .seconds(10),
+    timeout: Duration = .seconds(30),
     _ condition: @MainActor () -> Bool
 ) async throws {
     let clock = ContinuousClock()
