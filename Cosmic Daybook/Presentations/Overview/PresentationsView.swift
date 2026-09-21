@@ -30,66 +30,22 @@ struct PresentationsView: View {
     /// between the two halves.
     let selection: WorkspaceMultiSelection
 
-    // OPTIMIZATION: Use lightweight queries for change detection only
-    // Extract IDs immediately to avoid retaining full objects - significantly reduces memory usage
-    // The ViewModel handles all actual data loading with targeted fetches
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)])
-    var lessonAssignmentsForChangeDetection: FetchedResults<CDLessonAssignment>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.id, ascending: true)])
-    private var lessonsForChangeDetection: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.id, ascending: true)])
-    private var studentsForChangeDetection: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.id, ascending: true)])
-    private var workModelsForChangeDetection: FetchedResults<CDWorkModel>
-
-    struct LessonAssignmentChangeKey: Hashable {
-        let id: UUID
-        let scheduledFor: Double
-        let presentedAt: Double
-        let stateRaw: String
-    }
-
-    /// `viewModelDependencies` is read by `.onChange`, so SwiftUI rebuilds this on
-    /// every body pass to diff it. It used to end in `.sorted { $0.id.uuidString <
-    /// $1.id.uuidString }`, which allocated two 36-character strings per comparison —
-    /// roughly `2 · n · log₂(n)` string allocations across the whole assignment table,
-    /// every pass. The sort was also redundant: the fetch above already orders by
-    /// `\CDLessonAssignment.id`, so the array is a deterministic function of the data
-    /// either way, which is all an equality-compared change key needs.
-    private var lessonAssignmentChangeKeys: [LessonAssignmentChangeKey] {
-        lessonAssignmentsForChangeDetection
-            .compactMap { la -> LessonAssignmentChangeKey? in
-                guard let id = la.id else { return nil }
-                return LessonAssignmentChangeKey(
-                    id: id,
-                    scheduledFor: la.scheduledFor?.timeIntervalSinceReferenceDate ?? -1,
-                    presentedAt: la.presentedAt?.timeIntervalSinceReferenceDate ?? -1,
-                    stateRaw: la.stateRaw
-                )
-            }
-    }
-
-    private var lessonIDs: [UUID] {
-        lessonsForChangeDetection.compactMap(\.id)
-    }
-
-    private var studentIDs: [UUID] {
-        studentsForChangeDetection.compactMap(\.id)
-    }
-
-    private var activeWorkIDs: [UUID] {
-        workModelsForChangeDetection
-            .filter { $0.status.isOpen }
-            .compactMap(\.id)
-    }
+    /// Bumped whenever a lesson assignment, lesson, student or work model
+    /// changes anywhere this screen could see it (`onPresentationDataChange`
+    /// in the body). Four whole-table `@FetchRequest`s used to sit here so a
+    /// body pass could walk every row into change keys; the signal now
+    /// arrives only when one of those tables moved, and says which.
+    @State var changeToken = 0
+    /// Bumped only when an assignment moved: the inbox order and the
+    /// deep-link reveal read assignments, so the other three tables leave
+    /// them alone.
+    @State var assignmentChangeToken = 0
 
     // MODERN: Unified dependency tracker for ViewModel updates
     // Consolidates all onChange handlers into a single observation point
     struct ViewModelDependencies: Equatable {
-        let lessonAssignmentKeys: [LessonAssignmentChangeKey]
-        let lessonIDs: [UUID]
-        let studentIDs: [UUID]
-        let activeWorkIDs: [UUID]
+        let changeToken: Int
+        let assignmentChangeToken: Int
         let missWindowRaw: String
         let showTestStudents: Bool
         let testStudentNamesRaw: String
@@ -97,39 +53,15 @@ struct PresentationsView: View {
 
     var viewModelDependencies: ViewModelDependencies {
         ViewModelDependencies(
-            lessonAssignmentKeys: lessonAssignmentChangeKeys,
-            lessonIDs: lessonIDs,
-            studentIDs: studentIDs,
-            activeWorkIDs: activeWorkIDs,
+            changeToken: changeToken,
+            assignmentChangeToken: assignmentChangeToken,
             missWindowRaw: missWindowRaw,
             showTestStudents: testStudents.show,
             testStudentNamesRaw: testStudents.namesRaw
         )
     }
 
-    // Active WorkModels: unresolved work items (open status)
-    private var activeWork: [CDWorkModel] {
-        workModelsForChangeDetection.filter { $0.status.isOpen }
-    }
-
-    // Helper: All WorkModels from the existing @Query
-    private var allWorkModels: [CDWorkModel] {
-        Array(workModelsForChangeDetection)
-    }
-
-    // Helper: Open WorkModels (open status)
-    private var openWorkModels: [CDWorkModel] {
-        allWorkModels.filter { $0.status.isOpen }
-    }
-
-    // Dictionary for fast lookup: Group open WorkModels by presentationID
-    private var openWorkByPresentationID: [String: [CDWorkModel]] {
-        openWorkModels
-            .filter { $0.presentationID != nil }
-            .grouped { $0.presentationID ?? "" }
-    }
-
-    // NOTE: CDWorkModel fetching is now handled by ViewModel
+    // NOTE: CDWorkModel fetching is handled by the ViewModel
 
     @AppStorage(UserDefaultsKeys.planningInboxOrder) var inboxOrderRaw: String = ""
 
@@ -151,9 +83,9 @@ struct PresentationsView: View {
     @TestStudentVisibility var testStudents
 
     /// Debounces `updateViewModel()` calls triggered by `viewModelDependencies`
-    /// changes. A single CloudKit import that touches unrelated entities can
-    /// fire several @FetchRequest updates in quick succession — without
-    /// debouncing, each one triggers a full PresentationsViewModel rebuild.
+    /// changes. A single CloudKit import can bump `changeToken` several times
+    /// in quick succession — without debouncing, each bump triggers a full
+    /// PresentationsViewModel rebuild.
     @State var dependencyDebounceTask: Task<Void, Never>?
 
     // OPTIMIZATION: Use shared ViewModel from dependencies for instant loading

@@ -42,21 +42,26 @@ struct ClassroomSharingView: View {
             let svc = dependencies.classroomSharingService
             sharingService = svc
             try? svc.refreshParticipants()
+            await refreshMoveCounts()
         }
-        .task {
-            // Recount while this screen is open. The repair pass only updates
-            // its own figures when it runs, so without this the card would sit
-            // on a stale number through a multi-minute move. The tick is
-            // nearly free: it returns as soon as the store's history token
-            // matches the last one seen, and only fetches when history shows
-            // a shared entity was inserted. Skipped while the scene is
-            // inactive (a Settings window left open behind the main window).
-            while !Task.isCancelled {
-                if scenePhase == .active {
-                    await zoneRepair.refreshCountsIfNeeded(coreDataStack: dependencies.coreDataStack)
-                }
-                try? await Task.sleep(for: .seconds(5))
-            }
+        // Recount while this screen is open. The repair pass only updates its
+        // own figures when it runs, so without this the card would sit on a
+        // stale number through a multi-minute move. The store's history token
+        // is what a recount keys on, and every advance of it (a save in this
+        // process or an import) reaches `CloudKitSyncStatusService` as a
+        // debounced remote-change pass — so that counter, the end of a repair
+        // and the scene coming back are the moments to look, not a 5 s timer.
+        // The call stays nearly free: it returns as soon as the token matches
+        // the last one seen, and only fetches when history shows a shared
+        // entity was inserted.
+        .onChange(of: dependencies.cloudKitSyncStatusService.remoteChangeHandlingCount) { _, _ in
+            Task { await refreshMoveCounts() }
+        }
+        .onChange(of: zoneRepair.repairInProgress) { _, running in
+            if !running { Task { await refreshMoveCounts() } }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await refreshMoveCounts() } }
         }
         .sheet(isPresented: $showingUnrecoverableSheet) {
             unrecoverableOrphansSheet
@@ -64,6 +69,13 @@ struct ClassroomSharingView: View {
     }
 
     // MARK: - Move Progress
+
+    /// Skipped while the scene is inactive (a Settings window left open behind
+    /// the main window); the scene-phase change catches up on return.
+    private func refreshMoveCounts() async {
+        guard scenePhase == .active else { return }
+        await zoneRepair.refreshCountsIfNeeded(coreDataStack: dependencies.coreDataStack)
+    }
 
     /// Plain-language progress for the one-off move of records into the shared
     /// area. `lastRunAt` is what separates "nothing left" from "not yet

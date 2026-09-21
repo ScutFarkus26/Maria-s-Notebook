@@ -13,19 +13,19 @@ struct ProgressDashboardView: View {
     @State private var viewModel = ProgressDashboardViewModel()
     @State private var detailTarget: StudentSequenceDetailTarget?
 
-    // Reload on assignment / work mutations.
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)])
-    private var assignmentsForChange: FetchedResults<CDLessonAssignment>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.id, ascending: true)])
-    private var workForChange: FetchedResults<CDWorkModel>
-
-    private var changeToken: Int { assignmentsForChange.count &+ workForChange.count }
+    /// Reload on assignment / work mutations — an edit or save on the view
+    /// context, a save on another context, or a remote import — without
+    /// keeping both tables registered just to count their rows.
+    @State private var changeToken = 0
 
     var body: some View {
         content
             .navigationTitle("Progress")
             .searchable(text: $viewModel.searchText, prompt: "Search students")
             .onAppear { viewModel.loadData(context: viewContext) }
+            .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: viewContext) { _ in
+                changeToken &+= 1
+            }
             .onChange(of: changeToken) { _, _ in viewModel.loadData(context: viewContext) }
             .sheet(item: $detailTarget) { target in
                 StudentSequenceDetailSheet(target: target) {

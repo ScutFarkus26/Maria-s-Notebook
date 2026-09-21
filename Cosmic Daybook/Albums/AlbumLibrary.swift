@@ -204,6 +204,10 @@ final class AlbumLibrary {
     /// decode rather than a PDF re-extraction — but nothing may search until
     /// `buildIndexes()` has run again.
     var indexPurged = false
+    /// The index build in flight, cleared when it finishes. `ensureIndexed()`
+    /// awaits it instead of polling `indexing`; a build queued while another
+    /// runs is dropped, as `buildIndexes()` would have declined it anyway.
+    private var indexTask: Task<Void, Never>?
 
     static let bookmarksKey = UserDefaultsKeys.albumsFolderBookmarks
     static let lastSeenKey = UserDefaultsKeys.albumsLastSeenModDates
@@ -259,15 +263,34 @@ final class AlbumLibrary {
     /// Waits until the page-text and semantic indexes are usable. Callers
     /// outside the UI (the chat and MCP album tools) use this instead of
     /// assuming the guide has already visited the Albums section.
+    ///
+    /// `load(from:)` runs to completion on the main actor, so `.loading` is
+    /// never observable across a suspension here; only the index build is.
     func ensureIndexed() async {
         bootstrapIfNeeded()
-        while indexing || state == .loading {
-            try? await Task.sleep(for: .milliseconds(100))
-        }
+        await awaitIndexBuild()
         // Memory pressure can drop the page-text index after a successful load.
         // Rebuild it here rather than leaving callers with an empty corpus.
         if indexPurged, state == .ready {
+            startIndexBuild()
+            await awaitIndexBuild()
+        }
+    }
+
+    /// Waits for the current build and any that replaces it meanwhile.
+    private func awaitIndexBuild() async {
+        while let task = indexTask {
+            await task.value
+        }
+    }
+
+    /// Runs `buildIndexes()` as the stored in-flight build, unless one is
+    /// already stored.
+    private func startIndexBuild() {
+        guard indexTask == nil else { return }
+        indexTask = Task {
             await buildIndexes()
+            indexTask = nil
         }
     }
 
@@ -352,7 +375,7 @@ final class AlbumLibrary {
         albums = pdfURLs.compactMap { Album(url: $0) }
         state = .ready
         needsIdentityRepair = true
-        Task { await buildIndexes() }
+        startIndexBuild()
     }
 
     /// Re-checks every album file's modification date; if any changed on
@@ -418,7 +441,7 @@ final class AlbumLibrary {
         if let dir = Self.indexCacheDirectory() {
             try? FileManager.default.removeItem(at: dir)
         }
-        Task { await buildIndexes() }
+        startIndexBuild()
     }
 
     func buildIndexes(policy: EnergyPolicy = .shared) async {
@@ -470,8 +493,8 @@ final class AlbumLibrary {
     }
 
     /// How many 2-second pauses one album will wait out before indexing goes
-    /// ahead anyway. Without a bound, `ensureIndexed()` — which spins until
-    /// `indexing` clears — would never return on a permanently warm device.
+    /// ahead anyway. Without a bound, `ensureIndexed()` — which awaits the
+    /// build — would never return on a permanently warm device.
     static let maxIndexEnergyPauses = 15
 
     /// Waits while the device is too hot (or in Low Power Mode) to index the

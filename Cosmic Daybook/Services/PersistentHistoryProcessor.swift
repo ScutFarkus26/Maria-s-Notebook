@@ -31,6 +31,19 @@ actor PersistentHistoryProcessor {
     /// know which entities changed, so the post happens here instead.
     nonisolated private static let schoolDayEntityNames: Set<String> = ["NonSchoolDay", "SchoolDayOverride"]
 
+    /// Entities the Upcoming pane and the progress map read. A batch that
+    /// touched any of them posts `.presentationDataDidChange` with the touched
+    /// names under `changedEntityNamesKey`, so those screens no longer keep
+    /// four whole tables registered through `@FetchRequest` just to notice a
+    /// remote change (see `View.onPresentationDataChange`).
+    nonisolated static let presentationEntityNames: Set<String> = [
+        "LessonAssignment", "Lesson", "Student", "WorkModel"
+    ]
+
+    /// `userInfo` key of `.presentationDataDidChange`: the `Set<String>` of
+    /// `presentationEntityNames` the batch touched.
+    nonisolated static let changedEntityNamesKey = "changedEntityNames"
+
     // MARK: - State
 
     private let container: NSPersistentCloudKitContainer
@@ -95,9 +108,10 @@ actor PersistentHistoryProcessor {
             )
 
         case .failed:
-            // Fail open: we don't know what changed, so assume the calendar might have,
-            // and ask for the full dedup sweep the import event no longer triggers.
-            Self.postSchoolDayDataDidChange()
+            // Fail open: we don't know what changed, so assume every watched
+            // entity might have, and ask for the full dedup sweep the import
+            // event no longer triggers.
+            Self.postEntityNotifications(for: Self.schoolDayEntityNames.union(Self.presentationEntityNames))
             Self.requestFullDeduplication()
             if lastToken != nil {
                 Self.logger.info("Resetting stale history token for next attempt")
@@ -120,9 +134,7 @@ actor PersistentHistoryProcessor {
             "Processed \(totalCount) transaction(s), \(remoteCount) remote, inserts: \(inserted, privacy: .public)"
         )
 
-        if !changedEntityNames.isDisjoint(with: schoolDayEntityNames) {
-            postSchoolDayDataDidChange()
-        }
+        postEntityNotifications(for: changedEntityNames)
 
         // Report every remote batch, inserts or not: a duplicate is two rows
         // for one record, so only the inserted entities need a pass, and an
@@ -149,9 +161,36 @@ actor PersistentHistoryProcessor {
         #endif
     }
 
-    nonisolated private static func postSchoolDayDataDidChange() {
+    /// The entity-scoped notifications a batch that touched
+    /// `changedEntityNames` owes: `.schoolDayDataDidChange` when a calendar
+    /// entity moved, `.presentationDataDidChange` when any of
+    /// `presentationEntityNames` did. (Flags rather than names: the
+    /// school-day name is main-actor isolated, and this is decided on the actor.)
+    nonisolated static func entityNotices(
+        for changedEntityNames: Set<String>
+    ) -> (schoolDay: Bool, presentation: Bool) {
+        (
+            schoolDay: !changedEntityNames.isDisjoint(with: schoolDayEntityNames),
+            presentation: !changedEntityNames.isDisjoint(with: presentationEntityNames)
+        )
+    }
+
+    /// Posts what `entityNotices(for:)` says is owed, on the main actor; the
+    /// presentation one carries the touched subset of its entities.
+    nonisolated static func postEntityNotifications(for changedEntityNames: Set<String>) {
+        let notices = entityNotices(for: changedEntityNames)
+        guard notices.schoolDay || notices.presentation else { return }
+        let touched = changedEntityNames.intersection(presentationEntityNames)
         Task { @MainActor in
-            NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
+            if notices.schoolDay {
+                NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
+            }
+            if notices.presentation {
+                NotificationCenter.default.post(
+                    name: .presentationDataDidChange, object: nil,
+                    userInfo: [changedEntityNamesKey: touched]
+                )
+            }
         }
     }
 
@@ -327,6 +366,17 @@ actor PersistentHistoryProcessor {
         }
         UserDefaults.standard.set(data, forKey: UserDefaultsKeys.persistentHistoryLastToken)
     }
+}
+
+// MARK: - Notification
+
+extension Notification.Name {
+    /// Posted on the main actor after the history processor sees a remote
+    /// change to a lesson assignment, lesson, student or work model — the
+    /// tables the Upcoming pane and the progress map read. `userInfo` carries
+    /// the touched entity names under
+    /// `PersistentHistoryProcessor.changedEntityNamesKey`.
+    nonisolated static let presentationDataDidChange = Notification.Name("CosmicDaybook.presentationDataDidChange")
 }
 
 // MARK: - Result Type
