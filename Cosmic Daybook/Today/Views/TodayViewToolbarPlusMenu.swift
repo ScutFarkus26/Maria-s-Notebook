@@ -42,9 +42,9 @@ extension TodayView {
     private func perform(_ action: PieMenuAction) {
         switch action {
         case .newNote:
-            isShowingQuickNote = true
+            activeSheet = .quickNote(studentIDs: nil)
         case .newTodo:
-            isShowingNewTodo = true
+            activeSheet = .newTodo
         case .newWorkItem:
             appRouter.triggerNewWorkItem = true
         case .recordPractice:

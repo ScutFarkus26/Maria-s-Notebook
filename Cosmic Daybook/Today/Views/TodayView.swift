@@ -10,6 +10,7 @@
 // - TodayViewHelpers.swift - School day helpers and utility functions
 // - TodayViewListRows.swift - Individual row components
 // - AttendanceExpandedView.swift - Expanded attendance grid
+// - TodayView+Sheets.swift - ActiveSheet and the sheets modifier
 
 import SwiftUI
 import CoreData
@@ -48,8 +49,7 @@ struct TodayView: View {
     // MARK: - Navigation State
     @State var selectedWorkID: UUID?
     @State var selectedLessonAssignment: CDLessonAssignment?
-    @State var isShowingQuickNote = false
-    @State var pendingNoteStudentIDs: Set<UUID>?
+    @State var activeSheet: ActiveSheet?
     @State var noteBeingEdited: CDNote?
 
     // MARK: - Attendance State
@@ -68,7 +68,6 @@ struct TodayView: View {
 
     // MARK: - Todo State
     @State var selectedTodoItem: CDTodoItem?
-    @State var isShowingNewTodo = false
 
     // MARK: - Day Pad / Done Today / Day Cards State
     @AppStorage(UserDefaultsKeys.todayDayPadExpanded) var isDayPadExpanded: Bool = false
@@ -169,10 +168,8 @@ struct TodayView: View {
             .modifier(TodayViewSheets(
                 selectedWorkID: $selectedWorkID,
                 selectedLessonAssignment: $selectedLessonAssignment,
-                isShowingQuickNote: $isShowingQuickNote,
-                pendingNoteStudentIDs: $pendingNoteStudentIDs,
+                activeSheet: $activeSheet,
                 selectedTodoItem: $selectedTodoItem,
-                isShowingNewTodo: $isShowingNewTodo,
                 noteBeingEdited: $noteBeingEdited,
                 selectedMeetingStudentID: $selectedMeetingStudentID,
                 selectedMeetingID: $selectedMeetingID,
@@ -433,147 +430,4 @@ struct TodayView: View {
 // - TodayViewHelpers.swift - School day helpers and utility functions
 // - TodayViewListRows.swift - Individual row components
 // - AttendanceExpandedView.swift - Expanded attendance grid
-
-// MARK: - Sheets Modifier
-// Bundles all of TodayView's sheet presentations into a single ViewModifier so
-// the body's modifier chain stays short enough for the type checker.
-private struct TodayViewSheets: ViewModifier {
-    @Binding var selectedWorkID: UUID?
-    @Binding var selectedLessonAssignment: CDLessonAssignment?
-    @Binding var isShowingQuickNote: Bool
-    @Binding var pendingNoteStudentIDs: Set<UUID>?
-    @Binding var selectedTodoItem: CDTodoItem?
-    @Binding var isShowingNewTodo: Bool
-    @Binding var noteBeingEdited: CDNote?
-    @Binding var selectedMeetingStudentID: UUID?
-    @Binding var selectedMeetingID: UUID?
-    let viewContext: NSManagedObjectContext
-    let onReload: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            #if os(iOS)
-            .sheet(id: $selectedWorkID) { id in
-                WorkDetailView(workID: id) {
-                    selectedWorkID = nil
-                    onReload()
-                }
-            }
-            #endif
-            #if os(iOS)
-                .sheet(item: $selectedLessonAssignment) { la in
-                    lessonAssignmentSheet(la)
-                }
-            #endif
-            .sheet(
-                isPresented: $isShowingQuickNote,
-                onDismiss: { pendingNoteStudentIDs = nil },
-                content: { quickNoteSheetContent }
-            )
-#if os(iOS)
-            .sheet(item: $selectedTodoItem) { todo in
-                editTodoSheet(todo)
-            }
-#endif
-            .sheet(isPresented: $isShowingNewTodo) {
-                newTodoSheet
-            }
-            #if os(iOS)
-            .sheet(item: $noteBeingEdited) { note in
-                noteEditSheet(note)
-            }
-            #endif
-            #if os(iOS)
-            .sheet(id: $selectedMeetingStudentID) { studentID in
-                meetingSessionSheet(studentID)
-            }
-            #endif
-    }
-
-    private func lessonAssignmentSheet(_ la: CDLessonAssignment) -> some View {
-        PresentationDetailView(lessonAssignment: la) {
-            selectedLessonAssignment = nil
-        }
-#if os(macOS)
-        .frame(minWidth: 720, minHeight: 640)
-        .presentationSizingFitted()
-#else
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-#endif
-    }
-
-    @ViewBuilder
-    private var quickNoteSheetContent: some View {
-        if let preselected = pendingNoteStudentIDs {
-            QuickNoteSheet(initialStudentIDs: preselected)
-        } else {
-            QuickNoteSheet()
-        }
-    }
-
-#if os(iOS)
-    private func editTodoSheet(_ todo: CDTodoItem) -> some View {
-        NavigationStack {
-            EditTodoForm(todo: todo)
-                .navigationTitle("Edit Todo")
-                .inlineNavigationTitle()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") {
-                            selectedTodoItem = nil
-                        }
-                    }
-                }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-    }
-#endif
-
-    private var newTodoSheet: some View {
-        NavigationStack {
-            NewTodoForm()
-                .navigationTitle("New Todo")
-                .inlineNavigationTitle()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            isShowingNewTodo = false
-                        }
-                    }
-                }
-        }
-    }
-
-    private func noteEditSheet(_ note: CDNote) -> some View {
-        NoteEditSheet(note: note) {
-            onReload()
-        }
-#if os(macOS)
-        .frame(minWidth: 520, minHeight: 420)
-        .presentationSizingFitted()
-#else
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-#endif
-    }
-
-    private func meetingSessionSheet(_ studentID: UUID) -> some View {
-        ScheduledMeetingSessionSheet(studentID: studentID) {
-            if let meetingID = selectedMeetingID {
-                MeetingScheduler.clearMeeting(id: meetingID, context: viewContext)
-            }
-            selectedMeetingStudentID = nil
-            selectedMeetingID = nil
-            onReload()
-        }
-#if os(macOS)
-        .frame(minWidth: 860, minHeight: 640)
-        .presentationSizingFitted()
-#else
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-#endif
-    }
-}
+// - TodayView+Sheets.swift - ActiveSheet and the sheets modifier

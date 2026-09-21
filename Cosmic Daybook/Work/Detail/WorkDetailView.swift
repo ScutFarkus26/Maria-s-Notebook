@@ -14,7 +14,6 @@ struct WorkDetailView: View {
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     @State var viewModel: WorkDetailViewModel
-    @State var showingRepresentSheet: Bool = false
     #if DEBUG
     @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
     #endif
@@ -131,9 +130,7 @@ struct WorkDetailView: View {
     @State var practiceStudents: [CDStudent] = []
     @State var practiceWorkItems: [CDWorkModel] = []
 
-    @State var selectedWorkID: UUID?
-    @State var selectedPracticeSession: CDPracticeSession?
-    @State var showGroupMeetingDatePicker: Bool = false
+    @State var activeSheet: ActiveSheet?
 
     @ViewBuilder
     // swiftlint:disable:next function_body_length
@@ -162,12 +159,6 @@ struct WorkDetailView: View {
                     groupMeetingSection()
                 }.padding(AppTheme.Spacing.xlarge)
             }
-            .sheet(item: $selectedPracticeSession) { session in
-                practiceSessionDetailSheet(session: session)
-            }
-            .sheet(item: peerWorkSheetBinding) { wrapper in
-                WorkDetailView(workID: wrapper.id) { selectedWorkID = nil }
-            }
             Divider()
             VStack(spacing: 12) {
                 // Top row: Action buttons
@@ -185,7 +176,7 @@ struct WorkDetailView: View {
                         icon: "person.2.fill",
                         color: .blue
                     ) {
-                        viewModel.showPracticeSessionSheet = true
+                        activeSheet = .addPractice
                     }
 
                     if showRepresentButton {
@@ -194,7 +185,7 @@ struct WorkDetailView: View {
                             icon: "arrow.clockwise",
                             color: .purple
                         ) {
-                            showingRepresentSheet = true
+                            activeSheet = .represent
                         }
                     }
 
@@ -207,84 +198,121 @@ struct WorkDetailView: View {
             .padding(AppTheme.Spacing.large)
             .background(.bar)
         }
-        .sheet(isPresented: $showingRepresentSheet) {
-            if let info = representSheetInfo {
-                AddLessonToInboxSheet(student: info.student, preselectedLessonID: info.lessonID)
+        .sheet(item: $activeSheet) { sheet in
+            sheetContent(for: sheet, work: work)
+        }
+        .alert("Delete?", isPresented: $viewModel.showDeleteAlert) {
+            Button("Delete", role: .destructive) { deleteWork() }
+        }
+        .alert("Unlock Next Lesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
+            Button("Unlock") {
+                unlockNextLesson()
+            }
+            Button("Not Yet", role: .cancel) { }
+        } message: {
+            if let nextLesson = viewModel.nextLessonToUnlock {
+                let studentName = viewModel.relatedStudent?.firstName
+                    ?? "this student"
+                Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
             }
         }
-                .sheet(isPresented: $viewModel.showAddNoteSheet) {
-                    UnifiedNoteEditor(
-                        context: .work(work),
-                        initialNote: nil,
-                        onSave: { _ in
-                            // Reload notes after saving
-                            viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
-                            viewModel.showAddNoteSheet = false
-                        },
-                        onCancel: {
-                            viewModel.showAddNoteSheet = false
-                        }
-                    )
+        .alert("Edit Note", isPresented: $viewModel.showEditNoteAlert) {
+            TextField("Note", text: $viewModel.editingNoteDraft)
+            Button("Save") {
+                if let checkIn = viewModel.editingNoteCheckIn {
+                    let trimmed = viewModel.editingNoteDraft.trimmed()
+                    _ = checkIn.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
+                    saveCoordinator.save(modelContext, reason: "Edit check-in note")
+                    viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
                 }
-                .sheet(item: $viewModel.noteBeingEdited) { note in
-                    UnifiedNoteEditor(
-                        context: .work(work),
-                        initialNote: note,
-                        onSave: { _ in
-                            // Reload notes after saving
-                            viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
-                            viewModel.noteBeingEdited = nil
-                        },
-                        onCancel: {
-                            viewModel.noteBeingEdited = nil
-                        }
-                    )
-                }
-                .sheet(isPresented: $viewModel.showPracticeSessionSheet) {
-                    PracticeSessionSheet(initialWorkItem: work) { _ in
-                        // Practice session saved - will automatically show in history
-                    }
-                }
-                .alert("Delete?", isPresented: $viewModel.showDeleteAlert) {
-                    Button("Delete", role: .destructive) { deleteWork() }
-                }
-                .alert("Unlock Next Lesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
-                    Button("Unlock") {
-                        unlockNextLesson()
-                    }
-                    Button("Not Yet", role: .cancel) { }
-                } message: {
-                    if let nextLesson = viewModel.nextLessonToUnlock {
-                        let studentName = viewModel.relatedStudent?.firstName
-                            ?? "this student"
-                        Text("Ready to unlock \(nextLesson.name) for \(studentName)?")
-                    }
-                }
-                .alert("Edit Note", isPresented: $viewModel.showEditNoteAlert) {
-                    TextField("Note", text: $viewModel.editingNoteDraft)
-                    Button("Save") {
-                        if let checkIn = viewModel.editingNoteCheckIn {
-                            let trimmed = viewModel.editingNoteDraft.trimmed()
-                            _ = checkIn.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
-                            saveCoordinator.save(modelContext, reason: "Edit check-in note")
-                            viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
-                        }
-                        viewModel.editingNoteCheckIn = nil
-                    }
-                    Button("Cancel", role: .cancel) { viewModel.editingNoteCheckIn = nil }
-                }
-                .sheet(isPresented: $viewModel.showAddStepSheet) {
-                    WorkStepEditorSheet(work: work, existingStep: nil) {
-                        // Step was added - force refresh
-                    }
-                }
-            .sheet(item: $viewModel.stepBeingEdited) { step in
-                WorkStepEditorSheet(work: work, existingStep: step) {
-                    viewModel.stepBeingEdited = nil
-                }
+                viewModel.editingNoteCheckIn = nil
             }
-            .sheet(isPresented: $showGroupMeetingDatePicker) {
-                groupMeetingDatePickerSheet(work: work)
+            Button("Cancel", role: .cancel) { viewModel.editingNoteCheckIn = nil }
+        }
+    }
+}
+
+// MARK: - Sheet Types & Content
+
+extension WorkDetailView {
+
+    /// The one sheet the detail view can show at a time. The three alerts
+    /// (delete, unlock next lesson, edit check-in note) stay on the view model.
+    enum ActiveSheet: Identifiable {
+        case practiceSession(CDPracticeSession)
+        case peerWork(UUID)
+        case represent
+        case addNote
+        case editNote(CDNote)
+        case addPractice
+        case addStep
+        case editStep(CDWorkStep)
+        case groupMeetingDate
+
+        var id: String {
+            switch self {
+            case .practiceSession(let session): return "practiceSession_\(session.id?.uuidString ?? "nil")"
+            case .peerWork(let workID): return "peerWork_\(workID.uuidString)"
+            case .represent: return "represent"
+            case .addNote: return "addNote"
+            case .editNote(let note): return "editNote_\(note.id?.uuidString ?? "nil")"
+            case .addPractice: return "addPractice"
+            case .addStep: return "addStep"
+            case .editStep(let step): return "editStep_\(step.id?.uuidString ?? "nil")"
+            case .groupMeetingDate: return "groupMeetingDate"
             }
+        }
+    }
+
+    @ViewBuilder
+    func sheetContent(for sheet: ActiveSheet, work: CDWorkModel) -> some View {
+        switch sheet {
+        case .practiceSession(let session):
+            practiceSessionDetailSheet(session: session)
+        case .peerWork(let workID):
+            WorkDetailView(workID: workID) { activeSheet = nil }
+        case .represent:
+            representSheet
+        case .addNote:
+            noteEditorSheet(work: work, note: nil)
+        case .editNote(let note):
+            noteEditorSheet(work: work, note: note)
+        case .addPractice:
+            PracticeSessionSheet(initialWorkItem: work) { _ in
+                // Practice session saved - will automatically show in history
+            }
+        case .addStep:
+            WorkStepEditorSheet(work: work, existingStep: nil) {
+                // Step was added - force refresh
+            }
+        case .editStep(let step):
+            WorkStepEditorSheet(work: work, existingStep: step) {
+                activeSheet = nil
+            }
+        case .groupMeetingDate:
+            groupMeetingDatePickerSheet(work: work)
+        }
+    }
+
+    @ViewBuilder
+    private var representSheet: some View {
+        if let info = representSheetInfo {
+            AddLessonToInboxSheet(student: info.student, preselectedLessonID: info.lessonID)
+        }
+    }
+
+    private func noteEditorSheet(work: CDWorkModel, note: CDNote?) -> some View {
+        UnifiedNoteEditor(
+            context: .work(work),
+            initialNote: note,
+            onSave: { _ in
+                // Reload notes after saving
+                viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
+                activeSheet = nil
+            },
+            onCancel: {
+                activeSheet = nil
+            }
+        )
     }
 }

@@ -26,7 +26,7 @@ extension UUID: @retroactive Identifiable {
 // NavigationItem and Tab enums live in RootView+NavigationItem.swift.
 // swiftlint:disable:next type_body_length
 struct RootView: View {
-    private static let logger = Logger.app_
+    static let logger = Logger.app_
     let classroomWorkspace: ClassroomWorkspaceStore
 
     // MARK: - Storage
@@ -44,15 +44,8 @@ struct RootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     private let quickNoteTip = QuickNoteTip()
     #endif
-    @State private var quickNoteParams: QuickNoteParams?
-    @State private var isShowingCommandBar = false
-    @State private var isShowingSearch = false
+    @State var activeSheet: ActiveSheet?
     @State private var focusedSearchAction = FocusedSearchAction()
-    @State private var newPresentationDraftID: UUID?
-    @State private var isShowingNewWorkItem = false
-    @State private var isShowingRecordPractice = false
-    @State private var isShowingNewTodo = false
-    @State private var workDetailIDToOpen: UUID?
     @State private var selectedNavItem: NavigationItem = .today
     @State private var companionViewModel = NotebookCompanionViewModel()
     @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
@@ -60,10 +53,6 @@ struct RootView: View {
     @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
     private var isNotebookCompanionDetached = false
 
-    // Command bar pre-population state
-    @State private var commandBarWorkLessonID: UUID?
-    @State private var commandBarWorkStudentIDs: Set<UUID> = []
-    @State private var commandBarTodoTitle: String = ""
     // Preferences for presentations preloading
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
     @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
@@ -93,77 +82,8 @@ struct RootView: View {
     // MARK: - Body
     var body: some View {
         rootWithQuickActions
-        .sheet(item: $newPresentationDraftID) { draftID in
-            PresentationDraftSheet(id: draftID) {
-                newPresentationDraftID = nil
-            }
-            #if os(macOS)
-            .frame(minWidth: UIConstants.SheetSize.large.width, minHeight: UIConstants.SheetSize.large.height)
-            .presentationSizingFitted()
-            #else
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            #endif
-        }
-        .sheet(isPresented: $isShowingNewWorkItem) {
-            QuickNewWorkItemSheet(
-                preSelectedLessonID: commandBarWorkLessonID,
-                preSelectedStudentIDs: commandBarWorkStudentIDs
-            ) { workID in
-                // Delay slightly to allow sheet dismiss animation to complete
-                Task {
-                    do {
-                        try await Task.sleep(for: .milliseconds(300))
-                    } catch {
-                        Self.logger.warning("Failed to sleep before opening work detail: \(error)")
-                    }
-                    workDetailIDToOpen = workID
-                }
-            }
-            .onDisappear {
-                commandBarWorkLessonID = nil
-                commandBarWorkStudentIDs = []
-            }
-        }
-        .sheet(item: $workDetailIDToOpen) { workID in
-            WorkDetailView(workID: workID, onDone: { workDetailIDToOpen = nil })
-            #if os(macOS)
-                .frame(minWidth: UIConstants.SheetSize.large.width, minHeight: UIConstants.SheetSize.large.height)
-                .presentationSizingFitted()
-            #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-            #endif
-        }
-        .sheet(isPresented: $isShowingRecordPractice) {
-            RecordPracticeSheet()
-            #if os(macOS)
-                .frame(minWidth: UIConstants.SheetSize.large.width, minHeight: UIConstants.SheetSize.large.height)
-                .presentationSizingFitted()
-            #else
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-            #endif
-        }
-        .sheet(isPresented: $isShowingNewTodo) {
-            NavigationStack {
-                NewTodoForm(initialTitle: commandBarTodoTitle)
-                    .navigationTitle("New Todo")
-                    .inlineNavigationTitle()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") {
-                                isShowingNewTodo = false
-                            }
-                        }
-                    }
-            }
-            .onDisappear {
-                commandBarTodoTitle = ""
-            }
-        }
-        .sheet(isPresented: $isShowingSearch) {
-            AppSearchView()
+        .sheet(item: $activeSheet) { sheet in
+            sheetContent(for: sheet)
         }
         // Expose key-window actions to the menu bar (Find…, File > New quick-capture).
         // Only the key main window's RootView provides these, so menu commands act
@@ -171,7 +91,7 @@ struct RootView: View {
         .focusedSceneValue(\.openSearch, focusedSearchAction)
         .onAppear {
             focusedSearchAction.setAction {
-                isShowingSearch = true
+                activeSheet = .search
             }
         }
         .onDisappear {
@@ -179,9 +99,9 @@ struct RootView: View {
         }
         .focusedSceneValue(\.quickCapture, QuickCaptureActions(
             newPresentation: { createPresentationDraft() },
-            recordPractice: { isShowingRecordPractice = true },
-            newTodo: { isShowingNewTodo = true },
-            newNote: { quickNoteParams = QuickNoteParams() }
+            recordPractice: { activeSheet = .recordPractice },
+            newTodo: { activeSheet = .newTodo(initialTitle: "") },
+            newNote: { activeSheet = .quickNote(QuickNoteParams()) }
         ))
     #if os(macOS)
         .background(
@@ -214,17 +134,17 @@ struct RootView: View {
         .overlay(alignment: .bottomTrailing) {
             if isNotebookCompanionVisible && !isNotebookCompanionDetached {
                 QuickNoteGlassButton(
-                    isShowingCommandBar: $isShowingCommandBar,
+                    isShowingCommandBar: isPresenting(.commandBar),
                     onNewPresentation: { createPresentationDraft() },
-                    isShowingWorkItemSheet: $isShowingNewWorkItem,
+                    isShowingWorkItemSheet: isPresenting(.newWorkItem(lessonID: nil, studentIDs: [])),
                     onRecordPractice: {
-                        isShowingRecordPractice = true
+                        activeSheet = .recordPractice
                     },
                     onNewTodo: {
-                        isShowingNewTodo = true
+                        activeSheet = .newTodo(initialTitle: "")
                     },
                     onNewNote: {
-                        quickNoteParams = QuickNoteParams()
+                        activeSheet = .quickNote(QuickNoteParams())
                     },
                     companionSnapshot: companionViewModel.snapshot,
                     isAIWorking: appRouter.isAIWorking,
@@ -243,40 +163,6 @@ struct RootView: View {
                     }
                 )
             }
-        }
-        .sheet(item: $quickNoteParams) { params in
-            QuickNoteSheet(
-                initialStudentIDs: params.studentIDs,
-                initialBodyText: params.bodyText,
-                initialTags: params.tags
-            )
-        }
-        .sheet(isPresented: $isShowingCommandBar) {
-            CommandBarSheet(
-                onPresentation: { draftID in
-                    isShowingCommandBar = false
-                    newPresentationDraftID = draftID
-                },
-                onWorkItem: { lessonID, studentIDs in
-                    isShowingCommandBar = false
-                    commandBarWorkLessonID = lessonID
-                    commandBarWorkStudentIDs = studentIDs
-                    isShowingNewWorkItem = true
-                },
-                onNote: { studentIDs, bodyText, inferredTags in
-                    isShowingCommandBar = false
-                    quickNoteParams = QuickNoteParams(
-                        studentIDs: studentIDs,
-                        bodyText: bodyText,
-                        tags: inferredTags
-                    )
-                },
-                onTodo: { titleText in
-                    isShowingCommandBar = false
-                    commandBarTodoTitle = titleText
-                    isShowingNewTodo = true
-                }
-            )
         }
         .overlay {
             if classroomWorkspace.isPreparingSample {
@@ -380,12 +266,12 @@ struct RootView: View {
         .onChange(of: appRouter.triggerNewWorkItem) { _, value in
             guard value else { return }
             appRouter.triggerNewWorkItem = false
-            isShowingNewWorkItem = true
+            activeSheet = .newWorkItem(lessonID: nil, studentIDs: [])
         }
         .onChange(of: appRouter.triggerRecordPractice) { _, value in
             guard value else { return }
             appRouter.triggerRecordPractice = false
-            isShowingRecordPractice = true
+            activeSheet = .recordPractice
         }
         .onChange(of: appRouter.triggerNewPresentation) { _, value in
             guard value else { return }
@@ -395,7 +281,7 @@ struct RootView: View {
         .onChange(of: appRouter.triggerCommandBar) { _, value in
             guard value else { return }
             appRouter.triggerCommandBar = false
-            isShowingCommandBar = true
+            activeSheet = .commandBar
         }
     }
 
@@ -404,7 +290,9 @@ struct RootView: View {
     private func createPresentationDraft() {
         let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [], context: viewContext)
         dependencies.saveCoordinator.save(viewContext, reason: "Create presentation draft")
-        newPresentationDraftID = draft.id
+        if let draftID = draft.id {
+            activeSheet = .presentationDraft(draftID)
+        }
     }
 
     @ViewBuilder private var rootLayout: some View {
@@ -446,7 +334,7 @@ struct RootView: View {
             Spacer(minLength: 8)
 
             Button {
-                isShowingSearch = true
+                activeSheet = .search
             } label: {
                 Image(systemName: "magnifyingglass")
             }
@@ -468,7 +356,7 @@ struct RootView: View {
             ClassroomWorkspacePicker(workspaceStore: classroomWorkspace)
             SchoolYearPicker()
             Button {
-                isShowingSearch = true
+                activeSheet = .search
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 14, weight: .medium))
@@ -558,7 +446,7 @@ struct RootView: View {
 
         ToolbarItem(id: "search", placement: .primaryAction) {
             Button {
-                isShowingSearch = true
+                activeSheet = .search
             } label: {
                 Label("Search", systemImage: "magnifyingglass")
             }

@@ -231,10 +231,9 @@ extension TodayView {
     }
 
     func quickNoteAboutLesson(_ sl: CDLessonAssignment) {
-        pendingNoteStudentIDs = sl.resolvedStudentIDs.isEmpty
-            ? nil
-            : Set(sl.resolvedStudentIDs)
-        isShowingQuickNote = true
+        activeSheet = .quickNote(
+            studentIDs: sl.resolvedStudentIDs.isEmpty ? nil : Set(sl.resolvedStudentIDs)
+        )
     }
 
     func bumpCheckInToTomorrow(_ checkIn: CDWorkCheckIn) {
@@ -275,12 +274,8 @@ extension TodayView {
     }
 
     func quickNoteAboutWork(_ work: CDWorkModel) {
-        if let studentID = UUID(uuidString: work.studentID) {
-            pendingNoteStudentIDs = [studentID]
-        } else {
-            pendingNoteStudentIDs = nil
-        }
-        isShowingQuickNote = true
+        let studentIDs: Set<UUID>? = UUID(uuidString: work.studentID).map { [$0] }
+        activeSheet = .quickNote(studentIDs: studentIDs)
     }
 
     @ViewBuilder

@@ -18,7 +18,7 @@ struct AlbumDetailView: View {
     @Environment(AlbumLibrary.self) private var library
     @Environment(AlbumsNavModel.self) private var nav
     @Environment(AlbumIntelligence.self) private var intelligence
-    @Environment(\.managedObjectContext) private var context
+    @Environment(\.managedObjectContext) var context
     @Environment(\.openWindow) private var openWindow
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -42,17 +42,16 @@ struct AlbumDetailView: View {
         _highlights = FetchRequest(sortDescriptors: unsorted, predicate: scope)
     }
 
-    @State private var currentPage = 0
+    @State var currentPage = 0
     @State private var jump: AlbumPageJump?
     @State private var proxy = AlbumPDFViewerProxy()
     @State private var showNotesPopover = false
     @State private var showRelatedPopover = false
     @State private var showNotebookLessonPopover = false
-    @State private var showOutlineSheet = false
     @State private var showGoToPage = false
     @State private var goToPageText = ""
     @State private var showThumbnails = false
-    @State private var summary: AlbumSummaryState?
+    @State var activeSheet: ActiveSheet?
     @State private var didRestorePosition = false
 
     // Reading-position persistence. Both writes are debounced: flipping
@@ -128,26 +127,11 @@ struct AlbumDetailView: View {
             } message: {
                 Text("Enter a page from 1 to \(album.pageCount).")
             }
-            .sheet(item: $summary) { state in
-                AlbumSummarySheet(state: state, album: album) { text, lesson in
-                    AlbumUserDataStore.addNote(albumID: album.id, pageIndex: lesson.pageIndex,
-                                     lessonTitle: lesson.title, text: text, in: context)
-                }
+            .sheet(item: $activeSheet) { sheet in
+                sheetContent(for: sheet)
             }
             .fileExporter(isPresented: $showExporter, document: exportDocument,
                           contentType: .pdf, defaultFilename: exportFilename) { _ in }
-            #if os(iOS)
-            .sheet(isPresented: $showOutlineSheet) {
-                NavigationStack {
-                    AlbumOutlineListView(album: album, currentPage: currentPage) { node in
-                        showOutlineSheet = false
-                        goTo(pageIndex: node.pageIndex)
-                    }
-                    .navigationTitle("Contents")
-                    .navigationBarTitleDisplayMode(.inline)
-                }
-            }
-            #endif
     }
 
     // MARK: Layout
@@ -352,7 +336,7 @@ struct AlbumDetailView: View {
     private var iosToolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button {
-                showOutlineSheet = true
+                activeSheet = .outline
             } label: {
                 Label("Contents", systemImage: "list.bullet")
             }
@@ -512,7 +496,7 @@ struct AlbumDetailView: View {
                                 in: context)
     }
 
-    private func goTo(pageIndex: Int, highlight: String? = nil) {
+    func goTo(pageIndex: Int, highlight: String? = nil) {
         jump = AlbumPageJump(id: UUID(), pageIndex: pageIndex, highlight: highlight)
         currentPage = pageIndex
     }
@@ -655,7 +639,7 @@ struct AlbumDetailView: View {
         // Presenting from the button action lands inside AppKit's toolbar layout
         // pass; hop to the next main-actor turn so the bar finishes measuring first.
         Task {
-            summary = state
+            activeSheet = .summary(state)
             do {
                 state.result = try await intelligence.summarize(
                     lessonTitle: lesson.title, albumTitle: album.title, text: text)

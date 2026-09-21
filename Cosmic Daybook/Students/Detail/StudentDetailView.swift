@@ -54,10 +54,7 @@ struct StudentDetailView: View {
 
     @State private var selectedWorkID: UUID?
     @State private var workCache: [CDWorkModel] = []
-    @State private var showAIPlanning = false
-    @State private var showQuickNote = false
-    @State private var showDocuments = false
-    @State private var showMeetingSession = false
+    @State var activeSheet: ActiveSheet?
 
     private var lessonIDs: [UUID] { vm.lessons.compactMap(\.id) }
     private var lessonAssignmentIDs: [UUID] { vm.lessonAssignments.compactMap(\.id) }
@@ -191,7 +188,7 @@ struct StudentDetailView: View {
             value: MeetingSessionWindowPayload(studentID: studentID, scheduledMeetingID: nil)
         )
         #else
-        showMeetingSession = true
+        activeSheet = .meetingSession
         #endif
     }
 
@@ -200,7 +197,7 @@ struct StudentDetailView: View {
         #if os(macOS)
         openWindow(id: "StudentDocumentsWindow", value: studentID)
         #else
-        showDocuments = true
+        activeSheet = .documents
         #endif
     }
 
@@ -208,9 +205,9 @@ struct StudentDetailView: View {
         StudentRecordHeader(
             student: student,
             isEditing: isEditing,
-            onAddObservation: { showQuickNote = true },
+            onAddObservation: { activeSheet = .quickNote },
             onStartMeeting: startMeeting,
-            onPlanLessons: { showAIPlanning = true },
+            onPlanLessons: { activeSheet = .aiPlanning },
             onOpenDocuments: openDocuments,
             onEdit: handleEdit,
             onDelete: handleDelete
@@ -309,25 +306,9 @@ struct StudentDetailView: View {
             }
         }
 #endif
-        .sheet(isPresented: $showAIPlanning) {
-            AIPlanningAssistantView(mode: .singleStudent(student.id ?? UUID()))
+        .sheet(item: $activeSheet) { sheet in
+            sheetContent(for: sheet)
         }
-        .sheet(isPresented: $showQuickNote) {
-            QuickNoteSheet(initialStudentID: student.id)
-        }
-        #if os(iOS)
-        .sheet(isPresented: $showDocuments) {
-            NavigationStack {
-                StudentFilesTab(student: student)
-                    .navigationTitle("Documents")
-            }
-        }
-        .sheet(isPresented: $showMeetingSession) {
-            if let studentID = student.id {
-                ScheduledMeetingSessionSheet(studentID: studentID)
-            }
-        }
-        #endif
         .task {
             vm.loadData(viewContext: viewContext)
             workCache = fetchWorkForStudent()
