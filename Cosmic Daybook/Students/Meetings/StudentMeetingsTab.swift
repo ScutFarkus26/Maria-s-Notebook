@@ -26,10 +26,6 @@ struct StudentMeetingsTab: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
     var allWorkModels: FetchedResults<CDWorkModel>
 
-    // Query all lessons for lookup
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    var lessons: FetchedResults<CDLesson>
-
     // Query all lesson assignments
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
     var allLessonAssignments: FetchedResults<CDLessonAssignment>
@@ -117,10 +113,8 @@ struct StudentMeetingsTab: View {
 
     // MARK: - Computed helpers for contracts and lessons (delegated to MeetingWorkSnapshotHelper)
 
-    // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var lessonsByID: [UUID: CDLesson] {
-        Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
-    }
+    /// The workspace's lesson catalog by ID (first row wins on CloudKit duplicates).
+    var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
 
     private var workStats: MeetingWorkSnapshotHelper.WorkStats {
         guard let studentID = student.id else {

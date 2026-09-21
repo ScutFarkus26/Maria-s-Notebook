@@ -35,7 +35,7 @@ extension StudentsView {
         parsingTask = StudentsCSVImportHandler.handleMappingConfirm(
             mapping: mapping,
             fileURL: pendingFileURL,
-            students: Array(students),
+            students: uniqueStudents,
             cancellingTask: parsingTask,
             onParsed: { parsed in
                 self.pendingParsedImport = parsed
@@ -56,7 +56,7 @@ extension StudentsView {
         importAlert = StudentsCSVImportHandler.handleImportCommit(
             filtered,
             viewContext: viewContext,
-            existingStudents: Array(students)
+            existingStudents: uniqueStudents
         )
         pendingParsedImport = nil
     }

@@ -10,11 +10,8 @@ struct SchoolYearRolloverView: View {
     @Environment(\.dependencies) private var dependencies
     @Environment(\.dismiss) private var dismiss
 
-    @FetchRequest(
-        sortDescriptors: CDStudent.sortByName,
-        predicate: CDStudent.enrolledPredicate
-    )
-    private var enrolledStudents: FetchedResults<CDStudent>
+    /// Enrolled students from the workspace's live roster.
+    private var enrolledStudents: [CDStudent] { dependencies.roster.enrolled }
 
     @TestStudentVisibility private var testStudents
 

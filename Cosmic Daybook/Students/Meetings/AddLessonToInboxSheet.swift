@@ -9,12 +9,10 @@ struct AddLessonToInboxSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.dependencies) private var dependencies
     
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
-    ])
-    private var allLessons: FetchedResults<CDLesson>
+    /// The catalog in the order this sheet lists it: area, then sort index.
+    private var allLessons: [CDLesson] { dependencies.lessonCatalog.sortedByAreaAndSortIndex }
     
     @State private var selectedLessonID: UUID?
     @State private var lessonSearchText: String = ""
@@ -29,7 +27,7 @@ struct AddLessonToInboxSheet: View {
     
     private var filteredLessons: [CDLesson] {
         let query = lessonSearchText.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return Array(allLessons) }
+        guard !query.isEmpty else { return allLessons }
         return allLessons.filter {
             $0.name.lowercased().contains(query) ||
             $0.area.lowercased().contains(query) ||
@@ -39,7 +37,7 @@ struct AddLessonToInboxSheet: View {
     
     private var selectedLesson: CDLesson? {
         guard let id = selectedLessonID else { return nil }
-        return allLessons.first { $0.id == id }
+        return dependencies.lessonCatalog.lesson(id: id)
     }
     
     private var canSave: Bool {
@@ -94,7 +92,7 @@ struct AddLessonToInboxSheet: View {
         #endif
         .onAppear {
             if let preselectedID = preselectedLessonID,
-               let lesson = allLessons.first(where: { $0.id == preselectedID }) {
+               let lesson = dependencies.lessonCatalog.lesson(id: preselectedID) {
                 selectedLessonID = preselectedID
                 lessonSearchText = lesson.name
             }

@@ -5,18 +5,15 @@ struct LessonSearchPicker: View {
     @Binding var selectedLesson: CDLesson?
 
     @Environment(\.dismiss) private var dismiss
-    @FetchRequest(
-        sortDescriptors: [
-            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
-        ]
-    ) private var allLessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
+
+    /// The workspace's lesson catalog; `groupedByArea` re-sorts it for display.
+    private var allLessons: [CDLesson] { dependencies.lessonCatalog.all }
 
     @State private var searchText = ""
 
     private var filteredLessons: [CDLesson] {
-        if searchText.isEmpty { return Array(allLessons) }
+        if searchText.isEmpty { return allLessons }
         let query = searchText.lowercased()
         return allLessons.filter {
             $0.name.lowercased().contains(query)
