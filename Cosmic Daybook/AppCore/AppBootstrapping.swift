@@ -105,12 +105,6 @@ final class AppBootstrapping {
         // This runs in all build configurations (Debug and Release)
         PerformanceLogger.startStutterDetection()
         
-        #if os(macOS)
-        if let icon = NSImage(named: NSImage.applicationIconName) {
-            NSApplication.shared.applicationIconImage = icon
-        }
-        #endif
-        
         // Configure SQLite environment to suppress detached signature logging errors
         // This attempts to prevent errors about /private/var/db/DetachedSignatures
         // which occurs when SQLite tries to access a system directory that doesn't exist.
