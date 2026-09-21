@@ -42,11 +42,22 @@ struct AppColors {
         .blue, .purple, .teal, .orange, .pink, .green, .indigo, .brown, .cyan, .mint, .yellow, .red
     ]
 
-    /// Returns a color from the default palette based on the area key's hash.
-    /// This ensures consistent color assignment for the same area name.
+    /// Returns a color from the default palette based on a stable hash of the
+    /// area key, so an unmapped area keeps the same color across launches and
+    /// devices. (`hashValue` is seeded per process and would reshuffle every run.)
     private static func colorFromPalette(for key: String) -> Color {
-        let index = abs(key.hashValue) % defaultColorPalette.count
+        let index = Int(stableHash(key) % UInt64(defaultColorPalette.count))
         return defaultColorPalette[index]
+    }
+
+    /// FNV-1a over the UTF-8 bytes: deterministic, dependency-free.
+    private static func stableHash(_ string: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in string.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 0x100000001b3
+        }
+        return hash
     }
 
     // MARK: - Semantic Status Colors
