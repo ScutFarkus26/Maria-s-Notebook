@@ -19,10 +19,6 @@ struct MCPRepeatGuardToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     private func assignments(in context: NSManagedObjectContext) -> [CDLessonAssignment] {
         context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
     }
@@ -47,7 +43,8 @@ struct MCPRepeatGuardToolsTests {
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
         let prior = PresentationFactory.makePresented(
-            lesson: checkerboard, students: [ora], presentedAt: try day("2026-03-11"), context: context
+            lesson: checkerboard, students: [ora],
+                presentedAt: try CoreDataTestHelpers.day("2026-03-11"), context: context
         )
         #expect(CoreDataTestHelpers.save(context))
         return Regive(checkerboard: checkerboard, racks: racks, ora: ora, etty: etty, prior: prior)
@@ -101,7 +98,7 @@ struct MCPRepeatGuardToolsTests {
         #expect(seeded.prior.needsAnotherPresentation)
         let draft = try #require(assignments(in: context).first { $0 != seeded.prior })
         #expect(draft.notes == "Second pass — planned 2026-09-16")
-        #expect(draft.scheduledForDay == AppCalendar.startOfDay(try day("2026-09-16")))
+        #expect(draft.scheduledForDay == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-09-16")))
     }
 
     @Test("purpose review notes the revisit without calling the earlier record a failure")
@@ -232,7 +229,7 @@ struct MCPRepeatGuardToolsTests {
         let seeded = try seedRegive(in: context)
         _ = PresentationFactory.makeScheduled(
             lesson: seeded.checkerboard, students: [seeded.ora],
-            scheduledFor: try day("2026-09-16"), context: context
+            scheduledFor: try CoreDataTestHelpers.day("2026-09-16"), context: context
         )
         #expect(CoreDataTestHelpers.save(context))
 

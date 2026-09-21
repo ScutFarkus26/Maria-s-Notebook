@@ -15,7 +15,7 @@ import CryptoKit
 import OSLog
 
 enum SpotlightIndexer {
-    nonisolated private static let logger = Logger.app(category: "Spotlight")
+    nonisolated private static let logger = Logger.spotlight
 
     /// Fingerprint of the rows last handed to Spotlight. Lets a launch skip the
     /// index write entirely when nothing indexed has changed — the common case.

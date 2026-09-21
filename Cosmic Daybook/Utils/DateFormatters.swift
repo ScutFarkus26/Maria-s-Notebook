@@ -120,7 +120,8 @@ nonisolated enum DateFormatters {
         return formatter
     }()
 
-    /// ISO 8601 full datetime with timezone (e.g., "2024-01-15T15:45:00Z")
+    /// ISO 8601 full datetime with timezone (e.g., "2024-01-15T15:45:00Z").
+    /// Left at the default `formatOptions`, which is `.withInternetDateTime`.
     /// Returns a fresh formatter because ISO8601DateFormatter is not Sendable.
     static var iso8601DateTime: ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
@@ -148,6 +149,49 @@ nonisolated enum DateFormatters {
     static let backupFilename: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        return formatter
+    }()
+
+    /// ISO 8601 full datetime with fractional seconds (e.g., "2024-01-15T15:45:00.123Z")
+    /// Returns a fresh formatter because ISO8601DateFormatter is not Sendable.
+    static var iso8601DateTimeWithFractionalSeconds: ISO8601DateFormatter {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }
+
+    /// Month and year on the Gregorian calendar, whatever the user's calendar is
+    /// (e.g., "January 2024")
+    static let monthYearGregorian: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        formatter.calendar = Calendar(identifier: .gregorian)
+        return formatter
+    }()
+
+    /// Day key in the device timezone with fixed digits (e.g., "2024-01-15").
+    /// Unlike `isoDate` this stays on the device's calendar and zone; the POSIX
+    /// locale only keeps the digits and separators machine-readable.
+    static let isoDayPOSIX: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
+    /// 24-hour clock time with fixed digits (e.g., "09:30")
+    static let time24Hour: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
+    /// Full weekday name in a fixed locale (e.g., "Monday")
+    static let weekdayFullPOSIX: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
 }

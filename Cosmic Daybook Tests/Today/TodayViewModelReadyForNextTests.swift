@@ -15,14 +15,6 @@ struct TodayViewModelReadyForNextTests {
         let avital: CDStudent
     }
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     /// Avital was confirmed on the Commutative Law; the Distributive Law after
     /// it in the same sub-area is untouched.
     private func seed(in context: NSManagedObjectContext) throws -> Fixture {
@@ -40,7 +32,7 @@ struct TodayViewModelReadyForNextTests {
         )
         let given = PresentationFactory.makePresented(
             lesson: commutative, students: [avital],
-            presentedAt: try day("2026-03-11"), context: context
+            presentedAt: try CoreDataTestHelpers.day("2026-03-11"), context: context
         )
         given.confirmStudent(try #require(avital.id))
         #expect(CoreDataTestHelpers.save(context))
@@ -49,7 +41,7 @@ struct TodayViewModelReadyForNextTests {
 
     @Test("reload fills the queue with the child whose next lesson is untouched")
     func reloadFillsTheQueue() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
 
         let viewModel = TodayViewModel(context: context)
@@ -65,7 +57,7 @@ struct TodayViewModelReadyForNextTests {
 
     @Test("Planning that next lesson for her empties the queue on the next reload")
     func draftingTheNextLessonEmptiesTheQueue() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
 
         let viewModel = TodayViewModel(context: context)
@@ -86,7 +78,7 @@ struct TodayViewModelReadyForNextTests {
 
     @Test("A withdrawn child is not in Today's queue")
     func withdrawnChildIsNotInTheQueue() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
         fixture.avital.enrollmentStatus = .withdrawn
         #expect(CoreDataTestHelpers.save(context))

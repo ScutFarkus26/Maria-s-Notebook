@@ -16,7 +16,7 @@ import OSLog
 @Observable
 final class DeduplicationCoordinator {
     static let shared = DeduplicationCoordinator()
-    nonisolated private static let logger = Logger.app(category: "DeduplicationCoordinator")
+    nonisolated private static let logger = Logger.deduplicationCoordinator
 
     var persistentContainer: NSPersistentContainer?
 

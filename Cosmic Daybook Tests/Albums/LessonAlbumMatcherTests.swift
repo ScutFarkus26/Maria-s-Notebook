@@ -10,10 +10,6 @@ import Testing
 @MainActor
 final class LessonAlbumMatcherTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     // MARK: Title scoring
 
     @Test("An exact title match scores 1")
@@ -62,7 +58,7 @@ final class LessonAlbumMatcherTests {
 
     @Test("A lesson with no album link reads as unlinked")
     func unlinkedLessonHasNoLink() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CDLesson(context: context)
         lesson.name = "Parts of the Flower"
         #expect(lesson.albumLink == nil)
@@ -70,7 +66,7 @@ final class LessonAlbumMatcherTests {
 
     @Test("Accepting a candidate stores the album, page, outline title, and confidence")
     func applyStoresTheLink() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CDLesson(context: context)
         lesson.name = "Parts of the Flower"
         context.safeSave()
@@ -98,7 +94,7 @@ final class LessonAlbumMatcherTests {
 
     @Test("Removing a link clears the confidence too")
     func unlinkClearsEverything() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CDLesson(context: context)
         lesson.name = "Parts of the Flower"
         lesson.albumLink = AlbumLink(albumID: "Biology Album.pdf", pageIndex: 41,
@@ -114,7 +110,7 @@ final class LessonAlbumMatcherTests {
 
     @Test("Confidence decides whether a candidate is pre-accepted for the guide")
     func confidenceGatesAutoSelection() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CDLesson(context: context)
         context.safeSave()
         let lessonID = try #require(lesson.id)
@@ -135,7 +131,7 @@ final class LessonAlbumMatcherTests {
 
     @Test("Lessons in an album come back in page order, and only that album's")
     func lessonsInAlbumIsScopedAndSorted() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         for (name, album, page) in [("Seed", "Biology Album.pdf", 60),
                                     ("Flower", "Biology Album.pdf", 41),
                                     ("Checkerboard", "Math Album.pdf", 12)] {

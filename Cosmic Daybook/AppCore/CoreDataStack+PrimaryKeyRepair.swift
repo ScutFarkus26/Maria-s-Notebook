@@ -26,7 +26,7 @@ import SQLite3
 // normal after any delete.
 
 extension CoreDataStack {
-    private static let primaryKeyLogger = Logger.app(category: "CoreDataPrimaryKeyRepair")
+    private static let primaryKeyLogger = Logger.coreDataPrimaryKeyRepair
 
     /// One counter that was behind its table, and where it was moved to.
     struct RaisedPrimaryKeyCounter: Equatable {

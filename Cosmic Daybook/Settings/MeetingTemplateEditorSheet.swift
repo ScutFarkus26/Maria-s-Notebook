@@ -148,7 +148,7 @@ struct MeetingTemplateEditorSheet: View {
             // Create new template
             let customCount: Int
             do {
-                let countRequest = NSFetchRequest<CDMeetingTemplate>(entityName: "MeetingTemplate")
+                let countRequest = CDFetchRequest(CDMeetingTemplate.self)
                 countRequest.predicate = NSPredicate(format: "isBuiltIn == NO")
                 customCount = try viewContext.count(for: countRequest)
             } catch {

@@ -162,7 +162,7 @@ actor MCPWriteJournal {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         self.decoder = decoder
-        self.logger = Logger.app(category: "MCPWriteJournal")
+        self.logger = Logger.mcpWriteJournal
     }
 
     /// `<Application Support>/MCP/`, resolved the way CoreDataStack resolves

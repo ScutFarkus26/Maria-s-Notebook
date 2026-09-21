@@ -51,10 +51,6 @@ final class BackupCoverageTests {
         CoreDataStack.dormantTombstoneEntities
     }
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     /// Registry entity types mapped to their MODEL names (the same resolution
     /// the backup system itself uses), skipping any not present in the model.
     private func registryModelNames(in context: NSManagedObjectContext) -> Set<String> {
@@ -94,7 +90,7 @@ final class BackupCoverageTests {
 
     @Test("Registry, writer, and importer agree on the backed-up entity set")
     func registryMatchesWriterAndImporter() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let registry = registryModelNames(in: context)
         let writer = Set(BackupWriter.serializedEntityNames)
 
@@ -125,7 +121,7 @@ final class BackupCoverageTests {
 
     @Test("Every model entity is routed to a store or explicitly known-dormant")
     func everyModelEntityIsRoutedOrKnownDormant() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let model = try #require(
             context.persistentStoreCoordinator?.managedObjectModel,
             "In-memory stack should expose its managed object model"
@@ -142,7 +138,7 @@ final class BackupCoverageTests {
 
     @Test("Dormant list stays honest: each entry is in the model and still unrouted")
     func dormantListIsNotStale() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let model = try #require(
             context.persistentStoreCoordinator?.managedObjectModel,
             "In-memory stack should expose its managed object model"

@@ -124,13 +124,13 @@ final class RecallQueueViewModel {
     // MARK: - Fetching
 
     private func fetchStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.sortDescriptors = CDStudent.sortByName
         return context.safeFetch(request).filterEnrolled()
     }
 
     private func fetchLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
+        let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
             NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
@@ -140,7 +140,7 @@ final class RecallQueueViewModel {
     }
 
     private func fetchMasteredPresentations(context: NSManagedObjectContext) -> [CDLessonPresentation] {
-        let request = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+        let request = CDFetchRequest(CDLessonPresentation.self)
         request.predicate = NSPredicate(
             format: "stateRaw == %@", LessonPresentationState.proficient.rawValue
         )
@@ -150,7 +150,7 @@ final class RecallQueueViewModel {
     /// Fetches all recall checks, batched to keep memory footprint low.
     /// Cross-year data is required for fade-over-summer stats.
     private func fetchAllRecallChecks(context: NSManagedObjectContext) -> [CDLessonRecallCheck] {
-        let request = NSFetchRequest<CDLessonRecallCheck>(entityName: "LessonRecallCheck")
+        let request = CDFetchRequest(CDLessonRecallCheck.self)
         request.fetchBatchSize = 200
         return context.safeFetch(request)
     }

@@ -6,7 +6,7 @@ import OSLog
 /// Auto-promotes Year Plan entries when a new assignment is created,
 /// scheduling it for the planned date if still in the future.
 enum YearPlanPromotionService {
-    private static let logger = Logger.app(category: "YearPlanPromotion")
+    private static let logger = Logger.yearPlanPromotion
 
     /// Called after PlanNextLessonService creates a draft assignment.
     /// Checks for a matching Year Plan entry and auto-promotes if the planned date is in the future.

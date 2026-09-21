@@ -16,7 +16,7 @@ extension AppBootstrapping {
     /// 4. In-memory stack (last resort — data is not persisted)
     // swiftlint:disable:next function_body_length
     static func createCoreDataStack() throws -> CoreDataStack {
-        let logger = Logger.app(category: "Container")
+        let logger = Logger.container
         let useInMemory = UserDefaults.standard.bool(forKey: UserDefaultsKeys.useInMemoryStoreOnce)
 
         if useInMemory {

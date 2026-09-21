@@ -169,8 +169,7 @@ struct StudentNotesTool: Tool {
             return ("No notes about \(student.firstName) in the last \(daysBack) days.", [])
         }
 
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
+        let formatter = DateFormatters.mediumDate
         let selected = Array(matching.prefix(20))
         let lines = selected.map { note -> String in
             let date = note.createdAt.map { formatter.string(from: $0) } ?? "Undated"

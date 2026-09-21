@@ -8,15 +8,11 @@ import Testing
 @MainActor
 final class AlbumUserDataStoreTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     // MARK: Bookmarks
 
     @Test("Bookmarking a page toggles it on and off")
     func toggleBookmark() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         #expect(!AlbumUserDataStore.isBookmarked(albumID: "Biology.pdf", pageIndex: 4, in: context))
 
         AlbumUserDataStore.toggleBookmark(albumID: "Biology.pdf", pageIndex: 4,
@@ -30,7 +26,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Bookmarks are per page, not per album")
     func bookmarksAreScopedToAPage() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.toggleBookmark(albumID: "Biology.pdf", pageIndex: 4,
                                           lessonTitle: "Flower", in: context)
         #expect(!AlbumUserDataStore.isBookmarked(albumID: "Biology.pdf", pageIndex: 5, in: context))
@@ -41,7 +37,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Notes are trimmed, and blank notes are not saved")
     func addNote() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.addNote(albumID: "Math.pdf", pageIndex: 2, lessonTitle: "Checkerboard",
                                    text: "   ", in: context)
         #expect(AlbumUserDataStore.notes(albumID: "Math.pdf", pageIndex: 2, in: context).isEmpty)
@@ -55,7 +51,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Note snapshots carry the fields search needs")
     func noteSnapshots() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.addNote(albumID: "Math.pdf", pageIndex: 7, lessonTitle: "Checkerboard",
                                    text: "Multiplication follow-up", in: context)
         let snapshots = AlbumUserDataStore.noteSnapshots(in: context)
@@ -71,7 +67,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Revisiting a lesson moves it rather than duplicating it")
     func recentVisitsDeduplicateByLesson() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.recordVisit(albumID: "Bio.pdf", pageIndex: 3,
                                        lessonTitle: "Flower", in: context)
         AlbumUserDataStore.recordVisit(albumID: "Bio.pdf", pageIndex: 9,
@@ -85,7 +81,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Recent visits are capped so the rail stays short")
     func recentVisitsAreCapped() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let overflow = AlbumUserDataStore.recentVisitLimit + 5
         for index in 0..<overflow {
             AlbumUserDataStore.recordVisit(albumID: "Bio.pdf", pageIndex: index,
@@ -99,7 +95,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Reading position updates in place")
     func readingPositionUpdates() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.saveReadingPosition(albumID: "Bio.pdf", pageIndex: 12, in: context)
         AlbumUserDataStore.saveReadingPosition(albumID: "Bio.pdf", pageIndex: 40, in: context)
 
@@ -110,7 +106,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Duplicate reading positions from other devices collapse to one")
     func readingPositionCollapsesCloudKitDuplicates() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         // CloudKit can't enforce uniqueness, so two devices can each insert a row.
         for page in [5, 30] {
             let position = CDAlbumReadingPosition(context: context)
@@ -129,7 +125,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Highlight rectangles survive a store round-trip")
     func highlightRectsRoundTrip() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let rects = [CGRect(x: 10, y: 20, width: 100, height: 12),
                      CGRect(x: 10, y: 34, width: 80, height: 12)]
         AlbumUserDataStore.addHighlight(albumID: "Bio.pdf", pageIndex: 2, lessonTitle: "Flower",
@@ -143,7 +139,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("A highlight with no rectangles is not stored")
     func emptyHighlightIsIgnored() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.addHighlight(albumID: "Bio.pdf", pageIndex: 2, lessonTitle: "Flower",
                                         text: "nothing selected", rects: [], in: context)
         #expect(AlbumUserDataStore.highlights(albumID: "Bio.pdf", in: context).isEmpty)
@@ -153,7 +149,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Saving ink twice for one page replaces the drawing")
     func inkReplacesPerPage() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.saveInk(albumID: "Bio.pdf", pageIndex: 3,
                                    drawingData: Data([1, 2, 3]), in: context)
         AlbumUserDataStore.saveInk(albumID: "Bio.pdf", pageIndex: 3,
@@ -166,7 +162,7 @@ final class AlbumUserDataStoreTests {
 
     @Test("Erasing a page's ink removes its row")
     func erasingInkDeletesRow() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         AlbumUserDataStore.saveInk(albumID: "Bio.pdf", pageIndex: 3,
                                    drawingData: Data([1, 2, 3]), in: context)
         AlbumUserDataStore.saveInk(albumID: "Bio.pdf", pageIndex: 3,

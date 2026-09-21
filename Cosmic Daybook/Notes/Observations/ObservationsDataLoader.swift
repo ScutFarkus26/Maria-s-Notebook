@@ -79,7 +79,7 @@ enum ObservationsDataLoader {
         // so we fetch all and filter in memory
         let allStudents: [CDStudent]
         do {
-            allStudents = try context.fetch(NSFetchRequest<CDStudent>(entityName: "Student")).filterEnrolled()
+            allStudents = try context.fetch(CDFetchRequest(CDStudent.self)).filterEnrolled()
         } catch {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []

@@ -90,13 +90,13 @@ struct StudentTrackDetailView: View {
         let studentID = enrollment.studentID
 
         // Fetch the student
-        let allStudents = viewContext.safeFetch(NSFetchRequest<CDStudent>(entityName: "Student"))
+        let allStudents = viewContext.safeFetch(CDFetchRequest(CDStudent.self))
         student = allStudents.first { $0.cloudKitKey == studentID }
 
         // Fetch lessons for this area/sequence
         let allLessons: [CDLesson]
         do {
-            allLessons = try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "Lesson"))
+            allLessons = try viewContext.fetch(CDFetchRequest(CDLesson.self))
         } catch {
             Self.logger.warning("Failed to fetch Lessons: \(error)")
             allLessons = []
@@ -112,7 +112,7 @@ struct StudentTrackDetailView: View {
         let lessonIDStrings = Set(trackLessons.compactMap { $0.id?.uuidString })
         let allPresentations: [CDLessonPresentation]
         do {
-            let req = NSFetchRequest<CDLessonPresentation>(entityName: "LessonPresentation")
+            let req = CDFetchRequest(CDLessonPresentation.self)
             allPresentations = try viewContext.fetch(req)
         } catch {
             Self.logger.warning("Failed to fetch LessonPresentations: \(error)")

@@ -88,7 +88,7 @@ nonisolated public class CDParentCommunication: NSManagedObject {
 
     /// The monthly report row for one student and month, if it exists.
     nonisolated static func monthlyReportRequest(studentID: String, monthKey: String) -> NSFetchRequest<CDParentCommunication> {
-        let request = NSFetchRequest<CDParentCommunication>(entityName: "ParentCommunication")
+        let request = CDFetchRequest(CDParentCommunication.self)
         request.predicate = NSPredicate(
             format: "studentID == %@ AND monthKey == %@ AND communicationTypeRaw == %@",
             studentID, monthKey, CommunicationType.monthlyReport.rawValue

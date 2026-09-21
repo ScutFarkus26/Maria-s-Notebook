@@ -33,7 +33,7 @@ final class SharedStoreZoneRepair {
 
     /// Not `private`: the `+Detection` extension lives in another file and
     /// Swift scopes `private` members to the declaring file.
-    nonisolated static let logger = Logger.app(category: "SharedStoreZoneRepair")
+    nonisolated static let logger = Logger.sharedStoreZoneRepair
 
     // MARK: - Observable State
 

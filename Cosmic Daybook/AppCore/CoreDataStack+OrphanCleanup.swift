@@ -4,7 +4,7 @@ import OSLog
 import SQLite3
 
 extension CoreDataStack {
-    private static let cleanupLogger = Logger.app(category: "CoreDataOrphanCleanup")
+    private static let cleanupLogger = Logger.coreDataOrphanCleanup
 
     /// Prepares an on-disk store so NSPersistentCloudKitContainer's lightweight migration
     /// can succeed after entities have been removed from the model.

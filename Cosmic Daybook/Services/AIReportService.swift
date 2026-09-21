@@ -37,8 +37,7 @@ enum AIReportService {
     // MARK: - Private Helpers
 
     private static func buildPrompt(from data: ReportData) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
+        let dateFormatter = DateFormatters.mediumDate
 
         let startDate = dateFormatter.string(from: data.dateRange.lowerBound)
         let endDate = dateFormatter.string(from: data.dateRange.upperBound)

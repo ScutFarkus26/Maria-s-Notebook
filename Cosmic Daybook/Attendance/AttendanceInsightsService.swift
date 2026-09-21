@@ -149,7 +149,7 @@ enum AttendanceInsightsService {
     ) -> [CDAttendanceRecord] {
         let start = AppCalendar.startOfDay(range.lowerBound)
         let end = AppCalendar.startOfDay(range.upperBound)
-        let request = NSFetchRequest<CDAttendanceRecord>(entityName: "AttendanceRecord")
+        let request = CDFetchRequest(CDAttendanceRecord.self)
         request.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
         do {
             return try context.fetch(request).deduplicatedPerStudentDay()

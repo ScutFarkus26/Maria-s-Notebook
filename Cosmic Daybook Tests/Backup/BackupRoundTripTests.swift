@@ -175,7 +175,7 @@ final class BackupRoundTripTests {
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
 
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         let restored = try destStack.viewContext.fetch(request)
         let match = restored.first { $0.firstName == "Maria" && $0.lastName == "Montessori" }
         let matchedStudent = try #require(match, "Restored student not found by name")

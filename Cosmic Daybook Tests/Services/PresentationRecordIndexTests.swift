@@ -8,10 +8,6 @@ import Testing
 struct PresentationRecordIndexTests {
     private typealias Given = PresentationRecordIndex.Given
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     /// Three children and two lessons:
     /// - Ora: Checkerboard given twice (a row and a presented assignment on
     ///   different days), confirmed ready on the second; Bells mastered by row.
@@ -46,21 +42,23 @@ struct PresentationRecordIndexTests {
         let firstRow = CDLessonPresentation(context: context)
         firstRow.studentID = oraID
         firstRow.lessonID = checkerboardID
-        firstRow.presentedAt = try day("2026-03-11")
+        firstRow.presentedAt = try CoreDataTestHelpers.day("2026-03-11")
 
         _ = PresentationFactory.makePresented(
-            lesson: checkerboard, students: [ora], presentedAt: try day("2026-03-11"), context: context
+            lesson: checkerboard, students: [ora],
+                presentedAt: try CoreDataTestHelpers.day("2026-03-11"), context: context
         )
         let secondPass = PresentationFactory.makePresented(
-            lesson: checkerboard, students: [ora], presentedAt: try day("2026-05-02"), context: context
+            lesson: checkerboard, students: [ora],
+                presentedAt: try CoreDataTestHelpers.day("2026-05-02"), context: context
         )
         secondPass.confirmStudent(try #require(ora.id))
 
         let bellsRow = CDLessonPresentation(context: context)
         bellsRow.studentID = oraID
         bellsRow.lessonID = bellsID
-        bellsRow.presentedAt = try day("2026-01-20")
-        bellsRow.masteredAt = try day("2026-02-10")
+        bellsRow.presentedAt = try CoreDataTestHelpers.day("2026-01-20")
+        bellsRow.masteredAt = try CoreDataTestHelpers.day("2026-02-10")
 
         _ = PresentationFactory.makeDraft(lesson: checkerboard, students: [etty, dalia], context: context)
 
@@ -91,14 +89,16 @@ struct PresentationRecordIndexTests {
         let bellsID = try #require(classroom.bells.id).uuidString
 
         let checkerboard = try #require(index.given(student: oraID, lesson: checkerboardID))
-        #expect(checkerboard.days == [try day("2026-03-11"), try day("2026-05-02")])
+        #expect(checkerboard.days == [
+            try CoreDataTestHelpers.day("2026-03-11"), try CoreDataTestHelpers.day("2026-05-02")
+        ])
         #expect(checkerboard.confirmed)
         #expect(!checkerboard.mastered)
 
         let bells = try #require(index.given(student: oraID, lesson: bellsID))
         #expect(bells.mastered)
         #expect(!bells.confirmed)
-        #expect(bells.days == [try day("2026-01-20")])
+        #expect(bells.days == [try CoreDataTestHelpers.day("2026-01-20")])
 
         #expect(index.givenByStudent[oraID]?.keys.sorted() == [bellsID, checkerboardID].sorted())
         #expect(index.masteredStudents(lesson: bellsID) == [oraID])

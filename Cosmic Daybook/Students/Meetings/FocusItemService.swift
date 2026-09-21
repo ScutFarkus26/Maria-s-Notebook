@@ -11,7 +11,7 @@ enum FocusItemService {
         studentID: UUID,
         context: NSManagedObjectContext
     ) -> [CDStudentFocusItem] {
-        let request = NSFetchRequest<CDStudentFocusItem>(entityName: "StudentFocusItem")
+        let request = CDFetchRequest(CDStudentFocusItem.self)
         request.predicate = NSPredicate(
             format: "studentID == %@ AND statusRaw == %@",
             studentID.uuidString,
@@ -71,7 +71,7 @@ enum FocusItemService {
         context: NSManagedObjectContext
     ) -> [CDStudentFocusItem] {
         let meetingIDString = meetingID.uuidString
-        let request = NSFetchRequest<CDStudentFocusItem>(entityName: "StudentFocusItem")
+        let request = CDFetchRequest(CDStudentFocusItem.self)
         request.predicate = NSPredicate(
             format: "createdInMeetingID == %@ OR resolvedInMeetingID == %@",
             meetingIDString,

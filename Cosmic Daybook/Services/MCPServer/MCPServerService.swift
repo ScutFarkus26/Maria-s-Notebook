@@ -28,7 +28,7 @@ final class MCPServerService {
     /// Identifies the start attempt each async status update belongs to,
     /// so a stale readiness or failure can't clobber a newer server's state.
     private var currentServerID: UUID?
-    private let logger = Logger.app(category: "MCPServer")
+    private let logger = Logger.mcpServer
 
     private init() {}
 

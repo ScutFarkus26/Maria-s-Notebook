@@ -20,7 +20,7 @@ final class EnergyPolicy {
     /// The app-wide policy, fed by the real `ProcessInfo` notifications.
     static let shared = EnergyPolicy()
 
-    nonisolated private static let logger = Logger.app(category: "EnergyPolicy")
+    nonisolated private static let logger = Logger.energyPolicy
 
     // MARK: - Inputs
 

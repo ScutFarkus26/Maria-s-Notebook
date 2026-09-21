@@ -12,14 +12,6 @@ import Testing
 @MainActor
 struct TrackTitleMergeTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     @discardableResult
     private func seedTrack(
         _ title: String, createdAt: Date, lessons: [CDLesson], in context: NSManagedObjectContext
@@ -81,10 +73,10 @@ struct TrackTitleMergeTests {
 
     @Test("Same title folded for case and whitespace is a duplicate; other titles are not")
     func detectsSameTitleOnly() throws {
-        let context = try makeContext()
-        seedTrack("Math — Laws", createdAt: try day("2026-01-10"), lessons: [], in: context)
-        seedTrack("math — laws ", createdAt: try day("2026-01-10"), lessons: [], in: context)
-        seedTrack("Math — Fractions", createdAt: try day("2026-01-10"), lessons: [], in: context)
+        let context = try CoreDataTestHelpers.makeContext()
+        seedTrack("Math — Laws", createdAt: try CoreDataTestHelpers.day("2026-01-10"), lessons: [], in: context)
+        seedTrack("math — laws ", createdAt: try CoreDataTestHelpers.day("2026-01-10"), lessons: [], in: context)
+        seedTrack("Math — Fractions", createdAt: try CoreDataTestHelpers.day("2026-01-10"), lessons: [], in: context)
         CoreDataTestHelpers.save(context)
 
         let groups = DataCleanupService.sameTitleTrackGroups(using: context)
@@ -96,7 +88,7 @@ struct TrackTitleMergeTests {
 
     @Test("Merge keeps the older twin, moves the steps, and repoints presentations, marks and work")
     func mergeMovesStepsAndRepoints() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let commutative = CoreDataTestHelpers.seedLesson(
             in: context, name: "Commutative Law", area: "Math", sequence: "Laws"
         )
@@ -108,10 +100,10 @@ struct TrackTitleMergeTests {
 
         // The older twin is the empty shell; the newer one carries the steps.
         let older = seedTrack(
-            "Math — Laws", createdAt: try day("2026-01-10"), lessons: [commutative], in: context
+            "Math — Laws", createdAt: try CoreDataTestHelpers.day("2026-01-10"), lessons: [commutative], in: context
         )
         let newer = seedTrack(
-            "Math — Laws", createdAt: try day("2026-01-10").addingTimeInterval(300),
+            "Math — Laws", createdAt: try CoreDataTestHelpers.day("2026-01-10").addingTimeInterval(300),
             lessons: [commutative, distributive], in: context
         )
         CoreDataTestHelpers.save(context)
@@ -157,18 +149,22 @@ struct TrackTitleMergeTests {
 
     @Test("A child enrolled on both twins keeps one enrollment, the active one, and her notes follow it")
     func mergeCollapsesEnrollments() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Simma", lastName: "Katz")
         let peer = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
         CoreDataTestHelpers.save(context)
-        let older = seedTrack("Math — Laws", createdAt: try day("2026-01-10"), lessons: [], in: context)
+        let older = seedTrack("Math — Laws",
+            createdAt: try CoreDataTestHelpers.day("2026-01-10"), lessons: [], in: context)
         let newer = seedTrack(
-            "Math — Laws", createdAt: try day("2026-01-10").addingTimeInterval(300), lessons: [], in: context
+            "Math — Laws",
+                createdAt: try CoreDataTestHelpers.day("2026-01-10").addingTimeInterval(300), lessons: [], in: context
         )
         CoreDataTestHelpers.save(context)
 
-        let retired = enroll(student, on: older, active: false, startedAt: try day("2026-01-11"), in: context)
-        let live = enroll(student, on: newer, active: true, startedAt: try day("2026-02-01"), in: context)
+        let retired = enroll(student, on: older, active: false,
+            startedAt: try CoreDataTestHelpers.day("2026-01-11"), in: context)
+        let live = enroll(student, on: newer, active: true,
+            startedAt: try CoreDataTestHelpers.day("2026-02-01"), in: context)
         enroll(peer, on: newer, in: context)
         let note = CoreDataTestHelpers.seedNote(in: context, body: "Working steadily through the laws.")
         note.studentTrackEnrollmentID = retired.id?.uuidString
@@ -191,13 +187,14 @@ struct TrackTitleMergeTests {
 
     @Test("Survivor is the older record by createdAt, whichever twin carries the steps")
     func survivorIsOlder() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Bells", area: "Music", sequence: "Tone Bars")
         CoreDataTestHelpers.save(context)
         let newerWithSteps = seedTrack(
-            "Music — Tone Bars", createdAt: try day("2026-03-01"), lessons: [lesson], in: context
+            "Music — Tone Bars", createdAt: try CoreDataTestHelpers.day("2026-03-01"), lessons: [lesson], in: context
         )
-        let olderShell = seedTrack("Music — Tone Bars", createdAt: try day("2026-01-10"), lessons: [], in: context)
+        let olderShell = seedTrack("Music — Tone Bars",
+            createdAt: try CoreDataTestHelpers.day("2026-01-10"), lessons: [], in: context)
         CoreDataTestHelpers.save(context)
 
         #expect(DataCleanupService.olderTrackPrecedes(olderShell, newerWithSteps, container: nil))
@@ -213,11 +210,12 @@ struct TrackTitleMergeTests {
 
     @Test("getOrCreateTrack lands on the twin with steps and never creates a third")
     func lookupPrefersSteppedTwin() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Bells", area: "Music", sequence: "Tone Bars")
         CoreDataTestHelpers.save(context)
-        seedTrack("Music — Tone Bars", createdAt: try day("2026-01-10"), lessons: [], in: context)
-        let stepped = seedTrack("Music — Tone Bars", createdAt: try day("2026-03-01"), lessons: [lesson], in: context)
+        seedTrack("Music — Tone Bars", createdAt: try CoreDataTestHelpers.day("2026-01-10"), lessons: [], in: context)
+        let stepped = seedTrack("Music — Tone Bars",
+            createdAt: try CoreDataTestHelpers.day("2026-03-01"), lessons: [lesson], in: context)
         CoreDataTestHelpers.save(context)
 
         let found = try SequenceTrackService.getOrCreateTrack(area: "Music", sequence: "Tone Bars", context: context)

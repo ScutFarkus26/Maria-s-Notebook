@@ -16,16 +16,12 @@ struct MCPPresentationHistoryToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     @discardableResult
     private func seedGiven(
         _ lesson: CDLesson, to student: CDStudent, on date: String, in context: NSManagedObjectContext
     ) throws -> CDLessonAssignment {
         let presentation = PresentationFactory.makeDraft(lesson: lesson, students: [student], context: context)
-        presentation.markPresented(at: try day(date))
+        presentation.markPresented(at: try CoreDataTestHelpers.day(date))
         return presentation
     }
 
@@ -51,8 +47,8 @@ struct MCPPresentationHistoryToolsTests {
         record.studentID = try #require(ora.id).uuidString
         record.lessonID = try #require(checkerboard.id).uuidString
         record.stateRaw = LessonPresentationState.proficient.rawValue
-        record.presentedAt = try day("2025-05-04")
-        record.masteredAt = try day("2025-06-20")
+        record.presentedAt = try CoreDataTestHelpers.day("2025-05-04")
+        record.masteredAt = try CoreDataTestHelpers.day("2025-06-20")
         #expect(CoreDataTestHelpers.save(context))
         return Classroom(ora: ora, bells: bells, stampGame: stampGame, checkerboard: checkerboard)
     }

@@ -51,7 +51,7 @@ nonisolated struct SearchIndexSnapshot: Codable, Sendable {
 }
 
 nonisolated enum SearchIndexSnapshotStore {
-    private static let logger = Logger.app(category: "SearchIndexSnapshot")
+    private static let logger = Logger.searchIndexSnapshot
 
     /// `Caches/SearchIndex/`. Caches is regenerable and excluded from backup,
     /// which is exactly what this file is.

@@ -61,7 +61,7 @@ struct CloudSharingSheet: UIViewControllerRepresentable {
             _ controller: UICloudSharingController,
             failedToSaveShareWithError error: Error
         ) {
-            Logger.app(category: "CloudSharing").error("Failed to save share: \(error.localizedDescription)")
+            Logger.cloudSharing.error("Failed to save share: \(error.localizedDescription)")
         }
 
         func itemTitle(for controller: UICloudSharingController) -> String? {
@@ -69,13 +69,13 @@ struct CloudSharingSheet: UIViewControllerRepresentable {
         }
 
         func cloudSharingControllerDidSaveShare(_ controller: UICloudSharingController) {
-            Logger.app(category: "CloudSharing").info("Share saved successfully")
+            Logger.cloudSharing.info("Share saved successfully")
             onShareSaved?()
             onDismiss()
         }
 
         func cloudSharingControllerDidStopSharing(_ controller: UICloudSharingController) {
-            Logger.app(category: "CloudSharing").info("Sharing stopped")
+            Logger.cloudSharing.info("Sharing stopped")
             onStopSharing?()
             onDismiss()
         }

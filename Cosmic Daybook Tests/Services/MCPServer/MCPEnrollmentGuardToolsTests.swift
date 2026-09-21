@@ -19,10 +19,6 @@ struct MCPEnrollmentGuardToolsTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     private func assignments(in context: NSManagedObjectContext) -> [CDLessonAssignment] {
         context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
     }
@@ -41,7 +37,7 @@ struct MCPEnrollmentGuardToolsTests {
         )
         let naomi = CoreDataTestHelpers.seedStudent(
             in: context, firstName: "Naomi", lastName: "Levin",
-            enrollmentStatus: .withdrawn, dateWithdrawn: try day("2026-06-12")
+            enrollmentStatus: .withdrawn, dateWithdrawn: try CoreDataTestHelpers.day("2026-06-12")
         )
         let rivka = CoreDataTestHelpers.seedStudent(
             in: context, firstName: "Rivka", lastName: "Stein", enrollmentStatus: .transferred
@@ -126,7 +122,7 @@ struct MCPEnrollmentGuardToolsTests {
         let roster = try seedRoster(in: context)
         let planned = PresentationFactory.makeScheduled(
             lesson: roster.lesson, students: [roster.etty],
-            scheduledFor: try day("2026-09-16"), context: context
+            scheduledFor: try CoreDataTestHelpers.day("2026-09-16"), context: context
         )
         #expect(CoreDataTestHelpers.save(context))
         let before = planned.studentIDs
@@ -151,7 +147,7 @@ struct MCPEnrollmentGuardToolsTests {
         let roster = try seedRoster(in: context)
         let planned = PresentationFactory.makeScheduled(
             lesson: roster.lesson, students: [roster.etty, roster.naomi],
-            scheduledFor: try day("2026-09-16"), context: context
+            scheduledFor: try CoreDataTestHelpers.day("2026-09-16"), context: context
         )
         #expect(CoreDataTestHelpers.save(context))
 

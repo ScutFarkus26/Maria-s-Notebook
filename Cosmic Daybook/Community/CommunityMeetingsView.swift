@@ -10,7 +10,7 @@ struct CommunityMeetingsView: View {
     #endif
 
     @FetchRequest(fetchRequest: {
-        let request = NSFetchRequest<CDCommunityTopicEntity>(entityName: "CommunityTopic")
+        let request = CDFetchRequest(CDCommunityTopicEntity.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDCommunityTopicEntity.createdAt, ascending: false)]
         request.fetchBatchSize = 50
         // Prefetch proposedSolutions so each TopicRowView's solution count — and

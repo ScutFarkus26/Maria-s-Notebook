@@ -91,7 +91,7 @@ struct NotebookCompanionSnapshot: Equatable {
 
 @Observable
 final class NotebookCompanionViewModel {
-    private static let logger = Logger.app(category: "NotebookCompanion")
+    private static let logger = Logger.notebookCompanion
 
     private(set) var snapshot: NotebookCompanionSnapshot = .empty
 

@@ -366,10 +366,10 @@ extension AnthropicAPIClient {
         }
 
         // Fall back to UserDefaults and auto-migrate to Keychain
-        if let key = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !key.isEmpty {
+        if let key = UserDefaults.standard.string(forKey: UserDefaultsKeys.anthropicAPIKey), !key.isEmpty {
             if let data = key.data(using: .utf8) {
                 try? keychain.set(data)
-                UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.anthropicAPIKey)
                 logger.info("Migrated API key from UserDefaults to Keychain")
             }
             return key
@@ -397,7 +397,7 @@ extension AnthropicAPIClient {
     /// Clear saved API key
     static func clearAPIKey() {
         try? keychain.delete()
-        UserDefaults.standard.removeObject(forKey: "anthropicAPIKey")
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.anthropicAPIKey)
     }
 
     struct ClaudeRequestConfig {

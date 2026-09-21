@@ -18,10 +18,6 @@ import Testing
 @MainActor
 struct YearPlanSatisfactionTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     /// A day relative to today, never earlier than the first day of this
     /// school year: a target before that reads as *carried over from last
     /// year* rather than behind pace, and these tests are about behind pace.
@@ -76,7 +72,7 @@ struct YearPlanSatisfactionTests {
 
     @Test("a lesson given without being scheduled answers every child's entry")
     func recordingSatisfiesPlannedEntries() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Second Polygon Presentation")
         let girls = ["Etty", "Tzofia", "Naomi"].map {
             CoreDataTestHelpers.seedStudent(in: context, firstName: $0, lastName: "Dechter")
@@ -105,7 +101,7 @@ struct YearPlanSatisfactionTests {
 
     @Test("a child added to the group on the day is answered with the rest")
     func recordingSatisfiesEntriesForChildrenAddedLate() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Nomenclature (Triangles)")
         let scheduled = CoreDataTestHelpers.seedStudent(in: context, firstName: "Leora", lastName: "Fleischmann")
         let joined = CoreDataTestHelpers.seedStudent(in: context, firstName: "Simma", lastName: "Zweig")
@@ -132,7 +128,7 @@ struct YearPlanSatisfactionTests {
 
     @Test("a sequence added after a lesson was given starts from the next lesson")
     func aSequenceAddedAfterwardsMarksTheGivenLessonGiven() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Dechter")
         let given = CoreDataTestHelpers.seedLesson(
             in: context, name: "Second Polygon Presentation", area: "Geometry", sequence: "Polygons"
@@ -166,7 +162,7 @@ struct YearPlanSatisfactionTests {
 
     @Test("the calendar shows a satisfied entry as given and stops offering to move it")
     func satisfiedEntriesReadAsGiven() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Story of Pythagoras")
         let entry = seedEntry(in: context, student: girl, lesson: lesson)
@@ -191,7 +187,7 @@ struct YearPlanSatisfactionTests {
 
     @Test("another child's entry and another lesson's entry are untouched")
     func satisfactionIsPerChildAndPerLesson() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let taught = CoreDataTestHelpers.seedLesson(in: context, name: "Nomenclature (General)")
         let other = CoreDataTestHelpers.seedLesson(in: context, name: "Nomenclature of the Rhombus")
         let present = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
@@ -211,7 +207,7 @@ struct YearPlanSatisfactionTests {
 
     @Test("a skipped entry stays skipped and is never behind pace")
     func skippedEntriesAreLeftAlone() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Introduction to Large Bead Frame")
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Zahava", lastName: "Wechsler")
         let entry = seedEntry(in: context, student: girl, lesson: lesson, status: .skipped)
@@ -225,7 +221,7 @@ struct YearPlanSatisfactionTests {
 
     @Test("an empty index satisfies nothing")
     func theEmptyIndexSatisfiesNothing() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Skip Counting")
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Singer")
         let entry = seedEntry(in: context, student: girl, lesson: lesson)

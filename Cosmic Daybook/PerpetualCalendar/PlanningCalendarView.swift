@@ -33,11 +33,11 @@ struct PlanningCalendarView: View {
     @State private var nonSchoolCells: Set<CellID> = []
     @State private var showCalendarSync: Bool = false
 
-    @AppStorage("PlanningCalendar.showNotes") private var showNotes: Bool = true
-    @AppStorage("PlanningCalendar.showHolidays") private var showHolidays: Bool = true
-    @AppStorage("PlanningCalendar.showEvents") private var showEvents: Bool = true
-    @AppStorage("PlanningCalendar.showTodos") private var showTodos: Bool = true
-    @AppStorage("PlanningCalendar.showParsha") private var showParsha: Bool = true
+    @AppStorage(UserDefaultsKeys.planningCalendarShowNotes) private var showNotes: Bool = true
+    @AppStorage(UserDefaultsKeys.planningCalendarShowHolidays) private var showHolidays: Bool = true
+    @AppStorage(UserDefaultsKeys.planningCalendarShowEvents) private var showEvents: Bool = true
+    @AppStorage(UserDefaultsKeys.planningCalendarShowTodos) private var showTodos: Bool = true
+    @AppStorage(UserDefaultsKeys.planningCalendarShowParsha) private var showParsha: Bool = true
 
     private static let yearRadius = 5
 

@@ -69,7 +69,7 @@ extension CosmicDaybookApp {
         }
     }
 
-    private static let logger = Logger.app(category: "App")
+    private static let logger = Logger.appMain
 
     var mainWindowContent: some View {
         Group {

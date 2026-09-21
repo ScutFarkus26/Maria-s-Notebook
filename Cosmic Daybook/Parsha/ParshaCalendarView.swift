@@ -36,18 +36,11 @@ struct ParshaCalendarView: View {
         }
     }
 
-    /// Built once, not per body pass — `DateFormatter` construction is expensive and
-    /// this one never varies.
-    private static let monthLabelFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        formatter.calendar = Calendar(identifier: .gregorian)
-        return formatter
-    }()
-
     private var entriesByMonth: [(monthLabel: String, items: [CalendarEntry])] {
         let calendar = HebrewParshaService.gregorian
-        let formatter = Self.monthLabelFormatter
+        // Built once, not per body pass — `DateFormatter` construction is expensive
+        // and this one never varies.
+        let formatter = DateFormatters.monthYearGregorian
 
         let grouped = Dictionary(grouping: entries) { entry -> Date in
             let comps = calendar.dateComponents([.year, .month], from: entry.date)

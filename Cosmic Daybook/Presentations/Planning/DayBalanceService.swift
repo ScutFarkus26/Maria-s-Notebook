@@ -116,7 +116,7 @@ enum DayBalanceService {
     /// Puts balanced days back the way they were.
     static func restore(_ times: [UUID: Date], in context: NSManagedObjectContext) {
         guard !times.isEmpty else { return }
-        let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+        let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "id IN %@", Array(times.keys))
         for assignment in context.safeFetch(request) {
             if let id = assignment.id, let when = times[id] {
@@ -174,7 +174,7 @@ enum DayBalanceService {
     }
 
     private static func studentNames(_ ids: Set<UUID>, context: NSManagedObjectContext) -> [String] {
-        let request = NSFetchRequest<CDStudent>(entityName: "Student")
+        let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", Array(ids))
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
         return context.safeFetch(request).map(StudentFormatter.displayName(for:))

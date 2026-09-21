@@ -31,7 +31,7 @@ nonisolated func CDFetchRequest<T: NSManagedObject>(_ type: T.Type = T.self) -> 
 }
 
 nonisolated extension NSManagedObjectContext {
-    private static let logger = Logger.app(category: "database")
+    private static let logger = Logger.database
 
     /// Safely fetches entities, returning an empty array on error instead of throwing.
     func safeFetch<T: NSManagedObject>(_ request: NSFetchRequest<T>) -> [T] {

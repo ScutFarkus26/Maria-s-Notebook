@@ -10,7 +10,7 @@ import OSLog
 ///
 /// NSPersistentCloudKitContainer handles sync, offline queuing, and conflict resolution automatically.
 final class CoreDataStack {
-    nonisolated private static let logger = Logger.app(category: "CoreDataStack")
+    nonisolated private static let logger = Logger.coreDataStack
 
     // MARK: - Active Model
 

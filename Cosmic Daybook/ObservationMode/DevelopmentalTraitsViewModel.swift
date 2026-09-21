@@ -33,7 +33,7 @@ final class DevelopmentalTraitsViewModel {
         defer { isLoading = false }
 
         let descriptor = {
-            let r = NSFetchRequest<CDNote>(entityName: "Note")
+            let r = CDFetchRequest(CDNote.self)
             r.sortDescriptors = [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)]
             return r
         }()

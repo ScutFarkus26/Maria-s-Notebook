@@ -82,7 +82,7 @@ struct LessonsRootView: View {
     @SceneStorage("Lessons.searchText") var searchTextRaw: String = ""
     @SceneStorage("Lessons.detailPaneWidth") var detailPaneWidth: Double = 520
     @SceneStorage("Lessons.showingParshas") var showingParshas: Bool = false
-    @AppStorage("Lessons.mapSpine") var mapSpineRaw: String = MapSpine.area.rawValue
+    @AppStorage(UserDefaultsKeys.lessonsMapSpine) var mapSpineRaw: String = MapSpine.area.rawValue
 
     static let detailPaneMinWidth: CGFloat = 440
     static let detailPaneMaxWidth: CGFloat = 720

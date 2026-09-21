@@ -11,10 +11,6 @@ import Testing
 @MainActor
 final class AlbumIdentityRepairTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     // MARK: Fingerprinting
 
     @Test("The same album content fingerprints the same way")
@@ -59,7 +55,7 @@ final class AlbumIdentityRepairTests {
 
     @Test("Renaming an album carries every kind of annotation across")
     func remapMovesAllAnnotationTypes() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let old = "Biology Album.pdf"
         let new = "Biology.pdf"
 
@@ -104,7 +100,7 @@ final class AlbumIdentityRepairTests {
 
     @Test("Lessons linked into the album travel with it")
     func remapMovesLessonLinks() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CDLesson(context: context)
         lesson.name = "Parts of the Flower"
         lesson.albumLink = AlbumLink(albumID: "Biology Album.pdf", pageIndex: 12,
@@ -121,7 +117,7 @@ final class AlbumIdentityRepairTests {
 
     @Test("Annotations on other albums are left alone")
     func remapLeavesOtherAlbumsAlone() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let other = CDAlbumBookmark(context: context)
         other.albumID = "Math Album.pdf"
         other.pageIndex = 7

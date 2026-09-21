@@ -16,10 +16,6 @@ struct MCPPendingStudentsToolTests {
         try #require(tools.first { $0.name == name })
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     /// A day relative to today, clamped forward to the first day of this
     /// school year. A target before that is *carried over*, not behind pace,
     /// and the expectations below read the behind-pace wording — the clamp is
@@ -94,18 +90,19 @@ struct MCPPendingStudentsToolTests {
 
         try seedEntry(in: context, student: noa, lesson: distributive, plannedDate: daysFromToday(-30))
         let given = PresentationFactory.makeDraft(lesson: distributive, students: [noa], context: context)
-        given.markPresented(at: try day("2026-04-02"))
+        given.markPresented(at: try CoreDataTestHelpers.day("2026-04-02"))
         let record = CDLessonPresentation(context: context)
         record.studentID = try #require(noa.id).uuidString
         record.lessonID = try #require(distributive.id).uuidString
-        record.presentedAt = try day("2026-04-02")
+        record.presentedAt = try CoreDataTestHelpers.day("2026-04-02")
 
         // Promoted onto the calendar, then given: the entry still reads
         // promoted, but the presentation behind it is history now.
         let tovaGiven = PresentationFactory.makeDraft(lesson: distributive, students: [tova], context: context)
-        tovaGiven.markPresented(at: try day("2026-08-31"))
+        tovaGiven.markPresented(at: try CoreDataTestHelpers.day("2026-08-31"))
         let tovaEntry = try seedEntry(
-            in: context, student: tova, lesson: distributive, plannedDate: try day("2026-08-31"), status: .promoted
+            in: context, student: tova, lesson: distributive,
+                plannedDate: try CoreDataTestHelpers.day("2026-08-31"), status: .promoted
         )
         tovaEntry.promotedAssignmentID = tovaGiven.id?.uuidString
         #expect(CoreDataTestHelpers.save(context))

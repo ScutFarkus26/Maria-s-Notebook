@@ -135,10 +135,7 @@ public enum DateParser {
         "yyyy-MM-dd'T'HH:mm:ssZ"
     ]
     
-    nonisolated(unsafe) private static let iso: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        return f
-    }()
+    nonisolated(unsafe) private static let iso: ISO8601DateFormatter = DateFormatters.iso8601DateTime
 
     private static let cachedFormatters: [String: DateFormatter] = {
         var dict: [String: DateFormatter] = [:]

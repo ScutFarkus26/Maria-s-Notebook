@@ -7,7 +7,7 @@ import CloudKit
 /// Service for managing CloudKit configuration and status.
 enum CloudKitConfigurationService {
 
-    private static let logger = Logger.app(category: "CloudKit")
+    private static let logger = Logger.cloudKit
 
     // MARK: - Container ID
 

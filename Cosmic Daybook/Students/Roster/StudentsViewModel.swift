@@ -380,7 +380,7 @@ extension StudentsViewModel {
         /// Swift makes the same decision it always did on that handful. `[c]` only —
         /// the fold is case-insensitive but *not* diacritic-insensitive.
         private static func parshaLessonIDs(in context: NSManagedObjectContext) -> Set<UUID> {
-            let request = NSFetchRequest<CDLesson>(entityName: "Lesson")
+            let request = CDFetchRequest(CDLesson.self)
             request.predicate = NSPredicate(
                 format: "area CONTAINS[c] %@ OR sequence CONTAINS[c] %@", "parsha", "parsha"
             )
@@ -404,7 +404,7 @@ extension StudentsViewModel {
             if !context.hasChanges, let rows = dictionaryRows(matching: predicate, in: context) {
                 return rows
             }
-            let request = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            let request = CDFetchRequest(CDLessonAssignment.self)
             request.predicate = predicate
             request.returnsObjectsAsFaults = false
             request.fetchBatchSize = 200

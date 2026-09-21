@@ -225,7 +225,7 @@ enum BackupPreviewAnalyzer {
         // Build lesson lookup sets for presentation/assignment analysis
         let lessonsInStore: Set<UUID>
         do {
-            lessonsInStore = Set(try viewContext.fetch(NSFetchRequest<CDLesson>(entityName: "Lesson")).compactMap(\.id))
+            lessonsInStore = Set(try viewContext.fetch(CDFetchRequest(CDLesson.self)).compactMap(\.id))
         } catch {
             logger.warning("Failed to fetch lessons: \(error)")
             lessonsInStore = Set()

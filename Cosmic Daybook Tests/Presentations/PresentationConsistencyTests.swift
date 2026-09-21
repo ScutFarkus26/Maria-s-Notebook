@@ -21,11 +21,6 @@ final class PresentationConsistencyTests {
 
     // MARK: - Fixtures
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        return stack.viewContext
-    }
-
     private func presentationsFor(
         lessonID: String,
         in context: NSManagedObjectContext
@@ -51,7 +46,7 @@ final class PresentationConsistencyTests {
 
     @Test("LifecycleService.recordPresentation creates one CDLessonPresentation per student")
     func recordPresentationCreatesPerStudentRows() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx)
         let s1 = makeStudent(in: ctx, firstName: "A")
         let s2 = makeStudent(in: ctx, firstName: "B")
@@ -79,7 +74,7 @@ final class PresentationConsistencyTests {
 
     @Test("recordPresentation is idempotent — second call does not duplicate rows")
     func recordPresentationIsIdempotent() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx)
         let s1 = makeStudent(in: ctx, firstName: "A")
 
@@ -102,7 +97,7 @@ final class PresentationConsistencyTests {
 
     @Test("StudentDetailViewModel.togglePresented (no upcoming) creates per-student row")
     func studentDetailVMTogglePresentedNewAssignment() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx)
         let student = makeStudent(in: ctx, firstName: "Solo")
 
@@ -127,7 +122,7 @@ final class PresentationConsistencyTests {
 
     @Test("StudentDetailViewModel.togglePresented (upcoming exists) creates per-student row")
     func studentDetailVMTogglePresentedUpcoming() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx)
         let student = makeStudent(in: ctx, firstName: "Up")
 
@@ -157,7 +152,7 @@ final class PresentationConsistencyTests {
 
     @Test("recordPresentation applies its date to an undated presented assignment")
     func recordPresentationUpdatesUndatedAssignment() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx)
         let student = makeStudent(in: ctx, firstName: "History")
         let assignment = PresentationFactory.makePreviouslyPresented(
@@ -183,7 +178,7 @@ final class PresentationConsistencyTests {
 
     @Test("Presentation detail preserves Previously Presented as undated")
     func presentationDetailPreservesUndatedHistory() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx)
         let student = makeStudent(in: ctx, firstName: "Undated")
         let assignment = PresentationFactory.makeScheduled(
@@ -220,7 +215,7 @@ final class PresentationConsistencyTests {
 
     @Test("LessonPickerViewModel.save with mode=.given and needsPractice=false creates per-student rows")
     func giveLessonVMNoPracticeCreatesRows() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx, name: "Pouring")
         let s1 = makeStudent(in: ctx, firstName: "G1")
         let s2 = makeStudent(in: ctx, firstName: "G2")
@@ -251,7 +246,7 @@ final class PresentationConsistencyTests {
 
     @Test("Backfill migration creates missing per-student rows for orphaned presented assignments")
     func backfillCreatesMissingRows() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx, name: "Orphan")
         let s1 = makeStudent(in: ctx, firstName: "Orph1")
         let s2 = makeStudent(in: ctx, firstName: "Orph2")
@@ -289,7 +284,7 @@ final class PresentationConsistencyTests {
 
     @Test("Backfill migration is a no-op on second invocation (guarded by UserDefaults flag)")
     func backfillIsNoOpOnSecondRun() throws {
-        let ctx = try makeContext()
+        let ctx = try CoreDataTestHelpers.makeContext()
         let lesson = makeLesson(in: ctx, name: "NoOp")
         let s1 = makeStudent(in: ctx, firstName: "X")
 

@@ -27,7 +27,7 @@ final class SharedStoreOrphanGuard {
 
     static let shared = SharedStoreOrphanGuard()
 
-    private static let logger = Logger.app(category: "SharedStoreOrphanGuard")
+    private static let logger = Logger.sharedStoreOrphanGuard
 
     private weak var coreDataStack: CoreDataStack?
     private var observer: (any NSObjectProtocol)?

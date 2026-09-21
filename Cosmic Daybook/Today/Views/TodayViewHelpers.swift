@@ -152,8 +152,7 @@ extension TodayView {
 
         // Fetch filtered CDLessonAssignment IDs
         do {
-            let fetchRequest: NSFetchRequest<CDLessonAssignment> =
-                NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            let fetchRequest: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
             fetchRequest.predicate = NSPredicate(
                 format: "scheduledFor >= %@ AND scheduledFor < %@", dayStart as NSDate, dayEnd as NSDate
             )
@@ -168,8 +167,7 @@ extension TodayView {
         // Uses CDWorkCheckIn for scheduled work check-ins
         do {
             let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
-            let fetchRequest: NSFetchRequest<CDWorkCheckIn> =
-                NSFetchRequest<CDWorkCheckIn>(entityName: "WorkCheckIn")
+            let fetchRequest: NSFetchRequest<CDWorkCheckIn> = CDFetchRequest(CDWorkCheckIn.self)
             fetchRequest.predicate = NSPredicate(
                 format: "statusRaw == %@ AND date <= %@", scheduledStatus, dayEnd as NSDate
             )

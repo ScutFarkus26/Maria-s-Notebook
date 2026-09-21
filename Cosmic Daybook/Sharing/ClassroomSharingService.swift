@@ -9,7 +9,7 @@ import OSLog
 /// create, accept, manage, and leave shared classrooms.
 @Observable
 final class ClassroomSharingService {
-    private static let logger = Logger.app(category: "ClassroomSharing")
+    private static let logger = Logger.classroomSharing
 
     let container: NSPersistentCloudKitContainer
     private let context: NSManagedObjectContext

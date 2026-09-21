@@ -503,7 +503,7 @@ struct ClassroomSharingView: View {
             showingSharingSheet = true
         } catch {
             let ns = error as NSError
-            Logger.app(category: "ClassroomSharing").error("""
+            Logger.classroomSharing.error("""
                 Share Classroom failed — \
                 domain=\(ns.domain, privacy: .public) \
                 code=\(ns.code, privacy: .public) \

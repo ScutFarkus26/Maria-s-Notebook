@@ -4,7 +4,7 @@ import OSLog
 
 /// Seeds default Note and Meeting templates on first launch or after restore.
 enum BuiltInTemplateSeeder {
-    private static let logger = Logger.app(category: "TemplateSeeder")
+    private static let logger = Logger.templateSeeder
 
     static func seedIfNeeded(context: NSManagedObjectContext) {
         seedNoteTemplatesIfNeeded(context: context)

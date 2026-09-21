@@ -59,16 +59,16 @@ extension SettingsView {
                 collapsible: true,
                 onReset: {
                     let store = SyncedPreferencesStore.shared
-                    store.set(LessonAgeDefaults.warningDays, forKey: "LessonAge.warningDays")
-                    store.set(LessonAgeDefaults.overdueDays, forKey: "LessonAge.overdueDays")
-                    store.set(LessonAgeDefaults.freshColorHex, forKey: "LessonAge.freshColorHex")
-                    store.set(LessonAgeDefaults.warningColorHex, forKey: "LessonAge.warningColorHex")
-                    store.set(LessonAgeDefaults.overdueColorHex, forKey: "LessonAge.overdueColorHex")
-                    store.set(WorkAgeDefaults.warningDays, forKey: "WorkAge.warningDays")
-                    store.set(WorkAgeDefaults.overdueDays, forKey: "WorkAge.overdueDays")
-                    store.set(WorkAgeDefaults.freshColorHex, forKey: "WorkAge.freshColorHex")
-                    store.set(WorkAgeDefaults.warningColorHex, forKey: "WorkAge.warningColorHex")
-                    store.set(WorkAgeDefaults.overdueColorHex, forKey: "WorkAge.overdueColorHex")
+                    store.set(LessonAgeDefaults.warningDays, forKey: UserDefaultsKeys.lessonAgeWarningDays)
+                    store.set(LessonAgeDefaults.overdueDays, forKey: UserDefaultsKeys.lessonAgeOverdueDays)
+                    store.set(LessonAgeDefaults.freshColorHex, forKey: UserDefaultsKeys.lessonAgeFreshColorHex)
+                    store.set(LessonAgeDefaults.warningColorHex, forKey: UserDefaultsKeys.lessonAgeWarningColorHex)
+                    store.set(LessonAgeDefaults.overdueColorHex, forKey: UserDefaultsKeys.lessonAgeOverdueColorHex)
+                    store.set(WorkAgeDefaults.warningDays, forKey: UserDefaultsKeys.workAgeWarningDays)
+                    store.set(WorkAgeDefaults.overdueDays, forKey: UserDefaultsKeys.workAgeOverdueDays)
+                    store.set(WorkAgeDefaults.freshColorHex, forKey: UserDefaultsKeys.workAgeFreshColorHex)
+                    store.set(WorkAgeDefaults.warningColorHex, forKey: UserDefaultsKeys.workAgeWarningColorHex)
+                    store.set(WorkAgeDefaults.overdueColorHex, forKey: UserDefaultsKeys.workAgeOverdueColorHex)
                     SettingsCategory.markModified(.general)
                 },
                 content: {

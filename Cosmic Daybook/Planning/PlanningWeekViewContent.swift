@@ -86,7 +86,7 @@ struct PlanningWeekViewContent: View { // swiftlint:disable:this type_body_lengt
         // Fetch existing LessonAssignments via SwiftData (PlanNextLessonService expects SwiftData types)
         let presentedRaw = LessonAssignmentState.presented.rawValue
         let fetch: NSFetchRequest<CDLessonAssignment> = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            let r = CDFetchRequest(CDLessonAssignment.self)
             r.predicate = NSPredicate(format: "stateRaw != %@", presentedRaw)
             return r
         }()

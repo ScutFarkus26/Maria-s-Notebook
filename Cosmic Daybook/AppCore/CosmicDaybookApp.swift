@@ -16,7 +16,7 @@ import AppKit
 struct CosmicDaybookApp: App {
     // MARK: - State Objects
 
-    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
+    @AppStorage(UserDefaultsKeys.hasCompletedOnboarding) var hasCompletedOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
     @State var bootstrapper = AppBootstrapper.shared
     @State var appRouter = AppRouter.shared

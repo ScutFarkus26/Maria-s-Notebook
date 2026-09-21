@@ -204,7 +204,7 @@ extension LessonsRootView {
         // so we fetch all and filter in memory
         let allStudents: [CDStudent]
         do {
-            allStudents = try viewContext.fetch(NSFetchRequest<CDStudent>(entityName: "Student"))
+            allStudents = try viewContext.fetch(CDFetchRequest(CDStudent.self))
         } catch {
             logger.warning("Failed to fetch students: \(error)")
             allStudents = []
@@ -222,7 +222,7 @@ extension LessonsRootView {
             draftRaw as CVarArg
         )
         let existingDescriptor = {
-            let r = NSFetchRequest<CDLessonAssignment>(entityName: "LessonAssignment")
+            let r = CDFetchRequest(CDLessonAssignment.self)
             r.predicate = existingPredicate
             return r
         }()

@@ -25,10 +25,6 @@ struct ReadyForNextEngineTests {
         var all: [CDLesson] { [commutative, distributive, associative, equivalence] }
     }
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     private func seedLibrary(in context: NSManagedObjectContext) -> Library {
         func lesson(_ name: String, _ sequence: String, _ order: Int64) -> CDLesson {
             let lesson = CoreDataTestHelpers.seedLesson(
@@ -70,18 +66,14 @@ struct ReadyForNextEngineTests {
         )
     }
 
-    private func day(_ text: String) throws -> Date {
-        try #require(MCPNotebookTools.isoDay.date(from: text))
-    }
-
     // MARK: - In the queue
 
     @Test("A confirmed lesson with an untouched successor puts her in the queue")
     func confirmedWithUntouchedSuccessor() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
-        try confirm(avital, on: library.commutative, at: try day("2026-03-11"), in: context)
+        try confirm(avital, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
 
         let found = try items(for: [avital], library: library, in: context)
 
@@ -93,33 +85,34 @@ struct ReadyForNextEngineTests {
         #expect(item.basis == .confirmed)
         #expect(item.tier == .ready)
         #expect(item.reasons.isEmpty)
-        #expect(item.basisDate == AppCalendar.startOfDay(try day("2026-03-11")))
+        #expect(item.basisDate == AppCalendar.startOfDay(try CoreDataTestHelpers.day("2026-03-11")))
     }
 
     @Test("A mastery mark alone is basis enough, and beats a confirmation on the same lesson")
     func proficiencyBasisWinsOverConfirmation() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Krinsky")
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
 
         // Etty: mastered only — the lesson is on her record with no confirmation.
         PresentationFactory.makePresented(
-            lesson: library.commutative, students: [etty], presentedAt: try day("2026-02-02"), context: context
+            lesson: library.commutative, students: [etty],
+                presentedAt: try CoreDataTestHelpers.day("2026-02-02"), context: context
         )
         let mark = CDLessonPresentation(context: context)
         mark.studentID = try #require(etty.id).uuidString
         mark.lessonID = try #require(library.commutative.id).uuidString
-        mark.presentedAt = try day("2026-02-02")
-        mark.masteredAt = try day("2026-03-01")
+        mark.presentedAt = try CoreDataTestHelpers.day("2026-02-02")
+        mark.masteredAt = try CoreDataTestHelpers.day("2026-03-01")
 
         // Ora: both marks. Mastery is the stronger claim, so it speaks.
-        try confirm(ora, on: library.commutative, at: try day("2026-02-02"), in: context)
+        try confirm(ora, on: library.commutative, at: try CoreDataTestHelpers.day("2026-02-02"), in: context)
         let oraMark = CDLessonPresentation(context: context)
         oraMark.studentID = try #require(ora.id).uuidString
         oraMark.lessonID = try #require(library.commutative.id).uuidString
-        oraMark.presentedAt = try day("2026-02-02")
-        oraMark.masteredAt = try day("2026-03-05")
+        oraMark.presentedAt = try CoreDataTestHelpers.day("2026-02-02")
+        oraMark.masteredAt = try CoreDataTestHelpers.day("2026-03-05")
 
         let found = try items(for: [etty, ora], library: library, in: context)
         let distributiveID = try #require(library.distributive.id).uuidString
@@ -133,13 +126,13 @@ struct ReadyForNextEngineTests {
 
     @Test("A successor she has already been given is not waiting")
     func successorAlreadyPresented() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
-        try confirm(avital, on: library.commutative, at: try day("2026-03-11"), in: context)
+        try confirm(avital, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
         PresentationFactory.makePresented(
             lesson: library.distributive, students: [avital],
-            presentedAt: try day("2026-04-01"), context: context
+            presentedAt: try CoreDataTestHelpers.day("2026-04-01"), context: context
         )
 
         #expect(try items(for: [avital], library: library, in: context).isEmpty)
@@ -147,10 +140,10 @@ struct ReadyForNextEngineTests {
 
     @Test("A successor sitting in the planning list as an unpresented draft is not waiting")
     func successorOnADraft() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
-        try confirm(avital, on: library.commutative, at: try day("2026-03-11"), in: context)
+        try confirm(avital, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
         PresentationFactory.makeDraft(lesson: library.distributive, students: [avital], context: context)
 
         #expect(try items(for: [avital], library: library, in: context).isEmpty)
@@ -158,10 +151,10 @@ struct ReadyForNextEngineTests {
 
     @Test("A planned year-plan entry hides the successor; a skipped one does not")
     func successorInTheYearPlan() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
-        try confirm(avital, on: library.commutative, at: try day("2026-03-11"), in: context)
+        try confirm(avital, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
 
         let entry = CDYearPlanEntry(context: context)
         entry.studentID = try #require(avital.id).uuidString
@@ -179,22 +172,22 @@ struct ReadyForNextEngineTests {
 
     @Test("A lesson last in its sub-area has no successor to wait for")
     func lastInSubArea() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
-        try confirm(avital, on: library.associative, at: try day("2026-03-11"), in: context)
+        try confirm(avital, on: library.associative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
 
         #expect(try items(for: [avital], library: library, in: context).isEmpty)
     }
 
     @Test("The next lesson never comes from another sub-area")
     func neverCrossesSubAreas() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital", lastName: "Beyderman")
         // Fractions holds one lesson, filed at order 20 — the same number as
         // the Distributive Law. A sub-area of one has nothing after it.
-        try confirm(avital, on: library.equivalence, at: try day("2026-03-11"), in: context)
+        try confirm(avital, on: library.equivalence, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
 
         let found = try items(for: [avital], library: library, in: context)
         #expect(found.isEmpty)
@@ -204,10 +197,10 @@ struct ReadyForNextEngineTests {
 
     @Test("Open practice work on the lesson she had holds her at almost ready")
     func practiceGateHoldsHerAtAlmostReady() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
-        try confirm(ora, on: library.commutative, at: try day("2026-03-11"), in: context)
+        try confirm(ora, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
 
         let settings = CDLessonSequenceSettings(context: context)
         settings.area = "Math"
@@ -235,10 +228,10 @@ struct ReadyForNextEngineTests {
 
     @Test("A sub-area that does not require practice ignores open work")
     func practiceGateOffLeavesHerReady() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let library = seedLibrary(in: context)
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
-        try confirm(ora, on: library.commutative, at: try day("2026-03-11"), in: context)
+        try confirm(ora, on: library.commutative, at: try CoreDataTestHelpers.day("2026-03-11"), in: context)
 
         let settings = CDLessonSequenceSettings(context: context)
         settings.area = "Math"

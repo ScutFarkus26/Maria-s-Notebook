@@ -173,10 +173,10 @@ extension OpenAIAPIClient {
             return key
         }
         // Fall back to UserDefaults and auto-migrate.
-        if let key = UserDefaults.standard.string(forKey: "openAIAPIKey"), !key.isEmpty {
+        if let key = UserDefaults.standard.string(forKey: UserDefaultsKeys.openAIAPIKey), !key.isEmpty {
             if let data = key.data(using: .utf8) {
                 try? keychain.set(data)
-                UserDefaults.standard.removeObject(forKey: "openAIAPIKey")
+                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.openAIAPIKey)
                 logger.info("Migrated OpenAI key from UserDefaults to Keychain")
             }
             return key
@@ -201,7 +201,7 @@ extension OpenAIAPIClient {
 
     static func clearAPIKey() {
         try? keychain.delete()
-        UserDefaults.standard.removeObject(forKey: "openAIAPIKey")
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.openAIAPIKey)
     }
 }
 

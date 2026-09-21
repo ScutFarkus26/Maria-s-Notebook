@@ -49,7 +49,7 @@ nonisolated public class CDGuardian: NSManagedObject {
 
     /// Guardians for one student, ordered by sortOrder then name.
     nonisolated static func fetchRequest(studentID: String) -> NSFetchRequest<CDGuardian> {
-        let request = NSFetchRequest<CDGuardian>(entityName: "Guardian")
+        let request = CDFetchRequest(CDGuardian.self)
         request.predicate = NSPredicate(format: "studentID == %@", studentID)
         request.sortDescriptors = [
             NSSortDescriptor(key: "sortOrder", ascending: true),

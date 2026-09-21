@@ -135,7 +135,7 @@ enum MeetingScheduler {
     /// Returns all scheduled meetings involving a given student
     /// (either as primary student or as a sequence meeting participant).
     static func scheduledMeetings(involving studentID: UUID, context: NSManagedObjectContext) -> [CDScheduledMeeting] {
-        let descriptor = NSFetchRequest<CDScheduledMeeting>(entityName: "ScheduledMeeting")
+        let descriptor = CDFetchRequest(CDScheduledMeeting.self)
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)]
         let all = context.safeFetch(descriptor)
         let idString = studentID.uuidString
@@ -154,7 +154,7 @@ enum MeetingScheduler {
     }
 
     private static func fetchAll(studentID: String, context: NSManagedObjectContext) -> [CDScheduledMeeting] {
-        let descriptor = NSFetchRequest<CDScheduledMeeting>(entityName: "ScheduledMeeting")
+        let descriptor = CDFetchRequest(CDScheduledMeeting.self)
         descriptor.predicate = NSPredicate(format: "studentID == %@", studentID)
         descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)]
         return context.safeFetch(descriptor)

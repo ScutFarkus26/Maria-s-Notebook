@@ -13,10 +13,6 @@ import Testing
 @MainActor
 struct YearPlanReleaseTests {
 
-    private func makeContext() throws -> NSManagedObjectContext {
-        try CoreDataTestHelpers.makeInMemoryStack().viewContext
-    }
-
     private func daysFromNow(_ days: Double) -> Date {
         let interval: TimeInterval = days * 86_400
         return Date().addingTimeInterval(interval)
@@ -53,7 +49,7 @@ struct YearPlanReleaseTests {
 
     @Test("a child who gets it early comes off the group she was pencilled into")
     func recordingTrimsTheOtherRoster() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Skip Counting")
         let early = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Singer")
         let thursdayGirl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Toba", lastName: "Fleischmann")
@@ -79,7 +75,7 @@ struct YearPlanReleaseTests {
 
     @Test("the plan is discarded when the last child comes off it")
     func recordingDiscardsAnEmptiedPlan() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Stamp Game: Static Addition")
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Baila", lastName: "Glauber")
 
@@ -98,7 +94,7 @@ struct YearPlanReleaseTests {
 
     @Test("two children released from the same group empty it between them")
     func tworeleasesEmptyTheSameGroup() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Stamp Game Addition: Dynamic")
         let first = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avigail", lastName: "Greenbaum")
         let second = CoreDataTestHelpers.seedStudent(in: context, firstName: "Dalia", lastName: "Singer")
@@ -121,7 +117,7 @@ struct YearPlanReleaseTests {
 
     @Test("a presentation already given is history and keeps its roster")
     func aGivenPresentationIsLeftAlone() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Story of Pythagoras")
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Dalia", lastName: "Singer")
 
@@ -141,7 +137,7 @@ struct YearPlanReleaseTests {
 
     @Test("a group the guide assembled by hand is hers to change")
     func aPlanNoEntryPointsAtIsLeftAlone() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Nomenclature of the Rhombus")
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Tiferet", lastName: "Pardo")
 
@@ -161,7 +157,7 @@ struct YearPlanReleaseTests {
 
     @Test("running it again releases nobody")
     func releaseIsIdempotent() throws {
-        let context = try makeContext()
+        let context = try CoreDataTestHelpers.makeContext()
         let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "Concept of a Polygon")
         let girl = CoreDataTestHelpers.seedStudent(in: context, firstName: "Lucy", lastName: "Tribuch")
         let thursday = PresentationFactory.makeScheduled(
