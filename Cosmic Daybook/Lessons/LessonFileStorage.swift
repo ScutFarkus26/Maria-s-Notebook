@@ -1,11 +1,21 @@
-// swiftlint:disable file_length
 import Foundation
 import OSLog
 import CoreData
 
-// swiftlint:disable type_body_length
+/// File storage for lesson files and attachments under `Documents/Lesson Files/`
+/// (visible in Finder as iCloud Drive/Cosmic Daybook/Lesson Files). A façade over
+/// one `ManagedPDFFileStorage` for the shared directory, bookmark and path
+/// operations; the Area/Sequence organizational tree, scope-prefixed attachment
+/// names and renaming are lesson-specific and live here.
 public enum LessonFileStorage {
     static let logger = Logger.lessons
+
+    nonisolated static let storage = ManagedPDFFileStorage(
+        folderName: "Lesson Files",
+        fallbackBaseName: "Lesson",
+        localFallbackWarning: "iCloud not available, using local Documents",
+        logger: .lessons
+    )
 
     // MARK: - Result Types
 
@@ -21,159 +31,81 @@ public enum LessonFileStorage {
         let base: String
         let extWithDot: String
     }
-    /// Returns the root directory URL where lesson files are stored.
-    /// Uses the app's iCloud container Documents folder (visible in Finder as "Cosmic Daybook") if available,
-    /// otherwise falls back to the app's local Documents directory.
-    /// Ensures the directory exists before returning.
+
+    /// Returns the root directory URL where lesson files are stored, creating it if needed.
     public static func lessonFilesDirectory() throws -> URL {
-        let fm = FileManager.default
-
-        // Use the app's iCloud container - this will appear in Finder's iCloud Drive
-        // The CloudDocuments entitlement makes the container visible in Finder
-        if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) {
-            let lessonFilesURL = ubiquityURL
-                .appendingPathComponent("Documents", isDirectory: true)
-                .appendingPathComponent("Lesson Files", isDirectory: true)
-
-            logger.debug("Using iCloud container path: \(lessonFilesURL.path)")
-            logger.debug("Visible in Finder as: iCloud Drive/Cosmic Daybook/Lesson Files")
-            try createDirectoryIfNeeded(at: lessonFilesURL)
-            return lessonFilesURL
-        }
-
-        // Fallback to local Documents directory
-        logger.warning("iCloud not available, using local Documents")
-        let documentsURL = try fm.url(
-            for: .documentDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        ).appendingPathComponent("Lesson Files", isDirectory: true)
-        try createDirectoryIfNeeded(at: documentsURL)
-        return documentsURL
+        try storage.directory()
     }
 
     /// Returns true if the given URL is inside the managed lesson files directory.
     public static func isManagedURL(_ url: URL) -> Bool {
-        do {
-            let managedDir = try lessonFilesDirectory().standardizedFileURL
-            let standardizedURL = url.standardizedFileURL
-
-            let managedPath = managedDir.path + "/"
-            let urlPath = standardizedURL.path
-
-            return urlPath.hasPrefix(managedPath)
-        } catch {
-            return false
-        }
+        storage.isManagedURL(url)
     }
 
     /// Deletes the item at the given URL if it is inside the managed lesson files directory.
     /// Does nothing if the URL is not managed or does not exist.
     public static func deleteIfManaged(_ url: URL) throws {
-        let fm = FileManager.default
-        guard isManagedURL(url) else { return }
-        if fm.fileExists(atPath: url.path) {
-            try fm.removeItem(at: url)
-        }
+        try storage.deleteIfManaged(url)
     }
 
     /// Imports a file or package directory from a source URL into the managed lesson files directory.
-    /// The destination filename is constructed from a sanitized lesson name,
-    /// the lesson UUID suffix, and the source file extension.
-    /// Uniqueness is ensured by appending a counter if needed.
-    /// Returns the final destination URL.
+    /// The destination filename is the sanitized lesson name plus the source file extension,
+    /// numbered on collision. Returns the final destination URL.
     public static func importFile(
         from sourceURL: URL,
         forLessonWithID lessonID: UUID,
         lessonName: String?
     ) throws -> URL {
-        let fm = FileManager.default
-
         let destDir = try lessonFilesDirectory()
-
-        try createDirectoryIfNeeded(at: destDir)
-
-        // Extract file extension (including dot), if any
         let sourceExt = sourceURL.pathExtension
-        let extWithDot: String
-        if !sourceExt.isEmpty {
-            extWithDot = "." + sourceExt
-        } else {
-            extWithDot = ""
-        }
-
-        // Sanitize lesson name or fallback
-        let baseNameSanitized = sanitizeFilenameComponent(lessonName?.trimmed(), fallback: "Lesson")
-
-        var baseFilename = baseNameSanitized
-        if !extWithDot.isEmpty {
-            baseFilename += extWithDot
-        }
-
-        var destinationURL = destDir.appendingPathComponent(baseFilename, isDirectory: false)
-
-        // Ensure uniqueness by appending a counter
-        var counter = 2
-        while fm.fileExists(atPath: destinationURL.path) {
-            let numberedBase = "\(baseNameSanitized)-\(counter)"
-            let filename = numberedBase + extWithDot
-            destinationURL = destDir.appendingPathComponent(filename, isDirectory: false)
-            counter += 1
-        }
-
-        try fm.copyItem(at: sourceURL, to: destinationURL)
-
+        let destinationURL = storage.uniqueDestination(
+            in: destDir,
+            baseName: storage.sanitizedBaseName(lessonName?.trimmed()),
+            extWithDot: sourceExt.isEmpty ? "" : "." + sourceExt
+        )
+        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
         return destinationURL
     }
 
     /// Creates a standard bookmark Data for the given URL without security scope.
     public static func makeBookmark(for url: URL) throws -> Data {
-        let bookmarkData = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
-        return bookmarkData
+        try storage.makeBookmark(for: url)
     }
 
     /// Returns a relative path string for a managed URL, relative to the lesson files directory.
     public static func relativePath(forManagedURL url: URL) throws -> String {
-        let base = try lessonFilesDirectory()
-        let basePath = base.standardizedFileURL.path + "/"
-        let rel = url.standardizedFileURL.path
-            .replacingOccurrences(of: basePath, with: "")
-        return rel
+        try storage.relativePath(forManagedURL: url)
     }
 
     /// Resolves a relative path (previously returned by `relativePath(forManagedURL:)`)
     /// to an absolute URL inside the managed directory.
     public static func resolve(relativePath: String) throws -> URL {
-        let base = try lessonFilesDirectory()
-        return base.appendingPathComponent(relativePath, isDirectory: false)
+        try storage.resolve(relativePath: relativePath)
     }
-    
+
     // MARK: - Organizational Structure
-    
+
     /// Returns the organizational path for a lesson: Area/Sequence
     /// Creates the directory structure if it doesn't exist.
     static func organizationalDirectory(forLesson lesson: CDLesson) throws -> URL {
         logger.debug("Getting lesson files directory...")
         let baseDir = try lessonFilesDirectory()
         logger.debug("Base directory: \(baseDir.path)")
-        
-        // Sanitize area and sequence names for filesystem
-        let sanitizedArea = sanitizeFilenameComponent(lesson.area, fallback: "General")
-        let sanitizedSequence = sanitizeFilenameComponent(lesson.sequence, fallback: "Ungrouped")
+
+        let sanitizedArea = ManagedPDFFileStorage.sanitizeFilenameComponent(lesson.area, fallback: "General")
+        let sanitizedSequence = ManagedPDFFileStorage.sanitizeFilenameComponent(lesson.sequence, fallback: "Ungrouped")
         logger.debug("Sanitized area: '\(sanitizedArea)', sequence: '\(sanitizedSequence)'")
-        
-        // Create Area/Sequence structure
+
         let orgDir = baseDir
             .appendingPathComponent(sanitizedArea, isDirectory: true)
             .appendingPathComponent(sanitizedSequence, isDirectory: true)
-        
+
         logger.debug("Creating directory at: \(orgDir.path)")
-        try createDirectoryIfNeeded(at: orgDir)
+        try storage.createDirectoryIfNeeded(at: orgDir)
         logger.debug("Directory created/exists")
         return orgDir
     }
-    
+
     /// Returns all attachments for a lesson, including inherited ones from sequence and area scope.
     /// - Parameter lesson: The lesson to get attachments for
     /// - Parameter includeInherited: Whether to include sequence and area-scoped attachments
@@ -195,9 +127,9 @@ public enum LessonFileStorage {
         // Sort by attachment date, most recent first
         return result.sorted { ($0.attachedAt ?? .distantPast) > ($1.attachedAt ?? .distantPast) }
     }
-    
+
     // MARK: - Attachment Import
-    
+
     /// Imports an attachment file for a lesson with the specified scope.
     /// The file is stored in the organizational directory structure (Area/Sequence/).
     /// - Parameters:
@@ -214,55 +146,29 @@ public enum LessonFileStorage {
     ) throws -> (url: URL, relativePath: String) {
         logger.debug("Starting importAttachment for: \(sourceURL.lastPathComponent)")
         logger.debug("CDLesson: \(lesson.name), Scope: \(scope.rawValue)")
-        
-        let fm = FileManager.default
-        
-        // Get the organizational directory for this lesson
+
         let destDir = try organizationalDirectory(forLesson: lesson)
         logger.debug("Destination directory: \(destDir.path)")
-        
-        // Extract file extension
+
         let sourceExt = sourceURL.pathExtension
         let extWithDot = sourceExt.isEmpty ? "" : "." + sourceExt
-        
-        // Determine base filename
+
         let baseName: String
         let sourceStem = sourceURL.deletingPathExtension().lastPathComponent
         if let customName {
-            baseName = sanitizeFilenameComponent(customName, fallback: sourceStem)
+            baseName = ManagedPDFFileStorage.sanitizeFilenameComponent(customName, fallback: sourceStem)
         } else {
-            baseName = sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
+            baseName = ManagedPDFFileStorage.sanitizeFilenameComponent(sourceStem, fallback: "Attachment")
         }
-        
-        // Add scope prefix for non-lesson attachments
-        let scopePrefix: String
-        switch scope {
-        case .lesson:
-            scopePrefix = ""
-        case .sequence:
-            scopePrefix = "[Sequence] "
-        case .area:
-            scopePrefix = "[Area] "
-        }
-        
-        let baseFilename = "\(scopePrefix)\(baseName)\(extWithDot)"
 
-        var destinationURL = destDir.appendingPathComponent(baseFilename, isDirectory: false)
+        let destinationURL = storage.uniqueDestination(
+            in: destDir,
+            baseName: scopePrefix(for: scope) + baseName,
+            extWithDot: extWithDot
+        )
+        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
 
-        // Ensure uniqueness by appending a counter
-        var counter = 2
-        while fm.fileExists(atPath: destinationURL.path) {
-            let numberedFilename = "\(scopePrefix)\(baseName)-\(counter)\(extWithDot)"
-            destinationURL = destDir.appendingPathComponent(numberedFilename, isDirectory: false)
-            counter += 1
-        }
-        
-        // Copy the file
-        try fm.copyItem(at: sourceURL, to: destinationURL)
-        
-        // Get relative path
         let relativePath = try self.relativePath(forManagedURL: destinationURL)
-        
         return (url: destinationURL, relativePath: relativePath)
     }
 
@@ -287,16 +193,15 @@ public enum LessonFileStorage {
         let resolvedExtension = requestedExtension.isEmpty ? currentExtension : requestedExtension
         let extWithDot = resolvedExtension.isEmpty ? "" : ".\(resolvedExtension)"
         let requestedStem = requestedURL.deletingPathExtension().lastPathComponent
-        let sanitizedBaseName = sanitizeFilenameComponent(
+        let sanitizedBaseName = ManagedPDFFileStorage.sanitizeFilenameComponent(
             requestedStem,
             fallback: currentURL.deletingPathExtension().lastPathComponent
         )
         let displayFileName = sanitizedBaseName + extWithDot
 
         let destinationDirectory = try organizationalDirectory(forLesson: lesson)
-        let destinationURL = try uniqueAttachmentURL(
+        let destinationURL = uniqueAttachmentURL(
             in: destinationDirectory,
-            lesson: lesson,
             scope: attachment.scope,
             name: AttachmentName(base: sanitizedBaseName, extWithDot: extWithDot),
             excluding: currentURL
@@ -318,38 +223,24 @@ public enum LessonFileStorage {
 
     // MARK: - Private Helpers
 
-    private static func createDirectoryIfNeeded(at url: URL) throws {
-        let fm = FileManager.default
-        var isDir: ObjCBool = false
-        if fm.fileExists(atPath: url.path, isDirectory: &isDir) {
-            if !isDir.boolValue {
-                // Exists but is not a directory, remove it and create directory
-                try fm.removeItem(at: url)
-                try fm.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
-            }
-        } else {
-            try fm.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
+    private static func scopePrefix(for scope: AttachmentScope) -> String {
+        switch scope {
+        case .lesson: return ""
+        case .sequence: return "[Sequence] "
+        case .area: return "[Area] "
         }
     }
 
+    /// Like `ManagedPDFFileStorage.uniqueDestination`, except the attachment's own
+    /// current URL counts as free so a rename to the same name is a no-op.
     private static func uniqueAttachmentURL(
         in directory: URL,
-        lesson: CDLesson,
         scope: AttachmentScope,
         name: AttachmentName,
         excluding currentURL: URL
-    ) throws -> URL {
+    ) -> URL {
         let fm = FileManager.default
-
-        let scopePrefix: String
-        switch scope {
-        case .lesson:
-            scopePrefix = ""
-        case .sequence:
-            scopePrefix = "[Sequence] "
-        case .area:
-            scopePrefix = "[Area] "
-        }
+        let scopePrefix = scopePrefix(for: scope)
 
         func candidateURL(counter: Int?) -> URL {
             let filename: String
@@ -372,44 +263,4 @@ public enum LessonFileStorage {
             counter = (counter ?? 1) + 1
         }
     }
-
-    /// Sanitizes a filename component by allowing only alphanumerics, space, dash, underscore, and dot.
-    /// Other characters replaced with dash. Repeated dashes are collapsed.
-    /// Leading/trailing dots and spaces are trimmed.
-    /// Ensures the result is not empty; if so returns fallback.
-    private static func sanitizeFilenameComponent(_ input: String?, fallback: String) -> String {
-        guard let input, !input.isEmpty else {
-            return fallback
-        }
-
-        // Allowed characters: alphanumeric, space, dash, underscore, dot
-        // Replace disallowed characters with dash
-        let allowedCharacterSet = CharacterSet(charactersIn:
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_." 
-        )
-
-        // Replace disallowed characters with dash
-        var sanitized = input.unicodeScalars.map { scalar -> Character in
-            if allowedCharacterSet.contains(scalar) {
-                return Character(scalar)
-            } else {
-                return "-"
-            }
-        }.reduce(into: "") { $0.append($1) }
-
-        // Collapse repeated dashes
-        while sanitized.contains("--") {
-            sanitized = sanitized.replacingOccurrences(of: "--", with: "-")
-        }
-
-        // Trim leading/trailing dots and spaces and dashes
-        sanitized = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: " .-"))
-
-        if sanitized.isEmpty {
-            return fallback
-        }
-
-        return sanitized
-    }
 }
-// swiftlint:enable type_body_length
