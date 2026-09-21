@@ -265,15 +265,9 @@ extension MCPNotebookTools {
     static func resolveProject(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDProject {
-        guard let id = UUID(uuidString: reference) else {
-            throw MCPToolError("project_id must be a uuid, got \"\(reference)\".")
-        }
-        let request = CDFetchRequest(CDProject.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let project = modelContext.safeFetch(request).first else {
-            throw MCPToolError("No project with id \(reference) was found.")
-        }
-        return project
+        try resolveEntity(
+            CDProject.self, reference: reference,
+            argument: "project_id", noun: "project", in: modelContext
+        )
     }
 }

@@ -138,12 +138,8 @@ extension ImmediatePresentationRecordingService {
         ) {
             enrollment.isActive = isActive
             enrollment.startedAt = startedAt
-            enrollment.track = trackObjectID
-                .flatMap { try? context.existingObject(with: $0) }
-                .flatMap { $0 as? CDTrackEntity }
-            enrollment.student = studentObjectID
-                .flatMap { try? context.existingObject(with: $0) }
-                .flatMap { $0 as? CDStudent }
+            enrollment.track = trackObjectID.flatMap { context.existing(CDTrackEntity.self, $0) }
+            enrollment.student = studentObjectID.flatMap { context.existing(CDStudent.self, $0) }
         }
     }
 }

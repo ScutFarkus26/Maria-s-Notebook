@@ -192,7 +192,7 @@ extension MCPNotebookTools {
             for conflict in intent.conflicts {
                 guard let studentID = conflict.student.id?.uuidString,
                       let objectID = latest[studentID],
-                      let prior = (try? context.existingObject(with: objectID)) as? CDLessonAssignment
+                      let prior = context.existing(CDLessonAssignment.self, objectID)
                 else { continue }
                 prior.needsAnotherPresentation = true
                 prior.modifiedAt = Date()

@@ -285,7 +285,7 @@ extension SearchIndexService {
             byURI.removeValue(forKey: uri)
         }
         for (uri, objectID) in touched {
-            if let object = try? context.existingObject(with: objectID), let entry = entry(for: object) {
+            if let object = context.existing(objectID), let entry = entry(for: object) {
                 byURI[uri] = entry
             } else {
                 // Deleted after the history was written, or no longer indexable.

@@ -241,16 +241,10 @@ extension MCPNotebookTools {
     private static func resolveCommunication(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDParentCommunication {
-        guard let id = UUID(uuidString: reference) else {
-            throw MCPToolError("communication_id must be a uuid, got \"\(reference)\".")
-        }
-        let request = CDFetchRequest(CDParentCommunication.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let communication = modelContext.safeFetch(request).first else {
-            throw MCPToolError("No communication with id \(reference) was found.")
-        }
-        return communication
+        try resolveEntity(
+            CDParentCommunication.self, reference: reference,
+            argument: "communication_id", noun: "communication", in: modelContext
+        )
     }
 
     private static func reportStatusArgument(

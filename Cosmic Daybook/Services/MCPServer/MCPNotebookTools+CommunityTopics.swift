@@ -265,15 +265,9 @@ extension MCPNotebookTools {
     private static func resolveCommunityTopic(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDCommunityTopicEntity {
-        guard let id = UUID(uuidString: reference) else {
-            throw MCPToolError("topic_id must be a uuid, got \"\(reference)\".")
-        }
-        let request = CDFetchRequest(CDCommunityTopicEntity.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let topic = modelContext.safeFetch(request).first else {
-            throw MCPToolError("No community topic with id \(reference) was found.")
-        }
-        return topic
+        try resolveEntity(
+            CDCommunityTopicEntity.self, reference: reference,
+            argument: "topic_id", noun: "community topic", in: modelContext
+        )
     }
 }

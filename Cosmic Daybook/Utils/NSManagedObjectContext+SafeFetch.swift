@@ -62,6 +62,18 @@ nonisolated extension NSManagedObjectContext {
         return safeFetchFirst(request)
     }
 
+    /// Faults in the object for `objectID` as `T` — nil when the row is gone or the ID is
+    /// from another store; errors are not logged because callers treat absence as normal.
+    func existing<T: NSManagedObject>(_ type: T.Type, _ objectID: NSManagedObjectID) -> T? {
+        (try? existingObject(with: objectID)) as? T
+    }
+
+    /// Faults in the object for `objectID` — nil when the row is gone or the ID is from
+    /// another store; errors are not logged because callers treat absence as normal.
+    func existing(_ objectID: NSManagedObjectID) -> NSManagedObject? {
+        try? existingObject(with: objectID)
+    }
+
     /// Safely saves the context, logging errors.
     /// - Returns: true if save succeeded or no changes to save
     @discardableResult

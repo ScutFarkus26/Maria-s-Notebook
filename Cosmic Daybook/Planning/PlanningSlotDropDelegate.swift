@@ -1,6 +1,5 @@
 import SwiftUI
 import CoreData
-import OSLog
 import UniformTypeIdentifiers
 
 /// Unified drop delegate for planning slots (used by both the Planning Board and Agenda views).
@@ -10,8 +9,6 @@ import UniformTypeIdentifiers
 /// 2. `STUDENT_TO_INBOX:` / `STUDENT_TO_SLOT:` — move a student into a slot
 /// 3. `UnifiedCalendarDragPayload` — presentation or work check-in scheduling
 struct PlanningSlotDropDelegate: DropDelegate {
-    private static let logger = Logger.planning
-
     let calendar: Calendar
     let viewContext: NSManagedObjectContext
     let allLessonAssignments: [CDLessonAssignment]
@@ -194,14 +191,7 @@ struct PlanningSlotDropDelegate: DropDelegate {
 
         let new = PresentationFactory.makeDraft(lessonID: lessonID, studentIDs: [studentID], context: viewContext)
 
-        let lessonFetch = NSFetchRequest<CDLesson>(entityName: "Lesson")
-        lessonFetch.predicate = NSPredicate(format: "id == %@", lessonID as CVarArg)
-        lessonFetch.fetchLimit = 1
-        do {
-            new.lesson = try viewContext.fetch(lessonFetch).first
-        } catch {
-            Self.logger.warning("Failed to fetch lesson: \(error)")
-        }
+        new.lesson = viewContext.object(CDLesson.self, id: lessonID)
         return new
     }
 

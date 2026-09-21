@@ -210,7 +210,7 @@ enum StoryImportService {
         context: NSManagedObjectContext
     ) async {
         await context.perform {
-            guard let story = try? context.existingObject(with: objectID) as? CDStory else { return }
+            guard let story = context.existing(CDStory.self, objectID) else { return }
             if !story.userEditedTitle, !result.title.isEmpty {
                 story.title = result.title
             }
@@ -240,7 +240,7 @@ enum StoryImportService {
         context: NSManagedObjectContext
     ) async {
         await context.perform {
-            guard let story = try? context.existingObject(with: objectID) as? CDStory else { return }
+            guard let story = context.existing(CDStory.self, objectID) else { return }
             if let analyzerError = error as? StoryAnalyzerError {
                 switch analyzerError {
                 case .aiUnavailable:

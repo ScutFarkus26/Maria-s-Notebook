@@ -314,15 +314,9 @@ extension MCPNotebookTools {
     private static func resolveIssue(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDIssue {
-        guard let id = UUID(uuidString: reference) else {
-            throw MCPToolError("issue_id must be a uuid, got \"\(reference)\".")
-        }
-        let request = CDFetchRequest(CDIssue.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let issue = modelContext.safeFetch(request).first else {
-            throw MCPToolError("No issue with id \(reference) was found.")
-        }
-        return issue
+        try resolveEntity(
+            CDIssue.self, reference: reference,
+            argument: "issue_id", noun: "issue", in: modelContext
+        )
     }
 }
