@@ -8,9 +8,7 @@ struct AttendanceLogView: View {
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDAttendanceRecord.date, ascending: false)]
@@ -37,8 +35,8 @@ struct AttendanceLogView: View {
         }
         return TestStudentsFilter.filterVisible(
             scoped,
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

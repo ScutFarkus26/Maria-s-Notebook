@@ -21,9 +21,7 @@ struct SchoolCalendarSettingsView: View {
     /// Counted on appear and after the sweep closes, never in `body`: the count
     /// is a fetch per enrolled child, and this pane redraws on every month step.
     @State private var carryOverBadge: Int?
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     /// Year-plan targets left over from a school year that has ended. The
     /// badge is this year's outstanding count and disappears once the sweep has
@@ -58,8 +56,8 @@ struct SchoolCalendarSettingsView: View {
     private func refreshCarryOverBadge() {
         carryOverBadge = CarriedOverPlanSweepViewModel.badgeCount(
             context: viewContext,
-            showTestStudents: showTestStudents,
-            testStudentNames: testStudentNamesRaw
+            showTestStudents: testStudents.show,
+            testStudentNames: testStudents.namesRaw
         )
     }
 

@@ -4,8 +4,13 @@ import Foundation
 /// Uses the preferences General.showTestStudents (Bool) and General.testStudentNames (String)
 /// to decide whether and which students to hide. Matching is case-insensitive on fullName.
 enum TestStudentsFilter {
-    static let showKey = "General.showTestStudents"
-    static let namesKey = "General.testStudentNames"
+    static let showKey = UserDefaultsKeys.generalShowTestStudents
+    static let namesKey = UserDefaultsKeys.generalTestStudentNames
+
+    /// The names hidden until the teacher edits the list. This is the single
+    /// home of that default: every `@AppStorage` declaration of
+    /// `UserDefaultsKeys.generalTestStudentNames` reads it from here.
+    static let defaultNames = "Danny De Berry,Lil Dan D"
 
     /// Returns a normalized set of hidden full names (lowercased, trimmed).
     /// If `show` is true, returns an empty set (no hiding). If nil, reads from UserDefaults.
@@ -13,7 +18,7 @@ enum TestStudentsFilter {
         let defaults = UserDefaults.standard
         let showValue = show ?? defaults.bool(forKey: showKey)
         guard showValue == false else { return [] }
-        let raw = namesRaw ?? (defaults.string(forKey: namesKey) ?? "Danny De Berry,Lil Dan D")
+        let raw = namesRaw ?? (defaults.string(forKey: namesKey) ?? defaultNames)
         let lower = raw.lowercased()
         let parts = lower.split(whereSeparator: { ch in ch == "," || ch == ";" || ch.isNewline })
         let tokens = parts.map { String($0).trimmed() }.filter { !$0.isEmpty }

@@ -54,8 +54,8 @@ extension StudentsView {
     var hiddenTestStudentIDs: Set<UUID> {
         viewModel.hiddenTestStudentIDs(
             students: uniqueStudents,
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 
@@ -88,8 +88,8 @@ extension StudentsView {
             sortOrder: sortOrder,
             searchString: searchText,
             presentNowIDs: presentNowIDs,
-            showTestStudents: showTestStudents,
-            testStudentNames: testStudentNamesRaw
+            showTestStudents: testStudents.show,
+            testStudentNames: testStudents.namesRaw
         )
 
         // School-year lens: scope the roster to students active in the selected year
@@ -115,8 +115,8 @@ extension StudentsView {
             sortOrder: .alphabetical,
             searchString: searchText,
             presentNowIDs: nil,
-            showTestStudents: showTestStudents,
-            testStudentNames: testStudentNamesRaw
+            showTestStudents: testStudents.show,
+            testStudentNames: testStudents.namesRaw
         ).uniqueByID
     }
 }

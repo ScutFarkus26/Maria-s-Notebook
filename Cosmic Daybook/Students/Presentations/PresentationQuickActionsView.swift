@@ -13,9 +13,7 @@ struct PresentationQuickActionsView: View {
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)], animation: .default)
     private var lessons: FetchedResults<CDLesson>
@@ -29,8 +27,8 @@ struct PresentationQuickActionsView: View {
     // Filter out test students when setting is disabled
     private var studentsAll: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsAllRaw).uniqueByID, show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            Array(studentsAllRaw).uniqueByID, show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

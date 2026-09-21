@@ -7,9 +7,7 @@ struct MeetingsLogView: View {
     @Environment(\.calendar) private var calendar
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)]
@@ -30,8 +28,8 @@ struct MeetingsLogView: View {
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID,
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

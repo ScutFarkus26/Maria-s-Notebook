@@ -16,9 +16,7 @@ struct SchoolYearRolloverView: View {
     )
     private var enrolledStudents: FetchedResults<CDStudent>
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @State private var viewModel = SchoolYearRolloverViewModel()
     @State private var reportStudent: CDStudent?
@@ -40,7 +38,7 @@ struct SchoolYearRolloverView: View {
         }
         .onAppear {
             viewModel.load(
-                students: enrolledStudents.visibleRoster(showTest: showTestStudents, testNames: testStudentNamesRaw),
+                students: testStudents.visible(enrolledStudents),
                 store: store
             )
         }

@@ -14,16 +14,14 @@ struct TodoListPanel: View {
     var todos: FetchedResults<CDTodoItem>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
     private var studentsRaw: FetchedResults<CDStudent>
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
     @Environment(\.managedObjectContext) var viewContext
 
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID.filterEnrolled(),
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

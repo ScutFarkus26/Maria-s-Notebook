@@ -68,9 +68,7 @@ struct RootView: View {
     @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
     @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
     private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
     
     private var missWindow: PresentationsMissWindow {
         PresentationsMissWindow(rawValue: missWindowRaw) ?? .all

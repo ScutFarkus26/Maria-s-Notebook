@@ -11,14 +11,13 @@ struct TodoEditSheet: View {
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
     ]) var studentsRaw: FetchedResults<CDStudent>
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility var testStudents
 
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID.filterEnrolled(),
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

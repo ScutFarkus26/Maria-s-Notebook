@@ -75,9 +75,7 @@ struct WorksAgendaView: View {
     /// school days.
     @State var partition = LessonsAndWorkPartition()
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility var testStudents
     @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) var hideScheduled: Bool = false
     @AppStorage(UserDefaultsKeys.workAgendaVisibleKinds)
     var visibleKindsRaw: String = WorkKind.allCases.map(\.rawValue).joined(separator: ",")
@@ -167,8 +165,8 @@ struct WorksAgendaView: View {
         hasher.combine(openWork.count)
         hasher.combine(lessonChangeToken)
         hasher.combine(studentChangeToken)
-        hasher.combine(showTestStudents)
-        hasher.combine(testStudentNamesRaw)
+        hasher.combine(testStudents.show)
+        hasher.combine(testStudents.namesRaw)
         return hasher.finalize()
     }
 

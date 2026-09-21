@@ -7,9 +7,7 @@ struct DayColumn: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     // Pre-filtered to this day's assignments by WeekGrid — no further date filtering needed.
     let lessonAssignments: [CDLessonAssignment]
@@ -23,8 +21,8 @@ struct DayColumn: View {
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(allStudentsRaw).uniqueByID.filterEnrolled(),
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

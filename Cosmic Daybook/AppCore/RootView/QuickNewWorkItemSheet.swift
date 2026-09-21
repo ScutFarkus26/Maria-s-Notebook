@@ -33,9 +33,7 @@ struct QuickNewWorkItemSheet: View {
     @Environment(SaveCoordinator.self) var saveCoordinator
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility var testStudents
 
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
@@ -53,8 +51,8 @@ struct QuickNewWorkItemSheet: View {
     var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(allStudentsRaw).uniqueByID.filterEnrolled(),
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 
