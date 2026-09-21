@@ -357,15 +357,9 @@ extension MCPNotebookTools {
     static func resolveTodo(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDTodoItem {
-        guard let id = UUID(uuidString: reference) else {
-            throw MCPToolError("todo_id must be a uuid, got \"\(reference)\".")
-        }
-        let request = CDFetchRequest(CDTodoItem.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let todo = modelContext.safeFetch(request).first else {
-            throw MCPToolError("No todo with id \(reference) was found.")
-        }
-        return todo
+        try resolveEntity(
+            CDTodoItem.self, reference: reference,
+            argument: "todo_id", noun: "todo", in: modelContext
+        )
     }
 }

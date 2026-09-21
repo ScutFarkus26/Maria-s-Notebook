@@ -203,15 +203,9 @@ extension MCPNotebookTools {
     private static func resolveGuardian(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDGuardian {
-        guard let id = UUID(uuidString: reference) else {
-            throw MCPToolError("guardian_id must be a uuid, got \"\(reference)\".")
-        }
-        let request = CDFetchRequest(CDGuardian.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let guardian = modelContext.safeFetch(request).first else {
-            throw MCPToolError("No guardian with id \(reference) was found.")
-        }
-        return guardian
+        try resolveEntity(
+            CDGuardian.self, reference: reference,
+            argument: "guardian_id", noun: "guardian", in: modelContext
+        )
     }
 }

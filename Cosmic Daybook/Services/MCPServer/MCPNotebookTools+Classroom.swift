@@ -259,15 +259,9 @@ extension MCPNotebookTools {
     private static func resolveGoingOut(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDGoingOut {
-        guard let id = UUID(uuidString: reference) else {
-            throw MCPToolError("going_out_id must be a uuid, got \"\(reference)\".")
-        }
-        let request = CDFetchRequest(CDGoingOut.self)
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        guard let goingOut = modelContext.safeFetch(request).first else {
-            throw MCPToolError("No Going Out with id \(reference) was found.")
-        }
-        return goingOut
+        try resolveEntity(
+            CDGoingOut.self, reference: reference,
+            argument: "going_out_id", noun: "Going Out", in: modelContext
+        )
     }
 }

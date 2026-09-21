@@ -20,8 +20,7 @@ extension ImmediatePresentationRecordingService {
     ) {
         let presentationID = token.assignmentID.uuidString
         for state in token.existingHistoryStates {
-            guard let row = try? context.existingObject(with: state.objectID)
-                as? CDLessonPresentation,
+            guard let row = context.existing(CDLessonPresentation.self, state.objectID),
                   !row.isDeleted,
                   row.presentationID == presentationID else {
                 continue
@@ -44,8 +43,7 @@ extension ImmediatePresentationRecordingService {
     ) {
         let presentationID = token.assignmentID.uuidString
         for objectID in token.createdHistoryObjectIDs {
-            guard let row = try? context.existingObject(with: objectID)
-                as? CDLessonPresentation,
+            guard let row = context.existing(CDLessonPresentation.self, objectID),
                   !row.isDeleted,
                   row.presentationID == presentationID else {
                 continue
@@ -68,8 +66,7 @@ extension ImmediatePresentationRecordingService {
         in context: NSManagedObjectContext
     ) {
         for state in token.existingEnrollmentStates {
-            guard let enrollment = try? context.existingObject(with: state.objectID)
-                as? CDStudentTrackEnrollmentEntity,
+            guard let enrollment = context.existing(CDStudentTrackEnrollmentEntity.self, state.objectID),
                   !enrollment.isDeleted else {
                 continue
             }
@@ -82,8 +79,7 @@ extension ImmediatePresentationRecordingService {
         in context: NSManagedObjectContext
     ) {
         for objectID in token.createdEnrollmentObjectIDs {
-            guard let enrollment = try? context.existingObject(with: objectID)
-                as? CDStudentTrackEnrollmentEntity,
+            guard let enrollment = context.existing(CDStudentTrackEnrollmentEntity.self, objectID),
                   !enrollment.isDeleted else {
                 continue
             }

@@ -75,7 +75,7 @@ extension WorkLogService {
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator? = nil
     ) throws {
-        guard token.rows.contains(where: { (try? context.existingObject(with: $0.objectID)) != nil }) else {
+        guard token.rows.contains(where: { context.existing($0.objectID) != nil }) else {
             throw LogError.undoUnavailable
         }
         revert(token, in: context)
@@ -90,23 +90,23 @@ extension WorkLogService {
         // Snapshots were appended as rows were touched; the first snapshot of
         // an object is its pre-log state, so restore in reverse order.
         for snapshot in token.rows.reversed() {
-            if let work = try? context.existingObject(with: snapshot.objectID) as? CDWorkModel {
+            if let work = context.existing(CDWorkModel.self, snapshot.objectID) {
                 snapshot.restore(work)
             }
         }
         for snapshot in token.participants.reversed() {
-            if let participant = try? context.existingObject(with: snapshot.objectID) as? CDWorkParticipantEntity {
+            if let participant = context.existing(CDWorkParticipantEntity.self, snapshot.objectID) {
                 participant.completedAt = snapshot.completedAt
             }
         }
         for snapshot in token.checkIns.reversed() {
-            if let checkIn = try? context.existingObject(with: snapshot.objectID) as? CDWorkCheckIn {
+            if let checkIn = context.existing(CDWorkCheckIn.self, snapshot.objectID) {
                 checkIn.statusRaw = snapshot.statusRaw
                 checkIn.date = snapshot.date
             }
         }
         for objectID in token.createdObjectIDs {
-            if let object = try? context.existingObject(with: objectID), !object.isDeleted {
+            if let object = context.existing(objectID), !object.isDeleted {
                 context.delete(object)
             }
         }

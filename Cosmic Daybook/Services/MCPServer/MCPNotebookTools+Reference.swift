@@ -294,10 +294,7 @@ extension MCPNotebookTools {
     ) -> CDTrackEntity? {
         if let track = enrollment.track { return track }
         guard let trackID = UUID(uuidString: enrollment.trackID.trimmed()) else { return nil }
-        let request = CDFetchRequest(CDTrackEntity.self)
-        request.predicate = NSPredicate(format: "id == %@", trackID as CVarArg)
-        request.fetchLimit = 1
-        return modelContext.safeFetch(request).first
+        return modelContext.object(CDTrackEntity.self, id: trackID)
     }
 
     private static func trackLine(
@@ -323,9 +320,6 @@ extension MCPNotebookTools {
         forTemplateID templateID: UUID?, in modelContext: NSManagedObjectContext
     ) -> String? {
         guard let templateID else { return nil }
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", templateID as CVarArg)
-        request.fetchLimit = 1
-        return modelContext.safeFetch(request).first?.name
+        return modelContext.object(CDLesson.self, id: templateID)?.name
     }
 }

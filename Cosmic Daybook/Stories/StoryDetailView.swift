@@ -528,7 +528,7 @@ struct StoryDetailView: View {
                     themes: themes,
                     summary: summary
                 )
-                if let target = try? context.existingObject(with: objectID) as? CDStory {
+                if let target = context.existing(CDStory.self, objectID) {
                     target.generatedCoverData = data
                     target.modifiedAt = Date()
                     if !context.safeSave() {
@@ -560,7 +560,7 @@ struct StoryDetailView: View {
         Task { @MainActor in
             defer { isFindingConnections = false }
             do {
-                guard let target = try? context.existingObject(with: objectID) as? CDStory else {
+                guard let target = context.existing(CDStory.self, objectID) else {
                     return
                 }
                 let matches = try await StoryLessonMatcher.findConnections(

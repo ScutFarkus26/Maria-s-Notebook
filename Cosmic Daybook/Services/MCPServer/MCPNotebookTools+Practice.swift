@@ -257,10 +257,7 @@ extension MCPNotebookTools {
         _ check: CDLessonRecallCheck, in modelContext: NSManagedObjectContext
     ) -> String? {
         guard let uuid = UUID(uuidString: check.lessonID) else { return nil }
-        let request = CDFetchRequest(CDLesson.self)
-        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
-        request.fetchLimit = 1
-        return modelContext.safeFetch(request).first?.name
+        return modelContext.object(CDLesson.self, id: uuid)?.name
     }
 
     private static func recallOutcomeArgument(
