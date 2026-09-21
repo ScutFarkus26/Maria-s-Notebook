@@ -46,6 +46,7 @@ struct MeetingsWorkflowView: View {
     @State private var searchText: String = ""
     @State private var showCompletedThisWeek: Bool = false
     @State private var orderedStudentIDs: [UUID] = []
+    @State private var requeueStore = MeetingQueueRequeueStore()
     @State private var selectedAgeRanges: Set<AgeRange> = []
     @State private var studentForMeetingDatePicker: CDStudent?
 
@@ -91,9 +92,24 @@ struct MeetingsWorkflowView: View {
         calendar.date(byAdding: .day, value: -daysSinceThreshold, to: Date()) ?? Date()
     }
 
-    /// Students who haven't had a meeting within the threshold
+    /// Requeued students whose requeue is still live: no meeting has been
+    /// completed since they were put back in the queue.
+    private var activeRequeuedIDs: Set<UUID> {
+        requeueStore.activeIDs(lastMeetingDate: lastMeetingDate)
+    }
+
+    /// `allMeetings` is sorted by date descending, so the first hit is the latest.
+    private func lastMeetingDate(for id: UUID) -> Date? {
+        let string = id.uuidString
+        return allMeetings.first { $0.studentID == string }?.date
+    }
+
+    /// Students who haven't had a meeting within the threshold, plus anyone put
+    /// back in the queue by hand.
     private var studentsNeedingMeetingSet: Set<UUID> {
+        let requeued = activeRequeuedIDs
         let needsMeeting = students.filter { student in
+            if let id = student.id, requeued.contains(id) { return true }
             let studentMeetings = meetingsFor(student)
             let hasRecentMeeting = studentMeetings.contains { ($0.date ?? .distantPast) >= thresholdDate }
             return !hasRecentMeeting
@@ -123,11 +139,13 @@ struct MeetingsWorkflowView: View {
         return result
     }
 
-    /// Students who have had a meeting within the threshold
+    /// Students who have had a meeting within the threshold and haven't been
+    /// put back in the queue.
     private var studentsWithRecentMeeting: [CDStudent] {
-        students.filter { student in
-            let studentMeetings = meetingsFor(student)
-            return studentMeetings.contains { ($0.date ?? .distantPast) >= thresholdDate }
+        let queued = studentsNeedingMeetingSet
+        return students.filter { student in
+            guard let id = student.id else { return false }
+            return !queued.contains(id)
         }
     }
 
@@ -215,6 +233,7 @@ struct MeetingsWorkflowView: View {
                 selectedAgeRanges: $selectedAgeRanges,
                 lastMeetingFor: lastMeetingFor,
                 onMove: moveStudent,
+                onRequeue: requeueStudent,
                 scheduledMeetingDates: scheduledMeetingDates,
                 onScheduleMeeting: handleScheduleMeeting,
                 onPickMeetingDate: { student in
@@ -248,6 +267,7 @@ struct MeetingsWorkflowView: View {
         .inlineNavigationTitle()
         .onAppear {
             loadCustomOrder()
+            requeueStore = .load()
         }
         .sheet(item: $studentForMeetingDatePicker) { student in
             MeetingDatePickerSheet(studentName: student.fullName) { date in
@@ -341,6 +361,20 @@ struct MeetingsWorkflowView: View {
     private func moveStudent(from source: IndexSet, to destination: Int) {
         var ids = filteredStudentsNeedingMeeting.compactMap(\.id)
         ids.move(fromOffsets: source, toOffset: destination)
+        orderedStudentIDs = ids
+        saveCustomOrder()
+    }
+
+    /// Puts a recently-met student back into the Needs Meeting queue at
+    /// `position` (an index into the visible queue; nil means the top).
+    /// The rest of the saved order (rows hidden by filters) keeps its place after it.
+    private func requeueStudent(_ id: UUID, at position: Int?) {
+        guard students.contains(where: { $0.id == id }) else { return }
+        requeueStore.requeue(id, lastMeetingDate: lastMeetingDate)
+        requeueStore.save()
+        var ids = filteredStudentsNeedingMeetingPresent.compactMap(\.id).filter { $0 != id }
+        ids.insert(id, at: min(position ?? 0, ids.count))
+        ids += orderedStudentIDs.filter { !ids.contains($0) }
         orderedStudentIDs = ids
         saveCustomOrder()
     }

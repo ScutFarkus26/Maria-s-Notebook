@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UniformTypeIdentifiers
 
 // MARK: - Queue Sidebar (Separate View)
 
@@ -14,6 +15,9 @@ struct MeetingsQueueSidebar: View {
     @Binding var selectedAgeRanges: Set<AgeRange>
     let lastMeetingFor: (CDStudent) -> CDStudentMeeting?
     let onMove: (IndexSet, Int) -> Void
+    /// Puts a recently-met student back into the queue at the given index
+    /// (nil = top). Nil disables dragging Met Recently rows into the queue.
+    var onRequeue: (@MainActor (UUID, Int?) -> Void)?
     var scheduledMeetingDates: [UUID: Date] = [:]
     var onScheduleMeeting: ((CDStudent, Date?) -> Void)?
     var onPickMeetingDate: ((CDStudent) -> Void)?
@@ -82,6 +86,28 @@ struct MeetingsQueueSidebar: View {
                 studentRow(student, showCheckmark: false)
             }
             .onMove(perform: searchText.isEmpty ? onMove : nil)
+            .onInsert(of: [Self.dragType]) { index, providers in
+                insertDroppedStudents(providers, at: index)
+            }
+        }
+    }
+
+    /// Met Recently rows are dragged as their student id, so a drop into
+    /// Needs Meeting can name the student without carrying the object.
+    private static let dragType = UTType.plainText
+
+    private func insertDroppedStudents(_ providers: [NSItemProvider], at index: Int) {
+        guard let onRequeue else { return }
+        let droppable = Set(studentsCompleted.compactMap(\.id))
+        for provider in providers {
+            _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+                guard let string = object as? String,
+                      let id = UUID(uuidString: string),
+                      droppable.contains(id) else { return }
+                Task { @MainActor in
+                    onRequeue(id, index)
+                }
+            }
         }
     }
 
@@ -96,7 +122,12 @@ struct MeetingsQueueSidebar: View {
     private var completedSection: some View {
         Section("Met Recently (\(studentsCompleted.count))") {
             ForEach(studentsCompleted) { student in
-                studentRow(student, showCheckmark: true)
+                if onRequeue != nil, let id = student.id {
+                    studentRow(student, showCheckmark: true)
+                        .onDrag { NSItemProvider(object: id.uuidString as NSString) }
+                } else {
+                    studentRow(student, showCheckmark: true)
+                }
             }
         }
     }
@@ -135,48 +166,64 @@ struct MeetingsQueueSidebar: View {
             Label("Start Meeting", systemImage: "play.fill")
         }
 
+        if let onRequeue, let id = student.id, studentsCompleted.contains(where: { $0.id == id }) {
+            Button {
+                onRequeue(id, nil)
+            } label: {
+                Label("Move to Needs Meeting", systemImage: "arrow.up.to.line")
+            }
+        }
+
         if let onScheduleMeeting {
             Divider()
+            scheduleSubmenu(for: student, scheduledDate: scheduledDate, onScheduleMeeting: onScheduleMeeting)
+        }
+    }
 
-            Menu {
-                Button {
-                    onScheduleMeeting(student, AppCalendar.startOfDay(Date()))
-                } label: {
-                    Label("Today", systemImage: "calendar")
-                }
-
-                Button {
-                    onScheduleMeeting(student, AppCalendar.addingDays(1, to: Date()))
-                } label: {
-                    Label("Tomorrow", systemImage: "calendar.badge.clock")
-                }
-
-                if let onPickDate = onPickMeetingDate {
-                    Button {
-                        onPickDate(student)
-                    } label: {
-                        Label("Pick a Day\u{2026}", systemImage: "calendar.badge.plus")
-                    }
-                }
-
-                if scheduledDate != nil {
-                    Divider()
-
-                    Button(role: .destructive) {
-                        onScheduleMeeting(student, nil)
-                    } label: {
-                        Label("Clear", systemImage: "calendar.badge.minus")
-                    }
-                }
+    @ViewBuilder
+    private func scheduleSubmenu(
+        for student: CDStudent,
+        scheduledDate: Date?,
+        onScheduleMeeting: @escaping (CDStudent, Date?) -> Void
+    ) -> some View {
+        Menu {
+            Button {
+                onScheduleMeeting(student, AppCalendar.startOfDay(Date()))
             } label: {
-                if let date = scheduledDate {
-                    Label(
-                        "Meeting \(MeetingsQueueSidebar.scheduledDateLabel(date))",
-                        systemImage: "person.crop.circle.badge.clock"
-                    )
-                } else {
-                    Label("Schedule Meeting", systemImage: "person.crop.circle.badge.clock")
+                Label("Today", systemImage: "calendar")
+            }
+
+            Button {
+                onScheduleMeeting(student, AppCalendar.addingDays(1, to: Date()))
+            } label: {
+                Label("Tomorrow", systemImage: "calendar.badge.clock")
+            }
+
+            if let onPickDate = onPickMeetingDate {
+                Button {
+                    onPickDate(student)
+                } label: {
+                    Label("Pick a Day\u{2026}", systemImage: "calendar.badge.plus")
                 }
+            }
+
+            if scheduledDate != nil {
+                Divider()
+
+                Button(role: .destructive) {
+                    onScheduleMeeting(student, nil)
+                } label: {
+                    Label("Clear", systemImage: "calendar.badge.minus")
+                }
+            }
+        } label: {
+            if let date = scheduledDate {
+                Label(
+                    "Meeting \(MeetingsQueueSidebar.scheduledDateLabel(date))",
+                    systemImage: "person.crop.circle.badge.clock"
+                )
+            } else {
+                Label("Schedule Meeting", systemImage: "person.crop.circle.badge.clock")
             }
         }
     }
@@ -189,147 +236,6 @@ struct MeetingsQueueSidebar: View {
         } else {
             return "(\(DateFormatters.mediumDate.string(from: date)))"
         }
-    }
-}
-
-// MARK: - Meeting Threshold Picker
-
-struct MeetingThresholdPicker: View {
-    @Binding var days: Int
-    @Binding var showCompleted: Bool
-    @State private var isExpanded = false
-
-    private let presets = [3, 5, 7, 14, 21, 30]
-
-    var body: some View {
-        VStack(spacing: 8) {
-            // Top row: threshold pill + show completed toggle
-            HStack(spacing: 8) {
-                // Tappable pill showing current value
-                Button {
-                    adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        isExpanded.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.caption)
-
-                        Text("Last \(days)d")
-                            .font(.subheadline.weight(.medium))
-
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                    )
-                    .foregroundStyle(.accent)
-                }
-                .buttonStyle(.plain)
-
-                // Show completed toggle
-                Button {
-                    adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
-                        showCompleted.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: showCompleted ? "checkmark.circle.fill" : "checkmark.circle")
-                            .font(.caption)
-
-                        Text("Done")
-                            .font(.subheadline.weight(.medium))
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(
-                                showCompleted
-                                    ? Color.green.opacity(UIConstants.OpacityConstants.accent)
-                                    : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                            )
-                    )
-                    .foregroundStyle(showCompleted ? .green : .secondary)
-                }
-                .buttonStyle(.plain)
-            }
-
-            // Expanded picker
-            if isExpanded {
-                VStack(spacing: 8) {
-                    // Quick presets
-                    HStack(spacing: 6) {
-                        ForEach(presets, id: \.self) { preset in
-                            Button {
-                                adaptiveWithAnimation(.easeInOut(duration: 0.15)) {
-                                    days = preset
-                                }
-                            } label: {
-                                Text("\(preset)")
-                                    .font(.caption.weight(days == preset ? .semibold : .regular))
-                                    .frame(width: 28, height: 28)
-                                    .background(
-                                        Circle()
-                                            .fill(
-                                                days == preset
-                                                    ? Color.accentColor
-                                                    : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                                            )
-                                    )
-                                    .foregroundStyle(days == preset ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    // Fine-tune stepper
-                    HStack(spacing: 12) {
-                        Button {
-                            if days > 1 { days -= 1 }
-                        } label: {
-                            Image(systemName: "minus")
-                                .font(.caption.weight(.medium))
-                                .frame(width: 24, height: 24)
-                                .background(
-                                    Circle()
-                                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(days <= 1)
-
-                        Text("\(days) day\(days == 1 ? "" : "s")")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 60)
-
-                        Button {
-                            if days < 90 { days += 1 }
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.caption.weight(.medium))
-                                .frame(width: 24, height: 24)
-                                .background(
-                                    Circle()
-                                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(days >= 90)
-                    }
-                }
-                .padding(.top, 4)
-                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .listRowBackground(Color.clear)
     }
 }
 
