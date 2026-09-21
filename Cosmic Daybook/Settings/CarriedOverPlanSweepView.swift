@@ -13,9 +13,7 @@ struct CarriedOverPlanSweepView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @State private var viewModel = CarriedOverPlanSweepViewModel()
 
@@ -34,8 +32,8 @@ struct CarriedOverPlanSweepView: View {
         .onAppear {
             viewModel.load(
                 context: viewContext,
-                showTestStudents: showTestStudents,
-                testStudentNames: testStudentNamesRaw
+                showTestStudents: testStudents.show,
+                testStudentNames: testStudents.namesRaw
             )
         }
     }

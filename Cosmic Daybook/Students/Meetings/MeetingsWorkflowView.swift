@@ -29,12 +29,10 @@ struct MeetingsWorkflowView: View {
     private var meetingTemplates: FetchedResults<CDMeetingTemplate>
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     private var students: [CDStudent] {
-        studentsRaw.visibleRoster(showTest: showTestStudents, testNames: testStudentNamesRaw)
+        testStudents.visible(studentsRaw)
     }
 
     // MARK: - State

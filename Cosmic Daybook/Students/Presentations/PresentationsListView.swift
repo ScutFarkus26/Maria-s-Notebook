@@ -28,9 +28,7 @@ struct PresentationsListView: View {
     #endif
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     // OPTIMIZATION: Use lightweight query for change detection only
     @FetchRequest(
@@ -42,7 +40,7 @@ struct PresentationsListView: View {
     // Filter out test students when setting is disabled
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID, show: showTestStudents, namesRaw: testStudentNamesRaw
+            Array(studentsRaw).uniqueByID, show: testStudents.show, namesRaw: testStudents.namesRaw
         )
     }
 

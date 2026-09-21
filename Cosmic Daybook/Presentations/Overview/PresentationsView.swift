@@ -102,8 +102,8 @@ struct PresentationsView: View {
             studentIDs: studentIDs,
             activeWorkIDs: activeWorkIDs,
             missWindowRaw: missWindowRaw,
-            showTestStudents: showTestStudents,
-            testStudentNamesRaw: testStudentNamesRaw
+            showTestStudents: testStudents.show,
+            testStudentNamesRaw: testStudents.namesRaw
         )
     }
 
@@ -148,9 +148,7 @@ struct PresentationsView: View {
         }
     }
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility var testStudents
 
     /// Debounces `updateViewModel()` calls triggered by `viewModelDependencies`
     /// changes. A single CloudKit import that touches unrelated entities can

@@ -25,13 +25,11 @@ struct CommandBarSheet: View {
         NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)
     ]) private var allLessons: FetchedResults<CDLesson>
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudents).uniqueByID.filterEnrolled(), show: showTestStudents, namesRaw: testStudentNamesRaw
+            Array(allStudents).uniqueByID.filterEnrolled(), show: testStudents.show, namesRaw: testStudents.namesRaw
         )
     }
 

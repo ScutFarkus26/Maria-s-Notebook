@@ -18,9 +18,7 @@ struct ClassAreaChecklistView: View {
     @State var didFinishInitialLoad = false
     @State private var isShowingAddWorkSheet = false
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
     @AppStorage(UserDefaultsKeys.checklistSelectedArea) private var persistedArea: String = ""
 
     // Grid Configuration
@@ -67,7 +65,7 @@ struct ClassAreaChecklistView: View {
             // Single load: fetches students, lessons, and builds matrix once
             viewModel.loadData(context: viewContext)
             viewModel.applyVisibilityFilter(
-                context: viewContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+                context: viewContext, show: testStudents.show, namesRaw: testStudents.namesRaw
             )
             didFinishInitialLoad = true
         }
@@ -98,14 +96,14 @@ struct ClassAreaChecklistView: View {
         .onChange(of: viewModel.studentFilterIDs) { _, _ in
             viewModel.applyFilters()
         }
-        .onChange(of: showTestStudents) { _, _ in
+        .onChange(of: testStudents.show) { _, _ in
             viewModel.applyVisibilityFilter(
-                context: viewContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+                context: viewContext, show: testStudents.show, namesRaw: testStudents.namesRaw
             )
         }
-        .onChange(of: testStudentNamesRaw) { _, _ in
+        .onChange(of: testStudents.namesRaw) { _, _ in
             viewModel.applyVisibilityFilter(
-                context: viewContext, show: showTestStudents, namesRaw: testStudentNamesRaw
+                context: viewContext, show: testStudents.show, namesRaw: testStudents.namesRaw
             )
         }
     }

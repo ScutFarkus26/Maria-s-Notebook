@@ -81,8 +81,8 @@ extension WeekPlanSection {
         // DEDUPLICATION: CloudKit sync can leave two rows carrying one id.
         cachedStudents = TestStudentsFilter.filterVisible(
             allStudents,
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         ).uniqueByID
     }
 

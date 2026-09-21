@@ -222,8 +222,8 @@ extension PresentationsView {
             calendar: calendar,
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow,
-            showTestStudents: showTestStudents,
-            testStudentNamesRaw: testStudentNamesRaw
+            showTestStudents: testStudents.show,
+            testStudentNamesRaw: testStudents.namesRaw
         )
     }
 
@@ -252,7 +252,7 @@ extension PresentationsView {
         let snap = la.snapshot()
         let allStudents = viewModel.cachedStudents
         let hiddenIDs = TestStudentsFilter.hiddenIDs(
-            from: allStudents, show: showTestStudents, namesRaw: testStudentNamesRaw
+            from: allStudents, show: testStudents.show, namesRaw: testStudents.namesRaw
         )
         let enrolledVisibleIDs = Set(allStudents.compactMap(\.id))
         let visibleIDs = snap.studentIDs.filter { enrolledVisibleIDs.contains($0) && !hiddenIDs.contains($0) }

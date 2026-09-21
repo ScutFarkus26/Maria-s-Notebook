@@ -27,9 +27,7 @@ struct SchedulePresentationSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
@@ -44,8 +42,8 @@ struct SchedulePresentationSheet: View {
     // not a silent gap in the roster.
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID, show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            Array(allStudentsRaw).uniqueByID, show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

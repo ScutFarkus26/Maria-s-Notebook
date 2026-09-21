@@ -27,9 +27,7 @@ struct LessonAssignmentHistoryView: View {
     #endif
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     // PAGINATION: Load assignments in batches instead of all at once
     static let initialLoadCount = 50
@@ -48,8 +46,8 @@ struct LessonAssignmentHistoryView: View {
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID,
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

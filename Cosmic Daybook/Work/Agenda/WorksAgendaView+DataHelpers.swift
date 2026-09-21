@@ -152,16 +152,16 @@ extension WorksAgendaView {
         // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         rosterStudents = TestStudentsFilter.filterVisible(
             allStudents.filterEnrolled(),
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         ).uniqueByID
 
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         if !neededStudentIDs.isEmpty {
             let filtered = allStudents.filter { neededStudentIDs.contains($0.id ?? UUID()) }
             let visible = TestStudentsFilter.filterVisible(
-                filtered, show: showTestStudents,
-                namesRaw: testStudentNamesRaw
+                filtered, show: testStudents.show,
+                namesRaw: testStudents.namesRaw
             ).uniqueByID
             studentsByIDCache = Dictionary(
                 visible.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },

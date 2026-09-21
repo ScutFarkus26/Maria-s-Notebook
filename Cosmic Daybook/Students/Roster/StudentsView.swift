@@ -43,8 +43,7 @@ struct StudentsView: View {
     @AppStorage(UserDefaultsKeys.studentsViewSortOrder) var studentsSortOrderRaw: String = "alphabetical"
     @AppStorage(UserDefaultsKeys.studentsViewSelectedFilter) var studentsFilterRaw: String = "all"
     @AppStorage(UserDefaultsKeys.studentsViewStyle) var studentsViewStyleRaw: String = "grid"
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames) var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility var testStudents
 
     // MARK: - State
     @State var searchText: String = ""

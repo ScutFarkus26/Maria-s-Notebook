@@ -11,9 +11,7 @@ struct WorksLogView: View {
     @Environment(\.openWindow) private var openWindow
     #endif
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(fetchRequest: {
         let request = NSFetchRequest<CDWorkModel>(entityName: "WorkModel")
@@ -40,8 +38,8 @@ struct WorksLogView: View {
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(studentsRaw).uniqueByID,
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

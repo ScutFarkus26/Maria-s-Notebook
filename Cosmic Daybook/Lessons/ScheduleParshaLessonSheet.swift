@@ -14,9 +14,7 @@ struct ScheduleParshaLessonSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
@@ -34,8 +32,8 @@ struct ScheduleParshaLessonSheet: View {
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
             Array(allStudentsRaw).uniqueByID.filterEnrolled(),
-            show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 

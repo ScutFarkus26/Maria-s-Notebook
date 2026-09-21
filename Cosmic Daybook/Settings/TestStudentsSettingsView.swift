@@ -4,7 +4,7 @@ import SwiftUI
 struct TestStudentsSettingsView: View {
     @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
     @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    private var testStudentNamesRaw: String = TestStudentsFilter.defaultNames
     @State private var draftNames: String = ""
 
     var body: some View {
@@ -73,7 +73,7 @@ struct TestStudentsSettingsView: View {
             HStack {
                 Spacer()
                 Button("Restore Defaults") {
-                    draftNames = "Danny De Berry,Lil Dan D"
+                    draftNames = TestStudentsFilter.defaultNames
                 }
                 Button("Save") {
                     testStudentNamesRaw = draftNames

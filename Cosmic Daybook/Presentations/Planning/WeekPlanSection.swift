@@ -35,9 +35,7 @@ struct WeekPlanSection: View {
     @AppStorage(UserDefaultsKeys.calendarVisibleKinds)
     var visibleKindsRaw: String = CalendarKindFilter.everything.rawValue
     @AppStorage(UserDefaultsKeys.lessonsAgendaStartDate) var startDateRaw: Double = 0
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility var testStudents
 
     /// The curriculum and the roster, fetched once for the whole strip and
     /// handed to every day column. Each card used to fetch both tables itself.

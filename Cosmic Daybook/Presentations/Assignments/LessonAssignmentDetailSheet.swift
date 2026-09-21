@@ -21,9 +21,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     @Environment(\.managedObjectContext) var viewContext
 
     // Test student filtering
-    @AppStorage(UserDefaultsKeys.generalShowTestStudents) private var showTestStudents: Bool = false
-    @AppStorage(UserDefaultsKeys.generalTestStudentNames)
-    private var testStudentNamesRaw: String = "Danny De Berry,Lil Dan D"
+    @TestStudentVisibility private var testStudents
 
     @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
@@ -32,8 +30,8 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
     // Filter out test students when setting is disabled
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(), show: showTestStudents,
-            namesRaw: testStudentNamesRaw
+            Array(studentsRaw).uniqueByID.filterEnrolled(), show: testStudents.show,
+            namesRaw: testStudents.namesRaw
         )
     }
 
