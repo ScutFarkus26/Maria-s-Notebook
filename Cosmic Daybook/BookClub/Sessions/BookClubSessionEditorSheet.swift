@@ -9,6 +9,7 @@ struct BookClubSessionEditorSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.calendar) private var calendar
+    @Environment(\.dependencies) private var dependencies
 
     let prefilledPacket: CDBookClubPacket?
     let editingSession: CDBookClubSession?
@@ -22,11 +23,6 @@ struct BookClubSessionEditorSheet: View {
         sortDescriptors: [NSSortDescriptor(keyPath: \CDBookClubPacket.title, ascending: true)]
     )
     private var allPackets: FetchedResults<CDBookClubPacket>
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
-    )
-    private var allStudents: FetchedResults<CDStudent>
 
     @State private var selectedPacketID: NSManagedObjectID?
     @State private var displayName: String = ""
@@ -48,7 +44,7 @@ struct BookClubSessionEditorSheet: View {
     }
 
     private var rosterInOrder: [CDStudent] {
-        let enrolled = Array(allStudents).filterEnrolled()
+        let enrolled = dependencies.roster.enrolled
         return enrolled.filter { student in
             guard let id = student.id else { return false }
             return selectedStudentIDs.contains(id)
@@ -118,7 +114,7 @@ struct BookClubSessionEditorSheet: View {
 
     private var rosterSection: some View {
         Section("Roster") {
-            let enrolled = Array(allStudents).filterEnrolled()
+            let enrolled = dependencies.roster.enrolled
             if enrolled.isEmpty {
                 Text("No enrolled students.")
                     .foregroundStyle(.secondary)

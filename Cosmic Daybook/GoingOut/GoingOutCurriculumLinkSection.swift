@@ -132,17 +132,12 @@ private struct LessonPickerList: View {
     let selectedIDs: Set<UUID>
     let onToggle: (UUID) -> Void
 
-    @FetchRequest(
-        sortDescriptors: [
-            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
-        ]
-    ) private var lessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
 
     @State private var searchText = ""
 
     private var filteredLessons: [CDLesson] {
-        let all = Array(lessons)
+        let all = dependencies.lessonCatalog.sortedByAreaAndSortIndex
         guard !searchText.isEmpty else { return all }
         let query = searchText.lowercased()
         return all.filter {

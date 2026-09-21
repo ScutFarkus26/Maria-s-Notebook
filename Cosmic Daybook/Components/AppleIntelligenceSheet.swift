@@ -9,16 +9,15 @@ import FoundationModels
 // MARK: - Main View
 struct AppleIntelligenceSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
-    @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
