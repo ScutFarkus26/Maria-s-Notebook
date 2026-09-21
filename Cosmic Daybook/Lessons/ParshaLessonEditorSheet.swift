@@ -22,8 +22,7 @@ struct ParshaLessonEditorSheet: View {
     @State private var showAllLessonsForDerivation: Bool = false
     @State private var showingDerivedPicker: Bool = false
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var allLessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
 
     init(parshaKey: String, existingLesson: CDLesson?) {
         self.parshaKey = parshaKey
@@ -32,14 +31,18 @@ struct ParshaLessonEditorSheet: View {
     }
 
     private var candidateDerivedLessons: [CDLesson] {
-        let base = Array(allLessons).filter { $0.id != existingLesson?.id }
+        // The picker lists these as they come, so keep the name order the
+        // sheet's old `@FetchRequest` sorted by.
+        let base = dependencies.lessonCatalog.all
+            .filter { $0.id != existingLesson?.id }
+            .sorted { $0.name.compare($1.name) == .orderedAscending }
         if showAllLessonsForDerivation { return base }
         return base.filter { $0.lessonFormatRaw == "art" }
     }
 
     private var derivedLessonName: String? {
         guard let id = derivedFromLessonID else { return nil }
-        return allLessons.first(where: { $0.id == id })?.name
+        return dependencies.lessonCatalog.lesson(id: id)?.name
     }
 
     var body: some View {

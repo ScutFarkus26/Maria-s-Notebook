@@ -12,8 +12,12 @@ struct TagLessonToParshaSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var allLessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
+
+    /// The catalog in the name order this picker has always listed it in.
+    private var allLessons: [CDLesson] {
+        dependencies.lessonCatalog.all.sorted { $0.name.compare($1.name) == .orderedAscending }
+    }
 
     @State private var search: String = ""
     @State private var untaggedOnly: Bool = true
@@ -26,7 +30,7 @@ struct TagLessonToParshaSheet: View {
         let query = search.trimmed().lowercased()
         let base: [CDLesson] = untaggedOnly
             ? allLessons.filter { ($0.parshaKey ?? "").isEmpty }
-            : Array(allLessons)
+            : allLessons
         guard !query.isEmpty else { return base }
         return base.filter { lesson in
             lesson.name.lowercased().contains(query) ||

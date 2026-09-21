@@ -37,16 +37,13 @@ struct LessonAssignmentHistoryView: View {
     @State var loadedAssignments: [CDLessonAssignment] = []
     @State var hasLoadedMore = false
 
-    // Fetch Lessons (for lookup)
-    @FetchRequest(sortDescriptors: []) var lessons: FetchedResults<CDLesson>
-    // Fetch Students (for lookup)
-    @FetchRequest(sortDescriptors: []) var studentsRaw: FetchedResults<CDStudent>
+    // Lessons (for lookup), from the workspace's live catalog
+    var lessons: [CDLesson] { dependencies.lessonCatalog.all }
 
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Students (for lookup); test students hidden when the setting is off
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID,
+            dependencies.roster.all,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
@@ -110,13 +107,7 @@ struct LessonAssignmentHistoryView: View {
     }
 
     // Maps for quick lookup
-    // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var lessonsByID: [UUID: CDLesson] {
-        Dictionary(
-            lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
+    var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
     var studentsByID: [UUID: CDStudent] {
         Dictionary(
             safeStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },

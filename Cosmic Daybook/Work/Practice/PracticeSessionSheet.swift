@@ -9,9 +9,9 @@ struct PracticeSessionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
-    private var allStudentsRaw: FetchedResults<CDStudent>
-    private var allStudents: [CDStudent] { Array(allStudentsRaw).filterEnrolled() }
+    @Environment(\.dependencies) private var dependencies
+
+    private var allStudents: [CDStudent] { dependencies.roster.enrolled }
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
     private var allWork: FetchedResults<CDWorkModel>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])

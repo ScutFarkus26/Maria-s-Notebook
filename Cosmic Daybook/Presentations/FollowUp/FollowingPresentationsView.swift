@@ -16,6 +16,7 @@ struct FollowingPresentationsView: View {
     var onViewAll: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonPresentation.presentedAt, ascending: true)],
@@ -23,15 +24,13 @@ struct FollowingPresentationsView: View {
         animation: .default
     ) private var rows: FetchedResults<CDLessonPresentation>
     @FetchRequest(sortDescriptors: []) private var assignments: FetchedResults<CDLessonAssignment>
-    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var students: FetchedResults<CDStudent>
 
     private var groups: [FollowingPresentationGroup] {
         FollowingPresentationsService.groups(
             rows: Array(rows),
             assignments: Array(assignments),
-            lessons: Array(lessons),
-            students: Array(students),
+            lessons: dependencies.lessonCatalog.all,
+            students: dependencies.roster.all,
             studentID: studentID,
             searchText: searchText,
             searchTokens: searchTokens,

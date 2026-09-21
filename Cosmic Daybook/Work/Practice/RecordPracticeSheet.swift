@@ -12,9 +12,10 @@ struct RecordPracticeSheet: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
 
-    @FetchRequest(sortDescriptors: []) private var allStudentsRaw: FetchedResults<CDStudent>
-    var allStudents: [CDStudent] { allStudentsRaw.filterEnrolled() }
-    @FetchRequest(sortDescriptors: []) var allLessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
+
+    var allStudents: [CDStudent] { dependencies.roster.enrolled }
+    var allLessons: [CDLesson] { dependencies.lessonCatalog.all }
     @FetchRequest(sortDescriptors: []) private var allWork: FetchedResults<CDWorkModel>
 
     // CDLesson selection
@@ -57,7 +58,7 @@ struct RecordPracticeSheet: View {
 
     private var selectedLesson: CDLesson? {
         guard let lessonID = lessonPickerVM.selectedLessonID else { return nil }
-        return allLessons.first { $0.id == lessonID }
+        return dependencies.lessonCatalog.lesson(id: lessonID)
     }
 
     /// Open practice work items for the selected lesson
@@ -162,7 +163,7 @@ struct RecordPracticeSheet: View {
                 }
             }
             .onAppear {
-                lessonPickerVM.configure(lessons: Array(allLessons), students: Array(allStudents))
+                lessonPickerVM.configure(lessons: allLessons, students: allStudents)
             }
             .onChange(of: lessonPickerVM.selectedLessonID) { _, _ in
                 // Pre-select all students with open practice work for this lesson

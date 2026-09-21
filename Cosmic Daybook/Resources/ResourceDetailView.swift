@@ -13,8 +13,10 @@ struct ResourceDetailView: View {
 
     @ObservedObject var resource: CDResource
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var allLessons: FetchedResults<CDLesson>
+    /// The catalog in the name order this screen has always read it in.
+    private var allLessons: [CDLesson] {
+        dependencies.lessonCatalog.all.sorted { $0.name.compare($1.name) == .orderedAscending }
+    }
 
     @State private var isEditing = false
     @State private var editTitle = ""
@@ -373,7 +375,7 @@ struct ResourceDetailView: View {
 
                     NavigationLink {
                         ResourceLessonPicker(
-                            allLessons: Array(allLessons),
+                            allLessons: allLessons,
                             selectedLessonIDs: $editLessonIDs
                         )
                     } label: {

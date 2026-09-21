@@ -50,7 +50,7 @@ extension UnifiedPresentationWorkflowPanel {
         presentationViewModel.unlockNextLessonsIfNeeded(
             lessonID: lessonID,
             viewContext: viewContext,
-            lessons: Array(lessons),
+            lessons: lessons,
             lessonAssignments: Array(lessonAssignments)
         )
 
@@ -114,7 +114,7 @@ extension UnifiedPresentationWorkflowPanel {
         presentationViewModel.executeNextLessonAction(
             studentIDs: Set(students.compactMap(\.id)),
             allStudents: students,
-            allLessons: Array(lessons),
+            allLessons: lessons,
             lessonAssignments: Array(lessonAssignments),
             viewContext: viewContext
         )

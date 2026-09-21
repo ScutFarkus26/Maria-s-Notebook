@@ -24,8 +24,7 @@ struct ConsolidatePresentationsSheet: View {
         )
     ) private var activeAssignments: FetchedResults<CDLessonAssignment>
 
-    @FetchRequest(sortDescriptors: []) private var allLessons: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var allStudents: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
 
     var body: some View {
         NavigationStack {
@@ -76,10 +75,7 @@ struct ConsolidatePresentationsSheet: View {
     }
 
     private var duplicateGroups: [DuplicateGroup] {
-        let lessonByID = Dictionary(uniqueKeysWithValues: allLessons.compactMap { lesson -> (UUID, CDLesson)? in
-            guard let id = lesson.id else { return nil }
-            return (id, lesson)
-        })
+        let lessonByID = dependencies.lessonCatalog.byID
         let grouped = Dictionary(grouping: activeAssignments) { $0.resolvedLessonID }
         return grouped
             .filter { $0.value.count >= 2 }
@@ -173,12 +169,7 @@ struct ConsolidatePresentationsSheet: View {
         return Set(counts.compactMap { $0.value >= 2 ? $0.key : nil })
     }
 
-    private var studentMap: [UUID: CDStudent] {
-        Dictionary(uniqueKeysWithValues: allStudents.compactMap { student -> (UUID, CDStudent)? in
-            guard let id = student.id else { return nil }
-            return (id, student)
-        })
-    }
+    private var studentMap: [UUID: CDStudent] { dependencies.roster.byID }
 
     private func areaColor(for lesson: CDLesson?) -> Color {
         if let area = lesson?.area, !area.isEmpty {
