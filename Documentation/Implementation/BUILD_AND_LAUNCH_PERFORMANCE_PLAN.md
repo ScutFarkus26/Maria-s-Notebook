@@ -55,6 +55,13 @@ Status: **Phases 0–4 on `main`** (4a landed as 251ec634; 4b/24a/24b measured a
   declarations, i.e. Phase 6. Per-site body splitting is therefore **not** pursued; the
   100 ms warnings stay on as a tripwire for genuinely quadratic expressions (none remain
   flagged that are attributable to their own body).
+- **Tripwire raised to 400 ms (2026-09-21).** At 100 ms the batch build carried 62–73 permanent
+  warnings — 17 of them inside Xcode 27's `@State` macro expansion — and a real `try?` warning
+  sat unnoticed among them. A whole-module single-job pass (`Scripts/typecheck_timing.py`, three
+  runs) found no body over 100 ms and 12.2 s of body type-checking for the entire module against
+  the batch build's ~157 s, confirming the flagged sites are per-job attribution. Batch noise peaked
+  at 322 ms, so both `-warn-long-*` flags now sit at 400: Debug builds are warning-free and only a
+  pathological expression trips them. Details in `perf-baselines/2026-09-21-typecheck-single-job.md`.
 - **Where the clean build's wall clock now goes.** After 4a the 47 compile batches total 344 s of
   CPU (≈34 s across 10 cores) and the single-threaded emit-module job takes 37 s; they run in
   parallel, so the 48 s wall clock is bounded by the emit-module job plus link and sign. Both

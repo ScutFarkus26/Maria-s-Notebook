@@ -262,7 +262,11 @@ struct WorkDeletionService {
                 try service.apply(plan) { true }
             } catch ServiceError.wouldEmptyRow {
                 handled.insert(work.objectID)
-                try? service.delete([work]) { true }
+                do {
+                    try service.delete([work]) { true }
+                } catch {
+                    logger.error("Could not delete the row a child emptied: \(error)")
+                }
             } catch {
                 logger.error("Could not remove a child from work: \(error)")
             }
