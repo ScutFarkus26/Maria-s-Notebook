@@ -6,6 +6,7 @@ import OSLog
 struct SchedulesView: View {
     private static let logger = Logger.schedules
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDSchedule.name, ascending: true)])
     private var schedules: FetchedResults<CDSchedule>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)])
@@ -50,7 +51,7 @@ struct SchedulesView: View {
         .sheet(item: $selectedSchedule) { schedule in
             ScheduleDetailSheet(schedule: schedule) { editSchedule in
                 selectedSchedule = nil
-                Task { @MainActor in
+                Task {
                     do {
                         try await Task.sleep(for: .milliseconds(300))
                     } catch {
@@ -142,7 +143,7 @@ struct SchedulesView: View {
 
     private func deleteSchedule(_ schedule: CDSchedule) {
         viewContext.delete(schedule)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete schedule")
     }
 }
 

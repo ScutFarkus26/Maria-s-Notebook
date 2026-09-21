@@ -148,7 +148,7 @@ final class TodayViewModel {
         reloadTask?.cancel()
 
         // Schedule a debounced reload (400ms delay balances responsiveness with energy efficiency)
-        reloadTask = Task { @MainActor [weak self] in
+        reloadTask = Task { [weak self] in
             guard let self else { return }
             do {
                 try await Task.sleep(for: .milliseconds(400)) // 400ms debounce

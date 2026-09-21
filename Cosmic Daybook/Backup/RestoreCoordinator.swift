@@ -13,7 +13,7 @@ final class RestoreCoordinator {
     }
     
     private func observeAppRouter() {
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self else { return }
             withObservationTracking {
                 // CDTrackEntity changes to appRouter properties

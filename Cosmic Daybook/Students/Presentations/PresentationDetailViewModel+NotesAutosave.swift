@@ -21,14 +21,12 @@ extension PresentationDetailViewModel {
             }
             guard !Task.isCancelled else { return }
 
-            await MainActor.run {
-                lessonAssignment.notes = notes
-                saveCoordinator.save(viewContext, reason: "Auto-saving notes")
+            lessonAssignment.notes = notes
+            saveCoordinator.save(viewContext, reason: "Auto-saving notes")
 
-                originalNotes = notes
-                notesDirty = false
-                PresentationDetailUtilities.notifyInboxRefresh()
-            }
+            originalNotes = notes
+            notesDirty = false
+            PresentationDetailUtilities.notifyInboxRefresh()
         }
     }
 

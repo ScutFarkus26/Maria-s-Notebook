@@ -287,7 +287,7 @@ extension AnthropicAPIClient {
         let usage = responseBody["usage"] as? [String: Any]
         let inputTokens = usage?["input_tokens"] as? Int
         let outputTokens = usage?["output_tokens"] as? Int
-        Task { @MainActor in
+        Task {
             APIUsageTracker.shared.logUsage(
                 model: model, inputTokens: inputTokens, outputTokens: outputTokens
             )

@@ -38,7 +38,7 @@ final class LessonsFilterState {
     
     private func scheduleDebounce() {
         debounceTask?.cancel()
-        debounceTask = Task { @MainActor in
+        debounceTask = Task {
             do {
                 try await Task.sleep(for: debounceInterval)
                 debouncedSearchText = searchText

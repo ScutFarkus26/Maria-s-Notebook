@@ -30,7 +30,7 @@ enum PDFFolderMigrationService {
 
         let folderRenameSucceeded = renameStrandedFolders()
 
-        let context = await MainActor.run { coreDataStack.viewContext }
+        let context = coreDataStack.viewContext
         let documentMigrationSucceeded = await migrateStudentDocuments(using: context)
 
         if folderRenameSucceeded && documentMigrationSucceeded {

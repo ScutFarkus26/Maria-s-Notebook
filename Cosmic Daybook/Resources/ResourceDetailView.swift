@@ -8,6 +8,7 @@ import OSLog
 // swiftlint:disable:next type_body_length
 struct ResourceDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(\.dismiss) private var dismiss
 
     @ObservedObject var resource: CDResource
@@ -440,7 +441,7 @@ struct ResourceDetailView: View {
     private func toggleFavorite() {
         resource.isFavorite.toggle()
         resource.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Toggle favorite")
     }
 
     private func startEditing() {
@@ -461,7 +462,7 @@ struct ResourceDetailView: View {
         resource.linkedLessonIDs = editLessonIDs.map(\.uuidString).sorted().joined(separator: ",")
         resource.linkedAreas = editAreas.sorted().joined(separator: ",")
         resource.modifiedAt = Date()
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Update resource")
         isEditing = false
     }
 
@@ -475,7 +476,7 @@ struct ResourceDetailView: View {
 
     private func deleteResource() {
         viewContext.delete(resource)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete resource")
         dismiss()
     }
 }

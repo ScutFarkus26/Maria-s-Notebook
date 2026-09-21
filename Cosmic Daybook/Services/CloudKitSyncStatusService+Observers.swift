@@ -41,7 +41,7 @@ extension CloudKitSyncStatusService {
                 guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingSaveTask?.cancel()
-                self.pendingSaveTask = Task { @MainActor [weak self] in
+                self.pendingSaveTask = Task { [weak self] in
                     self?.handleLocalSave()
                 }
             }
@@ -59,7 +59,7 @@ extension CloudKitSyncStatusService {
                 guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingStoreChangeTask?.cancel()
-                self.pendingStoreChangeTask = Task { @MainActor [weak self] in
+                self.pendingStoreChangeTask = Task { [weak self] in
                     self?.handleStoreCoordinatorChange()
                 }
             }
@@ -124,7 +124,7 @@ extension CloudKitSyncStatusService {
     }
 
     func stopObserving() {
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             self?.removeAllObservers()
         }
     }

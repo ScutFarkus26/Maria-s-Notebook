@@ -37,6 +37,7 @@ struct TagBadge: View {
 struct TagPicker: View {
     @Binding var selectedTags: [String]
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: CDStudent.sortByName)private var studentsRaw: FetchedResults<CDStudent>
     private var students: [CDStudent] { Array(studentsRaw).uniqueByID.filterEnrolled() }
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)])
@@ -225,7 +226,7 @@ struct TagPicker: View {
                 todo.tagsArray = uniqueTags(updated)
             }
 
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Update tags")
         } else if !selectedTags.contains(savedTag) {
             selectedTags.append(savedTag)
         }

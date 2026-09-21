@@ -93,7 +93,7 @@ extension ObservationsView {
     /// assertion. One turn's delay puts the write after the pass. Same bounce
     /// the album toolbar needed, for the same reason.
     func afterLayout(_ work: @escaping @MainActor () -> Void) {
-        Task { @MainActor in work() }
+        Task { work() }
     }
 
     // MARK: - On-device, evidence-linked reflection
@@ -136,7 +136,7 @@ extension ObservationsView {
         let instructions = ObservationsHelpers.buildSummaryInstructions()
         let session = LanguageModelSession(instructions: instructions)
         summaryTask?.cancel()
-        summaryTask = Task { @MainActor in
+        summaryTask = Task {
             await runSummary(sourceItems: sourceItems, mode: mode, session: session)
             isSummarizing = false
             summaryTask = nil

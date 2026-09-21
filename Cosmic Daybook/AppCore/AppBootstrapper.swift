@@ -164,17 +164,13 @@ final class AppBootstrapper {
         // presented via entry points which historically skipped LifecycleService.recordPresentation.
         // Runs once per device (UserDefaults-guarded); idempotent.
         // Gated internally on SharedStoreZoneRepair.hasActiveShare.
-        await MainActor.run {
-            DataMigrations.backfillLessonPresentationsFromAssignments(using: coreDataStack.viewContext)
-        }
+        DataMigrations.backfillLessonPresentationsFromAssignments(using: coreDataStack.viewContext)
 
         // 3.86. Link pre-fix work items to their lesson assignment. Work created by
         // the presentation workflow before the presentationID fix carries no link, so
         // required-practice gates could never see it complete and students stayed
         // blocked. Runs once per device (UserDefaults-guarded); idempotent.
-        await MainActor.run {
-            DataMigrations.backfillWorkPresentationLinks(using: coreDataStack.viewContext)
-        }
+        DataMigrations.backfillWorkPresentationLinks(using: coreDataStack.viewContext)
 
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
         if Int.random(in: 1...10) == 1 {
@@ -190,11 +186,9 @@ final class AppBootstrapper {
         await PDFFolderMigrationService.runIfNeeded(coreDataStack: coreDataStack)
 
         // Save all migration changes in one batch to minimize store coordinator changes
-        await MainActor.run {
-            if coreDataStack.viewContext.hasChanges {
-                if coreDataStack.viewContext.safeSave() {
-                    logger.info("Post-launch migrations: saved all changes successfully")
-                }
+        if coreDataStack.viewContext.hasChanges {
+            if coreDataStack.viewContext.safeSave() {
+                logger.info("Post-launch migrations: saved all changes successfully")
             }
         }
 

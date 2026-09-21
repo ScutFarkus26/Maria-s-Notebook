@@ -66,7 +66,7 @@ struct DataManagementGrid: View {
             // Same code path as the file-picker import.
             .dropDestination(for: URL.self) { urls, _ in
                 guard let url = urls.first else { return false }
-                Task { @MainActor in
+                Task {
                     await viewModel.previewImportedURL(viewContext: viewContext, url: url)
                 }
                 return true

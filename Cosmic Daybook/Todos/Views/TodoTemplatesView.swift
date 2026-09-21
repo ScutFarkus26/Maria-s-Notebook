@@ -5,6 +5,7 @@ import CoreData
 struct TodoTemplatesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDTodoTemplate.name, ascending: true)
     ]) private var templates: FetchedResults<CDTodoTemplate>
@@ -95,13 +96,13 @@ struct TodoTemplatesView: View {
         todo.tagsArray = template.tagsArray
         todo.studentIDsArray = template.defaultStudentIDsArray
         template.useCount += 1
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Create todo from template")
         dismiss()
     }
     
     private func deleteTemplate(_ template: CDTodoTemplate) {
         viewContext.delete(template)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete template")
     }
 }
 
@@ -226,6 +227,7 @@ private struct TemplateRow: View {
 private struct TodoTemplateEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
     ]) private var studentsRaw: FetchedResults<CDStudent>
@@ -422,7 +424,7 @@ private struct TodoTemplateEditSheet: View {
             newTemplate.tagsArray = selectedTags
         }
 
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Save template")
         dismiss()
     }
 }

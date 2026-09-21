@@ -72,7 +72,7 @@ final class CloudKitHealthCheck {
     
     // MARK: - Private State
     
-    private var iCloudAccountObserver: NSObjectProtocol?
+    private var iCloudAccountTask: Task<Void, Never>?
     private var pendingICloudTask: Task<Void, Never>?
     private var iCloudChangeContinuation: AsyncStream<Bool>.Continuation?
     
@@ -142,16 +142,15 @@ final class CloudKitHealthCheck {
     /// whenever the user turns iCloud Drive off, even though CloudKit sync
     /// keeps working, which produced false "iCloud unavailable" states.
     func startICloudAccountMonitoring() {
-        iCloudAccountObserver = NotificationCenter.default.addObserver(
-            forName: .CKAccountChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        iCloudAccountTask = Task { [weak self] in
+            let changes = NotificationCenter.default
+                .notifications(named: .CKAccountChanged)
+                .map { _ in () }
+            for await _ in changes {
                 guard let self else { return }
                 // Cancel any pending task to prevent accumulation
                 self.pendingICloudTask?.cancel()
-                self.pendingICloudTask = Task { @MainActor [weak self] in
+                self.pendingICloudTask = Task { [weak self] in
                     await self?.handleICloudAccountChange()
                 }
             }
@@ -159,7 +158,7 @@ final class CloudKitHealthCheck {
 
         // Replace the synchronous init-time hint with the authoritative status.
         pendingICloudTask?.cancel()
-        pendingICloudTask = Task { @MainActor [weak self] in
+        pendingICloudTask = Task { [weak self] in
             await self?.handleICloudAccountChange()
         }
     }
@@ -249,10 +248,8 @@ final class CloudKitHealthCheck {
             self?.pendingICloudTask?.cancel()
             self?.pendingICloudTask = nil
             
-            if let observer = self?.iCloudAccountObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
-            self?.iCloudAccountObserver = nil
+            self?.iCloudAccountTask?.cancel()
+            self?.iCloudAccountTask = nil
         }
     }
 }

@@ -17,6 +17,7 @@ import UniformTypeIdentifiers
 /// Displays resources organized by category with search, filter, and grid/list toggle.
 struct ResourceLibraryView: View {
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) var dependencies
     #if os(macOS)
     @Environment(\.openWindow) var openWindow
     #endif
@@ -359,7 +360,7 @@ struct ResourceLibraryView: View {
                 if let resource = resourceToRename, !renameText.trimmingCharacters(in: .whitespaces).isEmpty {
                     resource.title = renameText.trimmingCharacters(in: .whitespaces)
                     resource.modifiedAt = Date()
-                    viewContext.safeSave()
+                    dependencies.saveCoordinator.save(viewContext, reason: "Rename resource")
                 }
                 resourceToRename = nil
             }

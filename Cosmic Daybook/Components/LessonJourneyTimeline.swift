@@ -263,9 +263,7 @@ struct LessonJourneyTimeline: View {
         allWork = lesson.fetchAllWork(from: viewContext)
         allSessions = lesson.fetchAllPracticeSessions(from: viewContext)
         
-        await MainActor.run {
-            isLoaded = true
-        }
+        isLoaded = true
     }
 }
 

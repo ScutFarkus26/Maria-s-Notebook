@@ -41,7 +41,7 @@ extension PresentationDetailViewModel {
         showMovedBanner = true
 
         // Hide banner after delay
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(for: .seconds(3))
             showMovedBanner = false

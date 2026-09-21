@@ -29,9 +29,9 @@ final class ClassroomSharingService {
     private(set) var currentUserRecordName: String?
 
     // `@ObservationIgnored nonisolated(unsafe)` so deinit (which is
-    // nonisolated by default on MainActor classes) can release the observer
-    // token without crossing actor isolation. Mutation is confined to init.
-    @ObservationIgnored nonisolated(unsafe) private var remoteChangeObserver: (any NSObjectProtocol)?
+    // nonisolated by default on MainActor classes) can cancel the observer
+    // task without crossing actor isolation. Mutation is confined to init.
+    @ObservationIgnored nonisolated(unsafe) private var remoteChangeTask: Task<Void, Never>?
     @ObservationIgnored private var participantRefreshTask: Task<Void, Never>?
 
     // MARK: - Initialization
@@ -56,12 +56,15 @@ final class ClassroomSharingService {
         // coordinator. Without this, a participant joining via their accept
         // link wouldn't flip from "Invited" to "Joined" in the UI until the
         // user manually reopens Settings → Classroom Sharing.
-        remoteChangeObserver = NotificationCenter.default.addObserver(
-            forName: .NSPersistentStoreRemoteChange,
-            object: container.persistentStoreCoordinator,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        remoteChangeTask = Task { [weak self] in
+            guard let coordinator = self?.container.persistentStoreCoordinator else { return }
+            // The notification arrives on a background queue and is not
+            // Sendable — map each one to Void so this main-actor task only
+            // ever receives a Sendable value.
+            let changes = NotificationCenter.default
+                .notifications(named: .NSPersistentStoreRemoteChange, object: coordinator)
+                .map { _ in () }
+            for await _ in changes {
                 self?.scheduleParticipantRefresh()
             }
         }
@@ -70,9 +73,7 @@ final class ClassroomSharingService {
     }
 
     deinit {
-        if let remoteChangeObserver {
-            NotificationCenter.default.removeObserver(remoteChangeObserver)
-        }
+        remoteChangeTask?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -269,7 +270,7 @@ final class ClassroomSharingService {
     /// notifications collapses into one refetch.
     private func scheduleParticipantRefresh() {
         participantRefreshTask?.cancel()
-        participantRefreshTask = Task { @MainActor [weak self] in
+        participantRefreshTask = Task { [weak self] in
             do {
                 try await Task.sleep(for: .milliseconds(300))
             } catch {
@@ -282,7 +283,7 @@ final class ClassroomSharingService {
 
     @objc private func handleShareAcceptance(_ notification: Notification) {
         guard let metadata = notification.object as? CKShare.Metadata else { return }
-        Task { @MainActor in
+        Task {
             do {
                 try await acceptShare(metadata: metadata)
             } catch {

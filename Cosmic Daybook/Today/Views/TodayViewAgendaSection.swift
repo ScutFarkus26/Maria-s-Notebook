@@ -206,7 +206,7 @@ extension TodayView {
                 presentedAt: Date(),
                 modelContext: viewContext
             )
-            if viewContext.safeSave() {
+            if saveCoordinator.save(viewContext, reason: "Mark lesson presented") {
                 viewModel.reload()
                 toast("Marked presented")
             }
@@ -224,7 +224,7 @@ extension TodayView {
         // A bump expresses a day, so it lands at the start of the morning
         // rather than ahead of everything already planned.
         sl.schedule(onDay: tomorrow)
-        if viewContext.safeSave() {
+        if saveCoordinator.save(viewContext, reason: "Bump lesson to tomorrow") {
             viewModel.reload()
             toast("Bumped to tomorrow")
         }
@@ -252,7 +252,7 @@ extension TodayView {
             second: time.second ?? 0,
             of: startOfTomorrow
         ) ?? startOfTomorrow
-        if viewContext.safeSave() {
+        if saveCoordinator.save(viewContext, reason: "Bump check-in to tomorrow") {
             viewModel.reload()
             toast("Bumped to tomorrow")
         }

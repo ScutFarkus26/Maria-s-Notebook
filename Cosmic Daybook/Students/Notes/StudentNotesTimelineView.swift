@@ -475,7 +475,7 @@ struct StudentNotesTimelineList: View {
         adaptiveWithAnimation {
             note.isPinned.toggle()
             note.updatedAt = Date()
-            viewModel.viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewModel.viewContext, reason: "Toggle note pin")
             viewModel.fetchAllNotes()
         }
     }

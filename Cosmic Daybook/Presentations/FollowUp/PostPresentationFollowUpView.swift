@@ -379,7 +379,7 @@ private extension PostPresentationFollowUpView {
                     .buttonStyle(.bordered)
 
                     Button("Next School Day") {
-                        Task { @MainActor in
+                        Task {
                             let next = await SchoolCalendarService.shared
                                 .nextSchoolDay(after: Date(), using: viewContext)
                             setAction(.checkWork, rows: planningRows, reviewAt: next)

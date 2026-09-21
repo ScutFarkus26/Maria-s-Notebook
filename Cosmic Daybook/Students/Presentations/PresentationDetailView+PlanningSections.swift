@@ -272,7 +272,7 @@ extension PresentationDetailContentView {
                 type: .success,
                 duration: 5,
                 undoAction: {
-                    Task { @MainActor in _ = undoJustPresented() }
+                    Task { _ = undoJustPresented() }
                 }
             )
             showPostPresentationCapture = true

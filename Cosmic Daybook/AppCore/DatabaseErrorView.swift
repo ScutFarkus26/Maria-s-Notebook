@@ -127,7 +127,7 @@ struct DatabaseErrorView: View {
         isResetting = true
         resetError = nil
         
-        Task { @MainActor in
+        Task {
             do {
                 try errorCoordinator.resetLocalDatabase()
                 // After reset, restart the app

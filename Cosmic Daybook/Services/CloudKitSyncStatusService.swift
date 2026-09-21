@@ -154,7 +154,7 @@ final class CloudKitSyncStatusService {
         lastSyncError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
         // Setup network monitoring using AsyncStream
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self else { return }
             for await isAvailable in self.networkMonitor.observeNetworkChanges() {
                 self.handleNetworkChange(isAvailable: isAvailable)
@@ -162,7 +162,7 @@ final class CloudKitSyncStatusService {
         }
 
         // Setup iCloud account monitoring using AsyncStream
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self else { return }
             for await isAvailable in self.healthCheck.observeICloudChanges() {
                 self.handleICloudAccountChange(isAvailable: isAvailable)
@@ -207,12 +207,10 @@ final class CloudKitSyncStatusService {
             } catch {
                 return
             }
-            await MainActor.run { [weak self] in
-                guard let self else { return }
-                self.startObserving()
-                self.healthCheck.startICloudAccountMonitoring()
-                self.updateSyncHealth()
-            }
+            guard let self else { return }
+            self.startObserving()
+            self.healthCheck.startICloudAccountMonitoring()
+            self.updateSyncHealth()
         }
     }
 
@@ -222,7 +220,7 @@ final class CloudKitSyncStatusService {
     /// `handleRemoteChange` once they go quiet for `remoteChangeDebounce`.
     func scheduleRemoteChangeHandling() {
         pendingRemoteChangeTask?.cancel()
-        pendingRemoteChangeTask = Task { @MainActor [weak self] in
+        pendingRemoteChangeTask = Task { [weak self] in
             guard let self else { return }
             do {
                 try await Task.sleep(for: self.remoteChangeDebounce)
@@ -329,7 +327,7 @@ final class CloudKitSyncStatusService {
                 return await self.syncNow()
             },
             onMaxRetriesReached: { [weak self] in
-                Task { @MainActor [weak self] in
+                Task { [weak self] in
                     guard let self else { return }
                     self.lastSyncError = "Sync failed after 5 attempts. Please try again later."
                     UserDefaults.standard.set(self.lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)

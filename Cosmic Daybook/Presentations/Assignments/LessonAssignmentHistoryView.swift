@@ -21,6 +21,7 @@ struct LessonAssignmentHistoryView: View {
     var embeddedSearchText: String? = nil
     var focusedAssignmentID: UUID? = nil
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) var dependencies
     @Environment(\.calendar) var calendar
     #if os(macOS)
     @Environment(\.openWindow) var openWindow

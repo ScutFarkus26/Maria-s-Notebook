@@ -5,6 +5,7 @@ import OSLog
 struct CalendarMonthGridView: View {
     private static let logger = Logger.planning
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     var month: Date
     var calendar: Calendar = .current
     var onDateToggled: ((Date, Bool) -> Void)?
@@ -57,7 +58,7 @@ struct CalendarMonthGridView: View {
         let start = startOfMonth
         let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
         let set = await SchoolCalendarService.shared.nonSchoolDays(in: start..<end, using: viewContext)
-        await MainActor.run { computedNonSchoolDates = set }
+        computedNonSchoolDates = set
     }
 
     var body: some View {
@@ -117,22 +118,20 @@ struct CalendarMonthGridView: View {
                 Self.logger.warning("Failed to toggle non-school day: \(error)")
                 toggleResult = nil
             }
-            viewContext.safeSave()
+            dependencies.saveCoordinator.save(viewContext, reason: "Toggle non-school day")
             let newState: Bool
             if let result = toggleResult {
                 newState = result
             } else {
                 newState = await SchoolCalendarService.shared.isNonSchoolDay(d, using: viewContext)
             }
-            await MainActor.run {
-                onDateToggled?(d, newState)
-            }
+            onDateToggled?(d, newState)
             if nonSchoolDates == nil {
                 let start: Date = startOfMonth
                 let end: Date = calendar.date(byAdding: .month, value: 1, to: start) ?? start
                 let set: Set<Date> = await SchoolCalendarService.shared
                     .nonSchoolDays(in: start..<end, using: viewContext)
-                await MainActor.run { computedNonSchoolDates = set }
+                computedNonSchoolDates = set
             }
         }
     }

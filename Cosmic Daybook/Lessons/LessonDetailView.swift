@@ -223,21 +223,17 @@ struct LessonDetailView: View {
                                 Self.logger.warning("Failed to delete old managed file: \(error)")
                             }
                         }
-                        await MainActor.run {
-                            lesson.pagesFileBookmark = bookmark
-                            lesson.pagesFileRelativePath = rel
-                            resolvedPagesURL = destURL
-                            previousManagedURL = destURL
-                            saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
-                        }
+                        lesson.pagesFileBookmark = bookmark
+                        lesson.pagesFileRelativePath = rel
+                        resolvedPagesURL = destURL
+                        previousManagedURL = destURL
+                        saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                     } catch {
-                        await MainActor.run {
-                            importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file")
-                        }
+                        importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file")
                     }
                 }
             case .failure(let error):
-                Task { @MainActor in
+                Task {
                     importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file")
                 }
             }

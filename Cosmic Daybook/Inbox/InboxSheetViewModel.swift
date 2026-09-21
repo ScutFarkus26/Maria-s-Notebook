@@ -148,7 +148,7 @@ extension InboxSheetViewModel {
     ) -> Bool {
         guard let itemProvider = providers.first else { return false }
         if itemProvider.canLoadObject(ofClass: NSString.self) {
-            Task { @MainActor [weak self] in
+            Task { [weak self] in
                 guard let self else { return }
                 do {
                     guard let raw = try await Self.loadDropPayload(from: itemProvider) else { return }

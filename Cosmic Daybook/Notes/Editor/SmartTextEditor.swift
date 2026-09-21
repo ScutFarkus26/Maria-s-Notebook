@@ -111,7 +111,7 @@ struct SmartTextEditor: NSViewRepresentable {
             let window = textView.window
 
             // Defer responder/selection/actions to avoid triggering layout during updateNSView
-            Task { @MainActor in
+            Task {
                 // Guard that window and textView are still valid
                 guard let win = window, textView.window == win else { return }
 

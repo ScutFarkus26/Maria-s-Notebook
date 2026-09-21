@@ -68,7 +68,7 @@ enum BackupBackgroundTaskManager {
         dependencies: AppDependencies,
         coreDataStack: CoreDataStack
     ) {
-        let backupWork = Task { @MainActor in
+        let backupWork = Task {
             // Keep the chain alive for the next opportunity.
             await schedule()
             await dependencies.autoBackupManager.performBackgroundBackup(

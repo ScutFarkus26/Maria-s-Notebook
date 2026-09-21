@@ -109,9 +109,7 @@ extension StudentFilesTab {
 
         do {
             let data = try Data(contentsOf: url)
-            await MainActor.run {
-                selectedImportData = ImportDataWrapper(url: url, data: data)
-            }
+            selectedImportData = ImportDataWrapper(url: url, data: data)
         } catch {
             // Failed to load PDF data - continue silently
         }

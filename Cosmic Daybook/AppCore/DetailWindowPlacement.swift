@@ -56,7 +56,7 @@ final class FullScreenAuxiliaryView: NSView {
         guard !isConfigured, window != nil else { return }
         // Deferred: window mutations during the attach layout pass are the
         // pattern that trips AppKit elsewhere in this app.
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             guard let self, let window = self.window else { return }
             window.collectionBehavior.formUnion([.fullScreenAuxiliary])
             self.isConfigured = true

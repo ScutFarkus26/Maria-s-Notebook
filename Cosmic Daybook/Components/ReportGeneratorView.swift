@@ -80,20 +80,20 @@ struct ReportGeneratorView: View {
                 fetchNoteCount()
             }
             .onChange(of: selectedDateRange) { _, _ in
-                Task { @MainActor in
+                Task {
                     fetchNoteCount()
                 }
             }
             .onChange(of: customStartDate) { _, _ in
                 if selectedDateRange == .custom {
-                    Task { @MainActor in
+                    Task {
                         fetchNoteCount()
                     }
                 }
             }
             .onChange(of: customEndDate) { _, _ in
                 if selectedDateRange == .custom {
-                    Task { @MainActor in
+                    Task {
                         fetchNoteCount()
                     }
                 }
@@ -305,10 +305,8 @@ struct ReportGeneratorView: View {
             )
 
             if notes.isEmpty {
-                await MainActor.run {
-                    errorMessage = "No flagged notes found in the selected date range."
-                    isGenerating = false
-                }
+                errorMessage = "No flagged notes found in the selected date range."
+                isGenerating = false
                 return
             }
 
@@ -319,14 +317,12 @@ struct ReportGeneratorView: View {
                 dateRange: effectiveDateRange
             )
 
-            await MainActor.run {
-                if pdfData.isEmpty {
-                    errorMessage = "Failed to generate PDF. Please try again."
-                } else {
-                    generatedPDF = pdfData
-                }
-                isGenerating = false
+            if pdfData.isEmpty {
+                errorMessage = "Failed to generate PDF. Please try again."
+            } else {
+                generatedPDF = pdfData
             }
+            isGenerating = false
         }
     }
 }
@@ -400,7 +396,7 @@ struct PDFKitView: NSViewRepresentable {
         // Defer document assignment to next run loop to avoid layout recursion
         // PDFView internally triggers layout when documents are assigned
         guard let document = PDFDocument(data: data) else { return }
-        Task { @MainActor in
+        Task {
             pdfView.document = document
         }
     }

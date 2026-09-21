@@ -103,7 +103,7 @@ extension LessonAssignmentHistoryView {
 
     func deleteAssignment(_ assignment: CDLessonAssignment) {
         viewContext.delete(assignment)
-        viewContext.safeSave()
+        dependencies.saveCoordinator.save(viewContext, reason: "Delete presentation")
         // Reload to reflect deletion
         loadAssignments(limit: loadedAssignments.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
     }

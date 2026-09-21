@@ -222,7 +222,7 @@ struct WorksAgendaView: View {
         }
         .onChange(of: searchText) { _, newValue in
             searchDebounceTask?.cancel()
-            searchDebounceTask = Task { @MainActor in
+            searchDebounceTask = Task {
                 try? await Task.sleep(for: .milliseconds(250))
                 guard !Task.isCancelled else { return }
                 debouncedSearchText = newValue

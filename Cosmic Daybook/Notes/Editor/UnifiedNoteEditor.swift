@@ -225,7 +225,7 @@ struct UnifiedNoteEditor: View {
     private func handleBodyTextChange(_ newText: String) {
         if shouldShowStudentSelection {
             nameDetectionTask?.cancel()
-            nameDetectionTask = Task { @MainActor in
+            nameDetectionTask = Task {
                 try? await Task.sleep(for: .milliseconds(250))
                 if Task.isCancelled { return }
                 await analyzeTextForNames(newText)

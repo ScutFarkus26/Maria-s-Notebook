@@ -93,10 +93,8 @@ extension CloudKitSyncStatusService {
             } catch {
                 return
             }
-            await MainActor.run { [weak self] in
-                guard let self else { return }
-                self.updateSyncHealth()
-            }
+            guard let self else { return }
+            self.updateSyncHealth()
         }
     }
 
@@ -124,9 +122,7 @@ extension CloudKitSyncStatusService {
             } catch {
                 return  // cancelled by newer activity
             }
-            await MainActor.run { [weak self] in
-                self?.isImportingFromCloud = false
-            }
+            self?.isImportingFromCloud = false
         }
     }
 
@@ -189,29 +185,27 @@ extension CloudKitSyncStatusService {
             } catch {
                 return
             }
-            await MainActor.run { [weak self] in
-                guard let self, self.isSyncing else { return }
+            guard let self, self.isSyncing else { return }
 
-                // Check if we're online - if not, don't mark as successful
-                if !self.isNetworkAvailable {
-                    self.isSyncing = false
-                    self.currentOperation = nil
-                    self.lastOperation = "Sync paused: waiting for network"
-                    self.lastOperationDate = Date()
-                    self.lastSyncError = "Changes saved locally. Waiting for network to sync."
-                    self.updateSyncHealth()
-                    return
-                }
-
-                // Timeout reached without remote confirmation. End the spinner and keep
-                // the previously known sync timestamp instead of inferring success.
+            // Check if we're online - if not, don't mark as successful
+            if !self.isNetworkAvailable {
                 self.isSyncing = false
-                self.pendingSyncCount = 0
                 self.currentOperation = nil
-                self.lastOperation = "Sync timed out awaiting confirmation"
+                self.lastOperation = "Sync paused: waiting for network"
                 self.lastOperationDate = Date()
+                self.lastSyncError = "Changes saved locally. Waiting for network to sync."
                 self.updateSyncHealth()
+                return
             }
+
+            // Timeout reached without remote confirmation. End the spinner and keep
+            // the previously known sync timestamp instead of inferring success.
+            self.isSyncing = false
+            self.pendingSyncCount = 0
+            self.currentOperation = nil
+            self.lastOperation = "Sync timed out awaiting confirmation"
+            self.lastOperationDate = Date()
+            self.updateSyncHealth()
         }
     }
 

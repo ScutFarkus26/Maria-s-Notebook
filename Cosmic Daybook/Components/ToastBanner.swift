@@ -45,7 +45,7 @@ extension View {
         adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
             toast.wrappedValue = message
         }
-        Task { @MainActor in
+        Task {
             do {
                 try await Task.sleep(for: .seconds(2.0))
             } catch {

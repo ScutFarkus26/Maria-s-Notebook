@@ -210,7 +210,7 @@ struct AttendanceExpandedView: View {
             loadData()
         }
         .onChange(of: localSortKey) { _, newValue in
-            Task { @MainActor in
+            Task {
                 viewModel.setSortKey(newValue)
             }
         }
