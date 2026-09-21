@@ -5,254 +5,62 @@ import SwiftUI
 import CoreData
 import OSLog
 
-struct MeetingTemplateManagementView: View {
+/// Drives the shared template-management screen for weekly meeting templates.
+enum MeetingTemplateManaging: TemplateManaging {
     private static let logger = Logger.settings
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.managedObjectContext) private var managedObjectContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
-    private var templates: FetchedResults<CDMeetingTemplate>
 
-    @State private var showingAddSheet = false
-    @State private var editingTemplate: CDMeetingTemplate?
-    @State private var previewingTemplate: CDMeetingTemplate?
-
-    private var repository: MeetingTemplateRepository {
-        MeetingTemplateRepository(context: managedObjectContext)
+    static var sortDescriptors: [NSSortDescriptor] {
+        [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)]
     }
 
-    private var builtInTemplates: [CDMeetingTemplate] {
-        templates.filter(\.isBuiltIn)
+    static let navigationTitle = "Meeting Templates"
+    static let builtInFooter = "Built-in templates cannot be edited or deleted, but can be set as active."
+    static var customFooter: String {
+        "\(PlatformVerb.tap) a template to preview. "
+            + "The active template's prompts are shown in weekly meetings."
+    }
+    static let supportsActivation = true
+
+    static func isBuiltIn(_ template: CDMeetingTemplate) -> Bool { template.isBuiltIn }
+    static func isActive(_ template: CDMeetingTemplate) -> Bool { template.isActive }
+    static func title(of template: CDMeetingTemplate) -> String { template.name }
+    static func subtitle(of template: CDMeetingTemplate) -> String { template.reflectionPrompt }
+
+    static func seedIfNeeded(in context: NSManagedObjectContext) {
+        BuiltInTemplateSeeder.seedIfNeeded(context: context)
     }
 
-    private var customTemplates: [CDMeetingTemplate] {
-        templates.filter { !$0.isBuiltIn }
+    static func activate(_ template: CDMeetingTemplate, in context: NSManagedObjectContext) {
+        if let templateID = template.id {
+            MeetingTemplateRepository(context: context).setActiveTemplate(id: templateID)
+        }
     }
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SettingsStyle.sectionSpacing) {
-                // Built-in templates section
-                if !builtInTemplates.isEmpty {
-                    VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
-                        Text("Built-in Templates")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(.secondary)
-
-                        ForEach(builtInTemplates) { template in
-                            MeetingTemplateCardRow(
-                                template: template,
-                                isBuiltIn: true,
-                                onTap: { previewingTemplate = template },
-                                onActivate: { activateTemplate(template) },
-                                onEdit: nil,
-                                onDelete: nil
-                            )
-                        }
-
-                        Text("Built-in templates cannot be edited or deleted, but can be set as active.")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-
-                // Custom templates section
-                VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
-                    Text("My Templates")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.secondary)
-
-                    if customTemplates.isEmpty {
-                        HStack {
-                            Image(systemName: "doc.badge.plus")
-                                .foregroundStyle(.secondary)
-                            Text("No custom templates yet")
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(
-                                    Color.primary.opacity(UIConstants.OpacityConstants.light),
-                                    style: StrokeStyle(lineWidth: 1, dash: [5])
-                                )
-                        )
-                    } else {
-                        ForEach(customTemplates) { template in
-                            MeetingTemplateCardRow(
-                                template: template,
-                                isBuiltIn: false,
-                                onTap: { previewingTemplate = template },
-                                onActivate: { activateTemplate(template) },
-                                onEdit: { editingTemplate = template },
-                                onDelete: { deleteTemplate(template) }
-                            )
-                        }
-                    }
-
-                    Text("\(PlatformVerb.tap) a template to preview. The active template's prompts are shown in weekly meetings.")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+    static func delete(_ template: CDMeetingTemplate, in context: NSManagedObjectContext) {
+        do {
+            if let templateID = template.id {
+                try MeetingTemplateRepository(context: context).deleteTemplate(id: templateID)
             }
-            .padding(SettingsStyle.padding)
-        }
-        .navigationTitle("Meeting Templates")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAddSheet = true
-                } label: {
-                    Label("Add Template", systemImage: "plus")
-                }
-            }
-        }
-        .sheet(isPresented: $showingAddSheet) {
-            MeetingTemplateEditorSheet(template: nil) {
-                // Refresh after adding
-            }
-        }
-        .sheet(item: $editingTemplate) { template in
-            MeetingTemplateEditorSheet(template: template) {
-                // Refresh after editing
-            }
-        }
-        .sheet(item: $previewingTemplate) { template in
-            MeetingTemplatePreviewSheet(template: template, onActivate: {
-                activateTemplate(template)
-            })
-        }
-        .onAppear {
-            BuiltInTemplateSeeder.seedIfNeeded(context: viewContext)
+        } catch {
+            logger.warning("Failed to delete meeting template: \(error, privacy: .public)")
         }
     }
 
-    // MARK: - Actions
-
-    private func activateTemplate(_ template: CDMeetingTemplate) {
-        adaptiveWithAnimation {
-            if let templateID = template.id { repository.setActiveTemplate(id: templateID) }
+    static func editorSheet(for template: CDMeetingTemplate?) -> some View {
+        MeetingTemplateEditorSheet(template: template) {
+            // Refresh after adding or editing
         }
     }
 
-    private func deleteTemplate(_ template: CDMeetingTemplate) {
-        adaptiveWithAnimation {
-            do {
-                if let templateID = template.id { try repository.deleteTemplate(id: templateID) }
-            } catch {
-                Self.logger.warning("Failed to delete meeting template: \(error, privacy: .public)")
-            }
-        }
-    }
-
-    private func reorderTemplates(from source: IndexSet, to destination: Int) {
-        var reordered = customTemplates
-        reordered.move(fromOffsets: source, toOffset: destination)
-        repository.reorderTemplates(ids: reordered.compactMap(\.id))
+    static func previewSheet(
+        for template: CDMeetingTemplate,
+        onActivate: @escaping () -> Void
+    ) -> some View {
+        MeetingTemplatePreviewSheet(template: template, onActivate: onActivate)
     }
 }
 
-// MARK: - Meeting Template Card Row
-
-private struct MeetingTemplateCardRow: View {
-    let template: CDMeetingTemplate
-    let isBuiltIn: Bool
-    let onTap: () -> Void
-    let onActivate: () -> Void
-    let onEdit: (() -> Void)?
-    let onDelete: (() -> Void)?
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Active indicator
-                Circle()
-                    .fill(template.isActive ? Color.green : Color.secondary.opacity(UIConstants.OpacityConstants.semi))
-                    .frame(width: 10, height: 10)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(template.name)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-
-                        if template.isActive {
-                            Text("Active")
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
-                                )
-                                .foregroundStyle(AppColors.success)
-                        }
-                    }
-
-                    Text(template.reflectionPrompt)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                if isBuiltIn {
-                    Image(systemName: "lock.fill")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-
-                Menu {
-                    if !template.isActive {
-                        Button {
-                            onActivate()
-                        } label: {
-                            Label("Set as Active", systemImage: "checkmark.circle")
-                        }
-                    }
-                    if let onEdit {
-                        Button {
-                            onEdit()
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                    }
-                    if let onDelete {
-                        Button(role: .destructive) {
-                            onDelete()
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(SettingsStyle.compactPadding)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(SettingsStyle.groupBackgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(
-                        template.isActive
-                            ? AppColors.success.opacity(UIConstants.OpacityConstants.semi)
-                            : Color.primary.opacity(SettingsStyle.borderOpacity)
-                    )
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}
+typealias MeetingTemplateManagementView = TemplateManagementView<MeetingTemplateManaging>
 
 // MARK: - Meeting Template Preview Sheet
 
