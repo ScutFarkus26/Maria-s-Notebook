@@ -1,11 +1,8 @@
-import OSLog
 import SwiftUI
 import CoreData
 
 // swiftlint:disable:next type_body_length
 struct StudentTrackDetailView: View {
-    private static let logger = Logger.students
-
     let enrollment: CDStudentTrackEnrollmentEntity
     let track: CDTrackEntity
 
@@ -76,58 +73,17 @@ struct StudentTrackDetailView: View {
     }
 
     private func loadData() {
-        // Parse area and sequence from track title (format: "Area — Group")
-        let parts = track.title.components(separatedBy: " — ")
-        guard parts.count == 2 else {
-            isLoaded = true
-            return
-        }
-
-        let area = parts[0].trimmingCharacters(in: .whitespaces)
-        let sequence = parts[1].trimmingCharacters(in: .whitespaces)
-        parsedArea = area
-        parsedSequence = sequence
-        let studentID = enrollment.studentID
-
-        // Fetch the student
-        let allStudents = viewContext.safeFetch(CDFetchRequest(CDStudent.self))
-        student = allStudents.first { $0.cloudKitKey == studentID }
-
-        // Fetch lessons for this area/sequence
-        let allLessons: [CDLesson]
-        do {
-            allLessons = try viewContext.fetch(CDFetchRequest(CDLesson.self))
-        } catch {
-            Self.logger.warning("Failed to fetch Lessons: \(error)")
-            allLessons = []
-        }
-        trackLessons = allLessons
-            .filter { lesson in
-                lesson.area.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(area) == .orderedSame &&
-                lesson.sequence.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(sequence) == .orderedSame
-            }
-            .sorted { $0.orderInSequence < $1.orderInSequence }
-
-        // Fetch LessonPresentations for this student
-        let lessonIDStrings = Set(trackLessons.compactMap { $0.id?.uuidString })
-        let allPresentations: [CDLessonPresentation]
-        do {
-            let req = CDFetchRequest(CDLessonPresentation.self)
-            allPresentations = try viewContext.fetch(req)
-        } catch {
-            Self.logger.warning("Failed to fetch LessonPresentations: \(error)")
-            allPresentations = []
-        }
-        let studentPresentations = allPresentations.filter { lp in
-            lp.studentID == studentID && lessonIDStrings.contains(lp.lessonID)
-        }
-
-        presentedLessonIDs = Set(studentPresentations.map(\.lessonID))
-        proficientLessonIDs = Set(studentPresentations.filter { $0.state == .proficient }.map(\.lessonID))
+        let load = StudentTrackDetailLoader.load(enrollment: enrollment, track: track, context: viewContext)
+        parsedArea = load.area
+        parsedSequence = load.sequence
+        student = load.student
+        trackLessons = load.trackLessons
+        presentedLessonIDs = load.presentedLessonIDs
+        proficientLessonIDs = load.proficientLessonIDs
 
         // Load timeline via progression VM
-        if let foundStudent = student {
-            progressionVM.configure(for: foundStudent, area: area, sequence: sequence, context: viewContext)
+        if let foundStudent = load.student {
+            progressionVM.configure(for: foundStudent, area: load.area, sequence: load.sequence, context: viewContext)
         }
 
         isLoaded = true

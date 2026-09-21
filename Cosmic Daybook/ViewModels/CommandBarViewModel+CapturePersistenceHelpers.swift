@@ -2,11 +2,9 @@ import CoreData
 import Foundation
 
 extension CommandBarViewModel {
+    /// The chosen children in the order they were chosen, one row per id.
     func fetchStudents(ids: [UUID], context: NSManagedObjectContext) throws -> [CDStudent] {
-        guard !ids.isEmpty else { return [] }
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id IN %@", ids)
-        let fetched = try context.fetch(request).uniqueByID
+        let fetched = try StudentRepository(context: context).fetchStudents(ids: ids).uniqueByID
         let order = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($0.element, $0.offset) })
         return fetched.sorted { (order[$0.id ?? UUID()] ?? .max) < (order[$1.id ?? UUID()] ?? .max) }
     }

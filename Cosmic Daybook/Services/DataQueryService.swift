@@ -34,17 +34,27 @@ final class DataQueryService {
     /// `excludeWithdrawn` defaults to `true` — the active roster is the usual caller intent.
     /// Pass `excludeWithdrawn: false` when you need to resolve historical references (e.g. work,
     /// notes, or meetings that reference a student who has since been withdrawn).
-    func fetchAllStudents(excludeTest: Bool = false, excludeWithdrawn: Bool = true) -> [CDStudent] {
-        if let cached = studentsCache {
-            var result = cached
-            if excludeWithdrawn { result = result.filterEnrolled() }
-            return excludeTest ? TestStudentsFilter.filterVisible(result) : result
+    ///
+    /// `sortBy` asks the store for that order (`[]` is store order). A sorted read
+    /// goes straight to the store — not through the cache and without its safety
+    /// limit — so it returns exactly the rows a whole-table `CDFetchRequest` would;
+    /// callers that only need membership leave it nil and share the cache.
+    func fetchAllStudents(
+        excludeTest: Bool = false, excludeWithdrawn: Bool = true, sortBy: [NSSortDescriptor]? = nil
+    ) -> [CDStudent] {
+        let students: [CDStudent]
+        if let sortBy {
+            let request = CDFetchRequest(CDStudent.self)
+            request.sortDescriptors = sortBy
+            students = context.safeFetch(request)
+        } else if let cached = studentsCache {
+            students = cached
+        } else {
+            let request = CDFetchRequest(CDStudent.self)
+            request.fetchLimit = 1000 // Safety limit for cache population
+            students = context.safeFetch(request)
+            studentsCache = students
         }
-
-        let request = CDFetchRequest(CDStudent.self)
-        request.fetchLimit = 1000 // Safety limit for cache population
-        let students = context.safeFetch(request)
-        studentsCache = students
 
         var result = students
         if excludeWithdrawn { result = result.filterEnrolled() }
@@ -110,7 +120,19 @@ final class DataQueryService {
     // MARK: - Lessons
 
     /// Fetch all lessons.
-    func fetchAllLessons() -> [CDLesson] {
+    ///
+    /// `sortBy` asks the store for that order (`[]` is store order) and `batchSize`
+    /// is passed through as the request's `fetchBatchSize`. A sorted read goes
+    /// straight to the store — not through the cache and without its safety limit
+    /// — so it returns exactly the rows a whole-table `CDFetchRequest` would;
+    /// callers that only need membership leave it nil and share the cache.
+    func fetchAllLessons(sortBy: [NSSortDescriptor]? = nil, batchSize: Int = 0) -> [CDLesson] {
+        if let sortBy {
+            let request = CDFetchRequest(CDLesson.self)
+            request.sortDescriptors = sortBy
+            request.fetchBatchSize = batchSize
+            return context.safeFetch(request)
+        }
         if let cached = lessonsCache {
             return Array(cached.values)
         }

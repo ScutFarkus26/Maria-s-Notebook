@@ -286,25 +286,30 @@ final class PresentationsViewModel {
         #endif
     }
 
+    /// The whole library in store order; the id hash and the lookup caches do the rest.
     private func fetchLessonsData(from viewContext: NSManagedObjectContext) -> [CDLesson] {
+        let queries = DataQueryService(context: viewContext)
         #if DEBUG
         return PerformanceLogger.measure(
             screenName: "PresentationsViewModel - Fetch Lessons",
-            operation: { viewContext.safeFetch(CDFetchRequest(CDLesson.self)) }
+            operation: { queries.fetchAllLessons(sortBy: []) }
         )
         #else
-        return viewContext.safeFetch(CDFetchRequest(CDLesson.self))
+        return queries.fetchAllLessons(sortBy: [])
         #endif
     }
 
+    /// Every student row, withdrawn and test students included: the roster is
+    /// narrowed later with the caller's own show/names settings, not the defaults.
     private func fetchStudentsData(from viewContext: NSManagedObjectContext) -> [CDStudent] {
+        let queries = DataQueryService(context: viewContext)
         #if DEBUG
         return PerformanceLogger.measure(
             screenName: "PresentationsViewModel - Fetch Students",
-            operation: { viewContext.safeFetch(CDFetchRequest(CDStudent.self)) }
+            operation: { queries.fetchAllStudents(excludeTest: false, excludeWithdrawn: false, sortBy: []) }
         )
         #else
-        return viewContext.safeFetch(CDFetchRequest(CDStudent.self))
+        return queries.fetchAllStudents(excludeTest: false, excludeWithdrawn: false, sortBy: [])
         #endif
     }
 

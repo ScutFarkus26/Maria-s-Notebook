@@ -26,10 +26,13 @@ final class StudentAreaProgressionViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        let fetchedLessons = fetchAllLessons(context: context)
-        let fetchedPresentations = fetchPresentations(context: context)
-        let fetchedWork = fetchAllWork(context: context)
-        let fetchedCheckIns = fetchCheckIns(context: context)
+        // Lessons that could be in this area/sequence — a store-side superset
+        // of the trimmed match below, which is also what the next-lesson
+        // planner searches — and the presentations of any of them.
+        let fetchedLessons = fetchLessons(area: area, sequence: sequence, context: context)
+        let fetchedPresentations = fetchPresentations(
+            lessonIDs: fetchedLessons.compactMap { $0.id?.uuidString }, context: context
+        )
 
         allLessons = fetchedLessons
         allPresentations = fetchedPresentations
@@ -46,13 +49,10 @@ final class StudentAreaProgressionViewModel {
 
         // CDStudent's presentations and work in this sequence
         let studentPresentations = fetchedPresentations.filter { $0.studentIDs.contains(studentIDStr) }
-        let studentWork = fetchedWork.filter { $0.studentID == studentIDStr }
-        let studentCheckIns = fetchedCheckIns.filter { ci in
-            if let workIDUUID = ci.workIDUUID {
-                return studentWork.contains { $0.id == workIDUUID }
-            }
-            return false
-        }
+        let studentWork = fetchWork(
+            studentID: studentIDStr, lessonIDs: groupLessons.map { $0.id?.uuidString ?? "" }, context: context
+        )
+        let studentCheckIns = fetchCheckIns(workIDs: studentWork.compactMap { $0.id?.uuidString }, context: context)
 
         // School day counting helper
         let calendar = AppCalendar.shared
@@ -189,28 +189,34 @@ final class StudentAreaProgressionViewModel {
 
     // MARK: - Fetching
 
-    private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
+    /// Lessons that could belong to `area` / `sequence` (see
+    /// `SequenceTrackService.couldEqualPredicate`), in curriculum order.
+    private func fetchLessons(area: String, sequence: String, context: NSManagedObjectContext) -> [CDLesson] {
         let descriptor = CDFetchRequest(CDLesson.self)
-        descriptor.sortDescriptors = [
-                NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-                NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
-                NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
-            ]
+        descriptor.predicate = SequenceTrackService.couldEqualPredicate(area: area, sequence: sequence)
+        descriptor.sortDescriptors = CDLesson.sortByCurriculumOrder
         return context.safeFetch(descriptor)
     }
 
-    private func fetchPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
+    /// Presentations of any of `lessonIDs`, matched the way `lessonIDUUID`
+    /// links them (case-insensitively), in store order.
+    private func fetchPresentations(lessonIDs: [String], context: NSManagedObjectContext) -> [CDLessonAssignment] {
         let descriptor = CDFetchRequest(CDLessonAssignment.self)
+        descriptor.predicate = NSPredicate(format: "lessonID IN[c] %@", lessonIDs)
         return context.safeFetch(descriptor)
     }
 
-    private func fetchAllWork(context: NSManagedObjectContext) -> [CDWorkModel] {
+    /// The student's work on any of `lessonIDs` (exact string matches).
+    private func fetchWork(studentID: String, lessonIDs: [String], context: NSManagedObjectContext) -> [CDWorkModel] {
         let descriptor = CDFetchRequest(CDWorkModel.self)
+        descriptor.predicate = NSPredicate(format: "studentID == %@ AND lessonID IN %@", studentID, lessonIDs)
         return context.safeFetch(descriptor)
     }
 
-    private func fetchCheckIns(context: NSManagedObjectContext) -> [CDWorkCheckIn] {
+    /// Check-ins whose `workID` parses to one of `workIDs`.
+    private func fetchCheckIns(workIDs: [String], context: NSManagedObjectContext) -> [CDWorkCheckIn] {
         let descriptor = CDFetchRequest(CDWorkCheckIn.self)
+        descriptor.predicate = NSPredicate(format: "workID IN[c] %@", workIDs)
         return context.safeFetch(descriptor)
     }
 }

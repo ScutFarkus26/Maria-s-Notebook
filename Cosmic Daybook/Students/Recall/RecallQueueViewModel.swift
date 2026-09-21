@@ -42,7 +42,10 @@ final class RecallQueueViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        let visibleStudents = TestStudentsFilter.filterVisible(fetchStudents(context: context))
+        let queries = DataQueryService(context: context)
+        let visibleStudents = queries.fetchAllStudents(
+            excludeTest: true, excludeWithdrawn: true, sortBy: CDStudent.sortByName
+        )
         var nameByID: [String: String] = [:]
         var visibleIDs = Set<String>()
         for student in visibleStudents {
@@ -52,7 +55,8 @@ final class RecallQueueViewModel {
             visibleIDs.insert(key)
         }
 
-        let lessons: [RecallLesson] = fetchLessons(context: context).compactMap { lesson in
+        let curriculum = queries.fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)
+        let lessons: [RecallLesson] = curriculum.compactMap { lesson in
             guard let id = lesson.id else { return nil }
             let area = lesson.area.trimmed()
             let sequence = lesson.sequence.trimmed()
@@ -122,22 +126,6 @@ final class RecallQueueViewModel {
     }
 
     // MARK: - Fetching
-
-    private func fetchStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
-        request.sortDescriptors = CDStudent.sortByName
-        return context.safeFetch(request).filterEnrolled()
-    }
-
-    private func fetchLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDFetchRequest(CDLesson.self)
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
-        ]
-        return context.safeFetch(request)
-    }
 
     private func fetchMasteredPresentations(context: NSManagedObjectContext) -> [CDLessonPresentation] {
         let request = CDFetchRequest(CDLessonPresentation.self)

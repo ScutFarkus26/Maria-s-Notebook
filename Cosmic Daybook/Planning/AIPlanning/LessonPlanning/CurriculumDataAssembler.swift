@@ -20,7 +20,7 @@ struct CurriculumDataAssembler {
         for students: [CDStudent],
         context: NSManagedObjectContext
     ) -> CurriculumMap {
-        let allLessons = fetchAllLessons(context: context)
+        let allLessons = DataQueryService(context: context).fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)
         let allPresentations = fetchAllPresentations(context: context)
 
         let studentIDs = Set(students.compactMap { $0.id?.uuidString })
@@ -160,16 +160,6 @@ struct CurriculumDataAssembler {
     }
 
     // MARK: - Core Data Fetching
-
-    private static func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDFetchRequest(CDLesson.self)
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "area", ascending: true),
-            NSSortDescriptor(key: "sequence", ascending: true),
-            NSSortDescriptor(key: "orderInSequence", ascending: true)
-        ]
-        return context.safeFetch(request)
-    }
 
     private static func fetchAllPresentations(context: NSManagedObjectContext) -> [CDLessonAssignment] {
         let request = CDFetchRequest(CDLessonAssignment.self)

@@ -57,7 +57,9 @@ enum StoryLessonMatcher {
         for story: CDStory,
         in context: NSManagedObjectContext
     ) async throws -> [LessonMatch] {
-        let lessons = fetchAllLessons(in: context)
+        let lessons = DataQueryService(context: context).fetchAllLessons(
+            sortBy: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
+        )
         guard !lessons.isEmpty else { throw MatcherError.noLessons }
 
         let storyText = storyEmbeddingText(for: story)
@@ -326,13 +328,5 @@ enum StoryLessonMatcher {
                 score: candidate.similarity
             )
         }
-    }
-
-    // MARK: - Fetching
-
-    private static func fetchAllLessons(in context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDFetchRequest(CDLesson.self)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
-        return context.safeFetch(request)
     }
 }

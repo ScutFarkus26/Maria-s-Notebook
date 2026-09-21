@@ -52,12 +52,13 @@ final class ProgressDashboardViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        let allStudents = fetchAllStudents(context: context)
-        let allLessons = fetchAllLessons(context: context)
+        let queries = DataQueryService(context: context)
+        let visibleStudents = queries.fetchAllStudents(
+            excludeTest: true, excludeWithdrawn: true, sortBy: CDStudent.sortByName
+        )
+        let allLessons = queries.fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder, batchSize: 200)
         let allAssignments = fetchAllAssignments(context: context)
         let allWork = fetchAllWork(context: context)
-
-        let visibleStudents = TestStudentsFilter.filterVisible(allStudents)
 
         // Build an O(1) lookup dictionary once — replaces allLessons.first(where:) linear
         // scans that ran O(assignments × lessons) and O(work × lessons) per student.
@@ -226,23 +227,6 @@ final class ProgressDashboardViewModel {
     }
 
     // MARK: - Fetching
-
-    private func fetchAllStudents(context: NSManagedObjectContext) -> [CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
-        request.sortDescriptors = CDStudent.sortByName
-        return context.safeFetch(request).filterEnrolled()
-    }
-
-    private func fetchAllLessons(context: NSManagedObjectContext) -> [CDLesson] {
-        let request = CDFetchRequest(CDLesson.self)
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.sequence, ascending: true),
-            NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
-        ]
-        request.fetchBatchSize = 200
-        return context.safeFetch(request)
-    }
 
     private func fetchAllAssignments(context: NSManagedObjectContext) -> [CDLessonAssignment] {
         let request = CDFetchRequest(CDLessonAssignment.self)

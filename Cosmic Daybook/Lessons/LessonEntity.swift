@@ -95,6 +95,17 @@ nonisolated public class CDLesson: NSManagedObject {
     }
 }
 
+// MARK: - Sort Descriptors
+
+nonisolated extension CDLesson {
+    /// Curriculum order: area, then sequence, then position within the sequence.
+    nonisolated(unsafe) static let sortByCurriculumOrder: [NSSortDescriptor] = [
+        NSSortDescriptor(key: "area", ascending: true),
+        NSSortDescriptor(key: "sequence", ascending: true),
+        NSSortDescriptor(key: "orderInSequence", ascending: true)
+    ]
+}
+
 // MARK: - Computed Properties
 
 nonisolated extension CDLesson {

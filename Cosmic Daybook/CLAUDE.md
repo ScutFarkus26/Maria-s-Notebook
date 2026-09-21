@@ -97,6 +97,8 @@ Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView+Navi
 - **Services** — Business logic operations (50+ services)
 - **Models** — `NSManagedObject` subclasses with `CD` prefix (76 entities)
 
+**Data access has two layers, not three.** `Repositories/*` own per-entity writes and typed reads (`fetch(id:)`, `StudentRepository.fetchStudents(ids:)`, `LessonRepository.fetchLessons(byArea:)`); `Services/DataQueryService` owns the read helpers that span entities or apply roster policy (`fetchAllStudents(excludeTest:excludeWithdrawn:sortBy:)`, `fetchAllLessons(sortBy:)`, presented assignments, open work). View models and services call one of those instead of hand-rolling a whole-table `CDFetchRequest`, and keep a caller-specific sort or filter at the call site rather than adding a variant to the layer. A read that is really per-student is scoped there (`SequenceTrackService+ScopedReads`, predicates on the student's ids), never widened to the table.
+
 **Concurrency:** Swift 6.0 strict concurrency throughout:
 - `@Observable` on all ViewModels and stateful services (zero `ObservableObject`)
 - `@MainActor` on all ViewModels, services, and repositories (~496 annotations)
