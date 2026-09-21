@@ -8,21 +8,20 @@ struct PresentationDetailView: View {
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
+    @Environment(\.dependencies) private var dependencies
+
     // Live Queries
-    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var studentsAllRaw: FetchedResults<CDStudent>
     @FetchRequest(sortDescriptors: []) private var lessonAssignmentsAll: FetchedResults<CDLessonAssignment>
+
+    private var lessons: [CDLesson] { dependencies.lessonCatalog.all }
 
     private var lessonIDs: [UUID] {
         lessons.compactMap(\.id)
     }
 
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
-    // Filter out test students when setting is disabled
     private var studentsAll: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsAllRaw).uniqueByID, show: testStudents.show,
+            dependencies.roster.all, show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
     }
@@ -51,7 +50,7 @@ struct PresentationDetailView: View {
                 PresentationDetailContentView(
                     vm: vm,
                     lessonPickerVM: lessonPickerVM,
-                    lessons: Array(lessons),
+                    lessons: lessons,
                     studentsAll: studentsAll,
                     lessonAssignmentsAll: Array(lessonAssignmentsAll),
                     onDone: onDone
@@ -72,12 +71,12 @@ struct PresentationDetailView: View {
                 self.vm = newVM
 
                 // Configure Picker VM
-                lessonPickerVM.configure(lessons: Array(lessons), students: studentsAll)
+                lessonPickerVM.configure(lessons: lessons, students: studentsAll)
                 lessonPickerVM.selectLesson(newVM.editingLessonID)
             }
         }
         .onChange(of: lessonIDs) { _, _ in
-            lessonPickerVM.configure(lessons: Array(lessons), students: studentsAll)
+            lessonPickerVM.configure(lessons: lessons, students: studentsAll)
         }
         .onChange(of: lessonPickerVM.selectedLessonID) { _, newValue in
             // Sync Picker -> Main VM
@@ -93,7 +92,7 @@ struct PresentationDetailView: View {
                     newValue: val,
                     studentsAll: studentsAll,
                     lessonAssignmentsAll: Array(lessonAssignmentsAll),
-                    lessons: Array(lessons)
+                    lessons: lessons
                 )
             }
         }

@@ -170,6 +170,16 @@ final class AppDependencies {
     /// See Documentation/Implementation/SCHOOL_YEAR_SEPARATION.md.
     @ObservationIgnored lazy var schoolYearStore = SchoolYearStore()
 
+    // MARK: - Live Tables
+
+    /// The roster and the lesson catalog, each one `NSFetchedResultsController`
+    /// on this graph's view context. Lazy and set once like the services
+    /// above, so a Sample Class visit builds its own pair on the sample
+    /// context and My Class keeps its own — a store never outlives the graph
+    /// that owns its context.
+    @ObservationIgnored lazy var roster = RosterStore(context: viewContext)
+    @ObservationIgnored lazy var lessonCatalog = LessonCatalog(context: viewContext)
+
     // MARK: - Presentation Services
 
     // Kept as an optional store rather than a lazy var: `handleMemoryPressure`

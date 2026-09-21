@@ -22,12 +22,9 @@ struct StudentsView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     #endif
 
-    // OPTIMIZATION: Students always needed, so keep @FetchRequest
-    @FetchRequest(sortDescriptors: []) var students: FetchedResults<CDStudent>
-
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
-    var uniqueStudents: [CDStudent] { Array(students).uniqueByID }
+    /// Every student once, from the workspace's live roster (`RosterStore`
+    /// already drops CloudKit duplicate-ID artifacts).
+    var uniqueStudents: [CDStudent] { dependencies.roster.all }
     var uniqueStudentIDs: [UUID] { uniqueStudents.compactMap(\.id) }
 
     // PERF: Use lightweight count-based change detection instead of loading full tables.

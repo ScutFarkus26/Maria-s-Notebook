@@ -11,23 +11,17 @@ struct PresentationQuickActionsView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dismiss) private var dismiss
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)], animation: .default)
-    private var lessons: FetchedResults<CDLesson>
+    private var catalog: LessonCatalog { dependencies.lessonCatalog }
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)],
-        animation: .default
-    )
-    private var studentsAllRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Roster from the workspace's live table; test students hidden when the setting is off.
     private var studentsAll: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsAllRaw).uniqueByID, show: testStudents.show,
+            dependencies.roster.all, show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
     }
@@ -62,7 +56,7 @@ struct PresentationQuickActionsView: View {
     private var lesson: CDLesson? {
         // CloudKit compatibility: lessonID is now String, convert to UUID for comparison
         guard let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID) else { return nil }
-        return lessons.first(where: { $0.id == lessonIDUUID })
+        return catalog.lesson(id: lessonIDUUID)
     }
 
     private var area: String {
@@ -78,11 +72,7 @@ struct PresentationQuickActionsView: View {
         let currentArea = area
         let currentSequence = sequence
         guard !currentArea.isEmpty, !currentSequence.isEmpty else { return nil }
-        let candidates = lessons.filter { l in
-            l.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
-            l.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
-        }
-        .sorted { $0.orderInSequence < $1.orderInSequence }
+        let candidates = catalog.lessons(area: currentArea, sequence: currentSequence)
         guard let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count else {
             return nil
         }
@@ -134,7 +124,7 @@ struct PresentationQuickActionsView: View {
                                 && !la.isPresented
                         }
                         if !exists {
-                            let nextLesson = lessons.first(where: { $0.id == nextID })
+                            let nextLesson = catalog.lesson(id: nextID)
                             let nextStudents = studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
                             if let nextLesson {
                                 _ = PresentationFactory.makeDraft(
@@ -277,15 +267,11 @@ struct PresentationQuickActionsView: View {
 
         // Phase 3: Auto-create next lesson in sequence when marking presented now
         if presentedNow, let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID),
-           let current = lessons.first(where: { $0.id == lessonIDUUID }) {
+           let current = catalog.lesson(id: lessonIDUUID) {
             let currentArea = current.area.trimmed()
             let currentSequence = current.sequence.trimmed()
             if !currentArea.isEmpty, !currentSequence.isEmpty {
-                let candidates = lessons.filter { l in
-                    l.area.trimmed().caseInsensitiveCompare(currentArea) == .orderedSame &&
-                    l.sequence.trimmed().caseInsensitiveCompare(currentSequence) == .orderedSame
-                }
-                .sorted { $0.orderInSequence < $1.orderInSequence }
+                let candidates = catalog.lessons(area: currentArea, sequence: currentSequence)
                 if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
                     let next = candidates[idx + 1]
                     guard let nextID = next.id else { return }
@@ -296,7 +282,7 @@ struct PresentationQuickActionsView: View {
                         la.resolvedLessonID == nextID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
                     }
                     if !exists {
-                        let nextLesson = lessons.first(where: { $0.id == nextID })
+                        let nextLesson = catalog.lesson(id: nextID)
                         let nextStudents = studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
                         if let nextLesson {
                             _ = PresentationFactory.makeDraft(
@@ -318,7 +304,7 @@ struct PresentationQuickActionsView: View {
 
         // Ensure lesson relationship mirrors snapshot
         if let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID) {
-            lessonAssignment.lesson = lessons.first(where: { $0.id == lessonIDUUID })
+            lessonAssignment.lesson = catalog.lesson(id: lessonIDUUID)
         }
 
         if needsAnotherPresentation {
@@ -331,7 +317,7 @@ struct PresentationQuickActionsView: View {
             }
             if !exists {
                 let currentLesson = UUID(uuidString: lessonAssignment.lessonID)
-                    .flatMap { lid in lessons.first(where: { $0.id == lid }) }
+                    .flatMap { lid in catalog.lesson(id: lid) }
                 let currentStudents = studentsAll.filter { s in
                     s.id.map { lessonAssignment.resolvedStudentIDs.contains($0) } ?? false
                 }

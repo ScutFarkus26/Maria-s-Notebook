@@ -6,12 +6,10 @@ import CoreData
 struct MeetingsWorkflowView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
+    @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Queries
-
-    @FetchRequest(sortDescriptors: CDStudent.sortByName, predicate: CDStudent.enrolledPredicate)
-    private var studentsRaw: FetchedResults<CDStudent>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
     private var allMeetings: FetchedResults<CDStudentMeeting>
@@ -22,17 +20,16 @@ struct MeetingsWorkflowView: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
     private var allLessonAssignments: FetchedResults<CDLessonAssignment>
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var lessons: FetchedResults<CDLesson>
-
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
     private var meetingTemplates: FetchedResults<CDMeetingTemplate>
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
+    /// Enrolled students from the workspace's live roster, test students
+    /// hidden when the setting is off.
     private var students: [CDStudent] {
-        testStudents.visible(studentsRaw)
+        testStudents.visible(dependencies.roster.enrolled)
     }
 
     // MARK: - State
@@ -247,7 +244,7 @@ struct MeetingsWorkflowView: View {
                     student: student,
                     allWorkModels: Array(allWorkModels),
                     allLessonAssignments: Array(allLessonAssignments),
-                    lessons: Array(lessons),
+                    lessons: dependencies.lessonCatalog.all,
                     meetings: meetingsFor(student),
                     meetingTemplates: Array(meetingTemplates),
                     workOverdueDays: workOverdueDays,

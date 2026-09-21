@@ -23,6 +23,7 @@ enum CompletionFilter: String {
 struct PresentationsListView: View {
     @Environment(\.appRouter) private var appRouter
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     #endif
@@ -34,15 +35,14 @@ struct PresentationsListView: View {
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]
     ) private var allLessonAssignments: FetchedResults<CDLessonAssignment>
-    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Roster and catalog come from the workspace's live tables; test students
+    // are hidden here when the setting is off.
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID, show: testStudents.show, namesRaw: testStudents.namesRaw
+            dependencies.roster.all, show: testStudents.show, namesRaw: testStudents.namesRaw
         )
     }
+    private var lessons: [CDLesson] { dependencies.lessonCatalog.all }
 
     @State var selectedLessonID: UUID?
     @State var quickActionsLessonID: UUID?
@@ -79,13 +79,10 @@ struct PresentationsListView: View {
     private let lessonsVM = LessonsViewModel()
 
     var areas: [String] {
-        lessonsVM.areas(from: Array(lessons))
+        lessonsVM.areas(from: lessons)
     }
 
-    // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var lessonMap: [UUID: CDLesson] {
-        Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
-    }
+    var lessonMap: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
 
     // MODERN: Computed properties with automatic dependency tracking
     // No manual cache invalidation needed - SwiftUI handles updates automatically

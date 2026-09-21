@@ -11,21 +11,13 @@ struct ScheduledMeetingSessionSheet: View {
     var onComplete: (() -> Void)?
 
     @Environment(\.managedObjectContext) private var viewContext
-
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
-        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
-    ])
-    private var allStudents: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
     private var allWorkModels: FetchedResults<CDWorkModel>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
     private var allLessonAssignments: FetchedResults<CDLessonAssignment>
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var lessons: FetchedResults<CDLesson>
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
     private var allMeetings: FetchedResults<CDStudentMeeting>
@@ -36,7 +28,7 @@ struct ScheduledMeetingSessionSheet: View {
     @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = WorkAgeDefaults.overdueDays
 
     private var student: CDStudent? {
-        allStudents.first { $0.id == studentID }
+        dependencies.roster.student(id: studentID)
     }
 
     private var meetingsForStudent: [CDStudentMeeting] {
@@ -50,7 +42,7 @@ struct ScheduledMeetingSessionSheet: View {
                     student: student,
                     allWorkModels: Array(allWorkModels),
                     allLessonAssignments: Array(allLessonAssignments),
-                    lessons: Array(lessons),
+                    lessons: dependencies.lessonCatalog.all,
                     meetings: meetingsForStudent,
                     meetingTemplates: Array(meetingTemplates),
                     workOverdueDays: workOverdueDays,
