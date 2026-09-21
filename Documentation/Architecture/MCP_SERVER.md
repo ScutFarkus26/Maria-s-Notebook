@@ -140,6 +140,10 @@ ambiguity errors:
 | `attendance_for_day` | `attendanceStatuses(for:on:)` — deduplicated per student/day |
 | `student_attendance` | `CDAttendanceRecord` + `deduplicatedPerStudentDay()`, with a tally |
 | `mark_attendance` (write) | `CDAttendanceStore` — the permission + attribution + store-assignment chokepoint. One `student_name` + `status`, or a `students` array, or `mark_all_present` (everyone not named in `students` is marked present); every name resolves before any write, and `absence_reason` / `note` are refused alongside the batch forms because they are per-student |
+| **School calendar** | |
+| `school_calendar` | `SchoolYearStore` (start month/day, counter epoch — read from UserDefaults when no container is registered) + `CDNonSchoolDay` / `CDSchoolDayOverride` fetched over the window (default the current school year); consecutive no-school weekdays with one reason collapse to a single line; `date` asks about one day through `SchoolCalendarService.isNonSchoolDaySync` |
+| `set_school_days` (write) | `SchoolCalendarService.setSchoolDay`, the explicit form of the Settings grid's `toggleNonSchoolDay` — `date`, `dates`, or `from`/`to` (≤ a year; weekends skipped unless `include_weekends`), `in_session` false (default) or true, `reason` on no-school days; a day already in the requested state is reported, not rewritten, and one save covers the call |
+| `update_school_calendar` (write) | `SchoolYearStore.startMonth` / `startDay` / `setCountersResetAtYearStart`, the Settings › School Calendar pickers; needs the `MCPAppServices` container; says when a moved start leaves the counter epoch behind |
 | **Todos & follow-ups** | |
 | `list_open_follow_ups` | open `CDTodoItem`s + active `CDStudentFocusItem`s + `needsFollowUp` notes, optionally filtered to one student; `watching_only` narrows it to the app's Watching list (`WatchListFetcher` + `WatchListBuilder`, grouped per child, departed children left out unless one is named) |
 | `list_todos` | `CDTodoItem` filtered by status, student, due window, someday, tag |

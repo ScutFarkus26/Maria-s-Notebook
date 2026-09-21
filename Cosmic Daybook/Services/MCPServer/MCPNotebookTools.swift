@@ -40,7 +40,20 @@ enum MCPNotebookTools {
             + scheduleAndWorkTools(context: context)
             + dayToDayTools(context: context)
             + classroomTools(context: context)
+            + schoolCalendarTools(context: context, dependencies: dependencies)
             + appServiceTools(context: context, dependencies: dependencies)
+    }
+
+    /// The school calendar: which days are in session, and the year settings.
+    private static func schoolCalendarTools(
+        context: @escaping MCPContextProvider,
+        dependencies: @escaping MCPDependenciesProvider
+    ) -> [MCPToolDefinition] {
+        [
+            schoolCalendarTool(context: context, dependencies: dependencies),
+            setSchoolDaysTool(context: context),
+            updateSchoolCalendarTool(dependencies: dependencies)
+        ]
     }
 
     /// Tools that need the app's dependency container, not just a context.

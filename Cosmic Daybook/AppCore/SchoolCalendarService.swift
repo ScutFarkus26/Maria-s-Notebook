@@ -29,7 +29,7 @@ public final class SchoolCalendarService {
 
     // MARK: - Calendar
 
-    private var cal: Calendar { AppCalendar.shared }
+    var cal: Calendar { AppCalendar.shared }
 
     private func monthKey(for date: Date) -> Date {
         let comps = cal.dateComponents([.year, .month], from: date)
@@ -44,7 +44,7 @@ public final class SchoolCalendarService {
 
     // MARK: - Cache Helpers
 
-    private func invalidateMonthCache(for date: Date) {
+    func invalidateMonthCache(for date: Date) {
         monthSets.removeValue(forKey: monthKey(for: date))
         schoolDayCounts.removeAll()
     }
