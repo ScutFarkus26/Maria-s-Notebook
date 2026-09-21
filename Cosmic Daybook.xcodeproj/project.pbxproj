@@ -28,6 +28,9 @@
 		DA8CB0588F0C63B3307597D3 /* UserDefaultsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA934AAA7DFBEFE58E0E3A8F /* UserDefaultsKeys.swift */; };
 		DA9C18F171ECE5CF4EAA8F71 /* AppLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7D1211DB9154823C354663 /* AppLogging.swift */; };
 		DAA55AECD10FDC0407F08505 /* CoreDataStack+OrphanCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */; };
+		DA6F1B2C3D4E5A7B8C9D0E02 /* CoreDataStack+Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6F1B2C3D4E5A7B8C9D0E01 /* CoreDataStack+Model.swift */; };
+		DA6F1B2C3D4E5A7B8C9D0E04 /* CoreDataStack+Stores.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6F1B2C3D4E5A7B8C9D0E03 /* CoreDataStack+Stores.swift */; };
+		DA6F1B2C3D4E5A7B8C9D0E06 /* CoreDataStack+Contexts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6F1B2C3D4E5A7B8C9D0E05 /* CoreDataStack+Contexts.swift */; };
 		DAAD99A3A03A6404005D4FA8 /* StudentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3123BE8062390EA6E15E23 /* StudentModel.swift */; };
 		DAB35AFA34D0F1C960DA212B /* NSManagedObjectContext+SafeFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA18960A04AB0CB34A2B3C3D /* NSManagedObjectContext+SafeFetch.swift */; };
 		DAB9ECB34B43A8B9FF853A98 /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF840824AAC3D22283214A2 /* String+Extensions.swift */; };
@@ -69,6 +72,9 @@
 		DA450B3C5269250827AE0269 /* PersistentHistoryProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PersistentHistoryProcessor.swift; path = "Cosmic Daybook/Services/PersistentHistoryProcessor.swift"; sourceTree = SOURCE_ROOT; };
 		DA4C4B2353AC01D418062C7F /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UIConstants.swift; path = "Cosmic Daybook/AppCore/Constants/UIConstants.swift"; sourceTree = SOURCE_ROOT; };
 		DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+OrphanCleanup.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+OrphanCleanup.swift"; sourceTree = SOURCE_ROOT; };
+		DA6F1B2C3D4E5A7B8C9D0E01 /* CoreDataStack+Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Model.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+Model.swift"; sourceTree = SOURCE_ROOT; };
+		DA6F1B2C3D4E5A7B8C9D0E03 /* CoreDataStack+Stores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Stores.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+Stores.swift"; sourceTree = SOURCE_ROOT; };
+		DA6F1B2C3D4E5A7B8C9D0E05 /* CoreDataStack+Contexts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Contexts.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+Contexts.swift"; sourceTree = SOURCE_ROOT; };
 		DA5A11C0A3F4B2E9C7D60002 /* LaunchSignposts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LaunchSignposts.swift; path = "Cosmic Daybook/Utils/LaunchSignposts.swift"; sourceTree = SOURCE_ROOT; };
 		DA5B1C7E2A9F4D3E8B6C1F01 /* CoreDataStack+PrimaryKeyRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+PrimaryKeyRepair.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+PrimaryKeyRepair.swift"; sourceTree = SOURCE_ROOT; };
 		DA6503C3D85AC2C51E58119B /* CosmicDaybook 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "CosmicDaybook 2.xcdatamodel"; sourceTree = "<group>"; };
@@ -197,6 +203,9 @@
 				DAA80B8AE6F5033A02C3BFB1 /* CoreDataStack+SchemaVersion.swift */,
 				DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */,
 				DA5B1C7E2A9F4D3E8B6C1F01 /* CoreDataStack+PrimaryKeyRepair.swift */,
+				DA6F1B2C3D4E5A7B8C9D0E01 /* CoreDataStack+Model.swift */,
+				DA6F1B2C3D4E5A7B8C9D0E03 /* CoreDataStack+Stores.swift */,
+				DA6F1B2C3D4E5A7B8C9D0E05 /* CoreDataStack+Contexts.swift */,
 				DA1A46BC25E7671E6710BDA4 /* CloudKitConfigurationService.swift */,
 				DAA51475AF1912DCF6E6D515 /* ShareAcceptanceAppDelegate.swift */,
 				DA934AAA7DFBEFE58E0E3A8F /* UserDefaultsKeys.swift */,
@@ -387,6 +396,9 @@
 				DA89C2C39C4BABC2B7921AE2 /* CoreDataStack+SchemaVersion.swift in Sources */,
 				DAA55AECD10FDC0407F08505 /* CoreDataStack+OrphanCleanup.swift in Sources */,
 				DA5B1C7E2A9F4D3E8B6C1F02 /* CoreDataStack+PrimaryKeyRepair.swift in Sources */,
+				DA6F1B2C3D4E5A7B8C9D0E02 /* CoreDataStack+Model.swift in Sources */,
+				DA6F1B2C3D4E5A7B8C9D0E04 /* CoreDataStack+Stores.swift in Sources */,
+				DA6F1B2C3D4E5A7B8C9D0E06 /* CoreDataStack+Contexts.swift in Sources */,
 				DAE1A32F8081BE03784E8A02 /* CloudKitConfigurationService.swift in Sources */,
 				DACD857BDD87609889048B24 /* ShareAcceptanceAppDelegate.swift in Sources */,
 				DA8CB0588F0C63B3307597D3 /* UserDefaultsKeys.swift in Sources */,

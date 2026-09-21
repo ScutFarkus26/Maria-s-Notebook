@@ -111,7 +111,7 @@ struct AlbumSearchEngineTests {
     func retrieveRanksBestPage() {
         let picks = AlbumSearchEngine.retrieve(question: "How do I present subtraction with exchange?",
                                                corpus: makeCorpus(), limit: 5)
-        let first = try? #require(picks.first)
+        let first = picks.first
         #expect(first?.album.id == "Math.pdf")
         #expect(first?.pageIndex == 2)
     }

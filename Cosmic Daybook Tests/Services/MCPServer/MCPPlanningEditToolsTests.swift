@@ -170,7 +170,7 @@ struct MCPPlanningEditToolsTests {
         let (tools, context) = try makeTools()
         let lesson = seedDivisionLesson(in: context)
         let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
-        let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
+        _ = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
         let planned = PresentationFactory.makeDraft(lesson: lesson, students: [ora], context: context)
         let given = PresentationFactory.makeDraft(lesson: lesson, students: [ora], context: context)
         given.markPresented(at: try CoreDataTestHelpers.day("2026-09-01"))

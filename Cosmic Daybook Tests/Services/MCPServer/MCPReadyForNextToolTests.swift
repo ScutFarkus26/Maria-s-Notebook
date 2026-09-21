@@ -108,7 +108,7 @@ struct MCPReadyForNextToolTests {
         // Avital is also ready in Music, so the area filter has work to do.
         try confirm(avital, on: bells, at: try CoreDataTestHelpers.day("2026-03-04"), in: context)
 
-        PresentationFactory.makePresented(
+        _ = PresentationFactory.makePresented(
             lesson: distributive, students: [malka],
                 presentedAt: try CoreDataTestHelpers.day("2026-01-20"), context: context
         )
