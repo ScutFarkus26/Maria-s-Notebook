@@ -26,10 +26,12 @@ struct UnifiedPresentationWorkflowPanel: View {
 
     @Environment(\.managedObjectContext) var viewContext
     @Environment(SaveCoordinator.self) var saveCoordinator
+    @Environment(\.dependencies) var dependencies
 
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
-    ]) var lessons: FetchedResults<CDLesson>
+    /// The workspace's live catalog; every consumer below looks lessons up or
+    /// re-sorts them, so the fetch's own order was never relied on.
+    var lessons: [CDLesson] { dependencies.lessonCatalog.all }
+
     @FetchRequest(sortDescriptors: []) var lessonAssignments: FetchedResults<CDLessonAssignment>
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)
@@ -79,13 +81,13 @@ struct UnifiedPresentationWorkflowPanel: View {
             let studentIDs = Set(students.compactMap(\.id))
             presentationViewModel.resolveProgressionRules(
                 lessonID: lessonID,
-                lessons: Array(lessons),
+                lessons: lessons,
                 context: viewContext
             )
             presentationViewModel.resolveNextLesson(
                 lessonID: lessonID,
                 studentIDs: studentIDs,
-                lessons: Array(lessons),
+                lessons: lessons,
                 lessonAssignments: Array(lessonAssignments),
                 context: viewContext
             )

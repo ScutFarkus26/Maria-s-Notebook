@@ -25,16 +25,11 @@ struct SchedulePresentationSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
-        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
-    ])
-    private var allStudentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled.
     // A child who has left the classroom is deliberately NOT filtered out here:
     // `StudentPickerModel` lists her disabled with the reason, which is the
@@ -42,7 +37,7 @@ struct SchedulePresentationSheet: View {
     // not a silent gap in the roster.
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID, show: testStudents.show,
+            dependencies.roster.all, show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
     }

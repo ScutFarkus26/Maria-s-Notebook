@@ -8,8 +8,9 @@ struct ResourceImportSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var allLessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
+
+    private var allLessons: [CDLesson] { dependencies.lessonCatalog.all }
 
     @State private var title = ""
     @State private var selectedCategory: ResourceCategory = .other
@@ -115,7 +116,7 @@ struct ResourceImportSheet: View {
 
                     NavigationLink {
                         ResourceLessonPicker(
-                            allLessons: Array(allLessons),
+                            allLessons: allLessons,
                             selectedLessonIDs: $selectedLessonIDs
                         )
                     } label: {

@@ -16,11 +16,7 @@ struct ScheduleParshaLessonSheet: View {
 
     @TestStudentVisibility private var testStudents
 
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
-        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
-    ])
-    private var allStudentsRaw: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
 
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var searchText: String = ""
@@ -31,7 +27,7 @@ struct ScheduleParshaLessonSheet: View {
 
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )

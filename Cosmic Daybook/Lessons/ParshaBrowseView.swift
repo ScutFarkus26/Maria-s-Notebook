@@ -8,8 +8,9 @@ import CoreData
 struct ParshaBrowseView: View {
     let onSelectLesson: (CDLesson) -> Void
 
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var allLessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
+
+    private var allLessons: [CDLesson] { dependencies.lessonCatalog.all }
 
     @State private var selectedParshaKey: String?
 

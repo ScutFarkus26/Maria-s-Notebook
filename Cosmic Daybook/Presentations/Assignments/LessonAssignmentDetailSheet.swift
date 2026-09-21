@@ -19,18 +19,15 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
-    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var studentsRaw: FetchedResults<CDStudent>
-
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(), show: testStudents.show,
+            dependencies.roster.enrolled, show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
     }
@@ -47,13 +44,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         self.onDone = onDone
     }
 
-    // Use uniquingKeysWith to handle CloudKit sync duplicates
-    private var lessonsByID: [UUID: CDLesson] {
-        Dictionary(
-            lessons.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
+    private var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
     private var studentsByID: [UUID: CDStudent] {
         Dictionary(
             students.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },

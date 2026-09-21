@@ -24,20 +24,16 @@ struct WorksLogView: View {
     }())
     private var allWorks: FetchedResults<CDWorkModel>
 
-    @FetchRequest(sortDescriptors: []) private var lessons: FetchedResults<CDLesson>
+    @Environment(\.dependencies) private var dependencies
+
     @FetchRequest(sortDescriptors: []) private var lessonAssignments: FetchedResults<CDLessonAssignment>
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
-        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
-    ])
-    private var studentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
+
     // Filter out test students when setting is disabled.
     // All students, not enrolled-only: this log spans all time, so former
     // students' work history must keep resolving.
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID,
+            dependencies.roster.all,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
@@ -63,10 +59,7 @@ struct WorksLogView: View {
         let filteredIndex: Int?
     }
 
-    private var lessonsByID: [UUID: CDLesson] {
-        // Use uniquingKeysWith to handle CloudKit sync duplicates
-        Dictionary(lessons.compactMap { l in l.id.map { ($0, l) } }, uniquingKeysWith: { first, _ in first })
-    }
+    private var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
 
     private var lessonAssignmentsByID: [UUID: CDLessonAssignment] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates

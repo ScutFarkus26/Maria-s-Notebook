@@ -31,26 +31,22 @@ struct QuickNewWorkItemSheet: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
     @Environment(SaveCoordinator.self) var saveCoordinator
+    @Environment(\.dependencies) var dependencies
 
     // Test student filtering
     @TestStudentVisibility var testStudents
 
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true)
-    ])
-    var allLessons: FetchedResults<CDLesson>
+    // The lesson list below shows the catalog in area / sort-index order.
+    var allLessons: [CDLesson] { dependencies.lessonCatalog.sortedByAreaAndSortIndex }
 
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true),
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
-    ])
-    private var allStudentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-    // Filter out test students when setting is disabled
+    // Filter out test students when setting is disabled. The selected-student
+    // chips list these as they come, so keep the last-name-first order the
+    // sheet's old `@FetchRequest` sorted by.
     var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled.sorted {
+                ($0.lastName, $0.firstName) < ($1.lastName, $1.firstName)
+            },
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
@@ -81,8 +77,8 @@ struct QuickNewWorkItemSheet: View {
 
     var filteredLessons: [CDLesson] {
         let query = lessonSearchText.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return Array(allLessons) }
-        return Array(allLessons).filter {
+        guard !query.isEmpty else { return allLessons }
+        return allLessons.filter {
             $0.name.lowercased().contains(query) ||
             $0.area.lowercased().contains(query) ||
             $0.sequence.lowercased().contains(query)
@@ -91,7 +87,7 @@ struct QuickNewWorkItemSheet: View {
 
     var selectedLesson: CDLesson? {
         guard let id = selectedLessonID else { return nil }
-        return allLessons.first { $0.id == id }
+        return dependencies.lessonCatalog.lesson(id: id)
     }
 
     var selectedStudents: [CDStudent] {
@@ -155,7 +151,7 @@ struct QuickNewWorkItemSheet: View {
         .onAppear {
             // Auto-fill lesson name when pre-populated from checklist
             if let lessonID = preSelectedLessonID,
-               let lesson = allLessons.first(where: { $0.id == lessonID }) {
+               let lesson = dependencies.lessonCatalog.lesson(id: lessonID) {
                 lessonSearchText = lesson.name
                 if workTitle.isEmpty {
                     workTitle = lesson.name
