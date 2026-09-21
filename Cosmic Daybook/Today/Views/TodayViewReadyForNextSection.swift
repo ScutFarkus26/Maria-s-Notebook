@@ -29,9 +29,7 @@ struct ReadyForNextSectionView: View {
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
-
-    @FetchRequest(sortDescriptors: []) private var allLessons: FetchedResults<CDLesson>
-    @FetchRequest(sortDescriptors: []) private var allStudents: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
 
     @State private var lessonToPlan: CDLesson?
 
@@ -133,11 +131,11 @@ struct ReadyForNextSectionView: View {
     private func buildGroups() -> [ReadyGroup] {
         guard !items.isEmpty else { return [] }
         let lessonsByID = Dictionary(
-            allLessons.compactMap { lesson in lesson.id.map { ($0.uuidString, lesson) } },
+            dependencies.lessonCatalog.all.compactMap { lesson in lesson.id.map { ($0.uuidString, lesson) } },
             uniquingKeysWith: { first, _ in first }
         )
         let studentsByID = Dictionary(
-            allStudents.compactMap { student in student.id.map { ($0.uuidString, student) } },
+            dependencies.roster.all.compactMap { student in student.id.map { ($0.uuidString, student) } },
             uniquingKeysWith: { first, _ in first }
         )
 

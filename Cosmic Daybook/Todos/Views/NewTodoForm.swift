@@ -9,12 +9,12 @@ import CoreData
 struct NewTodoForm: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
-    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudentsRaw: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
     @TestStudentVisibility private var testStudents
 
     private var allStudents: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudentsRaw).uniqueByID.filterEnrolled(), show: testStudents.show, namesRaw: testStudents.namesRaw
+            dependencies.roster.enrolled, show: testStudents.show, namesRaw: testStudents.namesRaw
         )
     }
 

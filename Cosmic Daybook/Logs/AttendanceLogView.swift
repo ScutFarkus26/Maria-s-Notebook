@@ -16,18 +16,10 @@ struct AttendanceLogView: View {
     )
     private var allRecords: FetchedResults<CDAttendanceRecord>
 
-    @FetchRequest(
-        sortDescriptors: [
-            NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
-            NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
-        ]
-    )
-    private var studentsRaw: FetchedResults<CDStudent>
-    // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
     // Filter out test students when setting is disabled.
     // Active-in-range, not enrolled-only, so former students' history stays visible.
     private var students: [CDStudent] {
-        let base = Array(studentsRaw).uniqueByID
+        let base = dependencies.roster.all
         let scoped: [CDStudent]
         if let bounds = dateRangeBounds {
             scoped = base.filterActive(in: DateRange(start: bounds.start, end: bounds.end))

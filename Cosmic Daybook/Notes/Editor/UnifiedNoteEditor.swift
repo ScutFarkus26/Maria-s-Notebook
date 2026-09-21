@@ -43,6 +43,7 @@ struct UnifiedNoteEditor: View {
     // MARK: - Environment
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(\.dependencies) private var dependencies
 
     // MARK: - Context Configuration
     enum NoteContext {
@@ -68,8 +69,7 @@ struct UnifiedNoteEditor: View {
     let onCancel: () -> Void
 
     // MARK: - Query
-    @FetchRequest(sortDescriptors: CDStudent.sortByName)var studentsRaw: FetchedResults<CDStudent>
-    var students: [CDStudent] { studentsRaw.filterEnrolled() }
+    var students: [CDStudent] { dependencies.roster.enrolled }
 
     // MARK: - State
     @State var selectedStudentIDs: Set<UUID> = []
