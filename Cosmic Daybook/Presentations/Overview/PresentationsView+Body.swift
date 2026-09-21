@@ -19,8 +19,16 @@ extension PresentationsView {
             syncRecentWindowWithMissWindow()
             revealFocusedPresentationIfNeeded()
         }
+        .onPresentationDataChange(
+            of: PersistentHistoryProcessor.presentationEntityNames, in: viewContext
+        ) { touched in
+            changeToken &+= 1
+            if touched.contains("LessonAssignment") {
+                assignmentChangeToken &+= 1
+            }
+        }
         .onChange(of: viewModelDependencies) { old, new in
-            if old.lessonAssignmentKeys != new.lessonAssignmentKeys {
+            if old.assignmentChangeToken != new.assignmentChangeToken {
                 syncInboxOrderWithCurrentBase()
                 revealFocusedPresentationIfNeeded()
             }
@@ -30,8 +38,8 @@ extension PresentationsView {
             }
 
             // Debounce the heavy fetch path: a CloudKit import that
-            // touches several entities can fire multiple @FetchRequest
-            // updates back-to-back. Collapse them into a single reload
+            // touches several entities can bump the change token several
+            // times back-to-back. Collapse them into a single reload
             // 200ms after the last change.
             dependencyDebounceTask?.cancel()
             dependencyDebounceTask = Task { @MainActor in
@@ -199,10 +207,11 @@ extension PresentationsView {
     }
 
     private func revealFocusedPresentationIfNeeded() {
-        guard let focusedPresentationID,
-              let assignment = lessonAssignmentsForChangeDetection.first(where: {
-                  $0.id == focusedPresentationID
-              }),
+        guard let focusedPresentationID else { return }
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "id == %@", focusedPresentationID as CVarArg)
+        request.fetchLimit = 1
+        guard let assignment = viewContext.safeFetch(request).first,
               let chip = PresentationsView.chipRevealing(
                   isPresented: assignment.isPresented,
                   scheduledFor: assignment.scheduledFor
