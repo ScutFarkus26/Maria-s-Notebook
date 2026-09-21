@@ -49,9 +49,7 @@ actor StudentTagger {
             return StudentMatchResult(exact: exact, fuzzy: fuzzy, autoSelect: autoSelect)
         }
 
-        let haystack = text
-            .folding(options: .diacriticInsensitive, locale: .current)
-            .lowercased()
+        let haystack = text.folded()
         let lowerText = text.lowercased()
         let nameMaps = buildNameMaps(from: studentData)
 
@@ -93,11 +91,11 @@ actor StudentTagger {
     private func buildNameMaps(from studentData: [StudentData]) -> NameMaps {
         var maps = NameMaps()
         for student in studentData {
-            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let first = student.firstName.folded()
+            let last = student.lastName.folded()
             maps.firstNameCounts[first, default: 0] += 1
             if let nick = student.nickname, !nick.trimmed().isEmpty {
-                let nickNorm = nick.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                let nickNorm = nick.folded()
                 maps.nicknameCounts[nickNorm, default: 0] += 1
             }
             let full = (first + " " + last).trimmed()
@@ -264,9 +262,9 @@ actor StudentTagger {
         let disambiguatingFirstNames = buildDisambiguatingFirstNames(studentData, lowerText: lowerText)
 
         for student in studentData {
-            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let last = student.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let nick = (student.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let first = student.firstName.folded()
+            let last = student.lastName.folded()
+            let nick = (student.nickname ?? "").folded()
             let full = first + " " + last
 
             // Skip if already found in earlier phases
@@ -313,7 +311,7 @@ actor StudentTagger {
     ) -> Set<String> {
         var result: Set<String> = []
         for student in studentData {
-            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let first = student.firstName.folded()
             let firstInitial = student.lastName.prefix(1).lowercased()
             let pattern1 = "\\b\(first) \(firstInitial)\\b"
             let pattern2 = "\\b\(first) \(firstInitial)\\.\\b"
@@ -332,12 +330,9 @@ actor StudentTagger {
     ) {
         for id in exact {
             guard let student = studentData.first(where: { $0.id == id }) else { continue }
-            let first = student.firstName
-                .folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let last = student.lastName
-                .folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let nick = (student.nickname ?? "")
-                .folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let first = student.firstName.folded()
+            let last = student.lastName.folded()
+            let nick = (student.nickname ?? "").folded()
             let full = (first + " " + last).trimmed()
 
             if nameMaps.firstNameCounts[first] == 1

@@ -149,11 +149,7 @@ extension MCPNotebookTools {
             return false
         }
         guard let area = nonEmpty(arguments["area"]?.stringValue) else { return true }
-        return foldedArea(row.next.area).contains(foldedArea(area))
-    }
-
-    private static func foldedArea(_ text: String) -> String {
-        text.folding(options: .diacriticInsensitive, locale: .current).trimmed().lowercased()
+        return row.next.area.folded().contains(area.folded())
     }
 
     // MARK: - Output

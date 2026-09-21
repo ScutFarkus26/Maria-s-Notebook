@@ -78,7 +78,7 @@ extension MCPNotebookTools {
         let sequence = existingSequence ?? requestedSequence
 
         var inSequence = lessonsInSequence(sequence, area: area, from: lessons)
-        if let existing = inSequence.first(where: { foldedLessonName($0.name) == foldedLessonName(name) }) {
+        if let existing = inSequence.first(where: { $0.name.folded() == name.folded() }) {
             let position = (inSequence.firstIndex(of: existing) ?? 0) + 1
             return "Already in the curriculum, nothing added: \(describeLesson(existing)) "
                 + "(position \(position) of \(inSequence.count))."
@@ -198,7 +198,7 @@ extension MCPNotebookTools {
         changes += try applyLessonFiling(arguments, to: lesson, from: lessons)
         if let name = nonEmpty(arguments["name"]?.stringValue), name != lesson.name {
             let twin = lessonsInSequence(lesson.sequence, area: lesson.area, from: lessons).first {
-                $0 != lesson && foldedLessonName($0.name) == foldedLessonName(name)
+                $0 != lesson && $0.name.folded() == name.folded()
             }
             if let twin {
                 throw MCPToolError("\(describeLesson(twin)) already has that name in the same sub-area.")

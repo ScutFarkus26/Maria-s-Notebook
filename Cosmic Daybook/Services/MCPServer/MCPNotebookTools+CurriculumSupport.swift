@@ -31,12 +31,6 @@ extension MCPNotebookTools {
         return left.caseInsensitiveCompare(right) == ComparisonResult.orderedSame
     }
 
-    /// Lesson names compare diacritic- and case-insensitively, matching
-    /// `find_lessons`, so "Rôle" and "role" are one lesson for idempotency.
-    static func foldedLessonName(_ name: String) -> String {
-        name.folding(options: .diacriticInsensitive, locale: .current).trimmed().lowercased()
-    }
-
     static func allCurriculumLessons(in modelContext: NSManagedObjectContext) -> [CDLesson] {
         modelContext.safeFetch(CDFetchRequest(CDLesson.self))
     }

@@ -331,14 +331,7 @@ extension LessonCSVImporter {
 
     /// Normalize and combine name, area, sequence to form a duplicate detection key.
     private static func duplicateKey(name: String, area: String, sequence: String) -> String {
-        let n = normalizeComponent(name)
-        let s = normalizeComponent(area)
-        let g = normalizeComponent(sequence)
-        return [n, s, g].joined(separator: "|")
-    }
-    /// Normalize a component string by trimming, lowercasing, removing diacritics and collapsing whitespace.
-    private static func normalizeComponent(_ s: String) -> String {
-        StringNormalization.normalizeComponent(s)
+        [name, area, sequence].map { $0.foldedKey() }.joined(separator: "|")
     }
 
     /// Compute duplicate key for a lesson.

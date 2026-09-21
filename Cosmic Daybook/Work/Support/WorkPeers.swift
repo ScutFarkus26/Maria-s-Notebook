@@ -58,9 +58,9 @@ enum WorkPeers {
     static func others(
         doing work: CDWorkModel, in context: NSManagedObjectContext
     ) -> WorkPeerList {
-        let title = WorkGrouping.normalizedTitle(work.title)
+        let title = work.title.foldedKey()
         let rows = rows(onLessonID: work.lessonID, in: context)
-            .filter { WorkGrouping.normalizedTitle($0.title) == title }
+            .filter { $0.title.foldedKey() == title }
         return list(
             from: rows,
             excluding: WorkGrouping.owner(of: work),

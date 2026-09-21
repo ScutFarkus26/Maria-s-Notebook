@@ -201,15 +201,6 @@ enum WorkGrouping {
         return lhs.lessonID == rhs.lessonID
             && lhs.presentationID == rhs.presentationID
             && lhs.kind == rhs.kind
-            && normalizedTitle(lhs.title) == normalizedTitle(rhs.title)
-    }
-
-    /// Whitespace- and accent-insensitive title comparison, matching the rule
-    /// `PresentationFollowUpWorkService` already uses to recognise its own work.
-    static func normalizedTitle(_ title: String) -> String {
-        title
-            .split(whereSeparator: { $0.isWhitespace })
-            .joined(separator: " ")
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            && lhs.title.foldedKey() == rhs.title.foldedKey()
     }
 }

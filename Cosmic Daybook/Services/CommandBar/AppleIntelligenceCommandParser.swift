@@ -238,21 +238,21 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
     }
 
     private func resolveUniqueStudentID(named name: String, in students: [StudentData]) -> UUID? {
-        let foldedName = Self.fold(name)
+        let foldedName = name.folded()
         guard !foldedName.isEmpty else { return nil }
 
         let fullNameMatches = students.filter {
-            Self.fold("\($0.firstName) \($0.lastName)") == foldedName
+            "\($0.firstName) \($0.lastName)".folded() == foldedName
         }
         if fullNameMatches.count == 1 { return fullNameMatches[0].id }
 
         let singleNameMatches = students.filter {
-            Self.fold($0.firstName) == foldedName || Self.fold($0.nickname ?? "") == foldedName
+            $0.firstName.folded() == foldedName || ($0.nickname ?? "").folded() == foldedName
         }
         if singleNameMatches.count == 1 { return singleNameMatches[0].id }
 
         let containsMatches = students.filter {
-            Self.fold("\($0.firstName) \($0.lastName)").contains(foldedName)
+            "\($0.firstName) \($0.lastName)".folded().contains(foldedName)
         }
         return containsMatches.count == 1 ? containsMatches[0].id : nil
     }
@@ -270,7 +270,7 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
         for name in allNames where !name.trimmed().isEmpty {
             if let id = resolveUniqueStudentID(named: name, in: students) {
                 if !resolvedIDs.contains(id) { resolvedIDs.append(id) }
-            } else if !unresolvedNames.contains(where: { Self.fold($0) == Self.fold(name) }) {
+            } else if !unresolvedNames.contains(where: { $0.folded() == name.folded() }) {
                 unresolvedNames.append(name)
             }
         }
@@ -331,15 +331,15 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
     private static func isGrounded(_ evidence: String, in input: String) -> Bool {
         let evidence = evidence.trimmingCharacters(in: .whitespacesAndNewlines.union(.init(charactersIn: "\"'“”‘’")))
         guard !evidence.isEmpty else { return false }
-        return fold(input).contains(fold(evidence))
+        return input.folded().contains(evidence.folded())
     }
 
     private static func candidateLessonNames(for input: String, lessons: [LessonData]) -> [String] {
-        let inputWords = Set(fold(input).split(separator: " ").map(String.init).filter { $0.count > 2 })
+        let inputWords = Set(input.folded().split(separator: " ").map(String.init).filter { $0.count > 2 })
         let scored = lessons.compactMap { lesson -> (name: String, score: Int)? in
-            let lessonWords = Set(fold(lesson.name).split(separator: " ").map(String.init).filter { $0.count > 2 })
+            let lessonWords = Set(lesson.name.folded().split(separator: " ").map(String.init).filter { $0.count > 2 })
             let overlap = inputWords.intersection(lessonWords).count
-            let exact = fold(input).contains(fold(lesson.name)) ? 100 : 0
+            let exact = input.folded().contains(lesson.name.folded()) ? 100 : 0
             let score = exact + overlap
             return score > 0 ? (lesson.name, score) : nil
         }
@@ -347,10 +347,6 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
             $0.score == $1.score ? $0.name < $1.name : $0.score > $1.score
         }.prefix(100).map(\.name)
         return matches.isEmpty ? Array(lessons.prefix(100).map(\.name)) : matches
-    }
-
-    private static func fold(_ text: String) -> String {
-        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
     }
 }
 

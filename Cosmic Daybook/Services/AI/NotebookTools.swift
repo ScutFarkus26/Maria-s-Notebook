@@ -129,14 +129,13 @@ struct StudentNotesTool: Tool {
         let context = AppBootstrapping.getSharedCoreDataStack().viewContext
 
         // Resolve the student by (diacritic-insensitive) name.
-        let token = studentName.folding(options: .diacriticInsensitive, locale: .current)
-            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let token = studentName.folded()
         let studentRequest = CDFetchRequest(CDStudent.self)
         let students = context.safeFetch(studentRequest)
         let matches = students.filter { s in
-            let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let nick = (s.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let first = s.firstName.folded()
+            let last = s.lastName.folded()
+            let nick = (s.nickname ?? "").folded()
             return token == first || token == "\(first) \(last)" || (!nick.isEmpty && token == nick)
         }
         guard !matches.isEmpty else {
@@ -374,13 +373,11 @@ private enum NotebookToolStudentResolver {
     }
 
     static func resolve(_ name: String, in context: NSManagedObjectContext) -> Resolution {
-        let token = name.folding(options: .diacriticInsensitive, locale: .current)
-            .trimmed().lowercased()
+        let token = name.folded()
         let matches = context.safeFetch(CDFetchRequest(CDStudent.self)).filter { student in
-            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let full = student.fullName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let nickname = (student.nickname ?? "")
-                .folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let first = student.firstName.folded()
+            let full = student.fullName.folded()
+            let nickname = (student.nickname ?? "").folded()
             return token == first || token == full || (!nickname.isEmpty && token == nickname)
         }
         guard !matches.isEmpty else {

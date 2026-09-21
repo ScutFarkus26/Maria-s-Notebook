@@ -27,7 +27,7 @@ struct AlbumSearchEngineTests {
                 AlbumLessonRef(title: "Subtraction with Exchange", pageIndex: 2, depth: 0)
             ],
             texts: mathPages,
-            folded: mathPages.map { AlbumLibrary.fold(AlbumLibrary.normalize($0)) }
+            folded: mathPages.map { AlbumLibrary.normalize($0).folded() }
         )
         let biology = AlbumSearchCorpus.AlbumData(
             id: "Biology.pdf",
@@ -35,7 +35,7 @@ struct AlbumSearchEngineTests {
             subject: .biology,
             lessons: [AlbumLessonRef(title: "Parts of the Flower", pageIndex: 1, depth: 0)],
             texts: bioPages,
-            folded: bioPages.map { AlbumLibrary.fold(AlbumLibrary.normalize($0)) }
+            folded: bioPages.map { AlbumLibrary.normalize($0).folded() }
         )
         return AlbumSearchCorpus(albums: [math, biology])
     }
@@ -123,7 +123,7 @@ struct AlbumSearchEngineTests {
             id: "Math.pdf", title: "Math", subject: .math,
             lessons: [AlbumLessonRef(title: "Subtraction", pageIndex: 0, depth: 0)],
             texts: pages,
-            folded: pages.map { AlbumLibrary.fold(AlbumLibrary.normalize($0)) }
+            folded: pages.map { AlbumLibrary.normalize($0).folded() }
         )
         let picks = AlbumSearchEngine.retrieve(question: "subtraction",
                                                corpus: AlbumSearchCorpus(albums: [album]),

@@ -81,15 +81,11 @@ struct LessonRepository: SavingRepository {
     /// The identity a lesson name has within the curriculum: its area,
     /// sub-area and name, each folded the way the Lessons screens compare them.
     nonisolated static func nameKey(name: String, area: String, sequence: String) -> String {
-        [area, sequence, name].map(foldedName).joined(separator: "|")
+        [area, sequence, name].map { $0.folded() }.joined(separator: "|")
     }
 
     nonisolated static func nameKey(for lesson: CDLesson) -> String {
         nameKey(name: lesson.name, area: lesson.area, sequence: lesson.sequence)
-    }
-
-    nonisolated static func foldedName(_ text: String) -> String {
-        text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).trimmed().lowercased()
     }
 
     /// Whether a lesson takes part in the name-uniqueness rule. Parsha lessons

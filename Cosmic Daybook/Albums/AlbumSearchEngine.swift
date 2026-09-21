@@ -10,7 +10,7 @@ import Foundation
 nonisolated enum AlbumSearchEngine {
 
     static func tokens(for query: String) -> [String] {
-        AlbumLibrary.fold(AlbumLibrary.normalize(query))
+        AlbumLibrary.normalize(query).folded()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
     }
@@ -19,8 +19,7 @@ nonisolated enum AlbumSearchEngine {
 
     static func search(query: String, corpus: AlbumSearchCorpus, notes: [AlbumNoteSnapshot],
                        albumFilter: String?) -> AlbumSearchResults {
-        let foldedQuery = AlbumLibrary.fold(AlbumLibrary.normalize(query))
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let foldedQuery = AlbumLibrary.normalize(query).folded()
         let terms = tokens(for: query)
         guard !terms.isEmpty else { return AlbumSearchResults(query: query) }
 
@@ -31,7 +30,7 @@ nonisolated enum AlbumSearchEngine {
         var lessonHits: [AlbumSearchHit] = []
         for album in albums {
             for lesson in album.lessons {
-                let folded = AlbumLibrary.fold(lesson.title)
+                let folded = lesson.title.folded()
                 guard terms.allSatisfy({ folded.contains($0) }) else { continue }
                 var score = 100.0
                 if folded.contains(foldedQuery) { score += 40 }
@@ -62,7 +61,7 @@ nonisolated enum AlbumSearchEngine {
                 if terms.count > 1, folded.contains(foldedQuery) { score += 30 }
                 let lesson = album.lessons.last { $0.pageIndex <= pageIndex }
                 if let lesson {
-                    let lessonFolded = AlbumLibrary.fold(lesson.title)
+                    let lessonFolded = lesson.title.folded()
                     if terms.contains(where: { lessonFolded.contains($0) }) { score += 20 }
                 }
                 let snippet = snippet(in: album.texts[pageIndex], query: query, terms: terms)
@@ -83,7 +82,7 @@ nonisolated enum AlbumSearchEngine {
         let albumTitles = Dictionary(uniqueKeysWithValues: corpus.albums.map { ($0.id, ($0.title, $0.subject)) })
         for note in notes {
             if let filter = albumFilter, note.albumID != filter { continue }
-            let folded = AlbumLibrary.fold(note.text + " " + note.lessonTitle)
+            let folded = (note.text + " " + note.lessonTitle).folded()
             guard terms.allSatisfy({ folded.contains($0) }) else { continue }
             let (title, subject) = albumTitles[note.albumID] ?? (note.albumID, .other)
             results.noteHits.append(AlbumSearchHit(
@@ -169,7 +168,7 @@ nonisolated enum AlbumSearchEngine {
                 score += Double(found * found) * 10
                 score += semantic * 60
                 if let lessonIndex {
-                    let lessonFolded = AlbumLibrary.fold(album.lessons[lessonIndex].title)
+                    let lessonFolded = album.lessons[lessonIndex].title.folded()
                     let inTitle = terms.filter { lessonFolded.contains($0) }.count
                     score += Double(inTitle) * 25
                 }

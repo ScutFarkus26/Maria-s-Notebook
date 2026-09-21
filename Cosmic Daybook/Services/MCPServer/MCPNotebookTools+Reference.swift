@@ -275,7 +275,7 @@ extension MCPNotebookTools {
                 ),
                 isActive: enrollment.isActive
             )
-            let folded: String = LessonRepository.foldedName(track.title)
+            let folded: String = track.title.folded()
             guard let existing = best[folded] else {
                 best[folded] = standing
                 order.append(folded)

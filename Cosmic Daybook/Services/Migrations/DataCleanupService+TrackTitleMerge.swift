@@ -45,11 +45,7 @@ nonisolated extension DataCleanupService {
     }
 
     static func trackTitleKey(_ track: CDTrackEntity) -> String {
-        trackTitleKey(title: track.title)
-    }
-
-    static func trackTitleKey(title: String) -> String {
-        title.trimmed().folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        track.title.folded()
     }
 
     /// Object IDs of every track whose folded title repeats, read from the
@@ -76,7 +72,7 @@ nonisolated extension DataCleanupService {
         var byKey: [String: [NSManagedObjectID]] = [:]
         for row in rows {
             guard let objectID = row["objectID"] as? NSManagedObjectID else { continue }
-            byKey[trackTitleKey(title: row["title"] as? String ?? ""), default: []].append(objectID)
+            byKey[(row["title"] as? String ?? "").folded(), default: []].append(objectID)
         }
         return byKey.values.filter { $0.count > 1 }.flatMap { $0 }
     }
