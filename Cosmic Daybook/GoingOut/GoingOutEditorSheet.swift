@@ -7,6 +7,7 @@ import CoreData
 struct GoingOutEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
+    @Environment(\.dependencies) private var dependencies
 
     let existingGoingOut: CDGoingOut?
     let onSave: (CDGoingOut) -> Void
@@ -18,11 +19,8 @@ struct GoingOutEditorSheet: View {
     @State private var hasDate: Bool = false
     @State private var selectedStudentIDs: Set<UUID> = []
 
-    @FetchRequest(sortDescriptors: CDStudent.sortByName)
-    private var allStudents: FetchedResults<CDStudent>
-
     private var visibleStudents: [CDStudent] {
-        TestStudentsFilter.filterVisible(Array(allStudents).filterEnrolled())
+        TestStudentsFilter.filterVisible(dependencies.roster.enrolled)
     }
 
     init(existingGoingOut: CDGoingOut? = nil, onSave: @escaping (CDGoingOut) -> Void) {

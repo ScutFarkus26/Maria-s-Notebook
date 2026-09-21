@@ -7,13 +7,11 @@ struct ProjectDetailView: View {
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
 
-    @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var lessonsRaw: FetchedResults<CDLesson>
     @FetchRequest(sortDescriptors: []) private var allWorkModels: FetchedResults<CDWorkModel>
 
     // Performance: Filter roles by projectID at query level
@@ -34,7 +32,7 @@ struct ProjectDetailView: View {
 
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
@@ -51,7 +49,7 @@ struct ProjectDetailView: View {
     /// `studentsByID` is deliberately enrolled-only; this is how a departed
     /// member gets named instead of showing as "Unknown".
     var formerStudentsByID: [UUID: CDStudent] {
-        let departed = Array(studentsRaw).uniqueByID.filter { !$0.isEnrolled }
+        let departed = dependencies.roster.all.filter { !$0.isEnrolled }
         return Dictionary(
             departed.compactMap { s -> (UUID, CDStudent)? in guard let id = s.id else { return nil }; return (id, s) },
             uniquingKeysWith: { first, _ in first }
@@ -65,12 +63,7 @@ struct ProjectDetailView: View {
         return club.memberStudentIDsArray.filter { enrolled.contains($0) }.count
     }
 
-    var lessonsByID: [UUID: CDLesson] {
-        Dictionary(
-            Array(lessonsRaw).compactMap { lesson in lesson.id.map { ($0, lesson) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
+    var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
 
     var projectSessions: [CDProjectSession] {
         ((club.sessions?.allObjects as? [CDProjectSession]) ?? [])

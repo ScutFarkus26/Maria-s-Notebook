@@ -19,17 +19,20 @@ struct CommandBarSheet: View {
 
     // MARK: - Data
 
-    @FetchRequest(sortDescriptors: CDStudent.sortByName)private var allStudents: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-        NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)
-    ]) private var allLessons: FetchedResults<CDLesson>
+    /// The workspace's catalog in this sheet's own order — area, then lesson name.
+    private var allLessons: [CDLesson] {
+        dependencies.lessonCatalog.all.sorted { lhs, rhs in
+            lhs.area == rhs.area
+                ? lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+                : lhs.area.localizedStandardCompare(rhs.area) == .orderedAscending
+        }
+    }
 
     @TestStudentVisibility private var testStudents
 
     private var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(allStudents).uniqueByID.filterEnrolled(), show: testStudents.show, namesRaw: testStudents.namesRaw
+            dependencies.roster.enrolled, show: testStudents.show, namesRaw: testStudents.namesRaw
         )
     }
 
@@ -307,7 +310,7 @@ struct CommandBarSheet: View {
                     set: { viewModel.captureProposal = $0 }
                 ),
                 students: students,
-                lessons: Array(allLessons).uniqueByID,
+                lessons: allLessons.uniqueByID,
                 mode: .newCapture,
                 validationMessage: viewModel.captureValidationMessage,
                 saveTitle: "Save Records",

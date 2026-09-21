@@ -323,12 +323,11 @@ extension GoingOutDetailView {
 private struct StudentChipsView: View {
     let studentIDs: [UUID]
 
-    @FetchRequest(sortDescriptors: CDStudent.sortByName)
-    private var allStudents: FetchedResults<CDStudent>
+    @Environment(\.dependencies) private var dependencies
 
     private var matchedStudents: [CDStudent] {
         let idSet = Set(studentIDs)
-        return Array(allStudents).filter { student in
+        return dependencies.roster.all.filter { student in
             guard let studentID = student.id else { return false }
             return idSet.contains(studentID)
         }

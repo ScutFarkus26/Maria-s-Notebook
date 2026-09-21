@@ -8,13 +8,19 @@ import CoreData
 struct ProjectLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
+    @Environment(\.dependencies) private var dependencies
 
     let viewModel: LessonPickerViewModel
     var onChosen: (UUID?) -> Void
 
     @State private var search: String = ""
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var lessons: FetchedResults<CDLesson>
+
+    /// The workspace's catalog in this sheet's own order — by lesson name.
+    private var lessons: [CDLesson] {
+        dependencies.lessonCatalog.all.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
 
     init(viewModel: LessonPickerViewModel, onChosen: @escaping (UUID?) -> Void) {
         self.viewModel = viewModel
@@ -56,7 +62,7 @@ struct ProjectLessonPickerSheet: View {
 
     private var filteredLessons: [CDLesson] {
         let q = search.trimmed()
-        let all = Array(lessons)
+        let all = lessons
         if q.isEmpty { return all }
         return all.filter { l in
             l.name.localizedCaseInsensitiveContains(q) ||

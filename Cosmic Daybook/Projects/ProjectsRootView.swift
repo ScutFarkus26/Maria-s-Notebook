@@ -25,9 +25,8 @@ struct ProjectsRootView: View {
 
     /// Only to tell a member who is still in the class from one who has left:
     /// the member id list keeps every child ever added.
-    @FetchRequest(sortDescriptors: CDStudent.sortByName) private var studentsRaw: FetchedResults<CDStudent>
     private var enrolledMemberIDs: Set<String> {
-        Set(Array(studentsRaw).uniqueByID.filterEnrolled().compactMap { $0.id?.uuidString })
+        Set(dependencies.roster.enrolled.compactMap { $0.id?.uuidString })
     }
 
     // OPTIMIZATION: Removed unfiltered queries - deletion logic uses targeted FetchDescriptor

@@ -8,16 +8,10 @@ struct ProjectSessionDetailView: View {
 
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
+    @Environment(\.dependencies) private var dependencies
 
     // Test student filtering
     @TestStudentVisibility private var testStudents
-
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
-        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
-    ]) private var studentsRaw: FetchedResults<CDStudent>
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)])
-    private var lessons: FetchedResults<CDLesson>
 
     // NEW: Query all work models to filter locally
     @FetchRequest(sortDescriptors: []) private var allWorkModels: FetchedResults<CDWorkModel>
@@ -35,7 +29,7 @@ struct ProjectSessionDetailView: View {
 
     var students: [CDStudent] {
         TestStudentsFilter.filterVisible(
-            Array(studentsRaw).uniqueByID.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         )
@@ -48,12 +42,7 @@ struct ProjectSessionDetailView: View {
             uniquingKeysWith: { first, _ in first }
         )
     }
-    var lessonsByID: [UUID: CDLesson] {
-        Dictionary(
-            Array(lessons).compactMap { l in l.id.map { ($0, l) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
+    var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
 
     // Filter work models relevant to this session
     var sessionWorkModels: [CDWorkModel] {
@@ -154,7 +143,7 @@ struct ProjectSessionDetailView: View {
                     viewModel: {
                         let initialIDs = Set([UUID(uuidString: targetWork.studentID)].compactMap { $0 })
                         let vm = LessonPickerViewModel(selectedStudentIDs: initialIDs)
-                        vm.configure(lessons: Array(lessons), students: students)
+                        vm.configure(lessons: dependencies.lessonCatalog.all, students: students)
                         return vm
                     }()
                 ) { chosenID in
