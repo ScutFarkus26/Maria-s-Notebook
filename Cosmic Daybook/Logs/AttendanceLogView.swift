@@ -173,29 +173,6 @@ struct AttendanceLogView: View {
         return days.map { ($0, dict[$0] ?? []) }
     }
 
-    // MARK: - Filter Labels
-
-    private var selectedStudentLabel: String {
-        if selectedStudentIDs.isEmpty {
-            return "All Students"
-        } else if selectedStudentIDs.count == 1, let id = selectedStudentIDs.first,
-                  let student = students.first(where: { $0.id == id }) {
-            return student.shortName
-        } else {
-            return "\(selectedStudentIDs.count) Students"
-        }
-    }
-
-    private var selectedStatusLabel: String {
-        if selectedStatuses.isEmpty {
-            return "All Statuses"
-        } else if selectedStatuses.count == 1, let status = selectedStatuses.first {
-            return status.displayName
-        } else {
-            return "\(selectedStatuses.count) Statuses"
-        }
-    }
-
     // Available statuses (exclude unmarked)
     private var availableStatuses: [AttendanceStatus] {
         AttendanceStatus.allCases.filter { $0 != .unmarked }
@@ -236,101 +213,32 @@ struct AttendanceLogView: View {
 
     private var filterBar: some View {
         HStack(spacing: 12) {
-            // CDStudent Menu (multi-select)
-            Menu {
-                Button("All Students") { selectedStudentIDs.removeAll() }
-                Divider()
-                ForEach(students) { student in
-                    if let studentID = student.id {
-                        Button(action: {
-                            if selectedStudentIDs.contains(studentID) {
-                                selectedStudentIDs.remove(studentID)
-                            } else {
-                                selectedStudentIDs.insert(studentID)
-                            }
-                        }, label: {
-                            HStack {
-                                if selectedStudentIDs.contains(studentID) {
-                                    Image(systemName: "checkmark")
-                                }
-                                Text(student.shortName)
-                            }
-                        })
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.3")
-                    Text(selectedStudentLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .frame(minHeight: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
-            }
+            MultiSelectFilterMenu(
+                items: students,
+                selection: $selectedStudentIDs,
+                id: { $0.id },
+                label: { $0.shortName },
+                summary: FilterSelectionSummary(allLabel: "All Students"),
+                systemImage: "person.3",
+                minHeight: 44
+            )
 
-            // Status Menu (multi-select)
-            Menu {
-                Button("All Statuses") { selectedStatuses.removeAll() }
-                Divider()
-                ForEach(availableStatuses, id: \.self) { status in
-                    Button(action: {
-                        if selectedStatuses.contains(status) {
-                            selectedStatuses.remove(status)
-                        } else {
-                            selectedStatuses.insert(status)
-                        }
-                    }, label: {
-                        HStack {
-                            if selectedStatuses.contains(status) {
-                                Image(systemName: "checkmark")
-                            }
-                            Text(status.displayName)
-                        }
-                    })
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle")
-                    Text(selectedStatusLabel)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .frame(minHeight: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
-            }
+            MultiSelectFilterMenu(
+                items: availableStatuses,
+                selection: $selectedStatuses,
+                label: { $0.displayName },
+                summary: FilterSelectionSummary(allLabel: "All Statuses"),
+                systemImage: "checkmark.circle",
+                minHeight: 44
+            )
 
-            // Date Range Menu
-            Menu {
-                ForEach(DateRangeFilter.allCases) { range in
-                    Button(action: { selectedDateRange = range }, label: {
-                        HStack {
-                            if selectedDateRange == range {
-                                Image(systemName: "checkmark")
-                            }
-                            Text(range.rawValue)
-                        }
-                    })
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar")
-                    Text(selectedDateRange.rawValue)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .frame(minHeight: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-                )
-            }
+            SingleSelectFilterMenu(
+                items: DateRangeFilter.allCases,
+                selection: $selectedDateRange,
+                label: { $0.rawValue },
+                systemImage: "calendar",
+                minHeight: 44
+            )
 
             Spacer()
         }

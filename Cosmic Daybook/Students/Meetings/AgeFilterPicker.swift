@@ -6,64 +6,49 @@ import CoreData
 struct AgeFilterPicker: View {
     @Binding var selectedAgeRanges: Set<AgeRange>
 
+    private static let summary = FilterSelectionSummary(allLabel: "All Ages")
+
     private var displayText: String {
-        if selectedAgeRanges.isEmpty {
-            return "All Ages"
-        } else if selectedAgeRanges.count == 1, let first = selectedAgeRanges.first {
-            return first.rawValue
-        } else {
-            return "\(selectedAgeRanges.count) Ages"
-        }
+        Self.summary.text(
+            for: selectedAgeRanges,
+            items: AgeRange.allCases,
+            id: { $0 },
+            label: { $0.rawValue }
+        )
     }
 
     var body: some View {
-        Menu {
-            Button("All Ages") {
-                selectedAgeRanges.removeAll()
+        MultiSelectFilterMenu(
+            items: AgeRange.allCases,
+            selection: $selectedAgeRanges,
+            id: { $0 },
+            label: { $0.rawValue },
+            allLabel: Self.summary.allLabel,
+            menuLabel: {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.caption)
+
+                    Text(displayText)
+                        .font(.subheadline.weight(.medium))
+
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(
+                            selectedAgeRanges.isEmpty
+                                ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                                : Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
+                        )
+                )
+                .foregroundStyle(selectedAgeRanges.isEmpty ? Color.secondary : Color.accentColor)
             }
-
-            Divider()
-
-            ForEach(AgeRange.allCases) { range in
-                Button(action: {
-                    if selectedAgeRanges.contains(range) {
-                        selectedAgeRanges.remove(range)
-                    } else {
-                        selectedAgeRanges.insert(range)
-                    }
-                }, label: {
-                    HStack {
-                        if selectedAgeRanges.contains(range) {
-                            Image(systemName: "checkmark")
-                        }
-                        Text(range.rawValue)
-                    }
-                })
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.caption)
-
-                Text(displayText)
-                    .font(.subheadline.weight(.medium))
-
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(
-                        selectedAgeRanges.isEmpty
-                            ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                            : Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
-                    )
-            )
-            .foregroundStyle(selectedAgeRanges.isEmpty ? Color.secondary : Color.accentColor)
-        }
+        )
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .listRowBackground(Color.clear)
