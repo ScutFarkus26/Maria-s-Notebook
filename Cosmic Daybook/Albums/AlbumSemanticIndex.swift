@@ -29,6 +29,23 @@ final class AlbumSemanticIndex {
     /// Below this cosine score a query match is noise, not meaning.
     var matchThreshold: Float { titleBackend == "sentence" ? 0.55 : 0.88 }
 
+    /// One album's per-lesson text, handed to `build` so the index can embed it.
+    nonisolated struct BuildItem: Sendable {
+        let id: String
+        let modified: Date
+        let titles: [String]
+        let bodies: [String]
+    }
+
+    /// The vectors for one album: one title vector per lesson, the backend that
+    /// produced them, and the body vectors when the contextual embedder was
+    /// available.
+    nonisolated struct VectorSet: Sendable {
+        let titles: [[Float]]
+        let titleBackend: String
+        let bodies: [[Float]]?
+    }
+
     nonisolated struct Match: Sendable, Identifiable {
         var id: String { "\(albumID)|\(lessonIndex)" }
         let albumID: String
@@ -48,7 +65,7 @@ final class AlbumSemanticIndex {
         status = .idle
     }
 
-    func build(items: [(id: String, modified: Date, titles: [String], bodies: [String])]) async {
+    func build(items: [BuildItem]) async {
         guard status != .building else { return }
         status = .building
         let cacheDir = Self.cacheDirectory()
@@ -143,8 +160,7 @@ final class AlbumSemanticIndex {
 
     nonisolated static func loadOrBuildVectors(albumID: String, modified: Date,
                                                titles: [String], bodies: [String],
-                                               cacheDir: URL?)
-        -> (titles: [[Float]], titleBackend: String, bodies: [[Float]]?)? {
+                                               cacheDir: URL?) -> VectorSet? {
         let cacheURL = cacheDir?.appendingPathComponent(albumID + ".vectors2.json")
         let preferredBackend = sentenceBackendAvailable() ? "sentence" : "contextual"
         if let cacheURL,
@@ -153,7 +169,8 @@ final class AlbumSemanticIndex {
            abs(cached.modified.timeIntervalSince(modified)) < 1,
            cached.titles.count == titles.count,
            cached.titleBackend == preferredBackend {
-            return (cached.titles, cached.titleBackend, cached.bodies)
+            return VectorSet(titles: cached.titles, titleBackend: cached.titleBackend,
+                             bodies: cached.bodies)
         }
         guard let (titleVecs, backend) = embedTitles(titles) else { return nil }
         let bodyVecs = contextualEmbed(bodies)
@@ -164,7 +181,7 @@ final class AlbumSemanticIndex {
                                                               bodies: bodyVecs)) {
             try? data.write(to: cacheURL)
         }
-        return (titleVecs, backend, bodyVecs)
+        return VectorSet(titles: titleVecs, titleBackend: backend, bodies: bodyVecs)
     }
 
     // MARK: Embedding backends

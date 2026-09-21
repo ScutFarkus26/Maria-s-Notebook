@@ -273,11 +273,13 @@ private enum FieldCoverage {
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         _ = try await service.importPayload(
             payload: reconstructed,
-            envelopeFormatVersion: BackupWriter.formatVersion,
-            envelopeEncrypted: false,
-            envelopeCreatedAt: Date(),
-            envelopeFileName: "field-coverage-roundtrip",
-            envelopeEntityCounts: manifest.entityCounts,
+            envelope: BackupEnvelope(
+                formatVersion: BackupWriter.formatVersion,
+                encrypted: false,
+                createdAt: Date(),
+                fileName: "field-coverage-roundtrip",
+                entityCounts: manifest.entityCounts
+            ),
             viewContext: destStack.viewContext,
             mode: .merge,
             appRouter: AppRouter.shared,

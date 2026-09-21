@@ -98,9 +98,17 @@ nonisolated enum StoryAnalyzer {
         #endif
     }
 
+    /// Text pulled out of a story PDF: the trimmed excerpt, a hash of it for
+    /// staleness detection, and the document's full page count.
+    struct ExtractedText {
+        let text: String
+        let hash: String
+        let pageCount: Int
+    }
+
     /// Extracts up to the first 10 pages of text from a PDF.
     /// Returns the trimmed text and a hash for staleness detection.
-    static func extractText(from url: URL) -> (text: String, hash: String, pageCount: Int)? {
+    static func extractText(from url: URL) -> ExtractedText? {
         guard let document = PDFDocument(url: url) else { return nil }
         let totalPages = document.pageCount
         let pagesToRead = Swift.min(totalPages, maxPagesToRead)
@@ -115,7 +123,7 @@ nonisolated enum StoryAnalyzer {
         let combined = pieces.joined(separator: "\n\n")
         let trimmed = combined.trimmingCharacters(in: .whitespacesAndNewlines)
         let hash = sha256(trimmed)
-        return (trimmed, hash, totalPages)
+        return ExtractedText(text: trimmed, hash: hash, pageCount: totalPages)
     }
 
     private static func sha256(_ text: String) -> String {

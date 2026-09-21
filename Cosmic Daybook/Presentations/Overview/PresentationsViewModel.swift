@@ -263,16 +263,16 @@ final class PresentationsViewModel {
         await Task.yield()
         if Task.isCancelled { return }
 
-        let (ready, blocked, blockingResultsMap) = partitionIntoReadyAndBlocked(
+        let partition = partitionIntoReadyAndBlocked(
             lessonAssignments: lessonAssignments,
             lessons: lessons,
             workModels: workModels,
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow
         )
-        self.readyLessons = ready
-        self.blockedLessons = blocked
-        self.blockingResults = blockingResultsMap
+        self.readyLessons = partition.ready
+        self.blockedLessons = partition.blocked
+        self.blockingResults = partition.blockingResultsMap
     }
 
     private func fetchLessonAssignmentsData(from viewContext: NSManagedObjectContext) -> [CDLessonAssignment] {
@@ -319,11 +319,7 @@ final class PresentationsViewModel {
         workModels: [CDWorkModel],
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow
-    ) -> (
-        ready: [CDLessonAssignment],
-        blocked: [CDLessonAssignment],
-        blockingResultsMap: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
-    ) {
+    ) -> PresentationPartition {
         let allUnscheduled = lessonAssignments.filter { $0.scheduledFor == nil && !$0.isGiven }
         let blockingResults = BlockingAlgorithmEngine.checkBlocking(
             forBatch: allUnscheduled,
@@ -348,7 +344,8 @@ final class PresentationsViewModel {
             }
         }
         blocked.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-        return (ordered, blocked, blockingResults)
+        return PresentationPartition(ready: ordered, blocked: blocked,
+                                     blockingResultsMap: blockingResults)
     }
 
     // MARK: - Private Helpers — Blocking Cache
@@ -371,6 +368,14 @@ final class PresentationsViewModel {
 // MARK: - Cache Query Helpers
 
 extension PresentationsViewModel {
+    /// The unscheduled inbox split in two, plus the blocking check each row was
+    /// judged by — the three values `refresh` assigns straight onto the model.
+    struct PresentationPartition {
+        let ready: [CDLessonAssignment]
+        let blocked: [CDLessonAssignment]
+        let blockingResultsMap: [UUID: BlockingAlgorithmEngine.BlockingCheckResult]
+    }
+
     /// Get blocking work for a specific CDLessonAssignment (from cache)
     func getBlockingWork(_ la: CDLessonAssignment) -> [UUID: CDWorkModel] {
         guard let laID = la.id else { return [:] }

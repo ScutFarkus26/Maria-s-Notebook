@@ -170,11 +170,13 @@ struct AddSupplySheet: View {
 
     private func addSupply() {
         _ = SupplyService.createSupply(
-            name: name.trimmed(),
-            category: category,
-            location: location.trimmed(),
-            currentQuantity: currentQuantity,
-            notes: notes.trimmed(),
+            SupplyService.SupplyDraft(
+                name: name.trimmed(),
+                category: category,
+                location: location.trimmed(),
+                currentQuantity: currentQuantity,
+                notes: notes.trimmed()
+            ),
             in: viewContext
         )
         dismiss()

@@ -62,11 +62,13 @@ enum BackupImporter {
         let service = BackupService()
         let summary = try await service.importPayload(
             payload: archive.payload,
-            envelopeFormatVersion: archive.manifest.formatVersion,
-            envelopeEncrypted: archive.encrypted,
-            envelopeCreatedAt: archive.manifest.createdAt,
-            envelopeFileName: fileURL.lastPathComponent,
-            envelopeEntityCounts: archive.manifest.entityCounts,
+            envelope: BackupEnvelope(
+                formatVersion: archive.manifest.formatVersion,
+                encrypted: archive.encrypted,
+                createdAt: archive.manifest.createdAt,
+                fileName: fileURL.lastPathComponent,
+                entityCounts: archive.manifest.entityCounts
+            ),
             viewContext: viewContext,
             mode: mode,
             appRouter: appRouter,

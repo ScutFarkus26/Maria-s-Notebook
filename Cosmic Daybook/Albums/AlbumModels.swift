@@ -151,10 +151,18 @@ nonisolated struct AlbumSearchHit: Identifiable, Sendable {
     let score: Double
 }
 
+/// Page-content hits for one album, grouped under its title so the search
+/// screen can show them as a section.
+nonisolated struct AlbumPageGroup: Sendable {
+    let albumTitle: String
+    let subject: AlbumSubject
+    let hits: [AlbumSearchHit]
+}
+
 nonisolated struct AlbumSearchResults: Sendable {
     var query: String = ""
     var lessonHits: [AlbumSearchHit] = []
-    var pageGroups: [(albumTitle: String, subject: AlbumSubject, hits: [AlbumSearchHit])] = []
+    var pageGroups: [AlbumPageGroup] = []
     var noteHits: [AlbumSearchHit] = []
     /// Lessons found by meaning rather than keywords (semantic index).
     var semanticHits: [AlbumSearchHit] = []
