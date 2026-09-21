@@ -15,30 +15,20 @@ extension QuickNewWorkItemSheet {
                 .font(.headline)
 
             // Search field with popover
-            TextField("Search lessons...", text: $lessonSearchText)
-                .textFieldStyle(.roundedBorder)
-                .focused($lessonFieldFocused)
-                .onChange(of: lessonSearchText) { _, newValue in
-                    if !newValue.trimmed().isEmpty {
-                        showingLessonPopover = true
-                    }
-                }
-                .onSubmit {
-                    // If user typed an exact lesson name, select it
-                    let trimmed = lessonSearchText.trimmed()
+            LessonPopoverSearchField(
+                text: $lessonSearchText,
+                isShowingCandidates: $showingLessonPopover,
+                isFocused: $lessonFieldFocused,
+                onSubmit: { trimmed in
                     let isMatch: (CDLesson) -> Bool = {
                         $0.name.caseInsensitiveCompare(trimmed) == .orderedSame
                     }
                     if let match = filteredLessons.first(where: isMatch) {
                         selectLesson(match)
                     }
-                }
-                .onTapGesture {
-                    showingLessonPopover = true
-                }
-                .popover(isPresented: $showingLessonPopover, arrowEdge: .bottom) {
-                    lessonPopoverContent()
-                }
+                },
+                candidates: { lessonPopoverContent() }
+            )
 
             // Selected lesson display
             if let lesson = selectedLesson {

@@ -50,7 +50,7 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             if state?.isPresented != true {
                 togglePresentedNoRecompute(
-                    student: student, lesson: lesson,
+                    student: student, lesson: lesson, attachment: .today,
                     prefetchedLPs: allLPs, context: context
                 )
             }
@@ -75,8 +75,8 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
                   let lesson = lessons.first(where: { $0.id == cell.lessonID }) else { continue }
             let state = matrixStates[cell.studentID]?[cell.lessonID]
             if state?.isPresented != true {
-                togglePreviouslyPresentedNoRecompute(
-                    student: student, lesson: lesson,
+                togglePresentedNoRecompute(
+                    student: student, lesson: lesson, attachment: .undated,
                     prefetchedLPs: allLPs, context: context
                 )
             }
@@ -180,8 +180,13 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
         }
     }
 
+    /// Toggles one child's "presented" mark for one lesson.
+    ///
+    /// `attachment` is the whole difference between *Presented* and *Previously
+    /// Presented* — see `PresentedAttachment`.
     private static func togglePresentedNoRecompute(
         student: CDStudent, lesson: CDLesson,
+        attachment: PresentedAttachment,
         prefetchedLPs: [CDLessonPresentation],
         context: NSManagedObjectContext
     ) {
@@ -207,9 +212,9 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
                 from: prefetchedLPs, context: context
             )
         } else {
-            addStudentToGivenLesson(
-                student: student, studentIDString: studentIDString,
-                lesson: lesson, in: allLAs, context: context
+            addStudentToPresentedLesson(
+                student: student, lesson: lesson,
+                in: allLAs, attachment: attachment, context: context
             )
             upsertLessonPresentation(
                 studentID: studentIDString, lessonID: lessonIDString,
@@ -231,9 +236,9 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
         laRequest.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
         let allLAs = context.safeFetch(laRequest)
         if allLAs.first(where: { $0.isPresented && $0.studentIDs.contains(studentIDString) }) == nil {
-            addStudentToGivenLesson(
-                student: student, studentIDString: studentIDString,
-                lesson: lesson, in: allLAs, context: context
+            addStudentToPresentedLesson(
+                student: student, lesson: lesson,
+                in: allLAs, attachment: .today, context: context
             )
         }
 
@@ -292,17 +297,18 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
         )
     }
 
-    private static func addStudentToGivenLesson(
+    /// Puts the child on the presented row `attachment` describes, creating it
+    /// when the context has none.
+    private static func addStudentToPresentedLesson(
         student: CDStudent,
-        studentIDString: String,
         lesson: CDLesson,
         in allLAs: [CDLessonAssignment],
+        attachment: PresentedAttachment,
         context: NSManagedObjectContext
     ) {
+        let studentIDString = student.cloudKitKey
         let today = Date()
-        if let sequence = allLAs.first(where: {
-            $0.isPresented && ($0.presentedAt ?? Date.distantPast).isSameDay(as: today)
-        }) {
+        if let sequence = allLAs.first(where: { attachment.matches($0, today: today) }) {
             if !sequence.studentIDs.contains(studentIDString) {
                 sequence.studentIDs.append(studentIDString)
                 SequenceTrackService.autoEnrollInTrackIfNeeded(
@@ -312,11 +318,7 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
             }
         } else {
             guard let lessonID = lesson.id, let studentID = student.id else { return }
-            _ = PresentationFactory.makePresented(
-                lessonID: lessonID,
-                studentIDs: [studentID],
-                context: context
-            )
+            _ = attachment.makeAssignment(lessonID: lessonID, studentID: studentID, context: context)
             SequenceTrackService.autoEnrollInTrackIfNeeded(
                 lessonArea: lesson.area, lessonSequence: lesson.sequence,
                 studentIDs: [studentIDString], context: context

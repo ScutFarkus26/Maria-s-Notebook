@@ -1,22 +1,25 @@
 // StudentDetailWindowHost.swift
 // Host view for displaying StudentDetailView in a separate macOS window.
 
-import SwiftUI
 import CoreData
+import SwiftUI
 
 #if os(macOS)
 struct StudentDetailWindowHost: View {
     let studentID: UUID
-    @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        if let student = viewContext.object(CDStudent.self, id: studentID) {
+        EntityWindowHost(
+            id: studentID,
+            minSize: CGSize(width: 500, height: 400),
+            notFound: WindowHostNotFound(
+                "Student Not Found",
+                systemImage: "person.slash",
+                minSize: CGSize(width: 400, height: 300)
+            )
+        ) { (student: CDStudent) in
             StudentDetailView(student: student)
-                .frame(minWidth: 500, minHeight: 400)
                 .navigationTitle(student.fullName)
-        } else {
-            ContentUnavailableView("Student Not Found", systemImage: "person.slash")
-                .frame(minWidth: 400, minHeight: 300)
         }
     }
 }

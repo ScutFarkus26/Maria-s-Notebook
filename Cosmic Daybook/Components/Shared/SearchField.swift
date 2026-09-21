@@ -34,6 +34,50 @@ struct SearchField: View {
     }
 }
 
+/// The same field inside a drawn box: a soft fill with a hairline border.
+///
+/// Reference lists (procedures, supplies) sit it above a plain `List` where
+/// the unbordered `SearchField` would have nothing to separate it from the
+/// rows beneath.
+struct BorderedSearchField: View {
+    @Binding var text: String
+    let placeholder: String
+
+    init(_ placeholder: String, text: Binding<String>) {
+        self.placeholder = placeholder
+        self._text = text
+    }
+
+    var body: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+        )
+    }
+}
+
 // The `#Preview` closure is expanded and type-checked in every compiler job
 // for the module; a private view is checked once, in this file's job.
 private struct SearchFieldPreview: View {

@@ -113,21 +113,7 @@ struct TodayWatchingSectionView: View {
         .accessibilityElement(children: .combine)
         // One presenter for the whole section: a modifier on the Section
         // itself would be applied to every row.
-        .confirmationDialog(
-            WatchClearConfirmation.title,
-            isPresented: Binding(
-                get: { itemPendingClear != nil },
-                set: { if !$0 { itemPendingClear = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button(WatchClearConfirmation.action, role: .destructive) {
-                if let item = itemPendingClear { WatchListActions.clear(item, in: viewContext) }
-                itemPendingClear = nil
-            }
-        } message: {
-            Text(WatchClearConfirmation.message)
-        }
+        .watchClearConfirmation($itemPendingClear)
     }
 
     @ViewBuilder

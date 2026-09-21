@@ -76,21 +76,7 @@ struct StudentWatchingSection: View {
             todoBeingEdited: $todoBeingEdited,
             meetingBeingShown: $meetingBeingShown
         ))
-        .confirmationDialog(
-            WatchClearConfirmation.title,
-            isPresented: Binding(
-                get: { itemPendingClear != nil },
-                set: { if !$0 { itemPendingClear = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button(WatchClearConfirmation.action, role: .destructive) {
-                if let item = itemPendingClear { WatchListActions.clear(item, in: viewContext) }
-                itemPendingClear = nil
-            }
-        } message: {
-            Text(WatchClearConfirmation.message)
-        }
+        .watchClearConfirmation($itemPendingClear)
         #if os(macOS)
         .onChange(of: noteBeingEdited?.id) { _, _ in
             guard let noteID = noteBeingEdited?.id else { return }
