@@ -20,7 +20,7 @@ import FoundationModels
 
 /// Apple Private Cloud Compute AI client using the FoundationModels framework.
 /// Falls back cleanly when PCC is unavailable (no entitlement, offline, quota).
-final class PrivateCloudModelClient: MCPClientProtocol {
+final class PrivateCloudModelClient: FoundationModelClient {
     private static let logger = Logger.ai
 
     private let model = PrivateCloudComputeLanguageModel()
@@ -58,15 +58,13 @@ final class PrivateCloudModelClient: MCPClientProtocol {
         temperature: Double = 0.7,
         reasoning: ContextOptions.ReasoningLevel = .moderate
     ) async throws -> String {
-        guard isAvailable else {
-            throw LocalModelError.unavailable(unavailabilityReason)
-        }
+        try requireAvailable()
 
-        let session = LanguageModelSession(model: model, instructions: instructions)
+        let session = makeSession(instructions: instructions)
         do {
             let response = try await session.respond(
                 to: prompt,
-                options: .init(temperature: temperature),
+                options: generationOptions(temperature: temperature, maxTokens: nil),
                 contextOptions: ContextOptions(reasoningLevel: reasoning)
             )
             return response.content
@@ -75,83 +73,16 @@ final class PrivateCloudModelClient: MCPClientProtocol {
         }
     }
 
-    // MARK: - MCPClientProtocol
+    // MARK: - FoundationModelClient
 
-    func generateText(prompt: String, temperature: Double) async throws -> String {
-        try await generateText(
-            prompt: prompt, systemMessage: nil, temperature: temperature,
-            maxTokens: nil, model: nil, timeout: nil
-        )
+    /// Private Cloud Compute session: same API as on-device, PCC model.
+    func makeSession(instructions: String) -> LanguageModelSession {
+        LanguageModelSession(model: model, instructions: instructions)
     }
 
-    // swiftlint:disable:next function_parameter_count
-    func generateText(
-        prompt: String,
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int?,
-        model claudeModel: String?,
-        timeout: TimeInterval?
-    ) async throws -> String {
-        guard isAvailable else {
-            throw LocalModelError.unavailable(unavailabilityReason)
-        }
-
-        let instructions = systemMessage ?? AIPrompts.generalAssistant
-        let session = LanguageModelSession(model: model, instructions: instructions)
-
-        do {
-            let response = try await session.respond(
-                to: prompt,
-                options: .init(temperature: temperature)
-            )
-            return response.content
-        } catch let error as LanguageModelError {
-            throw LocalModelError.fromLanguageModel(error)
-        }
-    }
-
-    func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
-        try await generateStructuredJSON(
-            prompt: prompt, systemMessage: nil, temperature: temperature,
-            maxTokens: nil, model: nil, timeout: nil
-        )
-    }
-
-    // swiftlint:disable:next function_parameter_count
-    func generateStructuredJSON(
-        prompt: String,
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int?,
-        model claudeModel: String?,
-        timeout: TimeInterval?
-    ) async throws -> String {
-        guard isAvailable else {
-            throw LocalModelError.unavailable(unavailabilityReason)
-        }
-
-        let instructions = (systemMessage ?? AIPrompts.generalAssistant)
-            + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown, no code blocks."
-        let session = LanguageModelSession(model: model, instructions: instructions)
-
-        do {
-            let response = try await session.respond(
-                to: prompt,
-                options: .init(temperature: temperature)
-            )
-
-            // Validate JSON
-            let text = response.content.trimmed()
-            _ = try JSONSerialization.jsonObject(with: Data(text.utf8))
-            return text
-        } catch let error as LocalModelError {
-            throw error
-        } catch let error as LanguageModelError {
-            throw LocalModelError.fromLanguageModel(error)
-        } catch {
-            throw LocalModelError.invalidJSON
-        }
+    /// PCC sizes its own responses, so `maxTokens` is deliberately unused.
+    func generationOptions(temperature: Double, maxTokens: Int?) -> GenerationOptions {
+        .init(temperature: temperature)
     }
 
     // sendConversation and streamConversation use the protocol default

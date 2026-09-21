@@ -354,51 +354,17 @@ extension AnthropicAPIClient {
 
 extension AnthropicAPIClient {
 
-    private static let keychain = KeychainStore(
-        service: "com.danielsdeberry.MariasNoteBook",
-        account: "anthropicAPIKey"
-    )
+    /// Keychain-backed key storage shared with `OpenAIAPIClient` (see `APIKeyStore`);
+    /// service and account are unchanged, so existing keys are still found.
+    static let keyStore = APIKeyStore.anthropic
 
-    private static func loadAPIKey() -> String {
-        // Try Keychain first (secure storage)
-        if let data = try? keychain.get(), let key = String(data: data, encoding: .utf8), !key.isEmpty {
-            return key
-        }
-
-        // Fall back to UserDefaults and auto-migrate to Keychain
-        if let key = UserDefaults.standard.string(forKey: UserDefaultsKeys.anthropicAPIKey), !key.isEmpty {
-            if let data = key.data(using: .utf8) {
-                try? keychain.set(data)
-                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.anthropicAPIKey)
-                logger.info("Migrated API key from UserDefaults to Keychain")
-            }
-            return key
-        }
-
-        return ""
-    }
-
+    private static func loadAPIKey() -> String { keyStore.load() }
     /// Save API key to Keychain
-    static func saveAPIKey(_ key: String) {
-        guard let data = key.data(using: .utf8) else { return }
-        do {
-            try keychain.set(data)
-        } catch {
-            logger.error("Failed to save API key to Keychain: \(error.localizedDescription)")
-        }
-    }
-
+    static func saveAPIKey(_ key: String) { keyStore.save(key) }
     /// Check if API key is configured
-    static func hasAPIKey() -> Bool {
-        let key = loadAPIKey()
-        return !key.isEmpty && (key.hasPrefix("sk-ant-api03-") || key.hasPrefix("sk-ant-"))
-    }
-
+    static func hasAPIKey() -> Bool { keyStore.hasKey() }
     /// Clear saved API key
-    static func clearAPIKey() {
-        try? keychain.delete()
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.anthropicAPIKey)
-    }
+    static func clearAPIKey() { keyStore.clear() }
 
     struct ClaudeRequestConfig {
         let model: String

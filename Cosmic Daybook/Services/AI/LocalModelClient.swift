@@ -15,7 +15,7 @@ import FoundationModels
 /// On-device AI client using Apple Intelligence via FoundationModels framework.
 /// Falls back cleanly when Apple Intelligence is unavailable (wrong device, not enabled, etc.).
 @available(macOS 26.0, iOS 26.0, *)
-final class LocalModelClient: MCPClientProtocol {
+final class LocalModelClient: FoundationModelClient {
     private static let logger = Logger.ai
     private let evidenceSourceCollector = EvidenceSourceCollector()
 
@@ -42,83 +42,15 @@ final class LocalModelClient: MCPClientProtocol {
         }
     }
 
-    // MARK: - MCPClientProtocol
+    // MARK: - FoundationModelClient
 
-    func generateText(prompt: String, temperature: Double) async throws -> String {
-        try await generateText(
-            prompt: prompt, systemMessage: nil, temperature: temperature,
-            maxTokens: nil, model: nil, timeout: nil
-        )
+    /// On-device session: the default system model, no tools attached.
+    func makeSession(instructions: String) -> LanguageModelSession {
+        LanguageModelSession(instructions: instructions)
     }
 
-    // swiftlint:disable:next function_parameter_count
-    func generateText(
-        prompt: String,
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int?,
-        model: String?,
-        timeout: TimeInterval?
-    ) async throws -> String {
-        guard isAvailable else {
-            throw LocalModelError.unavailable(unavailabilityReason)
-        }
-
-        let instructions = systemMessage ?? AIPrompts.generalAssistant
-        let session = LanguageModelSession(instructions: instructions)
-
-        do {
-            let response = try await session.respond(
-                to: prompt,
-                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
-            )
-            return response.content
-        } catch let error as LanguageModelError {
-            throw LocalModelError.fromLanguageModel(error)
-        }
-    }
-
-    func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
-        try await generateStructuredJSON(
-            prompt: prompt, systemMessage: nil, temperature: temperature,
-            maxTokens: nil, model: nil, timeout: nil
-        )
-    }
-
-    // swiftlint:disable:next function_parameter_count
-    func generateStructuredJSON(
-        prompt: String,
-        systemMessage: String?,
-        temperature: Double,
-        maxTokens: Int?,
-        model: String?,
-        timeout: TimeInterval?
-    ) async throws -> String {
-        guard isAvailable else {
-            throw LocalModelError.unavailable(unavailabilityReason)
-        }
-
-        let instructions = (systemMessage ?? AIPrompts.generalAssistant)
-            + "\n\nIMPORTANT: Return ONLY valid JSON. No markdown, no code blocks."
-        let session = LanguageModelSession(instructions: instructions)
-
-        do {
-            let response = try await session.respond(
-                to: prompt,
-                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
-            )
-
-            // Validate JSON
-            let text = response.content.trimmed()
-            _ = try JSONSerialization.jsonObject(with: Data(text.utf8))
-            return text
-        } catch let error as LocalModelError {
-            throw error
-        } catch let error as LanguageModelError {
-            throw LocalModelError.fromLanguageModel(error)
-        } catch {
-            throw LocalModelError.invalidJSON
-        }
+    func generationOptions(temperature: Double, maxTokens: Int?) -> GenerationOptions {
+        .init(temperature: temperature, maximumResponseTokens: maxTokens)
     }
 
     // MARK: - Chat with notebook tools ("ask your notebook")
@@ -136,21 +68,12 @@ final class LocalModelClient: MCPClientProtocol {
         model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
-        guard isAvailable else {
-            throw LocalModelError.unavailable(unavailabilityReason)
-        }
-        _ = await evidenceSourceCollector.consume()
-        let base = systemMessage ?? AIPrompts.chatAssistant
-        let instructions = Self.conversationInstructions(from: messages, base: base)
-        let session = LanguageModelSession(
-            tools: NotebookTools.chatTools(sourceCollector: evidenceSourceCollector),
-            instructions: instructions
-        )
-        let prompt = Self.lastUserMessage(from: messages)
+        try requireAvailable()
+        let chat = await makeChatSession(messages: messages, systemMessage: systemMessage)
         do {
-            let response = try await session.respond(
-                to: prompt,
-                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
+            let response = try await chat.session.respond(
+                to: chat.prompt,
+                options: generationOptions(temperature: temperature, maxTokens: maxTokens)
             )
             return response.content
         } catch let error as LanguageModelError {
@@ -168,21 +91,12 @@ final class LocalModelClient: MCPClientProtocol {
         timeout: TimeInterval?,
         onDelta: @escaping @Sendable (String) -> Void
     ) async throws -> String {
-        guard isAvailable else {
-            throw LocalModelError.unavailable(unavailabilityReason)
-        }
-        _ = await evidenceSourceCollector.consume()
-        let base = systemMessage ?? AIPrompts.chatAssistant
-        let instructions = Self.conversationInstructions(from: messages, base: base)
-        let session = LanguageModelSession(
-            tools: NotebookTools.chatTools(sourceCollector: evidenceSourceCollector),
-            instructions: instructions
-        )
-        let prompt = Self.lastUserMessage(from: messages)
+        try requireAvailable()
+        let chat = await makeChatSession(messages: messages, systemMessage: systemMessage)
         do {
-            let stream = session.streamResponse(
-                to: prompt,
-                options: .init(temperature: temperature, maximumResponseTokens: maxTokens)
+            let stream = chat.session.streamResponse(
+                to: chat.prompt,
+                options: generationOptions(temperature: temperature, maxTokens: maxTokens)
             )
             // Snapshots are cumulative; emit only the new suffix as the delta.
             var emitted = ""
@@ -201,6 +115,22 @@ final class LocalModelClient: MCPClientProtocol {
 
     func consumeEvidenceSources() async -> [EvidenceReference] {
         await evidenceSourceCollector.consume()
+    }
+
+    // Builds the session for one chat turn: notebook tools attached, prior turns
+    // folded into the instructions, and the prompt to send with it.
+    private func makeChatSession(
+        messages: [[String: String]],
+        systemMessage: String?
+    ) async -> (session: LanguageModelSession, prompt: String) {
+        _ = await evidenceSourceCollector.consume()
+        let base = systemMessage ?? AIPrompts.chatAssistant
+        let instructions = Self.conversationInstructions(from: messages, base: base)
+        let session = LanguageModelSession(
+            tools: NotebookTools.chatTools(sourceCollector: evidenceSourceCollector),
+            instructions: instructions
+        )
+        return (session, Self.lastUserMessage(from: messages))
     }
 
     // Returns the most recent user message to use as the prompt.
