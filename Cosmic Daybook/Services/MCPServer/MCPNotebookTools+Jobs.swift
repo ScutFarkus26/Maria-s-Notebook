@@ -175,10 +175,9 @@ extension MCPNotebookTools {
             }
             return job
         }
-        let token = reference.folding(options: .diacriticInsensitive, locale: .current)
-            .trimmed().lowercased()
+        let token = reference.folded()
         let matches = jobs.filter {
-            $0.name.folding(options: .diacriticInsensitive, locale: .current).lowercased() == token
+            $0.name.folded() == token
         }
         guard let job = matches.first, matches.count == 1 else {
             guard matches.isEmpty else {

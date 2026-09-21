@@ -87,11 +87,11 @@ extension UnifiedNoteEditor {
             }
 
             let ids: [UUID] = content.studentIdentifiers.compactMap { ident in
-                let token = ident.folding(options: .diacriticInsensitive, locale: .current).trimmed().lowercased()
+                let token = ident.folded()
                 return students.first(where: { s in
-                    let first = s.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                    let last = s.lastName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-                    let nick = (s.nickname ?? "").folding(options: .diacriticInsensitive, locale: .current).lowercased()
+                    let first = s.firstName.folded()
+                    let last = s.lastName.folded()
+                    let nick = (s.nickname ?? "").folded()
                     let full = (first + " " + last)
                     return token == full || token == first || (!nick.isEmpty && token == nick)
                 })?.id

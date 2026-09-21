@@ -807,11 +807,11 @@ struct AlbumOutlineListView: View {
     }
 
     private var filteredNodes: [AlbumOutlineNode] {
-        let needle = AlbumLibrary.fold(filter)
+        let needle = filter.folded()
         var out: [AlbumOutlineNode] = []
         func walk(_ nodes: [AlbumOutlineNode]) {
             for node in nodes {
-                if AlbumLibrary.fold(node.title).contains(needle) {
+                if node.title.folded().contains(needle) {
                     out.append(AlbumOutlineNode(id: node.id, title: node.title,
                                            pageIndex: node.pageIndex, children: nil))
                 }

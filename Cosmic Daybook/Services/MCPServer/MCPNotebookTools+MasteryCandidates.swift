@@ -156,11 +156,8 @@ extension MCPNotebookTools {
                 lesson.id.map { ($0.uuidString, lesson) }
             }, uniquingKeysWith: { first, _ in first })
         }
-        let wanted = area.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-        let matching = lessons.filter {
-            $0.area.folding(options: .diacriticInsensitive, locale: .current)
-                .trimmed().lowercased() == wanted
-        }
+        let wanted = area.folded()
+        let matching = lessons.filter { $0.area.folded() == wanted }
         guard !matching.isEmpty else {
             let areas = Set(lessons.map { $0.area.trimmed() }).filter { !$0.isEmpty }.sorted()
             throw MCPToolError(

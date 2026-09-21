@@ -62,15 +62,11 @@ extension LessonPlanningService {
     /// Resolve only unambiguous names from the supplied classroom roster. This
     /// avoids silently attaching evidence to the wrong child when first names repeat.
     private func resolveStudentID(named name: String, from students: [CDStudent]) -> UUID? {
-        let normalized = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = name.folded()
         let matches = students.filter { student in
             let candidates = [student.fullName, student.firstName, student.nickname ?? ""]
                 .filter { !$0.isEmpty }
-                .map {
-                    $0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                }
+                .map { $0.folded() }
             return candidates.contains(normalized)
         }
         guard matches.count == 1 else { return nil }

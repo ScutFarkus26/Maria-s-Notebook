@@ -50,7 +50,7 @@ extension MCPNotebookTools {
     private static func findLessons(
         matching query: String, limit: Int, in modelContext: NSManagedObjectContext
     ) -> String {
-        let token = fold(query)
+        let token = query.folded()
         guard !token.isEmpty else { return "A search term is required." }
 
         let matches = modelContext.safeFetch(CDFetchRequest(CDLesson.self))
@@ -73,10 +73,10 @@ extension MCPNotebookTools {
     /// Lower ranks sort first: exact name, then a name containing the term,
     /// then its filing. `nil` means the lesson does not match at all.
     private static func matchRank(of lesson: CDLesson, against token: String) -> Int? {
-        let name = fold(lesson.name)
+        let name = lesson.name.folded()
         if name == token { return 0 }
         if name.contains(token) { return 1 }
-        let filing = fold("\(lesson.area) \(lesson.sequence) \(lesson.section)")
+        let filing = "\(lesson.area) \(lesson.sequence) \(lesson.section)".folded()
         if filing.contains(token) { return 2 }
         return nil
     }
@@ -90,12 +90,6 @@ extension MCPNotebookTools {
         return filing.isEmpty
             ? "[lesson id=\(id)] \(lesson.name)\(key)"
             : "[lesson id=\(id)] \(lesson.name) — \(filing)\(key)"
-    }
-
-    private static func fold(_ text: String) -> String {
-        text.folding(options: .diacriticInsensitive, locale: .current)
-            .trimmed()
-            .lowercased()
     }
 
     // MARK: - Lesson Resolution
@@ -115,13 +109,13 @@ extension MCPNotebookTools {
             return lesson
         }
 
-        let token = fold(reference)
+        let token = reference.folded()
         guard !token.isEmpty else {
             throw MCPToolError("A lesson name or id is required.")
         }
 
-        for candidates in [lessons.filter { fold($0.name) == token },
-                           lessons.filter { fold($0.name).contains(token) }] {
+        for candidates in [lessons.filter { $0.name.folded() == token },
+                           lessons.filter { $0.name.folded().contains(token) }] {
             if candidates.count == 1, let lesson = candidates.first { return lesson }
             if candidates.count > 1 {
                 throw MCPToolError(ambiguityMessage(reference: reference, candidates: candidates))

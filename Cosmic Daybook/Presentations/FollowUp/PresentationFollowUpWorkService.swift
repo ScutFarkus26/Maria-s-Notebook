@@ -379,17 +379,7 @@ private extension PresentationFollowUpWorkService {
             && work.presentationID == presentationID.uuidString
             && work.lessonID == lessonID.uuidString
             && work.kind == kind
-            && normalizedTitle(work.title) == normalizedTitle(title)
-    }
-
-    func normalizedTitle(_ title: String) -> String {
-        title
-            .split(whereSeparator: { $0.isWhitespace })
-            .joined(separator: " ")
-            .folding(
-                options: [.caseInsensitive, .diacriticInsensitive],
-                locale: .current
-            )
+            && work.title.foldedKey() == title.foldedKey()
     }
 
     func scheduledCheckIns(for work: CDWorkModel) -> [CDWorkCheckIn] {

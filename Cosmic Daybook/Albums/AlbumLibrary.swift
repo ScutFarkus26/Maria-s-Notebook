@@ -545,7 +545,7 @@ final class AlbumLibrary {
     private func folded(for albumID: String) -> [String] {
         if let cached = foldedTexts[albumID] { return cached }
         guard let texts = pageTexts[albumID] else { return [] }
-        let built = texts.map(Self.fold)
+        let built = texts.map { $0.folded() }
         foldedTexts[albumID] = built
         return built
     }
@@ -597,7 +597,7 @@ final class AlbumLibrary {
            let data = try? Data(contentsOf: cacheURL),
            let cached = try? JSONDecoder().decode(CachedIndex.self, from: data),
            abs(cached.modified.timeIntervalSince(modified)) < 1 {
-            return (cached.pageTexts, cached.pageTexts.map(fold))
+            return (cached.pageTexts, cached.pageTexts.map { $0.folded() })
         }
         var texts: [String] = []
         if let doc = PDFDocument(url: url) {
@@ -610,7 +610,7 @@ final class AlbumLibrary {
            let data = try? JSONEncoder().encode(CachedIndex(modified: modified, pageTexts: texts)) {
             try? data.write(to: cacheURL)
         }
-        return (texts, texts.map(fold))
+        return (texts, texts.map { $0.folded() })
     }
 
     /// Normalizes extracted PDF text for display and searching:
@@ -628,9 +628,5 @@ final class AlbumLibrary {
             t = t.replacingOccurrences(of: from, with: to)
         }
         return t
-    }
-
-    nonisolated static func fold(_ s: String) -> String {
-        s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
     }
 }

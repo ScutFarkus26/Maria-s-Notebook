@@ -222,18 +222,16 @@ extension MCPNotebookTools {
             }
             return supply
         }
-        let token = reference.folding(options: .diacriticInsensitive, locale: .current)
-            .trimmed().lowercased()
+        let token = reference.folded()
         let exact = supplies.filter {
-            $0.name.folding(options: .diacriticInsensitive, locale: .current).lowercased() == token
+            $0.name.folded() == token
         }
         if exact.count == 1, let supply = exact.first { return supply }
         if exact.count > 1 {
             throw MCPToolError("More than one supply is called \"\(reference)\".")
         }
         let partial = supplies.filter {
-            $0.name.folding(options: .diacriticInsensitive, locale: .current)
-                .lowercased().contains(token)
+            $0.name.folded().contains(token)
         }
         if partial.count == 1, let supply = partial.first { return supply }
         if partial.count > 1 {

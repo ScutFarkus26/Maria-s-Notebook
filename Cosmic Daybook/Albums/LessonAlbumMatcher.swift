@@ -171,7 +171,7 @@ enum LessonAlbumMatcher {
     /// Deliberately small: areas are free text and often don't line up.
     private static func subjectAffinity(area: String, subject: AlbumSubject) -> Double {
         guard subject != .other else { return 0 }
-        let folded = AlbumLibrary.fold(area)
+        let folded = area.folded()
         return folded.contains(subject.rawValue) ? 0.08 : 0
     }
 
@@ -195,7 +195,7 @@ enum LessonAlbumMatcher {
     ]
 
     private static func significantWords(_ s: String) -> Set<String> {
-        let parts = AlbumLibrary.fold(s)
+        let parts = s.folded()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { $0.count > 1 && !fillerWords.contains($0) }
         return Set(parts)

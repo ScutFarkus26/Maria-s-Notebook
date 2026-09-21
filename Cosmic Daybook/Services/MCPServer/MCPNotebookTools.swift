@@ -192,16 +192,14 @@ extension MCPNotebookTools {
     /// resolver. Ambiguity and misses throw tool errors the model can
     /// relay to the teacher.
     static func resolveStudent(named name: String, in context: NSManagedObjectContext) throws -> CDStudent {
-        let token = name.folding(options: .diacriticInsensitive, locale: .current)
-            .trimmed().lowercased()
+        let token = name.folded()
         guard !token.isEmpty else {
             throw MCPToolError("A student name is required.")
         }
         let matches = context.safeFetch(CDFetchRequest(CDStudent.self)).filter { student in
-            let first = student.firstName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let full = student.fullName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
-            let nickname = (student.nickname ?? "")
-                .folding(options: .diacriticInsensitive, locale: .current).lowercased()
+            let first = student.firstName.folded()
+            let full = student.fullName.folded()
+            let nickname = (student.nickname ?? "").folded()
             return token == first || token == full || (!nickname.isEmpty && token == nickname)
         }
         guard !matches.isEmpty else {
