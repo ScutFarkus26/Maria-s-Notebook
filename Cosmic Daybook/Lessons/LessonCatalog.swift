@@ -30,7 +30,9 @@ final class LessonCatalog {
     private(set) var byID: [UUID: CDLesson] = [:]
     private(set) var sortedByAreaAndSortIndex: [CDLesson] = []
 
-    @ObservationIgnored private var bySequence: [SequenceKey: [CDLesson]] = [:]
+    // Observed, not ignored: a view whose body reads only `lessons(area:sequence:)`
+    // must still be invalidated when the controller reports a change.
+    private var bySequence: [SequenceKey: [CDLesson]] = [:]
 
     private let table: FetchedTable<CDLesson>
 
