@@ -257,7 +257,8 @@ struct WorkLogServiceTests {
         #expect(todays.status == .scheduled)
         #expect(later.status == .scheduled)
         #expect(try completionRecords(for: copies[0], in: room.context).isEmpty)
-        #expect(((copies[0].unifiedNotes?.allObjects as? [CDNote]) ?? []).isEmpty)
+        let remainingNotes = (copies[0].unifiedNotes?.allObjects as? [CDNote]) ?? []
+        #expect(remainingNotes.isEmpty)
     }
 
     @Test("Logging nothing is refused")
