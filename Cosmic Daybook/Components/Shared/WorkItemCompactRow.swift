@@ -10,7 +10,9 @@ import CoreData
 
 struct WorkItemCompactRow: View {
     let work: CDWorkModel
-    let viewContext: NSManagedObjectContext
+    /// The work's student, looked up once by the parent for all rows (it was a
+    /// fetch per row per render).
+    let student: CDStudent?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -31,7 +33,7 @@ struct WorkItemCompactRow: View {
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 6) {
-                    if let student = work.fetchStudent(from: viewContext) {
+                    if let student {
                         Text(student.shortName)
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
