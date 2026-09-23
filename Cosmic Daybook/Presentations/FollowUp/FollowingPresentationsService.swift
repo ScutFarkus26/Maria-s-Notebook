@@ -44,21 +44,44 @@ enum FollowingPresentationsService {
         context: NSManagedObjectContext,
         asOf date: Date = Date()
     ) -> [FollowingPresentationGroup] {
-        let assignmentByID = Dictionary(
-            assignments.compactMap { assignment in
-                assignment.id.map { ($0, assignment) }
-            },
-            uniquingKeysWith: { first, _ in first }
+        groups(
+            rows: rows,
+            assignmentByID: Dictionary(
+                assignments.compactMap { assignment in
+                    assignment.id.map { ($0, assignment) }
+                },
+                uniquingKeysWith: { first, _ in first }
+            ),
+            lessonByID: Dictionary(
+                lessons.compactMap { lesson in lesson.id.map { ($0, lesson) } },
+                uniquingKeysWith: { first, _ in first }
+            ),
+            studentByID: Dictionary(
+                students.compactMap { student in student.id.map { ($0, student) } },
+                uniquingKeysWith: { first, _ in first }
+            ),
+            studentID: studentID,
+            searchText: searchText,
+            searchTokens: searchTokens,
+            context: context,
+            asOf: date
         )
-        let lessonByID = Dictionary(
-            lessons.compactMap { lesson in lesson.id.map { ($0, lesson) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        let studentByID = Dictionary(
-            students.compactMap { student in student.id.map { ($0, student) } },
-            uniquingKeysWith: { first, _ in first }
-        )
+    }
 
+    /// The same groups from lookups the caller already holds — the live
+    /// catalog's and roster's `byID` (first row per ID, as above) and the
+    /// assignments the rows name.
+    static func groups(
+        rows: [CDLessonPresentation],
+        assignmentByID: [UUID: CDLessonAssignment],
+        lessonByID: [UUID: CDLesson],
+        studentByID: [UUID: CDStudent],
+        studentID: UUID? = nil,
+        searchText: String = "",
+        searchTokens: [String] = [],
+        context: NSManagedObjectContext,
+        asOf date: Date = Date()
+    ) -> [FollowingPresentationGroup] {
         let openRows = deduplicated(rows).filter { row in
             guard row.hasOpenFollowUp else { return false }
             if let studentID {
@@ -113,6 +136,21 @@ enum FollowingPresentationsService {
             return result
         }
         .sorted(by: sortGroups)
+    }
+
+    /// The assignments `rows` point at, keyed by id — the only ones `groups`
+    /// ever looks up, so a whole-table read is not needed to build them.
+    static func assignmentsReferenced(
+        by rows: [CDLessonPresentation], in context: NSManagedObjectContext
+    ) -> [UUID: CDLessonAssignment] {
+        let ids = Set(rows.compactMap { $0.presentationID.flatMap(UUID.init(uuidString:)) })
+        guard !ids.isEmpty else { return [:] }
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "id IN %@", Array(ids))
+        return Dictionary(
+            context.safeFetch(request).compactMap { assignment in assignment.id.map { ($0, assignment) } },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     /// Cloud sync can briefly leave more than one physical row for the same
