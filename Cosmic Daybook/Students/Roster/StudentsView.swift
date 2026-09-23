@@ -128,7 +128,13 @@ struct StudentsView: View {
             reloadDataAsync()
         }
         .onChange(of: attendanceChangeToken) { _, _ in
-            reloadDataAsync()
+            // Attendance moves only the present-now records; the table
+            // caches rebuild too only if their own inputs changed.
+            Task {
+                viewModel.reloadAfterAttendanceChange(
+                    viewContext: viewContext, calendar: calendar, students: uniqueStudents
+                )
+            }
         }
         .onChange(of: presentationChangeToken) { _, _ in
             reloadDataAsync()

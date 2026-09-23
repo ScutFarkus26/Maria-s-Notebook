@@ -23,6 +23,8 @@ import Synchronization
 nonisolated final class ManagedObjectChangeFlag: Sendable {
 
     let entityNames: Set<String>
+    /// The context the flag watches edits on.
+    let contextID: ObjectIdentifier
     private let dirty: Dirty
     /// Written once in `init`, read once in `deinit`.
     nonisolated(unsafe) private let observers: [NSObjectProtocol]
@@ -36,6 +38,7 @@ nonisolated final class ManagedObjectChangeFlag: Sendable {
 
     init(entityNames: Set<String>, context: NSManagedObjectContext, center: NotificationCenter = .default) {
         self.entityNames = entityNames
+        self.contextID = ObjectIdentifier(context)
         self.center = center
         let names = entityNames
         let dirty = Dirty()
@@ -72,6 +75,10 @@ nonisolated final class ManagedObjectChangeFlag: Sendable {
 
     deinit {
         for token in observers { center.removeObserver(token) }
+    }
+
+    func watches(_ context: NSManagedObjectContext) -> Bool {
+        contextID == ObjectIdentifier(context)
     }
 
     /// Whether an input moved since the last `consume()`.
