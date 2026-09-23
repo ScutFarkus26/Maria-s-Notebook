@@ -8,30 +8,58 @@
 import CoreData
 import SwiftUI
 
-// MARK: - Chip counts
+// MARK: - One render's slices
+
+/// Every list the pills and the grid read, computed once per `body` pass and
+/// passed down as values. The pill row alone used to rebuild the ready and
+/// brewing lists four times, and the grid, the scroll trigger and the
+/// selection pruner rebuilt them again.
+struct ReadyToPresentSlices {
+    let ready: [CDLessonAssignment]
+    let blocked: [CDLessonAssignment]
+    let overdue: [CDLessonAssignment]
+    let recentlyMissed: [CDLessonAssignment]
+    let followUpCount: Int
+
+    /// Blocked first, then ready — the order the All pill renders them in.
+    var visible: [CDLessonAssignment] { blocked + ready }
+
+    func count(_ chip: PresentationsFilterChip) -> Int {
+        switch chip {
+        case .all:
+            return ready.count + blocked.count
+        case .followUp:
+            return followUpCount
+        case .suggestedNext:
+            // `rankedSuggestions` returns the top `suggestedNextLimit` of the
+            // ready list, so its count is known without scoring anything.
+            return min(ready.count, PresentationsViewModel.suggestedNextLimit)
+        case .waitingForWork:
+            return blocked.count
+        case .overdue:
+            return overdue.count
+        case .recentlyMissed:
+            return recentlyMissed.count
+        }
+    }
+}
 
 extension ReadyToPresentSection {
 
-    func chipCount(_ chip: PresentationsFilterChip) -> Int {
-        switch chip {
-        case .all:
-            return filteredAndSortedReadyLessons.count + filteredAndSortedBlockedLessons.count
-        case .followUp:
-            return followUpGroups.count
-        case .suggestedNext:
-            return suggestedNextSlice.count
-        case .waitingForWork:
-            return filteredAndSortedBlockedLessons.count
-        case .overdue:
-            return overdueSlice.count
-        case .recentlyMissed:
-            return recentlyMissedSlice.count
-        }
+    /// This render's slices. Call once per `body` pass.
+    func makeSlices() -> ReadyToPresentSlices {
+        ReadyToPresentSlices(
+            ready: filteredAndSortedReadyLessons,
+            blocked: filteredAndSortedBlockedLessons,
+            overdue: overdueSlice,
+            recentlyMissed: recentlyMissedSlice,
+            followUpCount: followUpGroups.count
+        )
     }
 
-    var suggestedNextSlice: [SuggestedPresentation] {
+    func suggestedNextSlice(among ready: [CDLessonAssignment]) -> [SuggestedPresentation] {
         viewModel.rankedSuggestions(
-            among: filteredAndSortedReadyLessons,
+            among: ready,
             allLessonAssignments: viewModel.cachedLessonAssignments
         )
     }
