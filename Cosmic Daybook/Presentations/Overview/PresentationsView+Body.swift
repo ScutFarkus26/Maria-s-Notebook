@@ -232,7 +232,9 @@ extension PresentationsView {
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow,
             showTestStudents: testStudents.show,
-            testStudentNamesRaw: testStudents.namesRaw
+            testStudentNamesRaw: testStudents.namesRaw,
+            lessons: dependencies.lessonCatalog.all,
+            students: dependencies.roster.all
         )
     }
 
@@ -247,14 +249,21 @@ extension PresentationsView {
             Self.logger.warning("Failed to fetch unscheduled lessons: \(error)")
             base = []
         }
-        let baseIDs = base.compactMap(\.id)
+        // Sets for the membership tests: both used to be linear scans inside a
+        // filter, quadratic in the number of drafts.
+        let baseIDs = Set(base.compactMap(\.id))
         var order = InboxOrderStore.parse(inboxOrderRaw).filter { baseIDs.contains($0) }
+        let ordered = Set(order)
         let missing = base
-            .filter { guard let id = $0.id else { return false }; return !order.contains(id) }
+            .filter { guard let id = $0.id else { return false }; return !ordered.contains(id) }
             .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
             .compactMap(\.id)
         order.append(contentsOf: missing)
-        inboxOrderRaw = InboxOrderStore.serialize(order)
+        let serialized = InboxOrderStore.serialize(order)
+        // Writing the same string still notifies every @AppStorage reader.
+        if serialized != inboxOrderRaw {
+            inboxOrderRaw = serialized
+        }
     }
 
     private func filteredSnapshot(_ la: CDLessonAssignment) -> LessonAssignmentSnapshot {

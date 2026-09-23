@@ -10,17 +10,44 @@ extension WorksAgendaView {
     // MARK: - Change Detection
 
     /// PERF: Lightweight change detection using fetchCount() instead of loading full tables.
-    func refreshChangeTokens() {
+    ///
+    /// Returns true when a token moved, which changes `dataReloadTrigger` and
+    /// so schedules `loadLessonsAndStudentsIfNeeded` (and the partition
+    /// rebuild it ends with) on its own.
+    @discardableResult
+    func refreshChangeTokens() -> Bool {
+        var changed = false
         do {
             let lRequest = CDFetchRequest(CDLesson.self)
             let lCount = try viewContext.count(for: lRequest)
-            if lCount != lessonChangeToken { lessonChangeToken = lCount }
+            if lCount != lessonChangeToken { lessonChangeToken = lCount; changed = true }
             let sRequest = CDFetchRequest(CDStudent.self)
             let sCount = try viewContext.count(for: sRequest)
-            if sCount != studentChangeToken { studentChangeToken = sCount }
+            if sCount != studentChangeToken { studentChangeToken = sCount; changed = true }
         } catch {
             Self.logger.warning("Failed to refresh change tokens: \(error)")
         }
+        return changed
+    }
+
+    /// Every entity the partition, the quiet-students map, or the change
+    /// tokens read: open work and what triages it (check-ins, notes,
+    /// participants), presentations and their follow-up rows, the school
+    /// calendar behind the school-day counts, and the lesson and student
+    /// tables the tokens count. A save touching none of these cannot change
+    /// anything this screen derives.
+    nonisolated static let agendaEntityNames: Set<String> = [
+        "WorkModel", "WorkCheckIn", "Note", "WorkParticipantEntity",
+        "LessonAssignment", "LessonPresentation",
+        "NonSchoolDay", "SchoolDayOverride",
+        "Lesson", "Student"
+    ]
+
+    /// True when a `NSManagedObjectContextDidSave` should refresh the screen
+    /// (fails open on an unrecognised payload — see
+    /// `ManagedObjectChangeScope.saveTouches`).
+    nonisolated static func saveTouchesAgenda(_ userInfo: [AnyHashable: Any]?) -> Bool {
+        ManagedObjectChangeScope.saveTouches(agendaEntityNames, in: userInfo)
     }
 
     // MARK: - Triage
@@ -31,7 +58,9 @@ extension WorksAgendaView {
     /// between lists without changing how many there are would not reach the
     /// caches. This is the path that catches it.
     func refreshAfterSave() {
-        refreshChangeTokens()
+        // A moved token already schedules the reload, which rebuilds the
+        // partition; building it here too would triage everything twice.
+        if refreshChangeTokens() { return }
         rebuildPartition()
     }
 
@@ -39,17 +68,20 @@ extension WorksAgendaView {
     ///
     /// Assignments are fetched here rather than held in a `@FetchRequest`
     /// because this runs on a debounced path, and the rule reads only their
-    /// `state`, `scheduledFor` and `id` — no relationships to fault.
+    /// `state`, `scheduledFor` and `id` — no relationships to fault. Only the
+    /// rows that can land outside `.done` are fetched (see
+    /// `LessonsAndWorkPartition.workspaceAssignments`).
     func rebuildPartition() {
-        let assignmentRequest: NSFetchRequest<CDLessonAssignment> =
-            NSFetchRequest(entityName: "LessonAssignment")
+        let unresolvedFollowUpIDs = LessonsAndWorkTriage.unresolvedFollowUpAssignmentIDs(in: viewContext)
         partition = LessonsAndWorkPartition(
             openWork: Array(openWork).uniqueByID,
-            assignments: viewContext.safeFetch(assignmentRequest),
-            unresolvedFollowUpIDs: LessonsAndWorkTriage
-                .unresolvedFollowUpAssignmentIDs(in: viewContext),
+            assignments: LessonsAndWorkPartition.workspaceAssignments(
+                in: viewContext, unresolvedFollowUpIDs: unresolvedFollowUpIDs
+            ),
+            unresolvedFollowUpIDs: unresolvedFollowUpIDs,
             context: viewContext
         )
+        partitionBuiltAt = Date()
         rebuildQuietStudents()
     }
 
@@ -127,31 +159,25 @@ extension WorksAgendaView {
             }
         }
 
-        // Load only needed lessons
-        // Use uniquingKeysWith to handle CloudKit sync duplicates
+        // Load only needed lessons, from the shared catalog (already keyed by
+        // id, CloudKit duplicates dropped first-wins) rather than a fresh
+        // whole-table fetch.
         if !neededLessonIDs.isEmpty {
-            let all: [CDLesson] = viewContext.safeFetch(CDFetchRequest(CDLesson.self))
-            let filtered = all.filter { neededLessonIDs.contains($0.id ?? UUID()) }
-            lessonsByIDCache = Dictionary(
-                filtered.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
-                uniquingKeysWith: { first, _ in first }
-            )
+            let catalog = dependencies.lessonCatalog.byID
+            lessonsByIDCache = catalog.filter { neededLessonIDs.contains($0.key) }
         } else {
             lessonsByIDCache = [:]
         }
 
-        // One fetch of the table, read two ways. The Work column needs the whole
+        // The shared roster, read two ways. The Work column needs the whole
         // enrolled roster — a child with no work owns none of the ids collected
         // above, and they are the ones it exists to show — while the card cache
         // needs only the owners on screen, withdrawn children included so their
-        // cards still have a name on them.
-        let allStudents: [CDStudent] = viewContext.safeFetch(
-            CDFetchRequest(CDStudent.self)
-        )
+        // cards still have a name on them. The roster is already de-duplicated.
+        let allStudents: [CDStudent] = dependencies.roster.all
 
-        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
         rosterStudents = TestStudentsFilter.filterVisible(
-            allStudents.filterEnrolled(),
+            dependencies.roster.enrolled,
             show: testStudents.show,
             namesRaw: testStudents.namesRaw
         ).uniqueByID

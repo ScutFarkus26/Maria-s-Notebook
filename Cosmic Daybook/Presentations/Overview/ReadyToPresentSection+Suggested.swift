@@ -20,8 +20,8 @@ extension ReadyToPresentSection {
         """
 
     @ViewBuilder
-    var suggestedNextContent: some View {
-        let suggestions = suggestedNextSlice
+    func suggestedNextContent(ready: [CDLessonAssignment]) -> some View {
+        let suggestions = suggestedNextSlice(among: ready)
         if suggestions.isEmpty {
             ContentUnavailableView(
                 "No suggestions", systemImage: "sparkles",

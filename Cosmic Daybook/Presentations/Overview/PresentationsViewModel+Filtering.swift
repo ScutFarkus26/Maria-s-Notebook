@@ -249,7 +249,7 @@ extension PresentationsViewModel {
 
     /// Presentations scheduled in the last `daysBack` days where at least one
     /// assigned student was absent on its scheduled day and the presentation
-    /// has not been given. Uses one batched attendance fetch per affected day.
+    /// has not been given. Uses one attendance fetch for every affected day.
     func recentlyMissed(within daysBack: Int = 14) -> [CDLessonAssignment] {
         guard let viewContext else { return [] }
         let today = calendar.startOfDay(for: Date())
@@ -266,10 +266,12 @@ extension PresentationsViewModel {
             calendar.startOfDay(for: la.scheduledFor ?? Date())
         }
 
+        let statusesByDay = viewContext.attendanceStatuses(
+            forStudentsByDay: grouped.mapValues { las in Array(Set(las.flatMap { $0.resolvedStudentIDs })) }
+        )
         var missed: [CDLessonAssignment] = []
         for (day, las) in grouped {
-            let studentIDs = Array(Set(las.flatMap { $0.resolvedStudentIDs }))
-            let statuses = viewContext.attendanceStatuses(for: studentIDs, on: day)
+            let statuses = statusesByDay[day.normalizedDay()] ?? [:]
             for la in las where la.resolvedStudentIDs.contains(where: { statuses[$0] == .absent }) {
                 missed.append(la)
             }

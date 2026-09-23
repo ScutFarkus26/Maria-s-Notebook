@@ -48,7 +48,9 @@ final class PresentationsViewModel {
     private var cachedStudentsStorage: [CDStudent] = []
 
     // PERFORMANCE: CDTrackEntity pending update for cancellation
-    private var pendingUpdateTask: Task<Void, Never>?
+    private(set) var pendingUpdateTask: Task<Void, Never>?
+    /// How many times `update` refetched the assignment table (tests pin the gate).
+    @ObservationIgnored private(set) var assignmentFetchCount = 0
 
     // PERFORMANCE: Use hash-based change detection
     private var lastLessonAssignmentChangeHash: Int?
@@ -56,8 +58,21 @@ final class PresentationsViewModel {
     private var lastWorkModelHash: Int?
     private var lastStudentsHash: Int?
 
+    /// Bumped on every `LessonAssignment` change the view context could see;
+    /// the cached table and its hash stand in for a refetch only while stored
+    /// at the current generation (see `+AssignmentGate`).
+    @ObservationIgnored var assignmentsGeneration = 0
+    @ObservationIgnored var cachedAssignmentsGeneration: Int?
+    @ObservationIgnored weak var observedContext: NSManagedObjectContext?
+    // `nonisolated(unsafe)` for the nonisolated `deinit`; written on the main actor only.
+    @ObservationIgnored nonisolated(unsafe) var assignmentObservers: [NSObjectProtocol] = []
+
     // MARK: - Initialization
     init() {}
+
+    deinit {
+        assignmentObservers.forEach(NotificationCenter.default.removeObserver)
+    }
 
     // MARK: - Memory Pressure
 
@@ -84,6 +99,7 @@ final class PresentationsViewModel {
         blockedLessons = []
 
         lastUpdateDate = nil
+        cachedAssignmentsGeneration = nil
         lastLessonAssignmentChangeHash = nil
         lastLessonsHash = nil
         lastWorkModelHash = nil
@@ -102,7 +118,9 @@ final class PresentationsViewModel {
             hasher.combine(la.stateRaw)
             hasher.combine(la.notes)
             hasher.combine(la.followUpWork)
-            hasher.combine(la.studentIDs.joined(separator: ","))
+            // The stored bytes, not the decoded array: the same bytes always
+            // decode to the same ids, and hashing them skips a JSON decode per row.
+            hasher.combine(la._studentIDsData)
             hasher.combine(la.needsPractice)
             hasher.combine(la.needsAnotherPresentation)
             hasher.combine(la.lessonID)
@@ -142,7 +160,9 @@ final class PresentationsViewModel {
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow,
         showTestStudents: Bool,
-        testStudentNamesRaw: String
+        testStudentNamesRaw: String,
+        lessons: [CDLesson],
+        students: [CDStudent]
     ) {
         // Cancel any pending update task
         pendingUpdateTask?.cancel()
@@ -155,7 +175,9 @@ final class PresentationsViewModel {
                 inboxOrderRaw: inboxOrderRaw,
                 missWindow: missWindow,
                 showTestStudents: showTestStudents,
-                testStudentNamesRaw: testStudentNamesRaw
+                testStudentNamesRaw: testStudentNamesRaw,
+                lessons: lessons,
+                students: students
             )
         }
     }
@@ -168,22 +190,27 @@ final class PresentationsViewModel {
         inboxOrderRaw: String,
         missWindow: PresentationsMissWindow,
         showTestStudents: Bool,
-        testStudentNamesRaw: String
+        testStudentNamesRaw: String,
+        lessons: [CDLesson],
+        students: [CDStudent]
     ) async {
         self.viewContext = viewContext
         self.calendar = calendar
+        observeAssignmentChanges(in: viewContext)
 
-        let lessonAssignments = fetchLessonAssignmentsData(from: viewContext)
-        await Task.yield()
-        if Task.isCancelled { return }
-
-        let lessons = fetchLessonsData(from: viewContext)
-        await Task.yield()
-        if Task.isCancelled { return }
-
-        let students = fetchStudentsData(from: viewContext)
-        await Task.yield()
-        if Task.isCancelled { return }
+        // Unchanged assignments are the same live objects a refetch would
+        // return, with the same hash; only refetch when one moved.
+        let generation = assignmentsGeneration
+        let (lessonAssignments, laHash): ([CDLessonAssignment], Int)
+        if cachedAssignmentsGeneration == generation, let lastHash = lastLessonAssignmentChangeHash {
+            (lessonAssignments, laHash) = (cachedLessonAssignments, lastHash)
+        } else {
+            lessonAssignments = fetchLessonAssignmentsData(from: viewContext)
+            assignmentFetchCount += 1
+            laHash = computeLessonAssignmentHash(lessonAssignments)
+            await Task.yield()
+            if Task.isCancelled { return }
+        }
 
         let workRequest = CDFetchRequest(CDWorkModel.self)
         workRequest.predicate = WorkStatus.openPredicate
@@ -191,7 +218,6 @@ final class PresentationsViewModel {
         await Task.yield()
         if Task.isCancelled { return }
 
-        let laHash = computeLessonAssignmentHash(lessonAssignments)
         let lHash = computeIDHash(lessons)
         let sHash = computeIDHash(students)
         let wHash = computeWorkModelHash(workModels)
@@ -199,7 +225,11 @@ final class PresentationsViewModel {
             || lHash != lastLessonsHash
             || sHash != lastStudentsHash
             || wHash != lastWorkModelHash
-        if !coreChanged && lastUpdateDate != nil { return }
+        if !coreChanged && lastUpdateDate != nil {
+            // Same hash as the cached array: it still stands for the store.
+            cachedAssignmentsGeneration = generation
+            return
+        }
 
         lastLessonAssignmentChangeHash = laHash
         lastLessonsHash = lHash
@@ -221,6 +251,7 @@ final class PresentationsViewModel {
         cachedLessons = lessons
         cachedWorkModels = workModels
         cachedLessonAssignments = lessonAssignments
+        cachedAssignmentsGeneration = generation
         lastUpdateDate = Date()
 
         let visibleStudents = TestStudentsFilter.filterVisible(
@@ -283,33 +314,6 @@ final class PresentationsViewModel {
         )
         #else
         return viewContext.safeFetch(CDFetchRequest(CDLessonAssignment.self))
-        #endif
-    }
-
-    /// The whole library in store order; the id hash and the lookup caches do the rest.
-    private func fetchLessonsData(from viewContext: NSManagedObjectContext) -> [CDLesson] {
-        let queries = DataQueryService(context: viewContext)
-        #if DEBUG
-        return PerformanceLogger.measure(
-            screenName: "PresentationsViewModel - Fetch Lessons",
-            operation: { queries.fetchAllLessons(sortBy: []) }
-        )
-        #else
-        return queries.fetchAllLessons(sortBy: [])
-        #endif
-    }
-
-    /// Every student row, withdrawn and test students included: the roster is
-    /// narrowed later with the caller's own show/names settings, not the defaults.
-    private func fetchStudentsData(from viewContext: NSManagedObjectContext) -> [CDStudent] {
-        let queries = DataQueryService(context: viewContext)
-        #if DEBUG
-        return PerformanceLogger.measure(
-            screenName: "PresentationsViewModel - Fetch Students",
-            operation: { queries.fetchAllStudents(excludeTest: false, excludeWithdrawn: false, sortBy: []) }
-        )
-        #else
-        return queries.fetchAllStudents(excludeTest: false, excludeWithdrawn: false, sortBy: [])
         #endif
     }
 

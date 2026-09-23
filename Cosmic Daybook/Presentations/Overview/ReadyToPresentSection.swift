@@ -48,28 +48,27 @@ struct ReadyToPresentSection: View {
         let visibleIDs: [UUID]
     }
 
-    private var focusScrollTrigger: FocusScrollTrigger {
+    private func focusScrollTrigger(_ slices: ReadyToPresentSlices) -> FocusScrollTrigger {
         FocusScrollTrigger(
             focusedID: focusedLessonID,
             // Follow-up rows are included: a deep link to a given presentation
             // lands on the Follow Up pill, and it has to scroll there too.
-            visibleIDs: (filteredAndSortedBlockedLessons + filteredAndSortedReadyLessons)
-                .compactMap(\.id) + followUpGroups.map(\.id)
+            visibleIDs: slices.visible.compactMap(\.id) + followUpGroups.map(\.id)
         )
     }
 
-    /// Everything a card could be selected from right now, so a selection
-    /// cannot outlive the pill that revealed it.
-    private var selectableIDs: [UUID] {
-        (filteredAndSortedBlockedLessons + filteredAndSortedReadyLessons).compactMap(\.id)
-    }
-
     var body: some View {
+        // Computed once and handed to everything below, rather than each pill,
+        // section and trigger re-filtering and re-sorting the view model's lists.
+        let slices = makeSlices()
+        // Everything a card could be selected from right now, so a selection
+        // cannot outlive the pill that revealed it.
+        let selectableIDs = slices.visible.compactMap(\.id)
         VStack(alignment: .leading, spacing: 0) {
             WorkspaceFilterPillRow(
                 selection: selectedChipBinding,
                 unfiltered: .all,
-                count: chipCount
+                count: slices.count
             )
             Divider()
             WorkspaceSelectionBar(selection: selection, noun: "presentation") {
@@ -77,7 +76,7 @@ struct ReadyToPresentSection: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             }
-            presentationsContent
+            presentationsContent(slices)
         }
         .workspaceDeletionConfirmation(
             pending: $pendingDeletion,
@@ -104,17 +103,18 @@ struct ReadyToPresentSection: View {
     // MARK: - Content
 
     @ViewBuilder
-    private var presentationsContent: some View {
+    private func presentationsContent(_ slices: ReadyToPresentSlices) -> some View {
+        let trigger = focusScrollTrigger(slices)
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-                    chipFilteredContent
+                    chipFilteredContent(slices)
                 }
                 .padding(.bottom, AppTheme.Spacing.medium + AppTheme.Spacing.xsmall)
             }
-            .task(id: focusScrollTrigger) {
+            .task(id: trigger) {
                 guard let id = focusedLessonID,
-                      focusScrollTrigger.visibleIDs.contains(id) else { return }
+                      trigger.visibleIDs.contains(id) else { return }
                 await Task.yield()
                 try? await Task.sleep(for: .milliseconds(50))
                 guard !Task.isCancelled else { return }
@@ -126,32 +126,32 @@ struct ReadyToPresentSection: View {
     }
 
     @ViewBuilder
-    private var chipFilteredContent: some View {
+    private func chipFilteredContent(_ slices: ReadyToPresentSlices) -> some View {
         switch filterState.selectedChip {
         case .all:
-            blockedSection
-            readySection
+            blockedSection(slices.blocked)
+            readySection(slices)
         case .followUp:
             followUpContent
         case .waitingForWork:
             singleSliceSection(
-                filteredAndSortedBlockedLessons,
+                slices.blocked,
                 emptyTitle: "Nothing brewing",
                 emptySymbol: "hourglass",
                 emptyDescription: "No lessons are waiting on student work right now."
             )
         case .suggestedNext:
-            suggestedNextContent
+            suggestedNextContent(ready: slices.ready)
         case .overdue:
             singleSliceSection(
-                overdueSlice,
+                slices.overdue,
                 emptyTitle: "Nothing overdue",
                 emptySymbol: "clock",
                 emptyDescription: "All ready lessons are within the 14-school-day window."
             )
         case .recentlyMissed:
             singleSliceSection(
-                recentlyMissedSlice,
+                slices.recentlyMissed,
                 emptyTitle: "No missed lessons",
                 emptySymbol: "person",
                 emptyDescription: "No scheduled lessons were missed in the last 14 days."
@@ -203,8 +203,8 @@ struct ReadyToPresentSection: View {
     }
 
     @ViewBuilder
-    private var blockedSection: some View {
-        if !filteredAndSortedBlockedLessons.isEmpty {
+    private func blockedSection(_ blocked: [CDLessonAssignment]) -> some View {
+        if !blocked.isEmpty {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 Label("Brewing", systemImage: "hourglass")
                     .font(.caption.weight(.bold))
@@ -216,7 +216,7 @@ struct ReadyToPresentSection: View {
                     GridItem(.flexible(), spacing: AppTheme.Spacing.small),
                     GridItem(.flexible(), spacing: AppTheme.Spacing.small)
                 ], alignment: .leading, spacing: AppTheme.Spacing.small) {
-                    ForEach(filteredAndSortedBlockedLessons, id: \.id) { la in
+                    ForEach(blocked, id: \.id) { la in
                         onDeckCard(la, blockingWork: getBlockingWork(la))
                     }
                 }
@@ -227,9 +227,9 @@ struct ReadyToPresentSection: View {
     }
 
     @ViewBuilder
-    private var readySection: some View {
-        if filteredAndSortedReadyLessons.isEmpty {
-            if filteredAndSortedBlockedLessons.isEmpty {
+    private func readySection(_ slices: ReadyToPresentSlices) -> some View {
+        if slices.ready.isEmpty {
+            if slices.blocked.isEmpty {
                 ContentUnavailableView(
                     "All Caught Up", systemImage: "checkmark.circle",
                     description: Text("No unscheduled presentations.")
@@ -248,21 +248,21 @@ struct ReadyToPresentSection: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, AppTheme.Spacing.compact)
-                readyGrid
+                readyGrid(slices.ready)
             }
-            .padding(.top, filteredAndSortedBlockedLessons.isEmpty
+            .padding(.top, slices.blocked.isEmpty
                       ? AppTheme.Spacing.compact
                       : AppTheme.Spacing.medium + AppTheme.Spacing.small)
         }
     }
 
-    private var readyGrid: some View {
+    private func readyGrid(_ ready: [CDLessonAssignment]) -> some View {
         LazyVGrid(columns: [
             GridItem(.flexible(), spacing: AppTheme.Spacing.small),
             GridItem(.flexible(), spacing: AppTheme.Spacing.small),
             GridItem(.flexible(), spacing: AppTheme.Spacing.small)
         ], alignment: .leading, spacing: AppTheme.Spacing.small) {
-            ForEach(filteredAndSortedReadyLessons, id: \.id) { la in
+            ForEach(ready, id: \.id) { la in
                 readyGridItem(la)
             }
         }

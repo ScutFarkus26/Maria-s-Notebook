@@ -75,6 +75,10 @@ struct WorksAgendaView: View {
     /// placing one work item walks its check-ins and notes and then counts
     /// school days.
     @State var partition = LessonsAndWorkPartition()
+    /// When `partition` was last built. Triage counts school days from today,
+    /// so the first save after the day turns refreshes it even when that save
+    /// touched nothing the partition reads.
+    @State var partitionBuiltAt: Date = .distantPast
 
     @TestStudentVisibility var testStudents
     @AppStorage(UserDefaultsKeys.workAgendaHideScheduled) var hideScheduled: Bool = false
@@ -213,9 +217,17 @@ struct WorksAgendaView: View {
         }
         // Debounce: saves arrive in bursts (bulk edits, CloudKit merge batches).
         // Coalesce them so the change-token fetches run once the dust settles,
-        // not once per save (same pattern as StudentsView).
+        // not once per save (same pattern as StudentsView). Saves that touch
+        // nothing this screen reads (attendance, album notes, sync bookkeeping)
+        // are dropped before the debounce, unless the day has turned since the
+        // last build.
         .onReceive(
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                .map { Self.saveTouchesAgenda($0.userInfo) }
+                .receive(on: RunLoop.main)
+                .filter { touches in
+                    touches || !AppCalendar.shared.isDate(partitionBuiltAt, inSameDayAs: Date())
+                }
                 .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         ) { _ in
             refreshAfterSave()

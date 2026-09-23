@@ -99,9 +99,11 @@ struct WeekPlanSection: View {
             }
             // A status logged from the grid, Today, the editor or over MCP
             // settles check-ins this strip is showing. Saves arrive in bursts,
-            // so coalesce them — the same pattern as WorksAgendaView.
+            // so coalesce them — the same pattern as WorksAgendaView. Saves
+            // touching nothing the check-in pills read are dropped first.
             .onReceive(
                 NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                    .filter { ManagedObjectChangeScope.saveTouches(Self.checkInEntityNames, in: $0.userInfo) }
                     .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
             ) { _ in
                 Task { await refreshCheckIns() }
@@ -263,12 +265,15 @@ struct WeekPlanSection: View {
     // MARK: - Day strip
 
     private var dayStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let assignments = Array(lessonAssignments)
+        let byDay = Self.scheduledByDay(assignments, days: days, calendar: calendar)
+        return ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(alignment: .top, spacing: 12) {
                 ForEach(days, id: \.self) { day in
                     WeekDayColumn(
                         day: day,
-                        allLessonAssignments: Array(lessonAssignments),
+                        allLessonAssignments: assignments,
+                        scheduledLessons: byDay[calendar.startOfDay(for: day)] ?? [],
                         lessons: cachedLessons,
                         students: cachedStudents,
                         visibleKinds: visibleKinds,
@@ -297,6 +302,40 @@ struct WeekPlanSection: View {
         }
         guard !forDay.isEmpty else { return [] }
         return CalendarCheckInGrouper.groups(from: forDay, lookup: checkInLookup)
+    }
+}
+
+// MARK: - Per-render data
+
+extension WeekPlanSection {
+    /// What `refreshCheckIns` and the pills it feeds read: the check-ins, the
+    /// work they belong to, and the lesson and child names on the pill.
+    nonisolated static let checkInEntityNames: Set<String> = ["WorkCheckIn", "WorkModel", "Lesson", "Student"]
+
+    /// Each visible day's pending presentations, in the order its column draws
+    /// them: not given, scheduled on that day (`isDate(_:inSameDayAs:)` in
+    /// `calendar`, i.e. the same start of day), sorted by
+    /// `LessonAssignmentOrdering`. Keyed by `calendar.startOfDay(for:)`.
+    ///
+    /// One walk over the table per render instead of one per column per read —
+    /// each column used to re-filter every assignment every time its body,
+    /// header, lanes, balance button or drop delegate asked for its day.
+    static func scheduledByDay(
+        _ assignments: [CDLessonAssignment],
+        days: [Date],
+        calendar: Calendar
+    ) -> [Date: [CDLessonAssignment]] {
+        let wanted = Set(days.map { calendar.startOfDay(for: $0) })
+        var byDay: [Date: [CDLessonAssignment]] = [:]
+        for la in assignments {
+            guard let scheduled = la.scheduledFor, !la.isGiven else { continue }
+            let key = calendar.startOfDay(for: scheduled)
+            guard wanted.contains(key) else { continue }
+            byDay[key, default: []].append(la)
+        }
+        // Swift's sort is not stable, and every legacy row still sits at
+        // midnight — the tiebreak in the ordering keeps the day from reshuffling.
+        return byDay.mapValues { $0.sorted(by: LessonAssignmentOrdering.isOrderedBefore) }
     }
 }
 
