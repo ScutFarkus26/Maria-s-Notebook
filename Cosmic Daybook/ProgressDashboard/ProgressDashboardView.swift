@@ -17,6 +17,7 @@ struct ProgressDashboardView: View {
     /// context, a save on another context, or a remote import — without
     /// keeping both tables registered just to count their rows.
     @State private var changeToken = 0
+    @State private var reloadDebounceTask: Task<Void, Never>?
 
     var body: some View {
         content
@@ -26,7 +27,17 @@ struct ProgressDashboardView: View {
             .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: viewContext) { _ in
                 changeToken &+= 1
             }
-            .onChange(of: changeToken) { _, _ in viewModel.loadData(context: viewContext) }
+            .onChange(of: changeToken) { _, _ in
+                // A CloudKit import or a bulk edit bumps the token several
+                // times back-to-back; collapse them into one reload 250 ms
+                // after the last (the Presentations pattern).
+                reloadDebounceTask?.cancel()
+                reloadDebounceTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { return }
+                    viewModel.loadData(context: viewContext)
+                }
+            }
             .sheet(item: $detailTarget) { target in
                 StudentSequenceDetailSheet(target: target) {
                     detailTarget = nil

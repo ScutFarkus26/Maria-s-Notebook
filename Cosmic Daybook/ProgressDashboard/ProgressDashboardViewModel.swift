@@ -77,6 +77,11 @@ final class ProgressDashboardViewModel {
             by: { AreaSeqKey(area: $0.area.trimmed(), sequence: $0.sequence.trimmed()) }
         )
 
+        // Each assignment's studentIDs blob decoded once, not once per student;
+        // each student's slice keeps the fetch order the per-student filter had.
+        let assignmentsByStudent = Self.groupByStudent(allAssignments)
+        let workByStudent = Dictionary(grouping: allWork, by: \.studentID)
+
         // Cards
         var cards: [StudentProgressionCard] = []
 
@@ -84,8 +89,8 @@ final class ProgressDashboardViewModel {
             guard let studentID = student.id else { continue }
             let studentIDStr = studentID.uuidString
 
-            let assignmentsForStudent = allAssignments.filter { $0.studentIDs.contains(studentIDStr) }
-            let workForStudent = allWork.filter { $0.studentID == studentIDStr }
+            let assignmentsForStudent = assignmentsByStudent[studentIDStr] ?? []
+            let workForStudent = workByStudent[studentIDStr] ?? []
             let openWorkByLesson = Dictionary(
                 grouping: workForStudent.filter { $0.status.isOpen },
                 by: { $0.lessonID }
@@ -224,6 +229,21 @@ final class ProgressDashboardViewModel {
         } else {
             return .notStarted
         }
+    }
+
+    // MARK: - Grouping
+
+    /// studentID → the assignments naming her, in `assignments` order — the
+    /// same rows, in the same order, as `assignments.filter { $0.studentIDs.contains(id) }`,
+    /// with each assignment listed once however often its roster names her.
+    static func groupByStudent(_ assignments: [CDLessonAssignment]) -> [String: [CDLessonAssignment]] {
+        var grouped: [String: [CDLessonAssignment]] = [:]
+        for assignment in assignments {
+            for studentID in Set(assignment.studentIDs) {
+                grouped[studentID, default: []].append(assignment)
+            }
+        }
+        return grouped
     }
 
     // MARK: - Fetching
