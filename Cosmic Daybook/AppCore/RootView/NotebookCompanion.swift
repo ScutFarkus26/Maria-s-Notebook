@@ -300,13 +300,13 @@ struct NotebookCompanionCharacter: View {
     }
 
     private var robotEar: some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
+        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tiny, style: .continuous)
             .fill(accent.opacity(0.82))
             .frame(width: 7, height: 16)
     }
 
     private var robotEye: some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
+        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tiny, style: .continuous)
             .fill(.white)
             .frame(width: 7, height: state == .working ? 4 : 8)
     }
@@ -492,7 +492,7 @@ struct NotebookCompanionPanel: View {
             .foregroundStyle(color)
             .padding(.horizontal, AppTheme.Spacing.xsmall)
             .padding(.vertical, AppTheme.Spacing.xxsmall)
-            .background(Capsule().fill(color.opacity(0.10)))
+            .capsuleFill(color.opacity(0.10))
     }
 
     private func companionAction(
@@ -514,10 +514,7 @@ struct NotebookCompanionPanel: View {
             }
             .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
             .padding(AppTheme.Spacing.small)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-            )
+            .surface(UIConstants.CornerRadius.medium, fill: Color.primary.opacity(UIConstants.OpacityConstants.trace))
         }
         .buttonStyle(.plain)
         .disabled(isWorking)

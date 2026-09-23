@@ -86,9 +86,10 @@ struct SectionCard<Content: View>: View {
             content
         }
         .padding(AppTheme.Spacing.compact + 2)
-        .background(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large + 2, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .surface(
+            UIConstants.CornerRadius.large + 2,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+            style: .continuous
         )
     }
 }

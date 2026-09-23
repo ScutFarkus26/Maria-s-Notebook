@@ -68,9 +68,10 @@ struct ScheduleDetailSheet: View {
                 .font(.system(size: 40))
                 .foregroundStyle(Color(hex: schedule.colorHex) ?? .blue)
                 .frame(width: 60, height: 60)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill((Color(hex: schedule.colorHex) ?? .blue).opacity(UIConstants.OpacityConstants.accent))
+                .surface(
+                    UIConstants.CornerRadius.large,
+                    fill: (Color(hex: schedule.colorHex) ?? .blue).opacity(UIConstants.OpacityConstants.accent),
+                    style: .continuous
                 )
 
             VStack(alignment: .leading, spacing: 4) {
@@ -187,9 +188,10 @@ struct ScheduleDetailSheet: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            style: .continuous
         )
     }
 

@@ -15,7 +15,7 @@ struct SequenceDetailWorkRow: View {
                         .fontWeight(.semibold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(kind.color.opacity(UIConstants.OpacityConstants.accent)))
+                        .capsuleFill(kind.color.opacity(UIConstants.OpacityConstants.accent))
                         .foregroundStyle(kind.color)
                 }
                 Text(item.title)
@@ -44,13 +44,11 @@ struct SequenceDetailWorkRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(0.04),
+            stroke: Color.primary.opacity(0.08),
+            style: .continuous
         )
     }
 }
@@ -85,13 +83,11 @@ struct SequenceDetailPresentationRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(areaColor.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(areaColor.opacity(0.20))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: areaColor.opacity(0.08),
+            stroke: areaColor.opacity(0.20),
+            style: .continuous
         )
     }
 }
@@ -121,13 +117,11 @@ struct SequenceDetailNoteRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.yellow.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.yellow.opacity(0.25))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.yellow.opacity(0.08),
+            stroke: Color.yellow.opacity(0.25),
+            style: .continuous
         )
     }
 }

@@ -169,7 +169,7 @@ struct AttendanceStudentHistorySheet: View {
         let status = statusByDay[AppCalendar.startOfDay(day)] ?? .unmarked
 
         ZStack {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tiny, style: .continuous)
                 .fill(cellFill(status: status, inMonth: inMonth, nonSchool: nonSchool))
             Text("\(AppCalendar.shared.component(.day, from: day))")
                 .font(.system(size: 9, weight: .regular, design: .rounded))
@@ -225,10 +225,7 @@ struct AttendanceStudentHistorySheet: View {
                     Spacer(minLength: 0)
                 }
                 .padding(AppTheme.Spacing.small)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.secondary.opacity(0.06))
-                )
+                .surface(UIConstants.CornerRadius.medium, fill: Color.secondary.opacity(0.06), style: .continuous)
             }
         }
     }

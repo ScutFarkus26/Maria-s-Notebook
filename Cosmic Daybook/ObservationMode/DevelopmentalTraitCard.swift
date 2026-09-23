@@ -19,7 +19,7 @@ struct DevelopmentalTraitCard: View {
                 .frame(width: 36, height: 36)
                 .background(
                     characteristic.color.opacity(UIConstants.OpacityConstants.medium),
-                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                 )
 
             // Name and description
@@ -53,13 +53,11 @@ struct DevelopmentalTraitCard: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .fill(CardStyle.cardBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(CardStyle.strokeOpacity))
+        .surface(
+            CardStyle.cornerRadius,
+            fill: CardStyle.cardBackgroundColor,
+            stroke: Color.primary.opacity(CardStyle.strokeOpacity),
+            style: .continuous
         )
         .shadow(color: CardStyle.shadowColor, radius: CardStyle.shadowRadius, y: 1)
     }

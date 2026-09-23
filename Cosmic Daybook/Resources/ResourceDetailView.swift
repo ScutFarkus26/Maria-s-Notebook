@@ -170,9 +170,9 @@ struct ResourceDetailView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 400)
                     .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
                             .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                     )
             } else {
@@ -187,7 +187,7 @@ struct ResourceDetailView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 300)
                 .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
             }
         }
     }
@@ -268,9 +268,7 @@ struct ResourceDetailView: View {
                                 .font(.caption.weight(.medium))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(
-                                    Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
-                                )
+                                .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
                                 .foregroundStyle(Color.accentColor)
                         }
                     }

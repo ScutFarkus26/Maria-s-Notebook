@@ -152,10 +152,10 @@ struct AttendanceCard: View {
         // Neutral card background with subtle elevation
         let bgColor = Color.windowBackgroundColor()
 
-        return RoundedRectangle(cornerRadius: 14, style: .continuous)
+        return RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
             .fill(bgColor)
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                     .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
             )
     }
@@ -284,7 +284,7 @@ struct AttendanceCard: View {
             Rectangle()
                 .fill(accentColor)
                 .frame(width: 4)
-                .clipShape(RoundedRectangle(cornerRadius: 2))
+                .clipRounded(2)
 
             VStack(alignment: .leading, spacing: 8) {
                 regularLayout
@@ -293,8 +293,8 @@ struct AttendanceCard: View {
         }
         .frame(minHeight: 80)
         .background(background)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipRounded(UIConstants.CornerRadius.tile, style: .continuous)
+        .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous))
         .adaptiveAnimation(.spring(response: 0.4, dampingFraction: 0.7), value: status)
     }
 

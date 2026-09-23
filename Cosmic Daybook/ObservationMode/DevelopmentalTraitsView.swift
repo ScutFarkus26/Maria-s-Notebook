@@ -165,22 +165,17 @@ struct DevelopmentalTraitsView: View {
                     .foregroundStyle(trait.color)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(trait.color.opacity(UIConstants.OpacityConstants.medium))
-                    )
+                    .capsuleFill(trait.color.opacity(UIConstants.OpacityConstants.medium), style: .continuous)
                 }
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(CardStyle.cardBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(CardStyle.strokeOpacity))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: CardStyle.cardBackgroundColor,
+            stroke: Color.primary.opacity(CardStyle.strokeOpacity),
+            style: .continuous
         )
     }
 

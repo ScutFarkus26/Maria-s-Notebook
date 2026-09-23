@@ -153,9 +153,10 @@ private extension SupplyDetailView {
             Spacer()
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            UIConstants.CornerRadius.extraLarge,
+            fill: Color.accentColor.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 

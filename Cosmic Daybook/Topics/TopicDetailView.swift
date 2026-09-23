@@ -143,7 +143,7 @@ private struct TopicBasicsSection: View {
                     .font(.caption).foregroundStyle(.secondary)
                 TextEditor(text: $issue).frame(minHeight: 120)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                             .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
                     )
             }
@@ -179,10 +179,7 @@ private struct TagsSection: View {
                                 Text(tag)
                                     .font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                                    )
+                                    .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                             }
                         }
                     }
@@ -205,7 +202,7 @@ private struct ResolutionSection: View {
                     DatePicker("Addressed Date", selection: $addressedDate, displayedComponents: .date)
                     TextEditor(text: $resolution).frame(minHeight: 80)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                                 .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
                         )
                 }
@@ -261,9 +258,9 @@ private struct ProposedSolutionsSection: View {
                             }
                         }
                         .padding(8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                        .surface(
+                            UIConstants.CornerRadius.medium,
+                            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace)
                         )
                     }
                 }
@@ -276,7 +273,7 @@ private struct ProposedSolutionsSection: View {
                     .textFieldStyle(.roundedBorder)
                 TextEditor(text: $newSolutionDetails).frame(minHeight: 80)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                             .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
                     )
 
@@ -315,9 +312,9 @@ private struct AttachmentsSection: View {
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
                         .padding(8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                        .surface(
+                            UIConstants.CornerRadius.medium,
+                            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace)
                         )
                     }
                 }

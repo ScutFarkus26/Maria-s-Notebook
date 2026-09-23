@@ -57,9 +57,10 @@ extension AttendanceLogView {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
         )
         .contentShape(Rectangle())
         .contextMenu {

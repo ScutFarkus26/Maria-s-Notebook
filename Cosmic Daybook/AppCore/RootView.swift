@@ -180,7 +180,10 @@ struct RootView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(24)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .background(
+                        .regularMaterial,
+                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
+                    )
                     .shadow(radius: 12)
                 }
             }

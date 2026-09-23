@@ -47,15 +47,14 @@ struct ProgressDashboardCategoryRow: View {
             .padding(.horizontal, 8)
             .frame(minHeight: collapsedHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(areaColor.opacity(0.06))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: areaColor.opacity(0.06),
+                stroke: areaColor.opacity(0.18),
+                lineWidth: 0.5,
+                style: .continuous
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(areaColor.opacity(0.18), lineWidth: 0.5)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
         }
         .buttonStyle(.plain)
         .help("\(sequence.area) — \(sequence.sequence) · \(sequence.presentedCount)/\(sequence.totalCount) presented")
@@ -134,10 +133,7 @@ struct ProgressionStatusPill: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
-        .background(
-            Capsule(style: .continuous)
-                .fill(fillColor)
-        )
+        .capsuleFill(fillColor, style: .continuous)
         .overlay(
             Capsule(style: .continuous)
                 .strokeBorder(strokeColor, style: strokeStyle)

@@ -92,10 +92,7 @@ struct SmallSequencePlannerLessonDetail: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(Color.accentColor.gradient)
-                    )
+                    .capsuleFill(Color.accentColor.gradient, style: .continuous)
             }
 
             if let preceding = candidate.precedingLessonName {
@@ -145,9 +142,10 @@ struct SmallSequencePlannerLessonDetail: View {
             Spacer()
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(AppColors.warning.opacity(UIConstants.OpacityConstants.hint))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: AppColors.warning.opacity(UIConstants.OpacityConstants.hint),
+            style: .continuous
         )
     }
 
@@ -254,10 +252,7 @@ struct SmallSequencePlannerLessonDetail: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(color.gradient)
-                        )
+                        .capsuleFill(color.gradient, style: .continuous)
 
                     Spacer()
 

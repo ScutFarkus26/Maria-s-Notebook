@@ -38,9 +38,7 @@ struct StoryThemeChip: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(
-                Capsule().fill(Color.secondary.opacity(0.12))
-            )
+            .capsuleFill(Color.secondary.opacity(0.12))
         }
     }
 
@@ -55,9 +53,6 @@ struct StoryThemeChip: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .foregroundStyle(isSelected ? Color.white : Color.primary)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.12))
-            )
+            .capsuleFill(isSelected ? Color.accentColor : Color.secondary.opacity(0.12))
     }
 }

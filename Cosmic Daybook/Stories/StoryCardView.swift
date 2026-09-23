@@ -34,7 +34,7 @@ struct StoryCardView: View {
                             .font(.caption2)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.orange.opacity(0.15)))
+                            .capsuleFill(Color.orange.opacity(0.15))
                             .foregroundStyle(.orange)
                     }
                     Spacer(minLength: 0)
@@ -46,13 +46,12 @@ struct StoryCardView: View {
             }
             .padding(12)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+        .surface(
+            UIConstants.CornerRadius.tile,
+            fill: Color.secondary.opacity(0.08),
+            stroke: isSelected ? Color.accentColor : Color.clear,
+            lineWidth: 2,
+            style: .continuous
         )
         .contentShape(Rectangle())
     }
@@ -115,7 +114,7 @@ struct StoryCardView: View {
             .font(.caption2.bold())
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+            .capsuleFill(Color.accentColor.opacity(0.15))
             .foregroundStyle(Color.accentColor)
     }
 

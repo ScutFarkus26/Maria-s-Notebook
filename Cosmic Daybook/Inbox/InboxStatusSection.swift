@@ -35,9 +35,10 @@ struct InboxStatusSection: View {
             }
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.vertical, AppTheme.Spacing.small)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                    .fill(Color.blue.opacity(UIConstants.OpacityConstants.light))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: Color.blue.opacity(UIConstants.OpacityConstants.light),
+                style: .continuous
             )
 
             OptionalDatePicker(
@@ -73,9 +74,10 @@ struct InboxStatusSection: View {
             }
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.vertical, AppTheme.Spacing.small)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                    .fill(Color.secondary.opacity(UIConstants.OpacityConstants.faint))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: Color.secondary.opacity(UIConstants.OpacityConstants.faint),
+                style: .continuous
             )
 
             OptionalDatePicker(

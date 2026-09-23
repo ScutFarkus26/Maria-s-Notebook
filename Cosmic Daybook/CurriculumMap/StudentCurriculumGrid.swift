@@ -150,7 +150,7 @@ struct StudentCurriculumGrid: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 12)
             }
-            RoundedRectangle(cornerRadius: 1)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.hairline)
                 .fill(row.tint)
                 .frame(width: 3, height: height - 12)
                 .opacity(row.depth == 0 ? 1 : 0.5)

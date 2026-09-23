@@ -155,7 +155,7 @@ struct BookClubSessionDetailView: View {
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                            .capsuleFill(Color.secondary.opacity(0.15))
                     }
                 }
             }
@@ -342,7 +342,7 @@ private struct LeaderReassignSheet: View {
                         .background(meeting.leaderStudentID.isEmpty
                                     ? Color.accentColor.opacity(0.12)
                                     : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .clipRounded(UIConstants.CornerRadius.small)
                     }
                     .buttonStyle(.plain)
                     ForEach(roster, id: \.objectID) { student in
@@ -364,7 +364,7 @@ private struct LeaderReassignSheet: View {
                             .background(student.id?.uuidString == meeting.leaderStudentID
                                         ? Color.accentColor.opacity(0.12)
                                         : Color.clear)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .clipRounded(UIConstants.CornerRadius.small)
                         }
                         .buttonStyle(.plain)
                     }

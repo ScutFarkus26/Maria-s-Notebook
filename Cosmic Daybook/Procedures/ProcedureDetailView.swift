@@ -222,9 +222,10 @@ struct ProcedureDetailView: View {
                             .foregroundStyle(.tertiary)
                     }
                     .padding(AppTheme.Spacing.compact)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                    .surface(
+                        UIConstants.CornerRadius.large,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+                        style: .continuous
                     )
                 }
             }

@@ -151,13 +151,11 @@ struct AddSupplySheet: View {
             TextEditor(text: $notes)
                 .frame(minHeight: 80)
                 .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                    stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+                    style: .continuous
                 )
 
             Text("Add any notes about this supply (e.g., preferred brand, supplier).")

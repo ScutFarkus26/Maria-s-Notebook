@@ -67,9 +67,10 @@ struct GoingOutChecklistSection: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.ghost))
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.ghost),
+            style: .continuous
         )
     }
 

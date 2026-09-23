@@ -143,17 +143,13 @@ struct StudentSelectionSheet: View {
                 Spacer()
             }
             .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        isSelected
-                            ? Color.blue.opacity(UIConstants.OpacityConstants.light)
-                            : Color.secondary.opacity(UIConstants.OpacityConstants.hint)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 1)
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: isSelected
+                    ? Color.blue.opacity(UIConstants.OpacityConstants.light)
+                    : Color.secondary.opacity(UIConstants.OpacityConstants.hint),
+                stroke: isSelected ? Color.blue : Color.clear,
+                lineWidth: 1
             )
         }
         .buttonStyle(.plain)

@@ -193,13 +193,11 @@ struct ScheduleCard: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 

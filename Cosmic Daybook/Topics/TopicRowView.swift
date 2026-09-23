@@ -71,12 +71,12 @@ struct TopicRowView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous))
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control)
                 .stroke(Color.gray.opacity(UIConstants.OpacityConstants.moderate))
                 .background(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control)
                         .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                 )
         )

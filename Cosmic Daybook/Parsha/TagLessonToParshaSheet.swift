@@ -106,7 +106,7 @@ struct TagLessonToParshaSheet: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, AppTheme.Spacing.small)
                     .padding(.vertical, AppTheme.Spacing.xxsmall)
-                    .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                    .capsuleFill(Color.secondary.opacity(0.15))
             }
         }
         .contentShape(Rectangle())

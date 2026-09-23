@@ -211,13 +211,11 @@ struct ProcedureEditorSheet: View {
                 SmartTextEditor(text: $content, triggerTool: $aiTriggerCounter)
                     .frame(minHeight: AppTheme.Spacing.xlarge * 3)
                     .padding(AppTheme.Spacing.small)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.faint))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+                        stroke: Color.primary.opacity(UIConstants.OpacityConstants.faint),
+                        style: .continuous
                     )
 
                 if #available(iOS 18.0, macOS 15.0, *) {

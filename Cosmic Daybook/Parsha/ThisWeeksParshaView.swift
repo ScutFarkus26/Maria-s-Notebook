@@ -500,7 +500,7 @@ private struct UpcomingParshaRow: View {
                     .foregroundStyle(Color.accentColor)
                     .padding(.horizontal, AppTheme.Spacing.small)
                     .padding(.vertical, AppTheme.Spacing.xxsmall)
-                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                    .capsuleFill(Color.accentColor.opacity(0.12))
             }
         }
         .padding(.vertical, AppTheme.Spacing.xxsmall)

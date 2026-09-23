@@ -26,10 +26,7 @@ struct TopicMeetingNotesSection: View {
                                 Text(reporterName).font(.caption.weight(.semibold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.blue.opacity(UIConstants.OpacityConstants.medium))
-                                    )
+                                    .capsuleFill(Color.blue.opacity(UIConstants.OpacityConstants.medium))
                             }
                             Text(n.body).font(.subheadline)
                             Spacer()
@@ -40,9 +37,9 @@ struct TopicMeetingNotesSection: View {
                             } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
                         }
                         .padding(8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+                        .surface(
+                            UIConstants.CornerRadius.medium,
+                            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace)
                         )
                     }
                 }
@@ -53,7 +50,7 @@ struct TopicMeetingNotesSection: View {
                     .textFieldStyle(.roundedBorder)
                 TextEditor(text: $newNoteContent).frame(minHeight: 80)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                             .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium))
                     )
 

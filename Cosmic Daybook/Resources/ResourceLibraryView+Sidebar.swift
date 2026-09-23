@@ -125,9 +125,10 @@ extension ResourceLibraryView {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: isSelected ? Color.accentColor : Color.clear,
+                style: .continuous
             )
         }
         .buttonStyle(.plain)
@@ -156,9 +157,10 @@ extension ResourceLibraryView {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: isSelected ? Color.accentColor : Color.clear,
+                style: .continuous
             )
         }
         .buttonStyle(.plain)
@@ -188,13 +190,10 @@ extension ResourceLibraryView {
                 .font(.caption.weight(.medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(
-                            isSelected
-                                ? Color.accentColor
-                                : Color.primary.opacity(UIConstants.OpacityConstants.subtle)
-                        )
+                .capsuleFill(
+                    isSelected
+                        ? Color.accentColor
+                        : Color.primary.opacity(UIConstants.OpacityConstants.subtle)
                 )
                 .foregroundStyle(isSelected ? .white : .primary)
         }

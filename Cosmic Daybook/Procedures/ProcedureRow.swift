@@ -9,7 +9,7 @@ struct ProcedureRow: View {
         HStack(spacing: 12) {
             // Icon
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                     .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                     .frame(width: 40, height: 40)
 
@@ -45,13 +45,11 @@ struct ProcedureRow: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .fill(CardStyle.cardBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(CardStyle.strokeOpacity))
+        .surface(
+            CardStyle.cornerRadius,
+            fill: CardStyle.cardBackgroundColor,
+            stroke: Color.primary.opacity(CardStyle.strokeOpacity),
+            style: .continuous
         )
     }
 }
