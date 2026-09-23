@@ -105,7 +105,7 @@ private extension PresentationFollowUpObservationSheet {
             }
         }
         .padding(16)
-        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile))
     }
 
     var noteSection: some View {
@@ -140,9 +140,9 @@ private extension PresentationFollowUpObservationSheet {
                     }
                     .padding(10)
                     .foregroundStyle(resolution == item ? Color.accentColor : .primary)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(resolution == item ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.025))
+                    .surface(
+                        UIConstants.CornerRadius.control,
+                        fill: resolution == item ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.025)
                     )
                 }
                 .buttonStyle(.plain)

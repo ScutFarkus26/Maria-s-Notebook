@@ -220,7 +220,7 @@ private extension PostPresentationCaptureSheet {
         .padding(14)
         .background(
             Color.green.opacity(UIConstants.OpacityConstants.veryFaint),
-            in: RoundedRectangle(cornerRadius: 12)
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
         )
     }
 

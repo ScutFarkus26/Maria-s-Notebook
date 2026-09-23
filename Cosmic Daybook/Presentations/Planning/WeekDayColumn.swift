@@ -140,7 +140,7 @@ struct WeekDayColumn: View {
                         itemFrames = frames
                     }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 10))
+                .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control))
                 .onDrop(of: [UTType.text], delegate: dropDelegate)
                 .frame(width: columnWidth)
                 .frame(maxHeight: .infinity)
@@ -191,10 +191,10 @@ struct WeekDayColumn: View {
 
     private var dropZone: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                 .fill(Color.primary.opacity(isTargeted ? 0.08 : 0.04))
             if isTargeted {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                     .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.prominent), lineWidth: 2)
             }
 

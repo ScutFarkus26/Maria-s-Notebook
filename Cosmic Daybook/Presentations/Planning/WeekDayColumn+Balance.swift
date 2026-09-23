@@ -41,9 +41,7 @@ extension WeekDayColumn {
                 .foregroundStyle(AppColors.attention)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(
-                    Capsule().fill(AppColors.attention.opacity(UIConstants.OpacityConstants.light))
-                )
+                .capsuleFill(AppColors.attention.opacity(UIConstants.OpacityConstants.light))
                 .overlay(
                     Capsule().stroke(
                         AppColors.attention.opacity(UIConstants.OpacityConstants.moderate),

@@ -302,7 +302,10 @@ private extension PostPresentationFollowUpView {
                 .foregroundStyle(.secondary)
         }
         .padding(10)
-        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .background(
+            Color.accentColor.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control)
+        )
     }
 
     @ViewBuilder
@@ -500,7 +503,7 @@ private extension PostPresentationFollowUpView {
             content()
         }
         .padding(16)
-        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile))
     }
 
     var childrenSection: some View {
@@ -573,7 +576,7 @@ private extension PostPresentationFollowUpView {
             }
         }
         .padding(12)
-        .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
     }
 
     var completedState: some View {

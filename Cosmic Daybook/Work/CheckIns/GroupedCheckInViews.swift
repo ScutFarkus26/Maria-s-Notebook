@@ -44,7 +44,7 @@ struct GroupedWorkCheckInPill: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
-                    .background(Capsule().fill(Color.accentColor))
+                    .capsuleFill(Color.accentColor)
                 Text(sequence.lessonTitle)
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .foregroundStyle(.primary)
@@ -67,16 +67,11 @@ struct GroupedWorkCheckInPill: View {
         .padding(.horizontal, AppTheme.Spacing.small)
         .padding(.vertical, AppTheme.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.faint))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                .stroke(
-                    Color.accentColor.opacity(UIConstants.OpacityConstants.light),
-                    lineWidth: UIConstants.StrokeWidth.thin
-                )
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.accentColor.opacity(UIConstants.OpacityConstants.faint),
+            stroke: Color.accentColor.opacity(UIConstants.OpacityConstants.light),
+            lineWidth: UIConstants.StrokeWidth.thin
         )
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }

@@ -45,9 +45,9 @@ extension RecordPracticeSheet {
                         .textFieldStyle(.plain)
                 }
                 .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                 )
 
                 if !searchResults.isEmpty {
@@ -75,9 +75,9 @@ extension RecordPracticeSheet {
                             .buttonStyle(.plain)
                         }
                     }
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper)
                     )
                 }
             }
@@ -111,10 +111,7 @@ extension RecordPracticeSheet {
             .foregroundStyle(isSelected ? .white : .primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.light))
-            )
+            .capsuleFill(isSelected ? Color.accentColor : Color.primary.opacity(UIConstants.OpacityConstants.light))
         }
         .buttonStyle(.plain)
     }
@@ -152,13 +149,10 @@ extension RecordPracticeSheet {
                                     .foregroundStyle(durationMinutes == minutes ? .white : .primary)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
-                                    .background(
-                                        Capsule()
-                                            .fill(
-                                                durationMinutes == minutes
-                                                    ? Color.accentColor
-                                                    : Color.primary.opacity(UIConstants.OpacityConstants.light)
-                                            )
+                                    .capsuleFill(
+                                        durationMinutes == minutes
+                                                ? Color.accentColor
+                                                : Color.primary.opacity(UIConstants.OpacityConstants.light)
                                     )
                             }
                             .buttonStyle(.plain)
@@ -187,9 +181,9 @@ extension RecordPracticeSheet {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                    .surface(
+                        UIConstants.CornerRadius.large,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                     )
             }
             .buttonStyle(.plain)
@@ -208,10 +202,7 @@ extension RecordPracticeSheet {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(canSave ? Color.accentColor : Color.gray)
-                )
+                .surface(UIConstants.CornerRadius.large, fill: canSave ? Color.accentColor : Color.gray)
             }
             .buttonStyle(.plain)
             .disabled(!canSave)

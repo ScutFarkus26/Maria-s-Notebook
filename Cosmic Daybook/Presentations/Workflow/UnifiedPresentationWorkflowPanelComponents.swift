@@ -75,9 +75,10 @@ struct CardBackground: ViewModifier {
     }
     
     func body(content: Content) -> some View {
-        content.background(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(color)
+        content.surface(
+            cornerRadius,
+            fill: color,
+            style: .continuous
         )
     }
 }

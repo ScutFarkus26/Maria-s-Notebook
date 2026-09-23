@@ -27,7 +27,7 @@ struct SampleWorkRow: View {
                     .foregroundStyle(kind.color)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(kind.color.opacity(UIConstants.OpacityConstants.accent)))
+                    .capsuleFill(kind.color.opacity(UIConstants.OpacityConstants.accent))
                 }
             }
 
@@ -60,6 +60,6 @@ struct SampleWorkRow: View {
         }
         .padding(10)
         .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-        .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
+        .clipRounded(UIConstants.CornerRadius.medium)
     }
 }

@@ -33,9 +33,10 @@ struct WorkCardCompactContent: View {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            style: .continuous
         )
     }
 }

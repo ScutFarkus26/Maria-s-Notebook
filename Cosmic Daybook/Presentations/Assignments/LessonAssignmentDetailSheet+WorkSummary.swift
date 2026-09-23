@@ -33,12 +33,9 @@ extension LessonAssignmentDetailSheet {
                         .foregroundStyle(stats.completed == stats.total ? .green : .secondary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(
-                                    (stats.completed == stats.total ? Color.green : Color.secondary)
-                                        .opacity(UIConstants.OpacityConstants.light)
-                                )
+                        .capsuleFill(
+                            (stats.completed == stats.total ? Color.green : Color.secondary)
+                                .opacity(UIConstants.OpacityConstants.light)
                         )
                     }
                 }
@@ -73,9 +70,9 @@ extension LessonAssignmentDetailSheet {
                         }
                     }
                     .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.purple.opacity(UIConstants.OpacityConstants.hint))
+                    .surface(
+                        UIConstants.CornerRadius.control,
+                        fill: Color.purple.opacity(UIConstants.OpacityConstants.hint)
                     )
                 }
             }

@@ -68,8 +68,12 @@ struct PresentationFollowUpList: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 10).fill(fill))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(stroke, lineWidth: strokeWidth))
+            .surface(
+                UIConstants.CornerRadius.control,
+                fill: fill,
+                stroke: stroke,
+                lineWidth: strokeWidth
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

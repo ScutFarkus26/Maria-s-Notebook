@@ -46,7 +46,7 @@ struct WorkStepRow: View {
                         .foregroundStyle(outcome.color)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(outcome.color.opacity(UIConstants.OpacityConstants.medium)))
+                        .capsuleFill(outcome.color.opacity(UIConstants.OpacityConstants.medium))
                     }
                 }
 

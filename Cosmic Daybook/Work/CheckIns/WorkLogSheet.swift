@@ -179,7 +179,7 @@ struct WorkLogSheet: View {
         .padding(.horizontal, UIConstants.contentHorizontalPadding)
         .padding(.vertical, AppTheme.Spacing.compact)
         .background(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-        .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
+        .clipRounded(UIConstants.CornerRadius.medium, style: .continuous)
         .padding(.horizontal, UIConstants.dropZoneInnerPadding)
     }
 

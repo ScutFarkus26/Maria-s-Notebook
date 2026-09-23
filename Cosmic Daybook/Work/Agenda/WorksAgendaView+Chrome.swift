@@ -105,7 +105,7 @@ extension WorksAgendaView {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipRounded(UIConstants.CornerRadius.control)
             .padding(.horizontal, 16)
             .padding(.bottom, 4)
             if showsWorkGrid {

@@ -37,10 +37,7 @@ extension PracticeSessionCard {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-            )
+            .surface(UIConstants.CornerRadius.medium, fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         })
         .buttonStyle(.plain)
     }
@@ -58,12 +55,9 @@ extension PracticeSessionCard {
                 standardFooter
             }
             .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-            )
+            .surface(UIConstants.CornerRadius.large, fill: Color.primary.opacity(UIConstants.OpacityConstants.hint))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
                     .strokeBorder(
                         session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear,
                         lineWidth: 1
@@ -169,12 +163,9 @@ extension PracticeSessionCard {
             expandedMetadataFooter
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-        )
+        .surface(UIConstants.CornerRadius.extraLarge, fill: Color.primary.opacity(UIConstants.OpacityConstants.hint))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                 .strokeBorder(
                     session.isGroupSession ? Color.blue.opacity(UIConstants.OpacityConstants.semi) : Color.clear,
                     lineWidth: 1.5
@@ -397,10 +388,7 @@ extension PracticeSessionCard {
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(session.isGroupSession ? Color.blue : Color.gray)
-            )
+            .capsuleFill(session.isGroupSession ? Color.blue : Color.gray)
 
             Spacer()
 

@@ -186,7 +186,7 @@ struct PracticeSessionSheet: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Capsule().fill(Color.accentColor))
+                    .capsuleFill(Color.accentColor)
                 }
                 .buttonStyle(.plain)
             }

@@ -198,7 +198,7 @@ extension PresentationsView {
                 }
                 .padding(.horizontal, AppTheme.Spacing.small)
                 .padding(.vertical, AppTheme.Spacing.xxsmall)
-                .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent)))
+                .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
             }
             .buttonStyle(.plain)
             .help("Show lessons for every child")
