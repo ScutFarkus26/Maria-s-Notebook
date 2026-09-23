@@ -58,17 +58,19 @@ extension PresentationDetailContentView {
             .frame(minWidth: 320)
         }
         .sheet(isPresented: $vm.showingFindStudentsSheet) {
-            FindStudentsSheet(
-                lessonID: vm.editingLessonID,
-                existingStudentIDs: vm.selectedStudentIDs,
-                allStudents: studentsAll,
-                allLessonAssignments: lessonAssignmentsAll,
-                onAdd: { newIDs in
-                    vm.selectedStudentIDs.formUnion(newIDs)
-                    vm.showingFindStudentsSheet = false
-                },
-                onCancel: { vm.showingFindStudentsSheet = false }
-            )
+            LiveLessonAssignments { allLessonAssignments in
+                FindStudentsSheet(
+                    lessonID: vm.editingLessonID,
+                    existingStudentIDs: vm.selectedStudentIDs,
+                    allStudents: studentsAll,
+                    allLessonAssignments: allLessonAssignments,
+                    onAdd: { newIDs in
+                        vm.selectedStudentIDs.formUnion(newIDs)
+                        vm.showingFindStudentsSheet = false
+                    },
+                    onCancel: { vm.showingFindStudentsSheet = false }
+                )
+            }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }

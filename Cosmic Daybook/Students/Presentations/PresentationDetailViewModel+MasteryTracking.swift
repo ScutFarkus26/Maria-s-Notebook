@@ -20,8 +20,8 @@ extension PresentationDetailViewModel {
 
         let allLessonPresentations: [CDLessonPresentation]
         do {
-            let req = CDFetchRequest(CDLessonPresentation.self)
-            allLessonPresentations = try viewContext.fetch(req)
+            let request = presentationsRequest(lessonID: lessonID, studentIDs: studentIDs)
+            allLessonPresentations = try viewContext.fetch(request)
         } catch {
             Self.logger.warning("Failed to fetch CDLessonPresentation: \(error)")
             return .presented
@@ -41,6 +41,16 @@ extension PresentationDetailViewModel {
         return .presented
     }
 
+    /// The presentation records for one lesson and these students. Both
+    /// attributes are Strings, so String arguments are the right type. This
+    /// used to be a whole-table fetch filtered in memory by the same test; the
+    /// in-memory filters that follow still apply, and store order is kept.
+    static func presentationsRequest(lessonID: String, studentIDs: [String]) -> NSFetchRequest<CDLessonPresentation> {
+        let req = CDFetchRequest(CDLessonPresentation.self)
+        req.predicate = NSPredicate(format: "lessonID == %@ AND studentID IN %@", lessonID, studentIDs)
+        return req
+    }
+
     // MARK: - Mastery State Updating
 
     /// Updates the mastery state on all CDLessonPresentation records for this lesson and students.
@@ -51,7 +61,9 @@ extension PresentationDetailViewModel {
     ) {
         guard !studentIDs.isEmpty, !lessonID.isEmpty else { return }
 
-        let allLessonPresentations = viewContext.safeFetch(CDFetchRequest(CDLessonPresentation.self))
+        let allLessonPresentations = viewContext.safeFetch(
+            Self.presentationsRequest(lessonID: lessonID, studentIDs: studentIDs)
+        )
 
         for studentID in studentIDs {
             if let existing = allLessonPresentations.first(where: {
@@ -106,7 +118,9 @@ extension PresentationDetailViewModel {
     ) {
         guard !lessonID.isEmpty, !studentID.isEmpty else { return }
 
-        let allLessonPresentations = viewContext.safeFetch(CDFetchRequest(CDLessonPresentation.self))
+        let allLessonPresentations = viewContext.safeFetch(
+            Self.presentationsRequest(lessonID: lessonID, studentIDs: [studentID])
+        )
 
         if let existing = allLessonPresentations.first(where: {
             $0.lessonID == lessonID && $0.studentID == studentID
