@@ -35,21 +35,7 @@ struct FollowingPresentationsView: View {
     /// rows' fields the grouping reads, the filters, and today's date (the
     /// school-day age is counted to it).
     private struct GroupInputs: Equatable {
-        struct Row: Equatable {
-            let objectID: NSManagedObjectID
-            let id: UUID?
-            let presentationID: String?
-            let studentID: String
-            let lessonID: String
-            let presentedAt: Date?
-            let createdAt: Date?
-            let followUpActionRaw: String?
-            let followUpResolvedAt: Date?
-            let followUpReviewAt: Date?
-            let followUpUpdatedAt: Date?
-            let lastObservedAt: Date?
-        }
-        let rows: [Row]
+        let rows: [FollowingRowSnapshot]
         let studentID: UUID?
         let searchText: String
         let searchTokens: [String]
@@ -60,7 +46,7 @@ struct FollowingPresentationsView: View {
     private var groupInputs: GroupInputs {
         GroupInputs(
             rows: rows.map { row in
-                GroupInputs.Row(
+                FollowingRowSnapshot(
                     objectID: row.objectID, id: row.id, presentationID: row.presentationID,
                     studentID: row.studentID, lessonID: row.lessonID,
                     presentedAt: row.presentedAt, createdAt: row.createdAt,
@@ -309,4 +295,20 @@ private struct FollowingPresentationCard: View {
     private var accessibilityLabel: String {
         "Follow \(group.lessonName) for \(group.childNames). \(group.actionSummary). \(timingText)."
     }
+}
+
+/// The fields of one open follow-up row the grouping reads.
+private struct FollowingRowSnapshot: Equatable {
+    let objectID: NSManagedObjectID
+    let id: UUID?
+    let presentationID: String?
+    let studentID: String
+    let lessonID: String
+    let presentedAt: Date?
+    let createdAt: Date?
+    let followUpActionRaw: String?
+    let followUpResolvedAt: Date?
+    let followUpReviewAt: Date?
+    let followUpUpdatedAt: Date?
+    let lastObservedAt: Date?
 }

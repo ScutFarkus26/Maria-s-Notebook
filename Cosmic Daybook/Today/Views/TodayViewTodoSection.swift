@@ -83,36 +83,43 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         }
     }
 
+    /// Open, not someday, and scheduled or due on the day, overdue (unless
+    /// rescheduled past it), or high priority.
+    private static func isShown(_ todo: CDTodoItem, selectedDay: Date, nextDay: Date) -> Bool {
+        guard !todo.isCompleted else { return false }
+        guard !todo.isSomeday else { return false }
+        if let scheduled = todo.scheduledDate, scheduled >= selectedDay && scheduled < nextDay { return true }
+        if let dueDate = todo.dueDate, dueDate < selectedDay {
+            if let scheduled = todo.scheduledDate, scheduled >= nextDay { return false }
+            return true
+        }
+        if let dueDate = todo.dueDate, dueDate >= selectedDay && dueDate < nextDay { return true }
+        return todo.priority == .high
+    }
+
+    /// Overdue first, then scheduled on the day, then due on the day, then by priority.
+    private static func precedes(_ lhs: CDTodoItem, _ rhs: CDTodoItem, selectedDay: Date, nextDay: Date) -> Bool {
+        let lhsOverdue: Bool = lhs.dueDate.map { $0 < selectedDay } ?? false
+        let rhsOverdue: Bool = rhs.dueDate.map { $0 < selectedDay } ?? false
+        if lhsOverdue != rhsOverdue { return lhsOverdue }
+        let lhsScheduled: Bool = lhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+        let rhsScheduled: Bool = rhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+        if lhsScheduled != rhsScheduled { return lhsScheduled }
+        let lhsDueOnDay: Bool = lhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+        let rhsDueOnDay: Bool = rhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
+        if lhsDueOnDay != rhsDueOnDay { return lhsDueOnDay }
+        return lhs.priority.sortOrder < rhs.priority.sortOrder
+    }
+
     static func partition(_ todoItems: [CDTodoItem], date: Date, calendar: Calendar) -> TodosPartition {
         // Compute date boundaries once — todayTodos and the partition sub-filters all need them.
         let selectedDay = AppCalendar.startOfDay(date)
         let nextDay = calendar.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
 
         // Filter and sort the raw fetch results in a single pass.
-        let todos = todoItems.filter { todo in
-            guard !todo.isCompleted else { return false }
-            guard !todo.isSomeday else { return false }
-            if let scheduled = todo.scheduledDate, scheduled >= selectedDay && scheduled < nextDay { return true }
-            if let dueDate = todo.dueDate, dueDate < selectedDay {
-                if let scheduled = todo.scheduledDate, scheduled >= nextDay { return false }
-                return true
-            }
-            if let dueDate = todo.dueDate, dueDate >= selectedDay && dueDate < nextDay { return true }
-            if todo.priority == .high { return true }
-            return false
-        }
-        .sorted { lhs, rhs in
-            let lhsOverdue = lhs.dueDate.map { $0 < selectedDay } ?? false
-            let rhsOverdue = rhs.dueDate.map { $0 < selectedDay } ?? false
-            let lhsScheduled = lhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-            let rhsScheduled = rhs.scheduledDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-            let lhsDueOnDay = lhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-            let rhsDueOnDay = rhs.dueDate.map { $0 >= selectedDay && $0 < nextDay } ?? false
-            if lhsOverdue != rhsOverdue { return lhsOverdue }
-            if lhsScheduled != rhsScheduled { return lhsScheduled }
-            if lhsDueOnDay != rhsDueOnDay { return lhsDueOnDay }
-            return lhs.priority.sortOrder < rhs.priority.sortOrder
-        }
+        let todos = todoItems
+            .filter { isShown($0, selectedDay: selectedDay, nextDay: nextDay) }
+            .sorted { precedes($0, $1, selectedDay: selectedDay, nextDay: nextDay) }
 
         // Partition the already-sorted list — reuses the pre-computed dates.
         let overdue = todos.filter { todo in
