@@ -45,13 +45,13 @@ enum BackupBackgroundTaskManager {
     /// Uses the iOS 27 `submitTaskRequest(_:)` async API (the throwing
     /// `submit(_:)` was deprecated). Suspends rather than blocking, so it's
     /// safe to await from the main actor.
-    static func schedule() async {
+    static func schedule(after delay: TimeInterval = 12 * 3600) async {
         let request = BGProcessingTaskRequest(identifier: taskIdentifier)
         request.requiresNetworkConnectivity = false
         request.requiresExternalPower = false
         // Backups are change-gated, so a generous floor is fine: the
         // scene-phase trigger covers active use; this covers neglected devices.
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 12 * 3600)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: delay)
 
         do {
             try await BGTaskScheduler.shared.submitTaskRequest(request)
@@ -71,9 +71,16 @@ enum BackupBackgroundTaskManager {
         let backupWork = Task {
             // Keep the chain alive for the next opportunity.
             await schedule()
-            await dependencies.autoBackupManager.performBackgroundBackup(
-                viewContext: coreDataStack.viewContext
+            // The overnight window ignores the scene-phase gap (it is 12 h
+            // apart anyway) but still waits out a hot device; ask again in an
+            // hour rather than twelve when it did.
+            let outcome = await dependencies.autoBackupManager.performBackgroundBackup(
+                viewContext: coreDataStack.viewContext,
+                enforcingMinimumGap: false
             )
+            if outcome == .deferredConstrained {
+                await schedule(after: 3600)
+            }
             task.setTaskCompleted(success: true)
         }
 

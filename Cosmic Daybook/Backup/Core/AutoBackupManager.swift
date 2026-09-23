@@ -29,6 +29,9 @@ final class AutoBackupManager {
     // MARK: - State
 
     private(set) var lastScheduledBackupDate: Date?
+    /// When the last scene-phase/background-task backup ran (success or
+    /// failure); the start of the gap in `performBackgroundBackup`.
+    private(set) var lastBackgroundBackupDate: Date?
     private(set) var isPerformingBackup = false
     private(set) var lastBackupResult: BackupResult?
     
@@ -92,6 +95,10 @@ final class AutoBackupManager {
         let timestamp = UserDefaults.standard.double(forKey: UserDefaultsKeys.autoBackupLastScheduledDate)
         if timestamp > 0 {
             lastScheduledBackupDate = Date(timeIntervalSinceReferenceDate: timestamp)
+        }
+        let backgroundTimestamp = UserDefaults.standard.double(forKey: UserDefaultsKeys.autoBackupLastBackgroundDate)
+        if backgroundTimestamp > 0 {
+            lastBackgroundBackupDate = Date(timeIntervalSinceReferenceDate: backgroundTimestamp)
         }
     }
 
@@ -182,12 +189,66 @@ final class AutoBackupManager {
 
     // MARK: - Background Backup (iOS scene phase + BGProcessingTask)
 
+    /// What a background-backup request did, so the BGProcessingTask can
+    /// ask for an earlier retry when the device was too hot.
+    enum BackgroundBackupOutcome: Equatable, Sendable {
+        case ran
+        case disabled
+        /// Hot or Low Power Mode: nothing collected; try again later.
+        case deferredConstrained
+        /// A background backup ran less than the profile's gap ago.
+        case tooSoon
+    }
+
+    /// Minimum time between two scene-phase background backups. Every app
+    /// switch on the iPad used to export the whole store, and CloudKit
+    /// imports keep the change gate open all day, so this was a full export
+    /// per switch. On the charger routine protection can be frequent; on
+    /// battery once an hour; hot or in Low Power Mode it waits (nil).
+    nonisolated static func backgroundBackupMinimumGap(for profile: EnergyPolicy.Profile) -> TimeInterval? {
+        switch profile {
+        case .externalPower: return 15 * 60
+        case .battery: return 60 * 60
+        case .constrained: return nil
+        }
+    }
+
     /// Automatic backup when the app moves to the background (iOS/iPadOS) or
     /// a background processing task fires. Change-gated like every other
-    /// automatic trigger, so an untouched dataset costs nothing.
-    func performBackgroundBackup(viewContext: NSManagedObjectContext) async {
-        guard isEnabled else { return }
-        _ = await performBackup(viewContext: viewContext, trigger: .background, prefix: "AutoBackup")
+    /// automatic trigger, so an untouched dataset costs nothing; also skipped
+    /// on a hot device or in Low Power Mode, and (for the scene-phase trigger,
+    /// `enforcingMinimumGap`) within the profile's gap of the previous one.
+    /// The quit and pre-destructive backups are never gated.
+    @discardableResult
+    func performBackgroundBackup(
+        viewContext: NSManagedObjectContext,
+        enforcingMinimumGap: Bool = true,
+        policy: EnergyPolicy = .shared,
+        now: Date = Date()
+    ) async -> BackgroundBackupOutcome {
+        guard isEnabled else { return .disabled }
+        guard let gap = Self.backgroundBackupMinimumGap(for: policy.profile) else {
+            Self.logger.notice("Auto-backup (Background) deferred \u{2014} device hot or in Low Power Mode")
+            return .deferredConstrained
+        }
+        if enforcingMinimumGap, let last = lastBackgroundBackupDate, now.timeIntervalSince(last) < gap {
+            Self.logger.info("Auto-backup (Background) skipped \u{2014} last one under \(Int(gap / 60)) min ago")
+            return .tooSoon
+        }
+        let result = await performBackup(viewContext: viewContext, trigger: .background, prefix: "AutoBackup")
+        switch result {
+        case .success, .failure:
+            // A failure also starts the gap, so a failing export is not
+            // retried in full on every app switch.
+            lastBackgroundBackupDate = now
+            UserDefaults.standard.set(
+                now.timeIntervalSinceReferenceDate,
+                forKey: UserDefaultsKeys.autoBackupLastBackgroundDate
+            )
+        case .skippedNoChanges:
+            break
+        }
+        return .ran
     }
 
     // MARK: - Core Backup Logic

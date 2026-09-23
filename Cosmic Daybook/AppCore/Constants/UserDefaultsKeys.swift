@@ -33,6 +33,7 @@ nonisolated enum UserDefaultsKeys {
     static let autoBackupIntervalHours = "AutoBackup.intervalHours"
     /// `timeIntervalSinceReferenceDate` of the last scheduled auto-backup run.
     static let autoBackupLastScheduledDate = "AutoBackup.lastScheduledDate"
+    static let autoBackupLastBackgroundDate = "AutoBackup.lastBackgroundDate"
 
     // MARK: - Attendance
     static let attendanceEmailEnabled = "AttendanceEmail.enabled"
