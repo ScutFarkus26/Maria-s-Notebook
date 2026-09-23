@@ -100,8 +100,11 @@ actor PersistentHistoryProcessor {
             break
 
         case let .processed(newToken, remoteCount, totalCount, insertedEntityNames, changedEntityNames):
-            lastToken = newToken
-            Self.saveToken(newToken)
+            // Only an advanced cursor is worth a defaults write.
+            if newToken != lastToken {
+                lastToken = newToken
+                Self.saveToken(newToken)
+            }
             Self.react(
                 remoteCount: remoteCount, totalCount: totalCount,
                 insertedEntityNames: insertedEntityNames, changedEntityNames: changedEntityNames

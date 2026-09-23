@@ -47,8 +47,25 @@ extension CoreDataStack {
             NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
             return
         }
-        Task {
+        // CloudKit posts one notification per imported batch, often several
+        // a second through a sync. The first one of a burst schedules a pass
+        // `remoteChangeCoalesceWindow` later and the rest ride along with it —
+        // a fixed window rather than a resetting debounce, so a long import
+        // still gets a pass at least that often. Downstream the dedup request
+        // waits 5 s on its own, and the entity notifications only refresh caches.
+        scheduleCoalescedRemoteChangePass {
             await processor.processRemoteChanges()
+        }
+    }
+
+    /// Runs `pass` once, `remoteChangeCoalesceWindow` after the first call
+    /// of a burst; calls that arrive while one is pending are absorbed.
+    func scheduleCoalescedRemoteChangePass(_ pass: @escaping @MainActor () async -> Void) {
+        guard pendingRemoteChangePass == nil else { return }
+        pendingRemoteChangePass = Task { [weak self] in
+            try? await Task.sleep(for: Self.remoteChangeCoalesceWindow)
+            self?.pendingRemoteChangePass = nil
+            await pass()
         }
     }
 }

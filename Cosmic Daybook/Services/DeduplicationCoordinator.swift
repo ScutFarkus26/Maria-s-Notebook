@@ -170,6 +170,12 @@ final class DeduplicationCoordinator {
 
         let bgContext = container.newBackgroundContext()
         bgContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        // Tagged like every other context the app writes through, so the
+        // history processor recognises the pass's deletes as local. Untagged,
+        // they read as a remote batch and re-armed this coordinator, the
+        // zone-repair gate and the entity notifications after every pass;
+        // `sweep` now posts those notifications itself.
+        bgContext.transactionAuthor = PersistentHistoryProcessor.transactionAuthor
         // CloudKit container for deterministic survivor selection — every device
         // must keep the same duplicate, or peers delete each other's survivors.
         let cloudKitContainer = container as? NSPersistentCloudKitContainer
@@ -192,11 +198,18 @@ final class DeduplicationCoordinator {
         container: NSPersistentCloudKitContainer?
     ) {
         let start = Date()
+        // Some merges save part-way through, so collect what every save of
+        // the pass wrote rather than only the final one.
+        let saved = SavedEntityNames(observing: context)
         let results = DataCleanupService.deduplicateAllModels(using: context, container: container, scope: scope)
         if !results.isEmpty, context.safeSave() {
             let removed: Int = results.values.reduce(0, +)
             logger.info("Post-import deduplication removed \(removed) duplicates")
         }
+        // What the history processor used to post for these saves while the
+        // context was untagged: the school-day cache and the presentation
+        // screens hear about the folded rows as before.
+        PersistentHistoryProcessor.postEntityNotifications(for: saved.finish())
         let elapsed: String = String(format: "%.2f", Date().timeIntervalSince(start))
         let scoped: String = describe(scope)
         logger.debug("Post-import deduplication (\(scoped, privacy: .public)) took \(elapsed, privacy: .public)s")
@@ -216,5 +229,38 @@ final class DeduplicationCoordinator {
             // call site uses it; this one bypassed it on every import.
             Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
         }
+    }
+}
+
+/// Collects the entity names of everything one context saves between
+/// `init` and `finish()` — the entities those saves' history transactions
+/// name. The did-save notification is posted synchronously on the saving
+/// context's queue, which is the only queue that touches `names`.
+nonisolated final class SavedEntityNames: @unchecked Sendable {
+    private var names: Set<String> = []
+    private var token: (any NSObjectProtocol)?
+
+    init(observing context: NSManagedObjectContext) {
+        token = NotificationCenter.default.addObserver(
+            forName: .NSManagedObjectContextDidSave, object: context, queue: nil
+        ) { [weak self] note in
+            let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
+            for key in keys {
+                for object in (note.userInfo?[key] as? Set<NSManagedObject>) ?? [] {
+                    if let name = object.objectID.entity.name { self?.names.insert(name) }
+                }
+            }
+        }
+    }
+
+    /// Stops observing and returns what was saved.
+    func finish() -> Set<String> {
+        if let token { NotificationCenter.default.removeObserver(token) }
+        token = nil
+        return names
+    }
+
+    deinit {
+        if let token { NotificationCenter.default.removeObserver(token) }
     }
 }
