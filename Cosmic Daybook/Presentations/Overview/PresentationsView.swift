@@ -14,7 +14,7 @@ struct PresentationsView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.calendar) var calendar
     @Environment(\.appRouter) var appRouter
-    @Environment(\.dependencies) private var dependencies
+    @Environment(\.dependencies) var dependencies
     @Environment(SaveCoordinator.self) var saveCoordinator
     #if os(macOS)
     @Environment(\.openWindow) var openWindow

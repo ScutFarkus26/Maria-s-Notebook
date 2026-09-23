@@ -232,7 +232,9 @@ extension PresentationsView {
             inboxOrderRaw: inboxOrderRaw,
             missWindow: missWindow,
             showTestStudents: testStudents.show,
-            testStudentNamesRaw: testStudents.namesRaw
+            testStudentNamesRaw: testStudents.namesRaw,
+            lessons: dependencies.lessonCatalog.all,
+            students: dependencies.roster.all
         )
     }
 
