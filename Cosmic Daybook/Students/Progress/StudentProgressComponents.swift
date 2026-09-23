@@ -133,12 +133,12 @@ struct ProgressBarView: View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
                 // Background
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                     .fill(Color.secondary.opacity(UIConstants.OpacityConstants.accent))
                     .frame(height: 12)
 
                 // Progress fill
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: isComplete
@@ -159,7 +159,7 @@ struct ProgressBarView: View {
 
                 // Glow effect for completed
                 if isComplete && progress >= 1.0 {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -280,9 +280,10 @@ struct NextItemBanner: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: color.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 }
@@ -376,10 +377,7 @@ private struct StatusBannerView: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(backgroundColor)
-        )
+        .surface(UIConstants.CornerRadius.control, fill: backgroundColor, style: .continuous)
     }
 }
 
@@ -424,13 +422,12 @@ struct ProgressStatBadge: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(color.opacity(UIConstants.OpacityConstants.light))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(color.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: color.opacity(UIConstants.OpacityConstants.light),
+            stroke: color.opacity(UIConstants.OpacityConstants.moderate),
+            lineWidth: 1,
+            style: .continuous
         )
     }
 }
@@ -476,9 +473,10 @@ struct NotesPreviewSection: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: color.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 }
@@ -501,12 +499,12 @@ struct ProgressCardContainer<Content: View>: View {
         content
             .padding(20)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
                     .fill(cardBackgroundColor)
                     .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.hint), radius: 8, x: 0, y: 2)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
                     .stroke(
                         LinearGradient(
                             colors: [

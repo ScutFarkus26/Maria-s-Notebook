@@ -113,13 +113,11 @@ struct LessonJourneyTimeline: View {
         }
         .padding(14)
         .frame(width: 200)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1.5)
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.light),
+            lineWidth: 1.5
         )
     }
 
@@ -168,10 +166,7 @@ struct LessonJourneyTimeline: View {
         }
         .padding(12)
         .frame(width: 200)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.blue.opacity(UIConstants.OpacityConstants.hint))
-        )
+        .surface(UIConstants.CornerRadius.control, fill: Color.blue.opacity(UIConstants.OpacityConstants.hint))
     }
 
     @ViewBuilder
@@ -199,10 +194,7 @@ struct LessonJourneyTimeline: View {
         }
         .padding(12)
         .frame(width: 200)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.purple.opacity(UIConstants.OpacityConstants.hint))
-        )
+        .surface(UIConstants.CornerRadius.control, fill: Color.purple.opacity(UIConstants.OpacityConstants.hint))
     }
     
     @ViewBuilder
@@ -227,10 +219,7 @@ struct LessonJourneyTimeline: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-        )
+        .surface(UIConstants.CornerRadius.small, fill: Color.primary.opacity(UIConstants.OpacityConstants.trace))
     }
     
     @ViewBuilder
@@ -247,10 +236,7 @@ struct LessonJourneyTimeline: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.purple.opacity(UIConstants.OpacityConstants.subtle))
-        )
+        .surface(UIConstants.CornerRadius.small, fill: Color.purple.opacity(UIConstants.OpacityConstants.subtle))
     }
     
     private func loadData() async {

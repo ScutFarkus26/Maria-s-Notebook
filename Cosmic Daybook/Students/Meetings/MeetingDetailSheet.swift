@@ -136,7 +136,7 @@ struct MeetingDetailSheet: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(.accent))
+                                .capsuleFill(.accent)
                         }
 
                         if item.isResolved {

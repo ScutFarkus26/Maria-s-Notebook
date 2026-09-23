@@ -162,7 +162,7 @@ struct DepartureBanner: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
-        .background(background, in: RoundedRectangle(cornerRadius: 8))
+        .background(background, in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
         .padding(.horizontal, AppTheme.Spacing.small)
         .padding(.top, AppTheme.Spacing.small)
     }

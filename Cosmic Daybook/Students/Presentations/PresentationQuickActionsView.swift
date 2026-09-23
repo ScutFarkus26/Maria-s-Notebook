@@ -154,7 +154,7 @@ struct PresentationQuickActionsView: View {
                 }
             }
             .frame(minWidth: 360)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
             .padding(.horizontal)
 
             HStack(spacing: 24) {
@@ -382,9 +382,10 @@ struct PresentationQuickActionsView: View {
             .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.green.opacity(UIConstants.OpacityConstants.barelyTransparent))
+            .surface(
+                UIConstants.CornerRadius.control,
+                fill: Color.green.opacity(UIConstants.OpacityConstants.barelyTransparent),
+                style: .continuous
             )
             .foregroundStyle(.white)
             .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)

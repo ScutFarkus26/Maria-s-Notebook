@@ -145,7 +145,7 @@ struct StudentHeaderView: View {
                 .font(font)
                 .padding(.horizontal, horizontalPadding)
                 .padding(.vertical, verticalPadding)
-                .background(Capsule().fill(levelColor.opacity(UIConstants.OpacityConstants.medium)))
+                .capsuleFill(levelColor.opacity(UIConstants.OpacityConstants.medium))
                 .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -163,6 +163,6 @@ struct StudentHeaderView: View {
             .font(font)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
-            .background(Capsule().fill(levelColor.opacity(UIConstants.OpacityConstants.medium)))
+            .capsuleFill(levelColor.opacity(UIConstants.OpacityConstants.medium))
     }
 }

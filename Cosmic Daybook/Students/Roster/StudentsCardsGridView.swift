@@ -61,11 +61,11 @@ struct StudentsCardsGridView: View {
     private func combinedOverlay(isDragging: Bool, isHover: Bool) -> some View {
         ZStack {
             if isDragging {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
                     .stroke(Color.accentColor.opacity(0.6), lineWidth: 2)
             }
             if isHover {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
                     .stroke(
                         Color.accentColor.opacity(UIConstants.OpacityConstants.statusBg),
                         style: StrokeStyle(lineWidth: 2, dash: [6, 6])

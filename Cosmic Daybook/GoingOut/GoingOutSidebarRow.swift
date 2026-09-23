@@ -43,7 +43,12 @@ struct GoingOutSidebarRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                GoingOutStatusBadge(status: goingOut.status)
+                StatusPill(
+                    text: goingOut.status.displayName,
+                    color: goingOut.status.color,
+                    icon: goingOut.status.icon,
+                    metrics: .compact
+                )
 
                 if let date = goingOut.proposedDate {
                     Text(date, style: .date)

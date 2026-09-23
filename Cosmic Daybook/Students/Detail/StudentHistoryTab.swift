@@ -177,12 +177,13 @@ struct StudentHistoryTab: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.purple.opacity(UIConstants.OpacityConstants.hint))
+        .surface(
+            UIConstants.CornerRadius.extraLarge,
+            fill: Color.purple.opacity(UIConstants.OpacityConstants.hint),
+            style: .continuous
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                 .strokeBorder(Color.purple.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
         )
     }
@@ -236,21 +237,20 @@ struct StudentHistoryTab: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            accentColor.opacity(UIConstants.OpacityConstants.subtle),
-                            accentColor.opacity(UIConstants.OpacityConstants.whisper)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+        .surface(
+            UIConstants.CornerRadius.extraLarge,
+            fill: LinearGradient(
+                colors: [
+                    accentColor.opacity(UIConstants.OpacityConstants.subtle),
+                    accentColor.opacity(UIConstants.OpacityConstants.whisper)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            style: .continuous
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                 .strokeBorder(accentColor.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
         )
     }

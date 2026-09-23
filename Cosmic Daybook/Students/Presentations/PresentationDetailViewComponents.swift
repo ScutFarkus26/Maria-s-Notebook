@@ -20,10 +20,7 @@ struct StatePill: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .foregroundStyle(tint)
-        .background(
-            Capsule(style: .continuous)
-                .fill(tint.opacity(active ? 0.20 : 0.10))
-        )
+        .capsuleFill(tint.opacity(active ? 0.20 : 0.10), style: .continuous)
         .overlay(
             Capsule(style: .continuous)
                 .strokeBorder(tint.opacity(UIConstants.OpacityConstants.statusBg), lineWidth: 1)
@@ -152,9 +149,12 @@ struct ProficiencyStateRow: View {
             #endif
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
                 .strokeBorder(Color.white.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
         )
     }

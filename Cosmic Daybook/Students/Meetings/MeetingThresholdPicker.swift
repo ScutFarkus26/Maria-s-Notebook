@@ -32,10 +32,7 @@ struct MeetingThresholdPicker: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                    )
+                    .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                     .foregroundStyle(.accent)
                 }
                 .buttonStyle(.plain)
@@ -55,13 +52,10 @@ struct MeetingThresholdPicker: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(
-                                showCompleted
-                                    ? Color.green.opacity(UIConstants.OpacityConstants.accent)
-                                    : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                            )
+                    .capsuleFill(
+                        showCompleted
+                            ? Color.green.opacity(UIConstants.OpacityConstants.accent)
+                            : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
                     )
                     .foregroundStyle(showCompleted ? .green : .secondary)
                 }

@@ -122,48 +122,6 @@ struct LessonsFilterChipBar: View {
     }
 }
 
-// MARK: - Filter Chip Component
-
-struct FilterChip: View {
-    let label: String
-    var icon: String?
-    let isActive: Bool
-    var activeColor: Color = .accentColor
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 4) {
-                if let icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 11, weight: .medium))
-                }
-                Text(label)
-                    .font(AppTheme.ScaledFont.caption)
-                    .fontWeight(isActive ? .semibold : .regular)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule().fill(
-                    isActive
-                        ? activeColor.opacity(UIConstants.OpacityConstants.accent)
-                        : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                )
-            )
-            .overlay(
-                Capsule().stroke(
-                    isActive ? activeColor.opacity(UIConstants.OpacityConstants.half) : Color.clear,
-                    lineWidth: 1
-                )
-            )
-            .foregroundStyle(isActive ? activeColor : .secondary)
-        }
-        .buttonStyle(.plain)
-        .contentShape(Capsule())
-    }
-}
-
 // MARK: - PersonalLessonKind Short Labels
 
 extension PersonalLessonKind {

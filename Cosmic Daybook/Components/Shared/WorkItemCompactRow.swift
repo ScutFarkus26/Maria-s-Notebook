@@ -55,19 +55,14 @@ struct WorkItemCompactRow: View {
                 .foregroundStyle(work.status.color)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(work.status.color.opacity(UIConstants.OpacityConstants.medium))
-                )
+                .capsuleFill(work.status.color.opacity(UIConstants.OpacityConstants.medium))
         }
         .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+            lineWidth: 1
         )
     }
 }

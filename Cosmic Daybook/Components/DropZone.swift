@@ -49,12 +49,12 @@ struct DropZone: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Minimal card background matching the rest of the app
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                 .fill(Color.primary.opacity(isTargeted ? 0.04 : 0.02))
 
             // Accent outline when targeted
             if isTargeted {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                     .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.prominent), lineWidth: 3)
                     .allowsHitTesting(false)
             }
@@ -124,7 +124,7 @@ struct DropZone: View {
                 itemFrames = frames
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous))
         .onDrop(of: [UTType.text], delegate: PlanningSlotDropDelegate(
             calendar: calendar,
             viewContext: viewContext,
@@ -146,7 +146,7 @@ struct DropZone: View {
             }
         ))
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipRounded(UIConstants.CornerRadius.tile, style: .continuous)
         .disabled(isNonSchool)
     }
 

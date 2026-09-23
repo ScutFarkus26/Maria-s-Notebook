@@ -36,9 +36,6 @@ struct PracticeSessionCompactRow: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.purple.opacity(UIConstants.OpacityConstants.subtle))
-        )
+        .surface(UIConstants.CornerRadius.medium, fill: Color.purple.opacity(UIConstants.OpacityConstants.subtle))
     }
 }

@@ -86,11 +86,11 @@ struct OpenWorkGrid: View {
                                         workID == focusedWorkID
                                             ? Color.accentColor.opacity(0.12)
                                             : Color.clear,
-                                        in: RoundedRectangle(cornerRadius: 14)
+                                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
                                     )
                                     .overlay {
                                         if workID == focusedWorkID {
-                                            RoundedRectangle(cornerRadius: 14)
+                                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
                                                 .stroke(Color.accentColor, lineWidth: 2)
                                         }
                                     }
@@ -174,9 +174,9 @@ struct OpenWorkGrid: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(UIConstants.OpacityConstants.moderate))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.gray.opacity(UIConstants.OpacityConstants.moderate)
                 )
         }
         .padding(.horizontal, 4)

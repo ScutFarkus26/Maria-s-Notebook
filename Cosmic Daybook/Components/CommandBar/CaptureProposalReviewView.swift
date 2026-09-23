@@ -120,7 +120,10 @@ private extension CaptureProposalReviewView {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color.green.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            Color.green.opacity(UIConstants.OpacityConstants.veryFaint),
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+        )
     }
 
     private var childCountLabel: String {
@@ -145,7 +148,10 @@ private extension CaptureProposalReviewView {
             Spacer()
         }
         .padding(14)
-        .background(Color.blue.opacity(UIConstants.OpacityConstants.veryFaint), in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            Color.blue.opacity(UIConstants.OpacityConstants.veryFaint),
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
+        )
     }
 
     private var presentationReviewCard: some View {
@@ -168,7 +174,7 @@ private extension CaptureProposalReviewView {
         .padding(14)
         .background(
             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-            in: RoundedRectangle(cornerRadius: 12)
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
         )
     }
 
@@ -211,7 +217,7 @@ private extension CaptureProposalReviewView {
         .padding(14)
         .background(
             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-            in: RoundedRectangle(cornerRadius: 12)
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
         )
     }
 
@@ -305,7 +311,7 @@ private extension CaptureProposalReviewView {
         .padding(14)
         .background(
             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-            in: RoundedRectangle(cornerRadius: 12)
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
         )
     }
 

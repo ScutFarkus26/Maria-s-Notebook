@@ -182,7 +182,7 @@ struct CommandBarSheet: View {
                             .padding(.horizontal, 12)
                             .background(
                             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-                            in: RoundedRectangle(cornerRadius: 8)
+                            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                         )
                         }
                         .buttonStyle(.plain)
@@ -211,7 +211,7 @@ struct CommandBarSheet: View {
                         .padding(.horizontal, 12)
                         .background(
                             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-                            in: RoundedRectangle(cornerRadius: 8)
+                            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                         )
                     }
                     .buttonStyle(.plain)
@@ -278,7 +278,8 @@ struct CommandBarSheet: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(command.intent.pieMenuAction.color, in: RoundedRectangle(cornerRadius: 12))
+                    .background(command.intent.pieMenuAction.color,
+                                in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
                     .foregroundStyle(.white)
                 }
                 .buttonStyle(.plain)
@@ -409,7 +410,7 @@ extension CommandBarSheet {
                 .frame(width: 44, height: 44)
                 .background(
                     command.intent.pieMenuAction.color.opacity(UIConstants.OpacityConstants.medium),
-                    in: RoundedRectangle(cornerRadius: 10)
+                    in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control)
                 )
 
             VStack(alignment: .leading, spacing: 2) {
@@ -425,7 +426,7 @@ extension CommandBarSheet {
         .padding(16)
         .background(
             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-            in: RoundedRectangle(cornerRadius: 12)
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
         )
         .padding(.horizontal, 16)
     }

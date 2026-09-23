@@ -73,26 +73,15 @@ struct StudentPillsSection: View {
     }
 
     private func studentChip(for student: CDStudent) -> some View {
-        HStack(spacing: 6) {
-            Text(student.shortName)
-                .font(AppTheme.ScaledFont.captionSemibold)
-            if let given = student.id.flatMap({ records[$0] }) {
-                StudentRecordCaption(given: given, compact: true)
+        StudentChip(
+            student.shortName,
+            tint: areaColor,
+            onRemove: { if let id = student.id { onRemove(id) } },
+            accessory: {
+                if let given = student.id.flatMap({ records[$0] }) {
+                    StudentRecordCaption(given: given, compact: true)
+                }
             }
-            Button { if let id = student.id { onRemove(id) } } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(areaColor)
-            .accessibilityLabel("Remove \(student.shortName)")
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .foregroundStyle(areaColor)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(areaColor.opacity(UIConstants.OpacityConstants.accent))
         )
     }
 }

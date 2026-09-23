@@ -137,12 +137,10 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
             }
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.vertical, AppTheme.Spacing.verySmall)
-            .background(
-                Capsule().fill(
-                    isSelected
-                        ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
-                        : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                )
+            .capsuleFill(
+                isSelected
+                    ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                    : Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
             )
             .overlay {
                 if isSelected {

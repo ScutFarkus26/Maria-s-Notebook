@@ -189,28 +189,6 @@ struct WorkflowInfoHint: View {
 
 // MARK: - Badge View
 
-struct WorkflowBadge: View {
-    let icon: String
-    let text: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
-            Text(text)
-                .font(AppTheme.ScaledFont.captionSmallSemibold)
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(color.opacity(UIConstants.OpacityConstants.accent))
-        )
-    }
-}
-
 // MARK: - Panel Header
 
 struct WorkflowPanelHeader: View {

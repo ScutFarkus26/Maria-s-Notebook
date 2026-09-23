@@ -47,11 +47,7 @@ struct WatchItemRow: View {
                                 .foregroundStyle(item.kind.tint)
                                 .padding(.horizontal, AppTheme.Spacing.verySmall)
                                 .padding(.vertical, 1)
-                                .background(
-                                    Capsule().fill(
-                                        item.kind.tint.opacity(UIConstants.OpacityConstants.hint)
-                                    )
-                                )
+                                .capsuleFill(item.kind.tint.opacity(UIConstants.OpacityConstants.hint))
                         }
                     }
                 }

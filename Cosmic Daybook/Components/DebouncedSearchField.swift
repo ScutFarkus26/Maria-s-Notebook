@@ -46,9 +46,10 @@ public struct DebouncedSearchField: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+            style: .continuous
         )
         .onChange(of: text) { _, newValue in
             scheduleDebounce(with: newValue)

@@ -198,13 +198,12 @@ struct TrackFilteredListView: View, Identifiable {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.orange.opacity(UIConstants.OpacityConstants.semi), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.orange.opacity(UIConstants.OpacityConstants.light),
+            stroke: Color.orange.opacity(UIConstants.OpacityConstants.semi),
+            lineWidth: 1,
+            style: .continuous
         )
     }
 
@@ -237,20 +236,16 @@ struct TrackFilteredListView: View, Identifiable {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(
-                        Capsule()
-                            .fill(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
-                    )
+                    .capsuleFill(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.blue.opacity(UIConstants.OpacityConstants.light))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.blue.opacity(UIConstants.OpacityConstants.semi), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.blue.opacity(UIConstants.OpacityConstants.light),
+            stroke: Color.blue.opacity(UIConstants.OpacityConstants.semi),
+            lineWidth: 1,
+            style: .continuous
         )
     }
     
@@ -279,13 +274,12 @@ struct TrackFilteredListView: View, Identifiable {
                 .lineLimit(nil)
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.yellow.opacity(UIConstants.OpacityConstants.light))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.yellow.opacity(UIConstants.OpacityConstants.semi), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.yellow.opacity(UIConstants.OpacityConstants.light),
+            stroke: Color.yellow.opacity(UIConstants.OpacityConstants.semi),
+            lineWidth: 1,
+            style: .continuous
         )
     }
     

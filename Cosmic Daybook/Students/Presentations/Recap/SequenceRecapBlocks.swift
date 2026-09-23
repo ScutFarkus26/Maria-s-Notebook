@@ -40,10 +40,7 @@ struct SequenceRecapLessonRow: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(rowBackground)
-        )
+        .surface(UIConstants.CornerRadius.medium, fill: rowBackground, style: .continuous)
     }
 
     private var rowBackground: Color {
@@ -79,7 +76,7 @@ struct SequenceRecapLessonRow: View {
 
             Spacer(minLength: 6)
 
-            SequenceRecapStateBadge(entry: entry)
+            StatusPill(text: entry.stateLabel, color: entry.stateColor, metrics: .mini)
             if let date = mostRecentDate {
                 Text(date, format: .relative(presentation: .named))
                     .font(AppTheme.ScaledFont.captionSmall)
@@ -212,20 +209,10 @@ struct SequenceRecapStatusPicker: View {
 
 // MARK: - State Badge
 
-struct SequenceRecapStateBadge: View {
-    let entry: SequenceRecapLessonEntry
-
-    var body: some View {
-        Text(label)
-            .font(AppTheme.ScaledFont.captionSmallSemibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(color.opacity(0.18)))
-            .foregroundStyle(color)
-    }
-
-    private var label: String {
-        if let state = entry.outcomeState {
+/// The state badge on a recap row: `StatusPill(text: stateLabel, color: stateColor, metrics: .mini)`.
+extension SequenceRecapLessonEntry {
+    var stateLabel: String {
+        if let state = outcomeState {
             switch state {
             case .presented: return "Presented"
             case .practicing: return "Practicing"
@@ -233,11 +220,11 @@ struct SequenceRecapStateBadge: View {
             case .proficient: return "Mastered"
             }
         }
-        return entry.presentations.isEmpty ? "Not yet presented" : "Presented"
+        return presentations.isEmpty ? "Not yet presented" : "Presented"
     }
 
-    private var color: Color {
-        if let state = entry.outcomeState {
+    var stateColor: Color {
+        if let state = outcomeState {
             switch state {
             case .presented: return .secondary
             case .practicing: return .blue
@@ -245,7 +232,7 @@ struct SequenceRecapStateBadge: View {
             case .proficient: return .green
             }
         }
-        return entry.presentations.isEmpty ? .gray : .secondary
+        return presentations.isEmpty ? .gray : .secondary
     }
 }
 
@@ -401,7 +388,7 @@ struct SequenceRecapWorkBlock: View {
                 .font(AppTheme.ScaledFont.captionSmallSemibold)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(work.status.color.opacity(0.18)))
+                .capsuleFill(work.status.color.opacity(0.18))
                 .foregroundStyle(work.status.color)
         }
         .buttonStyle(.plain)
@@ -493,10 +480,7 @@ struct SequenceRecapNoteBlock: View {
             }
         }
         .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
+        .surface(UIConstants.CornerRadius.small, fill: Color.primary.opacity(0.04), style: .continuous)
     }
 }
 
@@ -511,7 +495,7 @@ struct SequenceRecapFlagPill: View {
             .font(AppTheme.ScaledFont.captionSmallSemibold)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Capsule().fill(color.opacity(0.18)))
+            .capsuleFill(color.opacity(0.18))
             .foregroundStyle(color)
     }
 }

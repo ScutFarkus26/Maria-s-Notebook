@@ -231,9 +231,10 @@ struct StudentNotesTimelineList: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(NoteFilter.allCases) { filter in
-                        PillButton(
-                            title: filter.rawValue,
-                            isSelected: selectedFilter == filter
+                        AppPillButton(
+                            filter.rawValue,
+                            isSelected: selectedFilter == filter,
+                            metrics: .roomy
                         ) {
                             adaptiveWithAnimation {
                                 selectedFilter = filter

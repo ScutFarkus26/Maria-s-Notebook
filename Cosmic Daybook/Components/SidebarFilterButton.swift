@@ -59,7 +59,7 @@ struct FilterButton: View {
                     .foregroundStyle(trailingBadgeColor)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(trailingBadgeColor.opacity(UIConstants.OpacityConstants.accent)))
+                    .capsuleFill(trailingBadgeColor.opacity(UIConstants.OpacityConstants.accent))
             }
 
             if let trailingIcon {
@@ -83,9 +83,9 @@ struct FilterButton: View {
         }
         .frame(height: 28, alignment: .leading)
         .padding(.horizontal, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.light) : Color.clear)
+        .surface(
+            UIConstants.CornerRadius.small,
+            fill: isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.light) : Color.clear
         )
         .contentShape(Rectangle())
         .onTapGesture(perform: action)

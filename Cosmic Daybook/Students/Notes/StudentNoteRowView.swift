@@ -112,10 +112,7 @@ struct StudentNoteRowView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
-        )
+        .capsuleFill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
     }
     
     private var reporterDisplayText: String {
@@ -139,7 +136,7 @@ struct StudentNoteRowView: View {
         // Use the new async component instead of direct PhotoStorageService calls
         AsyncCachedImage(filename: imagePath)
             .frame(maxWidth: 300, maxHeight: 300)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
             .padding(.top, 8)
     }
 

@@ -98,7 +98,7 @@ struct ProgressionLessonRow: View {
                     .font(.caption2)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(kind.color.opacity(UIConstants.OpacityConstants.accent)))
+                    .capsuleFill(kind.color.opacity(UIConstants.OpacityConstants.accent))
                     .foregroundStyle(kind.color)
             }
 

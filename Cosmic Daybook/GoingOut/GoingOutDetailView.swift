@@ -107,7 +107,12 @@ struct GoingOutDetailView: View {
     private var statusSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                GoingOutStatusBadge(status: goingOut.status)
+                StatusPill(
+                    text: goingOut.status.displayName,
+                    color: goingOut.status.color,
+                    icon: goingOut.status.icon,
+                    metrics: .compact
+                )
                 Spacer()
                 if let date = goingOut.proposedDate {
                     Label(date.formatted(date: .abbreviated, time: .omitted), systemImage: "calendar")

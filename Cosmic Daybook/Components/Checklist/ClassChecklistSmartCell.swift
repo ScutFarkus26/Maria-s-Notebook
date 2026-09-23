@@ -39,13 +39,13 @@ struct ClassChecklistSmartCell: View {
         return ZStack {
             // Staleness tint background
             if isStale && displayStatus != .proficient && displayStatus != .empty {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
                     .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
             }
 
             // Selection highlight background
             if isSelected {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
                     .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
             }
 
@@ -92,7 +92,7 @@ struct ClassChecklistSmartCell: View {
     }
 
     private var selectionStroke: some View {
-        RoundedRectangle(cornerRadius: 6)
+        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
             .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
             .padding(2)
     }

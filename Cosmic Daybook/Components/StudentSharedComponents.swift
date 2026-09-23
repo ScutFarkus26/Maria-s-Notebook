@@ -27,13 +27,11 @@ struct CardContainer<Content: View>: View {
                 .padding(padding)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            cornerRadius,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.hint),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 }
@@ -69,13 +67,11 @@ struct PlaceholderTextArea: View {
                     .font(.body)
                     .frame(minHeight: minHeight)
                     .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+                    .surface(
+                        UIConstants.CornerRadius.control,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                        stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+                        style: .continuous
                     )
                 if text.trimmed().isEmpty {
                     Text(placeholder)
@@ -172,7 +168,7 @@ struct LevelBadge: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Capsule().fill(bgColor))
+        .capsuleFill(bgColor)
         .accessibilityLabel("Level: \(level.rawValue)")
     }
 }

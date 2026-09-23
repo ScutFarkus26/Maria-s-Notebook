@@ -18,10 +18,7 @@ struct CardBackgroundModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(color.opacity(opacity))
-            )
+            .surface(cornerRadius, fill: color.opacity(opacity))
     }
 }
 
