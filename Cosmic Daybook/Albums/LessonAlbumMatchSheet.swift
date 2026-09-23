@@ -209,7 +209,7 @@ struct AlbumPageThumbnail: View {
         }
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
         .frame(width: width)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .clipRounded(4)
         .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(.quaternary))
         .accessibilityHidden(true)
         .task(id: "\(albumID)|\(pageIndex)") {

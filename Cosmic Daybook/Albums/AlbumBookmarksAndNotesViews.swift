@@ -270,7 +270,7 @@ struct AlbumNoteEditorSheet: View {
             TextEditor(text: $text)
                 .font(.body)
                 .frame(minHeight: 160)
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+                .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium).strokeBorder(.quaternary))
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }

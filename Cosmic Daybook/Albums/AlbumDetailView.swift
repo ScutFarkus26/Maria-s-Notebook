@@ -879,7 +879,7 @@ struct AlbumPageNotesPanel: View {
                             .padding(8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(album.subject.color.opacity(0.08),
-                                        in: RoundedRectangle(cornerRadius: 8))
+                                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
                         }
                     }
                 }

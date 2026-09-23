@@ -101,7 +101,7 @@ struct AttendanceWatchListCard: View {
     }
 
     private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
+        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
             .fill(Color.secondary.opacity(0.06))
     }
 }

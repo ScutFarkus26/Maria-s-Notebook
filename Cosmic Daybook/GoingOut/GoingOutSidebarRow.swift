@@ -59,13 +59,11 @@ struct GoingOutSidebarRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .fill(CardStyle.cardBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(CardStyle.strokeOpacity))
+        .surface(
+            CardStyle.cornerRadius,
+            fill: CardStyle.cardBackgroundColor,
+            stroke: Color.primary.opacity(CardStyle.strokeOpacity),
+            style: .continuous
         )
         .shadow(color: CardStyle.shadowColor, radius: CardStyle.shadowRadius, y: 1)
     }

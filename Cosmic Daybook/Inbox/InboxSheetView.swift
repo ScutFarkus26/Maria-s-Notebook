@@ -200,7 +200,7 @@ public struct InboxSheetView: View {
       dropPlaceholderOverlay
     )
     .overlay(
-      RoundedRectangle(cornerRadius: 8)
+      RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
         .stroke(isTargeted ? Color.accentColor.opacity(UIConstants.OpacityConstants.half) : Color.clear, lineWidth: 2)
     )
   }
@@ -266,10 +266,10 @@ extension InboxSheetView {
   }
 
   private func dropPlaceholderRect(width: CGFloat, height: CGFloat) -> some View {
-    RoundedRectangle(cornerRadius: 10, style: .continuous)
+    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
       .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
       .overlay(
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
+        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
           .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
       )
       .frame(width: width, height: height)
@@ -282,9 +282,10 @@ extension InboxSheetView {
         .font(AppTheme.ScaledFont.captionSemibold)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(
-          RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(Color.black.opacity(UIConstants.OpacityConstants.nearSolid))
+        .surface(
+          UIConstants.CornerRadius.control,
+          fill: Color.black.opacity(UIConstants.OpacityConstants.nearSolid),
+          style: .continuous
         )
         .foregroundStyle(.white)
         .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
@@ -339,9 +340,10 @@ private struct InboxRow: View {
           Button { onOpenDetails(slID) } label: { Label("Open Details", systemImage: "info.circle") }
         }
     }
-    .background(
-      RoundedRectangle(cornerRadius: 10, style: .continuous)
-        .fill(isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.subtle) : Color.clear)
+    .surface(
+      UIConstants.CornerRadius.control,
+      fill: isSelected ? Color.accentColor.opacity(UIConstants.OpacityConstants.subtle) : Color.clear,
+      style: .continuous
     )
     .contentShape(Rectangle())
     .background(

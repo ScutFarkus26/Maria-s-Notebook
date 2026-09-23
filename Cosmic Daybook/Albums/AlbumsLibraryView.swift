@@ -142,7 +142,7 @@ private struct AlbumRecentCard: View {
             .padding(12)
             .frame(width: 200, alignment: .leading)
             .background((album?.subject.color ?? .gray).opacity(0.1),
-                        in: RoundedRectangle(cornerRadius: 12))
+                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
         }
         .buttonStyle(.plain)
     }
@@ -208,8 +208,8 @@ private struct AlbumCard: View {
                 }
             }
             .aspectRatio(3.0 / 4.0, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary))
+            .clipRounded(UIConstants.CornerRadius.control)
+            .overlay(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control).strokeBorder(.quaternary))
             .shadow(color: .black.opacity(0.12), radius: 5, y: 3)
 
             HStack {

@@ -4,7 +4,7 @@ import SwiftUI
 struct StoryImportProgressView: View {
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
                 .fill(.thinMaterial)
             VStack(spacing: 8) {
                 ProgressView()

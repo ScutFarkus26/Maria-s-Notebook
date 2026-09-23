@@ -34,23 +34,18 @@ struct ChatInputBar: View {
                     .lineLimit(1...5)
                     .padding(.horizontal, AppTheme.Spacing.medium)
                     .padding(.vertical, AppTheme.Spacing.compact)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
-                            .fill(Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        .purple.opacity(UIConstants.OpacityConstants.accent),
-                                        .blue.opacity(UIConstants.OpacityConstants.accent)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                lineWidth: 1.5
-                            )
+                    .surface(
+                        UIConstants.CornerRadius.extraLarge,
+                        fill: Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
+                        stroke: LinearGradient(
+                            colors: [
+                                .purple.opacity(UIConstants.OpacityConstants.accent),
+                                .blue.opacity(UIConstants.OpacityConstants.accent)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        lineWidth: 1.5
                     )
                     .onSubmit {
                         if canSend { onSend() }

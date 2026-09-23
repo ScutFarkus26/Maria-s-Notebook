@@ -89,7 +89,7 @@ struct BookClubPacketDetailView: View {
                 .frame(maxHeight: 220)
                 .frame(maxWidth: .infinity)
                 .background(Color.secondary.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
             #else
             Image(uiImage: image)
                 .resizable()
@@ -97,7 +97,7 @@ struct BookClubPacketDetailView: View {
                 .frame(maxHeight: 220)
                 .frame(maxWidth: .infinity)
                 .background(Color.secondary.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
             #endif
         } else {
             ZStack {
@@ -108,7 +108,7 @@ struct BookClubPacketDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 220)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
         }
     }
 
@@ -235,7 +235,7 @@ struct BookClubPacketDetailView: View {
             ))
             .frame(minHeight: 100)
             .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small, style: .continuous)
                     .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
             )
         }

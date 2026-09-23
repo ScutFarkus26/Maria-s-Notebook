@@ -76,7 +76,7 @@ struct DayColumn: View {
                         .font(AppTheme.ScaledFont.captionSmallSemibold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
-                        .background(Capsule().fill(Color.red.opacity(UIConstants.OpacityConstants.accent)))
+                        .capsuleFill(Color.red.opacity(UIConstants.OpacityConstants.accent))
                         .foregroundStyle(AppColors.destructive)
                 }
             }
@@ -168,8 +168,6 @@ struct DayColumn: View {
             .foregroundStyle(tint)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(
-                Capsule().fill(tint.opacity(UIConstants.OpacityConstants.medium))
-            )
+            .capsuleFill(tint.opacity(UIConstants.OpacityConstants.medium))
     }
 }

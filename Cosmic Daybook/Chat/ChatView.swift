@@ -168,7 +168,7 @@ struct ChatView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
+                .clipRounded(UIConstants.CornerRadius.extraLarge)
                 .overlay(
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                         .stroke(

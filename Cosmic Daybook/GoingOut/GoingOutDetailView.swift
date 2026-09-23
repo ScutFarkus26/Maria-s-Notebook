@@ -149,10 +149,7 @@ struct GoingOutDetailView: View {
                     .foregroundStyle(newStatus.color)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(newStatus.color.opacity(UIConstants.OpacityConstants.light))
-                    )
+                    .capsuleFill(newStatus.color.opacity(UIConstants.OpacityConstants.light), style: .continuous)
                 }
                 .buttonStyle(.plain)
             }
@@ -231,9 +228,9 @@ struct GoingOutDetailView: View {
                 .foregroundStyle(goingOut.permissionStatus.color)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(goingOut.permissionStatus.color.opacity(UIConstants.OpacityConstants.medium))
+                .capsuleFill(
+                    goingOut.permissionStatus.color.opacity(UIConstants.OpacityConstants.medium),
+                    style: .continuous
                 )
             }
         }
@@ -312,9 +309,10 @@ extension GoingOutDetailView {
                     }
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+                        style: .continuous
                     )
                 }
             }
@@ -355,10 +353,7 @@ private struct StudentChipsView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                )
+                .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), style: .continuous)
             }
         }
     }

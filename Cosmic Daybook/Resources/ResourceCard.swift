@@ -73,13 +73,11 @@ struct ResourceCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.hint),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.light),
+            style: .continuous
         )
         .contentShape(Rectangle())
     }

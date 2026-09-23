@@ -77,7 +77,7 @@ struct StoryDetailView: View {
     private var heroImageSection: some View {
         if isGeneratingCover {
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                     .fill(Color.secondary.opacity(0.08))
                     .frame(maxWidth: .infinity)
                     .frame(height: 280)
@@ -111,7 +111,7 @@ struct StoryDetailView: View {
                 .frame(maxHeight: 320)
                 .frame(maxWidth: .infinity)
                 .background(Color.secondary.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipRounded(UIConstants.CornerRadius.medium)
             #else
             Image(uiImage: image)
                 .resizable()
@@ -119,7 +119,7 @@ struct StoryDetailView: View {
                 .frame(maxHeight: 320)
                 .frame(maxWidth: .infinity)
                 .background(Color.secondary.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipRounded(UIConstants.CornerRadius.medium)
             #endif
             if let label {
                 Text(label)
@@ -202,7 +202,7 @@ struct StoryDetailView: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.secondary.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipRounded(UIConstants.CornerRadius.medium)
     }
 
     private var titleSection: some View {
@@ -275,7 +275,7 @@ struct StoryDetailView: View {
                 .frame(minHeight: 80)
                 .padding(6)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                         .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
                 )
         }
@@ -362,7 +362,7 @@ struct StoryDetailView: View {
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(areaColor.opacity(0.18)))
+                        .capsuleFill(areaColor.opacity(0.18))
                         .foregroundStyle(areaColor)
                 }
                 Spacer(minLength: 0)
@@ -377,7 +377,7 @@ struct StoryDetailView: View {
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.secondary.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipRounded(UIConstants.CornerRadius.small)
     }
 
     private var actionButtons: some View {

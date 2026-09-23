@@ -121,9 +121,10 @@ public struct RestorePreviewView: View {
                         }
                     }
                     .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.yellow.opacity(UIConstants.OpacityConstants.subtle))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.yellow.opacity(UIConstants.OpacityConstants.subtle),
+                        style: .continuous
                     )
                 }
             }
@@ -164,10 +165,7 @@ public struct RestorePreviewView: View {
         .font(.caption)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            Capsule(style: .continuous)
-                .fill(color.opacity(UIConstants.OpacityConstants.medium))
-        )
+        .capsuleFill(color.opacity(UIConstants.OpacityConstants.medium), style: .continuous)
         .foregroundStyle(color)
     }
 }

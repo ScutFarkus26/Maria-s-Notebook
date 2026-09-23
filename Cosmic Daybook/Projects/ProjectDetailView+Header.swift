@@ -180,8 +180,6 @@ private struct ProjectChip: View {
             .font(.subheadline)
             .padding(.vertical, AppTheme.Spacing.verySmall)
             .padding(.horizontal, AppTheme.Spacing.small + 2)
-            .background(
-                Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
-            )
+            .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
     }
 }

@@ -125,7 +125,7 @@ extension ResourceLibraryView {
                 .padding(8)
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
         )
     }
@@ -146,7 +146,7 @@ extension ResourceLibraryView {
         .buttonStyle(.plain)
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
         )
     }

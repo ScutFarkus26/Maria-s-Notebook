@@ -172,9 +172,9 @@ struct BookClubSessionEditorSheet: View {
                         Text(weekdayShortLabel(day))
                             .font(.caption)
                             .frame(width: 32, height: 28)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(isOn ? Color.accentColor : Color.secondary.opacity(0.15))
+                            .surface(
+                                UIConstants.CornerRadius.small,
+                                fill: isOn ? Color.accentColor : Color.secondary.opacity(0.15)
                             )
                             .foregroundStyle(isOn ? Color.white : Color.primary)
                     }
@@ -237,7 +237,7 @@ struct BookClubSessionEditorSheet: View {
                                 .font(.caption)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                                .capsuleFill(Color.secondary.opacity(0.15))
                         }
                     }
                 }

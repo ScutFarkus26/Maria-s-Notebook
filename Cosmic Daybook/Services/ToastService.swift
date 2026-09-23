@@ -267,10 +267,7 @@ struct ToastView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(toast.type.backgroundColor)
-        )
+        .surface(UIConstants.CornerRadius.control, fill: toast.type.backgroundColor, style: .continuous)
         .foregroundStyle(.white)
         .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
         .transition(.move(edge: .top).combined(with: .opacity))

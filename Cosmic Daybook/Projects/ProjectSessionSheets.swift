@@ -107,7 +107,7 @@ struct AddWorkOfferSheet: View {
                 TextEditor(text: $instructions)
                     .frame(minHeight: 80)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                             .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
                     )
             }

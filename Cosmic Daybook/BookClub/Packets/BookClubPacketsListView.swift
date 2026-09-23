@@ -43,10 +43,7 @@ struct BookClubPacketsListView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.secondary.opacity(0.1))
-            )
+            .surface(UIConstants.CornerRadius.medium, fill: Color.secondary.opacity(0.1), style: .continuous)
 
             Spacer()
 

@@ -117,7 +117,7 @@ struct BackupSummaryView: View {
                     }
                     .padding(AppTheme.Spacing.small)
                     .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Spacing.small))
+                    .clipRounded(AppTheme.Spacing.small)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }

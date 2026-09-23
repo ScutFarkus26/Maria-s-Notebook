@@ -45,7 +45,7 @@ struct ChatMessageBubble: View {
                 .padding(.horizontal, AppTheme.Spacing.medium)
                 .padding(.vertical, AppTheme.Spacing.compact)
                 .background(bubbleBackground)
-                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
+                .clipRounded(UIConstants.CornerRadius.extraLarge)
                 .overlay(
                     RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                         .stroke(bubbleBorderGradient, lineWidth: isUser ? 0 : 1.5)

@@ -93,12 +93,11 @@ struct SmallSequencePlannerStudentRow: View {
         .foregroundStyle(reason.isActionable ? AnyShapeStyle(.white) : AnyShapeStyle(reason.color))
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            Capsule(style: .continuous)
-                .fill(reason.isActionable
-                      ? AnyShapeStyle(reason.color.gradient)
-                      : AnyShapeStyle(reason.color.opacity(UIConstants.OpacityConstants.light))
-                )
+        .capsuleFill(
+            reason.isActionable
+                ? AnyShapeStyle(reason.color.gradient)
+                : AnyShapeStyle(reason.color.opacity(UIConstants.OpacityConstants.light)),
+            style: .continuous
         )
     }
 }

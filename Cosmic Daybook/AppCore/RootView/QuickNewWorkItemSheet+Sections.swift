@@ -304,9 +304,9 @@ extension QuickNewWorkItemSheet {
                         .foregroundStyle(.primary)
                         .padding(.horizontal, AppTheme.Spacing.compact)
                         .padding(.vertical, AppTheme.Spacing.small)
-                        .background(
-                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+                        .surface(
+                            UIConstants.CornerRadius.medium,
+                            fill: Color.primary.opacity(UIConstants.OpacityConstants.subtle)
                         )
                     }
                 }

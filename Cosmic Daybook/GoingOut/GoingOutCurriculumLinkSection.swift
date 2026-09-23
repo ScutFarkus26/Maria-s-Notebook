@@ -72,9 +72,9 @@ struct GoingOutCurriculumLinkSection: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(AppColors.color(forArea: lesson.area).opacity(UIConstants.OpacityConstants.light))
+                        .capsuleFill(
+                            AppColors.color(forArea: lesson.area).opacity(UIConstants.OpacityConstants.light),
+                            style: .continuous
                         )
                     }
                 }

@@ -63,13 +63,12 @@ struct SupplyRow: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .fill(CardStyle.cardBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: CardStyle.cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(CardStyle.strokeOpacity), lineWidth: 1)
+        .surface(
+            CardStyle.cornerRadius,
+            fill: CardStyle.cardBackgroundColor,
+            stroke: Color.primary.opacity(CardStyle.strokeOpacity),
+            lineWidth: 1,
+            style: .continuous
         )
     }
 }

@@ -169,15 +169,14 @@ private struct DayCell: View {
                         .foregroundStyle(isNS ? Color.red : Color.primary)
                         .frame(height: 40)
                         .frame(maxWidth: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(
-                                    isNS
-                                        ? Color.red.opacity(UIConstants.OpacityConstants.accent)
-                                        : (isToday(d)
-                                            ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                                            : Color.clear)
-                                )
+                        .surface(
+                            UIConstants.CornerRadius.medium,
+                            fill: isNS
+                                ? Color.red.opacity(UIConstants.OpacityConstants.accent)
+                                : (isToday(d)
+                                    ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                                    : Color.clear),
+                            style: .continuous
                         )
                 })
                 .buttonStyle(.plain)

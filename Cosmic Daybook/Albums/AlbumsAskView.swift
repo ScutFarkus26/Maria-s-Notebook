@@ -179,7 +179,7 @@ private struct ExchangeView: View {
                 Text(exchange.question)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 9)
-                    .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+                    .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile))
             }
             if exchange.isRunning {
                 HStack(spacing: 8) {
@@ -224,7 +224,7 @@ private struct ExchangeView: View {
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 14))
+                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile))
             }
         }
     }

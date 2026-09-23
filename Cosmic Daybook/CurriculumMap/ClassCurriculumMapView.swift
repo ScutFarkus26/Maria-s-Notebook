@@ -307,7 +307,7 @@ private struct ClassCurriculumGrid: View {
 
     private func labelCell(_ row: ClassRow, height: CGFloat) -> some View {
         HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 1)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.hairline)
                 .fill(row.tint)
                 .frame(width: 3, height: height - 12)
                 .opacity(row.depth == 0 ? 1 : 0.5)

@@ -245,10 +245,7 @@ struct SmallSequencePlannerView: View {
         .foregroundStyle(color)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            Capsule(style: .continuous)
-                .fill(color.opacity(UIConstants.OpacityConstants.light))
-        )
+        .capsuleFill(color.opacity(UIConstants.OpacityConstants.light), style: .continuous)
     }
 
     private func initialsPreview(_ students: ArraySlice<SequenceStudentStatus>) -> some View {
