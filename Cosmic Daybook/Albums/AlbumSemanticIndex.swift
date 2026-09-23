@@ -1,5 +1,6 @@
 import Foundation
 import NaturalLanguage
+import Synchronization
 
 /// On-device embeddings for every lesson, so search can match meaning
 /// ("borrowing") to lessons that never use the word ("Simple Operations:
@@ -197,15 +198,56 @@ final class AlbumSemanticIndex {
     }
 
     nonisolated static func embedQuery(_ text: String, backend: String) -> [Float]? {
-        switch backend {
-        case "sentence": sentenceEmbed([text])?.first
-        default: contextualEmbed([text])?.first
+        queryEmbedders.withLock { models in
+            switch backend {
+            case "sentence":
+                if models.sentence == nil {
+                    models.sentence = NLEmbedding.sentenceEmbedding(for: .english)
+                }
+                guard let embedding = models.sentence else { return nil }
+                return sentenceEmbed([text], with: embedding).first
+            default:
+                if models.contextual == nil {
+                    models.contextual = loadedContextualEmbedding()
+                }
+                guard let embedding = models.contextual else { return nil }
+                return contextualEmbed([text], with: embedding).first
+            }
         }
+    }
+
+    /// The embedding models a query uses, created on the first search and
+    /// kept so each keystroke's query doesn't load a model again. At most one
+    /// of each; `releaseQueryEmbedders()` drops them under memory pressure.
+    /// Queries run one at a time under the lock, so the models are never used
+    /// from two threads at once.
+    nonisolated private struct QueryEmbedders: ~Copyable {
+        var sentence: NLEmbedding?
+        var contextual: NLContextualEmbedding?
+    }
+
+    nonisolated private static let queryEmbedders = Mutex(QueryEmbedders())
+
+    /// Drops the cached query models; the next search recreates them.
+    nonisolated static func releaseQueryEmbedders() {
+        queryEmbedders.withLock { models in
+            models.sentence = nil
+            models.contextual = nil
+        }
+    }
+
+    /// Whether a query model is currently cached (tests read this).
+    nonisolated static var hasCachedQueryEmbedder: Bool {
+        queryEmbedders.withLock { $0.sentence != nil || $0.contextual != nil }
     }
 
     nonisolated static func sentenceEmbed(_ texts: [String]) -> [[Float]]? {
         guard let embedding = NLEmbedding.sentenceEmbedding(for: .english) else { return nil }
-        return texts.map { text in
+        return sentenceEmbed(texts, with: embedding)
+    }
+
+    nonisolated static func sentenceEmbed(_ texts: [String], with embedding: NLEmbedding) -> [[Float]] {
+        texts.map { text in
             let clipped = String(text.prefix(500))
             guard let vector = embedding.vector(for: clipped) else {
                 return [Float](repeating: 0, count: embedding.dimension)
@@ -215,8 +257,18 @@ final class AlbumSemanticIndex {
     }
 
     nonisolated static func contextualEmbed(_ texts: [String]) -> [[Float]]? {
+        guard let embedding = loadedContextualEmbedding() else { return nil }
+        return contextualEmbed(texts, with: embedding)
+    }
+
+    /// The English contextual model, loaded; `nil` when it isn't available.
+    nonisolated static func loadedContextualEmbedding() -> NLContextualEmbedding? {
         guard let embedding = NLContextualEmbedding(language: .english),
               (try? embedding.load()) != nil else { return nil }
+        return embedding
+    }
+
+    nonisolated static func contextualEmbed(_ texts: [String], with embedding: NLContextualEmbedding) -> [[Float]] {
         var out: [[Float]] = []
         for text in texts {
             let clipped = String(text.prefix(1200))
