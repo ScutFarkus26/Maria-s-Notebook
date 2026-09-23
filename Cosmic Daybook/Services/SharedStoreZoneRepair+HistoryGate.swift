@@ -17,7 +17,8 @@ import OSLog
 // left to attach stores the history token it started from as a "clean"
 // watermark, and the next pass reads history since that watermark before it
 // touches a single entity table. Nothing inserted → nothing to do. Something
-// inserted → scan only those entities. History unavailable → scan everything,
+// inserted → check only the inserted rows (history names them, so the pass
+// never reads the rest of the table). History unavailable → scan everything,
 // exactly as before, so a bad answer can never hide a real orphan.
 
 extension SharedStoreZoneRepair {
@@ -26,8 +27,11 @@ extension SharedStoreZoneRepair {
     nonisolated enum GateDecision: Equatable, Sendable {
         /// No shared entity has gained a row since the last clean pass.
         case clean
-        /// Only these shared entities gained rows; scan just them.
-        case scan(entityNames: Set<String>)
+        /// Only these shared entities gained rows; scan just the rows that
+        /// were inserted (`objectIDs`, every one belonging to one of
+        /// `entityNames`). A row that existed at the watermark was already in
+        /// a zone, so the inserted rows are the only possible orphans.
+        case scan(entityNames: Set<String>, objectIDs: Set<NSManagedObjectID>)
         /// History could not answer — no watermark yet, a token from another
         /// store file, or a fetch error. Scan every shared entity.
         case scanEverything(reason: String)
@@ -66,14 +70,17 @@ extension SharedStoreZoneRepair {
                     return .scanEverything(reason: "history result had an unexpected shape")
                 }
                 var inserted: Set<String> = []
+                var insertedIDs: Set<NSManagedObjectID> = []
                 for transaction in transactions {
                     for change in transaction.changes ?? [] where change.changeType == .insert {
-                        if let name = change.changedObjectID.entity.name, sharedEntityNames.contains(name) {
+                        let objectID = change.changedObjectID
+                        if let name = objectID.entity.name, sharedEntityNames.contains(name) {
                             inserted.insert(name)
+                            insertedIDs.insert(objectID)
                         }
                     }
                 }
-                return inserted.isEmpty ? .clean : .scan(entityNames: inserted)
+                return inserted.isEmpty ? .clean : .scan(entityNames: inserted, objectIDs: insertedIDs)
             } catch {
                 // A token from a store file that no longer exists lands here.
                 // Fail open to the full scan.
