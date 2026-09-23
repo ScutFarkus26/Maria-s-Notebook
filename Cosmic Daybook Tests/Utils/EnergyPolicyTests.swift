@@ -87,61 +87,105 @@ struct EnergyPolicyTests {
         #expect(coordinator.energyDeferralCount == 0)
     }
 
-    @Test("A hot device re-arms the debounce instead of dedupping")
-    func deduplicationRearmsWhenHot() async {
-        // 50 ms × 12 re-arms, so the pass is still deferring when this checks.
-        let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(50))
-        coordinator.requestDeduplication(policy: Self.policy(.critical))
+    @Test("A hot device waits instead of dedupping")
+    func deduplicationWaitsWhenHot() async {
+        let policy = Self.policy(.critical)
+        let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1))
+        coordinator.requestDeduplication(policy: policy)
 
-        #expect(await waitUntil { coordinator.energyDeferralCount > 0 })
+        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+        #expect(coordinator.energyDeferralCount == 1)
         #expect(coordinator.runAttemptCount == 0)
     }
 
-    @Test("A permanently hot device dedups anyway after the re-arm limit")
-    func deduplicationFallsThroughAfterLimit() async {
-        // A shortened limit; the shipping value is pinned separately below.
-        let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1), maxEnergyDeferrals: 3)
-        coordinator.requestDeduplication(policy: Self.policy(.serious, lowPower: true))
+    @Test("A permanently hot device never dedups; it runs once the device cools")
+    func deduplicationNeverRunsHotThenRunsWhenCool() async {
+        let policy = Self.policy(.serious, lowPower: true)
+        let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1))
+        coordinator.requestDeduplication(policy: policy)
+        #expect(await waitUntil { policy.waitingTaskCount == 1 })
 
+        // Many debounce intervals later it is still waiting, not running.
+        for _ in 0..<50 { await Task.yield() }
+        #expect(coordinator.runAttemptCount == 0)
+        #expect(policy.waitingTaskCount == 1)
+
+        // Cooling off alone does not clear Low Power Mode.
+        policy.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: true))
+        for _ in 0..<50 { await Task.yield() }
+        #expect(coordinator.runAttemptCount == 0)
+
+        policy.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: false))
         #expect(await waitUntil { coordinator.runAttemptCount == 1 })
-        #expect(coordinator.energyDeferralCount == 3)
-    }
-
-    @Test("The shipping coordinator gives up deferring after a dozen re-arms")
-    func deduplicationLimitIsTwelve() {
-        #expect(DeduplicationCoordinator.defaultMaxEnergyDeferrals == 12)
-        #expect(DeduplicationCoordinator.shared.maxEnergyDeferrals == 12)
+        #expect(policy.waitingTaskCount == 0)
     }
 
     @Test("A fresh request starts the deferral count over")
     func deduplicationResetsCountOnNewRequest() async {
-        let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(50))
-        coordinator.requestDeduplication(policy: Self.policy(.critical))
+        let hot = Self.policy(.critical)
+        let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1))
+        coordinator.requestDeduplication(policy: hot)
         #expect(await waitUntil { coordinator.energyDeferralCount > 0 })
 
         coordinator.requestDeduplication(policy: Self.policy(.nominal))
         #expect(coordinator.energyDeferralCount == 0)
         #expect(await waitUntil { coordinator.runAttemptCount >= 1 })
+        // The superseded wait was cancelled, not left suspended.
+        #expect(await waitUntil { hot.waitingTaskCount == 0 })
     }
 
     // MARK: - Album indexing
 
     @Test("Album indexing does not pause on a cool device")
     func albumIndexingRunsWhenCool() async {
-        let pauses = await AlbumLibrary.shared.pauseIndexingWhileDeferred(
-            policy: Self.policy(.fair), interval: .milliseconds(1)
-        )
+        let pauses = await AlbumLibrary.shared.pauseIndexingWhileDeferred(policy: Self.policy(.fair))
         #expect(pauses == 0)
     }
 
-    @Test("Album indexing pauses between albums, then gives up waiting and continues")
+    @Test("Album indexing waits while hot for as long as it lasts, then continues when cool")
     func albumIndexingPausesWhenHot() async {
-        let pauses = await AlbumLibrary.shared.pauseIndexingWhileDeferred(
-            policy: Self.policy(.critical), interval: .milliseconds(1)
-        )
-        // Bounded: the pass resumes rather than leaving `ensureIndexed()` spinning
-        // forever on a device that never cools down.
-        #expect(pauses == AlbumLibrary.maxIndexEnergyPauses)
+        let policy = Self.policy(.critical)
+        let pause = Task { await AlbumLibrary.shared.pauseIndexingWhileDeferred(policy: policy) }
+        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+
+        policy.simulate(.init(thermalState: .fair, isLowPowerModeEnabled: false))
+        #expect(await pause.value == 1)
+        #expect(policy.waitingTaskCount == 0)
+    }
+
+    @Test("A cancelled indexing pass stops waiting for the device to cool")
+    func albumIndexingWaitEndsOnCancel() async {
+        let policy = Self.policy(.critical)
+        let pause = Task { await AlbumLibrary.shared.pauseIndexingWhileDeferred(policy: policy) }
+        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+
+        pause.cancel()
+        _ = await pause.value
+        #expect(await waitUntil { policy.waitingTaskCount == 0 })
+        #expect(policy.shouldDeferMaintenance)
+    }
+
+    // MARK: - Zone repair
+
+    @Test("A zone repair turned away by a hot device is retried once it cools")
+    func zoneRepairRetriesWhenCool() async throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let policy = Self.policy(.critical)
+        let repair = SharedStoreZoneRepair.shared
+        let alreadyWaiting = repair.hasDeferredRetry
+
+        await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack, policy: policy)
+        // Not dropped: a retry is parked on the policy (unless the circuit
+        // breaker was open on this machine, when nothing auto-runs at all).
+        guard !SharedStoreZoneRepair.isCircuitBreakerOpen, !alreadyWaiting else { return }
+        #expect(repair.hasDeferredRetry)
+        // The parked task reaches the policy on its first turn.
+        #expect(await waitUntil { policy.waitingTaskCount == 1 })
+        #expect(repair.hasDeferredRetry)
+
+        policy.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: false))
+        #expect(await waitUntil { !repair.hasDeferredRetry })
+        #expect(policy.waitingTaskCount == 0)
     }
 
     // MARK: - Scheduled backup

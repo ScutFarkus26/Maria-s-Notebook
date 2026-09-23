@@ -86,16 +86,39 @@ final class SharedStoreZoneRepair {
     /// Idempotent and cheap when the shared store has no orphans.
     /// Respects the circuit breaker — for the manual "Repair Sync Errors"
     /// button, call `runManual` instead.
-    static func runIfNeeded(coreDataStack: CoreDataStack) async {
+    /// On a hot device or in Low Power Mode the pass is not dropped: it
+    /// waits in the background and runs once the policy clears.
+    static func runIfNeeded(coreDataStack: CoreDataStack, policy: EnergyPolicy = .shared) async {
         guard !isCircuitBreakerOpen else {
             shared.logger.notice("SharedStoreZoneRepair: circuit breaker open, skipping auto-run")
             return
         }
-        guard !EnergyPolicy.shared.shouldDeferMaintenance else {
-            shared.logger.notice("SharedStoreZoneRepair: device hot or in Low Power Mode, skipping auto-run")
+        guard !policy.shouldDeferMaintenance else {
+            shared.scheduleRetryWhenCool(coreDataStack: coreDataStack, policy: policy)
             return
         }
         await shared.run(coreDataStack: coreDataStack)
+    }
+
+    /// A pass the energy policy turned away, waiting for the device to cool.
+    /// One is enough however many triggers were deferred: the pass it runs is
+    /// gated on history since the clean watermark, so it covers them all.
+    @ObservationIgnored private var deferredRetry: Task<Void, Never>?
+
+    /// Whether a deferred pass is waiting for the device to cool.
+    var hasDeferredRetry: Bool { deferredRetry != nil }
+
+    /// Runs the deferred pass once the policy clears, instead of dropping it.
+    /// The caller is not held up — the launch sequence awaits `runIfNeeded`.
+    private func scheduleRetryWhenCool(coreDataStack: CoreDataStack, policy: EnergyPolicy) {
+        guard deferredRetry == nil else { return }
+        logger.notice("SharedStoreZoneRepair: device hot or in Low Power Mode, auto-run waits for it to cool")
+        deferredRetry = Task { [weak coreDataStack] in
+            await policy.waitUntilMaintenanceAllowed()
+            self.deferredRetry = nil
+            guard !Task.isCancelled, let coreDataStack else { return }
+            await Self.runIfNeeded(coreDataStack: coreDataStack, policy: policy)
+        }
     }
 
     /// User-initiated variant for the Settings → Repair Sync Errors
