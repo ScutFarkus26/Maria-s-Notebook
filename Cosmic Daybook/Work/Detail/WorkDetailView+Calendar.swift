@@ -72,9 +72,9 @@ extension WorkDetailView {
                             .foregroundStyle(.primary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+                            .surface(
+                                UIConstants.CornerRadius.control,
+                                fill: Color.primary.opacity(UIConstants.OpacityConstants.subtle)
                             )
                         }
                         .buttonStyle(.plain)
@@ -96,9 +96,9 @@ extension WorkDetailView {
                     TextField("Add a note (optional)", text: $viewModel.newPlanNote)
                         .font(AppTheme.ScaledFont.caption)
                         .padding(AppTheme.Spacing.small)
-                        .background(
-                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                        .surface(
+                            UIConstants.CornerRadius.small,
+                            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
                         )
                 }
             }

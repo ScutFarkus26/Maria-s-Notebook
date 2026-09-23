@@ -180,10 +180,7 @@ struct SchedulePresentationSheet: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
-                    )
+                    .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
                 }
             }
             .padding(.vertical, 4)

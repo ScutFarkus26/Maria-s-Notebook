@@ -18,7 +18,7 @@ extension LessonAssignmentDetailSheet {
             if let imagePath = note.imagePath {
                 AsyncCachedImage(filename: imagePath)
                     .frame(maxWidth: 300, maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .clipRounded(UIConstants.CornerRadius.control, style: .continuous)
             }
 
             // Metadata row
@@ -47,13 +47,11 @@ extension LessonAssignmentDetailSheet {
             }
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+            lineWidth: 1
         )
         .contextMenu {
             Button {

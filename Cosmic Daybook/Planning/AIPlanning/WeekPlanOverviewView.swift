@@ -67,7 +67,7 @@ struct WeekPlanOverviewView: View {
                 .padding(.vertical, 6)
                 .background(
                     .secondary.opacity(UIConstants.OpacityConstants.subtle),
-                    in: RoundedRectangle(cornerRadius: 6)
+                    in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
                 )
 
             if day.recommendations.isEmpty {
@@ -107,7 +107,10 @@ struct WeekPlanOverviewView: View {
             }
         }
         .padding(10)
-        .background(.secondary.opacity(UIConstants.OpacityConstants.trace), in: RoundedRectangle(cornerRadius: 10))
+        .background(
+            .secondary.opacity(UIConstants.OpacityConstants.trace),
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control)
+        )
     }
 
     // MARK: - Compact CDLesson Card
@@ -119,9 +122,9 @@ struct WeekPlanOverviewView: View {
             lessonCardDecision(rec)
         }
         .padding(8)
-        .background(cardBackground(for: rec), in: RoundedRectangle(cornerRadius: 8))
+        .background(cardBackground(for: rec), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                 .strokeBorder(cardBorder(for: rec), lineWidth: 0.5)
         )
     }
@@ -206,7 +209,10 @@ struct WeekPlanOverviewView: View {
                     }
                 }
                 .padding(8)
-                .background(.purple.opacity(UIConstants.OpacityConstants.hint), in: RoundedRectangle(cornerRadius: 8))
+                .background(
+                    .purple.opacity(UIConstants.OpacityConstants.hint),
+                    in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
+                )
             }
         }
     }

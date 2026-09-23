@@ -30,9 +30,10 @@ struct NextLessonSection: View {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
         )
     }
 
@@ -96,10 +97,7 @@ struct NextLessonSection: View {
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity)
                     .foregroundStyle(pillForeground(for: action))
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(pillBackground(for: action))
-                    )
+                    .capsuleFill(pillBackground(for: action), style: .continuous)
                     .overlay(
                         Capsule(style: .continuous)
                             .strokeBorder(
@@ -175,9 +173,10 @@ struct NextLessonSection: View {
         .foregroundStyle(.secondary)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.blue.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            UIConstants.CornerRadius.small,
+            fill: Color.blue.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 }

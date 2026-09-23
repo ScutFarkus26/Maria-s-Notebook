@@ -45,12 +45,11 @@ struct WorkCheckInPill: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+            lineWidth: 1
         )
         .opacity(isDulled ? 0.5 : 1.0)
         .contentShape(Rectangle())

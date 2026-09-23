@@ -140,12 +140,9 @@ struct StyledNotesTextField: View {
             .lineLimit(lineLimit)
             .textFieldStyle(.plain)
             .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-            )
+            .surface(UIConstants.CornerRadius.medium, fill: Color.primary.opacity(UIConstants.OpacityConstants.hint))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                     .strokeBorder(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1)
             )
     }
@@ -216,10 +213,7 @@ struct SelectedStudentRow: View {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.green.opacity(UIConstants.OpacityConstants.light))
-        )
+        .surface(UIConstants.CornerRadius.medium, fill: Color.green.opacity(UIConstants.OpacityConstants.light))
     }
 }
 
@@ -303,9 +297,9 @@ struct LessonContextCard: View {
                     Spacer()
                 }
                 .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.indigo.opacity(UIConstants.OpacityConstants.subtle))
+                .surface(
+                    UIConstants.CornerRadius.control,
+                    fill: Color.indigo.opacity(UIConstants.OpacityConstants.subtle)
                 )
 
                 // Presentation info if available
@@ -329,9 +323,9 @@ struct LessonContextCard: View {
                         Spacer()
                     }
                     .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.indigo.opacity(UIConstants.OpacityConstants.hint))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.indigo.opacity(UIConstants.OpacityConstants.hint)
                     )
                 }
             }
@@ -354,9 +348,9 @@ struct PracticeSessionBottomBar: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                    .surface(
+                        UIConstants.CornerRadius.large,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                     )
             }
             .buttonStyle(.plain)
@@ -373,10 +367,7 @@ struct PracticeSessionBottomBar: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(canSave ? Color.accentColor : Color.gray)
-                )
+                .surface(UIConstants.CornerRadius.large, fill: canSave ? Color.accentColor : Color.gray)
             }
             .buttonStyle(.plain)
             .disabled(!canSave)

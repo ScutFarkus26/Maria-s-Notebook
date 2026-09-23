@@ -212,9 +212,10 @@ extension UnifiedPresentationWorkflowPanel {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
         )
     }
 
@@ -364,7 +365,10 @@ extension UnifiedPresentationWorkflowPanel {
             }
         }
         .padding(12)
-        .cardBackground(color: Color.green.opacity(UIConstants.OpacityConstants.subtle), cornerRadius: 10)
+        .cardBackground(
+            color: Color.green.opacity(UIConstants.OpacityConstants.subtle),
+            cornerRadius: UIConstants.CornerRadius.control
+        )
     }
 
     // MARK: - Existing Work Card

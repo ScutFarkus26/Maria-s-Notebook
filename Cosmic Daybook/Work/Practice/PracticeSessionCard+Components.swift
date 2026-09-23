@@ -25,10 +25,7 @@ extension PracticeSessionCard {
             .foregroundStyle(behaviorColor(for: behavior))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(behaviorColor(for: behavior).opacity(UIConstants.OpacityConstants.accent))
-            )
+            .capsuleFill(behaviorColor(for: behavior).opacity(UIConstants.OpacityConstants.accent))
     }
 
     func behaviorColor(for behavior: String) -> Color {

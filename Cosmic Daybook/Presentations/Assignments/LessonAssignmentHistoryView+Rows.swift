@@ -145,17 +145,16 @@ extension LessonAssignmentHistoryView {
             }
         }
         .contentShape(Rectangle())
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(
-                    focusedAssignmentID != nil && la.id == focusedAssignmentID
-                        ? Color.accentColor.opacity(0.12)
-                        : Color.primary.opacity(UIConstants.OpacityConstants.trace)
-                )
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: focusedAssignmentID != nil && la.id == focusedAssignmentID
+                ? Color.accentColor.opacity(0.12)
+                : Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
         )
         .overlay {
             if focusedAssignmentID != nil && la.id == focusedAssignmentID {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                     .stroke(Color.accentColor, lineWidth: 2)
             }
         }
@@ -221,9 +220,10 @@ extension LessonAssignmentHistoryView {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+        .surface(
+            UIConstants.CornerRadius.small,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            style: .continuous
         )
     }
 }

@@ -63,7 +63,7 @@ extension WeekDayColumn {
                     .padding(8)
                     .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                             .strokeBorder(
                                 Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
                                 style: StrokeStyle(lineWidth: 1, dash: [4, 3])

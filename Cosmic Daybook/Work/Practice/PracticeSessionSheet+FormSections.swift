@@ -67,9 +67,9 @@ extension PracticeSessionSheet {
                     .font(AppTheme.ScaledFont.body)
                     .textFieldStyle(.plain)
                     .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                     )
             }
             .onChange(of: hasLocation) { _, newValue in
@@ -117,9 +117,10 @@ extension PracticeSessionSheet {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
         )
     }
 }

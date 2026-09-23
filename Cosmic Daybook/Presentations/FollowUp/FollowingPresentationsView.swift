@@ -230,10 +230,10 @@ private struct FollowingPresentationCard: View {
         if density == .compact {
             Color.clear
         } else {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                 .fill(Color.primary.opacity(0.035))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                         .stroke(Color.primary.opacity(0.07), lineWidth: 1)
                 )
         }

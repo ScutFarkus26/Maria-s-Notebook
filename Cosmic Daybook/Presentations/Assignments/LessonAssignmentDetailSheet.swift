@@ -254,9 +254,10 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                            .surface(
+                                UIConstants.CornerRadius.large,
+                                fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+                                style: .continuous
                             )
                     }
                 }
@@ -294,9 +295,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.orange.opacity(UIConstants.OpacityConstants.light)
                     )
             }
         }

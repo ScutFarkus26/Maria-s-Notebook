@@ -121,9 +121,7 @@ struct ConsolidatePresentationsSheet: View {
                         .foregroundStyle(AppColors.warning)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(
-                            Capsule().fill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent))
-                        )
+                        .capsuleFill(AppColors.warning.opacity(UIConstants.OpacityConstants.accent))
                 }
                 Spacer()
                 Text("\(group.presentations.count) presentations")
@@ -153,9 +151,10 @@ struct ConsolidatePresentationsSheet: View {
             }
         }
         .padding(AppTheme.Spacing.compact)
-        .background(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+            style: .continuous
         )
     }
 
@@ -223,23 +222,19 @@ private struct ConsolidateLessonCard: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
-                    .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.light)))
+                    .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.light))
             }
 
             studentChips
         }
         .padding(AppTheme.Spacing.compact)
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                .stroke(
-                    isDropHighlighted ? Color.accentColor : areaColor.opacity(UIConstants.OpacityConstants.accent),
-                    lineWidth: isDropHighlighted ? 2 : 1
-                )
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            stroke: isDropHighlighted ? Color.accentColor : areaColor.opacity(UIConstants.OpacityConstants.accent),
+            lineWidth: isDropHighlighted ? 2 : 1,
+            style: .continuous
         )
         .onDrop(of: [UTType.text], delegate: PillDropDelegate(
             viewContext: viewContext,
@@ -346,9 +341,7 @@ private struct DraggableStudentChip: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(
-            Capsule().fill(fillColor)
-        )
+        .capsuleFill(fillColor)
         .overlay(
             Capsule().stroke(strokeColor, lineWidth: isDuplicate ? 1.5 : 1)
         )

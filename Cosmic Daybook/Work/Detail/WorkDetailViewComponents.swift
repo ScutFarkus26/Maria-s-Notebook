@@ -106,13 +106,11 @@ struct NoteRowView: View {
             }
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+            lineWidth: 1
         )
     }
 }
@@ -150,9 +148,9 @@ struct SaveCancelButtons: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                    .surface(
+                        UIConstants.CornerRadius.large,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                     )
             }
             .buttonStyle(.plain)
@@ -169,10 +167,7 @@ struct SaveCancelButtons: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.accentColor)
-                )
+                .surface(UIConstants.CornerRadius.large, fill: Color.accentColor)
             }
             .buttonStyle(.plain)
         }
@@ -216,10 +211,7 @@ struct RoundedActionButton: View {
             .foregroundStyle(color)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(
-                Capsule()
-                    .fill(color.opacity(UIConstants.OpacityConstants.medium))
-            )
+            .capsuleFill(color.opacity(UIConstants.OpacityConstants.medium))
         }
         .buttonStyle(.plain)
     }
@@ -283,10 +275,7 @@ struct DetailSectionCard<Content: View, Trailing: View>: View {
             content()
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        )
+        .surface(UIConstants.CornerRadius.extraLarge, fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper))
     }
 }
 
@@ -342,10 +331,7 @@ struct MetricStatBox: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
-        )
+        .surface(UIConstants.CornerRadius.large, fill: color.opacity(UIConstants.OpacityConstants.subtle))
     }
 }
 
@@ -377,10 +363,7 @@ struct QualityMetricBox: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
-        )
+        .surface(UIConstants.CornerRadius.large, fill: color.opacity(UIConstants.OpacityConstants.subtle))
     }
 }
 
@@ -393,10 +376,7 @@ struct BehaviorPill: View {
             .foregroundStyle(.blue)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(Color.blue.opacity(UIConstants.OpacityConstants.medium))
-            )
+            .capsuleFill(Color.blue.opacity(UIConstants.OpacityConstants.medium))
     }
 }
 
@@ -424,10 +404,7 @@ struct ActionItemBox: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
-        )
+        .surface(UIConstants.CornerRadius.control, fill: color.opacity(UIConstants.OpacityConstants.subtle))
     }
 }
 
@@ -448,9 +425,6 @@ struct FlagRow: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(color.opacity(UIConstants.OpacityConstants.subtle))
-        )
+        .surface(UIConstants.CornerRadius.medium, fill: color.opacity(UIConstants.OpacityConstants.subtle))
     }
 }

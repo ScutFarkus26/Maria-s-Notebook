@@ -78,13 +78,11 @@ struct WorkflowTextField: View {
             .font(AppTheme.ScaledFont.body)
             .fontWeight(axis == .horizontal ? .medium : .regular)
             .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: axis == .horizontal ? 12 : 10)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: axis == .horizontal ? 12 : 10)
-                    .stroke(Color.primary.opacity(axis == .horizontal ? 0.08 : 0), lineWidth: 1)
+            .surface(
+                axis == .horizontal ? 12 : 10,
+                fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                stroke: Color.primary.opacity(axis == .horizontal ? 0.08 : 0),
+                lineWidth: 1
             )
         }
     }
@@ -113,13 +111,12 @@ struct WorkflowCard<Content: View>: View {
     var body: some View {
         content
             .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(backgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
+            .surface(
+                cornerRadius,
+                fill: backgroundColor,
+                stroke: borderColor,
+                lineWidth: 1,
+                style: .continuous
             )
     }
 }
@@ -162,9 +159,9 @@ struct WorkflowDeleteButton: View {
             .foregroundStyle(AppColors.destructive)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(AppColors.destructive.opacity(UIConstants.OpacityConstants.light))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: AppColors.destructive.opacity(UIConstants.OpacityConstants.light)
             )
         }
         .buttonStyle(.plain)
@@ -237,10 +234,7 @@ struct StudentEntryRowHeader: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: isExpanded ? 12 : 8, style: .continuous)
-                .fill(Color.primary.opacity(isExpanded ? 0.06 : 0.03))
-        )
+        .surface(isExpanded ? 12 : 8, fill: Color.primary.opacity(isExpanded ? 0.06 : 0.03), style: .continuous)
         .contentShape(Rectangle())
     }
 }
@@ -314,10 +308,7 @@ struct MasteryStageIndicator: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(
-            Capsule(style: .continuous)
-                .fill(stage.color.opacity(UIConstants.OpacityConstants.light))
-        )
+        .capsuleFill(stage.color.opacity(UIConstants.OpacityConstants.light), style: .continuous)
     }
 
     @ViewBuilder

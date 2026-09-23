@@ -126,9 +126,9 @@ extension WorkDetailView {
                 Spacer()
             }
             .padding(AppTheme.Spacing.compact)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
-                    .fill(status.color.opacity(UIConstants.OpacityConstants.veryFaint))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: status.color.opacity(UIConstants.OpacityConstants.veryFaint)
             )
         }
     }
@@ -180,10 +180,7 @@ extension WorkDetailView {
             Spacer()
         }
         .padding(AppTheme.Spacing.compact)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.indigo.opacity(UIConstants.OpacityConstants.veryFaint))
-        )
+        .surface(UIConstants.CornerRadius.control, fill: Color.indigo.opacity(UIConstants.OpacityConstants.veryFaint))
     }
 
     @ViewBuilder
@@ -216,9 +213,9 @@ extension WorkDetailView {
                     }
                     .padding(AppTheme.Spacing.small)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                            .fill(Color.blue.opacity(UIConstants.OpacityConstants.faint))
+                    .surface(
+                        UIConstants.CornerRadius.small,
+                        fill: Color.blue.opacity(UIConstants.OpacityConstants.faint)
                     )
                 }
             }
@@ -243,10 +240,7 @@ extension WorkDetailView {
             }
             .padding(AppTheme.Spacing.small)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                    .fill(Color.purple.opacity(UIConstants.OpacityConstants.faint))
-            )
+            .surface(UIConstants.CornerRadius.small, fill: Color.purple.opacity(UIConstants.OpacityConstants.faint))
         }
     }
 
@@ -271,10 +265,7 @@ extension WorkDetailView {
             }
             .padding(AppTheme.Spacing.small)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                    .fill(Color.green.opacity(UIConstants.OpacityConstants.faint))
-            )
+            .surface(UIConstants.CornerRadius.small, fill: Color.green.opacity(UIConstants.OpacityConstants.faint))
         }
     }
 
@@ -392,9 +383,7 @@ extension WorkDetailView {
                     .foregroundStyle(color)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(
-                        Capsule().fill(color.opacity(UIConstants.OpacityConstants.faint))
-                    )
+                    .capsuleFill(color.opacity(UIConstants.OpacityConstants.faint))
             case .subtitle(let text):
                 Text(text)
                     .font(AppTheme.ScaledFont.captionSmall)

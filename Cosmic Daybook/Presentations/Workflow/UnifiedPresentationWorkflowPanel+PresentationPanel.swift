@@ -85,11 +85,11 @@ extension UnifiedPresentationWorkflowPanel {
                 .foregroundStyle(pillColor == Color.secondary ? Color.secondary : Color.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(pillColor == Color.secondary
-                              ? Color.secondary.opacity(UIConstants.OpacityConstants.light)
-                              : pillColor)
+                .capsuleFill(
+                    pillColor == Color.secondary
+                        ? Color.secondary.opacity(UIConstants.OpacityConstants.light)
+                        : pillColor,
+                    style: .continuous
                 )
         }
         .buttonStyle(.plain)
@@ -202,9 +202,10 @@ extension UnifiedPresentationWorkflowPanel {
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+            style: .continuous
         )
         .padding(.top, -4)
     }
@@ -231,9 +232,10 @@ extension UnifiedPresentationWorkflowPanel {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.orange.opacity(UIConstants.OpacityConstants.accent))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.orange.opacity(UIConstants.OpacityConstants.accent),
+            style: .continuous
         )
         .padding(.horizontal, 16)
     }

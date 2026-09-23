@@ -250,7 +250,7 @@ struct AIPlanningAssistantView: View {
                     .padding(.vertical, 10)
                     .background(
                         Color.accentColor.opacity(UIConstants.OpacityConstants.accent),
-                        in: RoundedRectangle(cornerRadius: 16)
+                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                     )
                     .frame(maxWidth: 500, alignment: .trailing)
             }
@@ -262,7 +262,7 @@ struct AIPlanningAssistantView: View {
                     .padding(.vertical, 10)
                     .background(
                         .secondary.opacity(UIConstants.OpacityConstants.subtle),
-                        in: RoundedRectangle(cornerRadius: 16)
+                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
                     )
                     .frame(maxWidth: 500, alignment: .leading)
                 
@@ -343,7 +343,7 @@ struct AIPlanningAssistantView: View {
         .padding(12)
         .background(
             AppColors.warning.opacity(UIConstants.OpacityConstants.light),
-            in: RoundedRectangle(cornerRadius: 8)
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
         )
     }
     

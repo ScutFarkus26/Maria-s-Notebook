@@ -126,10 +126,10 @@ struct PresentationPlannerCard: View {
         }
         .background(cardBackground)
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                 .stroke(borderColor, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipRounded(UIConstants.CornerRadius.control, style: .continuous)
         .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
         .task { loadAttendanceIfNeeded() }
         .onChange(of: day) { _, _ in loadAttendanceIfNeeded(force: true) }
@@ -165,9 +165,7 @@ struct PresentationPlannerCard: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, UIConstants.CardSize.statusPillHorizontal)
                 .padding(.vertical, 2)
-                .background(
-                    Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                )
+                .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                 .accessibilityLabel(period.label)
         }
     }
@@ -202,10 +200,7 @@ struct PresentationPlannerCard: View {
             .lineLimit(1)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(
-                Capsule()
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-            )
+            .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
             .overlay(
                 Capsule()
                     .stroke(indicator ?? .clear, lineWidth: indicator == nil ? 0 : 1.5)

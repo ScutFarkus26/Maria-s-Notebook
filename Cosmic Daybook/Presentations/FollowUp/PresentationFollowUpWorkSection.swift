@@ -68,7 +68,7 @@ struct PresentationFollowUpWorkSection: View {
             }
         }
         .padding(16)
-        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile))
         .onChange(of: lesson.objectID) { _, _ in
             resetDraft()
         }

@@ -61,13 +61,10 @@ struct WorkCardGridContent: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, minHeight: 60)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
         )
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
@@ -133,7 +130,7 @@ struct WorkCardGridContent: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.red.opacity(UIConstants.OpacityConstants.nearSolid)))
+                    .capsuleFill(Color.red.opacity(UIConstants.OpacityConstants.nearSolid))
                     .accessibilityLabel("Needs Attention")
             }
         }
@@ -214,9 +211,9 @@ private struct WorkCardDragModifier: ViewModifier {
                     Text(studentDisplay).font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
                 )
             }
         } else {

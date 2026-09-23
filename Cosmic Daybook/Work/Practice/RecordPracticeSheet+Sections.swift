@@ -152,12 +152,12 @@ extension RecordPracticeSheet {
                 .font(AppTheme.ScaledFont.body)
                 .frame(minHeight: 100)
                 .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                         .strokeBorder(Color.primary.opacity(UIConstants.OpacityConstants.light), lineWidth: 1)
                 )
         }
@@ -196,9 +196,9 @@ extension RecordPracticeSheet {
                 .font(AppTheme.ScaledFont.body)
                 .textFieldStyle(.plain)
                 .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                 )
                 .lineLimit(2...4)
             }
@@ -212,9 +212,9 @@ extension RecordPracticeSheet {
                     .font(AppTheme.ScaledFont.body)
                     .textFieldStyle(.plain)
                     .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.hint)
                     )
             }
         }

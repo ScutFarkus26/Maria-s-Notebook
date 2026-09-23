@@ -81,9 +81,9 @@ struct PlanningRecommendationCard: View {
             actionButtons
         }
         .padding(12)
-        .background(cardBackground, in: RoundedRectangle(cornerRadius: 12))
+        .background(cardBackground, in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
                 .strokeBorder(borderColor, lineWidth: isDecided ? 2 : 0.5)
         )
     }

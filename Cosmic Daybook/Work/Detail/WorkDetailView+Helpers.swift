@@ -46,7 +46,7 @@ extension WorkDetailView {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, AppTheme.Spacing.compact)
                     .padding(.vertical, AppTheme.Spacing.small)
-                    .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
+                    .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
             }
             .frame(maxWidth: .infinity)
             .padding(.bottom, 8)
@@ -59,16 +59,11 @@ extension WorkDetailView {
                 TextField("Work Title", text: $viewModel.workTitle)
                     .font(AppTheme.ScaledFont.bodySemibold)
                     .padding(AppTheme.Spacing.compact)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                            .stroke(
-                                Color.primary.opacity(UIConstants.OpacityConstants.faint),
-                                lineWidth: UIConstants.StrokeWidth.thin
-                            )
+                    .surface(
+                        UIConstants.CornerRadius.large,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+                        stroke: Color.primary.opacity(UIConstants.OpacityConstants.faint),
+                        lineWidth: UIConstants.StrokeWidth.thin
                     )
             }
 
@@ -148,10 +143,7 @@ extension WorkDetailView {
                             .foregroundStyle(Color.accentColor)
                             .padding(.horizontal, AppTheme.Spacing.compact)
                             .padding(.vertical, AppTheme.Spacing.small)
-                            .background(
-                                Capsule()
-                                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                            )
+                            .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                         }
                         .buttonStyle(.plain)
                     }
@@ -163,9 +155,9 @@ extension WorkDetailView {
                 TextField("Add a note with this status…", text: $viewModel.completionNote)
                     .font(AppTheme.ScaledFont.body)
                     .padding(AppTheme.Spacing.compact)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+                    .surface(
+                        UIConstants.CornerRadius.medium,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
                     )
             }
 

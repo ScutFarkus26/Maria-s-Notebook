@@ -132,7 +132,7 @@ struct UnifiedPresentationWorkflowPanel: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
                 .fill(.background)
                 .shadow(color: .black.opacity(UIConstants.OpacityConstants.light), radius: 8, y: 4)
         )

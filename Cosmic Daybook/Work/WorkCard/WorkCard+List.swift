@@ -48,7 +48,7 @@ struct WorkCardListContent: View {
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Capsule().fill(workType.color.opacity(UIConstants.OpacityConstants.accent)))
+                    .capsuleFill(workType.color.opacity(UIConstants.OpacityConstants.accent))
                     .foregroundStyle(workType.color)
             }
         case .status(let status):
