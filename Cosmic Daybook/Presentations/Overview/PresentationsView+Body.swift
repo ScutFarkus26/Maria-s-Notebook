@@ -22,10 +22,18 @@ extension PresentationsView {
         .onPresentationDataChange(
             of: PersistentHistoryProcessor.presentationEntityNames, in: viewContext
         ) { touched in
-            changeToken &+= 1
+            pendingChangeToken &+= 1
             if touched.contains("LessonAssignment") {
-                assignmentChangeToken &+= 1
+                pendingAssignmentChangeToken &+= 1
             }
+        }
+        // Hidden (a TabView keeps this tab alive) the tokens hold still; the
+        // `.task` above reloads the view model and resyncs on reappear.
+        .onChangeWhenVisible(of: pendingChangeToken, catchUpOnAppear: false) {
+            changeToken = pendingChangeToken
+        }
+        .onChangeWhenVisible(of: pendingAssignmentChangeToken, catchUpOnAppear: false) {
+            assignmentChangeToken = pendingAssignmentChangeToken
         }
         .onChange(of: viewModelDependencies) { old, new in
             if old.assignmentChangeToken != new.assignmentChangeToken {

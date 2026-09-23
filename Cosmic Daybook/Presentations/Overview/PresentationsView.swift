@@ -40,6 +40,11 @@ struct PresentationsView: View {
     /// deep-link reveal read assignments, so the other three tables leave
     /// them alone.
     @State var assignmentChangeToken = 0
+    /// Raw counters bumped by every data-change signal, visible or not. They
+    /// feed the two tokens above only while the screen is on screen, so a
+    /// hidden iPad tab stops reloading; its `.task` catches up on return.
+    @State var pendingChangeToken = 0
+    @State var pendingAssignmentChangeToken = 0
 
     // MODERN: Unified dependency tracker for ViewModel updates
     // Consolidates all onChange handlers into a single observation point

@@ -101,11 +101,12 @@ struct WeekPlanSection: View {
             // settles check-ins this strip is showing. Saves arrive in bursts,
             // so coalesce them — the same pattern as WorksAgendaView. Saves
             // touching nothing the check-in pills read are dropped first.
-            .onReceive(
+            // Only while on screen: a hidden iPad tab refreshes once on return.
+            .onReceiveWhenVisible(
                 NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
                     .filter { ManagedObjectChangeScope.saveTouches(Self.checkInEntityNames, in: $0.userInfo) }
                     .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            ) { _ in
+            ) {
                 Task { await refreshCheckIns() }
             }
         }

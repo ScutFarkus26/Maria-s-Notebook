@@ -4,7 +4,7 @@ import SwiftUI
 /// Reload work that should only run while a screen is on screen.
 ///
 /// On iPhone and iPad the root is a `TabView`, which keeps every tab the
-/// guide has visited alive after she leaves it: its `@State` survives, and so
+/// guide has visited alive after they leave it: its `@State` survives, and so
 /// do its `.onReceive` subscriptions and `.onChange` handlers. A screen that
 /// reloads on every save or import therefore goes on reloading behind another
 /// tab all day. `.task` is the exception — it is cancelled on disappear and

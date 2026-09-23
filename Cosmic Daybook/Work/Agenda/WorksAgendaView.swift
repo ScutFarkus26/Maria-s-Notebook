@@ -220,8 +220,9 @@ struct WorksAgendaView: View {
         // not once per save (same pattern as StudentsView). Saves that touch
         // nothing this screen reads (attendance, album notes, sync bookkeeping)
         // are dropped before the debounce, unless the day has turned since the
-        // last build.
-        .onReceive(
+        // last build. Only while on screen: a hidden iPad tab catches up
+        // once when it comes back.
+        .onReceiveWhenVisible(
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
                 .map { Self.saveTouchesAgenda($0.userInfo) }
                 .receive(on: RunLoop.main)
@@ -229,7 +230,7 @@ struct WorksAgendaView: View {
                     touches || !AppCalendar.shared.isDate(partitionBuiltAt, inSameDayAs: Date())
                 }
                 .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-        ) { _ in
+        ) {
             refreshAfterSave()
         }
         .onChange(of: searchText) { _, newValue in
