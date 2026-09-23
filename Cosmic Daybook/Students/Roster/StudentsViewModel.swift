@@ -303,33 +303,7 @@ final class StudentsViewModel {
     
     // MARK: - Helpers
     private func nextBirthday(from birthday: Date, relativeTo today: Date = Date()) -> Date {
-        let cal = AppCalendar.shared
-        let todayStart = cal.startOfDay(for: today)
-        let comps = cal.dateComponents([.month, .day], from: birthday)
-        guard let month = comps.month, let day = comps.day else { return .distantFuture }
-
-        var year = cal.component(.year, from: todayStart)
-        var thisYearComponents = DateComponents(year: year, month: month, day: day)
-        var thisYearDate = cal.date(from: thisYearComponents)
-        // Handle Feb 29 on non-leap years by using Feb 28
-        if thisYearDate == nil && month == 2 && day == 29 {
-            thisYearComponents.day = 28
-            thisYearDate = cal.date(from: thisYearComponents)
-        }
-        guard let thisYear = thisYearDate else { return .distantFuture }
-
-        if thisYear >= todayStart {
-            return thisYear
-        } else {
-            year += 1
-            var nextComponents = DateComponents(year: year, month: month, day: day)
-            var nextDate = cal.date(from: nextComponents)
-            if nextDate == nil && month == 2 && day == 29 {
-                nextComponents.day = 28
-                nextDate = cal.date(from: nextComponents)
-            }
-            return nextDate ?? thisYear
-        }
+        AgeUtils.nextBirthday(for: birthday, today: today, calendar: AppCalendar.shared) ?? .distantFuture
     }
 
 }
