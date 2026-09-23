@@ -17,6 +17,19 @@ extension TodayView {
             onOpenTodo: { selectedTodoItem = $0 },
             onOpenStudent: { appRouter.requestOpenStudentDetail($0) }
         )
+        // Today re-renders on every reload (an attendance tap, a todo
+        // toggle); the section's own fetches already refresh it when a
+        // source changes, so a parent pass with the same day is skipped.
+        .equatable()
+    }
+}
+
+extension TodayWatchingSectionView: Equatable {
+    /// The closures only write the parent's state, which they reach through
+    /// storage that outlives any one copy of the parent, so the day is the
+    /// only input a parent pass can change.
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.day == rhs.day
     }
 }
 

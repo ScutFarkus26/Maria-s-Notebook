@@ -18,6 +18,15 @@ import CoreData
 extension TodayView {
     var readyForNextListSection: some View {
         ReadyForNextSectionView(items: viewModel.readyForNext)
+            // Skip Today's parent passes when the queue is the same value;
+            // the catalog and roster reads below still invalidate it.
+            .equatable()
+    }
+}
+
+extension ReadyForNextSectionView: Equatable {
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.items == rhs.items
     }
 }
 
@@ -130,18 +139,14 @@ struct ReadyForNextSectionView: View {
     /// the cap keeps the groups worth forming.
     private func buildGroups() -> [ReadyGroup] {
         guard !items.isEmpty else { return [] }
-        let lessonsByID = Dictionary(
-            dependencies.lessonCatalog.all.compactMap { lesson in lesson.id.map { ($0.uuidString, lesson) } },
-            uniquingKeysWith: { first, _ in first }
-        )
-        let studentsByID = Dictionary(
-            dependencies.roster.all.compactMap { student in student.id.map { ($0.uuidString, student) } },
-            uniquingKeysWith: { first, _ in first }
-        )
+        // The live catalog's and roster's `byID` keep the first row per ID,
+        // as the String-keyed dictionaries built here per render used to.
+        let lessonsByID = dependencies.lessonCatalog.byID
+        let studentsByID = dependencies.roster.byID
 
         let grouped: [String: [ReadyForNextItem]] = Dictionary(grouping: items, by: \.nextLessonID)
         let groups: [ReadyGroup] = grouped.compactMap { lessonID, entries in
-            guard let lesson = lessonsByID[lessonID] else { return nil }
+            guard let lesson = UUID(uuidString: lessonID).flatMap({ lessonsByID[$0] }) else { return nil }
             return makeGroup(lesson: lesson, entries: entries, studentsByID: studentsByID)
         }
         return groups.sorted { lhs, rhs in
@@ -151,12 +156,12 @@ struct ReadyForNextSectionView: View {
     }
 
     private func makeGroup(
-        lesson: CDLesson, entries: [ReadyForNextItem], studentsByID: [String: CDStudent]
+        lesson: CDLesson, entries: [ReadyForNextItem], studentsByID: [UUID: CDStudent]
     ) -> ReadyGroup? {
         var ready: [CDStudent] = []
         var almost: [AlmostReady] = []
         for entry in entries {
-            guard let student = studentsByID[entry.studentID] else { continue }
+            guard let student = UUID(uuidString: entry.studentID).flatMap({ studentsByID[$0] }) else { continue }
             if entry.tier == .ready {
                 ready.append(student)
             } else {
