@@ -4,7 +4,7 @@
 // The grid card and the list row both count down to the same date and both
 // worked it out for themselves; this is that one rule.
 //
-// A 29 February birthday counts on 28 February in a common year, the
+// A 29 February birthday counts on 1 March in a common year, the
 // `AgeUtils.nextBirthday` rule.
 
 import Foundation

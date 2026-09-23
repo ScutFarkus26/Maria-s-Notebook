@@ -216,7 +216,7 @@ struct AgeUtils {
     // MARK: - Birthdays
 
     /// The next occurrence of `birthday`'s month and day on or after today.
-    /// A Feb 29 birthday falls back to Feb 28 in non-leap years.
+    /// A Feb 29 birthday counts on Mar 1 in non-leap years.
     static func nextBirthday(
         for birthday: Date,
         today: Date = Date(),
@@ -229,9 +229,10 @@ struct AgeUtils {
 
         for year in [currentYear, currentYear + 1] {
             var candidate = calendar.date(from: DateComponents(year: year, month: month, day: day))
-            // Calendar rolls Feb 29 forward to Mar 1 in non-leap years; use Feb 28 instead.
+            // Feb 29 in a non-leap year: say Mar 1 outright rather than lean on
+            // the calendar's lenient roll-over.
             if let date = candidate, calendar.component(.month, from: date) != month {
-                candidate = calendar.date(from: DateComponents(year: year, month: month, day: day - 1))
+                candidate = calendar.date(from: DateComponents(year: year, month: month + 1, day: 1))
             }
             if let date = candidate, calendar.startOfDay(for: date) >= startOfToday {
                 return date
