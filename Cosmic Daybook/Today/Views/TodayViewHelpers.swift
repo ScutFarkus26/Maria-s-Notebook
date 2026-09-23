@@ -144,41 +144,6 @@ extension TodayView {
         }
     }
 
-    // MARK: - Filtered Queries
-
-    /// Helper to update filtered queries when date or data changes
-    func updateFilteredQueries() {
-        let (dayStart, dayEnd) = AppCalendar.dayRange(for: viewModel.date)
-
-        // Fetch filtered CDLessonAssignment IDs
-        do {
-            let fetchRequest: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
-            fetchRequest.predicate = NSPredicate(
-                format: "scheduledFor >= %@ AND scheduledFor < %@", dayStart as NSDate, dayEnd as NSDate
-            )
-            fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)]
-            let lessons = try viewContext.fetch(fetchRequest)
-            filteredPresentationIDs = lessons.compactMap(\.id)
-        } catch {
-            filteredPresentationIDs = []
-        }
-
-        // Fetch filtered CDWorkCheckIn IDs (scheduled status only)
-        // Uses CDWorkCheckIn for scheduled work check-ins
-        do {
-            let scheduledStatus = WorkCheckInStatus.scheduled.rawValue
-            let fetchRequest: NSFetchRequest<CDWorkCheckIn> = CDFetchRequest(CDWorkCheckIn.self)
-            fetchRequest.predicate = NSPredicate(
-                format: "statusRaw == %@ AND date <= %@", scheduledStatus, dayEnd as NSDate
-            )
-            fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkCheckIn.id, ascending: true)]
-            let checkIns = try viewContext.fetch(fetchRequest)
-            filteredPlanItemIDs = checkIns.compactMap(\.id)
-        } catch {
-            filteredPlanItemIDs = []
-        }
-    }
-
     // MARK: - Todo Actions
 
     /// Completes or reopens a todo in place. Completion — the next occurrence

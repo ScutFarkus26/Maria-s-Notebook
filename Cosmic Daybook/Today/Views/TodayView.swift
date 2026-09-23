@@ -84,11 +84,6 @@ struct TodayView: View {
         predicate: NSPredicate(format: "isCompleted == NO")
     ) var todayTodoItems: FetchedResults<CDTodoItem>
 
-    // MARK: - Filtered Query State
-    // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window
-    @State var filteredPresentationIDs: [UUID] = []
-    @State var filteredPlanItemIDs: [UUID] = []
-
     // MARK: - Day Rollover
     /// The school-day-coerced date that currently represents "today".
     /// When the calendar day changes we only auto-advance `viewModel.date`
@@ -322,7 +317,6 @@ struct TodayView: View {
             todayAnchor = AppCalendar.startOfDay(coerced)
         }
         handleDayChange()
-        updateFilteredQueries()
         reloadDerivedCounts()
         // Await both syncs — cancellation propagates automatically when view disappears
         _ = await (reminderSync, calendarSync)
@@ -390,7 +384,6 @@ struct TodayView: View {
             return
         }
 
-        updateFilteredQueries()
         reloadDerivedCounts()
     }
 
