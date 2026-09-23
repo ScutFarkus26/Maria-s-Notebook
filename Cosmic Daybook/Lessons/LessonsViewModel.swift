@@ -149,7 +149,10 @@ extension LessonsViewModel {
         // Fetch only un-presented CDLessonAssignment records (drafts and scheduled).
         let presentedRaw = LessonAssignmentState.presented.rawValue
         let descriptor = CDFetchRequest(CDLessonAssignment.self)
-        descriptor.predicate = NSPredicate(format: "stateRaw != %@", presentedRaw as CVarArg)
+        // Scoped to the requested lessons in SQL; unsaved rows still count.
+        descriptor.predicate = NSPredicate(
+            format: "stateRaw != %@ AND lessonID IN %@", presentedRaw as CVarArg, Array(lessonIDStrings)
+        )
         let assignments: [CDLessonAssignment]
         do {
             assignments = try context.fetch(descriptor)

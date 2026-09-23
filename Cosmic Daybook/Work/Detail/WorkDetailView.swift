@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import CoreData
 import Foundation
 
@@ -19,7 +20,6 @@ struct WorkDetailView: View {
     #endif
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkCheckIn.date, ascending: false)])
     var checkIns: FetchedResults<CDWorkCheckIn>
-    @FetchRequest(sortDescriptors: []) private var allPracticeSessions: FetchedResults<CDPracticeSession>
     // PERF: allLessons and allLessonAssignments moved into WorkDetailViewModel.loadWork()
     // to avoid loading entire tables via @Query. The ViewModel fetches only what's needed.
     #if DEBUG
@@ -34,9 +34,19 @@ struct WorkDetailView: View {
         viewModel.likelyNextLesson()
     }
 
-    var practiceSessions: [CDPracticeSession] {
-        viewModel.practiceSessions(allSessions: Array(allPracticeSessions))
-    }
+    /// This work's practice sessions, newest first. Loaded on appear and
+    /// whenever a practice session changes (see `reloadPracticeSessions`),
+    /// instead of a live unfiltered `@FetchRequest` over every session whose
+    /// transformable ids were decoded per session on every body pass.
+    @State var practiceSessions: [CDPracticeSession] = []
+    /// Size of the whole practice-session table at the last load; the
+    /// participant lookup reloads when it moves, as it did on `.count` before.
+    @State var practiceSessionTableCount: Int?
+
+    /// The "Next Presentation" card's status. Two assignment fetches, so it is
+    /// loaded on appear and when an assignment or work changes rather than on
+    /// every body pass (which included every keystroke in the title field).
+    @State var presentationStatus: WorkPresentationStatusService.PresentationStatus?
 
     // PERF: Uses ViewModel's cached resolvedLessonID/resolvedStudentID
     // instead of parsing UUID(uuidString:) on every body evaluation.
@@ -101,12 +111,20 @@ struct WorkDetailView: View {
                     #endif
             }
         }
-        .onChange(of: allPracticeSessions.count) { _, _ in
-            loadPracticeParticipants()
+        .onReceive(
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: modelContext)
+                .filter { !ManagedObjectChangeScope.touched(["PracticeSession"], in: $0.userInfo).isEmpty }
+                .receive(on: DispatchQueue.main)
+        ) { _ in
+            reloadPracticeSessions()
+        }
+        .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: modelContext) { _ in
+            reloadPresentationStatus()
         }
         .onAppear {
             viewModel.loadWork(modelContext: modelContext, saveCoordinator: saveCoordinator)
-            loadPracticeParticipants()
+            reloadPracticeSessions()
+            reloadPresentationStatus()
             if viewModel.work != nil {
                 #if DEBUG
                 PerformanceLogger.logScreenLoad(

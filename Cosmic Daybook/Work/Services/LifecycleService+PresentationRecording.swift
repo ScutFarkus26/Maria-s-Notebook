@@ -16,8 +16,7 @@ extension LifecycleService {
         beginFollowUp: Bool = true
     ) throws -> CDLessonAssignment {
         // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
-        let allStudents = try modelContext.fetch(CDFetchRequest(CDStudent.self))
-        let validStudentIDs = Set(allStudents.compactMap { $0.id?.uuidString })
+        let validStudentIDs = try existingStudentIDStrings(namedBy: lessonAssignment, context: modelContext)
         cleanOrphanedStudentIDs(for: lessonAssignment, validStudentIDs: validStudentIDs, modelContext: modelContext)
 
         let lessonIDStr = lessonAssignment.lessonID
@@ -42,8 +41,12 @@ extension LifecycleService {
                     )
                     lessonAssignment.trackID = track.id?.uuidString
                     if let lessonUUID = UUID(uuidString: lessonIDStr) {
-                        let allSteps = modelContext.safeFetch(CDFetchRequest(CDTrackStep.self))
-                        if let step = allSteps.first(where: {
+                        // This lesson's steps only (UUID attribute, UUID argument);
+                        // the track match stays in memory as before.
+                        let stepRequest = CDFetchRequest(CDTrackStep.self)
+                        stepRequest.predicate = NSPredicate(format: "lessonTemplateID == %@", lessonUUID as CVarArg)
+                        let lessonSteps = modelContext.safeFetch(stepRequest)
+                        if let step = lessonSteps.first(where: {
                             $0.track?.id == track.id && $0.lessonTemplateID == lessonUUID
                         }) {
                             lessonAssignment.trackStepID = step.id?.uuidString
@@ -77,6 +80,22 @@ extension LifecycleService {
         YearPlanReleaseService.releaseRedundantPlans(after: lessonAssignment, in: modelContext)
 
         return lessonAssignment
+    }
+
+    /// The `uuidString`s of the students `lessonAssignment` names that exist.
+    /// Only those students can be valid, so this reads them (by UUID — `id` is
+    /// a UUID attribute) rather than the whole roster; an id string that
+    /// doesn't parse, or whose student is gone, is absent from the set exactly
+    /// as it was from the whole-roster set.
+    static func existingStudentIDStrings(
+        namedBy lessonAssignment: CDLessonAssignment,
+        context: NSManagedObjectContext
+    ) throws -> Set<String> {
+        let named = Array(Set(lessonAssignment.studentIDs.compactMap(UUID.init(uuidString:))))
+        guard !named.isEmpty else { return [] }
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = NSPredicate(format: "id IN %@", named)
+        return Set(try context.fetch(request).compactMap { $0.id?.uuidString })
     }
 
     // Record a CDLessonAssignment as presented and create per-student CDWorkModel items.

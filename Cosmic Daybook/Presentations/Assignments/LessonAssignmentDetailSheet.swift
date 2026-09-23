@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import Combine
 import CoreData
 
 // swiftlint:disable:next type_body_length
@@ -34,6 +35,9 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
 
     @State var assignment: CDLessonAssignment?
     @State var unifiedNotes: [CDNote] = []
+    /// The "Related Work" section's data, loaded with the assignment and on
+    /// work / student / practice-session changes (see `reloadWorkSummary`).
+    @State var workSummary: PresentationWorkSummary?
     @State private var isLoading: Bool = true
     @State private var showAddNoteSheet: Bool = false
     @State var noteBeingEdited: CDNote?
@@ -152,7 +156,18 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                 self.assignment = nil
             }
             reloadNotes()
+            reloadWorkSummary()
             isLoading = false
+        }
+        .onPresentationDataChange(of: ["WorkModel", "Student"], in: viewContext) { _ in
+            reloadWorkSummary()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: viewContext)
+                .filter { !ManagedObjectChangeScope.touched(["PracticeSession"], in: $0.userInfo).isEmpty }
+                .receive(on: DispatchQueue.main)
+        ) { _ in
+            reloadWorkSummary()
         }
     }
 
@@ -210,7 +225,7 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
                     followUpSection(for: la)
                 }
 
-                workSummarySection(for: la)
+                workSummarySection
                 notesSection(for: la)
 
                 if !la.notes.isEmpty {

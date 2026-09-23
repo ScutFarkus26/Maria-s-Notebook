@@ -8,7 +8,9 @@ extension ObservationsView {
     // MARK: - Observations List
 
     var observationsList: some View {
-        List {
+        // Filtered once per pass; it was computed twice (emptiness, then rows).
+        let filteredItems = filteredItems
+        return List {
             if filteredItems.isEmpty, !isLoading {
                 ContentUnavailableView("No observations", systemImage: "note.text")
                     .listRowBackground(Color.clear)
@@ -124,24 +126,6 @@ extension ObservationsView {
         }
     }
 
-    // MARK: - Context Text
-
-    // swiftlint:disable:next cyclomatic_complexity
-    func contextText(for note: CDNote) -> String? {
-        if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
-        if let work = note.work { return "Work: \(work.title)" }
-        if note.lessonAssignment != nil { return "Presentation" }
-        if note.attendanceRecordID != nil { return "Attendance" }
-        if note.workCheckIn != nil { return "Check-In" }
-        if note.workCompletionRecord != nil { return "Completion" }
-        if note.studentMeeting != nil { return "Meeting" }
-        if note.projectSession != nil { return "Session" }
-        if let communityTopic = note.communityTopic { return "Topic: \(communityTopic.title)" }
-        if note.reminder != nil { return "Reminder" }
-        if note.schoolDayOverride != nil { return "Override" }
-        return nil
-    }
-
     // MARK: - Row Helpers
 
     func studentChip(_ name: String) -> some View {
@@ -172,6 +156,7 @@ extension ObservationsView {
 
     func reloadAllNotes() {
         loadedItems = []
+        usedTags = []
         lastCursorDate = nil
         hasMore = true
         Task { await loadAllNotes() }
@@ -182,10 +167,8 @@ extension ObservationsView {
         isLoading = true
         defer { isLoading = false }
 
-        loadedItems = ObservationsDataLoader.loadAllNotes(
-            context: viewContext,
-            contextTextProvider: { contextText(for: $0) }
-        )
+        loadedItems = ObservationsDataLoader.loadAllNotes(context: viewContext)
+        usedTags = ObservationsFilterService.usedTags(in: loadedItems)
         hasMore = false
         loadStudentsIfNeeded(for: filteredItems)
     }

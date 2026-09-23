@@ -209,7 +209,8 @@ extension LessonsRootView {
     // MARK: - Reorder helper (still used by reordering extension)
 
     func lessonsForSequence(_ sequence: String, ungroupedLabel: String) -> [CDLesson] {
-        lessonsForArea.filter { lesson in
+        // Called only from actions: read fresh, as the reorders always did.
+        computeLessonsForArea().filter { lesson in
             let lessonSequenceTrimmed = lesson.sequence.trimmed()
             if sequence == ungroupedLabel {
                 return lessonSequenceTrimmed.isEmpty

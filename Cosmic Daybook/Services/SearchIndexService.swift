@@ -80,8 +80,16 @@ final class SearchIndexService {
         case fullRebuild
     }
 
-    private var index: [String: Set<UUID>] = [:]
-    private var resultsById: [UUID: SearchResult] = [:]
+    // `private(set)` (not `private`) so the equivalence tests can replay the
+    // pre-2026-09-22 linear scan against the same index.
+    private(set) var index: [String: Set<UUID>] = [:]
+    private(set) var resultsById: [UUID: SearchResult] = [:]
+
+    /// The index's tokens in `String` order, so a prefix query is a binary
+    /// search instead of a `hasPrefix` test against every token in the corpus
+    /// on every keystroke. `nil` when the vocabulary has changed since the last
+    /// sort; rebuilt on the next search.
+    @ObservationIgnored private var sortedTokens: [String]?
 
     private(set) var isReady = false
 
@@ -119,6 +127,7 @@ final class SearchIndexService {
         let freedTokens = index.count
         index.removeAll()
         resultsById.removeAll()
+        sortedTokens = nil
         isReady = false
         Self.logger.info("Search index purged under memory pressure (\(freedTokens) tokens released)")
     }
@@ -160,6 +169,7 @@ final class SearchIndexService {
     private func apply(_ outcome: SearchIndexRefreshOutcome) {
         index = outcome.contents.index
         resultsById = outcome.contents.resultsById
+        sortedTokens = nil
         isReady = true
         lastRefreshSource = outcome.source
         let count = resultsById.count
@@ -173,6 +183,7 @@ final class SearchIndexService {
     func indexResult(_ result: SearchResult, text: String) {
         resultsById[result.id] = result
         for token in Self.tokenize(text) {
+            if index[token] == nil { sortedTokens = nil }
             index[token, default: []].insert(result.id)
         }
     }
@@ -192,8 +203,8 @@ final class SearchIndexService {
         // `index.keys.filter` and the second hash lookup per key.
         let tokenMatches: [Set<UUID>] = tokens.compactMap { token in
             var combined = Set<UUID>()
-            for (key, ids) in index where key.hasPrefix(token) {
-                combined.formUnion(ids)
+            for key in keys(withPrefix: token) {
+                if let ids = index[key] { combined.formUnion(ids) }
             }
             return combined.isEmpty ? nil : combined
         }
@@ -234,6 +245,38 @@ final class SearchIndexService {
             .map(\.result)
 
         return Array(ranked.prefix(limit))
+    }
+
+    /// Every token in the index with `prefix` as a `hasPrefix` prefix — the
+    /// same keys the linear scan found (in sorted rather than dictionary order;
+    /// they are only ever unioned into a `Set`).
+    ///
+    /// `String` ordering compares canonically normalised scalars, so every
+    /// token that starts with `prefix` sorts in `[prefix, prefix + U+10FFFF)`;
+    /// `hasPrefix` still has the last word inside that range.
+    func keys(withPrefix prefix: String) -> [String] {
+        let sorted: [String]
+        if let cached = sortedTokens {
+            sorted = cached
+        } else {
+            sorted = index.keys.sorted()
+            sortedTokens = sorted
+        }
+        let lower = Self.lowerBound(of: prefix, in: sorted)
+        let upper = Self.lowerBound(of: prefix + "\u{10FFFF}", in: sorted)
+        guard lower < upper else { return [] }
+        return sorted[lower..<upper].filter { $0.hasPrefix(prefix) }
+    }
+
+    /// First position in `sorted` whose element is not below `value`.
+    nonisolated static func lowerBound(of value: String, in sorted: [String]) -> Int {
+        var low = 0
+        var high = sorted.count
+        while low < high {
+            let mid = (low + high) / 2
+            if sorted[mid] < value { low = mid + 1 } else { high = mid }
+        }
+        return low
     }
 
     // MARK: - Tokenization

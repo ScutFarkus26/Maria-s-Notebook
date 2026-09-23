@@ -10,8 +10,7 @@ struct PresentationDetailView: View {
 
     @Environment(\.dependencies) private var dependencies
 
-    // Live Queries
-    @FetchRequest(sortDescriptors: []) private var lessonAssignmentsAll: FetchedResults<CDLessonAssignment>
+    // No live whole-table assignment query here any more: see LiveLessonAssignments.swift.
 
     private var lessons: [CDLesson] { dependencies.lessonCatalog.all }
 
@@ -52,7 +51,6 @@ struct PresentationDetailView: View {
                     lessonPickerVM: lessonPickerVM,
                     lessons: lessons,
                     studentsAll: studentsAll,
-                    lessonAssignmentsAll: Array(lessonAssignmentsAll),
                     onDone: onDone
                 )
             } else {
@@ -91,7 +89,7 @@ struct PresentationDetailView: View {
                 vm.handleNeedsAnotherChange(
                     newValue: val,
                     studentsAll: studentsAll,
-                    lessonAssignmentsAll: Array(lessonAssignmentsAll),
+                    lessonAssignmentsAll: LessonAssignmentTable.fetchAll(in: viewContext),
                     lessons: lessons
                 )
             }
@@ -107,7 +105,6 @@ struct PresentationDetailContentView: View {
 
     let lessons: [CDLesson]
     let studentsAll: [CDStudent]
-    let lessonAssignmentsAll: [CDLessonAssignment]
     let onDone: (() -> Void)?
 
     @Environment(\.dismiss) var dismiss
@@ -368,20 +365,20 @@ struct PresentationDetailContentView: View {
     @ViewBuilder
     var postPresentationFollowUpContent: some View {
         if let lesson = currentLesson {
-            PostPresentationFollowUpView(
-                assignment: vm.lessonAssignment,
-                lesson: lesson,
-                students: selectedStudentsList,
-                lessons: lessons,
-                lessonAssignments: lessonAssignmentsAll,
-                onReturnToLesson: {
-                    postPresentationFlow.returnToLesson()
-                },
-                onClose: {
-                    postPresentationFlow.close()
-                    handleDone()
-                }
-            )
+            LiveLessonAssignments { lessonAssignments in
+                PostPresentationFollowUpView(
+                    assignment: vm.lessonAssignment,
+                    lesson: lesson,
+                    students: selectedStudentsList,
+                    lessons: lessons,
+                    lessonAssignments: lessonAssignments,
+                    onReturnToLesson: { postPresentationFlow.returnToLesson() },
+                    onClose: {
+                        postPresentationFlow.close()
+                        handleDone()
+                    }
+                )
+            }
         } else {
             ContentUnavailableView(
                 "Follow-Up Unavailable",

@@ -25,7 +25,13 @@ enum LessonsPresentationHistoryProvider {
         // Query all presented LessonAssignments, sorted by date desc
         let presentedState = LessonAssignmentState.presented.rawValue
         let descriptor = CDFetchRequest(CDLessonAssignment.self)
-        descriptor.predicate = NSPredicate(format: "stateRaw == %@", presentedState)
+        // Scoped to the requested lessons in SQL (it used to read every presented
+        // assignment and drop the rest in memory; the in-memory check stays as the
+        // exact-match guard). Managed objects rather than a dictionary fetch, so
+        // unsaved rows in the context still count as they did.
+        descriptor.predicate = NSPredicate(
+            format: "stateRaw == %@ AND lessonID IN %@", presentedState, Array(lessonIDStrings)
+        )
         descriptor.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
 
         let assignments: [CDLessonAssignment]

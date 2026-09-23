@@ -6,52 +6,10 @@ struct DaysSinceLastLessonView: View {
 
     @Environment(\.managedObjectContext) private var viewContext
 
-    // Only fetch presented assignments — eliminates all scheduled/draft rows from the scan.
-    @FetchRequest(
-        sortDescriptors: [
-            NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
-            NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
-        ],
-        predicate: NSPredicate(format: "presentedAt != nil")
-    ) private var presentedAssignments: FetchedResults<CDLessonAssignment>
-
-    // Only fetch lessons that belong to the excluded "parsha" area/sequence,
-    // instead of loading the entire lesson library just to build the exclusion set.
-    @FetchRequest(
-        sortDescriptors: [],
-        predicate: NSPredicate(format: "area ==[c] 'parsha' OR sequence ==[c] 'parsha'")
-    ) private var parshaLessons: FetchedResults<CDLesson>
-
-    private var excludedLessonIDs: Set<UUID> {
-        Set(parshaLessons.compactMap(\.id))
-    }
-
-    private var lastLessonDate: Date? {
-        guard let studentID = student.id else { return nil }
-        let studentIDString = studentID.uuidString
-        // presentedAssignments already has presentedAt != nil, so no isPresented check needed.
-        let relevant = presentedAssignments.filter { la in
-            la.studentIDs.contains(studentIDString)
-                && !excludedLessonIDs.contains(la.resolvedLessonID)
-        }
-        var latest: Date?
-        for la in relevant {
-            guard let when = la.presentedAt ?? la.scheduledFor ?? la.createdAt else { continue }
-            if let cur = latest {
-                if when > cur { latest = when }
-            } else {
-                latest = when
-            }
-        }
-        return latest
-    }
-
-    private var daysSince: Int? {
-        guard let last = lastLessonDate else { return nil }
-        return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: last, asOf: Date(), using: viewContext
-        )
-    }
+    /// Computed on appear and when an assignment, a lesson or the day changes,
+    /// instead of on every body pass through two live queries (one over every
+    /// presented assignment in the store, decoding each one's students).
+    @State private var daysSince: Int?
 
     var body: some View {
         InfoRowView(
@@ -59,6 +17,48 @@ struct DaysSinceLastLessonView: View {
             title: "School Days Since Last Lesson",
             value: daysSince.map { String($0) } ?? "—"
         )
+        .onAppear { reload() }
+        .onChange(of: student.id) { reload() }
+        .onPresentationDataChange(of: ["LessonAssignment", "Lesson"], in: viewContext) { _ in reload() }
+        .onCalendarDayChange { reload() }
+    }
+
+    private func reload() {
+        let fresh: Int? = {
+            guard let studentID = student.id,
+                  let last = Self.lastLessonDate(studentID: studentID, in: viewContext) else { return nil }
+            return LessonAgeHelper.schoolDaysSinceCreation(createdAt: last, asOf: Date(), using: viewContext)
+        }()
+        if fresh != daysSince { daysSince = fresh }
+    }
+
+    /// The latest `presentedAt` among presented assignments that include this
+    /// student, ignoring parsha lessons.
+    ///
+    /// Reads newest-first and stops at the first match, which is the maximum
+    /// because every row read has a `presentedAt`; rows past the match are
+    /// never decoded. (Not batched: a batched fetch's ordering of unsaved rows
+    /// is not something to lean on, and the plain fetch sorts them in.)
+    static func lastLessonDate(studentID: UUID, in context: NSManagedObjectContext) -> Date? {
+        let parshaRequest = CDFetchRequest(CDLesson.self)
+        parshaRequest.predicate = NSPredicate(format: "area ==[c] 'parsha' OR sequence ==[c] 'parsha'")
+        let excludedLessonIDs = Set(context.safeFetch(parshaRequest).compactMap(\.id))
+
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "presentedAt != nil")
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false),
+            NSSortDescriptor(keyPath: \CDLessonAssignment.createdAt, ascending: false)
+        ]
+
+        let studentIDString = studentID.uuidString
+        for la in context.safeFetch(request) {
+            guard let presentedAt = la.presentedAt else { continue }
+            if la.studentIDs.contains(studentIDString), !excludedLessonIDs.contains(la.resolvedLessonID) {
+                return presentedAt
+            }
+        }
+        return nil
     }
 }
 

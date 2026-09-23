@@ -66,12 +66,10 @@ extension WorkDetailView {
         }
     }
 
-    var presentationStatus: WorkPresentationStatusService.PresentationStatus? {
-        guard let work = viewModel.work else { return nil }
-        return WorkPresentationStatusService.findNextPresentationStatus(
-            for: work,
-            context: modelContext
-        )
+    func reloadPresentationStatus() {
+        presentationStatus = viewModel.work.map {
+            WorkPresentationStatusService.findNextPresentationStatus(for: $0, context: modelContext)
+        }
     }
 
     @ViewBuilder

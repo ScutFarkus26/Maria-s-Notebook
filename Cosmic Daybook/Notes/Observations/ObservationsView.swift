@@ -68,6 +68,9 @@ struct ObservationsView: View {
 
     // Loaded items (unfiltered) - now includes all note types
     @State var loadedItems: [UnifiedObservationItem] = []
+    /// Every tag on `loadedItems`, sorted by display name for the tag menu.
+    /// Set wherever `loadedItems` is, instead of rebuilt on every render.
+    @State var usedTags: [String] = []
     @State var isLoading: Bool = false
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     @State var isSummarizing: Bool = false

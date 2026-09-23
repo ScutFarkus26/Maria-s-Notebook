@@ -89,7 +89,14 @@ nonisolated extension CDLessonAssignment {
 
     /// Fetches practice sessions related to work from this presentation
     func fetchRelatedPracticeSessions(from context: NSManagedObjectContext) -> [CDPracticeSession] {
-        let workItems = fetchRelatedWork(from: context)
+        fetchRelatedPracticeSessions(from: context, relatedWork: fetchRelatedWork(from: context))
+    }
+
+    /// Same, for a caller that already holds `fetchRelatedWork(from:)`'s result.
+    func fetchRelatedPracticeSessions(
+        from context: NSManagedObjectContext,
+        relatedWork workItems: [CDWorkModel]
+    ) -> [CDPracticeSession] {
         let workIDs = Set(workItems.compactMap { $0.id?.uuidString })
         guard !workIDs.isEmpty else { return [] }
 

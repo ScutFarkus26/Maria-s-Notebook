@@ -21,27 +21,10 @@ enum ChecklistMatrixBuilder {
         lessons: [CDLesson],
         context: NSManagedObjectContext
     ) -> [UUID: [UUID: StudentChecklistRowState]] {
-        let lessonIDStrings = Set(lessons.compactMap { $0.id?.uuidString })
-        guard !lessonIDStrings.isEmpty else { return [:] }
-
-        // Fetch LessonAssignments scoped to current lessons.
-        // CDLessonAssignment has an #Index on lessonID, so per-lesson predicates are fast.
-        // We batch fetches by lesson to leverage the index rather than fetching all records.
-        var lasByLessonID: [String: [CDLessonAssignment]] = [:]
-        for lessonIDString in lessonIDStrings {
-            let descriptor: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
-            descriptor.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
-            lasByLessonID[lessonIDString] = context.safeFetch(descriptor)
-        }
-
-        // Fetch WorkModels scoped to current lessons using studentID index.
-        // Build a lookup by lessonID for O(1) access per cell.
-        var worksByLessonID: [String: [CDWorkModel]] = [:]
-        for lessonIDString in lessonIDStrings {
-            let descriptor: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
-            descriptor.predicate = NSPredicate(format: "lessonID == %@", lessonIDString as CVarArg)
-            worksByLessonID[lessonIDString] = context.safeFetch(descriptor)
-        }
+        let lessonIDArray = Array(Set(lessons.compactMap { $0.id?.uuidString }))
+        guard !lessonIDArray.isEmpty else { return [:] }
+        let lasByLessonID = assignmentsByLesson(lessonIDs: lessonIDArray, context: context)
+        let worksByLessonID = worksByLesson(lessonIDs: lessonIDArray, context: context)
 
         var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
 
@@ -51,10 +34,7 @@ enum ChecklistMatrixBuilder {
 
         // Pre-compute preceding lessons and progression rules for blocking reasons
         let precedingLessonMap = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
-        var progressionRulesMap: [UUID: LessonProgressionRules.ResolvedRules] = [:]
-        for (lessonID, preceding) in precedingLessonMap {
-            progressionRulesMap[lessonID] = LessonProgressionRules.resolve(for: preceding, context: context)
-        }
+        let progressionRulesMap = progressionRules(for: precedingLessonMap, context: context)
 
         for student in students {
             var studentRow: [UUID: StudentChecklistRowState] = [:]
@@ -64,13 +44,12 @@ enum ChecklistMatrixBuilder {
             for lesson in lessons {
                 guard let lessonID = lesson.id else { continue }
                 let lessonIDString = lessonID.uuidString
-                let lasForLesson = lasByLessonID[lessonIDString] ?? []
-                let studentLAs = lasForLesson.filter { $0.studentIDs.contains(studentKey) }
-                let worksForLesson = worksByLessonID[lessonIDString] ?? []
-                let studentWorks = worksForLesson.filter { work in
-                    let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-                    return participants.contains { $0.studentID == studentKey }
-                }
+                let studentLAs = (lasByLessonID[lessonIDString] ?? [])
+                    .filter { $0.studentKeys.contains(studentKey) }
+                    .map(\.assignment)
+                let studentWorks = (worksByLessonID[lessonIDString] ?? [])
+                    .filter { $0.participantKeys.contains(studentKey) }
+                    .map(\.work)
 
                 // Compute blocking reason for empty/scheduled cells
                 let blockingReason: BlockingReason
@@ -105,7 +84,88 @@ enum ChecklistMatrixBuilder {
         return newMatrix
     }
 
+    // MARK: - Batched Reads
+
+    /// One fetch for the whole area (it used to be one per lesson). Rows are
+    /// grouped by lessonID in fetch order, so each lesson's list keeps the
+    /// order its own `lessonID ==` fetch returned; each assignment's students
+    /// are decoded once, not once per cell.
+    private static func assignmentsByLesson(
+        lessonIDs: [String],
+        context: NSManagedObjectContext
+    ) -> [String: [AssignmentEntry]] {
+        let request: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
+        var result: [String: [AssignmentEntry]] = [:]
+        for la in context.safeFetch(request) {
+            result[la.lessonID, default: []].append(
+                AssignmentEntry(assignment: la, studentKeys: Set(la.studentIDs))
+            )
+        }
+        return result
+    }
+
+    /// Same for work, with participants prefetched so the per-cell participant
+    /// check doesn't fault a to-many relationship per work per student.
+    private static func worksByLesson(
+        lessonIDs: [String],
+        context: NSManagedObjectContext
+    ) -> [String: [WorkEntry]] {
+        let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        var result: [String: [WorkEntry]] = [:]
+        for work in context.safeFetch(request) {
+            let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
+            result[work.lessonID, default: []].append(
+                WorkEntry(work: work, participantKeys: Set(participants.map(\.studentID)))
+            )
+        }
+        return result
+    }
+
+    /// Rules for each lesson's predecessor. The sequence-settings lookup is
+    /// shared by every predecessor filed under the same area + sequence, so it
+    /// runs once per pair instead of once per lesson.
+    private static func progressionRules(
+        for precedingLessonMap: [UUID: CDLesson],
+        context: NSManagedObjectContext
+    ) -> [UUID: LessonProgressionRules.ResolvedRules] {
+        var rules: [UUID: LessonProgressionRules.ResolvedRules] = [:]
+        var settingsByGroup: [SettingsKey: CDLessonSequenceSettings?] = [:]
+        for (lessonID, preceding) in precedingLessonMap {
+            rules[lessonID] = LessonProgressionRules.resolve(for: preceding) {
+                let key = SettingsKey(area: preceding.area, sequence: preceding.sequence)
+                if let cached = settingsByGroup[key] { return cached }
+                let found = CDLessonSequenceSettings.find(
+                    area: preceding.area, sequence: preceding.sequence, context: context
+                )
+                settingsByGroup[key] = .some(found)
+                return found
+            }
+        }
+        return rules
+    }
+
     // MARK: - Private Helpers
+
+    /// An assignment with its decoded student keys.
+    private struct AssignmentEntry {
+        let assignment: CDLessonAssignment
+        let studentKeys: Set<String>
+    }
+
+    /// A work item with its participants' student keys.
+    private struct WorkEntry {
+        let work: CDWorkModel
+        let participantKeys: Set<String>
+    }
+
+    /// Exact (case-preserving) area + sequence, the arguments `find` receives.
+    private struct SettingsKey: Hashable {
+        let area: String
+        let sequence: String
+    }
 
     /// Staleness threshold: 14 weekdays (approx 2.8 calendar weeks)
     private static let staleWeekdays = 14
@@ -116,8 +176,8 @@ enum ChecklistMatrixBuilder {
         rules: LessonProgressionRules.ResolvedRules?,
         studentID: UUID,
         studentKey: String,
-        lasByLessonID: [String: [CDLessonAssignment]],
-        worksByLessonID: [String: [CDWorkModel]]
+        lasByLessonID: [String: [AssignmentEntry]],
+        worksByLessonID: [String: [WorkEntry]]
     ) -> BlockingReason {
         guard let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else {
             return .none
@@ -125,7 +185,9 @@ enum ChecklistMatrixBuilder {
 
         let precedingIDStr = precedingLesson.id?.uuidString ?? ""
         let precedingLAs = lasByLessonID[precedingIDStr] ?? []
-        let presentedLA = precedingLAs.first { $0.isPresented && $0.studentIDs.contains(studentKey) }
+        let presentedLA = precedingLAs.first {
+            $0.assignment.isPresented && $0.studentKeys.contains(studentKey)
+        }?.assignment
 
         guard let presentedLA else {
             // Preceding lesson hasn't been presented to this student
@@ -137,11 +199,8 @@ enum ChecklistMatrixBuilder {
 
         if rules.requiresPractice {
             let precedingWorks = worksByLessonID[precedingIDStr] ?? []
-            let studentWorks = precedingWorks.filter { work in
-                let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-                return participants.contains { $0.studentID == studentKey }
-            }
-            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status.isClosed }
+            let studentWorks = precedingWorks.filter { $0.participantKeys.contains(studentKey) }
+            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.work.status.isClosed }
             if studentWorks.isEmpty || !allComplete {
                 needsPractice = true
             }
@@ -163,7 +222,8 @@ enum ChecklistMatrixBuilder {
         return .none
     }
 
-    private static func buildCellState(
+    /// Internal (not private) so the equivalence test can drive the legacy path through it.
+    static func buildCellState(
         lesson: CDLesson,
         studentLAs: [CDLessonAssignment],
         studentWorkModels: [CDWorkModel],
