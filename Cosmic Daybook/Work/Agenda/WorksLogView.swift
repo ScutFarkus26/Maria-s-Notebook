@@ -61,6 +61,9 @@ struct WorksLogView: View {
 
     private var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
 
+    /// Built once per `body` pass and handed to every row. It used to be a
+    /// computed property rebuilt on every lookup — twice or three times per row
+    /// drawn, and once per work item whenever a search was typed.
     private var lessonAssignmentsByID: [UUID: CDLessonAssignment] {
         // Use uniquingKeysWith to handle CloudKit sync duplicates
         Dictionary(
@@ -70,7 +73,7 @@ struct WorksLogView: View {
     }
 
     /// Filtered works based on current filter selections
-    private var filteredWorks: [CDWorkModel] {
+    private func filteredWorks(using assignmentsByID: [UUID: CDLessonAssignment]) -> [CDWorkModel] {
         allWorks.filter { work in
             if completedOnly && work.status.isOpen { return false }
 
@@ -97,7 +100,7 @@ struct WorksLogView: View {
 
             // Search filter
             if !effectiveSearchText.isEmpty {
-                let title = workTitle(work).lowercased()
+                let title = workTitle(work, assignmentsByID).lowercased()
                 let notes = work.latestUnifiedNoteText.lowercased()
                 let query = effectiveSearchText.lowercased()
                 if !title.contains(query) && !notes.contains(query) { return false }
@@ -107,12 +110,7 @@ struct WorksLogView: View {
         }
     }
 
-    /// Paginated works for display
-    private var displayedWorks: [CDWorkModel] {
-        filteredWorks.paginated(using: pagination)
-    }
-
-    private var focusRevealKey: FocusRevealKey {
+    private func focusRevealKey(_ filteredWorks: [CDWorkModel]) -> FocusRevealKey {
         FocusRevealKey(
             id: focusedWorkID,
             filteredIndex: focusedWorkID.flatMap { id in
@@ -121,36 +119,40 @@ struct WorksLogView: View {
         )
     }
 
-    private func linkedLessonAssignment(for work: CDWorkModel) -> CDLessonAssignment? {
+    private func linkedLessonAssignment(
+        for work: CDWorkModel, _ assignmentsByID: [UUID: CDLessonAssignment]
+    ) -> CDLessonAssignment? {
         guard let idString = work.presentationID,
               let id = UUID(uuidString: idString) else { return nil }
-        return lessonAssignmentsByID[id]
+        return assignmentsByID[id]
     }
 
-    private func linkedLesson(for work: CDWorkModel) -> CDLesson? {
-        guard let la = linkedLessonAssignment(for: work) else { return nil }
+    private func linkedLesson(
+        for work: CDWorkModel, _ assignmentsByID: [UUID: CDLessonAssignment]
+    ) -> CDLesson? {
+        guard let la = linkedLessonAssignment(for: work, assignmentsByID) else { return nil }
         // CloudKit compatibility: Convert String lessonID to UUID for lookup
         guard let lessonIDUUID = la.lessonIDUUID else { return nil }
         return lessonsByID[lessonIDUUID]
     }
 
-    private func workTitle(_ work: CDWorkModel) -> String {
+    private func workTitle(_ work: CDWorkModel, _ assignmentsByID: [UUID: CDLessonAssignment]) -> String {
         let title = work.title.trimmed()
         if !title.isEmpty { return title }
         let kindLabel = (work.kind ?? .research).shortLabel
-        if let lesson = linkedLesson(for: work) { return "\(kindLabel): \(lesson.name)" }
+        if let lesson = linkedLesson(for: work, assignmentsByID) { return "\(kindLabel): \(lesson.name)" }
         return kindLabel
     }
 
-    private func workSubtitle(_ work: CDWorkModel) -> String {
+    private func workSubtitle(_ work: CDWorkModel, _ assignmentsByID: [UUID: CDLessonAssignment]) -> String {
         let date: Date = {
-            if let la = linkedLessonAssignment(for: work) {
+            if let la = linkedLessonAssignment(for: work, assignmentsByID) {
                 return la.presentedAt ?? la.scheduledFor ?? la.createdAt ?? Date()
             }
             return work.createdAt ?? Date()
         }()
         let dateString = DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none)
-        if let lesson = linkedLesson(for: work) {
+        if let lesson = linkedLesson(for: work, assignmentsByID) {
             let area = lesson.area.trimmed()
             return area.isEmpty ? dateString : "\(area) • \(dateString)"
         }
@@ -209,18 +211,20 @@ struct WorksLogView: View {
 
     // MARK: - Body
 
-    private var worksContent: some View {
+    private func worksContent(
+        _ filteredWorks: [CDWorkModel], _ assignmentsByID: [UUID: CDLessonAssignment]
+    ) -> some View {
         VStack(spacing: 8) {
             filterBar
 
             ScrollViewReader { reader in
                 List {
-                    ForEach(displayedWorks) { work in
+                    ForEach(filteredWorks.paginated(using: pagination)) { work in
                         let workID = work.id ?? UUID()
                         WorkCard.list(
                             work: work,
-                            title: workTitle(work),
-                            subtitle: workSubtitle(work),
+                            title: workTitle(work, assignmentsByID),
+                            subtitle: workSubtitle(work, assignmentsByID),
                             badge: .status(work.status.displayName.lowercased()),
                             onOpen: openWork
                         )
@@ -240,7 +244,7 @@ struct WorksLogView: View {
                     }
                 }
                 .listStyle(.inset)
-                .task(id: focusRevealKey) {
+                .task(id: focusRevealKey(filteredWorks)) {
                     guard let focusedWorkID,
                           let index = filteredWorks.firstIndex(where: { $0.id == focusedWorkID }) else {
                         return
@@ -257,27 +261,33 @@ struct WorksLogView: View {
     }
 
     @ViewBuilder
-    private var searchableContent: some View {
+    private func searchableContent(
+        _ filteredWorks: [CDWorkModel], _ assignmentsByID: [UUID: CDLessonAssignment]
+    ) -> some View {
         if embeddedSearchText == nil {
-            worksContent.searchable(text: $searchText)
+            worksContent(filteredWorks, assignmentsByID).searchable(text: $searchText)
         } else {
-            worksContent
+            worksContent(filteredWorks, assignmentsByID)
         }
     }
 
     var body: some View {
+        // One lookup and one filter pass per render, shared by every row, the
+        // reveal task and the pagination count.
+        let assignmentsByID = lessonAssignmentsByID
+        let filtered = filteredWorks(using: assignmentsByID)
         Group {
             if isEmbedded {
-                searchableContent
+                searchableContent(filtered, assignmentsByID)
             } else {
-                searchableContent.navigationTitle("Works")
+                searchableContent(filtered, assignmentsByID).navigationTitle("Works")
             }
         }
-        .onChange(of: filteredWorks.count) { _, newCount in
+        .onChange(of: filtered.count) { _, newCount in
             pagination.updateTotal(newCount)
         }
         .onAppear {
-            pagination.updateTotal(filteredWorks.count)
+            pagination.updateTotal(filtered.count)
         }
         .sheet(isPresented: Binding(
             get: { selectedWork != nil },
