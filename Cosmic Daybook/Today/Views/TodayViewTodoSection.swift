@@ -18,13 +18,78 @@ extension TodayView {
         let highPriority: [CDTodoItem]
     }
 
-    private var todosPartition: TodosPartition {
+    /// Due work check-ins split the way the todos are, computed once per body.
+    struct FollowUpPartition {
+        let overdue: [WorkCheckInFollowUp]
+        let dueOnDay: [WorkCheckInFollowUp]
+
+        var isEmpty: Bool { overdue.isEmpty && dueOnDay.isEmpty }
+        var count: Int { overdue.count + dueOnDay.count }
+    }
+
+    private var followUpPartition: FollowUpPartition {
+        let rows = viewModel.followUpCheckIns
+        return FollowUpPartition(
+            overdue: rows.filter(\.isOverdue),
+            dueOnDay: rows.filter { !$0.isOverdue }
+        )
+    }
+
+    /// The todo section owns its own todo fetch, so a todo edit re-renders
+    /// this section instead of the whole Today screen.
+    var todosListSection: some View {
+        TodayTodosSectionView(
+            date: viewModel.date,
+            followUps: followUpPartition,
+            onToggle: { toggleTodoItem($0) },
+            onOpen: { selectedTodoItem = $0 },
+            onNewTodo: { activeSheet = .newTodo },
+            followUpRow: { checkInFollowUpRow($0) }
+        )
+    }
+}
+
+// MARK: - Todos Section View
+
+/// Today's todo list: open todos scheduled or due on the selected day, overdue,
+/// or high priority, interleaved with the due work check-ins the parent passes in.
+struct TodayTodosSectionView<FollowUpRow: View>: View {
+    typealias TodosPartition = TodayView.TodosPartition
+    typealias FollowUpPartition = TodayView.FollowUpPartition
+
+    let date: Date
+    let followUps: FollowUpPartition
+    let onToggle: (CDTodoItem) -> Void
+    let onOpen: (CDTodoItem) -> Void
+    let onNewTodo: () -> Void
+    @ViewBuilder let followUpRow: (WorkCheckInFollowUp) -> FollowUpRow
+
+    @Environment(\.calendar) private var calendar
+
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
+        predicate: NSPredicate(format: "isCompleted == NO")
+    ) private var todoItems: FetchedResults<CDTodoItem>
+
+    var body: some View {
+        let partition = Self.partition(Array(todoItems), date: date, calendar: calendar)
+        let count = partition.all.count + followUps.count
+        if TodaySectionVisibility.showsTodos(count: count) {
+            Section {
+                todosSectionContent(partition, followUps)
+            } header: {
+                todosSectionHeader(count: count)
+            }
+        }
+    }
+
+    static func partition(_ todoItems: [CDTodoItem], date: Date, calendar: Calendar) -> TodosPartition {
         // Compute date boundaries once — todayTodos and the partition sub-filters all need them.
-        let selectedDay = AppCalendar.startOfDay(viewModel.date)
+        let selectedDay = AppCalendar.startOfDay(date)
         let nextDay = calendar.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
 
         // Filter and sort the raw fetch results in a single pass.
-        let todos = todayTodoItems.filter { todo in
+        let todos = todoItems.filter { todo in
             guard !todo.isCompleted else { return false }
             guard !todo.isSomeday else { return false }
             if let scheduled = todo.scheduledDate, scheduled >= selectedDay && scheduled < nextDay { return true }
@@ -73,41 +138,10 @@ extension TodayView {
         return TodosPartition(all: todos, overdue: overdue, dueOnDay: dueOnDay, highPriority: highPriority)
     }
 
-    /// Due work check-ins split the way the todos are, computed once per body.
-    struct FollowUpPartition {
-        let overdue: [WorkCheckInFollowUp]
-        let dueOnDay: [WorkCheckInFollowUp]
-
-        var isEmpty: Bool { overdue.isEmpty && dueOnDay.isEmpty }
-        var count: Int { overdue.count + dueOnDay.count }
-    }
-
-    private var followUpPartition: FollowUpPartition {
-        let rows = viewModel.followUpCheckIns
-        return FollowUpPartition(
-            overdue: rows.filter(\.isOverdue),
-            dueOnDay: rows.filter { !$0.isOverdue }
-        )
-    }
-
-    @ViewBuilder
-    var todosListSection: some View {
-        let partition = todosPartition
-        let followUps = followUpPartition
-        let count = partition.all.count + followUps.count
-        if TodaySectionVisibility.showsTodos(count: count) {
-            Section {
-                todosSectionContent(partition, followUps)
-            } header: {
-                todosSectionHeader(count: count)
-            }
-        }
-    }
-
     @ViewBuilder
     private func todosSectionContent(_ partition: TodosPartition, _ followUps: FollowUpPartition) -> some View {
         if partition.all.isEmpty && followUps.isEmpty {
-            emptyStateText("No todos for today")
+            TodayView.emptyStateLabel("No todos for today")
         } else {
             todosOverdueGroup(partition, followUps)
             todosDueOnDayGroup(partition, followUps)
@@ -129,7 +163,7 @@ extension TodayView {
     @ViewBuilder
     private func overdueFollowUpRows(_ followUps: FollowUpPartition) -> some View {
         ForEach(followUps.overdue) { item in
-            checkInFollowUpRow(item)
+            followUpRow(item)
         }
     }
 
@@ -149,7 +183,7 @@ extension TodayView {
     @ViewBuilder
     private func dueOnDayFollowUpRows(_ followUps: FollowUpPartition) -> some View {
         ForEach(followUps.dueOnDay) { item in
-            checkInFollowUpRow(item)
+            followUpRow(item)
         }
     }
 
@@ -186,12 +220,12 @@ extension TodayView {
     }
 
     private func overdueTodoRow(_ todo: CDTodoItem) -> some View {
-        TodoTodayRow(todo: todo, onToggle: { toggleTodoItem(todo) }, onTap: { selectedTodoItem = todo })
+        TodoTodayRow(todo: todo, onToggle: { onToggle(todo) }, onTap: { onOpen(todo) })
             .id(todo.id)
             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
             .swipeActions(edge: .leading) {
                 Button {
-                    toggleTodoItem(todo)
+                    onToggle(todo)
                 } label: {
                     Label("Complete", systemImage: "checkmark")
                 }
@@ -199,7 +233,7 @@ extension TodayView {
             }
             .swipeActions(edge: .trailing) {
                 Button {
-                    selectedTodoItem = todo
+                    onOpen(todo)
                 } label: {
                     Label("Edit", systemImage: "pencil")
                 }
@@ -208,12 +242,12 @@ extension TodayView {
     }
 
     private func completableTodoRow(_ todo: CDTodoItem) -> some View {
-        TodoTodayRow(todo: todo, onToggle: { toggleTodoItem(todo) }, onTap: { selectedTodoItem = todo })
+        TodoTodayRow(todo: todo, onToggle: { onToggle(todo) }, onTap: { onOpen(todo) })
             .id(todo.id)
             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
             .swipeActions(edge: .leading) {
                 Button {
-                    toggleTodoItem(todo)
+                    onToggle(todo)
                 } label: {
                     Label("Complete", systemImage: "checkmark")
                 }
@@ -222,7 +256,7 @@ extension TodayView {
     }
 
     @ViewBuilder
-    func todosSectionHeader(count: Int) -> some View {
+    private func todosSectionHeader(count: Int) -> some View {
         HStack {
             Text("Todos")
                 .font(AppTheme.ScaledFont.caption)
@@ -240,7 +274,7 @@ extension TodayView {
                     .capsuleFill(Color.accentColor)
             }
             Button {
-                activeSheet = .newTodo
+                onNewTodo()
             } label: {
                 Image(systemName: "plus")
                     .font(.caption)

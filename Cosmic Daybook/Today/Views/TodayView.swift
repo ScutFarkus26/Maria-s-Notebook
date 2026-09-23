@@ -79,11 +79,6 @@ struct TodayView: View {
     @State var dayCardsRefreshTrigger: Int = 0
     @State var needsLessonCount: Int = 0
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
-        predicate: NSPredicate(format: "isCompleted == NO")
-    ) var todayTodoItems: FetchedResults<CDTodoItem>
-
     // MARK: - Day Rollover
     /// The school-day-coerced date that currently represents "today".
     /// When the calendar day changes we only auto-advance `viewModel.date`
