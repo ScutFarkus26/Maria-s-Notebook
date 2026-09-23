@@ -103,7 +103,7 @@ extension TodayView {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.secondary.opacity(UIConstants.OpacityConstants.moderate)))
+                    .capsuleFill(Color.secondary.opacity(UIConstants.OpacityConstants.moderate))
             }
 
             Spacer()

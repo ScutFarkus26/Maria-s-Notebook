@@ -146,13 +146,11 @@ struct SettingsGroup<Content: View>: View {
             }
         }
         .padding(SettingsStyle.padding)
-        .background(
-            RoundedRectangle(cornerRadius: SettingsStyle.cornerRadius, style: .continuous)
-                .fill(SettingsStyle.groupBackgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: SettingsStyle.cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(SettingsStyle.borderOpacity))
+        .surface(
+            SettingsStyle.cornerRadius,
+            fill: SettingsStyle.groupBackgroundColor,
+            stroke: Color.primary.opacity(SettingsStyle.borderOpacity),
+            style: .continuous
         )
         #endif
     }

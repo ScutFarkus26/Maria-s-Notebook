@@ -27,9 +27,10 @@ extension ObservationsView {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.hint),
+                    style: .continuous
                 )
             }
 
@@ -68,9 +69,10 @@ extension ObservationsView {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.hint),
+                    style: .continuous
                 )
             }
 

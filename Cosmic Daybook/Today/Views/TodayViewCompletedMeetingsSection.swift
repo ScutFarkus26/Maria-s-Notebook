@@ -53,7 +53,7 @@ extension TodayView {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.teal))
+                    .capsuleFill(Color.teal)
             }
         }
         .accessibilityElement(children: .combine)

@@ -271,9 +271,10 @@ struct AIModelSettingsView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(AppColors.warning.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: AppColors.warning.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 }

@@ -54,9 +54,10 @@ struct DatabaseStatsSubsection<Content: View>: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
+                .surface(
+                    UIConstants.CornerRadius.control,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+                    style: .continuous
                 )
                 .contentShape(Rectangle())
             }
@@ -105,13 +106,11 @@ struct DatabaseTotalSummary: View {
                 .foregroundStyle(.primary)
         }
         .padding(SettingsStyle.compactPadding)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.subtle))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.accentColor.opacity(UIConstants.OpacityConstants.subtle),
+            stroke: Color.accentColor.opacity(UIConstants.OpacityConstants.accent),
+            style: .continuous
         )
         #endif
     }

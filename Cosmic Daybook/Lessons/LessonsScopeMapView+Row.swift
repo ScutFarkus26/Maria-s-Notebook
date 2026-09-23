@@ -73,13 +73,14 @@ struct ThreadRow: View {
             .padding(.horizontal, 8)
             .frame(minHeight: collapsedHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(color.opacity(isPickedUpForMove ? 0.16 : 0.06))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: color.opacity(isPickedUpForMove ? 0.16 : 0.06),
+                style: .continuous
             )
             .overlay(moveStateBorder)
             .overlay(alignment: .bottomLeading) { holdProgressBar }
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
         }
         .buttonStyle(.plain)
         .scaleEffect(isPickedUpForMove ? 1.012 : 1)
@@ -105,16 +106,16 @@ struct ThreadRow: View {
     @ViewBuilder
     private var moveStateBorder: some View {
         if isPickedUpForMove {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                 .stroke(Color.accentColor.opacity(0.9), lineWidth: 1.5)
         } else if isMoveTarget {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                 .stroke(
                     Color.accentColor.opacity(0.7),
                     style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
                 )
         } else {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                 .stroke(color.opacity(0.18), lineWidth: 0.5)
         }
     }
@@ -259,10 +260,7 @@ struct MiniLessonPill: View {
             .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(color.opacity(0.18))
-            )
+            .capsuleFill(color.opacity(0.18), style: .continuous)
             .overlay(
                 Capsule(style: .continuous)
                     .stroke(color.opacity(0.55), lineWidth: 0.75)

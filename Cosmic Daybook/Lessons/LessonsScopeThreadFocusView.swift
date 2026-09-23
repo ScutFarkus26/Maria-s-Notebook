@@ -138,7 +138,7 @@ struct LessonsScopeThreadFocusView: View {
             }
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                 .stroke(Color.accentColor.opacity(isDropTarget ? 0.6 : 0), lineWidth: 1.5)
                 .padding(-6)
         )

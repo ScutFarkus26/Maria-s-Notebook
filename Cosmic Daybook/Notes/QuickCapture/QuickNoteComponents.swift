@@ -206,7 +206,7 @@ struct QuickNoteAttachmentThumbnail: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 20, height: 20)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .clipRounded(4)
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
             }

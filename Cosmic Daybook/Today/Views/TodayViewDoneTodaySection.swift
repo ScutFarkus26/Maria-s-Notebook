@@ -59,9 +59,7 @@ extension TodayView {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(
-                            Capsule().fill(Color.secondary.opacity(UIConstants.OpacityConstants.medium))
-                        )
+                        .capsuleFill(Color.secondary.opacity(UIConstants.OpacityConstants.medium))
                 }
                 Image(systemName: "chevron.right")
                     .font(.caption2)
@@ -133,7 +131,7 @@ extension TodayView {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.blue))
+                    .capsuleFill(Color.blue)
             }
         }
         .accessibilityElement(children: .combine)
@@ -182,7 +180,7 @@ extension TodayView {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.green))
+                    .capsuleFill(Color.green)
             }
         }
         .accessibilityElement(children: .combine)

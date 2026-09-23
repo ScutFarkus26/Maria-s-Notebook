@@ -71,7 +71,7 @@ extension TodoEditSheet {
                         )
                         .cornerRadius(8)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                                 .strokeBorder(
                                     selectedMood == mood ? mood.color : Color.clear,
                                     lineWidth: 2
@@ -115,7 +115,7 @@ extension TodoEditSheet {
                                 .font(.system(size: 16))
                                 .padding(8)
                                 .background(Color.blue.opacity(UIConstants.OpacityConstants.light))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .clipRounded(UIConstants.CornerRadius.medium)
                         }
                         .buttonStyle(.plain)
                     }

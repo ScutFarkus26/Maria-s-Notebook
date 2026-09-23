@@ -89,9 +89,7 @@ extension LessonsRootView {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(
-            Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-        )
+        .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
     }
 
     private var headerAddMenu: some View {

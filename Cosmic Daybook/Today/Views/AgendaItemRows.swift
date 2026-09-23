@@ -123,7 +123,7 @@ struct TodoTodayRow: View {
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
                                     .background(firstColor.lightColor)
-                                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                                    .clipRounded(UIConstants.CornerRadius.tiny)
                                 if todo.tagsArray.count > 1 {
                                     Text("+\(todo.tagsArray.count - 1)")
                                         .font(AppTheme.ScaledFont.captionSmall)

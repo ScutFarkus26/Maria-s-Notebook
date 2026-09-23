@@ -43,10 +43,11 @@ struct TestStudentsSettingsView: View {
                 }
                 .padding(.vertical, 8)
                 .padding(.horizontal, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-                    )
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+                    style: .continuous
+                )
                 #endif
             }
             
@@ -61,13 +62,14 @@ struct TestStudentsSettingsView: View {
                 .frame(minHeight: 80)
                 #if os(iOS)
                 .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                    )
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                    style: .continuous
+                )
                 #endif
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
                 )
             HStack {

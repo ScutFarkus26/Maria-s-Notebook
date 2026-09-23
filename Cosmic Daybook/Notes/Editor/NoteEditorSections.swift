@@ -122,7 +122,7 @@ extension UnifiedNoteEditor {
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.vertical, AppTheme.Spacing.verySmall)
             .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
-            .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge))
+            .clipRounded(UIConstants.CornerRadius.extraLarge)
         }
         .buttonStyle(.plain)
     }
@@ -142,16 +142,12 @@ extension UnifiedNoteEditor {
             SmartTextEditor(text: $bodyText, triggerTool: $aiTriggerCounter)
                 .frame(minHeight: 100, idealHeight: 140)
                 .padding(.horizontal, AppTheme.Spacing.small)
-                .background(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .fill(notesBackgroundColor)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(
-                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
-                            lineWidth: UIConstants.StrokeWidth.thin
-                        )
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: notesBackgroundColor,
+                    stroke: Color.secondary.opacity(UIConstants.OpacityConstants.light),
+                    lineWidth: UIConstants.StrokeWidth.thin,
+                    style: .continuous
                 )
 
             HStack {
@@ -232,16 +228,12 @@ extension UnifiedNoteEditor {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, AppTheme.Spacing.compact)
                 .padding(.vertical, AppTheme.Spacing.small)
-                .background(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .fill(cardBackgroundColor)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                        .stroke(
-                            Color.secondary.opacity(UIConstants.OpacityConstants.light),
-                            lineWidth: UIConstants.StrokeWidth.thin
-                        )
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: cardBackgroundColor,
+                    stroke: Color.secondary.opacity(UIConstants.OpacityConstants.light),
+                    lineWidth: UIConstants.StrokeWidth.thin,
+                    style: .continuous
                 )
         }
     }
@@ -282,7 +274,7 @@ extension UnifiedNoteEditor {
                         width: UIConstants.CardSize.studentAvatar * 0.75,
                         height: UIConstants.CardSize.studentAvatar * 0.75
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
+                    .clipRounded(UIConstants.CornerRadius.medium, style: .continuous)
             }
             #else
             if let image = selectedImage {
@@ -293,7 +285,7 @@ extension UnifiedNoteEditor {
                         width: UIConstants.CardSize.studentAvatar * 0.75,
                         height: UIConstants.CardSize.studentAvatar * 0.75
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous))
+                    .clipRounded(UIConstants.CornerRadius.medium, style: .continuous)
             }
             #endif
         }

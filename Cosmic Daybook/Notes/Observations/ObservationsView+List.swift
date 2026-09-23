@@ -69,10 +69,7 @@ extension ObservationsView {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
-                        )
+                        .capsuleFill(Color.secondary.opacity(UIConstants.OpacityConstants.light))
                 }
 
                 Spacer()
@@ -153,7 +150,7 @@ extension ObservationsView {
             .foregroundStyle(Color.accentColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium)))
+            .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
     }
 
     func firstLine(of text: String) -> String? {

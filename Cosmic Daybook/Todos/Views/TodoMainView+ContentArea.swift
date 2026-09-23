@@ -109,7 +109,7 @@ extension TodoMainView {
         #else
         .background(.regularMaterial)
         #endif
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipRounded(UIConstants.CornerRadius.extraLarge)
         .shadow(color: .black.opacity(UIConstants.OpacityConstants.accent), radius: 8, y: 2)
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
@@ -313,7 +313,7 @@ extension TodoMainView {
                 }
             }
             .background(AppTheme.Colors.controlBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
         }
     }
 

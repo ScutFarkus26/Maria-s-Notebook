@@ -161,7 +161,7 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
         .frame(maxWidth: .infinity)
         .padding()
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                 .stroke(
                     Color.primary.opacity(UIConstants.OpacityConstants.light),
                     style: StrokeStyle(lineWidth: 1, dash: [5])
@@ -255,17 +255,13 @@ private struct TemplateCardRow<Adapter: TemplateManaging>: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(SettingsStyle.compactPadding)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(SettingsStyle.groupBackgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(
-                        isActive
-                            ? AppColors.success.opacity(UIConstants.OpacityConstants.semi)
-                            : Color.primary.opacity(SettingsStyle.borderOpacity)
-                    )
+            .surface(
+                UIConstants.CornerRadius.control,
+                fill: SettingsStyle.groupBackgroundColor,
+                stroke: isActive
+                    ? AppColors.success.opacity(UIConstants.OpacityConstants.semi)
+                    : Color.primary.opacity(SettingsStyle.borderOpacity),
+                style: .continuous
             )
             .contentShape(Rectangle())
         }
@@ -278,9 +274,7 @@ private struct TemplateCardRow<Adapter: TemplateManaging>: View {
             .fontWeight(.medium)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(
-                Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
-            )
+            .capsuleFill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
             .foregroundStyle(AppColors.success)
     }
 

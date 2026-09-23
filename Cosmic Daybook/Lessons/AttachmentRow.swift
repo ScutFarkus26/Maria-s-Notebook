@@ -104,7 +104,7 @@ struct AttachmentRow: View {
 
     private var fileIcon: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
                 .fill(fileTypeColor.opacity(UIConstants.OpacityConstants.light))
 
             Image(systemName: fileTypeIcon)

@@ -97,13 +97,11 @@ struct LessonPlanningSettingsView: View {
                         .font(.system(.caption, design: .monospaced))
                         .frame(minHeight: 120, maxHeight: 240)
                         .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.light))
+                        .surface(
+                            UIConstants.CornerRadius.medium,
+                            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                            stroke: Color.primary.opacity(UIConstants.OpacityConstants.light),
+                            style: .continuous
                         )
 
                     if customSystemPrompt.isEmpty {

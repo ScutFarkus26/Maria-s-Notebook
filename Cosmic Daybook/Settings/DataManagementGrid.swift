@@ -75,10 +75,10 @@ struct DataManagementGrid: View {
             }
             .overlay {
                 if isDropTargeted {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
                         .strokeBorder(Color.accentColor, lineWidth: 2)
                         .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
                                 .fill(Color.accentColor.opacity(0.06))
                         )
                         .allowsHitTesting(false)
@@ -250,10 +250,7 @@ struct DataManagementGrid: View {
         }
         .padding(.horizontal, AppTheme.Spacing.small + 2)
         .padding(.vertical, AppTheme.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: AppTheme.Spacing.small)
-                .fill(color.opacity(UIConstants.OpacityConstants.light))
-        )
+        .surface(AppTheme.Spacing.small, fill: color.opacity(UIConstants.OpacityConstants.light))
     }
 
     // MARK: - Backup Card
@@ -452,9 +449,10 @@ struct DataManagementGrid: View {
         }
         .padding(.horizontal, AppTheme.Spacing.small + 2)
         .padding(.vertical, AppTheme.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: AppTheme.Spacing.small, style: .continuous)
-                .fill(Color.green.opacity(UIConstants.OpacityConstants.medium))
+        .surface(
+            AppTheme.Spacing.small,
+            fill: Color.green.opacity(UIConstants.OpacityConstants.medium),
+            style: .continuous
         )
     }
 
