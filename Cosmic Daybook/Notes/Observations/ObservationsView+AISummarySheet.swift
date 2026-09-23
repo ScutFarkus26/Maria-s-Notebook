@@ -127,7 +127,7 @@ extension ObservationsView {
                                         .padding(8)
                                         .background(
                                             Color.secondary.opacity(UIConstants.OpacityConstants.veryFaint),
-                                            in: RoundedRectangle(cornerRadius: 8)
+                                            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                                         )
                                         .accessibilityLabel("Editable narrative draft")
                                 }

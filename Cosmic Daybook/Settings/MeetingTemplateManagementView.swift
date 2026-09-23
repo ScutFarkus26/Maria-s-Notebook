@@ -80,9 +80,7 @@ private struct MeetingTemplatePreviewSheet: View {
                                 .font(.subheadline.weight(.medium))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(
-                                    Capsule().fill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
-                                )
+                                .capsuleFill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
                                 .foregroundStyle(AppColors.success)
                         }
                         Spacer()
@@ -134,10 +132,7 @@ private struct PromptSection: View {
                 .font(.body)
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(SettingsStyle.groupBackgroundColor)
-                )
+                .surface(UIConstants.CornerRadius.control, fill: SettingsStyle.groupBackgroundColor, style: .continuous)
         }
     }
 }

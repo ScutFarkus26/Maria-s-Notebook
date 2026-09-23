@@ -234,16 +234,14 @@ private struct FormatOption: View {
                 }
             }
             .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(
-                        isSelected
-                            ? Color.blue.opacity(UIConstants.OpacityConstants.light)
-                            : Color.primary.opacity(UIConstants.OpacityConstants.trace)
-                    )
+            .surface(
+                UIConstants.CornerRadius.control,
+                fill: isSelected
+                    ? Color.blue.opacity(UIConstants.OpacityConstants.light)
+                    : Color.primary.opacity(UIConstants.OpacityConstants.trace)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control)
                     .strokeBorder(isSelected ? Color.blue : Color.clear, lineWidth: 2)
             )
         }

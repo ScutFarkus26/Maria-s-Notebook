@@ -38,7 +38,7 @@ struct SchoolCalendarSettingsView: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
-                        .background(Capsule().fill(Color.secondary.opacity(0.2)))
+                        .capsuleFill(Color.secondary.opacity(0.2))
                 }
             }
         }
@@ -308,10 +308,7 @@ private struct GradeGuidelineRow: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(backgroundColor)
-        )
+        .surface(UIConstants.CornerRadius.medium, fill: backgroundColor)
     }
 }
 

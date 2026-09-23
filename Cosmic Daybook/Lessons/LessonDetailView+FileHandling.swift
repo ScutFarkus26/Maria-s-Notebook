@@ -88,9 +88,9 @@ struct OpenInPagesButton: View {
                 .font(AppTheme.ScaledFont.bodySemibold)
                 .padding(.horizontal, AppTheme.Spacing.large - 4)
                 .padding(.vertical, AppTheme.Spacing.small)
-                .background(
-                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
-                        .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
+                .surface(
+                    UIConstants.CornerRadius.large,
+                    fill: Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
                 )
         }
         .buttonStyle(PlainButtonStyle())

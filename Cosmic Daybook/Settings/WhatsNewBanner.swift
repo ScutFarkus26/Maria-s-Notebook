@@ -48,13 +48,11 @@ struct WhatsNewBanner: View {
                 }
             }
             .padding(SettingsStyle.compactPadding)
-            .background(
-                RoundedRectangle(cornerRadius: SettingsStyle.cornerRadius, style: .continuous)
-                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.veryFaint))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: SettingsStyle.cornerRadius, style: .continuous)
-                    .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
+            .surface(
+                SettingsStyle.cornerRadius,
+                fill: Color.accentColor.opacity(UIConstants.OpacityConstants.veryFaint),
+                stroke: Color.accentColor.opacity(UIConstants.OpacityConstants.accent),
+                style: .continuous
             )
             .transition(.opacity.combined(with: .move(edge: .top)))
         }

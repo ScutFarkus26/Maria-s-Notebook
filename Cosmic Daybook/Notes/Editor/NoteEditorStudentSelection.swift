@@ -63,13 +63,10 @@ extension UnifiedNoteEditor {
             .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
             .padding(.vertical, AppTheme.Spacing.verySmall)
             .foregroundStyle(isSelected ? Color.accentColor : .primary)
-            .background(
-                Capsule()
-                    .fill(
-                        isSelected
-                            ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
-                            : Color.secondary.opacity(UIConstants.OpacityConstants.light)
-                    )
+            .capsuleFill(
+                isSelected
+                    ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                    : Color.secondary.opacity(UIConstants.OpacityConstants.light)
             )
         }
         .buttonStyle(.plain)
@@ -117,10 +114,7 @@ extension UnifiedNoteEditor {
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.vertical, AppTheme.Spacing.verySmall)
             .foregroundStyle(Color.accentColor)
-            .background(
-                Capsule()
-                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
-            )
+            .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add student")

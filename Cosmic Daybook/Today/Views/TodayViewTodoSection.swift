@@ -237,7 +237,7 @@ extension TodayView {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.accentColor))
+                    .capsuleFill(Color.accentColor)
             }
             Button {
                 activeSheet = .newTodo

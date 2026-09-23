@@ -81,7 +81,7 @@ struct ParshaBrowseRow: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                    .capsuleFill(Color.secondary.opacity(0.15))
             }
 
             if isCurrentWeek {

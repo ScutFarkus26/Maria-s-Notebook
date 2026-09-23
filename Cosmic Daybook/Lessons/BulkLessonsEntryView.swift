@@ -159,10 +159,10 @@ public struct BulkLessonsEntryView: View {
                         .padding(.vertical, 4)
                     }
                     .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
                             .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipRounded(UIConstants.CornerRadius.large, style: .continuous)
                 }
             }
             .frame(minHeight: 300)
@@ -280,7 +280,7 @@ public struct BulkLessonsEntryView: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
         .background(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipRounded(UIConstants.CornerRadius.small)
     }
 
     private func editorRow(rowID: UUID, widths: [CGFloat]) -> some View {

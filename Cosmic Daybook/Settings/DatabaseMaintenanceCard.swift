@@ -60,10 +60,7 @@ struct DatabaseMaintenanceCard: View {
                         .buttonStyle(.borderless)
                     }
                     .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.orange.opacity(0.12))
-                    )
+                    .surface(UIConstants.CornerRadius.medium, fill: Color.orange.opacity(0.12), style: .continuous)
                 } else {
                     Button(role: .destructive) {
                         showingResetConfirmation = true

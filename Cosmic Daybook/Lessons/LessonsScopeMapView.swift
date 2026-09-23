@@ -333,7 +333,7 @@ private struct MapMoveHintBanner: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(Capsule(style: .continuous).fill(Color.accentColor.opacity(0.92)))
+        .capsuleFill(Color.accentColor.opacity(0.92), style: .continuous)
         .padding(.bottom, 16)
         .transition(.move(edge: .bottom).combined(with: .opacity))
         .allowsHitTesting(false)

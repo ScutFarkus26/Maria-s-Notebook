@@ -264,7 +264,7 @@ extension TodoMainView {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipRounded(UIConstants.CornerRadius.small)
         }
         .dropDestination(for: String.self) { items, _ in
             guard let dropped = items.first, dropped != item else { return false }

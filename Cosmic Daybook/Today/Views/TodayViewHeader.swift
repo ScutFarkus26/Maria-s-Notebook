@@ -94,9 +94,7 @@ extension TodayView {
                         .font(AppTheme.ScaledFont.titleSmall)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(
-                            Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                        )
+                        .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                 }
                 .fixedSize()
 
@@ -123,9 +121,7 @@ extension TodayView {
                     .fixedSize()
             }
             .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-            )
+            .surface(UIConstants.CornerRadius.control, fill: Color.primary.opacity(UIConstants.OpacityConstants.hint))
         }
         .buttonStyle(.plain)
     }
@@ -195,6 +191,6 @@ extension TodayView {
             .textSelection(.disabled)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(color.opacity(UIConstants.OpacityConstants.medium)))
+            .capsuleFill(color.opacity(UIConstants.OpacityConstants.medium))
     }
 }

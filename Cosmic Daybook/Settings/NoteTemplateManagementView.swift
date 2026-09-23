@@ -80,9 +80,10 @@ private struct NoteTemplatePreviewSheet: View {
                             .font(.body)
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(SettingsStyle.groupBackgroundColor)
+                            .surface(
+                                UIConstants.CornerRadius.control,
+                                fill: SettingsStyle.groupBackgroundColor,
+                                style: .continuous
                             )
                     }
                 }

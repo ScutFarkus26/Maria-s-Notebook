@@ -152,9 +152,10 @@ struct SettingsView: View {
                 }
             }
             .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                style: .continuous
             )
             .padding(.horizontal, 12)
             .padding(.top, 12)

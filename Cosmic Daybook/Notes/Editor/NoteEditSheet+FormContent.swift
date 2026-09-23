@@ -63,7 +63,7 @@ extension NoteEditSheet {
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .clipRounded(UIConstants.CornerRadius.extraLarge)
                                 }
                                 .buttonStyle(.plain)
                             }

@@ -46,12 +46,11 @@ struct AIConnectionTestView: View {
                         .lineLimit(4)
                 }
                 .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(
-                            (testSuccess ? AppColors.success : AppColors.destructive)
-                                .opacity(UIConstants.OpacityConstants.light)
-                        )
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: (testSuccess ? AppColors.success : AppColors.destructive)
+                        .opacity(UIConstants.OpacityConstants.light),
+                    style: .continuous
                 )
             }
         }

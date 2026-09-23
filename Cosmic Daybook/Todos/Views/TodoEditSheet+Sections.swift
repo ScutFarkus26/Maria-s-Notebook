@@ -75,7 +75,7 @@ extension TodoEditSheet {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
                                 .fill(
                                     priority == priorityLevel
                                         ? colorForPriority(priorityLevel).opacity(UIConstants.OpacityConstants.accent)
@@ -83,7 +83,7 @@ extension TodoEditSheet {
                                 )
                         }
                         .overlay {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge, style: .continuous)
                                 .strokeBorder(
                                     priority == priorityLevel
                                         ? colorForPriority(priorityLevel).opacity(UIConstants.OpacityConstants.muted)

@@ -159,10 +159,10 @@ struct LessonAttachmentsSection: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                 .fill(Color.controlBackgroundColor())
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium)
                         .strokeBorder(
                             isDropTargeted ? Color.accentColor : Color.clear,
                             style: StrokeStyle(lineWidth: 2, dash: [5, 3])

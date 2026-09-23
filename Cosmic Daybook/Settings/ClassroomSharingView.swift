@@ -158,13 +158,12 @@ struct ClassroomSharingView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(tint.opacity(0.12))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(tint.opacity(0.4), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: tint.opacity(0.12),
+            stroke: tint.opacity(0.4),
+            lineWidth: 1,
+            style: .continuous
         )
     }
 
