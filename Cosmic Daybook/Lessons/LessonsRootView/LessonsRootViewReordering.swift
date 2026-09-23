@@ -16,7 +16,7 @@ extension LessonsRootView {
     func syncReorderableSequences() {
         let ungroupedLabel = "Ungrouped"
         let baseSequences = groupsForSelectedArea
-        let hasUngrouped = lessonsForArea.contains { $0.sequence.trimmed().isEmpty }
+        let hasUngrouped = computeLessonsForArea().contains { $0.sequence.trimmed().isEmpty }
 
         if let area = selectedArea, !area.trimmed().isEmpty {
             // Include "Ungrouped" in existing groups so its position is preserved by mergeOrder
@@ -46,6 +46,8 @@ extension LessonsRootView {
         FilterOrderStore.saveSequenceOrder(full, for: trimmedArea)
         FilterOrderStore.resetCache()
         syncReorderableSequences()
+        // The saved sequence order feeds the map's sort.
+        refreshLessonsForArea()
     }
 
     // MARK: - Move Lessons in Area
@@ -81,9 +83,10 @@ extension LessonsRootView {
 
     private func collectOrderedLessons(displaySequences: [String], ungroupedLabel: String) -> [CDLesson] {
         var result: [CDLesson] = []
+        let areaLessons = computeLessonsForArea()
         for sequence in displaySequences {
             let trimmedSequence: String = sequence.trimmed()
-            let lessonsInSequence: [CDLesson] = lessonsForArea.filter { (lesson: CDLesson) -> Bool in
+            let lessonsInSequence: [CDLesson] = areaLessons.filter { (lesson: CDLesson) -> Bool in
                 let lessonSequenceTrimmed: String = lesson.sequence.trimmed()
                 if sequence == ungroupedLabel {
                     return lessonSequenceTrimmed.isEmpty
@@ -128,8 +131,9 @@ extension LessonsRootView {
         let displaySequences = reorderableSequences
 
         var allLessonsInOrder: [CDLesson] = []
+        let areaLessons = computeLessonsForArea()
         for sequence in displaySequences {
-            let lessonsInSequence = lessonsForArea.filter { lesson in
+            let lessonsInSequence = areaLessons.filter { lesson in
                 let lessonSequenceTrimmed = lesson.sequence.trimmed()
                 if sequence == ungroupedLabel {
                     return lessonSequenceTrimmed.isEmpty

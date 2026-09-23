@@ -113,6 +113,13 @@ struct LessonsRootView: View {
     @State var statusCounts: [UUID: Int]?
     @State var lastPresentedDates: [UUID: Date]?
 
+    // MARK: - Lessons For Area
+    /// The filtered, ordered lessons the map shows. Held in state and
+    /// re-derived on its real inputs (filters, debounced search, area, parsha
+    /// mode) and on any change to a lesson, instead of re-fetching on every
+    /// read — it was read three times per body pass and as a `.task(id:)` key.
+    @State var lessonsForArea: [CDLesson] = []
+
     // MARK: - Migration
     @AppStorage(UserDefaultsKeys.lessonsSortIndexMigrated) var sortIndexMigrated: Bool = false
 
@@ -138,7 +145,38 @@ struct LessonsRootView: View {
         return helper.groups(for: area, lessons: Array(lessons))
     }
 
-    var lessonsForArea: [CDLesson] {
+    /// What `computeLessonsForArea()` depends on besides the lessons themselves.
+    struct LessonsForAreaInputs: Equatable {
+        let showingParshas: Bool
+        let sourceFilter: LessonSource?
+        let personalKindFilter: PersonalLessonKind?
+        let formatFilter: LessonFormat?
+        let debouncedSearchText: String
+        let selectedArea: String?
+    }
+
+    var lessonsForAreaInputs: LessonsForAreaInputs {
+        LessonsForAreaInputs(
+            showingParshas: showingParshas,
+            sourceFilter: filterState.sourceFilter,
+            personalKindFilter: filterState.personalKindFilter,
+            formatFilter: filterState.formatFilter,
+            debouncedSearchText: filterState.debouncedSearchText,
+            selectedArea: filterState.selectedArea
+        )
+    }
+
+    /// Re-derives `lessonsForArea`. Body readers use the stored value; the
+    /// reorder actions call `computeLessonsForArea()` directly so they always
+    /// act on a fresh read, exactly as before.
+    func refreshLessonsForArea() {
+        let fresh = computeLessonsForArea()
+        if fresh != lessonsForArea { lessonsForArea = fresh }
+    }
+
+    /// Runs a fetch (and, in search mode, a scan of every write-up), so body
+    /// code reads the stored `lessonsForArea` instead of calling this.
+    func computeLessonsForArea() -> [CDLesson] {
         // Parshas mode renders its own view (ParshaBrowseView); skip the fetch entirely.
         if showingParshas { return [] }
         let hasSearchText = !filterState.debouncedSearchText.trimmed().isEmpty
@@ -180,6 +218,9 @@ struct LessonsRootView: View {
         .task { await handleInitialLoad() }
         .task { openPendingLesson() }
         .onChange(of: appRouter.pendingLessonID) { openPendingLesson() }
+        .onAppear { refreshLessonsForArea() }
+        .onChange(of: lessonsForAreaInputs) { refreshLessonsForArea() }
+        .onPresentationDataChange(of: ["Lesson"], in: viewContext) { _ in refreshLessonsForArea() }
         .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }
         .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
         .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
