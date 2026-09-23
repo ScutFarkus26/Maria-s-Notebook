@@ -83,6 +83,7 @@ struct DesktopNotebookCompanionView: View {
                 for: .NSManagedObjectContextObjectsDidChange,
                 object: viewContext
             )
+            .filter(NotebookCompanionViewModel.affectsCounts)
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         ) { _ in
             viewModel.reload(calendar: calendar)

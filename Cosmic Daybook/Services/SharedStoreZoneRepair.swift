@@ -86,16 +86,39 @@ final class SharedStoreZoneRepair {
     /// Idempotent and cheap when the shared store has no orphans.
     /// Respects the circuit breaker — for the manual "Repair Sync Errors"
     /// button, call `runManual` instead.
-    static func runIfNeeded(coreDataStack: CoreDataStack) async {
+    /// On a hot device or in Low Power Mode the pass is not dropped: it
+    /// waits in the background and runs once the policy clears.
+    static func runIfNeeded(coreDataStack: CoreDataStack, policy: EnergyPolicy = .shared) async {
         guard !isCircuitBreakerOpen else {
             shared.logger.notice("SharedStoreZoneRepair: circuit breaker open, skipping auto-run")
             return
         }
-        guard !EnergyPolicy.shared.shouldDeferMaintenance else {
-            shared.logger.notice("SharedStoreZoneRepair: device hot or in Low Power Mode, skipping auto-run")
+        guard !policy.shouldDeferMaintenance else {
+            shared.scheduleRetryWhenCool(coreDataStack: coreDataStack, policy: policy)
             return
         }
         await shared.run(coreDataStack: coreDataStack)
+    }
+
+    /// A pass the energy policy turned away, waiting for the device to cool.
+    /// One is enough however many triggers were deferred: the pass it runs is
+    /// gated on history since the clean watermark, so it covers them all.
+    @ObservationIgnored private var deferredRetry: Task<Void, Never>?
+
+    /// Whether a deferred pass is waiting for the device to cool.
+    var hasDeferredRetry: Bool { deferredRetry != nil }
+
+    /// Runs the deferred pass once the policy clears, instead of dropping it.
+    /// The caller is not held up — the launch sequence awaits `runIfNeeded`.
+    private func scheduleRetryWhenCool(coreDataStack: CoreDataStack, policy: EnergyPolicy) {
+        guard deferredRetry == nil else { return }
+        logger.notice("SharedStoreZoneRepair: device hot or in Low Power Mode, auto-run waits for it to cool")
+        deferredRetry = Task { [weak coreDataStack] in
+            await policy.waitUntilMaintenanceAllowed()
+            self.deferredRetry = nil
+            guard !Task.isCancelled, let coreDataStack else { return }
+            await Self.runIfNeeded(coreDataStack: coreDataStack, policy: policy)
+        }
     }
 
     /// User-initiated variant for the Settings → Repair Sync Errors
@@ -122,23 +145,25 @@ final class SharedStoreZoneRepair {
         if let token, let seen = lastObservedToken, token == seen { return }
 
         let decision = await Self.gateDecision(since: Self.loadCleanToken(), container: container)
-        guard let entityNames = Self.entityNamesToScan(for: decision) else {
+        guard let targets = Self.scanTargets(for: decision) else {
             lastObservedToken = token
             if lastRunAt == nil { lastRunAt = Date() }
             return
         }
-        await recount(entityNames: entityNames, store: store, container: container, token: token)
+        await recount(targets: targets, store: store, container: container, token: token)
     }
 
-    /// One counting pass over `entityNames`, recording a clean watermark when
+    /// One counting pass over `targets`, recording a clean watermark when
     /// it finds nothing waiting.
     private func recount(
-        entityNames: [String],
+        targets: ScanTargets,
         store: NSPersistentStore,
         container: NSPersistentCloudKitContainer,
         token: NSPersistentHistoryToken?
     ) async {
-        let scope = RepairScope(entityNames: entityNames, store: store, container: container)
+        let scope = RepairScope(
+            entityNames: targets.entityNames, store: store, container: container, objectIDs: targets.objectIDs
+        )
         let report = await Self.collectOrphans(in: scope)
         guard !report.failed else { return }
         orphanCount = report.orphanIDs.count
@@ -150,33 +175,44 @@ final class SharedStoreZoneRepair {
         }
     }
 
-    /// The entities a pass should read for `decision`, or `nil` for "none".
-    nonisolated static func entityNamesToScan(for decision: GateDecision) -> [String]? {
-        switch decision {
-        case .clean:
-            return nil
-        case let .scan(names):
-            return names.sorted()
-        case .scanEverything:
-            return CoreDataStack.sharedEntityNames.sorted()
+    /// What one pass reads: these entities, and — when history named them —
+    /// only these rows of them (`nil` = every row).
+    nonisolated struct ScanTargets {
+        let entityNames: [String]
+        let objectIDs: Set<NSManagedObjectID>?
+
+        static var everything: ScanTargets {
+            ScanTargets(entityNames: CoreDataStack.sharedEntityNames.sorted(), objectIDs: nil)
         }
     }
 
-    /// The entity names an automatic pass should scan, or `nil` when history
-    /// shows nothing shared was inserted since the last clean pass. `force`
-    /// (the manual button) bypasses the gate and scans everything.
+    /// What a pass should read for `decision`, or `nil` for "nothing".
+    nonisolated static func scanTargets(for decision: GateDecision) -> ScanTargets? {
+        switch decision {
+        case .clean:
+            return nil
+        case let .scan(names, objectIDs):
+            return ScanTargets(entityNames: names.sorted(), objectIDs: objectIDs)
+        case .scanEverything:
+            return .everything
+        }
+    }
+
+    /// What an automatic pass should scan, or `nil` when history shows
+    /// nothing shared was inserted since the last clean pass. `force` (the
+    /// manual button) bypasses the gate and scans everything.
     private func scanScope(
         force: Bool,
         store: NSPersistentStore,
         container: NSPersistentCloudKitContainer,
         tokenBefore: NSPersistentHistoryToken?
-    ) async -> [String]? {
-        if force { return CoreDataStack.sharedEntityNames.sorted() }
+    ) async -> ScanTargets? {
+        if force { return .everything }
         let decision = await Self.gateDecision(since: Self.loadCleanToken(), container: container)
         if case let .scanEverything(reason) = decision {
             Self.logger.notice("Zone repair pass scanning every shared entity: \(reason, privacy: .public)")
         }
-        guard let entityNames = Self.entityNamesToScan(for: decision) else {
+        guard let targets = Self.scanTargets(for: decision) else {
             // Nothing that could be an orphan exists. Keep the share flag
             // accurate on the first look of the session — the orphan guard
             // uses it to choose between repair and auto-create.
@@ -188,7 +224,7 @@ final class SharedStoreZoneRepair {
             Self.logger.debug("Zone repair pass skipped: no shared entity inserted since the last clean pass")
             return nil
         }
-        return entityNames
+        return targets
     }
 
     /// Records `token` as the point up to which the private store is known to
@@ -236,7 +272,7 @@ final class SharedStoreZoneRepair {
         // this pass is still ahead of the watermark it may record.
         let tokenBefore = Self.currentHistoryToken(for: store, in: container)
 
-        guard let entityNames = await scanScope(
+        guard let targets = await scanScope(
             force: force, store: store, container: container, tokenBefore: tokenBefore
         ) else { return }
 
@@ -247,7 +283,9 @@ final class SharedStoreZoneRepair {
             lastObservedToken = tokenBefore
         }
 
-        let scope = RepairScope(entityNames: entityNames, store: store, container: container)
+        let scope = RepairScope(
+            entityNames: targets.entityNames, store: store, container: container, objectIDs: targets.objectIDs
+        )
         let report = await Self.collectOrphans(in: scope)
 
         guard !report.failed else {
@@ -263,7 +301,9 @@ final class SharedStoreZoneRepair {
             lastUnrecoverableOrphans = []
             hasActiveShare = (try? container.fetchShares(in: store).first) != nil
             markClean(tokenBefore)
-            Self.logger.notice("Zone repair pass: nothing to attach, 0 records waiting")
+            // Info, not notice: this is the every-insert outcome, and a
+            // pass that found nothing has nothing worth persisting.
+            Self.logger.info("Zone repair pass: nothing to attach, 0 records waiting")
             return
         }
 

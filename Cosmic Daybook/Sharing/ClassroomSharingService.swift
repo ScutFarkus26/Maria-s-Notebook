@@ -30,9 +30,12 @@ final class ClassroomSharingService {
 
     // `@ObservationIgnored nonisolated(unsafe)` so deinit (which is
     // nonisolated by default on MainActor classes) can cancel the observer
-    // task without crossing actor isolation. Mutation is confined to init.
+    // task without crossing actor isolation. Written only on the main actor
+    // (start/stop below); deinit runs after the last reference is gone.
     @ObservationIgnored nonisolated(unsafe) private var remoteChangeTask: Task<Void, Never>?
     @ObservationIgnored private var participantRefreshTask: Task<Void, Never>?
+    /// Screens currently showing the members list (see `startObservingParticipants`).
+    @ObservationIgnored private var participantObserverCount = 0
 
     // MARK: - Initialization
 
@@ -52,12 +55,20 @@ final class ClassroomSharingService {
             object: nil
         )
 
-        // Refresh participants when CloudKit delivers a remote change to the
-        // coordinator. Without this, a participant joining via their accept
-        // link wouldn't flip from "Invited" to "Joined" in the UI until the
-        // user manually reopens Settings → Classroom Sharing.
+        loadCurrentMembership()
+    }
+
+    /// Refreshes participants on every CloudKit remote change while a screen
+    /// that shows them is open. Without this, a participant joining via their
+    /// accept link wouldn't flip from "Invited" to "Joined" in the open
+    /// screen. Nothing else reads the participant list, so it stops listening
+    /// when the last such screen goes away (`stopObservingParticipants`) —
+    /// it used to keep refetching the share for the rest of the session.
+    func startObservingParticipants() {
+        participantObserverCount += 1
+        guard remoteChangeTask == nil else { return }
+        let coordinator = container.persistentStoreCoordinator
         remoteChangeTask = Task { [weak self] in
-            guard let coordinator = self?.container.persistentStoreCoordinator else { return }
             // The notification arrives on a background queue and is not
             // Sendable — map each one to Void so this main-actor task only
             // ever receives a Sendable value.
@@ -68,9 +79,20 @@ final class ClassroomSharingService {
                 self?.scheduleParticipantRefresh()
             }
         }
-
-        loadCurrentMembership()
     }
+
+    /// Balances `startObservingParticipants`.
+    func stopObservingParticipants() {
+        participantObserverCount = max(0, participantObserverCount - 1)
+        guard participantObserverCount == 0 else { return }
+        remoteChangeTask?.cancel()
+        remoteChangeTask = nil
+        participantRefreshTask?.cancel()
+        participantRefreshTask = nil
+    }
+
+    /// Whether the remote-change listener is running (tests read this).
+    var isObservingParticipants: Bool { remoteChangeTask != nil }
 
     deinit {
         remoteChangeTask?.cancel()
@@ -139,7 +161,7 @@ final class ClassroomSharingService {
 
         let wasSharing = isSharing
         currentShare = found
-        isSharing = found != nil
+        if isSharing != (found != nil) { isSharing = found != nil }
 
         // Attaching orphaned records to the share zone is the owner's job. The
         // assistant's device owns no share — everything it sees arrives through
@@ -157,7 +179,8 @@ final class ClassroomSharingService {
     func refreshParticipants() throws {
         let share = try fetchExistingShare()
         participants = share?.participants.map { $0 } ?? []
-        currentUserRecordName = share?.currentUserParticipant?.userIdentity.userRecordID?.recordName
+        let recordName = share?.currentUserParticipant?.userIdentity.userRecordID?.recordName
+        if currentUserRecordName != recordName { currentUserRecordName = recordName }
         if let currentUserRecordName {
             ClassroomIdentity.currentUserRecordName = currentUserRecordName
         }

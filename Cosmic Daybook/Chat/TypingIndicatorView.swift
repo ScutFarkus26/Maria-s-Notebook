@@ -4,6 +4,7 @@ import SwiftUI
 /// Uses colorful dots with playful bounce. Respects Reduce Motion accessibility setting.
 struct TypingIndicatorView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var activeIndex = 0
     @State private var timer: Timer?
 
@@ -24,13 +25,25 @@ struct TypingIndicatorView: View {
         }
         .accessibilityLabel("Assistant is thinking")
         .onAppear {
-            guard !reduceMotion else { return }
+            guard !reduceMotion, scenePhase == .active else { return }
             startBouncing()
         }
-        .onDisappear {
-            timer?.invalidate()
-            timer = nil
+        .onDisappear(perform: stopBouncing)
+        // Nobody sees the dots while the scene is inactive or in the
+        // background (e.g. the app left thinking behind another window), so
+        // stop waking the CPU until it is active again.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                if !reduceMotion { startBouncing() }
+            } else {
+                stopBouncing()
+            }
         }
+    }
+
+    private func stopBouncing() {
+        timer?.invalidate()
+        timer = nil
     }
 
     private func startBouncing() {

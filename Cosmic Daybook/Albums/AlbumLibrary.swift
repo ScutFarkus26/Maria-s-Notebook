@@ -268,11 +268,15 @@ final class AlbumLibrary {
     /// never observable across a suspension here; only the index build is.
     func ensureIndexed() async {
         bootstrapIfNeeded()
+        // Someone is waiting on the index now, so it is no longer
+        // discretionary: a build paused for heat carries on.
+        demandIndexing()
         await awaitIndexBuild()
         // Memory pressure can drop the page-text index after a successful load.
         // Rebuild it here rather than leaving callers with an empty corpus.
         if indexPurged, state == .ready {
             startIndexBuild()
+            demandIndexing()
             await awaitIndexBuild()
         }
     }
@@ -291,7 +295,24 @@ final class AlbumLibrary {
         indexTask = Task {
             await buildIndexes()
             indexTask = nil
+            indexingDemanded = false
         }
+    }
+
+    /// A caller is awaiting the index (`ensureIndexed()`), so the build in
+    /// flight stops waiting for the device to cool.
+    @ObservationIgnored private(set) var indexingDemanded = false
+
+    /// The energy wait the build is suspended in, if any.
+    @ObservationIgnored private var indexEnergyWait: Task<Void, Never>?
+
+    /// Marks the index as needed now and releases a build paused for heat.
+    func demandIndexing() {
+        // Only a build in flight can be waiting; a demand with none running
+        // must not leave the next discretionary build ungated.
+        guard indexTask != nil else { return }
+        indexingDemanded = true
+        indexEnergyWait?.cancel()
     }
 
     /// Adds a folder to the library (the first chosen folder just loads it).
@@ -489,32 +510,29 @@ final class AlbumLibrary {
         }
         indexing = false
         indexPurged = false
+        // Embedding every lesson is discretionary work too.
+        await pauseIndexingWhileDeferred(policy: policy)
         await semantic.build(items: semanticItems())
     }
 
-    /// How many 2-second pauses one album will wait out before indexing goes
-    /// ahead anyway. Without a bound, `ensureIndexed()` — which awaits the
-    /// build — would never return on a permanently warm device.
-    static let maxIndexEnergyPauses = 15
-
     /// Waits while the device is too hot (or in Low Power Mode) to index the
-    /// next album, re-checking every `interval`. Returns the number of pauses
-    /// taken; the app ignores it, the tests read it.
-    ///
-    /// `interval` is a parameter only so the tests don't sleep for real.
+    /// next album — for as long as that lasts, without polling. It never gives
+    /// up and runs hot on its own; only a caller awaiting the index
+    /// (`ensureIndexed()`, i.e. the guide or a tool asked for it) or
+    /// cancellation ends the wait early. Returns whether it waited (1) or not
+    /// (0); the app ignores it, the tests read it.
     @discardableResult
-    func pauseIndexingWhileDeferred(
-        policy: EnergyPolicy,
-        interval: Duration = .seconds(2)
-    ) async -> Int {
-        var pauses = 0
-        while policy.shouldDeferMaintenance,
-              pauses < Self.maxIndexEnergyPauses,
-              !Task.isCancelled {
-            pauses += 1
-            try? await Task.sleep(for: interval)
+    func pauseIndexingWhileDeferred(policy: EnergyPolicy) async -> Int {
+        guard policy.shouldDeferMaintenance, !indexingDemanded, !Task.isCancelled else { return 0 }
+        let wait = Task { await policy.waitUntilMaintenanceAllowed() }
+        indexEnergyWait = wait
+        await withTaskCancellationHandler {
+            await wait.value
+        } onCancel: {
+            wait.cancel()
         }
-        return pauses
+        indexEnergyWait = nil
+        return 1
     }
 
     /// Per-lesson titles and body texts used to build the semantic index.

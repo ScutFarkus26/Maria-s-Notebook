@@ -42,7 +42,12 @@ struct ClassroomSharingView: View {
             let svc = dependencies.classroomSharingService
             sharingService = svc
             try? svc.refreshParticipants()
+            // Live participant updates only while this screen is on screen.
+            svc.startObservingParticipants()
             await refreshMoveCounts()
+        }
+        .onDisappear {
+            sharingService?.stopObservingParticipants()
         }
         // Recount while this screen is open. The repair pass only updates its
         // own figures when it runs, so without this the card would sit on a

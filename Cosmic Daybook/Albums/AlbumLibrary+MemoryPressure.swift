@@ -32,6 +32,9 @@ extension AlbumLibrary {
     /// `ensureIndexed()` reloads them from disk.
     func releaseMemory(critical: Bool) {
         foldedTexts.removeAll()
+        // The cached query models (the contextual one is large) reload on the
+        // next search.
+        AlbumSemanticIndex.releaseQueryEmbedders()
         for album in albums {
             album.cover = nil
             album.coverRequested = false

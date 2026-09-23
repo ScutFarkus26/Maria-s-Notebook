@@ -18,11 +18,24 @@ struct AssistantSyncStatusView: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-        .task {
-            while !Task.isCancelled {
-                hasPendingChanges = coreDataStack.viewContext.hasChanges
-                try? await Task.sleep(for: .seconds(3))
-            }
-        }
+        // `hasChanges` can only move when the context's objects change (an
+        // edit, a rollback, a reset) or it saves, so read it then instead of
+        // polling every 3 s.
+        .onAppear(perform: refresh)
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .NSManagedObjectContextObjectsDidChange, object: coreDataStack.viewContext
+            )
+        ) { _ in refresh() }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .NSManagedObjectContextDidSave, object: coreDataStack.viewContext
+            )
+        ) { _ in refresh() }
+    }
+
+    private func refresh() {
+        let pending = coreDataStack.viewContext.hasChanges
+        if pending != hasPendingChanges { hasPendingChanges = pending }
     }
 }

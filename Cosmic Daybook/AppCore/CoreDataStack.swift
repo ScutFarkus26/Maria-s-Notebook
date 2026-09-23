@@ -52,6 +52,16 @@ final class CoreDataStack {
     /// access, so the unchecked annotation is safe here.
     nonisolated(unsafe) private var remoteChangeTask: Task<Void, Never>?
 
+    /// The pending history pass for the current burst of remote-change
+    /// notifications (see `handleRemoteChangeNotification`). Not `private`:
+    /// the handler lives in the `+Contexts` extension.
+    var pendingRemoteChangePass: Task<Void, Never>?
+
+    /// How long notifications are collected before one history pass runs.
+    /// One pass reads every transaction since the processor's token, so
+    /// folding a burst into it loses nothing.
+    static let remoteChangeCoalesceWindow: Duration = .milliseconds(400)
+
     // MARK: - Initialization
 
     /// Creates the Core Data stack.
