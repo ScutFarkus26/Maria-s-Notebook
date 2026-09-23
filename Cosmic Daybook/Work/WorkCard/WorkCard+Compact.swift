@@ -19,11 +19,16 @@ struct WorkCardCompactContent: View {
 
             FlowLayout(spacing: 8) {
                 ForEach(config.participants) { participant in
-                    ParticipantChipView(
-                        participant: participant,
-                        color: config.workType.color,
-                        onToggle: { config.onToggle(config.work, participant.studentID) }
-                    )
+                    Button {
+                        config.onToggle(config.work, participant.studentID)
+                    } label: {
+                        StudentChip(
+                            participant.name,
+                            tint: config.workType.color,
+                            leadingSystemImage: participant.isCompleted ? "checkmark.circle.fill" : "circle"
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -32,33 +37,6 @@ struct WorkCardCompactContent: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.primary.opacity(UIConstants.OpacityConstants.whisper))
         )
-    }
-}
-
-/// Participant chip with completion toggle for compact mode
-private struct ParticipantChipView: View {
-    let participant: WorkCardParticipant
-    let color: Color
-    let onToggle: () -> Void
-
-    var body: some View {
-        Button {
-            onToggle()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: participant.isCompleted ? "checkmark.circle.fill" : "circle")
-                Text(participant.name)
-            }
-            .font(AppTheme.ScaledFont.captionSemibold)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .foregroundStyle(color)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(color.opacity(UIConstants.OpacityConstants.accent))
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
 

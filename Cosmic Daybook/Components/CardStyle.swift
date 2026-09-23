@@ -14,7 +14,7 @@ enum CardStyle {
     }
     
     /// Standard card corner radius
-    static let cornerRadius: CGFloat = 12
+    static let cornerRadius: CGFloat = UIConstants.CornerRadius.large
     
     /// Standard card padding
     static let padding: CGFloat = 12
@@ -41,13 +41,11 @@ struct CardStyleModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(CardStyle.cardBackgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(CardStyle.strokeOpacity))
+            .surface(
+                cornerRadius,
+                fill: CardStyle.cardBackgroundColor,
+                stroke: Color.primary.opacity(CardStyle.strokeOpacity),
+                style: .continuous
             )
             .shadow(
                 color: CardStyle.shadowColor,

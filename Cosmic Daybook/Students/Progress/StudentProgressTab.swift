@@ -183,7 +183,7 @@ struct StudentProgressTab: View {
     private func projectRow(_ project: CDProject) -> some View {
         HStack(alignment: .center, spacing: AppTheme.Spacing.compact) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                     .fill(AppColors.color(forArea: "Reading").opacity(UIConstants.OpacityConstants.faint))
                     .frame(width: 44, height: 44)
                 Image(systemName: "book.closed.fill")
@@ -209,9 +209,10 @@ struct StudentProgressTab: View {
                 .foregroundStyle(.secondary.opacity(UIConstants.OpacityConstants.half))
         }
         .padding(AppTheme.Spacing.compact)
-        .background(
-            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+            style: .continuous
         )
     }
     

@@ -35,14 +35,14 @@ struct PresentationCard: View {
         .accessibilityLabel("Area: \(area.isEmpty ? "Unknown" : area)")
     }
 
-    private struct StudentChip: Identifiable { let id: UUID; let label: String; let isMissing: Bool }
-    private var studentChips: [StudentChip] {
-        var chips: [StudentChip] = []
+    private struct ChipEntry: Identifiable { let id: UUID; let label: String; let isMissing: Bool }
+    private var studentChips: [ChipEntry] {
+        var chips: [ChipEntry] = []
         for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
-                chips.append(StudentChip(id: id, label: s.shortName, isMissing: false))
+                chips.append(ChipEntry(id: id, label: s.shortName, isMissing: false))
             } else {
-                chips.append(StudentChip(id: id, label: "(Removed)", isMissing: true))
+                chips.append(ChipEntry(id: id, label: "(Removed)", isMissing: true))
             }
         }
         return chips
@@ -75,21 +75,7 @@ struct PresentationCard: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: AppTheme.Spacing.verySmall) {
                         ForEach(studentChips, id: \.id) { chip in
-                            HStack(spacing: AppTheme.Spacing.verySmall) {
-                                Text(chip.label)
-                                    .font(AppTheme.ScaledFont.captionSemibold)
-                                    .foregroundStyle(chip.isMissing ? .secondary : .primary)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, AppTheme.Spacing.verySmall)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(
-                                        chip.isMissing
-                                            ? Color.primary.opacity(UIConstants.OpacityConstants.faint)
-                                            : areaColor.opacity(UIConstants.OpacityConstants.accent)
-                                    )
-                            )
+                            StudentChip(chip.label, tint: areaColor, isMissing: chip.isMissing, foreground: .label)
                         }
                     }
                 }
@@ -104,10 +90,10 @@ struct PresentationCard: View {
         .padding(14) // Keep custom value - not in constants
         .frame(minHeight: 100)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                 .fill(cardBackgroundColor)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.trace), radius: 6, x: 0, y: 2)

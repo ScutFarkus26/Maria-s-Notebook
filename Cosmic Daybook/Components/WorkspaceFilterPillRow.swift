@@ -65,22 +65,20 @@ struct WorkspaceFilterPillRow<Chip: WorkspaceFilterChip>: View {
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
-                        .background(
-                            Capsule().fill(
-                                isSelected
-                                    ? Color.white.opacity(0.25)
-                                    : accent.opacity(UIConstants.OpacityConstants.accent)
-                            )
+                        .capsuleFill(
+                            isSelected
+                                ? Color.white.opacity(0.25)
+                                : accent.opacity(UIConstants.OpacityConstants.accent)
                         )
                 }
             }
             .foregroundStyle(isSelected ? Color.white : accent)
             .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
             .padding(.vertical, AppTheme.Spacing.verySmall)
-            .background(
-                Capsule().fill(isSelected
+            .capsuleFill(
+                isSelected
                     ? accent
-                    : accent.opacity(UIConstants.OpacityConstants.accent))
+                    : accent.opacity(UIConstants.OpacityConstants.accent)
             )
         }
         .buttonStyle(.plain)

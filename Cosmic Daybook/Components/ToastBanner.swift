@@ -18,9 +18,10 @@ struct ToastBanner: View {
             .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.vertical, AppTheme.Spacing.small)
-            .background(
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                    .fill(Color.black.opacity(UIConstants.OpacityConstants.nearSolid))
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: Color.black.opacity(UIConstants.OpacityConstants.nearSolid),
+                style: .continuous
             )
             .foregroundStyle(.white)
             .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)

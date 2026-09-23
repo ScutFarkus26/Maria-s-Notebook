@@ -40,13 +40,12 @@ struct SequenceRecapSection: View {
             collapsedHeader
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.background.secondary)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        .surface(
+            UIConstants.CornerRadius.large,
+            fill: .background.secondary,
+            stroke: Color.primary.opacity(0.08),
+            lineWidth: 1,
+            style: .continuous
         )
     }
 
@@ -138,7 +137,7 @@ struct SequenceRecapStudentSection: View {
             .font(AppTheme.ScaledFont.captionSmallSemibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Capsule().fill(color.opacity(0.18)))
+            .capsuleFill(color.opacity(0.18))
             .foregroundStyle(color)
     }
 }

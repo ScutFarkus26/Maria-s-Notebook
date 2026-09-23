@@ -45,12 +45,10 @@ struct StudentsScopeChips: View {
             .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(
-                Capsule().fill(
-                    isSelected
-                        ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
-                        : Color.secondary.opacity(UIConstants.OpacityConstants.light)
-                )
+            .capsuleFill(
+                isSelected
+                    ? Color.accentColor.opacity(UIConstants.OpacityConstants.accent)
+                    : Color.secondary.opacity(UIConstants.OpacityConstants.light)
             )
             .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
         }

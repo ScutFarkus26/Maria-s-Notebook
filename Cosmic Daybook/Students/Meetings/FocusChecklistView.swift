@@ -41,13 +41,11 @@ struct FocusChecklistView: View {
                 addItemRow
             }
             .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+            .surface(
+                UIConstants.CornerRadius.control,
+                fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+                style: .continuous
             )
         }
     }
@@ -93,10 +91,7 @@ struct FocusChecklistView: View {
                         .foregroundStyle(weeks >= 4 ? AppColors.warning : Color.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color.primary.opacity(UIConstants.OpacityConstants.light))
-                        )
+                        .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.light))
                 }
             }
 

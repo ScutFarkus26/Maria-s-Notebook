@@ -67,13 +67,11 @@ struct BorderedSearchField: View {
             }
         }
         .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.hint))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.hint),
+            stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+            style: .continuous
         )
     }
 }

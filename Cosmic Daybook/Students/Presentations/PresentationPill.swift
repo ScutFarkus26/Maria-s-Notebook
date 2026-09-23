@@ -181,7 +181,7 @@ struct PresentationPill: View {
         return !enableMissHighlight || missWindowRaw == "all" || recentWindowDays == 0
     }
 
-    private struct StudentChip {
+    private struct ChipEntry {
         let id: UUID
         let label: String
         let isMissing: Bool
@@ -190,11 +190,11 @@ struct PresentationPill: View {
         let blockingWork: CDWorkModel?
     }
     
-    private var studentChips: [StudentChip] {
-        var chips: [StudentChip] = []
+    private var studentChips: [ChipEntry] {
+        var chips: [ChipEntry] = []
         for id in snapshot.studentIDs {
             if let s = students.first(where: { $0.id == id }) {
-                chips.append(StudentChip(
+                chips.append(ChipEntry(
                     id: id,
                     label: s.shortName,
                     isMissing: false,
@@ -203,7 +203,7 @@ struct PresentationPill: View {
                     blockingWork: blockingWork[id]
                 ))
             } else {
-                chips.append(StudentChip(
+                chips.append(ChipEntry(
                     id: id, label: "(Removed)", isMissing: true,
                     status: nil, hasHad: true, blockingWork: nil
                 ))
@@ -249,16 +249,14 @@ struct PresentationPill: View {
                         // Removed !isAllSelected check here so that individuals
                         // are highlighted even if the whole sequence is in the lesson.
                         let highlight = !chip.hasHad && !suppressHighlighting
-                        ChipView(
+                        StudentCapsuleChip(
                             label: chip.label,
+                            tint: areaColor,
                             isMissing: chip.isMissing,
                             isAbsent: isAbsent,
                             isDoubleBooked: isDoubleBooked,
-                            areaColor: areaColor,
-                            hasHad: chip.hasHad,
-                            suppressIndicator: isAllSelected,
-                            highlight: highlight,
-                            blockingWork: chip.blockingWork,
+                            isHighlighted: highlight,
+                            isWaiting: chip.blockingWork != nil,
                             onTap: {
                                 if let c = chip.blockingWork {
                                     selectedWorkForDetail = c
@@ -287,9 +285,7 @@ struct PresentationPill: View {
             .foregroundStyle(Color.accentColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(
-                Capsule().fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
-            )
+            .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
             .padding(6)
     }
 
@@ -311,19 +307,22 @@ struct PresentationPill: View {
         return !isMidnight && !isOrderingSlot
     }
 
+    private var timeBadgeMetrics: AppPill.Metrics {
+        var metrics = AppPill.Metrics()
+        metrics.font = .system(.caption2, design: .rounded)
+        metrics.horizontalPadding = 6
+        metrics.verticalPadding = 3
+        return metrics
+    }
+
     @ViewBuilder
     private var timeBadge: some View {
         if showTimeBadge {
             HStack(spacing: 6) {
                 if let scheduled = scheduledDate, isDeliberateTime(scheduled) {
-                    CanonicalPillButton(
-                        isSelected: false,
-                        contentFont: .system(.caption2, design: .rounded),
-                        horizontalPadding: 6,
-                        verticalPadding: 3
-                    ) {
+                    AppPillButton(metrics: timeBadgeMetrics) {
                         showTimeEditor = true
-                    } content: {
+                    } label: {
                         Text(DateFormatters.shortTime.string(from: scheduled))
                     }
                     #if os(macOS)

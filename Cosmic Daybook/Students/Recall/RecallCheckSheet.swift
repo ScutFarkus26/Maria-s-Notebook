@@ -78,7 +78,7 @@ struct RecallCheckSheet: View {
     }
 
     private func outcomeButton(_ value: RecallOutcome, _ title: String) -> some View {
-        CanonicalPillButton(title, isSelected: outcome == value) { outcome = value }
+        AppPillButton(title, isSelected: outcome == value, metrics: .snug) { outcome = value }
     }
 
     private func record() {

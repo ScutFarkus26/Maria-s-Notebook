@@ -155,9 +155,7 @@ struct YearPlanPill: View {
             .strikethrough(isStrikethrough)
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
-            .background(
-                Capsule().fill(areaColor.opacity(UIConstants.OpacityConstants.moderate))
-            )
+            .capsuleFill(areaColor.opacity(UIConstants.OpacityConstants.moderate))
             .foregroundStyle(areaColor)
             .opacity(isMuted ? UIConstants.OpacityConstants.muted : 1)
             .overlay(

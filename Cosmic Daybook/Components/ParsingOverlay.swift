@@ -19,7 +19,7 @@ public struct ParsingOverlay: View {
                 }
                 .padding(16)
                 .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipRounded(UIConstants.CornerRadius.large)
             }
         }
     }

@@ -12,9 +12,9 @@ private struct HoverableRowModifier: ViewModifier {
     func body(content: Content) -> some View {
         #if os(macOS)
         content
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isHovered ? Color.primary.opacity(UIConstants.OpacityConstants.trace) : Color.clear)
+            .surface(
+                cornerRadius,
+                fill: isHovered ? Color.primary.opacity(UIConstants.OpacityConstants.trace) : Color.clear
             )
             .onHover { hovering in
                 adaptiveWithAnimation(.easeInOut(duration: 0.15)) {

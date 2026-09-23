@@ -137,7 +137,11 @@ struct MeetingContextPane: View {
             }
         }
         .padding(12)
-        .background(cardBackground)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
+        )
     }
 
     private func statBox(title: String, count: Int, color: Color) -> some View {
@@ -153,7 +157,7 @@ struct MeetingContextPane: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(color.opacity(UIConstants.OpacityConstants.light))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipRounded(UIConstants.CornerRadius.medium, style: .continuous)
     }
 
     // MARK: - Interactive Work Card
@@ -192,7 +196,7 @@ struct MeetingContextPane: View {
                             .foregroundStyle(.purple)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
-                            .background(Capsule().fill(Color.purple.opacity(0.15)))
+                            .capsuleFill(Color.purple.opacity(0.15))
                     }
 
                     Spacer()
@@ -371,7 +375,11 @@ struct MeetingContextPane: View {
             }
         }
         .padding(12)
-        .background(cardBackground)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
+        )
     }
 
     private func lessonRow(_ la: CDLessonAssignment) -> some View {
@@ -445,7 +453,11 @@ struct MeetingContextPane: View {
             }
         }
         .padding(12)
-        .background(cardBackground)
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
+        )
     }
 
     private func meetingHistoryRow(_ meeting: CDStudentMeeting) -> some View {
@@ -504,11 +516,6 @@ struct MeetingContextPane: View {
         Label(title, systemImage: icon)
             .font(.subheadline.weight(.bold))
             .foregroundStyle(.primary)
-    }
-
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
     }
 
     private func deleteMeeting(_ meeting: CDStudentMeeting) {

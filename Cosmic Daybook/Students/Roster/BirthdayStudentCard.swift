@@ -16,7 +16,7 @@ struct BirthdayStudentCard: View {
             // Keep celebratory background
             LinearGradient(colors: [.pink, .orange, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .overlay(confettiOverlay.opacity(0.18))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipRounded(UIConstants.CornerRadius.tile, style: .continuous)
 
             VStack(alignment: .leading, spacing: 12) {
                 // Top: name + balloon (subtle, not competing)

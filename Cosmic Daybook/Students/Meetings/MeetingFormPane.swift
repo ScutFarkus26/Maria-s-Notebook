@@ -239,13 +239,11 @@ struct MeetingFormPane: View {
                     .font(.body)
                     .frame(minHeight: 80)
                     .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
+                    .surface(
+                        UIConstants.CornerRadius.control,
+                        fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+                        stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
+                        style: .continuous
                     )
 
                 if text.wrappedValue.trimmed().isEmpty {

@@ -32,10 +32,10 @@ struct UnplannedStudentsStrip: View {
         }
         .padding(10)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                 .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
                 )
         )
@@ -82,9 +82,7 @@ struct UnplannedStudentsStrip: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(
-                    Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
-                )
+                .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
                 .overlay(
                     Capsule().stroke(Color.primary.opacity(UIConstants.OpacityConstants.accent), lineWidth: 1)
                 )

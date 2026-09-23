@@ -42,10 +42,7 @@ struct SelectedStudentChipsRow: View {
         .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.xxsmall)
         .padding(.vertical, AppTheme.Spacing.verySmall)
         .foregroundStyle(textColor)
-        .background(
-            Capsule()
-                .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
-        )
+        .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(name), selected")
         .accessibilityHint("Contains remove button")

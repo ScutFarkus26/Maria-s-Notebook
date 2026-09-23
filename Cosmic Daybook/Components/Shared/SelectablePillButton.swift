@@ -21,10 +21,7 @@ struct SelectablePillButton<T: Hashable>: View {
             .foregroundStyle(isSelected ? .white : color)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(isSelected ? color : color.opacity(UIConstants.OpacityConstants.medium))
-            )
+            .capsuleFill(isSelected ? color : color.opacity(UIConstants.OpacityConstants.medium))
             .overlay(
                 Capsule()
                     .stroke(color.opacity(isSelected ? 0 : 0.3), lineWidth: 1)

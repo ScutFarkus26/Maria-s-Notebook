@@ -234,7 +234,7 @@ extension ClassAreaChecklistView {
         HStack(spacing: 0) {
             StickyLeftItem(width: lessonColumnWidth, height: height) {
                 HStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 1)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.hairline)
                         .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.muted))
                         .frame(width: 3, height: 14)
                     Text(name.isEmpty ? "Other" : name)

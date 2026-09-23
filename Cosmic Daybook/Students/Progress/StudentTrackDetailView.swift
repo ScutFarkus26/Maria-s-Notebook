@@ -1,7 +1,6 @@
 import SwiftUI
 import CoreData
 
-// swiftlint:disable:next type_body_length
 struct StudentTrackDetailView: View {
     let enrollment: CDStudentTrackEnrollmentEntity
     let track: CDTrackEntity
@@ -137,21 +136,20 @@ struct StudentTrackDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            .yellow.opacity(UIConstants.OpacityConstants.light),
-                            .orange.opacity(UIConstants.OpacityConstants.hint)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+        .surface(
+            UIConstants.CornerRadius.hero,
+            fill: LinearGradient(
+                colors: [
+                    .yellow.opacity(UIConstants.OpacityConstants.light),
+                    .orange.opacity(UIConstants.OpacityConstants.hint)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            style: .continuous
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.hero)
                 .strokeBorder(
                     LinearGradient(
                         colors: [
@@ -240,10 +238,7 @@ struct StudentTrackDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(
-            Capsule()
-                .fill(color.opacity(UIConstants.OpacityConstants.light))
-        )
+        .capsuleFill(color.opacity(UIConstants.OpacityConstants.light))
     }
 
     // MARK: - Timeline Section

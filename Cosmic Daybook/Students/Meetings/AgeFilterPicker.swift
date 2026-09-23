@@ -38,13 +38,10 @@ struct AgeFilterPicker: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(
-                            selectedAgeRanges.isEmpty
-                                ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
-                                : Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
-                        )
+                .capsuleFill(
+                    selectedAgeRanges.isEmpty
+                        ? Color.primary.opacity(UIConstants.OpacityConstants.veryFaint)
+                        : Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
                 )
                 .foregroundStyle(selectedAgeRanges.isEmpty ? Color.secondary : Color.accentColor)
             }

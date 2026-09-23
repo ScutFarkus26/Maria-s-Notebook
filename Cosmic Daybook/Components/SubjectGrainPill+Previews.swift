@@ -76,15 +76,15 @@ private struct SubjectGrainPillPreviewsPreview2: View {
             ], spacing: 12) {
                 ForEach(areas, id: \.self) { area in
                     VStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
                             .fill(Color.clear)
                             .frame(height: 80)
                             .overlay {
                                 AreaGrainBackground(area: area)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .clipRounded(UIConstants.CornerRadius.large)
                             }
                             .overlay {
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large)
                                     .stroke(
                                         AppColors.color(forArea: area)
                                             .opacity(UIConstants.OpacityConstants.moderate),

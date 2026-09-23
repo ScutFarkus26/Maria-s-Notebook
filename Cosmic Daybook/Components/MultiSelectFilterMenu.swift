@@ -72,22 +72,24 @@ struct FilterMenuChipLabel: View {
         }
     }
 
-    private func background(_ fill: Color) -> some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous).fill(fill)
-    }
-
     @ViewBuilder
     var body: some View {
         if accentsSelection {
             chip
-                .background(background(
-                    isSelected
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: isSelected
                         ? Color.accentColor.opacity(UIConstants.OpacityConstants.medium)
-                        : Color.primary.opacity(UIConstants.OpacityConstants.hint)
-                ))
+                        : Color.primary.opacity(UIConstants.OpacityConstants.hint),
+                    style: .continuous
+                )
                 .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
         } else {
-            chip.background(background(Color.primary.opacity(UIConstants.OpacityConstants.hint)))
+            chip.surface(
+                UIConstants.CornerRadius.medium,
+                fill: Color.primary.opacity(UIConstants.OpacityConstants.hint),
+                style: .continuous
+            )
         }
     }
 }

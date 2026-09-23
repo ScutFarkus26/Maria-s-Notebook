@@ -110,7 +110,7 @@ struct PresentationNotesSectionUnified: View {
                 ))
                 .frame(minHeight: 140)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.medium), lineWidth: 1)
                 )
             } else if allUnifiedNotes.isEmpty && legacyNotes.trimmed().isEmpty {
@@ -167,9 +167,10 @@ struct PresentationNotesSectionUnified: View {
                 .foregroundStyle(.primary)
         }
         .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(UIConstants.OpacityConstants.trace))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
+            style: .continuous
         )
         .contextMenu {
             Button {

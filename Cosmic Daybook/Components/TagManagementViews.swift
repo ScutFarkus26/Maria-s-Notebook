@@ -28,7 +28,7 @@ struct TagBadge: View {
             .padding(.vertical, compact ? 2 : 4)
             .background(tagColor.lightColor)
             .foregroundStyle(tagColor.color)
-            .clipShape(RoundedRectangle(cornerRadius: compact ? 4 : 6))
+            .clipRounded(compact ? 4 : 6)
     }
 }
 
@@ -71,7 +71,7 @@ struct TagPicker: View {
             #else
             .background(Color(nsColor: .controlBackgroundColor))
             #endif
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipRounded(UIConstants.CornerRadius.medium)
 
             // CDStudent tags
             ScrollView(.horizontal, showsIndicators: false) {
@@ -270,7 +270,7 @@ struct TagButton: View {
             .padding(.vertical, 6)
             .background(isSelected ? tagColor.color : tagColor.lightColor)
             .foregroundStyle(isSelected ? .white : tagColor.color)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipRounded(UIConstants.CornerRadius.small)
         }
         .buttonStyle(.plain)
         .contextMenu {

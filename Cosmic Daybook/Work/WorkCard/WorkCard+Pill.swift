@@ -67,7 +67,7 @@ struct WorkCardPillContent: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(studentChips) { chip in
-                                    StudentChipView(label: chip.name, isAbsent: chip.isAbsent, tint: workKind.color)
+                                    StudentCapsuleChip(label: chip.name, tint: workKind.color, isAbsent: chip.isAbsent)
                                 }
                             }
                         }
@@ -99,23 +99,6 @@ struct WorkCardPillContent: View {
                 )
             )
         }
-    }
-}
-
-/// CDStudent chip for pill mode
-private struct StudentChipView: View {
-    let label: String
-    let isAbsent: Bool
-    let tint: Color
-
-    var body: some View {
-        Text(label)
-            .font(AppTheme.ScaledFont.captionSmallSemibold)
-            .foregroundStyle(isAbsent ? .secondary : .primary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(tint.opacity(isAbsent ? 0.06 : 0.15)))
-            .overlay(Capsule().stroke(isAbsent ? Color.red : Color.clear, lineWidth: 1))
     }
 }
 

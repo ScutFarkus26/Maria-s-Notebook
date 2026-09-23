@@ -22,6 +22,27 @@ enum AppPill {
         var outlineWidth: CGFloat = 1
         var selectedRingWidth: CGFloat = 2
         var corner: Capsule = Capsule()
+
+        // The two wrappers folded on 2026-09-22 — `CanonicalPillButton` and
+        // `PillButton` — as presets, so their callers keep the same metrics.
+
+        /// 10 × 6 padding at the default font (the recall outcome pills).
+        static var snug: Metrics {
+            var metrics = Metrics()
+            metrics.horizontalPadding = 10
+            metrics.verticalPadding = 6
+            return metrics
+        }
+
+        /// Body-size semibold text with 20 × 8 padding (the notes-timeline filter).
+        static var roomy: Metrics {
+            var metrics = Metrics()
+            metrics.font = .system(size: AppTheme.FontSize.body, weight: .semibold)
+            metrics.horizontalPadding = 20
+            metrics.verticalPadding = 8
+            metrics.minHeight = 30
+            return metrics
+        }
     }
 
     static func background(isSelected: Bool, selectionStyle: SelectionStyle) -> some ShapeStyle {

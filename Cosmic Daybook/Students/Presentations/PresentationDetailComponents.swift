@@ -1,37 +1,6 @@
 import SwiftUI
 import CoreData
 
-// MARK: - CDStudent Chip Component
-struct StudentChip: View {
-    let student: CDStudent
-    let areaColor: Color
-    let onRemove: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(student.shortName)
-                .font(AppTheme.ScaledFont.captionSemibold)
-            
-            Button {
-                onRemove()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(areaColor)
-            .accessibilityLabel("Remove \(student.shortName)")
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .foregroundStyle(areaColor)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(areaColor.opacity(UIConstants.OpacityConstants.accent))
-        )
-    }
-}
-
 // MARK: - Move Students Sheet
 struct MoveStudentsSheet: View {
     let lessonName: String
@@ -133,9 +102,10 @@ struct MoveStudentRow: View {
             .contentShape(Rectangle())
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.orange.opacity(UIConstants.OpacityConstants.light) : Color.clear)
+            .surface(
+                UIConstants.CornerRadius.medium,
+                fill: isSelected ? Color.orange.opacity(UIConstants.OpacityConstants.light) : Color.clear,
+                style: .continuous
             )
         }
         .buttonStyle(.plain)
@@ -159,9 +129,10 @@ struct MovedStudentsBanner: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.orange.opacity(UIConstants.OpacityConstants.barelyTransparent))
+        .surface(
+            UIConstants.CornerRadius.control,
+            fill: Color.orange.opacity(UIConstants.OpacityConstants.barelyTransparent),
+            style: .continuous
         )
         .foregroundStyle(.white)
         .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)

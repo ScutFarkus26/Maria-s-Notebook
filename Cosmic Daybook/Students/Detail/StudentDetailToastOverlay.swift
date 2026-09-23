@@ -20,9 +20,10 @@ struct StudentDetailToastOverlay: View {
             .font(AppTheme.ScaledFont.captionSemibold)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.black.opacity(UIConstants.OpacityConstants.nearSolid))
+            .surface(
+                UIConstants.CornerRadius.control,
+                fill: Color.black.opacity(UIConstants.OpacityConstants.nearSolid),
+                style: .continuous
             )
             .foregroundStyle(.white)
             .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)

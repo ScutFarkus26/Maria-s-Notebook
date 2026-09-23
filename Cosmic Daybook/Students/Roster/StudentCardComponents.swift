@@ -24,7 +24,7 @@ struct DefaultStudentCard: View {
             .font(AppTheme.ScaledFont.captionSmallSemibold)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(Color.primary.opacity(UIConstants.OpacityConstants.subtle)))
+            .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.subtle))
             .accessibilityLabel("Age: \(text)")
     }
 
@@ -50,10 +50,10 @@ struct DefaultStudentCard: View {
         .padding(14)
         .frame(minHeight: 100)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                 .fill(Color.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                         .stroke(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.trace), radius: 6, x: 0, y: 2)
@@ -148,7 +148,7 @@ struct AgeStudentCard: View {
         ZStack(alignment: .topLeading) {
             LinearGradient(colors: [.mint, .teal, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .overlay(sparklesOverlay.opacity(0.22))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipRounded(UIConstants.CornerRadius.tile, style: .continuous)
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {

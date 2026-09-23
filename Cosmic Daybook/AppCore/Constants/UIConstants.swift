@@ -155,19 +155,38 @@ nonisolated enum UIConstants {
     
     // MARK: - Corner Radius
     
-    /// Standardized corner radius values
+    /// Standardized corner radius values.
+    ///
+    /// One case per value the app draws with; a site keeps the case that
+    /// matches its radius exactly (see
+    /// `Documentation/Implementation/design-system-migration.md`).
     enum CornerRadius {
-        /// 6pt - Small corner radius
+        /// 1pt - Hairline accent bars (the 3 × 14 strip beside a checklist area name)
+        nonisolated static let hairline: CGFloat = 1
+
+        /// 3pt - Tiny corners on progress bars and swatches
+        nonisolated static let tiny: CGFloat = 3
+
+        /// 6pt - Small corner radius (checklist cells, tag badges, small tinted labels)
         nonisolated static let small: CGFloat = 6
-        
-        /// 8pt - Medium corner radius
+
+        /// 8pt - Medium corner radius (compact rows, menu chips, progress bars)
         nonisolated static let medium: CGFloat = 8
-        
-        /// 12pt - Large corner radius (cards)
+
+        /// 10pt - Controls: search fields, text editors, compact work rows, toasts, tinted blocks
+        nonisolated static let control: CGFloat = 10
+
+        /// 12pt - Large corner radius (cards; `CardStyle.cornerRadius`)
         nonisolated static let large: CGFloat = 12
-        
-        /// 16pt - Extra large corner radius
+
+        /// 14pt - Tiles: roster and presentation cards, drop zones, grid focus rings
+        nonisolated static let tile: CGFloat = 14
+
+        /// 16pt - Extra large corner radius (student chips, detail panels)
         nonisolated static let extraLarge: CGFloat = 16
+
+        /// 20pt - Hero panels (the mastery banner on a student's track detail)
+        nonisolated static let hero: CGFloat = 20
     }
     
     // MARK: - Stroke & Border Widths

@@ -389,19 +389,21 @@ extension UnifiedPresentationWorkflowPanel {
 
                     Spacer()
 
-                    WorkflowBadge(
-                        icon: work.status.iconName,
+                    StatusPill(
                         text: work.status.displayName,
-                        color: work.status.color
+                        color: work.status.color,
+                        icon: work.status.iconName,
+                        metrics: .emphasized
                     )
                 }
 
                 // Work kind badge
                 if let kind = work.kind {
-                    WorkflowBadge(
-                        icon: kind.iconName,
+                    StatusPill(
                         text: kind.shortLabel,
-                        color: kind.color
+                        color: kind.color,
+                        icon: kind.iconName,
+                        metrics: .emphasized
                     )
                 }
 
