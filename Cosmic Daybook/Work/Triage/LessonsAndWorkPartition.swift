@@ -131,6 +131,28 @@ struct LessonsAndWorkPartition {
         )
     }
 
+    /// The assignments that can land in a workspace list.
+    ///
+    /// A given presentation with no open follow-up is `.done`, and nothing
+    /// reads the `.done` presentation list — so those rows, which are most of
+    /// the table, are never materialised. The predicate is the rule's own
+    /// `.done` condition negated: kept is anything not in the `presented`
+    /// state (including an unrecognised raw value, which reads as `.draft`),
+    /// plus every assignment carrying an unresolved follow-up. A managed-object
+    /// fetch, so unsaved edits in `context` are still seen.
+    static func workspaceAssignments(
+        in context: NSManagedObjectContext,
+        unresolvedFollowUpIDs: Set<UUID>
+    ) -> [CDLessonAssignment] {
+        let request: NSFetchRequest<CDLessonAssignment> = NSFetchRequest(entityName: "LessonAssignment")
+        request.predicate = NSPredicate(
+            format: "stateRaw == nil OR stateRaw != %@ OR id IN %@",
+            LessonAssignmentState.presented.rawValue,
+            Array(unresolvedFollowUpIDs)
+        )
+        return context.safeFetch(request)
+    }
+
     /// Everything in one list, presentations before work — the order the
     /// Attention list already renders them in.
     func count(_ bucket: TriageBucket) -> Int {
