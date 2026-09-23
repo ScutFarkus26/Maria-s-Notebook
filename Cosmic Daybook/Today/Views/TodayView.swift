@@ -309,6 +309,8 @@ struct TodayView: View {
     // PERF: Structured concurrency — async let runs both syncs in parallel
     // while inheriting .task cancellation (no more fire-and-forget Task blocks).
     private func handleViewAppear() async {
+        viewModel.lessonCatalog = dependencies.lessonCatalog
+        viewModel.invalidateReadyForNext()
         viewModel.setCalendar(calendar)
         async let reminderSync: Void = syncReminders()
         async let calendarSync: Void = syncCalendarEvents()
