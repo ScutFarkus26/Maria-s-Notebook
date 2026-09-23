@@ -185,13 +185,25 @@ final class NotebookCompanionViewModel {
             context: context
         )
 
-        snapshot = NotebookCompanionSnapshot(
+        let latest = NotebookCompanionSnapshot(
             overdueTodoCount: overdueTodos,
             dueTodayTodoCount: dueTodayTodos,
             overduePresentationCount: overduePresentations,
             scheduledPresentationCount: scheduledPresentations,
             recordedActivityCount: completedTodos + completedWork + presentedLessons + notes
         )
+        // `@Observable` notifies on every assignment; the snapshot is read by
+        // RootView's body, so an unchanged count must not re-render it.
+        if latest != snapshot { snapshot = latest }
+    }
+
+    /// The entities `reload` counts. Their attributes are the only inputs
+    /// to the snapshot, so a change to anything else can't move it.
+    nonisolated static let countedEntityNames: Set<String> = ["TodoItem", "LessonAssignment", "WorkModel", "Note"]
+
+    /// Whether an objects-did-change notification touched a counted entity.
+    nonisolated static func affectsCounts(_ notification: Notification) -> Bool {
+        !ManagedObjectChangeScope.touched(countedEntityNames, in: notification.userInfo).isEmpty
     }
 
     private func count(

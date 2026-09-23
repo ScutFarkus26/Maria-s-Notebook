@@ -101,4 +101,61 @@ final class NotebookCompanionTests {
         #expect(viewModel.snapshot.scheduledPresentationCount == 1)
         #expect(viewModel.snapshot.recordedActivityCount == 2)
     }
+
+    // MARK: - Reload scoping
+
+    @Test("Only changes to the counted entities reach the companion's reload")
+    func reloadFilterMatchesCountedEntities() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let student = CoreDataTestHelpers.seedStudent(in: context)
+        let todo = CDTodoItem(context: context)
+        todo.title = "Counted"
+
+        let studentOnly = Notification(
+            name: .NSManagedObjectContextObjectsDidChange, object: context,
+            userInfo: [NSInsertedObjectsKey: Set<NSManagedObject>([student])]
+        )
+        let withTodo = Notification(
+            name: .NSManagedObjectContextObjectsDidChange, object: context,
+            userInfo: [NSUpdatedObjectsKey: Set<NSManagedObject>([student, todo])]
+        )
+        let invalidatedAll = Notification(
+            name: .NSManagedObjectContextObjectsDidChange, object: context,
+            userInfo: [NSInvalidatedAllObjectsKey: [NSManagedObjectID]()]
+        )
+        #expect(NotebookCompanionViewModel.affectsCounts(studentOnly) == false)
+        #expect(NotebookCompanionViewModel.affectsCounts(withTodo) == true)
+        #expect(NotebookCompanionViewModel.affectsCounts(invalidatedAll) == true)
+        #expect(NotebookCompanionViewModel.countedEntityNames == ["TodoItem", "LessonAssignment", "WorkModel", "Note"])
+    }
+
+    @Test("A reload that finds the same counts does not notify observers")
+    func unchangedReloadDoesNotNotify() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let todo = CDTodoItem(context: context)
+        todo.title = "Due"
+        todo.dueDate = Date()
+        let viewModel = NotebookCompanionViewModel()
+        viewModel.configure(context: context)
+        let before = viewModel.snapshot
+        #expect(before.dueTodayTodoCount + before.overdueTodoCount == 1)
+
+        let notified = ObservationFlag()
+        withObservationTracking { _ = viewModel.snapshot } onChange: { notified.fired = true }
+        viewModel.reload()
+        #expect(notified.fired == false)
+        #expect(viewModel.snapshot == before)
+
+        let another = CDTodoItem(context: context)
+        another.title = "Also due"
+        another.dueDate = todo.dueDate
+        viewModel.reload()
+        #expect(notified.fired == true)
+    }
+}
+
+/// Set from `withObservationTracking`'s `@Sendable` onChange; the test reads
+/// it on the main actor after the synchronous reload that fires it.
+private nonisolated final class ObservationFlag: @unchecked Sendable {
+    var fired = false
 }

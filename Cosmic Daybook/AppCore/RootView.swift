@@ -226,6 +226,12 @@ struct RootView: View {
             + "work aging — from \(start)? Last year's records stay exactly as they are."
     }
 
+    /// Whether the in-window companion (the glass button) is on screen; it
+    /// is the only reader of `companionViewModel.snapshot`.
+    private var showsInWindowCompanion: Bool {
+        isNotebookCompanionVisible && !isNotebookCompanionDetached
+    }
+
     private var rootLayoutWithObservers: some View {
         rootLayout
         .onAppear(perform: restoreSelectionIfNeeded)
@@ -238,6 +244,9 @@ struct RootView: View {
             #endif
         }
         .onChange(of: isNotebookCompanionVisible) { _, isVisible in
+            // The in-window counts only refresh while shown (below), so catch
+            // up the moment they are shown again.
+            if showsInWindowCompanion { companionViewModel.reload(calendar: calendar) }
             #if os(macOS)
             if isVisible && isNotebookCompanionDetached {
                 openWindow(id: "notebookCompanion")
@@ -246,16 +255,24 @@ struct RootView: View {
             }
             #endif
         }
+        .onChange(of: isNotebookCompanionDetached) { _, _ in
+            if showsInWindowCompanion { companionViewModel.reload(calendar: calendar) }
+        }
         // Debounce: objectsDidChange fires per change, not per save, so a single
         // CloudKit merge can post it hundreds of times — and each reload runs the
         // companion's count queries. Coalesce them (same pattern as StudentsView).
+        // Only changes to the counted entities matter, and only while the
+        // in-window companion is on screen: hidden, nothing reads the counts,
+        // and detached, its own window keeps its own.
         .onReceive(
             NotificationCenter.default.publisher(
                 for: .NSManagedObjectContextObjectsDidChange,
                 object: viewContext
             )
+            .filter(NotebookCompanionViewModel.affectsCounts)
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         ) { _ in
+            guard showsInWindowCompanion else { return }
             companionViewModel.reload(calendar: calendar)
         }
         .onCalendarDayChange {
