@@ -27,7 +27,9 @@ struct ProgressDashboardView: View {
             .onPresentationDataChange(of: ["LessonAssignment", "WorkModel"], in: viewContext) { _ in
                 changeToken &+= 1
             }
-            .onChange(of: changeToken) { _, _ in
+            // Only while on screen: a TabView keeps this screen alive behind
+            // other tabs, and `.onAppear` above reloads when it comes back.
+            .onChangeWhenVisible(of: changeToken, catchUpOnAppear: false) {
                 // A CloudKit import or a bulk edit bumps the token several
                 // times back-to-back; collapse them into one reload 250 ms
                 // after the last (the Presentations pattern).
