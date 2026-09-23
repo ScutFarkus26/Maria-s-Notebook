@@ -41,9 +41,7 @@ extension ObservationsView {
 
                 Divider()
 
-                let allUsedTags = Set(loadedItems.flatMap { $0.tags })
-                    .sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }
-                ForEach(allUsedTags, id: \.self) { tag in
+                ForEach(usedTags, id: \.self) { tag in
                     Button(action: {
                         if selectedFilterTags.contains(tag) {
                             selectedFilterTags.remove(tag)

@@ -5,6 +5,13 @@ import Foundation
 /// Filters observation items based on category, scope, and search text.
 enum ObservationsFilterService {
 
+    // MARK: - Tag Menu
+
+    /// Every tag used by `items`, sorted by display name — the tag menu's rows.
+    static func usedTags(in items: [UnifiedObservationItem]) -> [String] {
+        Set(items.flatMap { $0.tags }).sorted { TagHelper.tagName($0) < TagHelper.tagName($1) }
+    }
+
     // MARK: - Scope Filter
 
     enum ScopeFilter: String, CaseIterable, Identifiable {
