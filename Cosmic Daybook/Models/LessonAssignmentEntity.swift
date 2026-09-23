@@ -30,6 +30,24 @@ nonisolated public class CDLessonAssignment: NSManagedObject {
     // MARK: - Relationships
     @NSManaged public var unifiedNotes: NSSet?
 
+    // MARK: - Decoded-array memos (not persisted)
+
+    /// Last decoded value of `_studentIDsData`, keyed by the bytes it came from.
+    /// `studentIDs` is read inside per-student loops across the app, and each read
+    /// used to JSON-decode the blob again. The memo is validated against the
+    /// current raw attribute on every read, so a setter, an undo, a refault or a
+    /// merge from another context (anything that changes the stored bytes) is
+    /// picked up on the next access without lifecycle bookkeeping.
+    private var studentIDsMemo: DecodedStringArrayMemo?
+    /// Same, for `_confirmedStudentIDsData`.
+    private var confirmedStudentIDsMemo: DecodedStringArrayMemo?
+
+    override public func didTurnIntoFault() {
+        super.didTurnIntoFault()
+        studentIDsMemo = nil
+        confirmedStudentIDsMemo = nil
+    }
+
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {
@@ -60,6 +78,13 @@ nonisolated public class CDLessonAssignment: NSManagedObject {
     }
 }
 
+/// A decoded `[String]` together with the exact bytes it was decoded from.
+/// Reused only while the backing attribute still holds equal bytes.
+nonisolated struct DecodedStringArrayMemo {
+    let data: Data?
+    let ids: [String]
+}
+
 // MARK: - State Enum
 
 // Lifecycle states for a presentation.
@@ -74,14 +99,27 @@ nonisolated extension CDLessonAssignment {
     }
 
     /// CDStudent IDs as string array. Uses JSON encoding via CloudKitStringArrayStorage.
+    /// The decode is memoised per object (see `studentIDsMemo`).
     var studentIDs: [String] {
-        get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
+        get {
+            let data = _studentIDsData
+            if let memo = studentIDsMemo, memo.data == data { return memo.ids }
+            let ids = CloudKitStringArrayStorage.decode(from: data)
+            studentIDsMemo = DecodedStringArrayMemo(data: data, ids: ids)
+            return ids
+        }
         set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
     }
 
     /// Student IDs that the teacher has confirmed as proficient for this lesson.
     var confirmedStudentIDs: [String] {
-        get { CloudKitStringArrayStorage.decode(from: _confirmedStudentIDsData) }
+        get {
+            let data = _confirmedStudentIDsData
+            if let memo = confirmedStudentIDsMemo, memo.data == data { return memo.ids }
+            let ids = CloudKitStringArrayStorage.decode(from: data)
+            confirmedStudentIDsMemo = DecodedStringArrayMemo(data: data, ids: ids)
+            return ids
+        }
         set { _confirmedStudentIDsData = CloudKitStringArrayStorage.encode(newValue) }
     }
 
