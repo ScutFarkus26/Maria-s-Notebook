@@ -41,6 +41,8 @@ nonisolated public enum BackupWriter {
     ///   (`mastered`, `keepPracticing`, `incomplete`) alongside the old
     ///   `active` / `review` / `complete`; `completionOutcomeRaw` is still
     ///   written but is legacy. Entry layout is unchanged.
+    /// - v27: Adds backup coverage for CDOrderItem (the Orders list) and the
+    ///   `Orders.*` request preferences. Purely additive.
     /// - v23: Preferences entry grows from 15 keys to the full set of
     ///   user-chosen settings (school year, recall, AI models, view state,
     ///   per-date attendance locks, album folder bookmarks + fingerprints) and
@@ -54,7 +56,7 @@ nonisolated public enum BackupWriter {
     ///   CDLessonSequenceSettings, CDStory, CDBookClubPacket, CDBookClubSession,
     ///   CDBookClubMeeting. Purely additive NDJSON entries.
     /// - v17: AppleArchive-framed NDJSON (replaced the legacy v16 JSON envelope).
-    public static let formatVersion: Int = 26
+    public static let formatVersion: Int = 27
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)
@@ -343,7 +345,10 @@ nonisolated public enum BackupWriter {
         serialization("AlbumRecentVisit") { $0.albumRecentVisits ?? [] },
         serialization("AlbumReadingPosition") { $0.albumReadingPositions ?? [] },
         serialization("AlbumHighlight") { $0.albumHighlights ?? [] },
-        serialization("AlbumPageInk") { $0.albumPageInk ?? [] }
+        serialization("AlbumPageInk") { $0.albumPageInk ?? [] },
+
+        // Format v27+ extensions — Orders
+        serialization("OrderItem") { $0.orderItems ?? [] }
     ]
 
     /// Every entity name this writer can serialize, in archive order. The

@@ -191,7 +191,8 @@ enum BackupPreviewAnalyzer {
             "BookClubSession": payload.bookClubSessions?.count ?? 0,
             "BookClubMeeting": payload.bookClubMeetings?.count ?? 0,
             "Guardian": payload.guardians?.count ?? 0,
-            "ParentCommunication": payload.parentCommunications?.count ?? 0
+            "ParentCommunication": payload.parentCommunications?.count ?? 0,
+            "OrderItem": payload.orderItems?.count ?? 0
         ]
     }
 

@@ -54,6 +54,8 @@ extension RootView {
         case thisWeeksParsha
         case parshaCalendar
 
+        case orders
+
         var id: Self { self }
 
         /// Cases kept only so a saved raw value still decodes; each renders as
@@ -104,6 +106,7 @@ extension RootView {
             case .settings:            return ("Settings", "gear")
             case .thisWeeksParsha:     return ("This Week’s Parsha", "book.closed")
             case .parshaCalendar:      return ("Parsha Calendar", "calendar")
+            case .orders:              return ("Orders", "cart")
             }
         }
 
@@ -148,6 +151,8 @@ extension RootView {
                 return "View this week’s Torah portion, its passages, topics, and related lessons"
             case .parshaCalendar:
                 return "Annual calendar of every Shabbat and its parsha for the current Hebrew year"
+            case .orders:
+                return "Request classroom orders from the office and track them until they arrive"
             }
         }
 

@@ -141,7 +141,8 @@ extension CoreDataStack {
         "AlbumRecentVisit",
         "AlbumReadingPosition",
         "AlbumHighlight",
-        "AlbumPageInk"
+        "AlbumPageInk",
+        "OrderItem"
     ]
 
     /// Entities left in the model on purpose, belonging to no store.

@@ -37,6 +37,10 @@ nonisolated enum BackupPreferencesService {
         "AttendanceEmail.nameOrder",
         "AttendanceEmail.groupByLevel",
         "Attendance.sortKey",
+        // Order requests (synced)
+        "Orders.recipientName",
+        "Orders.recipientEmail",
+        "Orders.signOffName",
         // Age indicators (synced)
         "LessonAge.warningDays",
         "LessonAge.overdueDays",

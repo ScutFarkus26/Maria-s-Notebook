@@ -135,6 +135,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case guardians, parentCommunications
         case albumBookmarks, albumPageNotes, albumRecentVisits
         case albumReadingPositions, albumHighlights, albumPageInk
+        case orderItems
         case preferences
     }
 
@@ -271,6 +272,9 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     public var albumReadingPositions: [AlbumReadingPositionDTO]?
     public var albumHighlights: [AlbumHighlightDTO]?
     public var albumPageInk: [AlbumPageInkDTO]?
+
+    // Orders (format v27+)
+    public var orderItems: [OrderItemDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

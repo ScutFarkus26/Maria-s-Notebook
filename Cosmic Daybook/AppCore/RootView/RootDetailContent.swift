@@ -36,7 +36,7 @@ struct RootDetailContent: View {
                  .planningAgenda,
                  .planningProjects, .smallSequencePlanner:
                 curriculumContent
-            case .todos, .planningCalendar, .perpetualCalendar:
+            case .todos, .orders, .planningCalendar, .perpetualCalendar:
                 planningContent
             case .progressDashboard, .curriculumMap, .lessonRecall:
                 progressContent
@@ -65,6 +65,7 @@ struct RootDetailContent: View {
     private var planningContent: some View {
         switch item {
         case .todos: TodoMainView()
+        case .orders: OrdersView()
         case .planningCalendar, .perpetualCalendar: PlanningCalendarView()
         default: EmptyView()
         }

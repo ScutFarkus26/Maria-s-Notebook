@@ -331,6 +331,11 @@ extension SettingsView {
                 ParentReportsSettingsView()
                     .frame(maxWidth: .infinity)
             }
+
+            SettingsGroup(title: "Order Requests", systemImage: "cart.fill") {
+                OrderRequestSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 

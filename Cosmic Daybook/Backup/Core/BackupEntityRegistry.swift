@@ -111,7 +111,9 @@ struct BackupEntityRegistry {
         CDAlbumRecentVisit.self,
         CDAlbumReadingPosition.self,
         CDAlbumHighlight.self,
-        CDAlbumPageInk.self
+        CDAlbumPageInk.self,
+        // Orders (format v27+)
+        CDOrderItem.self
     ]
 
     /// Entity types listed in `allTypes` for schema completeness but NOT yet

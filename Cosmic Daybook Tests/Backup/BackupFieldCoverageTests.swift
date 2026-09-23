@@ -656,7 +656,8 @@ final class BackupFieldCoverageTests {
         ),
         // Pencil ink is the one binary blob carried through a backup verbatim:
         // unlike thumbnails it is user-authored and cannot be regenerated.
-        FieldSpec("AlbumPageInk")
+        FieldSpec("AlbumPageInk"),
+        FieldSpec("OrderItem")
     ]
 
     // MARK: Tests

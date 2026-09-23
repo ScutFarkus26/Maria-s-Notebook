@@ -134,6 +134,7 @@ extension BackupService {
         try importV18Entities(from: payload, into: viewContext, index: index)
         importV20Entities(from: payload, into: viewContext, index: index)
         importV21Entities(from: payload, into: viewContext, index: index)
+        importV27Entities(from: payload, into: viewContext, index: index)
 
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
@@ -938,6 +939,21 @@ extension BackupService {
                 ink,
                 into: viewContext,
                 existing: { try index.existing(CDAlbumPageInk.self, id: $0) }
+            )
+        }
+    }
+
+    /// v27+ entities: Orders.
+    private func importV27Entities(
+        from payload: BackupPayload,
+        into viewContext: NSManagedObjectContext,
+        index: BackupEntityIndex
+    ) {
+        if let orderItems = payload.orderItems {
+            BackupEntityImporter.importOrderItems(
+                orderItems,
+                into: viewContext,
+                existing: { try index.existing(CDOrderItem.self, id: $0) }
             )
         }
     }

@@ -415,6 +415,8 @@ enum BackupPayloadDeduplicator {
         result.albumReadingPositions = payload.albumReadingPositions.map { uniqueBy($0) { $0.id } }
         result.albumHighlights = payload.albumHighlights.map { uniqueBy($0) { $0.id } }
         result.albumPageInk = payload.albumPageInk.map { uniqueBy($0) { $0.id } }
+        // Format v27+ entity deduplication
+        result.orderItems = payload.orderItems.map { uniqueBy($0) { $0.id } }
 
         return result
     }

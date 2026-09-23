@@ -68,7 +68,7 @@ struct NavigationGroupTests {
 
     @Test("Every raw value is byte-identical to what saved scenes hold")
     func rawValuesArePinned() {
-        #expect(NavigationItem.allCases.count == 33)
+        #expect(NavigationItem.allCases.count == 34)
         #expect(NavigationItem.today.rawValue == "today")
         #expect(NavigationItem.attendance.rawValue == "attendance")
         #expect(NavigationItem.note.rawValue == "note")
@@ -102,6 +102,7 @@ struct NavigationGroupTests {
         #expect(NavigationItem.settings.rawValue == "settings")
         #expect(NavigationItem.thisWeeksParsha.rawValue == "thisWeeksParsha")
         #expect(NavigationItem.parshaCalendar.rawValue == "parshaCalendar")
+        #expect(NavigationItem.orders.rawValue == "orders")
         #expect(Restorer.retiredOpenWorkNavItemRaw == "planningWork")
         #expect(Restorer.retiredNeedsLessonNavItemRaw == "needsLesson")
     }

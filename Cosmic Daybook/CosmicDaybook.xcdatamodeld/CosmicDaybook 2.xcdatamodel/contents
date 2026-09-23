@@ -1280,4 +1280,19 @@
             <fetchIndexElement property="albumID" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
+    <!-- ==================== OrderItem ==================== -->
+    <entity name="OrderItem" representedClassName="CDOrderItem" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="urlString" attributeType="String" defaultValueString=""/>
+        <attribute name="title" attributeType="String" defaultValueString=""/>
+        <attribute name="quantity" attributeType="Integer 64" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="notes" attributeType="String" defaultValueString=""/>
+        <attribute name="requestID" optional="YES" attributeType="String"/>
+        <attribute name="requestedFrom" attributeType="String" defaultValueString=""/>
+        <attribute name="requestedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="confirmedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="receivedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

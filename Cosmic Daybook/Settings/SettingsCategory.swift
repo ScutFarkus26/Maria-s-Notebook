@@ -22,7 +22,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .classroom: return "Sharing, roles & members"
         case .backup: return "Export, restore & auto-backup"
         case .templates: return "Note & meeting templates"
-        case .communication: return "Attendance email settings"
+        case .communication: return "Attendance email, parent reports & order requests"
         case .aiFeatures: return "Apple Intelligence & optional models"
         case .database: return "Record counts & statistics"
         case .advanced: return "Testing & debug tools"
@@ -64,7 +64,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .classroom: return "classroom sharing invite assistant guide role members"
         case .backup: return "backup restore data management export import"
         case .templates: return "templates note meeting"
-        case .communication: return "communication attendance email"
+        case .communication: return "communication attendance email parent reports orders office request"
         case .aiFeatures:
             return "ai features claude api lesson planning assistant model apple on device private cloud local"
         case .database: return "database statistics records overview storage"
@@ -105,7 +105,8 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
             ]
         case .communication:
             return [
-                "Attendance Email", "Email To", "Email From", "Enable Email"
+                "Attendance Email", "Email To", "Email From", "Enable Email",
+                "Order Requests", "Office Email", "Sign Off"
             ]
         case .aiFeatures:
             return [

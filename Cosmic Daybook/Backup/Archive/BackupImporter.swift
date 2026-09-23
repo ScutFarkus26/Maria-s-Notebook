@@ -247,6 +247,9 @@ enum BackupImporter {
             $0.albumReadingPositions = try decodeAll(AlbumReadingPositionDTO.self, $1, $2)
         },
         "AlbumHighlight": { $0.albumHighlights = try decodeAll(AlbumHighlightDTO.self, $1, $2) },
-        "AlbumPageInk": { $0.albumPageInk = try decodeAll(AlbumPageInkDTO.self, $1, $2) }
+        "AlbumPageInk": { $0.albumPageInk = try decodeAll(AlbumPageInkDTO.self, $1, $2) },
+
+        // Format v27+ extensions — Orders
+        "OrderItem": { $0.orderItems = try decodeAll(OrderItemDTO.self, $1, $2) }
     ]
 }

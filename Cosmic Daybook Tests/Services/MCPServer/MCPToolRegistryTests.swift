@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 86)
+        #expect(names.count == 89)
         #expect(Set(names).count == names.count)
 
         let encoder = JSONEncoder()
@@ -39,7 +39,7 @@ struct MCPToolRegistryTests {
     /// is a red test rather than a silently softened permission prompt.
     private static let writingTools: Set<String> = [
         // creates
-        "add_follow_up", "add_project_session", "adjust_supply", "assign_work",
+        "add_follow_up", "add_order_items", "add_project_session", "adjust_supply", "assign_work",
         "create_lesson", "create_meeting_entry", "create_observation",
         "record_parent_communication", "record_presentation", "schedule_meeting",
         "schedule_presentation",
@@ -49,7 +49,7 @@ struct MCPToolRegistryTests {
         "update_going_out", "update_guardian", "update_issue", "update_lesson",
         "update_observation", "update_presentation_roster", "update_project",
         "update_student", "update_todo", "update_work", "update_year_plan_entry",
-        "set_school_days", "update_school_calendar",
+        "set_school_days", "update_school_calendar", "update_order_items",
         // deletes and retirements
         "clear_year_plan", "discard_presentation", "remove_student_from_work",
         "skip_year_plan_entries",

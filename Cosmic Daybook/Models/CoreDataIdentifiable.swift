@@ -52,6 +52,7 @@ nonisolated extension CDAlbumRecentVisit: Identifiable {}
 nonisolated extension CDAlbumReadingPosition: Identifiable {}
 nonisolated extension CDAlbumHighlight: Identifiable {}
 nonisolated extension CDAlbumPageInk: Identifiable {}
+nonisolated extension CDOrderItem: Identifiable {}
 
 // MARK: - CD short name convenience aliases
 

@@ -64,7 +64,9 @@ extension CoreDataStack {
     /// - `6` — `Lesson.isKeyLesson`: the milestone flag the Three-Year View
     ///   filters on, so a child's grid shows key lessons rather than every
     ///   sub-step. Additive Boolean, default NO.
-    nonisolated static let currentSchemaVersion = 6
+    /// - `7` — `OrderItem`: a link the guide asks the office to order, followed
+    ///   through asked for / confirmed / received. New private-store entity.
+    nonisolated static let currentSchemaVersion = 7
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

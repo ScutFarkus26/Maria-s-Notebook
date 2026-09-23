@@ -39,6 +39,7 @@ extension BackupService {
         collectV18DTOs(into: &payload, using: viewContext, progress: progress)
         collectV20DTOs(into: &payload, using: viewContext, progress: progress)
         collectV21DTOs(into: &payload, using: viewContext, progress: progress)
+        collectOrderDTOs(into: &payload, using: viewContext)
 
         return payload
     }

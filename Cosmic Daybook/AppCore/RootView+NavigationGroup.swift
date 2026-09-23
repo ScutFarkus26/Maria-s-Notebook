@@ -22,7 +22,7 @@ extension RootView {
 
         static let all: [NavigationGroup] = [
             .init(id: .today, title: "Today",
-                  items: [.today, .todos],
+                  items: [.today, .todos, .orders],
                   isExpandedByDefault: true),
             .init(id: .children, title: "Children",
                   items: [.students, .attendance, .meetings, .parentReports, .progressDashboard],

@@ -53,7 +53,7 @@ struct StoreMigrationTests {
     /// one cannot leave a dangling destination. `removedEntitiesHaveNoRelationships`
     /// enforces that rather than trusting this comment.
     private static let entitiesAddedLater: Set<String> = [
-        "Guardian", "AlbumBookmark", "AlbumHighlight"
+        "Guardian", "AlbumBookmark", "AlbumHighlight", "OrderItem"
     ]
     private static let attributesAddedLater: [String: Set<String>] = [
         "Lesson": ["albumID", "albumPageIndex", "isKeyLesson"],

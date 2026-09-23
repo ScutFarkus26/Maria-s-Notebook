@@ -56,6 +56,11 @@ public final class SyncedPreferencesStore {
 
         // Attendance
         "Attendance.sortKey",
+
+        // Order requests
+        "Orders.recipientName",
+        "Orders.recipientEmail",
+        "Orders.signOffName",
         
         // CDLesson Age Settings
         "LessonAge.warningDays",
