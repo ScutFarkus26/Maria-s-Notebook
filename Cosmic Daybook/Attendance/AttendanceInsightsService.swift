@@ -105,8 +105,12 @@ enum AttendanceInsightsService {
         students: [CDStudent],
         context: NSManagedObjectContext
     ) -> AttendanceClassSummary {
+        classSummary(records: fetchRecords(in: range, context: context, fetchLabel: "classSummary"), students: students)
+    }
+
+    /// `classSummary(in:students:context:)` over records already read for the range.
+    static func classSummary(records: [CDAttendanceRecord], students: [CDStudent]) -> AttendanceClassSummary {
         let studentIDs = Set(students.map(\.cloudKitKey))
-        let records = fetchRecords(in: range, context: context, fetchLabel: "classSummary")
 
         var summary = AttendanceClassSummary()
         var daysWithMarks: Set<Date> = []
@@ -147,18 +151,7 @@ enum AttendanceInsightsService {
         context: NSManagedObjectContext,
         fetchLabel: String
     ) -> [CDAttendanceRecord] {
-        let start = AppCalendar.startOfDay(range.lowerBound)
-        let end = AppCalendar.startOfDay(range.upperBound)
-        let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "date >= %@ AND date <= %@", start as NSDate, end as NSDate)
-        do {
-            return try context.fetch(request).deduplicatedPerStudentDay()
-        } catch {
-            let label = fetchLabel
-            let message = error.localizedDescription
-            logger.warning("\(label, privacy: .public) fetch failed: \(message, privacy: .public)")
-            return []
-        }
+        fetchRawRecords(in: [range], context: context, fetchLabel: fetchLabel).deduplicatedPerStudentDay()
     }
 }
 
@@ -174,9 +167,24 @@ extension AttendanceInsightsService {
         limit: Int = 5
     ) -> [AttendanceWatchListEntry] {
         let end = AppCalendar.startOfDay(range.upperBound)
-        let (absentByID, tardyByID) = tallyAbsencesAndTardies(in: range, context: context)
+        let records = fetchRecords(in: range, context: context, fetchLabel: "watchList")
         let patternRange = patternDayRange(endingAt: end, count: 10, context: context)
         let patternRecords = recentPatternRecords(in: patternRange, context: context)
+        return watchList(
+            records: records, students: students,
+            patternDays: patternRange, patternRecords: patternRecords, limit: limit
+        )
+    }
+
+    /// `watchList(in:…)` over records already read for the range and the pattern days.
+    static func watchList(
+        records: [CDAttendanceRecord],
+        students: [CDStudent],
+        patternDays patternRange: [Date],
+        patternRecords: [CDAttendanceRecord],
+        limit: Int
+    ) -> [AttendanceWatchListEntry] {
+        let (absentByID, tardyByID) = tallyAbsencesAndTardies(records)
 
         let candidates: [AttendanceWatchListEntry] = students.compactMap { student in
             buildWatchEntry(
@@ -195,10 +203,8 @@ extension AttendanceInsightsService {
     }
 
     private static func tallyAbsencesAndTardies(
-        in range: ClosedRange<Date>,
-        context: NSManagedObjectContext
+        _ records: [CDAttendanceRecord]
     ) -> (absent: [String: Int], tardy: [String: Int]) {
-        let records = fetchRecords(in: range, context: context, fetchLabel: "watchList")
         var absentByID: [String: Int] = [:]
         var tardyByID: [String: Int] = [:]
         for record in records {
@@ -254,13 +260,22 @@ extension AttendanceInsightsService {
         students: [CDStudent],
         context: NSManagedObjectContext
     ) -> [AttendanceRecentActivityEntry] {
-        let nameByID: [String: String] = students.reduce(into: [:]) { acc, student in
-            acc[student.cloudKitKey] = student.fullName
-        }
-
         let schoolDays = recentSchoolDays(endingAt: endDate, count: dayCount, context: context)
         guard let earliest = schoolDays.last, let latest = schoolDays.first else { return [] }
         let records = fetchRecords(in: earliest...latest, context: context, fetchLabel: "recentActivity")
+        return recentActivity(schoolDays: schoolDays, records: records, students: students)
+    }
+
+    /// `recentActivity(endingAt:…)` over the school days and the records already read for them.
+    static func recentActivity(
+        schoolDays: [Date],
+        records: [CDAttendanceRecord],
+        students: [CDStudent]
+    ) -> [AttendanceRecentActivityEntry] {
+        guard !schoolDays.isEmpty else { return [] }
+        let nameByID: [String: String] = students.reduce(into: [:]) { acc, student in
+            acc[student.cloudKitKey] = student.fullName
+        }
 
         var byDay: [Date: [CDAttendanceRecord]] = [:]
         for record in records {
@@ -278,7 +293,7 @@ extension AttendanceInsightsService {
         return entries
     }
 
-    private static func recentSchoolDays(
+    static func recentSchoolDays(
         endingAt endDate: Date,
         count: Int,
         context: NSManagedObjectContext

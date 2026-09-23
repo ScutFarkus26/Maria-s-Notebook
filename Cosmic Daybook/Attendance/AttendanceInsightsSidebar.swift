@@ -143,14 +143,18 @@ struct AttendanceInsightsSidebar: View {
     private func reloadAll() {
         let range = timeframe.range(endingAt: referenceDate)
         let priorRange = timeframe.priorRange(for: range)
-        summary = AttendanceInsightsService.classSummary(in: range, students: students, context: viewContext)
-        priorSummary = AttendanceInsightsService.classSummary(in: priorRange, students: students, context: viewContext)
-        watchList = AttendanceInsightsService.watchList(in: range, students: students, context: viewContext, limit: 5)
-        recentActivity = AttendanceInsightsService.recentActivity(
-            endingAt: range.upperBound,
-            dayCount: 5,
+        // One read for all four cards (was five, the current range twice).
+        let insights = AttendanceInsightsService.sidebarInsights(
+            range: range,
+            priorRange: priorRange,
             students: students,
-            context: viewContext
+            context: viewContext,
+            watchListLimit: 5,
+            recentDayCount: 5
         )
+        summary = insights.summary
+        priorSummary = insights.priorSummary
+        watchList = insights.watchList
+        recentActivity = insights.recentActivity
     }
 }
