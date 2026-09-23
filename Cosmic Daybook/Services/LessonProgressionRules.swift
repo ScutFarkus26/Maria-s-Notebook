@@ -32,6 +32,18 @@ nonisolated struct LessonProgressionRules {
         for lesson: CDLesson,
         context: NSManagedObjectContext
     ) -> ResolvedRules {
+        resolve(for: lesson) {
+            CDLessonSequenceSettings.find(area: lesson.area, sequence: lesson.sequence, context: context)
+        }
+    }
+
+    /// Same resolution, with the group-settings lookup supplied by the caller —
+    /// a loop over many lessons passes a memoised `find` so lessons sharing an
+    /// area + sequence share one fetch. The lookup runs only when a gate inherits.
+    static func resolve(
+        for lesson: CDLesson,
+        groupSettingsLookup: () -> CDLessonSequenceSettings?
+    ) -> ResolvedRules {
         let practiceOverride = lesson.practiceOverride
         let confirmOverride = lesson.confirmationOverride
 
@@ -45,11 +57,7 @@ nonisolated struct LessonProgressionRules {
         }
 
         // Look up sequence settings
-        let groupSettings = CDLessonSequenceSettings.find(
-            area: lesson.area,
-            sequence: lesson.sequence,
-            context: context
-        )
+        let groupSettings = groupSettingsLookup()
 
         let practice: Bool
         let confirmation: Bool
