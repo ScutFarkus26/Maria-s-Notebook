@@ -105,6 +105,18 @@ final class CloudKitSyncStatusService {
     var pendingSaveTask: Task<Void, Never>?
     var pendingStoreChangeTask: Task<Void, Never>?
 
+    /// A `lastSuccessfulSync` not yet written to UserDefaults. The defaults
+    /// copy is only read at launch (initial health, the first-import overlay),
+    /// so it is written at most once per `syncDatePersistInterval`, plus when
+    /// the app backgrounds or quits (see `recordSuccessfulSync`).
+    @ObservationIgnored var unpersistedSyncDate: Date?
+    /// When the defaults copy of `lastSuccessfulSync` was last written.
+    @ObservationIgnored var syncDatePersistedAt: Date?
+    /// Writes `unpersistedSyncDate` once its interval is up.
+    @ObservationIgnored var syncDatePersistTask: Task<Void, Never>?
+    @ObservationIgnored var lifecycleObservers: [any NSObjectProtocol] = []
+    static let syncDatePersistInterval: Duration = .seconds(60)
+
     /// Debounce that clears `isImportingFromCloud` once CloudKit import activity
     /// goes quiet. (Re)armed by `noteCloudImportActivity()`.
     var cloudImportDebounceTask: Task<Void, Never>?
@@ -168,6 +180,8 @@ final class CloudKitSyncStatusService {
                 self.handleICloudAccountChange(isAvailable: isAvailable)
             }
         }
+
+        observeLifecycleForSyncDateFlush()
 
         // Update health status after initialization
         updateSyncHealth()
@@ -253,13 +267,10 @@ final class CloudKitSyncStatusService {
 
             // Update success state
             let now = Date()
-            lastSuccessfulSync = now
             lastSyncError = nil
             SyncEventLogger.shared.log("cloudkit", status: "success", message: "Sync completed successfully")
-            UserDefaults.standard.set(
-                now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
-            )
-            UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            // User-initiated: written through at once, as before.
+            recordSuccessfulSync(at: now, persistNow: true)
 
             // Keep syncing indicator briefly to show activity
             do {

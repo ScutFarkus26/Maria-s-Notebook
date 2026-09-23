@@ -2,6 +2,11 @@ import Foundation
 import SwiftUI
 import CoreData
 import os
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 // MARK: - Event Handlers
 
@@ -132,7 +137,7 @@ extension CloudKitSyncStatusService {
         // toolbar indicators observe this service — so write only real changes.
         SyncEventLogger.shared.log("cloudkit", status: "success", message: "Remote changes received")
         let now = Date()
-        lastSuccessfulSync = now
+        recordSuccessfulSync(at: now)
         if lastSyncError != nil { lastSyncError = nil }
         if isSyncing { isSyncing = false }
         if currentOperation != nil { currentOperation = nil }
@@ -142,10 +147,6 @@ extension CloudKitSyncStatusService {
         retryLogic.resetRetryCount()
         syncingTask?.cancel()
         syncingTask = nil
-
-        // Persist
-        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
 
         // If an import is in flight, this remote change is part of its incoming
         // stream — keep the "Syncing from iCloud…" overlay alive until it quiets.
@@ -248,7 +249,7 @@ extension CloudKitSyncStatusService {
         case .export: typeDescription = "Export"
         @unknown default: typeDescription = "Unknown"
         }
-        currentOperation = nil
+        if currentOperation != nil { currentOperation = nil }
         // Don't clear `isImportingFromCloud` on the event boundary — the brief
         // event is finished but the record stream it started keeps arriving.
         // Re-arm the debounce so the overlay rides the incoming changes and
@@ -298,8 +299,9 @@ extension CloudKitSyncStatusService {
         }
 
         let now = Date()
-        lastSuccessfulSync = now
-        lastOperation = "\(typeDescription) completed"
+        recordSuccessfulSync(at: now)
+        let operation = "\(typeDescription) completed"
+        if lastOperation != operation { lastOperation = operation }
         lastOperationDate = now
         if lastSyncError != nil { lastSyncError = nil }
         if pendingSyncCount != 0 { pendingSyncCount = 0 }
@@ -308,11 +310,64 @@ extension CloudKitSyncStatusService {
         syncingTask?.cancel()
         syncingTask = nil
         if isSyncing { isSyncing = false }
+    }
 
-        UserDefaults.standard.set(
-            now.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
-        )
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+    // MARK: - Persisted sync state
+
+    /// Records a successful sync: the observable date moves at once, the
+    /// stored error key is removed only if one is stored, and the defaults
+    /// copy of the date — read only at the next launch — is written at most
+    /// once a minute (plus on background / quit). The first success of a
+    /// session is written straight away, so a device's first-ever sync is
+    /// on disk before anything could lose it.
+    func recordSuccessfulSync(at date: Date, persistNow: Bool = false) {
+        lastSuccessfulSync = date
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: UserDefaultsKeys.cloudKitLastSyncError) != nil {
+            defaults.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+        }
+        unpersistedSyncDate = date
+        guard !persistNow, syncDatePersistedAt != nil else {
+            flushPersistedSyncDate()
+            return
+        }
+        guard syncDatePersistTask == nil else { return }
+        syncDatePersistTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.syncDatePersistInterval)
+            guard !Task.isCancelled else { return }
+            self?.flushPersistedSyncDate()
+        }
+    }
+
+    /// Writes a pending `lastSuccessfulSync` to UserDefaults now.
+    func flushPersistedSyncDate() {
+        syncDatePersistTask?.cancel()
+        syncDatePersistTask = nil
+        guard let date = unpersistedSyncDate else { return }
+        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: UserDefaultsKeys.cloudKitLastSuccessfulSyncDate)
+        syncDatePersistedAt = date
+        unpersistedSyncDate = nil
+    }
+
+    /// Flushes the pending date when the app backgrounds or quits, so the
+    /// next launch reads the same value it would have with write-through.
+    func observeLifecycleForSyncDateFlush() {
+        #if os(iOS)
+        let names: [Notification.Name] = [
+            UIApplication.didEnterBackgroundNotification, UIApplication.willTerminateNotification
+        ]
+        #elseif os(macOS)
+        let names: [Notification.Name] = [
+            NSApplication.willResignActiveNotification, NSApplication.willTerminateNotification
+        ]
+        #else
+        let names: [Notification.Name] = []
+        #endif
+        lifecycleObservers = names.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.flushPersistedSyncDate() }
+            }
+        }
     }
 
     private func handleFailedCloudKitEvent(
@@ -371,7 +426,7 @@ extension CloudKitSyncStatusService {
         }
         lastOperation = "\(typeDescription) failed"
         lastOperationDate = Date()
-        isSyncing = false
+        if isSyncing { isSyncing = false }
         syncingTask?.cancel()
         syncingTask = nil
         UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
