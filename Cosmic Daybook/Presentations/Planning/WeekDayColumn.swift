@@ -28,6 +28,9 @@ struct WeekDayColumn: View {
 
     let day: Date
     let allLessonAssignments: [CDLessonAssignment]
+    /// This day's pending presentations, already filtered and ordered by the
+    /// parent (`WeekPlanSection.scheduledByDay`) for every column at once.
+    let scheduledLessons: [CDLessonAssignment]
     /// The curriculum and the roster, fetched once by `WeekPlanSection` for the
     /// whole strip. Every card on the day reads these arrays; before they were
     /// threaded through, each card ran its own unpredicated fetch of both
@@ -48,7 +51,15 @@ struct WeekDayColumn: View {
     /// What a check-in pill's right-click menu can do — see WeekDayColumn+Bands.
     let pillActions: WorkCheckPillActions
 
-    @State var itemFrames: [UUID: CGRect] = [:]
+    /// Card frames, written after every layout pass but read only by the drop
+    /// delegate and the mid-drag insertion bar. Kept in a reference box rather
+    /// than in `@State`: writing state from layout forced a second render of
+    /// the whole column after every render.
+    @State var itemFrameBox = WeekDayPillFrameBox()
+    /// Bumped when the frames move while the insertion bar is showing, so the
+    /// bar follows them the way it did when the frames were state.
+    @State var itemFrameRevision = 0
+    var itemFrames: [UUID: CGRect] { itemFrameBox.frames }
     /// The pill whose "Pick a Day…" calendar is up.
     @State var reschedulingGroupID: UUID?
     @State var zoneSpaceID = UUID()
@@ -61,15 +72,7 @@ struct WeekDayColumn: View {
     }
 
     var scheduledLessonsForDay: [CDLessonAssignment] {
-        guard visibleKinds.showsPresentations else { return [] }
-        return allLessonAssignments.filter { la in
-            guard let scheduled = la.scheduledFor, !la.isGiven else { return false }
-            return calendar.isDate(scheduled, inSameDayAs: day)
-        }
-        // Swift's sort is not stable, and every legacy row still sits at
-        // midnight — without a tiebreak the whole day is one tie and the order
-        // reshuffles on any refetch or CloudKit merge.
-        .sorted(by: LessonAssignmentOrdering.isOrderedBefore)
+        visibleKinds.showsPresentations ? scheduledLessons : []
     }
 
     var visibleCheckInGroups: [CalendarCheckInGroup] {
@@ -137,7 +140,8 @@ struct WeekDayColumn: View {
                     // PreferenceKey updates land during layout, so defer the
                     // state write or SwiftUI re-enters layout.
                     Task { @MainActor in
-                        itemFrames = frames
+                        itemFrameBox.frames = frames
+                        if insertionIndex != nil { itemFrameRevision &+= 1 }
                     }
                 }
                 .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control))
@@ -227,6 +231,11 @@ struct WeekDayColumn: View {
             insertionIndicator
         }
     }
+}
+
+/// Holds a day column's card frames without making them observable state.
+final class WeekDayPillFrameBox {
+    var frames: [UUID: CGRect] = [:]
 }
 
 /// Reports each presentation card's frame so the drop delegate can compute an

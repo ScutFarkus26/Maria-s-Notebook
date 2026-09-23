@@ -242,6 +242,10 @@ extension WeekDayColumn {
 
     @ViewBuilder
     var insertionIndicator: some View {
+        // Read so a frame move mid-drag redraws the bar (the frames themselves
+        // live in an unobserved box).
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = itemFrameRevision
         // Nothing to insert into when the Show filter has hidden presentations,
         // and the bar would otherwise draw across the work lane.
         if let idx = insertionIndex, visibleKinds.showsPresentations {
