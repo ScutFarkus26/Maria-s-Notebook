@@ -23,14 +23,53 @@ struct FollowingPresentationsView: View {
         predicate: NSPredicate(format: "followUpActionRaw != nil AND followUpResolvedAt == nil"),
         animation: .default
     ) private var rows: FetchedResults<CDLessonPresentation>
-    @FetchRequest(sortDescriptors: []) private var assignments: FetchedResults<CDLessonAssignment>
 
-    private var groups: [FollowingPresentationGroup] {
-        FollowingPresentationsService.groups(
-            rows: Array(rows),
-            assignments: Array(assignments),
-            lessons: dependencies.lessonCatalog.all,
-            students: dependencies.roster.all,
+    /// Built once per change to `groupInputs` (and on assignment, lesson,
+    /// student or school-calendar changes) rather than on every `body` pass:
+    /// the grouping dedupes, groups, sorts and counts school days, and the
+    /// Today style reads the result up to eight times per render.
+    @State private var groups: [FollowingPresentationGroup] = []
+    @State private var lookupChangeToken = 0
+
+    /// Everything the groups are built from that `body` can see: the open
+    /// rows' fields the grouping reads, the filters, and today's date (the
+    /// school-day age is counted to it).
+    private struct GroupInputs: Equatable {
+        let rows: [FollowingRowSnapshot]
+        let studentID: UUID?
+        let searchText: String
+        let searchTokens: [String]
+        let day: Date
+        let lookupChangeToken: Int
+    }
+
+    private var groupInputs: GroupInputs {
+        GroupInputs(
+            rows: rows.map { row in
+                FollowingRowSnapshot(
+                    objectID: row.objectID, id: row.id, presentationID: row.presentationID,
+                    studentID: row.studentID, lessonID: row.lessonID,
+                    presentedAt: row.presentedAt, createdAt: row.createdAt,
+                    followUpActionRaw: row.followUpActionRaw, followUpResolvedAt: row.followUpResolvedAt,
+                    followUpReviewAt: row.followUpReviewAt, followUpUpdatedAt: row.followUpUpdatedAt,
+                    lastObservedAt: row.lastObservedAt
+                )
+            },
+            studentID: studentID,
+            searchText: searchText,
+            searchTokens: searchTokens,
+            day: AppCalendar.startOfDay(Date()),
+            lookupChangeToken: lookupChangeToken
+        )
+    }
+
+    private func rebuildGroups() {
+        let rows = Array(rows)
+        groups = FollowingPresentationsService.groups(
+            rows: rows,
+            assignmentByID: FollowingPresentationsService.assignmentsReferenced(by: rows, in: viewContext),
+            lessonByID: dependencies.lessonCatalog.byID,
+            studentByID: dependencies.roster.byID,
             studentID: studentID,
             searchText: searchText,
             searchTokens: searchTokens,
@@ -39,6 +78,20 @@ struct FollowingPresentationsView: View {
     }
 
     var body: some View {
+        content
+            .onChange(of: groupInputs, initial: true) { _, _ in
+                rebuildGroups()
+            }
+            .onPresentationDataChange(of: ["LessonAssignment", "Lesson", "Student"], in: viewContext) { _ in
+                lookupChangeToken &+= 1
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .schoolDayDataDidChange)) { _ in
+                lookupChangeToken &+= 1
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch style {
         case .full:
             fullContent
@@ -242,4 +295,20 @@ private struct FollowingPresentationCard: View {
     private var accessibilityLabel: String {
         "Follow \(group.lessonName) for \(group.childNames). \(group.actionSummary). \(timingText)."
     }
+}
+
+/// The fields of one open follow-up row the grouping reads.
+private struct FollowingRowSnapshot: Equatable {
+    let objectID: NSManagedObjectID
+    let id: UUID?
+    let presentationID: String?
+    let studentID: String
+    let lessonID: String
+    let presentedAt: Date?
+    let createdAt: Date?
+    let followUpActionRaw: String?
+    let followUpResolvedAt: Date?
+    let followUpReviewAt: Date?
+    let followUpUpdatedAt: Date?
+    let lastObservedAt: Date?
 }

@@ -79,16 +79,6 @@ struct TodayView: View {
     @State var dayCardsRefreshTrigger: Int = 0
     @State var needsLessonCount: Int = 0
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
-        predicate: NSPredicate(format: "isCompleted == NO")
-    ) var todayTodoItems: FetchedResults<CDTodoItem>
-
-    // MARK: - Filtered Query State
-    // ENERGY OPTIMIZATION: Filter change detection queries to only the relevant date window
-    @State var filteredPresentationIDs: [UUID] = []
-    @State var filteredPlanItemIDs: [UUID] = []
-
     // MARK: - Day Rollover
     /// The school-day-coerced date that currently represents "today".
     /// When the calendar day changes we only auto-advance `viewModel.date`
@@ -309,6 +299,8 @@ struct TodayView: View {
     // PERF: Structured concurrency — async let runs both syncs in parallel
     // while inheriting .task cancellation (no more fire-and-forget Task blocks).
     private func handleViewAppear() async {
+        viewModel.lessonCatalog = dependencies.lessonCatalog
+        viewModel.invalidateReadyForNext()
         viewModel.setCalendar(calendar)
         async let reminderSync: Void = syncReminders()
         async let calendarSync: Void = syncCalendarEvents()
@@ -320,7 +312,6 @@ struct TodayView: View {
             todayAnchor = AppCalendar.startOfDay(coerced)
         }
         handleDayChange()
-        updateFilteredQueries()
         reloadDerivedCounts()
         // Await both syncs — cancellation propagates automatically when view disappears
         _ = await (reminderSync, calendarSync)
@@ -388,7 +379,6 @@ struct TodayView: View {
             return
         }
 
-        updateFilteredQueries()
         reloadDerivedCounts()
     }
 

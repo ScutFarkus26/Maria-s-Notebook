@@ -81,8 +81,10 @@ extension StudentsView {
     // OPTIMIZATION: Use cached version instead of recomputing on every view update
     var daysSinceLastLessonByStudent: [UUID: Int] { viewModel.cachedDaysSinceLastLesson }
 
+    /// Memoized per query until a Student changes (`StudentsViewModel+Memo`):
+    /// the sidebar and grid read this four to six times per render.
     var filteredStudents: [CDStudent] {
-        let base = viewModel.filteredStudents(
+        let base = viewModel.memoizedFilteredStudents(
             viewContext: viewContext,
             filter: selectedFilter,
             sortOrder: sortOrder,
@@ -109,7 +111,7 @@ extension StudentsView {
     /// Former students (withdrawn or transferred) for the collapsible section at the
     /// bottom of the roster. Searching the roster also matches former students.
     var withdrawnStudents: [CDStudent] {
-        viewModel.filteredStudents(
+        viewModel.memoizedFilteredStudents(
             viewContext: viewContext,
             filter: .withdrawn,
             sortOrder: .alphabetical,

@@ -14,6 +14,20 @@ final class StudentsViewModel {
     
     // MARK: - Change Detection
     private var lastLoadTimestamp: Date = .distantPast
+
+    // MARK: - Memo State (see StudentsViewModel+Memo.swift)
+    /// Flips when a Student changes; the roster lists are refetched only then.
+    @ObservationIgnored var studentChanges: ManagedObjectChangeFlag?
+    @ObservationIgnored var studentGeneration = 0
+    @ObservationIgnored var rosterMemo: [RosterQuery: RosterMemoEntry] = [:]
+    /// Roster fetches actually run (for tests pinning the memo).
+    @ObservationIgnored var rosterFetchCount = 0
+    /// Flips when anything the table caches read changes (see `tableCacheInputEntities`).
+    @ObservationIgnored var tableCacheInputs: ManagedObjectChangeFlag?
+    /// The day and counter epoch the table caches were last built under.
+    @ObservationIgnored var tableCachesBuiltFor: TableCacheStamp?
+    /// Full table-cache builds actually run (for tests pinning the gate).
+    @ObservationIgnored var tableCacheBuildCount = 0
     
     // MARK: - Filtering & Sorting
     func filteredStudents(
@@ -201,13 +215,38 @@ final class StudentsViewModel {
         calendar: Calendar,
         students: [CDStudent]
     ) {
+        loadAttendance(viewContext: viewContext, calendar: calendar)
+        buildTableCaches(viewContext: viewContext, calendar: calendar, students: students)
+    }
+
+    /// Only today's attendance — what an attendance change can move. The
+    /// table caches are rebuilt too only when one of their own inputs changed
+    /// since the last build, or the day (or counter epoch) turned over.
+    func reloadAfterAttendanceChange(
+        viewContext: NSManagedObjectContext,
+        calendar: Calendar,
+        students: [CDStudent]
+    ) {
+        loadAttendance(viewContext: viewContext, calendar: calendar)
+        let inputsMoved = tableCacheFlag(for: viewContext).consume(pendingIn: viewContext)
+        guard inputsMoved || tableCachesBuiltFor != TableCacheStamp(calendar: calendar) else { return }
+        buildTableCaches(viewContext: viewContext, calendar: calendar, students: students)
+    }
+
+    private func loadAttendance(viewContext: NSManagedObjectContext, calendar: Calendar) {
         // Load today's attendance records for the present-now filter and row indicators
         let today = calendar.startOfDay(for: Date())
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
         let descriptor = CDFetchRequest(CDAttendanceRecord.self)
         descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", today as CVarArg, tomorrow as CVarArg)
         cachedAttendanceRecords = viewContext.safeFetch(descriptor)
+    }
 
+    private func buildTableCaches(viewContext: NSManagedObjectContext, calendar: Calendar, students: [CDStudent]) {
+        // Cleared before the build, so a change that lands during it counts.
+        _ = tableCacheFlag(for: viewContext).consume(pendingIn: viewContext)
+        tableCachesBuiltFor = TableCacheStamp(calendar: calendar)
+        tableCacheBuildCount += 1
         // Days-since-last-lesson feeds the row accessory in A–Z/manual sort
         cachedDaysSinceLastLesson = computeDaysSinceLastLessonCache(
             for: students, using: viewContext, calendar: calendar
@@ -219,8 +258,8 @@ final class StudentsViewModel {
     private func loadTableCaches(students: [CDStudent], viewContext: NSManagedObjectContext) {
         let studentIDs = Set(students.compactMap(\.id))
 
-        let lessonRequest = CDFetchRequest(CDLesson.self)
-        let lessons = viewContext.safeFetch(lessonRequest)
+        // Only the lessons some student names as next — the only ones read below.
+        let lessons = Self.nextLessons(for: students, in: viewContext)
         cachedLessons = Dictionary(
             lessons.compactMap { lesson in lesson.id.map { ($0, lesson) } },
             uniquingKeysWith: { first, _ in first }
@@ -234,29 +273,7 @@ final class StudentsViewModel {
             }
         )
 
-        let noteRequest = CDFetchRequest(CDNote.self)
-        noteRequest.predicate = NSPredicate(format: "searchIndexStudentID != nil")
-        let directNotes = viewContext.safeFetch(noteRequest)
-
-        let linkRequest: NSFetchRequest<CDNoteStudentLink> = NSFetchRequest(entityName: "NoteStudentLink")
-        linkRequest.relationshipKeyPathsForPrefetching = ["note"]
-        let links = viewContext.safeFetch(linkRequest)
-
-        var latest: [UUID: Date] = [:]
-        for note in directNotes {
-            guard let studentID = note.searchIndexStudentID,
-                  studentIDs.contains(studentID),
-                  let date = note.updatedAt ?? note.createdAt else { continue }
-            latest[studentID] = max(latest[studentID] ?? .distantPast, date)
-        }
-        for link in links {
-            guard let studentID = link.studentIDUUID,
-                  studentIDs.contains(studentID),
-                  let note = link.note,
-                  !note.scopeIsAll,
-                  let date = note.updatedAt ?? note.createdAt else { continue }
-            latest[studentID] = max(latest[studentID] ?? .distantPast, date)
-        }
+        let latest = Self.latestObservationDates(for: studentIDs, in: viewContext)
         cachedLastObservationDates = latest
     }
     

@@ -128,7 +128,13 @@ struct StudentsView: View {
             reloadDataAsync()
         }
         .onChange(of: attendanceChangeToken) { _, _ in
-            reloadDataAsync()
+            // Attendance moves only the present-now records; the table
+            // caches rebuild too only if their own inputs changed.
+            Task {
+                viewModel.reloadAfterAttendanceChange(
+                    viewContext: viewContext, calendar: calendar, students: uniqueStudents
+                )
+            }
         }
         .onChange(of: presentationChangeToken) { _, _ in
             reloadDataAsync()
@@ -139,10 +145,13 @@ struct StudentsView: View {
         // Debounce: many saves can fire in bursts (bulk edits, CloudKit merge
         // batches). Coalesce them so the three count() fetches in
         // refreshChangeTokens run once the dust settles, not per save.
-        .onReceive(
+        // Only while on screen: a TabView keeps this tab alive behind the
+        // others, and the `.task` above refreshes the tokens on reappear.
+        .onReceiveWhenVisible(
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-                .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-        ) { _ in
+                .debounce(for: .milliseconds(300), scheduler: RunLoop.main),
+            catchUpOnAppear: false
+        ) {
             refreshChangeTokens()
         }
         .onChange(of: uniqueStudentIDs) { _, _ in

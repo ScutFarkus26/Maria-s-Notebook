@@ -27,9 +27,20 @@ final class TodayViewModel {
 
     // MARK: - Dependencies
 
-    private let context: NSManagedObjectContext
+    let context: NSManagedObjectContext
     private var calendar: Calendar
     private let cacheManager = TodayCacheManager()
+
+    /// Flips when one of `readyForNextInputEntities` changes, so `reload()`
+    /// rebuilds the queue only then — not on every attendance tap or todo toggle.
+    @ObservationIgnored let readyForNextInputs: ManagedObjectChangeFlag
+    /// The test-student preference the queue was last built under; it filters
+    /// the roster without touching the store.
+    @ObservationIgnored var readyForNextHiddenNames: Set<String>?
+    /// How many times the queue has been built (for tests pinning the gate).
+    @ObservationIgnored var readyForNextBuildCount = 0
+    /// The live lesson catalog bound to `context`, when the view supplies one.
+    @ObservationIgnored weak var lessonCatalog: LessonCatalog?
 
     // MARK: - Inputs
 
@@ -165,6 +176,9 @@ final class TodayViewModel {
     init(context: NSManagedObjectContext, date: Date = Date(), calendar: Calendar = AppCalendar.shared) {
         self.context = context
         self.calendar = calendar
+        self.readyForNextInputs = ManagedObjectChangeFlag(
+            entityNames: Self.readyForNextInputEntities, context: context
+        )
         // Set date without triggering didSet (which would call scheduleReload)
         // The initial reload is deferred to handleViewAppear() via .task to avoid
         // competing with SwiftUI's initial body evaluation for the store coordinator.
@@ -309,7 +323,7 @@ final class TodayViewModel {
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs
         recentNotes = notesResult.notes
         recentNoteStudentsByID = updatedRecentNoteStudents
-        readyForNext = loadReadyForNext()
+        refreshReadyForNextIfNeeded()
         followUpCheckIns = followUps
         departedStudentsByID = departed
 
@@ -333,25 +347,6 @@ final class TodayViewModel {
     }
 
     // MARK: - Ready For a Next Lesson
-
-    /// The ready queue, built the way `students_ready` builds it: the enrolled
-    /// roster, the whole lesson library, and one record index over all three
-    /// record shapes. Three fetches and dictionary lookups from there — no
-    /// per-child or per-row work, so it costs the same whatever Today holds.
-    private func loadReadyForNext() -> [ReadyForNextItem] {
-        let students = DataQueryService(context: context)
-            .fetchAllStudents(excludeTest: true, excludeWithdrawn: true)
-        let studentIDs = students.compactMap { $0.id?.uuidString }
-        guard !studentIDs.isEmpty else { return [] }
-
-        let lessons = context.safeFetch(CDFetchRequest(CDLesson.self))
-        guard !lessons.isEmpty else { return [] }
-
-        let index = PresentationRecordIndex(students: Set(studentIDs), in: context)
-        return ReadyForNextEngine.items(
-            studentIDs: studentIDs, lessons: lessons, index: index, in: context
-        )
-    }
 
     // MARK: - Agenda Reordering
 

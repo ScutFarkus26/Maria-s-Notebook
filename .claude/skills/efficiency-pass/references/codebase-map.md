@@ -40,6 +40,8 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Background/scheduled work | `BackupBackgroundTaskManager` (BGTaskScheduler registration pattern) | `AppCore/BackupBackgroundTaskManager.swift` |
 | Network reachability | `CloudKitSyncStatusService.shared` (owns the single `NWPathMonitor`); never start a second | Services |
 | Midnight / day change | `.onCalendarDayChange` modifier | `Utils/View+CalendarDayChange.swift` |
+| Keep a derived value until one of its entities changes (rebuild on next read) | `ManagedObjectChangeFlag(entityNames:context:)` + `consume(pendingIn:)`: set synchronously by ObjectsDidChange on the context, DidSave on the same coordinator, `.presentationDataDidChange`, or a reset; also sees unannounced pending edits. Used by Today's ready queue and the Students roster memo | `Utils/ManagedObjectChangeFlag.swift` |
+| Reload only while a screen is on screen (TabView keeps visited tabs alive with live `.onReceive`/`.onChange`) | `.onChangeWhenVisible(of:catchUpOnAppear:)` / `.onReceiveWhenVisible(_:catchUpOnAppear:)`: hidden = mark stale, run once on reappear (pass `false` when the screen's own `.task`/`.onAppear` already reloads). No-op-safe on macOS, where the split-view detail is torn down. Wired: Students DidSave token refresh, Progress. Not yet wired (2026-09-23): `PresentationsView+Body.swift` onPresentationDataChange → debounce, `WorksAgendaView.swift:~217`, `WeekPlanSection.swift:~104` (`ClassCurriculumMapView` needs nothing: its watcher runs inside `.task`, which is cancelled while hidden) | `Utils/View+WhenVisible.swift` |
 
 Services that already consult `EnergyPolicy`: `AppBootstrapper` (post-launch migrations),
 startup Spotlight/search reindex, `AutoBackupManager`, `AlbumLibrary.buildIndexes`,

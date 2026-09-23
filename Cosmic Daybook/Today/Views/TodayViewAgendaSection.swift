@@ -320,6 +320,10 @@ extension TodayView {
 
     @ViewBuilder
     func emptyStateText(_ text: String) -> some View {
+        Self.emptyStateLabel(text)
+    }
+
+    static func emptyStateLabel(_ text: String) -> some View {
         Text(text)
             .font(AppTheme.ScaledFont.callout)
             .italic()
