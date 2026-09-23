@@ -98,9 +98,12 @@ struct EnergyProfileTests {
 
     @Test("Background backup gap: 15 min plugged in, 60 min on battery, none when constrained")
     func backgroundGapPerProfile() {
-        #expect(AutoBackupManager.backgroundBackupMinimumGap(for: .externalPower) == 15 * 60)
-        #expect(AutoBackupManager.backgroundBackupMinimumGap(for: .battery) == 60 * 60)
-        #expect(AutoBackupManager.backgroundBackupMinimumGap(for: .constrained) == nil)
+        let pluggedIn: TimeInterval? = AutoBackupManager.backgroundBackupMinimumGap(for: .externalPower)
+        let battery: TimeInterval? = AutoBackupManager.backgroundBackupMinimumGap(for: .battery)
+        let constrained: TimeInterval? = AutoBackupManager.backgroundBackupMinimumGap(for: .constrained)
+        #expect(pluggedIn == TimeInterval(900))
+        #expect(battery == TimeInterval(3600))
+        #expect(constrained == nil)
     }
 
     private func makeManager() throws -> (AutoBackupManager, NSManagedObjectContext) {
