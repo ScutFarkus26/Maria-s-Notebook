@@ -12,6 +12,21 @@ extension WorkDetailView {
         PracticeStatsCalculator.calculate(from: practiceSessions)
     }
 
+    /// Re-reads this work's practice sessions. `workItemIDs` is transformable,
+    /// so the match stays in memory, but it now runs once per practice-session
+    /// change instead of on every body pass. `objectsDidChange` on this context
+    /// is what the `@FetchRequest` it replaces listened to (edits, saves and
+    /// merged remote imports alike).
+    func reloadPracticeSessions() {
+        let all = modelContext.safeFetch(CDFetchRequest(CDPracticeSession.self))
+        let mine = viewModel.practiceSessions(allSessions: all)
+        if mine != practiceSessions { practiceSessions = mine }
+        if practiceSessionTableCount != all.count {
+            practiceSessionTableCount = all.count
+            loadPracticeParticipants()
+        }
+    }
+
     /// One fetch of the children and one of the work items this work's practice
     /// history names, for the whole section. Every card used to carry its own
     /// unpredicated `@FetchRequest` of both whole tables — a live
