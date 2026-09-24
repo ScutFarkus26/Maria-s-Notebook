@@ -1,6 +1,6 @@
 # Build and Launch Performance — Implementation Plan
 
-Status: **Phases 0–4 on `main`** (4a landed as 251ec634; 4b/24a/24b measured and deferred, see status) · Owner: Danny · Created 2026-09-04
+Status: **Phases 0–4 on `main`** (4a landed as 251ec634; 4b/24a/24b measured and deferred, see status); build-speed levers 2026-09-23; Phase 6 bottom-layer split measured and not pursued · Owner: Danny · Created 2026-09-04
 
 ## Implementation status (2026-09-04)
 
@@ -66,6 +66,14 @@ Status: **Phases 0–4 on `main`** (4a landed as 251ec634; 4b/24a/24b measured a
   CPU (≈34 s across 10 cores) and the single-threaded emit-module job takes 37 s; they run in
   parallel, so the 48 s wall clock is bounded by the emit-module job plus link and sign. Both
   numbers scale with the size of the one module, which is why Phase 6 is the next real lever.
+- **Build-speed levers (2026-09-23).** An edit-build is ~26 s, of which the whole-module emit-module
+  job is ~16 s on every edit; compiling the edited file is under 1 s. Landed: compilation caching in
+  Debug (capped at 10 GB; replays only identical trees — clean builds and new worktrees, not the
+  edit loop), `-driver-batch-size-limit 70` (55 → 20 batches, −9% compile CPU), the machine-wide
+  `lockf` + `nice` wrapper on every CLI build, a worktree recipe with prefix mapping and
+  build-before-edit, and extensions moved out of thirteen mixed files (an extension makes any
+  signature edit in its file recompile 451–1,267 files instead of 3). Details, ruled-out ideas, and
+  the bottom-layer spike below in `perf-baselines/2026-09-23-build-speed-levers.md`.
 - **Items 24a/24b/25 (audited, deferred).** 24a: 20 `GeometryReader` sites (list in the Phase 4
   section); most read a width to choose a column count, which `onGeometryChange` or a container
   `Layout` can replace, but none is on the launch path. 24b: 47 files pair `@FetchRequest` with a
@@ -235,6 +243,13 @@ and defines the seam 4 will use.
    features (`Students`, `Work`, `Presentations`, `Lessons`; 64 k lines) form a reference
    cycle. Phase 6 therefore stops after step 1 and a re-measure; breaking the cycle is a
    design project outside this plan (see the map's "Corrected Phase 6 shape").
+3. **Bottom-layer module — measured 2026-09-23, not worth doing on its own.** Every non-UI
+   declaration (Core Data entities and stack, services, `Backup/`, the MCP server; ~50% of
+   top-level declarations) closes into one layer after three cuts and 18 file splits, but the
+   app's emit-module command re-run over those 684 files alone costs 26 G instructions against
+   130 G for the whole module (3.3–4.4 s vs 20–21 s). The SwiftUI layer's `@State`/`@Observable`
+   expansions are the bulk, so a split saves ~3–4 s per view edit for a permanent `public`
+   surface of ~2,500 members. Details in `perf-baselines/2026-09-23-build-speed-levers.md`.
 
 Constraints from the codebase:
 
