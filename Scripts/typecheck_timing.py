@@ -33,11 +33,16 @@ DROP_FLAG = {
     '-experimental-emit-module-separately', '-disable-cmo', '-enable-batch-mode',
     '-profile-coverage-mapping', '-profile-generate', '-emit-localized-strings',
     '-validate-clang-modules-once', '-no-color-diagnostics',
+    # Compilation caching (Debug, since 2026-09-23): a cached job replays its outputs
+    # instead of type-checking, so the timing flags would print nothing.
+    '-cache-compile-job',
 }
 DROP_FLAG_WITH_VALUE = {
     '-emit-module-path', '-emit-objc-header-path', '-output-file-map',
     '-emit-localized-strings-path', '-const-gather-protocols-list',
     '-dependency-scan-serialize-diagnostics-path', '-clang-build-session-file',
+    '-cas-path', '-scanner-prefix-map', '-scanner-prefix-map-sdk',
+    '-scanner-prefix-map-toolchain', '-cache-replay-prefix-map',
 }
 TIMING = ['-typecheck', '-wmo',
           '-Xfrontend', '-debug-time-function-bodies',
