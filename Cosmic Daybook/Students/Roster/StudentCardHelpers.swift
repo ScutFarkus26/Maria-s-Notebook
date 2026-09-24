@@ -27,11 +27,3 @@ enum SymbolSupportCache {
     static let hasBalloonFill: Bool = true
     #endif
 }
-
-// MARK: - Color Extension
-
-extension Color {
-    static var cardBackground: Color {
-        AppTheme.Colors.paneBackground
-    }
-}

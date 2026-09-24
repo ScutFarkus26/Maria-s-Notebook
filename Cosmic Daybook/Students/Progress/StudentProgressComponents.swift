@@ -220,28 +220,6 @@ struct StepDotsVisualization: View {
     }
 }
 
-// MARK: - Step Protocol
-
-/// Protocol for unifying CDLesson steps and CDWorkStep types
-protocol StepProtocol {
-    var stepID: String { get }
-}
-
-// Extend CDLesson to conform to StepProtocol
-nonisolated extension CDLesson: StepProtocol {
-    var stepID: String { id?.uuidString ?? "" }
-}
-
-// Extend CDWorkStep to conform to StepProtocol
-nonisolated extension CDWorkStep: StepProtocol {
-    var stepID: String { id?.uuidString ?? "" }
-}
-
-// Extend CDTrackStep to conform to StepProtocol
-nonisolated extension CDTrackStep: StepProtocol {
-    var stepID: String { id?.uuidString ?? "" }
-}
-
 // MARK: - Next Item Banner
 
 /// Banner showing the next lesson/step with colored background

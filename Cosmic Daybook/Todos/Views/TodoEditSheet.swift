@@ -212,12 +212,6 @@ struct SubtaskRow: View {
     }
 }
 
-// MARK: - URL Identifiable Conformance
-
-extension URL: @retroactive Identifiable {
-    public var id: String { absoluteString }
-}
-
 // MARK: - Attachment Preview Sheet
 
 private struct AttachmentPreviewSheet: View {

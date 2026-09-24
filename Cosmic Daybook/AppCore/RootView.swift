@@ -18,10 +18,6 @@ import OSLog
 import TipKit
 #endif
 
-extension UUID: @retroactive Identifiable {
-    public var id: UUID { self }
-}
-
 // Top-level container that manages app-wide navigation between Students, Albums, Planning, Today, Logs, and Settings.
 // NavigationItem and Tab enums live in RootView+NavigationItem.swift.
 // swiftlint:disable:next type_body_length
