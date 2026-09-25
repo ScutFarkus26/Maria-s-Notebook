@@ -9,7 +9,9 @@ struct AlbumSemanticQueryCacheTests {
 
     @Test("A cached query model gives the same vector as a fresh one", arguments: ["sentence", "contextual"])
     func cachedMatchesFresh(backend: String) async {
-        if backend == "sentence" { await waitForSentenceModel() }
+        // Waits out the simulator's lazy sentence-model load, so a nil `fresh`
+        // below means "this runtime has no model" rather than "not loaded yet".
+        _ = await AlbumSemanticIndex.resolveTitleBackend()
         let text = "borrowing in subtraction"
         let fresh: [Float]? = backend == "sentence"
             ? AlbumSemanticIndex.sentenceEmbed([text])?.first
@@ -23,17 +25,5 @@ struct AlbumSemanticQueryCacheTests {
         #expect(AlbumSemanticIndex.hasCachedQueryEmbedder == (fresh != nil))
         AlbumSemanticIndex.releaseQueryEmbedders()
         #expect(AlbumSemanticIndex.hasCachedQueryEmbedder == false)
-    }
-
-    /// The iOS 27 simulator loads the sentence model lazily: the first request
-    /// in a process returns nil and one ~100 ms later returns the model (the
-    /// Mac returns it at once). Waiting here makes a nil `fresh` mean "this
-    /// runtime has no model" rather than "not loaded yet".
-    private func waitForSentenceModel() async {
-        var attempts = 0
-        while !AlbumSemanticIndex.sentenceBackendAvailable(), attempts < 40 {
-            attempts += 1
-            try? await Task.sleep(for: .milliseconds(50))
-        }
     }
 }

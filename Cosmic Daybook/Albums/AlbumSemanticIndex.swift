@@ -1,5 +1,6 @@
 import Foundation
 import NaturalLanguage
+import OSLog
 import Synchronization
 
 /// On-device embeddings for every lesson, so search can match meaning
@@ -70,12 +71,16 @@ final class AlbumSemanticIndex {
         guard status != .building else { return }
         status = .building
         let cacheDir = Self.cacheDirectory()
+        // One title model for every album: queries are embedded with one
+        // model, so an album built with the other could never match them.
+        // Detached so the wait for the model is never cut short.
+        let backend = await Task.detached(priority: .utility) {
+            await Self.resolveTitleBackend()
+        }.value
         var anySucceeded = false
         for item in items {
             let result = await Task.detached(priority: .utility) {
-                Self.loadOrBuildVectors(albumID: item.id, modified: item.modified,
-                                        titles: item.titles, bodies: item.bodies,
-                                        cacheDir: cacheDir)
+                Self.loadOrBuildVectors(for: item, backend: backend, cacheDir: cacheDir)
             }.value
             if let result {
                 titleVectors[item.id] = result.titles
@@ -159,21 +164,23 @@ final class AlbumSemanticIndex {
         return dir
     }
 
-    nonisolated static func loadOrBuildVectors(albumID: String, modified: Date,
-                                               titles: [String], bodies: [String],
+    /// `backend` is the title model `resolveTitleBackend()` chose for this
+    /// process; a cache built with the other model is rebuilt, and an album
+    /// the chosen model can't embed is left out rather than mixed in.
+    nonisolated static func loadOrBuildVectors(for item: BuildItem, backend: String,
                                                cacheDir: URL?) -> VectorSet? {
-        let cacheURL = cacheDir?.appendingPathComponent(albumID + ".vectors2.json")
-        let preferredBackend = sentenceBackendAvailable() ? "sentence" : "contextual"
+        let (modified, titles, bodies) = (item.modified, item.titles, item.bodies)
+        let cacheURL = cacheDir?.appendingPathComponent(item.id + ".vectors2.json")
         if let cacheURL,
            let data = try? Data(contentsOf: cacheURL),
            let cached = try? JSONDecoder().decode(CachedVectors.self, from: data),
            abs(cached.modified.timeIntervalSince(modified)) < 1,
            cached.titles.count == titles.count,
-           cached.titleBackend == preferredBackend {
+           cached.titleBackend == backend {
             return VectorSet(titles: cached.titles, titleBackend: cached.titleBackend,
                              bodies: cached.bodies)
         }
-        guard let (titleVecs, backend) = embedTitles(titles) else { return nil }
+        guard let titleVecs = embedTitles(titles, backend: backend) else { return nil }
         let bodyVecs = contextualEmbed(bodies)
         if let cacheURL,
            let data = try? JSONEncoder().encode(CachedVectors(modified: modified,
@@ -191,10 +198,34 @@ final class AlbumSemanticIndex {
         NLEmbedding.sentenceEmbedding(for: .english) != nil
     }
 
-    nonisolated static func embedTitles(_ texts: [String]) -> ([[Float]], String)? {
-        if let vectors = sentenceEmbed(texts) { return (vectors, "sentence") }
-        if let vectors = contextualEmbed(texts) { return (vectors, "contextual") }
-        return nil
+    /// The title model for this process: "sentence" when that model exists,
+    /// else "contextual". Decided once, before the first build, so every
+    /// album in a launch uses the same one. On the iOS 27 simulator the
+    /// sentence model loads lazily — the first request in a process returns
+    /// nil and one ~100 ms later returns it (the Mac returns it at once, and
+    /// NLEmbedding has no way to request its assets) — so a nil is retried
+    /// for up to 2 s. A model that is truly absent costs that wait once.
+    nonisolated static func resolveTitleBackend() async -> String {
+        if let resolved = resolvedTitleBackend.withLock({ $0 }) { return resolved }
+        var available = sentenceBackendAvailable()
+        var retries = 0
+        while !available, retries < 40 {
+            try? await Task.sleep(for: .milliseconds(50))
+            retries += 1
+            available = sentenceBackendAvailable()
+        }
+        let backend = available ? "sentence" : "contextual"
+        resolvedTitleBackend.withLock { $0 = backend }
+        Logger.albums.notice(
+            "Album title model: \(backend, privacy: .public) after \(retries, privacy: .public) retries"
+        )
+        return backend
+    }
+
+    nonisolated private static let resolvedTitleBackend = Mutex<String?>(nil)
+
+    nonisolated static func embedTitles(_ texts: [String], backend: String) -> [[Float]]? {
+        backend == "sentence" ? sentenceEmbed(texts) : contextualEmbed(texts)
     }
 
     nonisolated static func embedQuery(_ text: String, backend: String) -> [Float]? {
