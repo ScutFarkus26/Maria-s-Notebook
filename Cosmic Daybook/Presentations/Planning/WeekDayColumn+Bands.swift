@@ -181,13 +181,14 @@ extension WeekDayColumn {
                         .opacity(UIConstants.OpacityConstants.almostOpaque)
                 }
             } else {
-                WorkCheckInPill(checkIn: group.primary, isDulled: false) {
+                // Named from the group's batched lookup, like the grouped pill
+                // above, so neither pill nor preview reads the context.
+                WorkCheckInPill(group: group, isDulled: false) {
                     onOpenCheckInGroup(group)
                 }
                 .draggable(payload) {
-                    WorkCheckInPill(checkIn: group.primary, isDulled: false)
+                    WorkCheckInPill(group: group, isDulled: false)
                         .opacity(UIConstants.OpacityConstants.almostOpaque)
-                        .environment(\.managedObjectContext, viewContext)
                 }
             }
         }
