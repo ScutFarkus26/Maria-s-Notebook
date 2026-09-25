@@ -89,7 +89,7 @@ final class LocalModelClient: FoundationModelClient {
         maxTokens: Int,
         model: String?,
         timeout: TimeInterval?,
-        onDelta: @escaping @Sendable (String) -> Void
+        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
         try requireAvailable()
         let chat = await makeChatSession(messages: messages, systemMessage: systemMessage)
@@ -98,13 +98,14 @@ final class LocalModelClient: FoundationModelClient {
                 to: chat.prompt,
                 options: generationOptions(temperature: temperature, maxTokens: maxTokens)
             )
-            // Snapshots are cumulative; emit only the new suffix as the delta.
+            // Snapshots are cumulative: hand each one on whole when it adds a
+            // character, rather than cutting a delta the caller re-appends.
             var emitted = ""
             for try await snapshot in stream {
                 let full = snapshot.content
                 if full.count > emitted.count {
-                    onDelta(String(full.dropFirst(emitted.count)))
                     emitted = full
+                    onText(emitted)
                 }
             }
             return emitted

@@ -56,7 +56,8 @@ protocol MCPClientProtocol {
         timeout: TimeInterval?
     ) async throws -> String
 
-    // Sends a multi-turn conversation with streaming, calling onDelta for each text chunk.
+    // Sends a multi-turn conversation with streaming, calling onText with the
+    // whole answer so far each time it grows (cumulative, never a delta).
     // Returns the full response text when complete.
     // swiftlint:disable:next function_parameter_count
     func streamConversation(
@@ -66,7 +67,7 @@ protocol MCPClientProtocol {
         maxTokens: Int,
         model: String?,
         timeout: TimeInterval?,
-        onDelta: @escaping @Sendable (String) -> Void
+        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String
 
     /// Returns source records collected by the most recent grounded request.
@@ -146,9 +147,9 @@ extension MCPClientProtocol {
         maxTokens: Int = 2048,
         model: String? = nil,
         timeout: TimeInterval? = nil,
-        onDelta: @escaping @Sendable (String) -> Void
+        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
-        // Non-streaming fallback: generate full text, emit as single delta.
+        // Non-streaming fallback: generate full text, emit it once.
         let result = try await sendConversation(
             messages: messages,
             systemMessage: systemMessage,
@@ -157,7 +158,7 @@ extension MCPClientProtocol {
             model: model,
             timeout: timeout
         )
-        onDelta(result)
+        onText(result)
         return result
     }
 }

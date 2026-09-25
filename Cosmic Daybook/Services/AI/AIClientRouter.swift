@@ -170,7 +170,7 @@ final class AIClientRouter: MCPClientProtocol {
         maxTokens: Int,
         model: String?,
         timeout: TimeInterval?,
-        onDelta: @escaping @Sendable (String) -> Void
+        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
         try await route { client in
             try await client.streamConversation(
@@ -179,7 +179,7 @@ final class AIClientRouter: MCPClientProtocol {
                 temperature: temperature,
                 maxTokens: maxTokens,
                 model: model, timeout: timeout,
-                onDelta: onDelta
+                onText: onText
             )
         }
     }
