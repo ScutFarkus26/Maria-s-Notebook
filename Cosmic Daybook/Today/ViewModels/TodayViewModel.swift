@@ -5,7 +5,6 @@
 // Delegates to:
 // - TodayDataFetcher: All database fetch operations
 // - TodayScheduleBuilder: Schedule construction from work data
-// - TodayNavigationService: School day navigation
 // - TodayAttendanceLoader: Attendance processing
 // - TodayCacheManager: CDStudent/lesson/work caching
 // - TodayTypes: Shared type definitions
@@ -363,28 +362,6 @@ final class TodayViewModel {
     func moveAgendaItem(from source: IndexSet, to destination: Int) {
         agendaItems.move(fromOffsets: source, toOffset: destination)
         TodayAgendaBuilder.saveOrder(items: agendaItems, day: date, context: context)
-    }
-
-    // MARK: - School Day Navigation (delegated to TodayNavigationService)
-
-    /// Finds the next day (after the given date) that has lessons scheduled.
-    /// Only considers school days and respects the current level filter.
-    func nextDayWithLessons(after date: Date) -> Date {
-        TodayNavigationService.nextDayWithLessons(
-            after: date,
-            levelFilter: levelFilter,
-            context: context
-        )
-    }
-
-    /// Finds the previous day (before the given date) that has lessons scheduled.
-    /// Only considers school days and respects the current level filter.
-    func previousDayWithLessons(before date: Date) -> Date {
-        TodayNavigationService.previousDayWithLessons(
-            before: date,
-            levelFilter: levelFilter,
-            context: context
-        )
     }
 
 }
