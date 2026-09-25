@@ -60,10 +60,11 @@ extension WorkCardGridContent {
 
         // The five statuses, for the selection or — on one card whose work was
         // assigned to several children — for everyone on it or for one child.
-        let group = isBulk ? nil : WorkGrouping.group(containing: config.work, in: viewContext)
-        WorkLogStatusMenu(
-            targets: group?.members ?? targets,
-            children: group.map { WorkLogStatusMenu.children(of: $0, in: viewContext) } ?? [],
+        WorkCardStatusMenu(
+            work: config.work,
+            targets: targets,
+            isBulk: isBulk,
+            context: viewContext,
             onLog: config.onLog
         )
         scheduleMenu(targets)
@@ -176,5 +177,34 @@ extension WorkCardGridContent {
             }
         }
         viewContext.safeSave()
+    }
+}
+
+/// The card menu's status submenus.
+///
+/// A view of its own so the fan-out lookup waits for the menu. `.contextMenu`
+/// calls its content closure on every card body pass — every grid pass, every
+/// command-click, every frame of a live resize — and resolving the group is a
+/// fetch of every row on the card's lesson, then a student fetch per linked
+/// copy to name its submenu. A view nested in the menu is only drawn when the
+/// menu is built for display, the way `SameWorkPeersMenu` already defers its
+/// own lookup. The context is handed in for the reason `WorkPeersMenu.swift`
+/// gives: menu content is built outside the card's tree.
+struct WorkCardStatusMenu: View {
+    let work: CDWorkModel
+    /// The card, or the selection it is part of.
+    let targets: [CDWorkModel]
+    /// Several cards selected: the statuses apply to them, not to a group.
+    let isBulk: Bool
+    let context: NSManagedObjectContext
+    let onLog: ([CDWorkModel], WorkStatus) -> Void
+
+    var body: some View {
+        let group = isBulk ? nil : WorkGrouping.group(containing: work, in: context)
+        WorkLogStatusMenu(
+            targets: group?.members ?? targets,
+            children: group.map { WorkLogStatusMenu.children(of: $0, in: context) } ?? [],
+            onLog: onLog
+        )
     }
 }
