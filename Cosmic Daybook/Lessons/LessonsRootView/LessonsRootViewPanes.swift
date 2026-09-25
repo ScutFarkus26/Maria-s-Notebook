@@ -75,8 +75,14 @@ extension LessonsRootView {
                 }
             )
         } else {
+            let layout = mapLayoutMemo.layout(
+                for: filteredLessonsForMap,
+                selectedArea: selectedArea,
+                spine: mapSpine,
+                in: viewContext
+            )
             LessonsScopeMapView(
-                lessons: filteredLessonsForMap,
+                layout: layout,
                 selectedArea: selectedArea,
                 spine: Binding(
                     get: { mapSpine },

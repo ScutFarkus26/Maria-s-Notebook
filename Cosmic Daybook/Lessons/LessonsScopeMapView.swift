@@ -11,8 +11,11 @@ import CoreData
 // MARK: - LessonsScopeMapView
 
 struct LessonsScopeMapView: View {
-    let lessons: [CDLesson]
-    /// Optional area filter (nil = show all areas).
+    /// The sections and rows to draw, built by `MapLayoutMemo` from the screen's
+    /// lessons, area filter and spine.
+    let layout: MapLayout
+    /// Optional area filter (nil = show all areas), for the section headers' focus
+    /// controls; `layout` has already applied it.
     /// Ignored when `spine == .greatLesson` — the Great Lesson spine is intentionally cross-area.
     let selectedArea: String?
     @Binding var spine: MapSpine
@@ -63,8 +66,7 @@ struct LessonsScopeMapView: View {
             VStack(alignment: .leading, spacing: 24) {
                 spinePicker
 
-                ForEach(MapSectionBuilder(lessons: lessons, selectedArea: selectedArea)
-                    .sections(for: spine)) { section in
+                ForEach(layout.sections) { section in
                     sectionView(section)
                 }
             }
@@ -87,9 +89,9 @@ struct LessonsScopeMapView: View {
     }
 
     @ViewBuilder
-    private func sectionView(_ section: MapSection) -> some View {
+    private func sectionView(_ section: MapLayout.Section) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader(section)
+            sectionHeader(section.section)
                 .padding(.bottom, 2)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -101,17 +103,17 @@ struct LessonsScopeMapView: View {
     }
 
     @ViewBuilder
-    private func threadRow(_ row: ThreadRowData, in section: MapSection) -> some View {
-        let rowID = section.rowID(for: row)
+    private func threadRow(_ row: MapLayout.Row, in section: MapLayout.Section) -> some View {
+        let rowID = row.rowID
         let isPickedUp = pickedUpRowID == rowID
-        let movable = canMove(row, in: section)
+        let movable = canMove(row)
 
         ThreadRow(
-            threadKey: row.key,
-            lessons: row.lessons,
-            color: AppColors.color(forArea: row.key.area),
+            threadKey: row.data.key,
+            lessons: row.data.lessons,
+            color: row.color,
             isEditing: isEditing,
-            hasSections: hasMultipleSections(row: row),
+            hasSections: row.hasSections,
             isPickedUpForMove: isPickedUp,
             isMoveTarget: hoverRowID == rowID && !isPickedUp,
             isHoldingToMove: holdingRowID == rowID,
@@ -120,14 +122,14 @@ struct LessonsScopeMapView: View {
                 // A completed hold ends with a mouse-up on the row; that must not
                 // count as the click that drills into the thread.
                 guard !moveGestureDidEngage else { return }
-                onSelectThread(row.key)
+                onSelectThread(row.data.key)
             },
-            onConfigureTrack: { onConfigureTrack?(row.key) },
-            onReorderSections: { onReorderSections?(row.key) }
+            onConfigureTrack: { onConfigureTrack?(row.data.key) },
+            onReorderSections: { onReorderSections?(row.data.key) }
         )
         .modifier(MapRowFrameReporter(rowID: rowID, space: Self.mapSpace))
         .when(movable) { view in
-            view.simultaneousGesture(holdThenDragGesture(row: row, in: section, rowID: rowID))
+            view.simultaneousGesture(holdThenDragGesture(row: row, in: section))
         }
     }
 
@@ -136,10 +138,10 @@ struct LessonsScopeMapView: View {
     /// Hold to lift a row, then keep dragging in the same press to place it. Sequenced
     /// so the whole move is one gesture — release drops the row where it hovers.
     private func holdThenDragGesture(
-        row: ThreadRowData,
-        in section: MapSection,
-        rowID: String
+        row: MapLayout.Row,
+        in section: MapLayout.Section
     ) -> some Gesture {
+        let rowID = row.rowID
         let duration = isEditing ? Self.editHoldDuration : Self.holdToMoveDuration
         let hold = LongPressGesture(minimumDuration: duration, maximumDistance: 14)
             .updating($holdingRowID) { pressing, state, transaction in
@@ -152,12 +154,17 @@ struct LessonsScopeMapView: View {
             .onChanged { value in
                 switch value {
                 case .first(true):
-                    beginMove(rowID: rowID, name: row.key.displayName)
+                    beginMove(rowID: rowID, name: row.data.key.displayName)
                 case .second(true, let dragValue?):
                     if pickedUpRowID != rowID {
-                        beginMove(rowID: rowID, name: row.key.displayName)
+                        beginMove(rowID: rowID, name: row.data.key.displayName)
                     }
-                    let target = nearestRowID(to: dragValue.location, from: rowID, row: row, in: section)
+                    let target = section.nearestRowID(
+                        to: dragValue.location.y,
+                        from: row,
+                        frames: rowFrameBox.frames,
+                        canReorder: onMoveSequences != nil
+                    )
                     if target != hoverRowID {
                         withAnimation(.easeOut(duration: 0.12)) { hoverRowID = target }
                     }
@@ -180,18 +187,18 @@ struct LessonsScopeMapView: View {
         }
     }
 
-    private func finishMove(row: ThreadRowData, in section: MapSection) {
+    private func finishMove(row: MapLayout.Row, in section: MapLayout.Section) {
         let landedOn = hoverRowID
         let wasPickedUp = pickedUpRowID != nil
         resetMoveState()
         guard wasPickedUp, let landedOn else { return }
-        guard let target = section.rows.first(where: { section.rowID(for: $0) == landedOn }),
-              target.key != row.key
+        guard let target = section.rows.first(where: { $0.rowID == landedOn }),
+              target.data.key != row.data.key
         else { return }
 
-        let names = section.movableSequences(in: row.key.area)
-        guard let srcIdx = names.firstIndex(of: row.key.sequence),
-              let dstIdx = names.firstIndex(of: target.key.sequence)
+        let names = section.section.movableSequences(in: row.data.key.area)
+        guard let srcIdx = names.firstIndex(of: row.data.key.sequence),
+              let dstIdx = names.firstIndex(of: target.data.key.sequence)
         else { return }
 
         var reordered = names
@@ -199,7 +206,7 @@ struct LessonsScopeMapView: View {
             fromOffsets: IndexSet(integer: srcIdx),
             toOffset: dstIdx > srcIdx ? dstIdx + 1 : dstIdx
         )
-        onMoveSequences?(row.key.area, reordered)
+        onMoveSequences?(row.data.key.area, reordered)
     }
 
     private func resetMoveState() {
@@ -214,35 +221,8 @@ struct LessonsScopeMapView: View {
         }
     }
 
-    /// The row under the pointer, restricted to rows this one can actually swap with:
-    /// same area, real sequence, and close enough vertically to be a deliberate target.
-    private func nearestRowID(
-        to location: CGPoint,
-        from rowID: String,
-        row: ThreadRowData,
-        in section: MapSection
-    ) -> String? {
-        var best: (id: String, frame: CGRect)?
-        var bestDistance = CGFloat.greatestFiniteMagnitude
-        let rowFrames = rowFrameBox.frames
-        for candidate in section.rows where candidate.key.area == row.key.area {
-            let candidateID = section.rowID(for: candidate)
-            guard candidateID != rowID,
-                  canMove(candidate, in: section),
-                  let frame = rowFrames[candidateID]
-            else { continue }
-            let distance = abs(frame.midY - location.y)
-            guard distance < bestDistance else { continue }
-            bestDistance = distance
-            best = (candidateID, frame)
-        }
-        // Too far from any row to be a deliberate target.
-        guard let best, bestDistance <= best.frame.height else { return nil }
-        return best.id
-    }
-
-    private func canMove(_ row: ThreadRowData, in section: MapSection) -> Bool {
-        onMoveSequences != nil && section.canMove(row)
+    private func canMove(_ row: MapLayout.Row) -> Bool {
+        onMoveSequences != nil && row.isMovable
     }
 
     @ViewBuilder
@@ -311,13 +291,6 @@ struct LessonsScopeMapView: View {
             Spacer()
         }
         .padding(.bottom, 4)
-    }
-
-    // MARK: - Helpers
-
-    private func hasMultipleSections(row: ThreadRowData) -> Bool {
-        let sections = Set(row.lessons.map { $0.section.trimmed() }.filter { !$0.isEmpty })
-        return sections.count > 1
     }
 }
 

@@ -108,6 +108,9 @@ struct LessonsRootView: View {
 
     // MARK: - Map Mode State
     @State var focusedThread: ThreadKey?
+    /// The map's sections, kept from pass to pass until the lessons, area, spine
+    /// or saved order they were built from changes.
+    @State var mapLayoutMemo = MapLayoutMemo()
 
     // MARK: - Presentation History State
     @State var statusCounts: [UUID: Int]?
