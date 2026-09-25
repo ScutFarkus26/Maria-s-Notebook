@@ -20,7 +20,6 @@ struct PlanNextLessonService {
         case success(CDLessonAssignment)
         case alreadyExists
         case noNextLesson
-        case noCurrentLesson
         case noStudents
     }
 

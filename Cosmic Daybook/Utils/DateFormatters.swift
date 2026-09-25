@@ -128,13 +128,6 @@ nonisolated enum DateFormatters {
         return formatter
     }
 
-    /// Day-of-month number only, locale-sensitive (e.g., "15")
-    static let dayNumber: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("d")
-        return formatter
-    }()
-
     /// Local ISO date string for internal keys, e.g. "2024-01-15" in the device timezone
     static let isoDateLocal: DateFormatter = {
         let formatter = DateFormatter()

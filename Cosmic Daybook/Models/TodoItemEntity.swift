@@ -119,18 +119,6 @@ nonisolated extension CDTodoItem {
         return dueDate < AppCalendar.shared.startOfDay(for: Date())
     }
 
-    /// Check if todo is due this week
-    var isDueThisWeek: Bool {
-        guard let dueDate, !isCompleted else { return false }
-        let now = Date()
-        guard let weekEnd = AppCalendar.shared.date(
-            byAdding: .day,
-            value: 7,
-            to: AppCalendar.shared.startOfDay(for: now)
-        ) else { return false }
-        return dueDate >= AppCalendar.shared.startOfDay(for: now) && dueDate < weekEnd
-    }
-
     /// Get subtasks progress text
     var subtasksProgressText: String? {
         let items = subtasks as? Set<CDTodoSubtask> ?? []

@@ -94,15 +94,3 @@ struct LessonAgeHelper {
         )
     }
 }
-
-extension LessonAssignmentSnapshot {
-    /// Convenience wrapper to compute school-day age directly from a snapshot.
-    func schoolDaysSinceCreation(
-        asOf today: Date = Date(),
-        using context: NSManagedObjectContext
-    ) -> Int {
-        return LessonAgeHelper.schoolDaysSinceCreation(
-            createdAt: self.createdAt, asOf: today, using: context
-        )
-    }
-}

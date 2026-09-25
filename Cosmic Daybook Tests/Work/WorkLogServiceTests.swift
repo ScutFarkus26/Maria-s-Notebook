@@ -17,7 +17,6 @@ struct WorkLogServiceTests {
         let simma = UUID()
         let naomi = UUID()
         let today = AppCalendar.startOfDay(Date())
-        var tomorrow: Date { AppCalendar.addingDays(1, to: today) }
         var nextWeek: Date { AppCalendar.addingDays(7, to: today) }
     }
 

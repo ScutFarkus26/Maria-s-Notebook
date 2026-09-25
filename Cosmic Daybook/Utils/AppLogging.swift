@@ -24,7 +24,6 @@ nonisolated extension Logger {
     nonisolated static let notes = Logger.app(category: "notes")
     nonisolated static let reminders = Logger.app(category: "reminders")
     nonisolated static let todos = Logger.app(category: "todos")
-    nonisolated static let inbox = Logger.app(category: "inbox")
     nonisolated static let settings = Logger.app(category: "settings")
     nonisolated static let schedules = Logger.app(category: "schedules")
     nonisolated static let resources = Logger.app(category: "resources")
