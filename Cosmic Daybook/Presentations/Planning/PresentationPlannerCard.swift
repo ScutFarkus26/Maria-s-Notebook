@@ -169,16 +169,16 @@ struct PresentationPlannerCard: View {
         }
     }
 
+    /// Wraps rather than scrolls: no scroll view per card.
     private var studentChipsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppTheme.Spacing.xxsmall) {
-                ForEach(snapshot.studentIDs, id: \.self) { sid in
-                    if let student = students.first(where: { $0.id == sid }) {
-                        studentChip(for: student, sid: sid)
-                    }
+        FlowLayout(spacing: AppTheme.Spacing.xxsmall) {
+            ForEach(snapshot.studentIDs, id: \.self) { sid in
+                if let student = students.first(where: { $0.id == sid }) {
+                    studentChip(for: student, sid: sid)
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func studentChip(for student: CDStudent, sid: UUID) -> some View {

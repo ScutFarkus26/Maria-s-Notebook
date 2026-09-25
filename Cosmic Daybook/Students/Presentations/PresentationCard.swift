@@ -72,13 +72,13 @@ struct PresentationCard: View {
             }
 
             if !studentChips.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppTheme.Spacing.verySmall) {
-                        ForEach(studentChips, id: \.id) { chip in
-                            StudentChip(chip.label, tint: areaColor, isMissing: chip.isMissing, foreground: .label)
-                        }
+                // Wraps rather than scrolls: no scroll view per card.
+                FlowLayout(spacing: AppTheme.Spacing.verySmall) {
+                    ForEach(studentChips, id: \.id) { chip in
+                        StudentChip(chip.label, tint: areaColor, isMissing: chip.isMissing, foreground: .label)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Text(statusText)

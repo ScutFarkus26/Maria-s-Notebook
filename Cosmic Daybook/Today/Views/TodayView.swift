@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 // TodayView.swift
 // Today hub showing reminders, lessons, scheduled check-ins, follow-ups, and completions.
 // Integrated AttendanceView expansion logic with fixed roll-down animation.
@@ -77,7 +76,6 @@ struct TodayView: View {
     var isAnytimeRemindersExpanded: Bool = false
     /// Bumped when a day card is dismissed to force the section to recompute.
     @State var dayCardsRefreshTrigger: Int = 0
-    @State var needsLessonCount: Int = 0
 
     // MARK: - Day Rollover
     /// The school-day-coerced date that currently represents "today".
@@ -167,7 +165,9 @@ struct TodayView: View {
                 onReload: { viewModel.reload() }
             ))
             .overlay(alignment: .top) {
-                toastOverlay
+                // A binding, not the value: only the overlay's own body reads
+                // the message, so a toast coming and going redraws it alone.
+                TodayToastOverlay(message: $toastMessage)
             }
     }
 
@@ -275,32 +275,14 @@ struct TodayView: View {
 
     #endif
 
-    @ViewBuilder
-    private var toastOverlay: some View {
-        if let message = toastMessage {
-            Text(message)
-                .font(AppTheme.ScaledFont.captionSemibold)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .surface(
-                    UIConstants.CornerRadius.control,
-                    fill: Color.black.opacity(UIConstants.OpacityConstants.nearSolid),
-                    style: .continuous
-                )
-                .foregroundStyle(.white)
-                .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .padding(.top, 8)
-        }
-    }
-
     // MARK: - Event Handlers
 
     // PERF: Structured concurrency — async let runs both syncs in parallel
     // while inheriting .task cancellation (no more fire-and-forget Task blocks).
+    // The ready queue is not invalidated here: its change flag already covers
+    // every input, so a return with nothing changed keeps the queue it has.
     private func handleViewAppear() async {
         viewModel.lessonCatalog = dependencies.lessonCatalog
-        viewModel.invalidateReadyForNext()
         viewModel.setCalendar(calendar)
         async let reminderSync: Void = syncReminders()
         async let calendarSync: Void = syncCalendarEvents()
@@ -317,27 +299,13 @@ struct TodayView: View {
         _ = await (reminderSync, calendarSync)
     }
 
-    /// Recomputes counts that drive the day-aware cards (needs-lesson).
-    /// Called on appear, refresh, and date change.
-    func reloadDerivedCounts() {
-        needsLessonCount = computeNeedsLessonCount()
+    /// Recomputes counts that drive the day-aware cards (needs-lesson) when
+    /// something they read has moved. Called on appear, refresh, and date
+    /// change; pull to refresh passes `force`.
+    func reloadDerivedCounts(force: Bool = false) {
+        viewModel.reloadDerivedCountsIfNeeded(calendar: calendar, force: force)
     }
 
-    private func computeNeedsLessonCount() -> Int {
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = CDStudent.enrolledPredicate
-        let students = TestStudentsFilter.filterVisible(viewContext.safeFetch(request)).uniqueByID
-        guard !students.isEmpty else { return 0 }
-        let viewModel = StudentsViewModel()
-        let daysMap = viewModel.computeDaysSinceLastLessonCache(
-            for: students,
-            using: viewContext,
-            calendar: calendar
-        )
-        // Count students who've never been presented (-1) OR overdue (>= 7 days)
-        return daysMap.values.filter { $0 == -1 || $0 >= 7 }.count
-    }
-    
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
         switch newPhase {
         case .active:

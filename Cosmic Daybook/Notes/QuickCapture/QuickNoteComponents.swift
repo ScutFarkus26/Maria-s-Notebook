@@ -119,11 +119,11 @@ struct SuggestionsBar: View {
 
 struct QuickNoteAIMenuButton: View {
     let onFormatNames: () -> Void
+    @State private var pulseTrigger = false // flipped on appear: two pulses, then still
     #if ENABLE_FOUNDATION_MODELS
     let onFixGrammar: (() -> Void)?
     let onProfessionalTone: (() -> Void)?
     let onExpandNote: (() -> Void)?
-    
     init(
         onFormatNames: @escaping () -> Void,
         onFixGrammar: (() -> Void)? = nil,
@@ -140,7 +140,6 @@ struct QuickNoteAIMenuButton: View {
         self.onFormatNames = onFormatNames
     }
     #endif
-    
     var body: some View {
         Menu {
             Section("Writing Tools") {
@@ -185,11 +184,12 @@ struct QuickNoteAIMenuButton: View {
             }
         } label: {
             Image(systemName: "sparkles")
-                .symbolEffect(.pulse)
+                .symbolEffect(.pulse, options: .repeat(.periodic(2)), value: pulseTrigger)
                 .font(.system(size: 20))
                 .foregroundStyle(.purple)
         }
         .menuStyle(.borderlessButton)
+        .onAppear { pulseTrigger.toggle() }
     }
 }
 

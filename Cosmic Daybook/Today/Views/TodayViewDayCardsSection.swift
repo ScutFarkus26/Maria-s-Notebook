@@ -113,7 +113,7 @@ extension TodayView {
     private func subtitleIfActive(_ card: DayCard) -> String? {
         switch card {
         case .needsLesson:
-            let count = needsLessonCount
+            let count = viewModel.needsLessonCount
             guard count > 0 else { return nil }
             return "\(count) student\(count == 1 ? "" : "s") overdue for a lesson"
         }

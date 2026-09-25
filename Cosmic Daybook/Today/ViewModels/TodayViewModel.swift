@@ -41,6 +41,12 @@ final class TodayViewModel {
     @ObservationIgnored var readyForNextBuildCount = 0
     /// The live lesson catalog bound to `context`, when the view supplies one.
     @ObservationIgnored weak var lessonCatalog: LessonCatalog?
+    /// Flips when one of `derivedCountInputEntities` changes; made on first use.
+    @ObservationIgnored var derivedCountInputs: ManagedObjectChangeFlag?
+    /// What `needsLessonCount` was last computed under (see +DerivedCounts).
+    @ObservationIgnored var derivedCountsBasis: DerivedCountsBasis?
+    /// How many times the count has been computed (for tests pinning the gate).
+    @ObservationIgnored var derivedCountsBuildCount = 0
 
     // MARK: - Inputs
 
@@ -98,6 +104,9 @@ final class TodayViewModel {
     /// Who the record says is waiting on a next lesson — the capture-time
     /// confirmations and mastery marks, turned into the lessons they point at.
     var readyForNext: [ReadyForNextItem] = []
+
+    /// Enrolled children overdue for a lesson, for the "Needs Lesson" day card.
+    var needsLessonCount = 0
 
     /// Due and overdue work check-ins, one per work, for the todo list.
     /// Departed children's rows are kept and marked (see TodayFollowUpLoader).

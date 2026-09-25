@@ -8,9 +8,10 @@ extension AttendanceLogView {
 
     // MARK: - Row
 
+    /// `studentsByID` is the render's roster lookup, built once per render.
     @ViewBuilder
     // swiftlint:disable:next function_body_length
-    func attendanceRow(for record: CDAttendanceRecord) -> some View {
+    func attendanceRow(for record: CDAttendanceRecord, studentsByID: [UUID: CDStudent]) -> some View {
         HStack(alignment: .center, spacing: 12) {
             // Status indicator
             Circle()

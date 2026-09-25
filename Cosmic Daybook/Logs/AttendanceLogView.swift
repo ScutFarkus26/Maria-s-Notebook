@@ -14,23 +14,6 @@ struct AttendanceLogView: View {
     )
     private var allRecords: FetchedResults<CDAttendanceRecord>
 
-    // Filter out test students when setting is disabled.
-    // Active-in-range, not enrolled-only, so former students' history stays visible.
-    private var students: [CDStudent] {
-        let base = dependencies.roster.all
-        let scoped: [CDStudent]
-        if let bounds = dateRangeBounds {
-            scoped = base.filterActive(in: DateRange(start: bounds.start, end: bounds.end))
-        } else {
-            scoped = base
-        }
-        return TestStudentsFilter.filterVisible(
-            scoped,
-            show: testStudents.show,
-            namesRaw: testStudents.namesRaw
-        )
-    }
-
     // Filter state
     @State private var selectedStudentIDs: Set<UUID> = []
     @State private var selectedStatuses: Set<AttendanceStatus> = []
@@ -50,74 +33,15 @@ struct AttendanceLogView: View {
         var id: String { rawValue }
     }
 
-    // Maps for quick lookup
-    // Use uniquingKeysWith to handle CloudKit sync duplicates
-    var studentsByID: [UUID: CDStudent] {
-        Dictionary(students.compactMap { s in s.id.map { ($0, s) } }, uniquingKeysWith: { first, _ in first })
-    }
-
     // Date range bounds
     private var dateRangeBounds: (start: Date, end: Date)? {
-        switch selectedDateRange {
-        case .thisWeek:
-            let now = Date()
-            let start = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-            let end = calendar.date(byAdding: .day, value: 7, to: start) ?? now
-            return (start, end)
-        case .thisMonth:
-            let now = Date()
-            let start = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            let end = calendar.date(byAdding: .month, value: 1, to: start) ?? now
-            return (start, end)
-        case .lastMonth:
-            let now = Date()
-            let thisMonthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            let start = calendar.date(byAdding: .month, value: -1, to: thisMonthStart) ?? now
-            return (start, thisMonthStart)
-        case .custom:
-            let start = calendar.startOfDay(for: customStartDate)
-            let endStart = calendar.startOfDay(for: customEndDate)
-            let end = calendar.date(byAdding: .day, value: 1, to: endStart) ?? customEndDate
-            return (start, end)
-        case .allTime:
-            return nil
-        }
-    }
-
-    // Filtered records
-    private var filteredRecords: [CDAttendanceRecord] {
-        allRecords.filter { record in
-            // Exclude unmarked records from the log
-            if record.status == .unmarked { return false }
-
-            // Date range filter
-            if let bounds = dateRangeBounds {
-                guard let date = record.date else { return false }
-                if date < bounds.start || date >= bounds.end { return false }
-            }
-
-            // CDStudent filter
-            if !selectedStudentIDs.isEmpty {
-                guard let studentID = record.studentIDUUID else { return false }
-                if !selectedStudentIDs.contains(studentID) { return false }
-            }
-
-            // Status filter
-            if !selectedStatuses.isEmpty {
-                if !selectedStatuses.contains(record.status) { return false }
-            }
-
-            // Search filter (search student name)
-            if !searchText.isEmpty {
-                guard let studentID = record.studentIDUUID,
-                      let student = studentsByID[studentID] else { return false }
-                let name = student.shortName.lowercased()
-                let query = searchText.lowercased()
-                if !name.contains(query) { return false }
-            }
-
-            return true
-        }
+        AttendanceLogFilter.bounds(
+            for: selectedDateRange,
+            customStart: customStartDate,
+            customEnd: customEndDate,
+            calendar: calendar,
+            now: Date()
+        )
     }
 
     // Summary stats for filtered records
@@ -129,41 +53,6 @@ struct AttendanceLogView: View {
         var total: Int
     }
 
-    var summaryStats: AttendanceSummary {
-        var present = 0, absent = 0, tardy = 0, leftEarly = 0
-        for record in filteredRecords {
-            switch record.status {
-            case .present: present += 1
-            case .absent: absent += 1
-            case .tardy: tardy += 1
-            case .leftEarly: leftEarly += 1
-            case .unmarked: break
-            }
-        }
-        return AttendanceSummary(
-            present: present, absent: absent, tardy: tardy,
-            leftEarly: leftEarly, total: filteredRecords.count
-        )
-    }
-
-    // Group records by day
-    private func dayKey(_ date: Date) -> Date {
-        calendar.startOfDay(for: date)
-    }
-
-    private var groupedByDay: [(day: Date, items: [CDAttendanceRecord])] {
-        let dict = filteredRecords
-            .grouped { dayKey($0.date ?? Date.distantPast) }
-            .mapValues { arr in arr.sorted { lhs, rhs in
-                // Sort by student name within a day
-                let lhsName = studentsByID[lhs.studentIDUUID ?? UUID()]?.firstName ?? ""
-                let rhsName = studentsByID[rhs.studentIDUUID ?? UUID()]?.firstName ?? ""
-                return lhsName < rhsName
-            }}
-        let days = dict.keys.sorted(by: >)
-        return days.map { ($0, dict[$0] ?? []) }
-    }
-
     // Available statuses (exclude unmarked)
     var availableStatuses: [AttendanceStatus] {
         AttendanceStatus.allCases.filter { $0 != .unmarked }
@@ -171,7 +60,7 @@ struct AttendanceLogView: View {
 
     // MARK: - Filter Bar
 
-    private var filterBar: some View {
+    private func filterBar(students: [CDStudent]) -> some View {
         HStack(spacing: 12) {
             MultiSelectFilterMenu(
                 items: students,
@@ -235,17 +124,33 @@ struct AttendanceLogView: View {
     // MARK: - Body
 
     var body: some View {
+        // Read once per render: the timeframe's bounds, the roster, and the
+        // filtered records the summary, the grouping and the rows all use.
+        let bounds = dateRangeBounds
+        let students = AttendanceLogFilter.students(
+            from: dependencies.roster.all, bounds: bounds,
+            show: testStudents.show, namesRaw: testStudents.namesRaw
+        )
+        let studentsByID = AttendanceLogFilter.studentsByID(students)
+        let records = AttendanceLogFilter.records(
+            allRecords,
+            matching: AttendanceLogFilter.Criteria(
+                bounds: bounds, studentIDs: selectedStudentIDs,
+                statuses: selectedStatuses, searchText: searchText
+            ),
+            studentsByID: studentsByID
+        )
         VStack(spacing: 0) {
-            filterBar
+            filterBar(students: students)
                 .padding(.vertical, 8)
 
             customDateRangePicker
 
-            summaryStatsView
+            summaryStatsView(AttendanceLogFilter.summary(of: records))
 
             Divider()
 
-            if filteredRecords.isEmpty {
+            if records.isEmpty {
                 ContentUnavailableView(
                     "No Attendance Records",
                     systemImage: "calendar.badge.clock",
@@ -255,10 +160,13 @@ struct AttendanceLogView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(groupedByDay, id: \.day) { entry in
+                        ForEach(
+                            AttendanceLogFilter.groupedByDay(records, studentsByID: studentsByID, calendar: calendar),
+                            id: \.day
+                        ) { entry in
                             Section {
                                 ForEach(entry.items) { record in
-                                    attendanceRow(for: record)
+                                    attendanceRow(for: record, studentsByID: studentsByID)
                                 }
                             } header: {
                                 Text(DateFormatters.mediumDate.string(from: entry.day))
@@ -284,15 +192,15 @@ struct AttendanceLogView: View {
     /// Narrows the attendance fetch to the selected date range so the store returns
     /// only the visible window (index-backed by the AttendanceRecord `byDate` index)
     /// instead of loading every record ever created. A nil range (All Time) clears it.
+    ///
+    /// Only an optimisation: SwiftUI restores the declared, unfiltered request
+    /// whenever the parent re-creates this view (checked on the iOS 27 simulator),
+    /// and `AttendanceLogFilter.records` applies the same window in memory, so the
+    /// rows shown never depend on it. The reset is also why `init` does not narrow
+    /// the first fetch: a request built there would be restored over a timeframe
+    /// chosen later and hide that timeframe's rows.
     private func applyDateRangePredicate() {
-        if let bounds = dateRangeBounds {
-            allRecords.nsPredicate = NSPredicate(
-                format: "date >= %@ AND date < %@",
-                bounds.start as NSDate, bounds.end as NSDate
-            )
-        } else {
-            allRecords.nsPredicate = nil
-        }
+        allRecords.nsPredicate = AttendanceLogFilter.fetchPredicate(for: dateRangeBounds)
     }
 }
 

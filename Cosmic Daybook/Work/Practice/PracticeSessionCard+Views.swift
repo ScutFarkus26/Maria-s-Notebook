@@ -101,13 +101,13 @@ extension PracticeSessionCard {
     @ViewBuilder
     private var standardBehaviorTags: some View {
         if !session.activeBehaviors.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(session.activeBehaviors, id: \.self) { behavior in
-                        behaviorTag(behavior)
-                    }
+            // Wraps rather than scrolls: no scroll view per card.
+            FlowLayout(spacing: 6) {
+                ForEach(session.activeBehaviors, id: \.self) { behavior in
+                    behaviorTag(behavior)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

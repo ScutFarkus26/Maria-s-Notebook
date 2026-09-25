@@ -86,15 +86,15 @@ extension ObservationsView {
                     .lineLimit(2)
             }
             if !item.studentIDs.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(item.studentIDs.prefix(3), id: \.self) { sid in
-                            if let s = studentsByID[sid] {
-                                studentChip(s.shortName)
-                            }
+                // Wraps rather than scrolls: no scroll view per row.
+                FlowLayout(spacing: 6) {
+                    ForEach(item.studentIDs.prefix(3), id: \.self) { sid in
+                        if let s = studentsByID[sid] {
+                            studentChip(s.shortName)
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.vertical, 6)
