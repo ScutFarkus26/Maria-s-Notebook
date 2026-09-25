@@ -84,7 +84,7 @@ Cosmic Daybook/
 ├── Presentations/    # Presentation scheduling
 ├── Attendance/       # Attendance tracking
 ├── Planning/         # Planning & checklist tools
-├── Inbox/            # Follow-up inbox
+├── Inbox/            # Inbox-status section of the presentation detail
 ├── Today/            # Daily hub views, view model, and support
 ├── Todos/            # Todo screens, forms, and presentation support
 ├── Notes/            # Observation browsing, editing, and quick capture
