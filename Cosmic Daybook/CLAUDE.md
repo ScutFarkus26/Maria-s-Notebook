@@ -206,6 +206,11 @@ At the start of each conversation, before writing or modifying any code, search 
 
 - **Zero warnings policy:** All code must compile with zero warnings. Before proposing a change, consider whether it could introduce deprecation warnings, concurrency warnings, or type-safety warnings — and avoid them proactively.
 - All code must pass SwiftLint (see `.swiftlint.yml`). A hook runs it automatically after edits.
+- Unused code: `Scripts/periphery-scan.sh` indexes macOS and the iOS Simulator and runs Periphery with `.periphery.yml`,
+  which lists its false positives here. Confirm a hit by deleting it and building both platforms plus a Release
+  build: no Debug build compiles `#if !DEBUG` or the non-Foundation-Models `#else`, so neither the index nor a
+  Debug build sees code used only there. Periphery can also miss dead code (2026-09-25 it kept two unreachable
+  view clusters alive).
 - Follow Swift 6.0 strict concurrency rules — no shortcuts, no `@unchecked Sendable` unless absolutely necessary and documented.
 - Follow Apple Core Data + CloudKit conventions.
 - Use platform-appropriate APIs for the deployment target. Do not use availability checks (`if #available`) for APIs that are baseline at iOS 27.0+.

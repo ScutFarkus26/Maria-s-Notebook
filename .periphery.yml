@@ -1,0 +1,25 @@
+# Periphery (https://github.com/peripheryapp/periphery) — unused-code scan.
+#
+# Run `Scripts/periphery-scan.sh`, not a bare `periphery scan`: the script indexes BOTH
+# platforms (some code is `#if os(iOS)` / `#if os(macOS)` only) under the machine-wide build
+# lock, then scans that index with this file. A bare `periphery scan` builds one platform on its
+# own and reports the other platform's code as unused.
+#
+# Known false positives in this project — verify before deleting:
+# - `@State` / `@FocusState` properties used only through their `$binding`.
+# - AppIntent `static var description`, `SnippetIntent.snippet`, `@NSManaged` attributes.
+# - Anything referenced only inside a branch no Debug build compiles: `#if !DEBUG`, or the
+#   `#else` of `#if ENABLE_FOUNDATION_MODELS` (e.g. `AlbumIntelligenceError`).
+# - Cutting a flagged method can leave a protocol requirement behind; the build says so.
+# Periphery can also miss dead code (it kept two dead view clusters alive in 2026-09), so a
+# clean report is not proof that nothing is unused.
+
+project: Cosmic Daybook.xcodeproj
+schemes:
+  - Cosmic Daybook
+  - Daybook Assistant
+retain_codable_properties: true
+retain_swift_ui_previews: true
+retain_objc_annotated: true
+relative_results: true
+disable_update_check: true
