@@ -63,13 +63,13 @@ struct StudentNoteRowView: View {
                 
                 // Tag badges
                 if !item.tags.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 4) {
-                            ForEach(item.tags, id: \.self) { tag in
-                                TagBadge(tag: tag, compact: true)
-                            }
+                    // Wraps rather than scrolls: no scroll view per row.
+                    FlowLayout(spacing: 4) {
+                        ForEach(item.tags, id: \.self) { tag in
+                            TagBadge(tag: tag, compact: true)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Text(item.body)
