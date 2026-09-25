@@ -1,14 +1,21 @@
-import Foundation
 import CoreData
-import OSLog
+import Foundation
+import Testing
+@testable import CosmicDaybook
 
-/// Assembles classroom data context for chat requests.
+// The chat's context used to read every lesson for any message naming a child,
+// the whole class's presented lessons and open work once per named child, and
+// everyone's last 30 days of attendance; classroom_snapshot read every lesson
+// row to list the area names. The text handed to the model must not change by
+// a byte.
+
+// swiftlint:disable file_length line_length function_parameter_count
+/// `ChatContextAssembler` as it stood before its reads were scoped, kept
+/// verbatim (renamed) as the reference the new one must match.
 /// Uses a two-tier strategy:
 /// - Tier 1: Classroom snapshot (student roster, areas, weekly summary, todos) — built once per session
 /// - Tier 2: Selective student detail — loaded per-question when student names are detected
-final class ChatContextAssembler { // swiftlint:disable:this type_body_length
-    private static let logger = Logger.ai
-
+private final class LegacyChatContextAssembler { // swiftlint:disable:this type_body_length
     private let context: NSManagedObjectContext
 
     init(context: NSManagedObjectContext) {
@@ -23,8 +30,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
     func buildClassroomSnapshot() -> String {
         let queryService = DataQueryService(context: context)
         let students = queryService.fetchAllStudents(excludeTest: true)
-        // The area names only — one column, not every lesson row.
-        let areas = queryService.fetchLessonAreas()
+        let lessons = queryService.fetchAllLessons()
 
         var lines: [String] = []
         lines.append("=== CLASSROOM SNAPSHOT ===")
@@ -32,7 +38,7 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         lines.append("Enrolled student count: \(students.count)")
         lines.append("")
 
-        appendAreasSection(&lines, areas: areas)
+        appendAreasSection(&lines, lessons: lessons)
         lines.append("Use notebook lookup tools for dates, observations, presentations, work, attendance, and student-specific facts.")
 
         return lines.joined(separator: "\n")
@@ -40,8 +46,8 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
 
     // MARK: - Classroom Snapshot Helpers
 
-    /// `areas` distinct, non-empty and sorted (`DataQueryService.fetchLessonAreas`).
-    private func appendAreasSection(_ lines: inout [String], areas: [String]) {
+    private func appendAreasSection(_ lines: inout [String], lessons: [CDLesson]) {
+        let areas = Set(lessons.map(\.area)).filter { !$0.isEmpty }.sorted()
         if !areas.isEmpty {
             lines.append("--- Areas ---")
             lines.append(areas.joined(separator: ", "))
@@ -70,11 +76,17 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
         lines.append("")
         lines.append("=== STUDENT DETAILS ===")
 
-        let reads = QuestionReads(queryService: queryService, context: context)
+        let lessonsDict = queryService.fetchLessonsDictionary()
+        let studentsDict = queryService.fetchStudentsDictionary()
+
         for student in matched.prefix(3) {
             guard let studentID = student.id else { continue }
             newMentionedIDs.insert(studentID)
-            appendStudentDetail(&lines, student: student, reads: reads, question: question)
+            appendStudentDetail(
+                &lines, student: student, queryService: queryService,
+                lessonsDict: lessonsDict, studentsDict: studentsDict,
+                question: question
+            )
         }
 
         return (lines.joined(separator: "\n"), newMentionedIDs)
@@ -82,35 +94,10 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
 
     // MARK: - Question Context Helpers
 
-    /// The whole-table reads behind one message's student details, made at
-    /// most once for every child the message names, and only when a section
-    /// that needs them runs: the lesson and student dictionaries only for
-    /// presentation lines, the presented assignments (the same sorted read
-    /// each child used to make) and the open work once for all of them.
-    private final class QuestionReads {
-        private let queryService: DataQueryService
-        private let context: NSManagedObjectContext
-
-        init(queryService: DataQueryService, context: NSManagedObjectContext) {
-            self.queryService = queryService
-            self.context = context
-        }
-
-        private(set) lazy var lessonsByID: [UUID: CDLesson] = queryService.fetchLessonsDictionary()
-        private(set) lazy var studentsByID: [UUID: CDStudent] = queryService.fetchStudentsDictionary()
-        private(set) lazy var openWork: [CDWorkModel] = queryService.fetchOpenWorkModels()
-
-        /// Every presented assignment, newest first.
-        private(set) lazy var presented: [CDLessonAssignment] = {
-            let request = CDFetchRequest(CDLessonAssignment.self)
-            request.predicate = NSPredicate(format: "stateRaw == %@", LessonAssignmentState.presented.rawValue)
-            request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
-            return context.safeFetch(request)
-        }()
-    }
-
     private func appendStudentDetail(
-        _ lines: inout [String], student: CDStudent, reads: QuestionReads, question: String
+        _ lines: inout [String], student: CDStudent, queryService: DataQueryService,
+        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent],
+        question: String
     ) {
         lines.append("")
         lines.append("--- \(student.fullName) ---")
@@ -127,10 +114,10 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
             lines.append("Age: \(age), Birthday: \(formattedDate(student.birthday))")
         }
         if asksPresentation {
-            appendStudentPresentations(&lines, student: student, reads: reads)
+            appendStudentPresentations(&lines, student: student, lessonsDict: lessonsDict, studentsDict: studentsDict)
         }
         if asksWork {
-            appendStudentActiveWork(&lines, student: student, reads: reads)
+            appendStudentActiveWork(&lines, student: student, queryService: queryService)
             appendStudentCompletedWork(&lines, student: student)
         }
         if asksNotes {
@@ -148,14 +135,12 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
     }
 
     private func appendStudentPresentations(
-        _ lines: inout [String], student: CDStudent, reads: QuestionReads
+        _ lines: inout [String], student: CDStudent,
+        lessonsDict: [UUID: CDLesson], studentsDict: [UUID: CDStudent]
     ) {
         guard let studentID = student.id else { return }
-        let studentIDString = studentID.uuidString
-        let studentPresentations = Array(reads.presented.filter { $0.studentIDs.contains(studentIDString) }.prefix(10))
+        let studentPresentations = fetchPresentationsForStudent(studentID: studentID, limit: 10)
         guard !studentPresentations.isEmpty else { return }
-        let lessonsDict = reads.lessonsByID
-        let studentsDict = reads.studentsByID
         lines.append("Recent presentations (last \(studentPresentations.count)):")
         for pres in studentPresentations {
             let fallbackLesson = lessonsDict[pres.lessonIDUUID ?? UUID()]
@@ -180,11 +165,11 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
     }
 
     private func appendStudentActiveWork(
-        _ lines: inout [String], student: CDStudent, reads: QuestionReads
+        _ lines: inout [String], student: CDStudent, queryService: DataQueryService
     ) {
         guard let studentID = student.id else { return }
         let studentIDString = studentID.uuidString
-        let studentWork = reads.openWork.filter { $0.studentID == studentIDString }
+        let studentWork = queryService.fetchOpenWorkModels().filter { $0.studentID == studentIDString }
         guard !studentWork.isEmpty else { return }
         lines.append("Active work (\(studentWork.count)):")
         for work in studentWork.prefix(8) {
@@ -232,7 +217,8 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
     private func appendStudentAttendance(_ lines: inout [String], student: CDStudent) {
         guard let studentID = student.id else { return }
         let monthStart = AppCalendar.shared.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        let attendance = fetchAttendanceRecords(studentID: studentID, from: monthStart, to: Date())
+        let attendance = fetchAttendanceRecords(from: monthStart, to: Date())
+            .filter { $0.studentID == studentID.uuidString }
         let presentCount = attendance.filter { $0.status == .present }.count
         let absentCount = attendance.filter { $0.status == .absent }.count
         let tardyCount = attendance.filter { $0.status == .tardy }.count
@@ -307,16 +293,19 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
 
     // MARK: - Data Fetching Helpers
 
-    /// One child's records in the window. `studentID` is a String attribute,
-    /// compared as the in-memory filter over the whole class's rows compared it.
-    private func fetchAttendanceRecords(
-        studentID: UUID, from startDate: Date, to endDate: Date
-    ) -> [CDAttendanceRecord] {
+    private func fetchPresentationsForStudent(studentID: UUID, limit: Int) -> [CDLessonAssignment] {
+        let presentedRaw = LessonAssignmentState.presented.rawValue
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "stateRaw == %@", presentedRaw)
+        request.sortDescriptors = [NSSortDescriptor(key: "presentedAt", ascending: false)]
+        let allPresented = context.safeFetch(request)
+        let studentIDString = studentID.uuidString
+        return Array(allPresented.filter { $0.studentIDs.contains(studentIDString) }.prefix(limit))
+    }
+
+    private func fetchAttendanceRecords(from startDate: Date, to endDate: Date) -> [CDAttendanceRecord] {
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(
-            format: "studentID == %@ AND date >= %@ AND date <= %@",
-            studentID.uuidString, startDate as NSDate, endDate as NSDate
-        )
+        request.predicate = NSPredicate(format: "date >= %@ AND date <= %@", startDate as NSDate, endDate as NSDate)
         return context.safeFetch(request)
     }
 
@@ -368,5 +357,210 @@ final class ChatContextAssembler { // swiftlint:disable:this type_body_length
             return "\(years)y \(months)m"
         }
         return "\(months)m"
+    }
+}
+
+// swiftlint:enable line_length function_parameter_count
+
+@Suite("Chat context assembler scoped reads")
+@MainActor
+struct ChatContextAssemblerScopedReadsTests {
+
+    private struct Classroom {
+        let ora: CDStudent
+        let dalia: CDStudent
+        let etty: CDStudent
+    }
+
+    private func daysAgo(_ days: Int, hour: Int = 10) -> Date {
+        let calendar = AppCalendar.shared
+        let day = calendar.date(byAdding: .day, value: -days, to: calendar.startOfDay(for: Date())) ?? Date()
+        return calendar.date(byAdding: .hour, value: hour, to: day) ?? day
+    }
+
+    /// Four children; lessons across areas (one area empty, one repeated);
+    /// presentations, open and closed work, notes, attendance and a todo.
+    private func seedClassroom(in context: NSManagedObjectContext) throws -> Classroom {
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Levi")
+        ora.birthday = daysAgo(3_000)
+        let dalia = CoreDataTestHelpers.seedStudent(in: context, firstName: "Dalia", lastName: "Roth")
+        let etty = CoreDataTestHelpers.seedStudent(in: context, firstName: "Etty", lastName: "Klein")
+        let maya = CoreDataTestHelpers.seedStudent(in: context, firstName: "Maya", lastName: "Stern")
+
+        let areas = ["Math", "Language", "Geometry", "", "Math", "Biology", "History"]
+        let lessons = areas.enumerated().map { index, area in
+            CoreDataTestHelpers.seedLesson(in: context, name: "Lesson \(index)", area: area, sequence: "Seq")
+        }
+        try seedPresentations(lessons: lessons, ora: ora, dalia: dalia, maya: maya, in: context)
+        try seedWork(lessons: lessons, ora: ora, dalia: dalia, in: context)
+        try seedDays(ora: ora, dalia: dalia, etty: etty, maya: maya, in: context)
+
+        #expect(CoreDataTestHelpers.save(context))
+        return Classroom(ora: ora, dalia: dalia, etty: etty)
+    }
+
+    /// Twelve presentations for Ora: some without a title snapshot, so the
+    /// lesson dictionary names them; a tie on the day; group ones with Dalia;
+    /// flags, notes, follow-up work and an observation. One for Maya alone.
+    private func seedPresentations(
+        lessons: [CDLesson], ora: CDStudent, dalia: CDStudent, maya: CDStudent, in context: NSManagedObjectContext
+    ) throws {
+        for index in 0..<12 {
+            let lesson = lessons[index % lessons.count]
+            let students = index.isMultiple(of: 3) ? [ora, dalia] : [ora]
+            let presentation: CDLessonAssignment
+            if index.isMultiple(of: 2) {
+                presentation = PresentationFactory.makeDraft(lesson: lesson, students: students, context: context)
+                presentation.markPresented(at: daysAgo(index == 4 ? 6 : index))
+            } else {
+                presentation = PresentationFactory.makeDraft(
+                    lessonID: try #require(lesson.id), studentIDs: students.compactMap(\.id), context: context
+                )
+                presentation.markPresented(at: daysAgo(index), snapshotLesson: false)
+            }
+            presentation.needsPractice = index == 1
+            presentation.needsAnotherPresentation = index == 2
+            presentation.followUpWork = index == 3 ? "Copy the chart" : ""
+            presentation.notes = index == 5 ? "Went well" : ""
+            if index == 0 {
+                let note = CoreDataTestHelpers.seedNote(in: context, body: "Asked for more")
+                note.lessonAssignment = presentation
+            }
+        }
+        let other = PresentationFactory.makeDraft(lesson: lessons[1], students: [maya], context: context)
+        other.markPresented(at: daysAgo(2))
+    }
+
+    /// Ten open items for Ora, statuses interleaved (past the eight listed),
+    /// one with a note, a kind and a due date; one for Dalia; one closed.
+    private func seedWork(
+        lessons: [CDLesson], ora: CDStudent, dalia: CDStudent, in context: NSManagedObjectContext
+    ) throws {
+        let oraID = try #require(ora.id)
+        let statuses: [WorkStatus] = [
+            .review, .active, .active, .review, .active, .review, .active, .active, .review, .active
+        ]
+        for (index, status) in statuses.enumerated() {
+            let lessonID = try #require(lessons[index % lessons.count].id)
+            let work = CoreDataTestHelpers.seedWorkModel(
+                in: context, title: "Work \(index)", studentID: oraID, lessonID: lessonID
+            )
+            work.statusRaw = status.rawValue
+            work.assignedAt = daysAgo(20 - index)
+            work.dueAt = index == 3 ? daysAgo(-5) : nil
+            work.kindRaw = index == 2 ? WorkKind.allCases.first?.rawValue : nil
+            if index == 1 {
+                let note = CoreDataTestHelpers.seedNote(in: context, body: "Needs the beads")
+                note.work = work
+            }
+        }
+        let daliaWork = CoreDataTestHelpers.seedWorkModel(
+            in: context, title: "Dalia's map", studentID: try #require(dalia.id)
+        )
+        daliaWork.statusRaw = WorkStatus.review.rawValue
+        let closed = CoreDataTestHelpers.seedWorkModel(in: context, title: "Finished chart", studentID: oraID)
+        closed.statusRaw = WorkStatus.mastered.rawValue
+        closed.completedAt = daysAgo(3)
+    }
+
+    private struct Mark {
+        let student: CDStudent
+        let daysAgo: Int
+        let status: AttendanceStatus
+    }
+
+    /// Attendance in and out of the 30-day window for four children, a note
+    /// about Ora, and a todo naming her.
+    private func seedDays(
+        ora: CDStudent, dalia: CDStudent, etty: CDStudent, maya: CDStudent, in context: NSManagedObjectContext
+    ) throws {
+        let marks = [
+            Mark(student: ora, daysAgo: 1, status: .present), Mark(student: ora, daysAgo: 2, status: .absent),
+            Mark(student: ora, daysAgo: 3, status: .tardy), Mark(student: ora, daysAgo: 4, status: .present),
+            Mark(student: ora, daysAgo: 5, status: .unmarked), Mark(student: ora, daysAgo: 40, status: .absent),
+            Mark(student: dalia, daysAgo: 1, status: .absent), Mark(student: dalia, daysAgo: 2, status: .present),
+            Mark(student: etty, daysAgo: 1, status: .tardy), Mark(student: maya, daysAgo: 3, status: .present)
+        ]
+        for mark in marks {
+            let record = CoreDataTestHelpers.seedAttendance(
+                in: context, studentID: try #require(mark.student.id), date: daysAgo(mark.daysAgo)
+            )
+            record.status = mark.status
+        }
+
+        let oraID = try #require(ora.id)
+        let note = CoreDataTestHelpers.seedNote(in: context, body: "Concentrated for an hour")
+        note.searchIndexStudentID = oraID
+        note.createdAt = daysAgo(1)
+
+        let todo = CDTodoItem(context: context)
+        todo.title = "Call Ora's family"
+        todo.studentIDsArray = [oraID.uuidString]
+        todo.dueDate = daysAgo(-2)
+    }
+
+    private let questions = [
+        "How is Ora doing?",
+        "What lessons has Ora been given, what work is she on, her attendance, notes and todos? How old is she?",
+        "Compare Ora and Dalia: lessons, work and attendance.",
+        "What lessons has Etty had?",
+        "Attendance for Ora, Dalia, Etty and Maya",
+        "What is on for tomorrow?"
+    ]
+
+    private func expectSameContext(in context: NSManagedObjectContext) throws {
+        let classroom = try seedClassroom(in: context)
+        let current = ChatContextAssembler(context: context)
+        let legacy = LegacyChatContextAssembler(context: context)
+        let known: Set<UUID> = [try #require(classroom.etty.id)]
+
+        for question in questions {
+            let new = current.buildQuestionContext(question: question, existingMentionedIDs: known)
+            let old = legacy.buildQuestionContext(question: question, existingMentionedIDs: known)
+            #expect(new.context == old.context, "\(question)")
+            #expect(new.mentionedIDs == old.mentionedIDs, "\(question)")
+        }
+        // Not vacuous: the sections the scoped reads feed are in the text.
+        let full = current.buildQuestionContext(question: questions[1], existingMentionedIDs: []).context
+        #expect(full.contains("Recent presentations (last 10):"))
+        #expect(full.contains("Active work (10):"))
+        #expect(full.contains("Also with: Dalia"))
+        #expect(full.contains("Attendance (30 days): 2 present, 1 absent, 1 tardy out of 4 days"))
+        let pair = current.buildQuestionContext(question: questions[2], existingMentionedIDs: []).context
+        #expect(pair.contains("--- Dalia Roth ---"))
+
+        #expect(current.buildClassroomSnapshot() == legacy.buildClassroomSnapshot())
+        #expect(current.buildClassroomSnapshot().contains("Biology, Geometry, History, Language, Math"))
+    }
+
+    @Test("Question context and snapshot match the old reads on the in-memory store")
+    func sameContextInMemory() throws {
+        try expectSameContext(in: try CoreDataTestHelpers.makeContext())
+    }
+
+    @Test("Question context and snapshot match the old reads on SQLite")
+    func sameContextOnSQLite() throws {
+        try expectSameContext(in: try CoreDataTestHelpers.makeSplitStoreContext())
+    }
+
+    @Test("The area list follows unsaved lesson edits, as the whole-row read did")
+    func areasFollowUnsavedEdits() throws {
+        for context in [try CoreDataTestHelpers.makeContext(), try CoreDataTestHelpers.makeSplitStoreContext()] {
+            let math = CoreDataTestHelpers.seedLesson(in: context, name: "Checkerboard", area: "Math")
+            let history = CoreDataTestHelpers.seedLesson(in: context, name: "Clock of Eras", area: "History")
+            #expect(CoreDataTestHelpers.save(context))
+            let current = ChatContextAssembler(context: context)
+            let legacy = LegacyChatContextAssembler(context: context)
+            #expect(current.buildClassroomSnapshot() == legacy.buildClassroomSnapshot())
+
+            CoreDataTestHelpers.seedLesson(in: context, name: "Parts of the Leaf", area: "Botany")
+            math.area = "Mathematics"
+            context.delete(history)
+            let snapshot = current.buildClassroomSnapshot()
+            #expect(snapshot == legacy.buildClassroomSnapshot())
+            #expect(snapshot.contains("Botany, Mathematics"))
+            #expect(!snapshot.contains("History"))
+            #expect(DataQueryService(context: context).fetchLessonAreas() == ["Botany", "Mathematics"])
+        }
     }
 }
