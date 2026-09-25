@@ -14,9 +14,14 @@ hot paths are, and what has been checked and should not be re-litigated.
 - View contexts use `automaticallyMergesChangesFromParent`, so **every CloudKit import
   tick re-evaluates every visible body**. This is why per-body cost matters more here than
   in a typical app.
+- `SWIFT_APPROACHABLE_CONCURRENCY = YES` turns on `NonisolatedNonsendingByDefault`: a
+  `nonisolated async` function runs on its **caller's** actor, so one called from main-actor
+  code runs on the main thread. Only `@concurrent` leaves the main actor (2026-09-25: backup
+  encode/encrypt/verify ran on main despite comments saying otherwise).
 - Targets that share code: `Cosmic Daybook` (iOS + macOS) and `Daybook Assistant`
-  (macOS companion). The Assistant has an explicit source list in `project.pbxproj`; a new
-  AppCore/Services file the shared code calls must be added there by hand or its build breaks.
+  (an iPhone/iPad companion: `SDKROOT = iphoneos`, no Catalyst). The Assistant has an explicit
+  source list in `project.pbxproj`; a new AppCore/Services file the shared code calls must be
+  added there by hand or its build breaks.
 
 ## Helpers to reuse (never duplicate these)
 
@@ -41,6 +46,11 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Network reachability | `CloudKitSyncStatusService.shared` (owns the single `NWPathMonitor`); never start a second | Services |
 | Midnight / day change | `.onCalendarDayChange` modifier | `Utils/View+CalendarDayChange.swift` |
 | Keep a derived value until one of its entities changes (rebuild on next read) | `ManagedObjectChangeFlag(entityNames:context:)` + `consume(pendingIn:)`: set synchronously by ObjectsDidChange on the context, DidSave on the same coordinator, `.presentationDataDidChange`, or a reset; also sees unannounced pending edits. Used by Today's ready queue and the Students roster memo | `Utils/ManagedObjectChangeFlag.swift` |
+| A lesson by id in a view body (no table scan) | `lessonCatalog.lesson(id:in:)`: the catalog's row when it belongs to that context and isn't deleted, else the old `object(_:id:)` fetch | `Lessons/LessonCatalog+ContextLookup.swift` |
+| Lessons in the Lessons screen's order / any derived catalog order | `LessonCatalog.sortedByAreaSortIndexAndOrder` (area, sortIndex, orderInSequence); derived orders rebuild on first read behind the observed `version` — read `version` in a body that must refresh on any lesson change | `Lessons/LessonCatalog.swift` |
+| Keep a value built from saved sequence/section orders | `FilterOrderStore.revision` (bumped on every save and cache reset); `MapLayoutMemo` keys the Lessons map's sections on it plus catalog version, area and spine | `Components/FilterOrderStore.swift`, `Lessons/LessonsScopeMapLayout.swift` |
+| Menu-bar actions that don't rebuild menus per body pass | a reference-type focused value filled in `onAppear` (`FocusedSearchAction`, `QuickCaptureActions`, `AlbumFocusActions`), never a struct of closures | `AppCore/AppCommands.swift`, `Albums/AlbumModels.swift` |
+| Pace streamed text onto the screen | `StreamingTextThrottle` (≤ 10 updates/s, always flushes the last text) | `Chat/StreamingTextThrottle.swift` |
 | Reload only while a screen is on screen (TabView keeps visited tabs alive with live `.onReceive`/`.onChange`) | `.onChangeWhenVisible(of:catchUpOnAppear:)` / `.onReceiveWhenVisible(_:catchUpOnAppear:)`: hidden = mark stale, run once on reappear (pass `false` when the screen's own `.task`/`.onAppear` already reloads). No-op-safe on macOS, where the split-view detail is torn down. Wired (2026-09-23): Students DidSave token refresh, Progress, Presentations (pending tokens → change tokens), Works Agenda DidSave, Week plan check-ins (`ClassCurriculumMapView` needs nothing: its watcher runs inside `.task`, which is cancelled while hidden) | `Utils/View+WhenVisible.swift` |
 
 Services that already consult `EnergyPolicy`: `AppBootstrapper` (post-launch migrations),
@@ -76,6 +86,13 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
 4. **Memory residents**: `AlbumLibrary` (page text of every album PDF, covers, embeddings;
    now pressure-aware), `ImageCache`, `SearchIndexService` (ids only now), the
    `PresentationRecordIndex`.
+5. **The 2026-09-25 "Energy Fifty" audit** (private artifact "Daybook Energy Fifty"; baseline
+   and per-item numbers in `perf-baselines/2026-09-25-energy-fifty-wave1.md`) lists 50 items by
+   number. Wave one landed 2026-09-25: items 17, 19–21, 23, 24 and 26–36 (29 as the memo half
+   only; 32 without the Progress Dashboard row).
+   Still open: the Mac process items (a Release build day to day, the MCP bridge, occlusion,
+   per-window startup), EventKit mirrors rewriting every row each sync, backup encoding on the
+   main actor, idle cache trims, hidden iPad tabs beyond the five wired, and the memory items.
 
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
@@ -116,3 +133,20 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   files carry pre-existing `file_length` / `type_body_length` violations; check a baseline.
 - Timing tests under the parallel suite must poll with a deadline, never sleep a fixed
   interval; main-actor tasks can wait seconds for a turn.
+- `.contextMenu { … }` (and any non-escaping `@ViewBuilder` closure argument) runs on every
+  body pass of its view. A fetch or lookup inside it belongs in a nested `View`'s body, which
+  only runs when the menu is shown (`SameWorkPeersMenu`, `WorkCardStatusMenu`).
+- A `@FetchRequest` built in a view's `init` is put back every time the parent re-creates the
+  view, undoing any later `nsPredicate` change. "Narrow the fetch on appear" silently reverts
+  to the init request after a parent redraw (the attendance log does this today).
+- On iOS 27 a `LazyVStack` rebuilds rows that scroll far away: fresh `@State`, and inner
+  horizontal scroll views reset to their start. Lifting pin state isn't enough; that is why
+  the Lessons map stayed eager.
+- Chat answers do not stream: `ChatService` calls `streamConversation` without `timeout:`, so
+  the protocol's non-streaming default runs and each answer arrives in one piece.
+- Adding a predicate can make SQLite pick another index (check `EXPLAIN QUERY PLAN`), which
+  changes the row order of a fetch without complete sort descriptors, and so which rows a
+  capped read keeps.
+- `verify.sh` calls `xcodebuild` directly (not `Scripts/locked_xcodebuild.sh`) and builds the
+  Daybook Assistant for `platform=macOS`; for a lock-respecting gate build every target through
+  the lock (the Assistant on an iOS simulator) and run `test-without-building`.
