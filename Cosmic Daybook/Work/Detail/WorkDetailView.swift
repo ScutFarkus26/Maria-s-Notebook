@@ -26,10 +26,6 @@ struct WorkDetailView: View {
     @FetchRequest(sortDescriptors: []) private var peerWorks: FetchedResults<CDWorkModel>
     #endif
 
-    var scheduleDates: WorkScheduleDates {
-        viewModel.scheduleDates(checkIns: Array(checkIns))
-    }
-
     var likelyNextLesson: CDLesson? {
         viewModel.likelyNextLesson()
     }

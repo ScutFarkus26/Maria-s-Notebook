@@ -62,9 +62,6 @@ final class WorkDetailViewModel {
     }
 
     // MARK: - Computed Properties
-    func scheduleDates(checkIns: [CDWorkCheckIn]) -> WorkScheduleDates {
-        WorkScheduleDateLogic.compute(forCheckIns: checkIns)
-    }
     
     // PERF: Uses pre-fetched relatedLessons (same area+sequence) instead of all lessons
     func likelyNextLesson() -> CDLesson? {
