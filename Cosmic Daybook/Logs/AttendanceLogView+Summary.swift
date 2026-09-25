@@ -7,14 +7,15 @@ extension AttendanceLogView {
 
     // MARK: - Summary Stats View
 
-    var summaryStatsView: some View {
+    /// `stats` is computed once per render from the filtered records.
+    func summaryStatsView(_ stats: AttendanceSummary) -> some View {
         HStack(spacing: 16) {
-            statBadge(count: summaryStats.present, label: "Present", color: .green)
-            statBadge(count: summaryStats.absent, label: "Absent", color: .red)
-            statBadge(count: summaryStats.tardy, label: "Tardy", color: .blue)
-            statBadge(count: summaryStats.leftEarly, label: "Left Early", color: .purple)
+            statBadge(count: stats.present, label: "Present", color: .green)
+            statBadge(count: stats.absent, label: "Absent", color: .red)
+            statBadge(count: stats.tardy, label: "Tardy", color: .blue)
+            statBadge(count: stats.leftEarly, label: "Left Early", color: .purple)
             Spacer()
-            Text("\(summaryStats.total) records")
+            Text("\(stats.total) records")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
