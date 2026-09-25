@@ -126,8 +126,6 @@ equivalent) at runtime before calling the model.
 | Note tag + student suggestion | `Notes/Editor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
 | Describe photo into note | `Notes/Editor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |
 | Story metadata (title/themes/grade) | `Stories/StoryAnalyzer.swift` | `@Generable` `StoryAnalysisAI` | No | **PDF pages** |
-| Todo smart parsing | `Todos/Services/TodoSmartParserService.swift` | `@Generable` `ParsedTodo` | No | — |
-| Student-name extraction | `Todos/Services/TodoStudentSuggestionService.swift` | `@Generable` `ExtractedNames` | No | — |
 | Command bar parsing and classroom capture proposal | `Services/CommandBar/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` / `GeneratedClassroomCapture` | No | — |
 | Ask-your-notebook chat | `Chat/Services/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
 | Lesson planning | `Planning/AIPlanning/LessonPlanning/*` | Structured | — | — |

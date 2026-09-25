@@ -2,10 +2,9 @@
 // Completing a todo, recurrence included.
 //
 // Completion used to live inline in Today's `toggleTodoItem` and again in
-// `TodoListPanel+Actions.toggleTodo`, each spawning the next occurrence of a
+// the old to-do list panel, each spawning the next occurrence of a
 // repeating todo its own way. This is the one place that rule lives now;
-// Today's toggle and the Watching list's "Clear" both call it. (The todo
-// panel's own copy is a separate cleanup.)
+// Today's toggle and the Watching list's "Clear" both call it.
 
 import CoreData
 import Foundation

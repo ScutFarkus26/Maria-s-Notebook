@@ -1,7 +1,7 @@
 // TodoRowComponents.swift
-// Pieces shared by the two to-do row presentations: `TodoRow` (the list panel's
-// compact row) and `TodoRowCard` (the main view's card). The card carries extra
-// layout of its own, so only the genuinely identical parts live here.
+// Pieces of `TodoRowCard` (the main view's to-do card), kept in their own file.
+// They were shared with the old list panel's compact row until that panel
+// was removed.
 
 import SwiftUI
 import CoreData

@@ -1183,11 +1183,9 @@ Universal observation system. Notes can be:
 
 Teacher task management with:
 
-- **Smart parsing** (`TodoSmartParserService`) — natural language input
 - **Subtasks** (`CDTodoSubtask`) — checklist within a todo
 - **Tags** — categorization
 - **Due dates** — with overdue tracking
-- **Notifications** (`TodoNotificationService`) — local notifications
 - **Export** (`TodoExportService`) — export to files
 
 ## Settings Module

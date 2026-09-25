@@ -1,6 +1,6 @@
 // SelectedStudentChipsRow.swift
 // Shared horizontal row of selected-student chips with remove buttons.
-// Used by UnifiedNoteEditor and TodoEditSheet; the label, font, and text
+// Used by the note editor and the checklist filter bar; the label, font, and text
 // color are parameterized so each call site keeps its established look.
 
 import SwiftUI
