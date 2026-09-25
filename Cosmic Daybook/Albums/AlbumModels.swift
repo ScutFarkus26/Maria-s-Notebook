@@ -193,21 +193,49 @@ nonisolated struct AlbumSearchCorpus: Sendable {
 // MARK: - Focused values (menu bar commands act on the active window)
 
 /// Actions the frontmost album view exposes to the menu bar.
-struct AlbumFocusActions {
-    let albumID: String
-    let toggleBookmark: () -> Void
-    let addNote: () -> Void
-    let nextPage: () -> Void
-    let previousPage: () -> Void
-    let zoomIn: () -> Void
-    let zoomOut: () -> Void
-    let actualSize: () -> Void
-    let goToPage: () -> Void
-    let printPDF: () -> Void
-    let findInAlbum: () -> Void
-    let highlightSelection: () -> Void
-    let exportLesson: () -> Void
-    let toggleThumbnails: () -> Void
+///
+/// A reference type, like `FocusedSearchAction`: each album view creates one
+/// and fills in its handlers, so the focused value keeps its identity across
+/// the view's body passes — which run on every page turn — and the Album menu
+/// is not rebuilt each time.
+final class AlbumFocusActions {
+    struct Handlers {
+        let toggleBookmark: () -> Void
+        let addNote: () -> Void
+        let nextPage: () -> Void
+        let previousPage: () -> Void
+        let zoomIn: () -> Void
+        let zoomOut: () -> Void
+        let actualSize: () -> Void
+        let goToPage: () -> Void
+        let printPDF: () -> Void
+        let findInAlbum: () -> Void
+        let highlightSelection: () -> Void
+        let exportLesson: () -> Void
+        let toggleThumbnails: () -> Void
+    }
+
+    private(set) var albumID = ""
+    private var handlers: Handlers?
+
+    func install(albumID: String, handlers: Handlers) {
+        self.albumID = albumID
+        self.handlers = handlers
+    }
+
+    func toggleBookmark() { handlers?.toggleBookmark() }
+    func addNote() { handlers?.addNote() }
+    func nextPage() { handlers?.nextPage() }
+    func previousPage() { handlers?.previousPage() }
+    func zoomIn() { handlers?.zoomIn() }
+    func zoomOut() { handlers?.zoomOut() }
+    func actualSize() { handlers?.actualSize() }
+    func goToPage() { handlers?.goToPage() }
+    func printPDF() { handlers?.printPDF() }
+    func findInAlbum() { handlers?.findInAlbum() }
+    func highlightSelection() { handlers?.highlightSelection() }
+    func exportLesson() { handlers?.exportLesson() }
+    func toggleThumbnails() { handlers?.toggleThumbnails() }
 }
 
 extension FocusedValues {
