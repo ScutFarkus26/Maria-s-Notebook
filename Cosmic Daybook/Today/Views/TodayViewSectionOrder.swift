@@ -32,7 +32,7 @@ extension TodayView {
         .listStyle(.insetGrouped)
         .refreshable {
             viewModel.reload()
-            reloadDerivedCounts()
+            reloadDerivedCounts(force: true)
             pullToRefreshTip.invalidate(reason: .actionPerformed)
         }
         #endif

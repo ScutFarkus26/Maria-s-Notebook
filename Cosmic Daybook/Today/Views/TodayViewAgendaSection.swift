@@ -163,14 +163,15 @@ extension TodayView {
 
     @ViewBuilder
     private func agendaLessonRow(_ sl: CDLessonAssignment) -> some View {
-        let lesson = lessonForPresentation(sl)
+        // Walks the lesson's attachments; asked once per row, not per use.
+        let hasPlan = lessonHasPlanDocument(lessonForPresentation(sl))
         LessonListRow(
             lessonName: nameForLesson(sl.resolvedLessonID),
             studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
             isPresented: sl.isPresented,
-            trailingAccessorySystemName: lessonHasPlanDocument(lesson) ? "doc.richtext" : nil,
+            trailingAccessorySystemName: hasPlan ? "doc.richtext" : nil,
             trailingAccessoryLabel: "Open lesson plan",
-            onTrailingAccessoryTap: lessonHasPlanDocument(lesson) ? {
+            onTrailingAccessoryTap: hasPlan ? {
                 openLessonPlan(for: sl)
             } : nil
         )
