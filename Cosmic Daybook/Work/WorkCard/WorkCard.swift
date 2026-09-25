@@ -13,15 +13,6 @@ struct WorkCard: View {
         case list(ListConfig)
         case pill(PillConfig)
         case compact(CompactConfig)
-
-        var displayMode: WorkCardDisplayMode {
-            switch self {
-            case .grid: return .grid
-            case .list: return .list
-            case .pill: return .pill
-            case .compact: return .compact
-            }
-        }
     }
 
     struct GridConfig {

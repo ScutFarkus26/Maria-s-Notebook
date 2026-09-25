@@ -27,24 +27,6 @@ struct PresentationRepository: SavingRepository {
     /// Fetch a CDLessonAssignment by ID
     func fetchLessonAssignment(id: UUID) -> CDLessonAssignment? { fetch(id: id) }
 
-    /// Fetch multiple LessonAssignments with optional filtering and sorting
-    func fetchLessonAssignments(
-        predicate: NSPredicate? = nil,
-        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
-    ) -> [CDLessonAssignment] {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = predicate
-        request.sortDescriptors = sortBy
-        request.relationshipKeyPathsForPrefetching = ["lesson", "students"]
-        request.fetchBatchSize = 20
-        return context.safeFetch(request)
-    }
-
-    /// Fetch LessonAssignments for a specific lesson
-    func fetchLessonAssignments(forLessonID lessonID: UUID) -> [CDLessonAssignment] {
-        fetchLessonAssignments(predicate: NSPredicate(format: "lessonID == %@", lessonID.uuidString))
-    }
-
     // MARK: - Update
 
     /// Schedule a CDLessonAssignment

@@ -34,10 +34,4 @@ nonisolated extension CDStudent {
         NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true),
         NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true)
     ]
-
-    /// Last name, then first name (used in attendance and agenda views)
-    nonisolated(unsafe) static let sortByLastName: [NSSortDescriptor] = [
-        NSSortDescriptor(keyPath: \CDStudent.lastName, ascending: true),
-        NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)
-    ]
 }

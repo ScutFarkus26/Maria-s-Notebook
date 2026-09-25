@@ -76,10 +76,6 @@ nonisolated public enum WorkStatus: String, Codable, CaseIterable, Hashable, Ide
     public static var openPredicate: NSPredicate {
         NSPredicate(format: "statusRaw IN %@", openRawValues)
     }
-    /// `statusRaw IN {closed raws}`.
-    public static var closedPredicate: NSPredicate {
-        NSPredicate(format: "statusRaw IN %@", closedRawValues)
-    }
 }
 
 // MARK: - Completion Outcome
@@ -104,30 +100,6 @@ nonisolated public enum CompletionOutcome: String, Codable, CaseIterable, Hashab
         case .needsReview: return "Needs Review"
         case .incomplete: return "Incomplete"
         case .notApplicable: return "N/A"
-        }
-    }
-}
-
-// MARK: - Scheduled Reason
-/// Describes why a work item was scheduled
-nonisolated public enum ScheduledReason: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
-    case checkIn
-    case due
-    case followUp
-    case assessment
-    case studentRequest
-    case other
-
-    public var id: String { rawValue }
-
-    public var displayName: String {
-        switch self {
-        case .checkIn: return "Check-In"
-        case .due: return "Due"
-        case .followUp: return "Follow Up"
-        case .assessment: return "Assessment"
-        case .studentRequest: return "Student Request"
-        case .other: return "Other"
         }
     }
 }

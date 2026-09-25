@@ -43,21 +43,4 @@ extension SavingRepository {
         // so a failure is logged loudly (.fault) instead of silently dropped.
         return context.safeSave()
     }
-
-    /// Save changes and show a success toast.
-    /// - Parameters:
-    ///   - successMessage: Message to show on success
-    ///   - reason: Optional description shown to user on failure
-    /// - Returns: true if save succeeded
-    @discardableResult
-    func saveWithToast(successMessage: String, reason: String? = nil) -> Bool {
-        if let coordinator = saveCoordinator {
-            return coordinator.saveWithToast(context, successMessage: successMessage, reason: reason)
-        }
-        // No coordinator: safeSave still logs a failure loudly (.fault). Only
-        // show the success toast when the save actually persisted.
-        guard context.safeSave() else { return false }
-        ToastService.shared.showSuccess(successMessage)
-        return true
-    }
 }

@@ -133,7 +133,6 @@ nonisolated extension CDWorkModel {
     // MARK: - Status Helpers
 
     var isActive: Bool { status == .active }
-    var isReview: Bool { status == .review }
     var isClosed: Bool { status.isClosed }
 
     func participant(for studentID: UUID) -> CDWorkParticipantEntity? {
@@ -159,11 +158,6 @@ nonisolated extension CDWorkModel {
         let s = (steps?.allObjects as? [CDWorkStep]) ?? []
         let completed = s.filter { $0.completedAt != nil }.count
         return (completed, s.count)
-    }
-
-    /// Returns true if this is a report-type work
-    var isReport: Bool {
-        kind == .report
     }
 
     // MARK: - Choice Mode Helpers

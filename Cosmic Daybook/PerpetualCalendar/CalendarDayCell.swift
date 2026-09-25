@@ -19,15 +19,6 @@ struct CalendarDayMetrics {
     /// Padding around the whole cell.
     var cellVerticalPadding: CGFloat
 
-    /// The perpetual calendar's roomier single-line cells.
-    static let perpetual = CalendarDayMetrics(
-        rowSpacing: 0,
-        horizontalPadding: 10,
-        parshaTopPadding: 2,
-        dayRowVerticalPadding: 1,
-        cellVerticalPadding: 0
-    )
-
     /// The planning calendar's tighter cells, which also carry event and todo rows.
     static let planning = CalendarDayMetrics(
         rowSpacing: 1,

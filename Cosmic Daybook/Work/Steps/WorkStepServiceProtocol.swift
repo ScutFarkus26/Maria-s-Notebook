@@ -28,7 +28,6 @@ protocol WorkStepServiceProtocol {
     func markCompleted(_ step: CDWorkStep, at date: Date) throws
     func markIncomplete(_ step: CDWorkStep) throws
     func toggleCompletion(_ step: CDWorkStep, at date: Date) throws
-    func reorderSteps(_ steps: [CDWorkStep]) throws
 
     // MARK: - Deletion
 
@@ -74,10 +73,6 @@ final class CDWorkStepServiceImpl: WorkStepServiceProtocol {
 
     func toggleCompletion(_ step: CDWorkStep, at date: Date = Date()) throws {
         try cdService.toggleCompletion(step, at: date)
-    }
-
-    func reorderSteps(_ steps: [CDWorkStep]) throws {
-        try cdService.reorderSteps(steps)
     }
 
     // MARK: - Deletion

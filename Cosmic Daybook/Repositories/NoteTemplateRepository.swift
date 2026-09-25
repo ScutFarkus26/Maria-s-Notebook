@@ -44,25 +44,6 @@ struct NoteTemplateRepository: SavingRepository {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == YES"))
     }
 
-    /// Fetch only custom (user-created) templates
-    func fetchCustomTemplates() -> [CDNoteTemplate] {
-        fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == NO"))
-    }
-
-    // MARK: - Update
-
-    /// Reorder custom templates by updating their sort orders
-    @discardableResult
-    func reorderTemplates(ids: [UUID]) -> Bool {
-        for (index, id) in ids.enumerated() {
-            guard let template = fetchTemplate(id: id) else { continue }
-            if !template.isBuiltIn {
-                template.sortOrder = Int64(100 + index)
-            }
-        }
-        return save(reason: "Reordering templates")
-    }
-
     // MARK: - Delete
 
     /// Delete a NoteTemplate by ID (only custom templates can be deleted)

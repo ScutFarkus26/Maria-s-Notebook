@@ -50,7 +50,6 @@ struct UnifiedPresentationWorkflowPanel: View {
     @State var bulkAppliedMessage: String = ""
     @State var bulkCheckInStyle: CheckInStyle = .flexible
     @State var scrollTargetStudentID: UUID?
-    @Namespace private var studentScrollAnchor
 
     private enum PanelFocus: Sendable {
         case presentation

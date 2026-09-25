@@ -27,29 +27,6 @@ struct DocumentRepository: SavingRepository {
     /// Fetch a CDDocument by ID
     func fetchDocument(id: UUID) -> CDDocument? { fetch(id: id) }
 
-    /// Fetch multiple Documents with optional filtering and sorting
-    func fetchDocuments(
-        predicate: NSPredicate? = nil,
-        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "uploadDate", ascending: false)]
-    ) -> [CDDocument] {
-        let request = CDFetchRequest(CDDocument.self)
-        request.predicate = predicate
-        request.sortDescriptors = sortBy
-        request.fetchBatchSize = 20
-        return context.safeFetch(request)
-    }
-
-    /// Fetch documents for a specific student
-    func fetchDocuments(forStudent student: CDStudent) -> [CDDocument] {
-        let docs = student.documents
-        return docs.sorted { ($0.uploadDate ?? .distantPast) > ($1.uploadDate ?? .distantPast) }
-    }
-
-    /// Fetch documents by category
-    func fetchDocuments(byCategory category: String) -> [CDDocument] {
-        fetchDocuments(predicate: NSPredicate(format: "category == %@", category))
-    }
-
     // MARK: - Create
 
     /// Create a new CDDocument backed by a file in the iCloud "Student Files" folder.

@@ -23,7 +23,6 @@ nonisolated enum UserDefaultsKeys {
     static let planningInboxOrder = "PlanningInbox.order"
     
     // MARK: - Backup
-    static let backupEncrypt = "Backup.encrypt"
     static let lastBackupTimeInterval = "lastBackupTimeInterval"
 
     // MARK: - Auto Backup
@@ -36,11 +35,6 @@ nonisolated enum UserDefaultsKeys {
     static let autoBackupLastBackgroundDate = "AutoBackup.lastBackgroundDate"
 
     // MARK: - Attendance
-    static let attendanceEmailEnabled = "AttendanceEmail.enabled"
-    static let attendanceEmailTo = "AttendanceEmail.to"
-    static let attendanceEmailFrom = "AttendanceEmail.from"
-    static let attendanceEmailNameOrder = "AttendanceEmail.nameOrder"
-    static let attendanceEmailGroupByLevel = "AttendanceEmail.groupByLevel"
     // Dynamic keys: "Attendance.locked.<yyyy-MM-dd>"
     
     // MARK: - CDLesson Age
@@ -100,7 +94,7 @@ nonisolated enum UserDefaultsKeys {
     static let lessonsAgendaMissWindow = "LessonsAgenda.missWindow"
     static let planningRecentWindowDays = "Planning.recentWindowDays"
     /// Legacy — the "Work" checkbox on the old presentations-only calendar.
-    /// Read once by `CalendarKindFilter.migratedFromLegacyToggles`, never written.
+    /// No longer read (its one-time migration was never wired up); still carried in backups.
     static let presentationsCalendarShowWork = "PresentationsCalendar.showWork"
     /// What the merged calendar shows: a `CalendarKindFilter` raw value.
     static let calendarVisibleKinds = "Calendar.visibleKinds"
@@ -174,7 +168,7 @@ nonisolated enum UserDefaultsKeys {
     /// The calendar pane's share of the workspace height, 0.2–0.7.
     static let workAgendaCalendarFraction = "WorkAgenda.calendarFraction"
     /// Legacy — the "Presentations" checkbox on the old work-only calendar.
-    /// Read once by `CalendarKindFilter.migratedFromLegacyToggles`, never written.
+    /// No longer read (its one-time migration was never wired up); still carried in backups.
     static let workCalendarShowPresentations = "WorkCalendar.showPresentations"
 
     // MARK: - Migrations

@@ -30,9 +30,7 @@ final class OpenAIAPIClient {
     // MARK: - Image Generation
 
     enum ImageSize: String {
-        case square = "1024x1024"
         case portrait = "1024x1536"
-        case landscape = "1536x1024"
     }
 
     enum ImageQuality: String {

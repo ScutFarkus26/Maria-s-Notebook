@@ -9,8 +9,6 @@ enum OrderRequestPrefs {
     static let recipientNameKey = "Orders.recipientName"
     static let recipientEmailKey = "Orders.recipientEmail"
     static let signOffNameKey = "Orders.signOffName"
-
-    static let allKeys = [recipientNameKey, recipientEmailKey, signOffNameKey]
 }
 
 /// The person order requests go to.

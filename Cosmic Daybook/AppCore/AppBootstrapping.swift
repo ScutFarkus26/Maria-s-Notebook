@@ -80,10 +80,6 @@ final class AppBootstrapping {
     #endif
     #endif
     
-    static func resetLocalDatabaseAndForceCloudKitSync() throws {
-        try DatabaseInitializationService.resetLocalDatabaseAndForceCloudKitSync()
-    }
-
     static func storeFileURL() -> URL {
         DatabaseInitializationService.storeFileURL()
     }

@@ -184,19 +184,6 @@ extension RootView {
         case settings  = "Settings"
 
         var id: String { rawValue }
-
-        var icon: String {
-            switch self {
-            case .students:  return "person.3"
-            case .albums:    return "book"
-            case .planning:  return "calendar"
-            case .today:     return "sun.max"
-            case .logs:      return "list.bullet"
-            case .attendance: return "checklist"
-            case .community: return "bubble.left.and.bubble.right"
-            case .settings:  return "gear"
-            }
-        }
     }
 
     // MARK: - Selection restore

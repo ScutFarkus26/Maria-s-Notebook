@@ -13,7 +13,6 @@ import Foundation
 /// - `updateDenormalizedKeys()` — rebuilds `studentGroupKeyPersisted` from resolved UUIDs
 /// - `syncSnapshotsFromRelationships()` — copies relationship data into string-based fields
 /// - `resolvedLessonID` — falls back from relationship to stored string ID
-/// - `studentGroupKey` — falls back from persisted key to computed key
 protocol DenormalizedSchedulable: AnyObject {
     // MARK: - Scheduling (stored properties)
 
@@ -67,13 +66,5 @@ extension DenormalizedSchedulable {
     /// CDLesson UUID resolved from relationship (preferred) or stored string ID (fallback).
     var resolvedLessonID: UUID {
         lessonRelationshipID ?? (UUID(uuidString: lessonID) ?? UUID())
-    }
-
-    /// Order-insensitive key for quick equality/sequence checks.
-    /// Prefers the persisted key; falls back to computing from resolved student IDs.
-    var studentGroupKey: String {
-        if !studentGroupKeyPersisted.isEmpty { return studentGroupKeyPersisted }
-        let ids = resolvedStudentIDs.sorted { $0.uuidString < $1.uuidString }
-        return ids.map(\.uuidString).joined(separator: ",")
     }
 }

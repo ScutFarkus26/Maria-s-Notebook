@@ -69,14 +69,6 @@ enum ReadinessTier: String, Sendable, CaseIterable, Identifiable {
         case .notReady: return .secondary
         }
     }
-
-    var icon: String {
-        switch self {
-        case .ready: return SFSymbol.Action.checkmarkCircleFill
-        case .almostReady: return "clock.badge.exclamationmark"
-        case .notReady: return "minus.circle"
-        }
-    }
 }
 
 // MARK: - Blocking Reason

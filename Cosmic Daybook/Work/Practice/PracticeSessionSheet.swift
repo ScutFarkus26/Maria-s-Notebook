@@ -45,10 +45,6 @@ struct PracticeSessionSheet: View {
     @State private var relatedPresentation: Presentation?
     @State private var relatedLesson: CDLesson?
     
-    private var repository: PracticeSessionRepository {
-        PracticeSessionRepository(context: viewContext)
-    }
-    
     // Co-learner student IDs (students who had the lesson together)
     private var coLearnerIDs: Set<UUID> {
         StudentCategorizer.getCoLearnerIDs(for: initialWorkItem, allLessonAssignments: allLessonAssignments)

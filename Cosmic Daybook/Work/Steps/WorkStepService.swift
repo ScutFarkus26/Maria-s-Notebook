@@ -65,13 +65,6 @@ struct WorkStepService: WorkStepServiceProtocol {
         }
     }
 
-    /// Reorder steps after drag operation. Updates orderIndex values based on array position.
-    func reorderSteps(_ steps: [CDWorkStep]) throws {
-        for (index, step) in steps.enumerated() {
-            step.orderIndex = Int64(index)
-        }
-    }
-
     // MARK: - Deletion
 
     /// Delete a step from its context.

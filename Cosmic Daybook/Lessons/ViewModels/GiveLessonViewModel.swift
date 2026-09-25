@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import SwiftUI
 import CoreData
 import Foundation
@@ -11,13 +10,6 @@ import OSLog
 enum GiveLessonMode: Hashable {
     case plan
     case given
-}
-
-enum StudentLevelFilter: String, CaseIterable {
-    case all = "All"
-    case lower = "Lower"
-    case upper = "Upper"
-    case adolescent = "Adolescent"
 }
 
 // MARK: - View Model
@@ -42,7 +34,6 @@ final class LessonPickerViewModel {
     // Search and UI state
     var lessonSearchText: String = ""
     var studentSearchText: String = ""
-    var studentLevelFilter: StudentLevelFilter = .all
     var showFollowUpField: Bool = false
     
     // MARK: - Private Properties
@@ -115,34 +106,6 @@ final class LessonPickerViewModel {
             guard let id = student.id else { return false }
             return selectedStudentIDs.contains(id)
         }
-    }
-    
-    var filteredStudentsForPicker: [CDStudent] {
-        var filtered = sortedStudents
-        
-        // Apply level filter
-        switch studentLevelFilter {
-        case .lower:
-            filtered = filtered.filter { $0.level == .lower }
-        case .upper:
-            filtered = filtered.filter { $0.level == .upper }
-        case .adolescent:
-            filtered = filtered.filter { $0.level == .adolescent }
-        case .all:
-            break
-        }
-        
-        // Apply search filter
-        let query = studentSearchText.normalizedForComparison()
-        if !query.isEmpty {
-            filtered = filtered.filter { student in
-                student.firstName.lowercased().contains(query) ||
-                student.lastName.lowercased().contains(query) ||
-                student.fullName.lowercased().contains(query)
-            }
-        }
-        
-        return filtered
     }
     
     var isValid: Bool {

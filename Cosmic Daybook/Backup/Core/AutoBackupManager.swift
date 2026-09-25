@@ -72,7 +72,6 @@ final class AutoBackupManager {
     enum BackupTrigger: String, Sendable {
         case appQuit = "AppQuit"
         case scheduled = "Scheduled"
-        case preDestructive = "PreDestructive"
         case manual = "Manual"
         case background = "Background"
     }
@@ -437,11 +436,6 @@ final class AutoBackupManager {
     var enabled: Bool {
         get { isEnabled }
         set { isEnabled = newValue }
-    }
-
-    var retention: Int {
-        get { retentionCount }
-        set { retentionCount = max(1, min(newValue, 100)) }
     }
 
 }

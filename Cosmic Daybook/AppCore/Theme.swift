@@ -195,19 +195,4 @@ enum AppTheme {
         }
 
     }
-
-    // MARK: - Tracking (Letter Spacing) Constants (#12-14)
-
-    /// Standardized letter-spacing values for typographic refinement
-    enum Tracking {
-        /// Tight tracking for large display titles (26pt+) — more refined, editorial feel (#13)
-        nonisolated static let display: CGFloat = -0.3
-
-        /// Standard tracking — no adjustment (default)
-        nonisolated static let standard: CGFloat = 0
-
-        /// Slightly wider tracking for small text in pills/badges (#14)
-        nonisolated static let badge: CGFloat = 0.2
-
-    }
 }

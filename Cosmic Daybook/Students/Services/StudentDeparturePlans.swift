@@ -32,8 +32,6 @@ enum StudentDeparturePlans {
         var plansEdited = 0
         /// Plans that named only her, deleted rather than left with nobody on them.
         var plansDeleted = 0
-        /// Year-plan entries moved to skipped. Kept, never deleted.
-        var entriesSkipped = 0
 
         /// Plans touched. Year-plan entries are counted separately because they
         /// are a different kind of record and the guide is told about them apart.

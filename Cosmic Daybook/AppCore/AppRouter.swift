@@ -81,16 +81,6 @@ final class AppRouter {
         }
     }
 
-    /// Planning lesson for student on date
-    struct PlanLessonRequest: Equatable {
-        let studentID: UUID
-        let date: Date
-        
-        static func == (lhs: PlanLessonRequest, rhs: PlanLessonRequest) -> Bool {
-            lhs.studentID == rhs.studentID && lhs.date == rhs.date
-        }
-    }
-
     /// A one-shot request for a particular lens in the shared Lessons & Work
     /// workspace. Optional focus identifiers let the destination reveal what
     /// the guide just created without opening another modal automatically.
@@ -122,9 +112,6 @@ final class AppRouter {
     
     /// Current navigation destination to present
     var navigationDestination: NavigationDestination?
-    
-    /// Plan lesson request
-    var planLessonRequest: PlanLessonRequest?
     
     /// Navigation item selection for root view (new primary navigation)
     var selectedNavItem: RootView.NavigationItem?
@@ -222,11 +209,6 @@ final class AppRouter {
         navigationDestination = .backfillIsPresented
     }
 
-    /// Request to plan lesson for student on date
-    func requestPlanLessonForStudentOnDate(studentID: UUID, date: Date) {
-        planLessonRequest = PlanLessonRequest(studentID: studentID, date: date)
-    }
-    
     /// Navigate to a specific navigation item
     func navigateTo(_ item: RootView.NavigationItem) {
         switch item {

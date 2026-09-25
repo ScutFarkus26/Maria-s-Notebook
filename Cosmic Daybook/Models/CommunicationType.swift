@@ -26,18 +26,6 @@ enum CommunicationType: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var icon: String {
-        switch self {
-        case .conference: return "person.2"
-        case .progressUpdate: return "chart.line.uptrend.xyaxis"
-        case .monthlyReport: return "calendar.badge.checkmark"
-        case .concern: return "exclamationmark.bubble"
-        case .introduction: return "hand.wave"
-        case .endOfYear: return "gift"
-        case .custom: return "square.and.pencil"
-        }
-    }
-
     var color: Color {
         switch self {
         case .conference: return .blue

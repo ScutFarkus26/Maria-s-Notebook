@@ -81,9 +81,6 @@ nonisolated final class ManagedObjectChangeFlag: Sendable {
         contextID == ObjectIdentifier(context)
     }
 
-    /// Whether an input moved since the last `consume()`.
-    var isDirty: Bool { dirty.value.withLock { $0 } }
-
     func markDirty() {
         dirty.set()
     }

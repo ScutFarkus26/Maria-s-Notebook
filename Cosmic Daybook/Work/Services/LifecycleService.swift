@@ -74,36 +74,4 @@ struct LifecycleService {
             return lessonPresentation
         }
     }
-
-    /// Upsert CDLessonPresentation by (lessonID, studentID) when no presentationID exists.
-    /// Used for syncing progress from CDLessonAssignment records that may not have a Presentation yet.
-    static func upsertLessonPresentationByLessonAndStudent(
-        lessonID: String,
-        studentID: String,
-        presentedAt: Date,
-        context: NSManagedObjectContext
-    ) throws {
-        // PERFORMANCE: Use predicate to filter at database level instead of loading all records
-        let request = CDFetchRequest(CDLessonPresentation.self)
-        request.predicate = NSPredicate(format: "lessonID == %@ AND studentID == %@", lessonID, studentID)
-        request.fetchLimit = 1
-        let existing = try context.fetch(request).first
-
-        if let existing {
-            // Update lastObservedAt and presentedAt if the new date is earlier (preserve first presentation date)
-            if let existingPresentedAt = existing.presentedAt, presentedAt < existingPresentedAt {
-                existing.presentedAt = presentedAt
-            }
-            existing.lastObservedAt = presentedAt
-        } else {
-            // Create new CDLessonPresentation with initial state .presented (no presentationID yet)
-            let lessonPresentation = CDLessonPresentation(context: context)
-            lessonPresentation.studentID = studentID
-            lessonPresentation.lessonID = lessonID
-            lessonPresentation.presentationID = nil
-            lessonPresentation.state = .presented
-            lessonPresentation.presentedAt = presentedAt
-            lessonPresentation.lastObservedAt = presentedAt
-        }
-    }
 }

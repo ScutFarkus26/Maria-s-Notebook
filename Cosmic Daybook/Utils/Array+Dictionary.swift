@@ -10,22 +10,6 @@ nonisolated extension Dictionary where Key == UUID {
 }
 
 nonisolated extension Array {
-    /// Creates a dictionary from the array using a key extractor.
-    /// - Parameter keyPath: A key path to extract the key from each element
-    /// - Returns: A dictionary with keys from the key path and values as the elements
-    /// - CDNote: If duplicate keys exist, the first element is kept.
-    func toDictionary<Key: Hashable>(by keyPath: KeyPath<Element, Key>) -> [Key: Element] {
-        Dictionary(map { ($0[keyPath: keyPath], $0) }, uniquingKeysWith: { first, _ in first })
-    }
-
-    /// Creates a dictionary from the array using a key extractor function.
-    /// - Parameter key: A function that extracts a key from each element
-    /// - Returns: A dictionary with keys from the function and values as the elements
-    /// - CDNote: If duplicate keys exist, the first element is kept.
-    func toDictionary<Key: Hashable>(by key: (Element) -> Key) -> [Key: Element] {
-        Dictionary(map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
-    }
-    
     /// Groups elements by a key extractor.
     /// - Parameter key: A function that extracts a key from each element
     /// - Returns: A dictionary grouping elements by their keys

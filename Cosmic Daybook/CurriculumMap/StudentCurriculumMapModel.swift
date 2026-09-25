@@ -35,11 +35,6 @@ struct CurriculumRow: Identifiable, Hashable {
         return false
     }
 
-    var isLesson: Bool {
-        if case .lesson = kind { return true }
-        return false
-    }
-
     var lessonID: UUID? {
         if case .lesson(let id) = kind { return id }
         return nil

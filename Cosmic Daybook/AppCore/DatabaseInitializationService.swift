@@ -53,15 +53,6 @@ enum DatabaseInitializationService {
     }
     #endif
 
-    /// Resets the local store and enables CloudKit sync.
-    static func resetLocalDatabaseAndForceCloudKitSync() throws {
-        try resetPersistentStore()
-
-        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.enableCloudKitSync)
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-    }
-
     // MARK: - Error Handling
 
     /// Centralized error handling for database initialization failures.

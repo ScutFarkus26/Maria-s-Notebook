@@ -101,12 +101,6 @@ nonisolated extension CDTodoItem {
         set { studentIDs = newValue as NSObject }
     }
 
-    /// Typed accessor for attachmentPaths Transformable
-    var attachmentPathsArray: [String] {
-        get { attachmentPaths as? [String] ?? [] }
-        set { attachmentPaths = newValue as NSObject }
-    }
-
     /// Typed accessor for tags Transformable
     var tagsArray: [String] {
         get { tags as? [String] ?? [] }
@@ -150,16 +144,6 @@ nonisolated extension CDTodoItem {
         let items = subtasks as? Set<CDTodoSubtask> ?? []
         guard !items.isEmpty else { return true }
         return items.allSatisfy { $0.isCompleted }
-    }
-
-    /// Check if todo has a reminder set
-    var hasReminder: Bool {
-        reminderDate != nil
-    }
-
-    /// Check if todo has location-based reminder
-    var hasLocationReminder: Bool {
-        locationName != nil
     }
 
     /// The effective date for sorting and grouping (scheduled date takes priority)

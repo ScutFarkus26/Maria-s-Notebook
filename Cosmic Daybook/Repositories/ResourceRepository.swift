@@ -19,21 +19,6 @@ struct ResourceRepository: SavingRepository {
 
     func fetchResource(id: UUID) -> CDResource? { fetch(id: id) }
 
-    func fetchResources(
-        predicate: NSPredicate? = nil,
-        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
-    ) -> [CDResource] {
-        let request = CDFetchRequest(CDResource.self)
-        request.predicate = predicate
-        request.sortDescriptors = sortBy
-        request.fetchBatchSize = 20
-        return context.safeFetch(request)
-    }
-
-    func fetchResources(byCategory category: String) -> [CDResource] {
-        fetchResources(predicate: NSPredicate(format: "categoryRaw == %@", category))
-    }
-
     // MARK: - Create
 
     @discardableResult

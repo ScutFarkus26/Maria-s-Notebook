@@ -19,16 +19,3 @@ nonisolated struct EvidenceReference: Identifiable, Codable, Hashable, Sendable 
 
     var id: String { "\(entityKind.rawValue)-\(entityID.uuidString)" }
 }
-
-/// Describes how much relevant evidence is available. It is deliberately not a
-/// judgment of a child's readiness or ability.
-enum EvidenceCompleteness: String, Codable, CaseIterable, Sendable {
-    case strong = "Strong evidence"
-    case some = "Some evidence"
-    case insufficient = "More observation needed"
-}
-
-struct GroundedAIResponse: Codable, Sendable {
-    let text: String
-    let sources: [EvidenceReference]
-}

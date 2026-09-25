@@ -2,16 +2,8 @@ import SwiftUI
 
 nonisolated enum UIConstants {
     static let sidebarWidth: CGFloat = 280
-    static let headerHorizontalPadding: CGFloat = 16
-    static let headerVerticalPadding: CGFloat = 10
 
     static let contentHorizontalPadding: CGFloat = 16
-    static let contentVerticalPadding: CGFloat = 20
-
-    static let gridColumnSpacing: CGFloat = 24
-    static let dayColumnSpacing: CGFloat = 14
-
-    static let minDropZoneTotalHeight: CGFloat = 220
 
     static let dropZoneInnerPadding: CGFloat = 12
 
@@ -213,9 +205,6 @@ nonisolated enum UIConstants {
         
         /// 0.25s - Standard animations
         static let standard: Double = 0.25
-        
-        /// 0.3s - Normal animations
-        static let normal: Double = 0.3
     }
     
     // MARK: - Spring Animations
@@ -227,8 +216,5 @@ nonisolated enum UIConstants {
         
         /// Bouncy spring: response 0.3, damping 0.7
         static let bouncy = Animation.spring(response: 0.3, dampingFraction: 0.7)
-        
-        /// Gentle spring: response 0.35, damping 0.85, blend 0.1
-        static let gentle = Animation.spring(response: 0.35, dampingFraction: 0.85, blendDuration: 0.1)
     }
 }

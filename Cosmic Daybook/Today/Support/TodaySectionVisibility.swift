@@ -56,12 +56,6 @@ enum TodaySectionVisibility {
     /// External calendar feed — nothing synced for the day means nothing to say.
     static func showsCalendarEvents(count: Int) -> Bool { count > 0 }
 
-    /// The per-child watch list (flagged notes, "Watch…" todos, open goals)
-    /// touched this week. The section view fetches its own rows and renders
-    /// nothing when there are none; the rule is stated here so the ordering
-    /// test sees the section.
-    static func showsWatching(count: Int) -> Bool { count > 0 }
-
     /// Recent observations, the guide's own writing from the last day or two.
     static func showsRecentNotes(count: Int) -> Bool { count > 0 }
 

@@ -229,47 +229,6 @@ final class DataQueryService {
         return dict
     }
 
-    // MARK: - LessonAssignments
-
-    /// Fetch all presented lesson assignments (stateRaw == presented or presentedAt != nil).
-    func fetchPresentedLessonAssignments() -> [CDLessonAssignment] {
-        let presentedRaw = LessonAssignmentState.presented.rawValue
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(format: "stateRaw == %@", presentedRaw)
-        var results = context.safeFetch(request)
-
-        // Also fetch those with presentedAt but not in presented state
-        let existingIDs = Set(results.compactMap(\.id))
-        let notPresentedRequest = CDFetchRequest(CDLessonAssignment.self)
-        notPresentedRequest.predicate = NSPredicate(format: "stateRaw != %@", presentedRaw)
-        let notPresented = context.safeFetch(notPresentedRequest)
-        let withPresentedAt = notPresented.filter { la in
-            la.presentedAt != nil && !existingIDs.contains(la.id ?? UUID())
-        }
-
-        results.append(contentsOf: withPresentedAt)
-        return results
-    }
-
-    /// Fetch lesson assignments for a specific student.
-    /// CDNote: studentIDs is stored as JSON and is transient, so we fetch all and filter in memory.
-    func fetchLessonAssignments(for studentID: UUID) -> [CDLessonAssignment] {
-        let studentIDString = studentID.uuidString
-        let allAssignments = context.safeFetch(CDFetchRequest(CDLessonAssignment.self))
-        return allAssignments.filter { $0.studentIDs.contains(studentIDString) }
-    }
-
-    /// Fetch lesson assignments in a date range.
-    func fetchLessonAssignments(from startDate: Date, to endDate: Date) -> [CDLessonAssignment] {
-        let request = CDFetchRequest(CDLessonAssignment.self)
-        request.predicate = NSPredicate(
-            format: "scheduledFor >= %@ AND scheduledFor < %@",
-            startDate as NSDate, endDate as NSDate
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "scheduledFor", ascending: true)]
-        return context.safeFetch(request)
-    }
-
     // MARK: - WorkModels
 
     /// Fetch active or review work models.

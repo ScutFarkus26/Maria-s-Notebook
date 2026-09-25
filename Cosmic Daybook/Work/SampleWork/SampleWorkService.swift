@@ -82,13 +82,6 @@ struct SampleWorkService {
         step.instructions = instructions.trimmed()
     }
 
-    /// Reorder steps after drag operation.
-    func reorderSteps(_ steps: [CDSampleWorkStep]) {
-        for (index, step) in steps.enumerated() {
-            step.orderIndex = Int64(index)
-        }
-    }
-
     /// Delete a step.
     func deleteStep(_ step: CDSampleWorkStep) {
         context.delete(step)

@@ -44,11 +44,6 @@ struct MeetingTemplateRepository: SavingRepository {
         fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == YES"))
     }
 
-    /// Fetch only custom (user-created) templates
-    func fetchCustomTemplates() -> [CDMeetingTemplate] {
-        fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == NO"))
-    }
-
     // MARK: - Update
 
     /// Set a template as active (deactivates all others)
@@ -63,18 +58,6 @@ struct MeetingTemplateRepository: SavingRepository {
         template.isActive = true
 
         return save(reason: "Setting active meeting template")
-    }
-
-    /// Reorder custom templates by updating their sort orders
-    @discardableResult
-    func reorderTemplates(ids: [UUID]) -> Bool {
-        for (index, id) in ids.enumerated() {
-            guard let template = fetchTemplate(id: id) else { continue }
-            if !template.isBuiltIn {
-                template.sortOrder = Int64(100 + index)
-            }
-        }
-        return save(reason: "Reordering meeting templates")
     }
 
     // MARK: - Delete

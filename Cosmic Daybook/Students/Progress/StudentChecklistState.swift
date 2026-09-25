@@ -55,17 +55,6 @@ public enum ChecklistDisplayStatus: Sendable {
     case reviewing
     case proficient
 
-    public var iconName: String {
-        switch self {
-        case .proficient:  return "checkmark.circle.fill"
-        case .reviewing:   return "eye.fill"
-        case .practicing:  return "pencil"
-        case .presented:   return "checkmark"
-        case .scheduled:   return "calendar"
-        case .empty:       return "circle"
-        }
-    }
-
     public var color: SwiftUI.Color {
         switch self {
         case .proficient:  return .green
