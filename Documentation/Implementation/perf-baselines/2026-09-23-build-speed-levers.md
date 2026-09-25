@@ -50,6 +50,14 @@ Tide's lock with Tide's mechanism (checked both ways: `lockf` and `zsystem flock
 each other on macOS, and Tide's probe sees the script's lock), prints the processes holding or
 queued on it while it waits, gives up after `BUILD_LOCK_WAIT` (900 s) with exit status 75, and
 forwards INT/TERM/HUP to xcodebuild, keeping the lock until the build has really exited.
+Later the same day, two fixes. The timed wait used `zsystem flock -t`, which polls once a second
+and so lost every hand-off to Tide's waiters, which block in the kernel (5 of 5 rounds in a test;
+one real build sat 36 min while builds queued after it went first). It now blocks too, with a
+one-process `zselect` timer that interrupts it (2 of 5 rounds in the same test — the kernel's
+hand-off is not first-come, but no longer one-sided). And `no_bg_nice`: zsh's default `BG_NICE`
+added +5 to the backgrounded build, so it ran at 15, and the baseline recipe's `BUILD_NICE=0` at 5.
+Tide's CLAUDE.md now records the shared lock and puts `swift test`/`swift build` under it with
+`/usr/bin/lockf -k -t 900`.
 
 ## Compilation caching
 

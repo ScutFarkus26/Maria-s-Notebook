@@ -15,7 +15,7 @@
 #                  override only to test this script.
 
 emulate -R zsh
-setopt no_unset pipe_fail
+setopt no_unset pipe_fail no_bg_nice   # BG_NICE would add +5 to the backgrounded build
 zmodload zsh/system
 
 me=${0:t}
@@ -29,7 +29,7 @@ niceness=${BUILD_NICE:-10}
 [[ -e $lock ]] || : >> $lock || exit 73
 
 # Everything with the lock file open — the holder and any other build waiting.
-# lsof cannot say which one holds it; the longest-running is usually the holder.
+# lsof cannot say which one holds it, and a waiter can be the oldest.
 show_lock_users() {
   local -a pids
   pids=(${(f)"$(lsof -t -- $lock 2>/dev/null)"})
@@ -42,14 +42,30 @@ show_lock_users() {
 # The lock belongs to this shell's open file, which zsh closes on exec: xcodebuild
 # and the build service it starts never inherit it, and it is released when this
 # script exits — so the script must not `exec` xcodebuild.
+#
+# The wait blocks in the kernel, as Scripts/build's does. `zsystem flock -t` would
+# poll once a second instead, and a poller loses every hand-off to a blocked waiter:
+# on 2026-09-25 a build waiting that way sat 36 min while Tide builds that queued
+# after it took the lock. A one-process timer (zselect, so no stray `sleep`)
+# interrupts the wait with SIGALRM when BUILD_LOCK_WAIT runs out.
 if ! zsystem flock -t 0 $lock 2>/dev/null; then
   print -u2 "$me: another build holds $lock — waiting up to ${wait_limit}s"
   show_lock_users
-  if ! zsystem flock -t $wait_limit $lock 2>/dev/null; then
+  ( zmodload zsh/zselect; zselect -t $(( wait_limit * 100 )); kill -ALRM $$ ) &
+  timer=$!
+  stop_timer() { kill $timer 2>/dev/null; wait $timer 2>/dev/null }
+  TRAPALRM() {
     print -u2 "$me: still locked after ${wait_limit}s; not building (exit 75). Kill the stuck build or raise BUILD_LOCK_WAIT."
     show_lock_users
     exit 75
-  fi
+  }
+  trap 'stop_timer; exit 130' INT
+  trap 'stop_timer; exit 143' TERM
+  trap 'stop_timer; exit 129' HUP
+  zsystem flock $lock 2>/dev/null || { stop_timer; print -u2 "$me: could not lock $lock"; exit 73 }
+  stop_timer
+  unfunction TRAPALRM
+  trap - INT TERM HUP
   print -u2 "$me: got the lock; building"
 fi
 
