@@ -31,11 +31,6 @@ nonisolated public class CDClassroomMembership: NSManagedObject {
     }
 }
 
-// MARK: - Enums
-
-nonisolated extension CDClassroomMembership {
-}
-
 // MARK: - Computed Properties
 
 nonisolated extension CDClassroomMembership {

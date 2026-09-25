@@ -77,7 +77,3 @@ nonisolated extension CDBookClubSession {
         return trimmed.isEmpty ? "Book Club" : trimmed
     }
 }
-
-nonisolated extension CDBookClubSession {
-
-}

@@ -31,11 +31,6 @@ nonisolated public class CDProcedure: NSManagedObject {
     }
 }
 
-// MARK: - Enums
-
-nonisolated extension CDProcedure {
-}
-
 // MARK: - Computed Properties
 
 nonisolated extension CDProcedure {

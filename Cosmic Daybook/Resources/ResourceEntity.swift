@@ -43,11 +43,6 @@ nonisolated public class CDResource: NSManagedObject {
     }
 }
 
-// MARK: - Enums
-
-nonisolated extension CDResource {
-}
-
 // MARK: - Computed Properties
 
 nonisolated extension CDResource {

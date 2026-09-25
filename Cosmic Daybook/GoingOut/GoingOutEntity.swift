@@ -46,12 +46,6 @@ nonisolated public class CDGoingOut: NSManagedObject {
     }
 }
 
-// MARK: - Enums
-
-nonisolated extension CDGoingOut {
-
-}
-
 // MARK: - Computed Properties
 
 nonisolated extension CDGoingOut {

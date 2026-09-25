@@ -46,11 +46,6 @@ nonisolated public class CDIssueAction: NSManagedObject {
 
 nonisolated extension CDIssueAction: Identifiable {}
 
-// MARK: - Enums
-
-nonisolated extension CDIssueAction {
-}
-
 // MARK: - Computed Properties
 
 nonisolated extension CDIssueAction {

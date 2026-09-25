@@ -2,8 +2,6 @@ import Foundation
 import CoreData
 import OSLog
 
-// MARK: - Enums
-
 // MARK: - Core Data Entity
 
 @objc(CDNote)

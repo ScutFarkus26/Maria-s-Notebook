@@ -70,6 +70,3 @@ nonisolated extension CDBookClubPacket {
         set { readingItemsJSON = BookClubReadingItem.encode(newValue) }
     }
 }
-
-nonisolated extension CDBookClubPacket {
-}

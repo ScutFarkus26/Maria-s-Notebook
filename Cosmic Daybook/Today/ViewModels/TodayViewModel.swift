@@ -349,8 +349,6 @@ final class TodayViewModel {
         }
     }
 
-    // MARK: - Ready For a Next Lesson
-
     // MARK: - Agenda Reordering
 
     /// Moves agenda items and persists the new order.

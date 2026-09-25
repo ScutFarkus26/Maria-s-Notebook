@@ -1,8 +1,5 @@
 import Foundation
 
-extension Sequence where Element: Identifiable {
-}
-
 extension Array {
     /// Splits the array into elements matching and not matching the predicate, preserving order within each sequence.
     func partitioned(by predicate: (Element) -> Bool) -> (matching: [Element], rest: [Element]) {

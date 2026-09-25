@@ -29,12 +29,6 @@ nonisolated public class CDSupply: NSManagedObject {
     }
 }
 
-// MARK: - Enums
-
-nonisolated extension CDSupply {
-
-}
-
 // MARK: - Computed Properties
 
 nonisolated extension CDSupply {

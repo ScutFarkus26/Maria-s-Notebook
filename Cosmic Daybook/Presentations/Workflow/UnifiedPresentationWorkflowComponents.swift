@@ -184,8 +184,6 @@ struct WorkflowInfoHint: View {
     }
 }
 
-// MARK: - Badge View
-
 // MARK: - Panel Header
 
 struct WorkflowPanelHeader: View {

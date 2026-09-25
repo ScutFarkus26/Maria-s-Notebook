@@ -43,12 +43,6 @@ nonisolated public class CDIssue: NSManagedObject {
     }
 }
 
-// MARK: - Enums
-
-nonisolated extension CDIssue {
-
-}
-
 // MARK: - Computed Properties
 
 nonisolated extension CDIssue {

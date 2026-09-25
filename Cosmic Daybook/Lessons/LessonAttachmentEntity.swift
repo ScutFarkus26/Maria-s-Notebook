@@ -36,8 +36,6 @@ nonisolated public class CDLessonAttachment: NSManagedObject {
     }
 }
 
-// MARK: - AttachmentScope Enum
-
 // MARK: - Computed Properties
 
 nonisolated extension CDLessonAttachment {

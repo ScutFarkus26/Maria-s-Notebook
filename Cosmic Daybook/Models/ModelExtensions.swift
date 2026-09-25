@@ -186,5 +186,3 @@ nonisolated extension CDLesson {
     }
 
 }
-
-// MARK: - Supporting Types

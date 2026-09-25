@@ -53,8 +53,6 @@ nonisolated public class CDLessonPresentation: NSManagedObject {
     }
 }
 
-// MARK: - Enums
-
 // MARK: - Computed Properties
 
 nonisolated extension CDLessonPresentation {

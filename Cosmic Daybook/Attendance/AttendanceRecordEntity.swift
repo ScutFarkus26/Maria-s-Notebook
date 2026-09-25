@@ -2,10 +2,6 @@ import Foundation
 import CoreData
 import SwiftUI
 
-// MARK: - Attendance Status
-
-// MARK: - Absence Reason
-
 // MARK: - Core Data Entity
 
 @objc(CDAttendanceRecord)

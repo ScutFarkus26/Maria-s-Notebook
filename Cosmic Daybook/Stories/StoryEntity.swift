@@ -94,11 +94,6 @@ nonisolated extension CDStory {
     }
 }
 
-// MARK: - Fetch Helpers
-
-nonisolated extension CDStory {
-}
-
 // MARK: - Related Lessons
 
 nonisolated extension CDStory {

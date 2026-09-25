@@ -2,8 +2,6 @@ import Foundation
 import CoreData
 import SwiftUI
 
-// MARK: - Enums
-
 // MARK: - Core Data Entity
 
 @objc(CDWorkCheckIn)
