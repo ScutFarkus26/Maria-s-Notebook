@@ -69,8 +69,9 @@ Status: **Phases 0–4 on `main`** (4a landed as 251ec634; 4b/24a/24b measured a
 - **Build-speed levers (2026-09-23).** An edit-build is ~26 s, of which the whole-module emit-module
   job is ~16 s on every edit; compiling the edited file is under 1 s. Landed: compilation caching in
   Debug (capped at 10 GB; replays only identical trees — clean builds and new worktrees, not the
-  edit loop), `-driver-batch-size-limit 70` (55 → 20 batches, −9% compile CPU), the machine-wide
-  `lockf` + `nice` wrapper on every CLI build, a worktree recipe with prefix mapping and
+  edit loop), `-driver-batch-size-limit 70` (55 → 20 batches, −9% compile CPU), the Mac-wide build
+  lock + `nice` on every CLI build (`Scripts/locked_xcodebuild.sh`, sharing Tide's lock since
+  2026-09-25), a worktree recipe with prefix mapping and
   build-before-edit, and extensions moved out of thirteen mixed files (an extension makes any
   signature edit in its file recompile 451–1,267 files instead of 3). Details, ruled-out ideas, and
   the bottom-layer spike below in `perf-baselines/2026-09-23-build-speed-levers.md`.

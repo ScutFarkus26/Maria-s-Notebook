@@ -43,6 +43,14 @@ uptime and WhatsApp another at ~96% during the first sample.
 `/usr/bin/lockf -k /tmp/xcodebuild.lock nice -n 10 xcodebuild …` — agent builds queue instead of
 thrashing, and Danny's own Xcode builds keep the performance cores.
 
+**Follow-up 2026-09-25:** that lock was not Tide's. Tide's `Scripts/build` (committed the same
+day) takes `~/Library/Caches/xcodebuild.lock` with zsh's `zsystem flock`, so builds of the two
+projects still overlapped. The recipes now go through `Scripts/locked_xcodebuild.sh`, which takes
+Tide's lock with Tide's mechanism (checked both ways: `lockf` and `zsystem flock` on one file block
+each other on macOS, and Tide's probe sees the script's lock), prints the processes holding or
+queued on it while it waits, gives up after `BUILD_LOCK_WAIT` (900 s) with exit status 75, and
+forwards INT/TERM/HUP to xcodebuild, keeping the lock until the build has really exited.
+
 ## Compilation caching
 
 `COMPILATION_CACHE_ENABLE_CACHING = YES` works with this project (explicit modules, SwiftUI and

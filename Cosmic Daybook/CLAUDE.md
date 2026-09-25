@@ -17,27 +17,33 @@ Cosmic Daybook is a comprehensive teacher planning and classroom management app 
 open -a "/Applications/Xcode.app" "Cosmic Daybook.xcodeproj"
 
 # Build from command line.
-# Every command-line build takes the machine-wide build lock and runs at lower priority: two builds
-# at once on this fanless MacBook Air turned a 48 s clean build into 255 s (2026-09-23), and `nice`
-# leaves the performance cores to Danny's own Xcode builds. Use the same lock file in every project.
+# Every command-line build goes through Scripts/locked_xcodebuild.sh (arguments as for xcodebuild).
+# It takes the Mac-wide build lock that Tide's Scripts/build also takes (~/Library/Caches/xcodebuild.lock),
+# so builds from either project take turns — two at once on this fanless MacBook Air turned a 48 s
+# clean build into 255 s (2026-09-23) — and runs the build at `nice -n 10`, leaving the performance
+# cores to Danny's own Xcode builds. While it waits it names the processes holding or queued on the
+# lock; after 15 min (BUILD_LOCK_WAIT) it gives up with exit status 75, which means "never started",
+# not a build failure.
 # COMPILER_INDEX_STORE_ENABLE=NO skips the IDE-only index store on CLI builds.
-/usr/bin/lockf -k /tmp/xcodebuild.lock nice -n 10 xcodebuild -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   COMPILER_INDEX_STORE_ENABLE=NO build
 
 # Run unit tests: build the app + test bundle once, then run (and re-run) without rebuilding.
-/usr/bin/lockf -k /tmp/xcodebuild.lock nice -n 10 xcodebuild build-for-testing -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+# Test runs compile nothing, so they skip the lock.
+Scripts/locked_xcodebuild.sh build-for-testing -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   COMPILER_INDEX_STORE_ENABLE=NO
 nice -n 10 xcodebuild test-without-building -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0"
 
 # In an agent worktree: the same recipes plus the three prefix-mapping settings, which take the
 # worktree's path out of the compilation-cache keys so every worktree shares one cache.
 # Build ONCE right after creating the worktree, before editing anything (see Build-setting rules).
-/usr/bin/lockf -k /tmp/xcodebuild.lock nice -n 10 xcodebuild -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   COMPILER_INDEX_STORE_ENABLE=NO SWIFT_ENABLE_PREFIX_MAPPING=YES SWIFT_ENABLE_PROJECT_PREFIX_MAPPING=YES CLANG_ENABLE_PREFIX_MAPPING=YES build
 
 # Clean-build timing baseline (compare against Documentation/Implementation/perf-baselines/).
-# Caching off, or a "clean" build of an already-built tree is a cache replay, not a compile. No `nice`.
-/usr/bin/lockf -k /tmp/xcodebuild.lock xcodebuild -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
+# Caching off, or a "clean" build of an already-built tree is a cache replay, not a compile; BUILD_NICE=0
+# so the number is not a low-priority one.
+BUILD_NICE=0 Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   COMPILER_INDEX_STORE_ENABLE=NO COMPILATION_CACHE_ENABLE_CACHING=NO -showBuildTimingSummary clean build
 
 # After `git worktree remove`, list the DerivedData folders whose worktree is gone (~2.3 GB each;
