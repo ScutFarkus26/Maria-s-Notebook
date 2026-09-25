@@ -52,6 +52,28 @@ struct OpenWorkGrid: View {
     }
 
     var body: some View {
+        // Sorted and bucketed once per body pass, then handed in. Read inside
+        // the GeometryReader, it ran again on every size change — every frame
+        // of a live resize — with nothing it reads having changed.
+        grid(sections: groupedSections)
+            .workspaceDeletionConfirmation(
+                pending: $pendingDeletion,
+                title: deletionTitle,
+                confirmTitle: deletionConfirmTitle,
+                message: deletionMessage,
+                onConfirm: performPendingDeletion
+            )
+            .task {
+                await precomputeAgeValues()
+            }
+            .onChange(of: works.map(\.id)) { _, _ in
+                Task {
+                    await precomputeAgeValues()
+                }
+            }
+    }
+
+    private func grid(sections: [(key: String, items: [WorkGridItem])]) -> some View {
         GeometryReader { proxy in
             ScrollViewReader { reader in
                 ScrollView {
@@ -61,40 +83,10 @@ struct OpenWorkGrid: View {
                         spacing: 8,
                         pinnedViews: [.sectionHeaders]
                     ) {
-                        ForEach(groupedSections, id: \.key) { section in
+                        ForEach(sections, id: \.key) { section in
                             Section(header: groupHeader(title: section.key, count: section.items.count)) {
                                 ForEach(section.items, id: \.id) { item in
-                                    let workID = item.work.id ?? UUID()
-                                    let ageSchoolDays = cachedAgeSchoolDays[workID] ?? 0
-                                    WorkCard.grid(
-                                        work: item.work,
-                                        lessonTitle: item.title,
-                                        studentDisplay: item.student,
-                                        needsAttention: item.needsAttention,
-                                        ageSchoolDays: ageSchoolDays,
-                                        selection: selection,
-                                        menuTargets: { menuTargets(for: item.work) },
-                                        onRequestDelete: onDeleted == nil
-                                            ? nil
-                                            : { pendingDeletion = $0 },
-                                        onOpen: onOpen,
-                                        onLog: onLog,
-                                        onSchedule: onSchedule
-                                    )
-                                    .padding(2)
-                                    .background(
-                                        workID == focusedWorkID
-                                            ? Color.accentColor.opacity(0.12)
-                                            : Color.clear,
-                                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
-                                    )
-                                    .overlay {
-                                        if workID == focusedWorkID {
-                                            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
-                                                .stroke(Color.accentColor, lineWidth: 2)
-                                        }
-                                    }
-                                    .id(workID)
+                                    card(for: item)
                                 }
                             }
                         }
@@ -109,21 +101,40 @@ struct OpenWorkGrid: View {
                 }
             }
         }
-        .workspaceDeletionConfirmation(
-            pending: $pendingDeletion,
-            title: deletionTitle,
-            confirmTitle: deletionConfirmTitle,
-            message: deletionMessage,
-            onConfirm: performPendingDeletion
+    }
+
+    private func card(for item: WorkGridItem) -> some View {
+        let workID = item.work.id ?? UUID()
+        let ageSchoolDays = cachedAgeSchoolDays[workID] ?? 0
+        return WorkCard.grid(
+            work: item.work,
+            lessonTitle: item.title,
+            studentDisplay: item.student,
+            needsAttention: item.needsAttention,
+            ageSchoolDays: ageSchoolDays,
+            selection: selection,
+            menuTargets: { menuTargets(for: item.work) },
+            onRequestDelete: onDeleted == nil
+                ? nil
+                : { pendingDeletion = $0 },
+            onOpen: onOpen,
+            onLog: onLog,
+            onSchedule: onSchedule
         )
-        .task {
-            await precomputeAgeValues()
-        }
-        .onChange(of: works.map(\.id)) { _, _ in
-            Task {
-                await precomputeAgeValues()
+        .padding(2)
+        .background(
+            workID == focusedWorkID
+                ? Color.accentColor.opacity(0.12)
+                : Color.clear,
+            in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
+        )
+        .overlay {
+            if workID == focusedWorkID {
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile)
+                    .stroke(Color.accentColor, lineWidth: 2)
             }
         }
+        .id(workID)
     }
     
     // MARK: - Performance Optimization
@@ -185,18 +196,25 @@ struct OpenWorkGrid: View {
     }
 
     // MARK: - Derived items
-    private struct WorkGridItem: Identifiable {
+    // Not private: `OpenWorkGridSortTests` checks the sections against the
+    // sort as it was before `ageDays` was stored.
+    struct WorkGridItem: Identifiable {
         let id: NSManagedObjectID
         let workID: UUID
         let work: CDWorkModel
         let title: String
         let student: String
         let needsAttention: Bool
-        let metadata: String
+        /// Calendar days since the work was created, clamped to the counter
+        /// epoch: what the Age sort, its buckets and the Needs Attention
+        /// tiebreak compare. Worked out once per item per pass — the
+        /// comparators used to work it out twice per comparison, a defaults
+        /// read and three calendar calls each time.
+        let ageDays: Int
     }
 
     // Group items by current sort mode; preserve overall order by grouping in the order items first appear
-    private var groupedSections: [(key: String, items: [WorkGridItem])] {
+    var groupedSections: [(key: String, items: [WorkGridItem])] {
         let items = sortedWorks
         var order: [String] = []
         var buckets: [String: [WorkGridItem]] = [:]
@@ -215,8 +233,7 @@ struct OpenWorkGrid: View {
         case .student:
             return item.student
         case .age:
-            let days = ageDays(for: item.work)
-            return ageBucketLabel(forDays: days)
+            return ageBucketLabel(forDays: item.ageDays)
         case .needsAttention:
             return item.needsAttention ? "Needs Attention" : "Other"
         }
@@ -239,14 +256,15 @@ struct OpenWorkGrid: View {
     }
 
     private var sortedWorks: [WorkGridItem] {
+        let today = AppCalendar.startOfDay(Date())
         let mapped: [WorkGridItem] = works.map { w in
             let title = lessonTitle(forLessonID: w.lessonID)
             let student = studentName(for: w)
-            let meta = metadata(for: w)
             let attention = needsAttention(for: w)
             return WorkGridItem(
                 id: w.objectID, workID: w.id ?? UUID(), work: w, title: title,
-                student: student, needsAttention: attention, metadata: meta
+                student: student, needsAttention: attention,
+                ageDays: Self.ageDays(for: w, today: today)
             )
         }
         switch sortMode {
@@ -255,12 +273,12 @@ struct OpenWorkGrid: View {
         case .student:
             return mapped.sorted { $0.student.localizedCaseInsensitiveCompare($1.student) == .orderedAscending }
         case .age:
-            return mapped.sorted { ageDays(for: $0.work) > ageDays(for: $1.work) }
+            return mapped.sorted { $0.ageDays > $1.ageDays }
         case .needsAttention:
             return mapped.sorted { lhs, rhs in
                 if lhs.needsAttention != rhs.needsAttention { return lhs.needsAttention && !rhs.needsAttention }
                 // If both same attention, older first
-                return ageDays(for: lhs.work) > ageDays(for: rhs.work)
+                return lhs.ageDays > rhs.ageDays
             }
         }
     }
@@ -278,19 +296,11 @@ struct OpenWorkGrid: View {
         return "Student"
     }
 
-    private func metadata(for w: CDWorkModel) -> String {
-        var parts: [String] = []
-        parts.append((w.kind ?? .research).displayName)
-        let age = ageDays(for: w)
-        parts.append("\(age)d")
-        return parts.joined(separator: " • ")
-    }
-
-    private func ageDays(for w: CDWorkModel) -> Int {
+    /// Calendar days from the work's creation to `today`, a start of day.
+    private static func ageDays(for w: CDWorkModel, today: Date) -> Int {
         // Clamped to the school-year counter epoch (see `SchoolYearCounters`).
         let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(w.createdAt ?? .distantPast))
-        let now = AppCalendar.startOfDay(Date())
-        let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
+        let comps = AppCalendar.shared.dateComponents([.day], from: start, to: today)
         return comps.day ?? 0
     }
 

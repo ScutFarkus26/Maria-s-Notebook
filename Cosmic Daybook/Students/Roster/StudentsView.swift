@@ -145,10 +145,14 @@ struct StudentsView: View {
         // Debounce: many saves can fire in bursts (bulk edits, CloudKit merge
         // batches). Coalesce them so the three count() fetches in
         // refreshChangeTokens run once the dust settles, not per save.
+        // Saves touching none of the tables the tokens count (notes, work,
+        // todos, sync bookkeeping) are dropped first: they cannot move a
+        // token.
         // Only while on screen: a TabView keeps this tab alive behind the
         // others, and the `.task` above refreshes the tokens on reappear.
         .onReceiveWhenVisible(
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
+                .filter { Self.saveTouchesChangeTokens($0.userInfo) }
                 .debounce(for: .milliseconds(300), scheduler: RunLoop.main),
             catchUpOnAppear: false
         ) {
