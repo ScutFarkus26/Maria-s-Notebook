@@ -3,8 +3,8 @@
 //  Cosmic Daybook
 //
 //  Unified service for planning the next lesson in a sequence/area sequence.
-//  Consolidates duplicate logic from PlanningWeekViewContent, PlanningActions,
-//  and PresentationDetailActions to ensure consistent behavior.
+//  Every caller that plans or looks up the next lesson goes through here so
+//  they all behave the same.
 //
 
 import Foundation

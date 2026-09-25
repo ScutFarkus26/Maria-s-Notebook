@@ -123,7 +123,6 @@ StudentDetailSheetModifiers.swift # Sheet presentations
 
 ### Reusable Components (in Components/)
 
-- `DropZone` — Drag-and-drop targets
 - `ToastOverlay` — Toast notifications
 - `SearchField` — Debounced search input
 

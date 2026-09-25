@@ -2,7 +2,7 @@
 KEEP ME
 
 This DragPayload is used for string-based student drag/drop (e.g., "STUDENT_TO_INBOX:")
-in Planning views like InboxSheetView and AgendaSlot.
+by the presentation planner and calendar drop targets.
 */
 
 import Foundation

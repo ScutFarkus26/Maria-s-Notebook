@@ -1,7 +1,6 @@
 // PresentationPlannerCard.swift
-// Calmer replacement for `PresentationPill` used inside the redesigned
-// Presentations planner (ReadyToPresentSection and WeekDayColumn). The old
-// pill is still used by 6 other call sites and is left untouched. Named
+// The presentation card inside the Presentations planner
+// (ReadyToPresentSection and WeekDayColumn). Named
 // `Planner` to avoid colliding with `Students/PresentationCard.swift` which
 // is the student-screen list cell.
 

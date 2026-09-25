@@ -62,8 +62,8 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    launch pass and a failed history read still sweep every entity.
 2. **View layer**: computed properties doing filter/sort/group per body pass (the audit
    script ranks these by read count); per-keystroke search in `AppSearchView` with no
-   debounce. The per-card `@FetchRequest`s in `PresentationPill`, `PresentationPlannerCard`
-   and `PracticeSessionCard` were removed in the 2026-09-10 audit (cards now take
+   debounce. The per-card `@FetchRequest`s in `PresentationPlannerCard` and
+   `PracticeSessionCard` (and the since-deleted `PresentationPill`) were removed in the 2026-09-10 audit (cards now take
    non-optional arrays from the parent); do not go looking for them.
 3. **Per-student loaders**: fixed 2026-09-18 (`perf-baselines/2026-09-18-per-student-loaders.md`).
    `StudentProgressTabViewModel.loadData` fetches by student / active track and looks
