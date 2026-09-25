@@ -194,7 +194,7 @@ extension LessonsRootView {
     func lessonDetailPane(lesson: CDLesson) -> some View {
         LessonDetailView(
             lesson: lesson,
-            allLessons: Array(lessons),
+            allLessons: lessons,
             onSave: { _ in
                 saveCoordinator.save(viewContext, reason: "Update lesson")
             },
