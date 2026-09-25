@@ -41,7 +41,9 @@ struct LessonsScopeMapView: View {
     @State private var pickedUpName: String = ""
     /// Row the lifted one would land on if released now.
     @State private var hoverRowID: String?
-    @State private var rowFrames: [String: CGRect] = [:]
+    /// Row frames in the map's content space, read only by the drag handler. Kept in a
+    /// reference box rather than `@State` so writing them never invalidates the map.
+    @State private var rowFrameBox = MapRowFrameBox()
     /// True from the moment a hold succeeds until shortly after the press ends, so the
     /// mouse-up that finishes a move doesn't also register as a tap and drill into the row.
     @State private var moveGestureDidEngage = false
@@ -69,11 +71,13 @@ struct LessonsScopeMapView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .coordinateSpace(name: Self.mapSpace)
-        .onPreferenceChange(MapRowFramePreference.self) { frames in
-            // Preference updates land during layout; defer to avoid layout recursion.
-            Task { @MainActor in rowFrames = frames }
+            // The space sits on the scrolled content, not the scroll view, so a row's
+            // frame only moves when the map's layout does: scrolling reports nothing.
+            // The drag measures in the same space, so distances are unchanged.
+            .coordinateSpace(name: Self.mapSpace)
+            .onPreferenceChange(MapRowFramePreference.self) { frames in
+                rowFrameBox.frames = frames
+            }
         }
         .overlay(alignment: .bottom) {
             if pickedUpRowID != nil {
@@ -220,6 +224,7 @@ struct LessonsScopeMapView: View {
     ) -> String? {
         var best: (id: String, frame: CGRect)?
         var bestDistance = CGFloat.greatestFiniteMagnitude
+        let rowFrames = rowFrameBox.frames
         for candidate in section.rows where candidate.key.area == row.key.area {
             let candidateID = section.rowID(for: candidate)
             guard candidateID != rowID,
@@ -341,6 +346,11 @@ private struct MapMoveHintBanner: View {
 }
 
 // MARK: - Preferences
+
+/// Holds the map's row frames without making them observable state.
+private final class MapRowFrameBox {
+    var frames: [String: CGRect] = [:]
+}
 
 /// Publishes each row's frame in the map's coordinate space so a drag can tell which
 /// row it is over without hit-testing.
