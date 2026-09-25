@@ -65,14 +65,15 @@ struct LessonsRootView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) var appRouter
     @Environment(SaveCoordinator.self) var saveCoordinator
+    @Environment(\.dependencies) var dependencies
 
-    // MARK: - Data Query
-    @FetchRequest(sortDescriptors: [
-        NSSortDescriptor(keyPath: \CDLesson.area, ascending: true),
-        NSSortDescriptor(keyPath: \CDLesson.sortIndex, ascending: true),
-        NSSortDescriptor(keyPath: \CDLesson.orderInSequence, ascending: true)
-    ])
-    var lessons: FetchedResults<CDLesson>
+    // MARK: - Data
+    /// Every lesson, in area, sort-index, order-in-sequence order: the workspace's
+    /// lesson catalog, which already holds the table live, rather than a second
+    /// fetch of it.
+    var lessons: [CDLesson] {
+        dependencies.lessonCatalog.sortedByAreaSortIndexAndOrder
+    }
 
     // MARK: - UI State
     @State var filterState = LessonsFilterState()
@@ -108,6 +109,9 @@ struct LessonsRootView: View {
 
     // MARK: - Map Mode State
     @State var focusedThread: ThreadKey?
+    /// The map's sections, kept from pass to pass until the lessons, area, spine
+    /// or saved order they were built from changes.
+    @State var mapLayoutMemo = MapLayoutMemo()
 
     // MARK: - Presentation History State
     @State var statusCounts: [UUID: Int]?
@@ -133,7 +137,7 @@ struct LessonsRootView: View {
     // MARK: - Computed Properties
 
     var areas: [String] {
-        helper.areas(from: Array(lessons))
+        helper.areas(from: lessons)
     }
 
     var selectedArea: String? {
@@ -142,7 +146,7 @@ struct LessonsRootView: View {
 
     var groupsForSelectedArea: [String] {
         guard let area = selectedArea, !area.trimmed().isEmpty else { return [] }
-        return helper.groups(for: area, lessons: Array(lessons))
+        return helper.groups(for: area, lessons: lessons)
     }
 
     /// What `computeLessonsForArea()` depends on besides the lessons themselves.
@@ -190,7 +194,7 @@ struct LessonsRootView: View {
             searchText: filterState.debouncedSearchText,
             selectedArea: hasSearchText ? nil : filterState.selectedArea,
             selectedSequence: nil,
-            allLessons: Array(lessons)
+            allLessons: lessons
         ).uniqueByID
     }
 
@@ -209,6 +213,10 @@ struct LessonsRootView: View {
     // MARK: - Body
 
     var body: some View {
+        // Any lesson change re-renders the screen, as the fetch request `lessons`
+        // replaced did: the map's pills read their lessons' names off the rows.
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = dependencies.lessonCatalog.version
         lessonsMainLayout
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedLessonDetail?.id)
@@ -229,7 +237,7 @@ struct LessonsRootView: View {
             SequenceTrackSettingsSheet(area: item.area, sequence: item.sequence)
         }
         .sheet(item: $reorderSectionsItem) { item in
-            ReorderSectionsSheet(area: item.area, sequence: item.sequence, lessons: Array(lessons))
+            ReorderSectionsSheet(area: item.area, sequence: item.sequence, lessons: lessons)
         }
         .sheet(item: $addLessonContext) { context in
             AddLessonView(

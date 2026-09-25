@@ -75,8 +75,14 @@ extension LessonsRootView {
                 }
             )
         } else {
+            let layout = mapLayoutMemo.layout(
+                for: filteredLessonsForMap,
+                selectedArea: selectedArea,
+                spine: mapSpine,
+                in: viewContext
+            )
             LessonsScopeMapView(
-                lessons: filteredLessonsForMap,
+                layout: layout,
                 selectedArea: selectedArea,
                 spine: Binding(
                     get: { mapSpine },
@@ -188,7 +194,7 @@ extension LessonsRootView {
     func lessonDetailPane(lesson: CDLesson) -> some View {
         LessonDetailView(
             lesson: lesson,
-            allLessons: Array(lessons),
+            allLessons: lessons,
             onSave: { _ in
                 saveCoordinator.save(viewContext, reason: "Update lesson")
             },

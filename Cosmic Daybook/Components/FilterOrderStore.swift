@@ -18,6 +18,10 @@ struct FilterOrderStore {
     private static var cachedSequenceOrders: [String: [String]] = [:]
     private static var cachedSectionOrders: [String: [String]] = [:]
 
+    /// Moves on whenever a saved order may have changed, so a result built from
+    /// the saved orders (the Lessons map's layout) knows to build again.
+    private(set) static var revision = 0
+
     private static func normalized(_ s: String) -> String {
         s.normalizedForComparison()
     }
@@ -58,6 +62,7 @@ struct FilterOrderStore {
         let key = groupOrderPrefix + normalized(area)
         cachedSequenceOrders[key] = order
         shared.defaults.set(order, forKey: key)
+        revision += 1
     }
 
     // MARK: Sections
@@ -76,6 +81,7 @@ struct FilterOrderStore {
         let key = sectionOrderPrefix + normalized(area) + "." + normalized(sequence)
         cachedSectionOrders[key] = order
         shared.defaults.set(order, forKey: key)
+        revision += 1
     }
 
     // MARK: Cache control
@@ -84,6 +90,7 @@ struct FilterOrderStore {
         cachedAreaOrder = nil
         cachedSequenceOrders.removeAll()
         cachedSectionOrders.removeAll()
+        revision += 1
     }
 
     // MARK: Partial reorder

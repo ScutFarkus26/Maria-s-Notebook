@@ -40,7 +40,7 @@ extension LessonsRootView {
         let trimmedArea = area.trimmed()
         guard !trimmedArea.isEmpty else { return }
 
-        let saved = helper.groups(for: trimmedArea, lessons: Array(lessons))
+        let saved = helper.groups(for: trimmedArea, lessons: lessons)
         guard let full = FilterOrderStore.applyingVisibleOrder(visibleOrder, to: saved) else { return }
 
         FilterOrderStore.saveSequenceOrder(full, for: trimmedArea)
@@ -67,7 +67,7 @@ extension LessonsRootView {
 
         let ungroupedLabel: String = "Ungrouped"
         let displaySequences: [String] = reorderableSequences.isEmpty
-            ? helper.groups(for: area, lessons: Array(lessons))
+            ? helper.groups(for: area, lessons: lessons)
             : reorderableSequences
         let allLessonsInOrder: [CDLesson] = collectOrderedLessons(
             displaySequences: displaySequences,

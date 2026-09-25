@@ -21,8 +21,15 @@ struct StudentsCardsGridView: View {
 
     @State private var draggingStudentID: UUID?
     @State private var hoverTargetID: UUID?
-    @State private var itemFrames: [UUID: CGRect] = [:]
+    /// Card frames in the grid's content space, read only by the manual-sort drag.
+    /// Kept in a reference box rather than `@State` so writing them never
+    /// invalidates the grid.
+    @State private var itemFrameBox = CardFrameBox()
     @Namespace private var gridNamespace
+
+    /// Named on the grid itself, inside the scroll view: a card's frame here only
+    /// moves when the grid's layout does, so scrolling reports nothing.
+    private static let gridSpace = "studentsCardsGrid"
 
     @State private var hasAppeared: Bool = false
 
@@ -78,7 +85,7 @@ struct StudentsCardsGridView: View {
         GeometryReader { proxy in
             Color.clear.preference(
                 key: ItemFramePreference.self,
-                value: [id: proxy.frame(in: .named("gridScroll"))]
+                value: [id: proxy.frame(in: .named(Self.gridSpace))]
             )
         }
     }
@@ -177,13 +184,11 @@ struct StudentsCardsGridView: View {
                 if !hasAppeared { tx.animation = nil }
             }
             .padding(24)
-        }
-        .coordinateSpace(name: "gridScroll")
-        .onPreferenceChange(ItemFramePreference.self) { frames in
-            // Defer state update to next run loop to avoid layout recursion
-            // PreferenceKey updates happen during layout, so we must defer state changes
-            Task { @MainActor in
-                itemFrames = frames
+            // The drag only compares card centres with each other, so measuring them
+            // from the grid instead of the scroll view changes no distance.
+            .coordinateSpace(name: Self.gridSpace)
+            .onPreferenceChange(ItemFramePreference.self) { frames in
+                itemFrameBox.frames = frames
             }
         }
         .task {
@@ -206,6 +211,7 @@ struct StudentsCardsGridView: View {
                 case .second(true, let drag?):
                     if draggingStudentID == nil { draggingStudentID = studentID }
                     // Compute nearest target using measured frames and the current drag translation
+                    let itemFrames = itemFrameBox.frames
                     let subsetIDs = students.compactMap(\.id)
                     let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                         if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
@@ -235,6 +241,7 @@ struct StudentsCardsGridView: View {
                 guard let fromIndex = students.firstIndex(where: { $0.id == studentID }) else { return }
 
                 // Prefer the live hover target if still valid; otherwise compute nearest
+                let itemFrames = itemFrameBox.frames
                 let subsetIDs = students.compactMap(\.id)
                 let centers: [UUID: CGPoint] = subsetIDs.reduce(into: [:]) { dict, id in
                     if let rect = itemFrames[id] { dict[id] = CGPoint(x: rect.midX, y: rect.midY) }
@@ -263,6 +270,12 @@ struct StudentsCardsGridView: View {
 }
 
 // MARK: - Preferences
+
+/// Holds the grid's card frames without making them observable state.
+private final class CardFrameBox {
+    var frames: [UUID: CGRect] = [:]
+}
+
 private struct ItemFramePreference: PreferenceKey {
     nonisolated(unsafe) static var defaultValue: [UUID: CGRect] = [:]
     static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
