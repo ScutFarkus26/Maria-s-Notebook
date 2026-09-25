@@ -105,7 +105,6 @@ Centralized via `AppDependencies` with lazy initialization. See [ADR-004](../ADR
 | `LessonPlanningService` | Planning/AIPlanning/LessonPlanning/ | AI-assisted lesson planning |
 | `CloudKitSyncStatusService` | Services/ | CloudKit sync monitoring |
 | `SyncedPreferencesStore` | Services/ | iCloud KVS preference sync |
-| `FollowUpInboxEngine` | Inbox/Services/ | Inbox and follow-up tasks |
 
 Services accessed via `AppDependencies` or direct instantiation.
 

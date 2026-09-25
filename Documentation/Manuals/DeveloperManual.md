@@ -29,7 +29,6 @@ RootView (main shell)
     |       |
     |       +-- Services
     |       |       +-- LifecycleService
-    |       |       +-- FollowUpInboxEngine
     |       |       +-- ChatService + AnthropicAPIClient
     |       |       +-- ReminderSyncService
     |       |       +-- CloudKitSyncStatusService
@@ -80,7 +79,7 @@ CloudKit (iCloud)
 
 - **View with @FetchRequest**: Simple list screens where the data maps directly to what's displayed. No transformation needed.
 - **View with ViewModel**: Screens that combine multiple data sources, compute derived state, or need complex filtering/sorting. Examples: TodayView, GiveLessonViewModel.
-- **Service**: Reusable business logic called from multiple ViewModels or other services. Examples: LifecycleService (work state transitions), FollowUpInboxEngine (inbox categorization).
+- **Service**: Reusable business logic called from multiple ViewModels or other services. Example: LifecycleService (work state transitions).
 - **Repository**: Type-safe CRUD operations for a single entity. Wraps Core Data queries with error handling and SaveCoordinator integration.
 
 ---
@@ -809,37 +808,6 @@ Manages work item state transitions and data integrity.
 
 **Performance:** Uses predicates and fetch limits to minimize in-memory work. Never loads all records when only one is needed.
 
-### FollowUpInboxEngine
-
-**File:** `Inbox/Services/FollowUpInboxEngine.swift`
-
-Categorizes pending work and follow-ups into an actionable inbox.
-
-**Inbox Buckets:**
-
-| Bucket | Rule |
-|--------|------|
-| Overdue | Lesson follow-ups >7 days old; work items >5 days; reviews >3 days |
-| Due Today | Items due today |
-| Inbox | Items needing action but not yet overdue |
-| Upcoming | Scheduled for the future |
-
-**ComputeContext** — pre-built lookup tables for efficient categorization:
-
-```swift
-struct ComputeContext {
-    let lessonsByID: [UUID: CDLesson]
-    let studentsByID: [UUID: CDStudent]
-    let openWorkModels: [CDWorkModel]
-    let checkInsByWorkID: [UUID: [CDWorkCheckIn]]
-    let nonSchoolDaysSet: Set<Date>
-}
-```
-
-The engine respects non-school days when calculating "days since" for staleness.
-
-**Sort Key:** `(bucket priority, age descending, child name, title)`
-
 ### ChatService + AnthropicAPIClient
 
 **Files:** `Chat/Services/ChatService.swift`, `Services/AnthropicAPIClient.swift`
@@ -1152,18 +1120,6 @@ Multiple planning views:
 | Open Work | All active work items |
 | Projects | Project-based learning management |
 | Classroom Jobs | Job rotation management |
-
-## Inbox Module
-
-**Directory:** `Inbox/`
-
-Powered by `FollowUpInboxEngine`. Shows items needing attention in smart buckets:
-
-```
-Overdue → Due Today → Inbox → Upcoming
-```
-
-Quick actions: reschedule, mark complete, open detail, assign work.
 
 ## Notes Module
 

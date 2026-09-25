@@ -96,7 +96,7 @@ struct RecallService {
     }
 
     /// Sets the existing follow-up flags on any assignment for this lesson + student, so recall
-    /// fallout surfaces in the Follow-up Inbox (FollowUpInboxEngine already reads these flags).
+    /// fallout shows up wherever those flags are already read.
     private func setFollowUp(entry: RecallQueueEntry, needsPractice: Bool, needsAnotherPresentation: Bool) {
         let request = CDFetchRequest(CDLessonAssignment.self)
         // Predicate on lessonID (stored as String) to avoid a full-table scan.
