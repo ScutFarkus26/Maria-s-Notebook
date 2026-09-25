@@ -220,24 +220,3 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
         }
     }
 }
-
-// MARK: - Convenience initializer (no header trailing)
-
-extension CalendarGridView where HeaderTrailing == EmptyView {
-    init(
-        title: String,
-        columnWidth: CGFloat = 164,
-        yearRange: ClosedRange<Int>,
-        nonSchoolCells: Set<CellID>,
-        @ViewBuilder dayContent: @escaping (CellID, Bool, Bool) -> DayContent
-    ) {
-        self.init(
-            title: title,
-            columnWidth: columnWidth,
-            yearRange: yearRange,
-            nonSchoolCells: nonSchoolCells,
-            headerTrailing: { EmptyView() },
-            dayContent: dayContent
-        )
-    }
-}

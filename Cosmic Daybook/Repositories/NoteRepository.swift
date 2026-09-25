@@ -12,8 +12,6 @@ import CoreData
 struct NoteRepository: SavingRepository {
     typealias Model = CDNote
 
-    private static let logger = Logger.database
-
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
@@ -26,19 +24,6 @@ struct NoteRepository: SavingRepository {
 
     /// Fetch a CDNote by ID
     func fetchNote(id: UUID) -> CDNote? { fetch(id: id) }
-
-    /// Fetch multiple Notes with optional filtering and sorting
-    func fetchNotes(
-        predicate: NSPredicate? = nil,
-        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "createdAt", ascending: false)]
-    ) -> [CDNote] {
-        let request = CDFetchRequest(CDNote.self)
-        request.predicate = predicate
-        request.sortDescriptors = sortBy
-        request.relationshipKeyPathsForPrefetching = ["studentLinks"]
-        request.fetchBatchSize = 20
-        return context.safeFetch(request)
-    }
 
     // MARK: - Update
 
@@ -67,15 +52,5 @@ struct NoteRepository: SavingRepository {
 
         note.updatedAt = Date()
         return true
-    }
-
-    // MARK: - Delete
-
-    /// Delete a CDNote by ID
-    func deleteNote(id: UUID) throws {
-        guard let note = fetchNote(id: id) else { return }
-        note.deleteAssociatedImage()
-        context.delete(note)
-        try context.save()
     }
 }

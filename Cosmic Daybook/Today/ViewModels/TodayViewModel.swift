@@ -125,11 +125,6 @@ final class TodayViewModel {
         cacheManager.lessonsByID
     }
 
-    /// Work lookup dictionary (read-only access to cache)
-    var workByID: [UUID: CDWorkModel] {
-        cacheManager.workByID
-    }
-
     /// Returns the display name for a student ID
     func displayName(for studentID: UUID) -> String {
         cacheManager.displayName(for: studentID)

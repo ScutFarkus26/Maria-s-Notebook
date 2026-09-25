@@ -57,15 +57,6 @@ final class SharedStoreOrphanGuard {
         Self.logger.debug("SharedStoreOrphanGuard observing view-context saves")
     }
 
-    /// Stops observing. Used in tests and when the stack is replaced.
-    func stop() {
-        observerTask?.cancel()
-        observerTask = nil
-        debounceTask?.cancel()
-        debounceTask = nil
-        coreDataStack = nil
-    }
-
     // MARK: - Save handling
 
     /// Entity names of the objects a did-save notification reports as

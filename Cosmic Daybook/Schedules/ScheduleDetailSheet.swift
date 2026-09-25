@@ -4,7 +4,6 @@ import CoreData
 /// Detail view for viewing a schedule's full configuration
 struct ScheduleDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
 
     let schedule: CDSchedule

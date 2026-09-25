@@ -169,9 +169,6 @@ nonisolated struct AlbumSearchResults: Sendable {
     var isEmpty: Bool {
         lessonHits.isEmpty && pageGroups.isEmpty && noteHits.isEmpty && semanticHits.isEmpty
     }
-    var totalCount: Int {
-        lessonHits.count + pageGroups.reduce(0) { $0 + $1.hits.count } + noteHits.count
-    }
 }
 
 // MARK: - Search corpus (immutable snapshot handed to background search)

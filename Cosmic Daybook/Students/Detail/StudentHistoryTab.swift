@@ -7,8 +7,6 @@ import CoreData
 struct StudentHistoryTab: View {
     let student: CDStudent
 
-    @Environment(\.managedObjectContext) private var viewContext
-
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDStudentTrackEnrollmentEntity.createdAt, ascending: false)
     ])

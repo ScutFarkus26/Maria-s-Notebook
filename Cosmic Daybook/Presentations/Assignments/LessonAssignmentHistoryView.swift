@@ -17,7 +17,6 @@ import CoreData
 import OSLog
 
 struct LessonAssignmentHistoryView: View {
-    static let logger = Logger.presentations
     var embeddedSearchText: String? = nil
     var focusedAssignmentID: UUID? = nil
     @Environment(\.managedObjectContext) var viewContext
@@ -108,12 +107,6 @@ struct LessonAssignmentHistoryView: View {
 
     // Maps for quick lookup
     var lessonsByID: [UUID: CDLesson] { dependencies.lessonCatalog.byID }
-    var studentsByID: [UUID: CDStudent] {
-        Dictionary(
-            safeStudents.compactMap { guard let id = $0.id else { return nil }; return (id, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
 
     // Available areas from lessons (sorted, non-empty only)
     var availableAreas: [String] {

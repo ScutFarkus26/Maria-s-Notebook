@@ -34,10 +34,6 @@ final class BookClubPacketsViewModel {
         }
     }
 
-    var hasActiveFilters: Bool {
-        !searchText.isEmpty || gradeFilter != nil || themeFilter != nil
-    }
-
     func clearAll() {
         searchText = ""
         gradeFilter = nil

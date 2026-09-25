@@ -143,7 +143,6 @@ extension ProjectSessionDetailView {
 
 private struct ProjectWorkProgressRow: View {
     @Environment(\.managedObjectContext) private var modelContext
-    @Environment(SaveCoordinator.self) private var saveCoordinator
     @ObservedObject var work: CDWorkModel
 
     let lesson: CDLesson?

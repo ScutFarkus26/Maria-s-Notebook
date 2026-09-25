@@ -16,15 +16,3 @@ nonisolated public class CDSchoolDayOverride: NSManagedObject {
         self.date = AppCalendar.shared.startOfDay(for: Date())
     }
 }
-
-// MARK: - Cross-Store Inverse
-
-nonisolated extension CDSchoolDayOverride {
-    /// Cross-store inverse: fetches Notes whose schoolDayOverrideID matches this override.
-    var notes: [CDNote] {
-        guard let id, let ctx = managedObjectContext else { return [] }
-        let req = CDFetchRequest(CDNote.self)
-        req.predicate = NSPredicate(format: "schoolDayOverrideID == %@", id.uuidString)
-        return (try? ctx.fetch(req)) ?? []
-    }
-}

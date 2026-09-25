@@ -66,40 +66,11 @@ enum StudentDocumentFileStorage {
         return try storage.importedFile(at: destination)
     }
 
-    /// Imports a PDF from a source URL into the student's folder.
-    static func importPDF(
-        from sourceURL: URL,
-        studentName: String?,
-        title: String?
-    ) throws -> ImportedStudentDocument {
-        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
-            throw StudentDocumentError.sourceMissing
-        }
-        let data = try Data(contentsOf: sourceURL)
-        return try writePDFData(data, studentName: studentName, title: title)
-    }
-
     // MARK: - Resolution
 
     /// Resolves a stored PDF to a usable URL, preferring the bookmark and falling back to the relative path.
     static func resolveURL(bookmark: Data?, relativePath: String) -> URL? {
         storage.resolveURL(bookmark: bookmark, relativePath: relativePath)
-    }
-
-    static func makeBookmark(for url: URL) throws -> Data {
-        try storage.makeBookmark(for: url)
-    }
-
-    static func relativePath(forManagedURL url: URL) throws -> String {
-        try storage.relativePath(forManagedURL: url)
-    }
-
-    static func resolve(relativePath: String) throws -> URL {
-        try storage.resolve(relativePath: relativePath)
-    }
-
-    static func isManagedURL(_ url: URL) -> Bool {
-        storage.isManagedURL(url)
     }
 
     static func deleteIfManaged(_ url: URL) throws {

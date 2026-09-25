@@ -386,9 +386,4 @@ extension PresentationsViewModel {
         return blockingWorkCache[laID] ?? [:]
     }
 
-    /// Check if a lesson is blocked (from cache)
-    func isBlocked(_ la: CDLessonAssignment) -> Bool {
-        return !getBlockingWork(la).isEmpty
-    }
-
 }

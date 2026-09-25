@@ -94,16 +94,6 @@ struct WorkCard: View {
         let item: ScheduledItem
         let nameForStudentID: (UUID) -> String
         let absentTodayIDs: Set<UUID>
-
-        init(
-            item: ScheduledItem,
-            nameForStudentID: @escaping (UUID) -> String,
-            absentTodayIDs: Set<UUID> = []
-        ) {
-            self.item = item
-            self.nameForStudentID = nameForStudentID
-            self.absentTodayIDs = absentTodayIDs
-        }
     }
 
     struct CompactConfig {
@@ -196,19 +186,6 @@ extension WorkCard {
             subtitle: subtitle,
             badge: badge,
             onOpen: onOpen
-        )))
-    }
-
-    /// Pill mode - replaces StudentWorkPill
-    static func pill(
-        item: ScheduledItem,
-        nameForStudentID: @escaping (UUID) -> String,
-        absentTodayIDs: Set<UUID> = []
-    ) -> WorkCard {
-        WorkCard(config: .pill(PillConfig(
-            item: item,
-            nameForStudentID: nameForStudentID,
-            absentTodayIDs: absentTodayIDs
         )))
     }
 

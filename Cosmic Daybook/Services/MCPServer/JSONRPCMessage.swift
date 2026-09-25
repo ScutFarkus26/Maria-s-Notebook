@@ -94,5 +94,4 @@ enum JSONRPCErrorCode {
     static let invalidRequest = -32600
     static let methodNotFound = -32601
     static let invalidParams = -32602
-    static let internalError = -32603
 }

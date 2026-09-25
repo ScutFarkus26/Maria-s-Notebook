@@ -42,23 +42,6 @@ enum StudentsFilter: Hashable {
         }
     }
 
-    var color: Color {
-        switch self {
-        case .all:
-            return .accentColor
-        case .upper:
-            return Color.pink
-        case .lower:
-            return Color.blue
-        case .adolescent:
-            return Color.orange
-        case .presentNow:
-            return .green
-        case .withdrawn:
-            return .gray
-        }
-    }
-
     /// Short label used by the scope chips above the roster list.
     var chipTitle: String {
         switch self {

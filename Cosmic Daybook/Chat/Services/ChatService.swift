@@ -36,58 +36,6 @@ final class ChatService {
         return session
     }
 
-    // MARK: - Send Message (Non-Streaming)
-
-    /// Sends a user message and returns the assistant's response.
-    /// Mutates the session in-place with the new messages.
-    func sendMessage(_ question: String, session: inout ChatSession) async throws -> String {
-        // Refresh snapshot if stale
-        if session.isSnapshotStale {
-            session.classroomSnapshotText = contextAssembler.buildClassroomSnapshot()
-            session.snapshotBuiltAt = Date()
-        }
-
-        // Add user message
-        let userMessage = ChatMessage(role: .user, content: question)
-        session.messages.append(userMessage)
-
-        // Build question-specific context (Tier 2)
-        let (questionContext, updatedMentionedIDs) = contextAssembler.buildQuestionContext(
-            question: question,
-            existingMentionedIDs: session.mentionedStudentIDs
-        )
-        session.mentionedStudentIDs = updatedMentionedIDs
-
-        // Assemble system message
-        let systemMessage = buildSystemMessage(
-            snapshot: session.classroomSnapshotText ?? "",
-            questionContext: questionContext
-        )
-
-        // Build messages array for API (keep within token budget)
-        let apiMessages = buildAPIMessages(from: session.messages)
-
-        // Configure router for chat feature area and call through protocol
-        mcpClient.configureForFeature(.chat)
-        let chatModelID = AIFeatureArea.chat.resolvedClaudeModelID()
-
-        let responseText = try await mcpClient.sendConversation(
-            messages: apiMessages,
-            systemMessage: systemMessage,
-            temperature: 0.7,
-            maxTokens: 2048,
-            model: chatModelID
-        )
-        let sources = await mcpClient.consumeEvidenceSources()
-
-        // Add assistant response to session
-        let assistantMessage = ChatMessage(role: .assistant, content: responseText, sources: sources)
-        session.messages.append(assistantMessage)
-
-        Self.logger.debug("Chat response received (\(responseText.count) chars)")
-        return responseText
-    }
-
     // MARK: - Send Message (Streaming)
 
     /// Sends a user message with streaming. Calls onText with the whole answer so

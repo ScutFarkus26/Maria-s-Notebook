@@ -29,11 +29,3 @@ nonisolated public class CDJobAssignment: NSManagedObject {
         self.isCompleted = false
     }
 }
-
-// MARK: - Computed Properties
-
-nonisolated extension CDJobAssignment {
-    var studentUUID: UUID? {
-        UUID(uuidString: studentID)
-    }
-}

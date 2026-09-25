@@ -5,8 +5,6 @@ import CoreData
 struct ResourceRepository: SavingRepository {
     typealias Model = CDResource
 
-    private static let logger = Logger.resources
-
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
@@ -14,10 +12,6 @@ struct ResourceRepository: SavingRepository {
         self.context = context
         self.saveCoordinator = saveCoordinator
     }
-
-    // MARK: - Fetch
-
-    func fetchResource(id: UUID) -> CDResource? { fetch(id: id) }
 
     // MARK: - Create
 
@@ -46,26 +40,5 @@ struct ResourceRepository: SavingRepository {
         resource.linkedLessonIDs = linkedLessonIDs
         resource.linkedAreas = linkedAreas
         return resource
-    }
-
-    // MARK: - Update
-
-    func markViewed(id: UUID) {
-        guard let resource = fetchResource(id: id) else { return }
-        resource.lastViewedAt = Date()
-    }
-
-    // MARK: - Delete
-
-    func deleteResource(_ resource: CDResource) {
-        if !resource.fileRelativePath.isEmpty {
-            do {
-                let fileURL = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
-                try ResourceFileStorage.deleteIfManaged(fileURL)
-            } catch {
-                Self.logger.warning("Failed to delete resource file: \(error, privacy: .public)")
-            }
-        }
-        context.delete(resource)
     }
 }

@@ -63,16 +63,6 @@ struct SequenceRecapLessonEntry: Sendable, Equatable, Identifiable {
     /// CDNote rows tied to (lessonID, this student) that aren't already attached
     /// to a presentation, work item, or check-in below.
     let directNotes: [SequenceRecapNote]
-
-    /// True when there's literally nothing to show for this lesson (no presentation,
-    /// no work, no notes, no outcome). The view renders "Not yet presented" for these.
-    var isEmpty: Bool {
-        outcomeState == nil
-            && presentations.isEmpty
-            && unattachedWorkItems.isEmpty
-            && directNotes.isEmpty
-            && (perStudentLessonNotes ?? "").isEmpty
-    }
 }
 
 // MARK: - Presentations

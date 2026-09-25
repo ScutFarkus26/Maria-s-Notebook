@@ -136,10 +136,6 @@ struct LessonsRootView: View {
 
     // MARK: - Computed Properties
 
-    var areas: [String] {
-        helper.areas(from: lessons)
-    }
-
     var selectedArea: String? {
         filterState.selectedArea
     }

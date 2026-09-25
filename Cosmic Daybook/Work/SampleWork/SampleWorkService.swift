@@ -42,13 +42,6 @@ struct SampleWorkService {
         sampleWork.notes = notes.trimmed()
     }
 
-    /// Reorder sample works after drag operation. Updates orderIndex values based on array position.
-    func reorder(_ sampleWorks: [CDSampleWork]) {
-        for (index, sw) in sampleWorks.enumerated() {
-            sw.orderIndex = Int64(index)
-        }
-    }
-
     /// Delete a sample work and its steps (cascade).
     func delete(_ sampleWork: CDSampleWork) {
         context.delete(sampleWork)

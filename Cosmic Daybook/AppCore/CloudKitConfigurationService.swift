@@ -234,9 +234,4 @@ enum CloudKitConfigurationService {
         }
     }
 
-    /// Clears any stored CloudKit error.
-    static func clearError() {
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-    }
-
 }

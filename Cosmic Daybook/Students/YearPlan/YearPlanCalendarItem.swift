@@ -41,11 +41,6 @@ struct YearPlanCalendarItem: Identifiable {
         return nil
     }
 
-    var assignment: CDLessonAssignment? {
-        if case .assignment(let a) = kind { return a }
-        return nil
-    }
-
     // MARK: - Display Status
 
     enum DisplayStatus {

@@ -187,32 +187,4 @@ nonisolated extension CDLesson {
 
 }
 
-// MARK: - CDPracticeSession Extensions
-
-nonisolated extension CDPracticeSession {
-    /// Fetches all students who participated in this session
-    func fetchStudents(from context: NSManagedObjectContext) -> [CDStudent] {
-        let studentIDStrings = studentIDsArray
-        guard !studentIDStrings.isEmpty else { return [] }
-
-        // Convert string IDs to UUIDs for querying
-        let uuids = studentIDStrings.compactMap { UUID(uuidString: $0) }
-        guard !uuids.isEmpty else { return [] }
-
-        // Fetch students by UUIDs — the session's ID list is a Transformable, but
-        // the students' own `id` is a queryable UUID attribute.
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(format: "id IN %@", uuids)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CDStudent.firstName, ascending: true)]
-
-        do {
-            return try context.fetch(request)
-        } catch {
-            logger.warning("Failed to fetch students: \(error.localizedDescription)")
-            return []
-        }
-    }
-
-}
-
 // MARK: - Supporting Types

@@ -6,8 +6,6 @@ import SwiftUI
 import CoreData
 
 struct ParshaCalendarView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)],
         predicate: NSPredicate(format: "parshaKey != nil AND parshaKey != %@", "")

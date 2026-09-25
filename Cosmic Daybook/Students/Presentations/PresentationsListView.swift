@@ -22,7 +22,6 @@ enum CompletionFilter: String {
 
 struct PresentationsListView: View {
     @Environment(\.appRouter) private var appRouter
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass

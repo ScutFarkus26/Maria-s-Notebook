@@ -12,8 +12,6 @@ import CoreData
 struct MeetingTemplateRepository: SavingRepository {
     typealias Model = CDMeetingTemplate
 
-    private static let logger = Logger.database
-
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 

@@ -4,8 +4,6 @@ import OSLog
 
 /// Service for managing work assignments in project sessions
 struct SessionWorkAssignmentService {
-    private static let logger = Logger.work
-
     let context: NSManagedObjectContext
 
     // MARK: - Choice Mode

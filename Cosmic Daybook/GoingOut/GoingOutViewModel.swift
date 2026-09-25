@@ -58,20 +58,4 @@ final class GoingOutViewModel {
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDGoingOut.createdAt, ascending: false)]
         goingOuts = context.safeFetch(request)
     }
-
-    // MARK: - CRUD
-
-    func updateStatus(_ goingOut: CDGoingOut, to newStatus: GoingOutStatus, context: NSManagedObjectContext) {
-        goingOut.status = newStatus
-        if newStatus == .completed {
-            goingOut.actualDate = Date()
-        }
-        context.safeSave()
-    }
-
-    func delete(_ goingOut: CDGoingOut, context: NSManagedObjectContext) {
-        context.delete(goingOut)
-        context.safeSave()
-        loadData(context: context)
-    }
 }

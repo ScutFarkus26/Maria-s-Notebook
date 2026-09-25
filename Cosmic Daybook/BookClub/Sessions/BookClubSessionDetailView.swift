@@ -16,8 +16,6 @@ struct BookClubSessionDetailView: View {
     @State private var showingDeleteConfirm = false
     @State private var leaderReassignTarget: CDBookClubMeeting?
 
-    nonisolated private static let logger = Logger.bookClub
-
     private var packet: CDBookClubPacket? {
         viewModel.packet(for: session, in: viewContext)
     }

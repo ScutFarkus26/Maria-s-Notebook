@@ -16,9 +16,4 @@ enum ResourceThumbnailGenerator {
         }
         return PDFThumbnailRenderer.thumbnailData(from: page, fitting: thumbnailSize)
     }
-
-    /// Generates a JPEG thumbnail from PDF data.
-    static func generateThumbnail(from data: Data) -> Data? {
-        PDFThumbnailRenderer.thumbnailData(from: data, fitting: thumbnailSize)
-    }
 }

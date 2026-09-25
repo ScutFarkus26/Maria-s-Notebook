@@ -13,9 +13,6 @@ import SwiftUI
 struct LinkedNotebookLessonsPanel: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.appRouter) private var appRouter
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #endif
 
     let album: Album
     let currentPage: Int

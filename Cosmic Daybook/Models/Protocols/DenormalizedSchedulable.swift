@@ -14,11 +14,6 @@ import Foundation
 /// - `syncSnapshotsFromRelationships()` — copies relationship data into string-based fields
 /// - `resolvedLessonID` — falls back from relationship to stored string ID
 protocol DenormalizedSchedulable: AnyObject {
-    // MARK: - Scheduling (stored properties)
-
-    var scheduledFor: Date? { get set }
-    var scheduledForDay: Date? { get set }
-
     // MARK: - CDStudent Grouping (stored properties)
 
     var studentGroupKeyPersisted: String { get set }

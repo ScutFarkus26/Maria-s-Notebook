@@ -14,7 +14,6 @@ struct SchoolCalendarSettingsView: View {
     @Environment(\.calendar) private var calendar
     @Environment(\.dependencies) private var dependencies
     @State private var currentMonth: Date = Date()
-    @State private var selected: Set<DateComponents> = []
     @State private var nonSchoolDates: Set<Date> = []
     @State private var showingRollover = false
     @State private var showingCarryOverSweep = false

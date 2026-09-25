@@ -12,8 +12,6 @@ import CoreData
 struct StudentRepository: SavingRepository {
     typealias Model = CDStudent
 
-    private static let logger = Logger.database
-
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
@@ -26,22 +24,6 @@ struct StudentRepository: SavingRepository {
 
     /// Fetch a CDStudent by ID
     func fetchStudent(id: UUID) -> CDStudent? { fetch(id: id) }
-
-    /// Fetch multiple Students with optional filtering and sorting
-    func fetchStudents(
-        predicate: NSPredicate? = nil,
-        sortBy: [NSSortDescriptor] = [
-            NSSortDescriptor(key: "lastName", ascending: true),
-            NSSortDescriptor(key: "firstName", ascending: true)
-        ]
-    ) -> [CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = predicate
-        request.sortDescriptors = sortBy
-        request.relationshipKeyPathsForPrefetching = ["lessonAssignments"]
-        request.fetchBatchSize = 20
-        return context.safeFetch(request)
-    }
 
     /// Every student whose `id` is in `ids`, in store order (a CloudKit duplicate
     /// comes back twice). Throws when the fetch fails, so a caller about to write

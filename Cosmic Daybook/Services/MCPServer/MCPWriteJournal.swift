@@ -177,9 +177,6 @@ actor MCPWriteJournal {
         return base.appendingPathComponent("MCP", isDirectory: true)
     }
 
-    /// Where the journal is kept.
-    var location: URL { fileURL }
-
     // MARK: Writing
 
     /// Appends one record. Journalling is bookkeeping: it must never turn a

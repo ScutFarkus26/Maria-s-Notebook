@@ -44,11 +44,6 @@ nonisolated enum AppCalendar {
         shared.date(byAdding: .day, value: days, to: date) ?? date
     }
 
-    /// A short weekday label (e.g., "Mon", "Tue").
-    nonisolated static func weekdayLabel(for date: Date) -> String {
-        date.formatted(Date.FormatStyle().weekday(.abbreviated))
-    }
-
     /// Stable identifier for a day bucket (start-of-day epoch seconds).
     /// Useful for `id:` values in `ForEach` when you want day-identity rather than full timestamps.
     nonisolated static func dayID(_ day: Date) -> String {

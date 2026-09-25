@@ -36,8 +36,6 @@ struct BookClubSessionEditorSheet: View {
     @State private var readingItems: [BookClubReadingItem] = []
     @State private var didInitialize: Bool = false
 
-    nonisolated private static let logger = Logger.bookClub
-
     private var selectedPacket: CDBookClubPacket? {
         guard let id = selectedPacketID else { return nil }
         return allPackets.first { $0.objectID == id }

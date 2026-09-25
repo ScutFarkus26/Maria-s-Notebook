@@ -16,7 +16,6 @@ struct StudentProgressionCard: Identifiable {
     let level: CDStudent.Level
     let subjects: [SubjectProgression]
 
-    var displayName: String { nickname ?? firstName }
     var fullName: String { "\(firstName) \(lastName)" }
 
     /// Total number of (subject, sequence) threads visible for this student.

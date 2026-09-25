@@ -16,7 +16,6 @@ import FoundationModels
 /// Falls back cleanly when Apple Intelligence is unavailable (wrong device, not enabled, etc.).
 @available(macOS 26.0, iOS 26.0, *)
 final class LocalModelClient: FoundationModelClient {
-    private static let logger = Logger.ai
     private let evidenceSourceCollector = EvidenceSourceCollector()
 
     // MARK: - Availability

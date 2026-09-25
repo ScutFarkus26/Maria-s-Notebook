@@ -17,7 +17,6 @@ struct IndependentWorkflowWindow: View {
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var viewContext
     @State private var triggerCompletion: Bool = false
 
     var body: some View {

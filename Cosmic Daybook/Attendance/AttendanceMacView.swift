@@ -8,7 +8,6 @@ import OSLog
 
 struct AttendanceMacView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.calendar) private var calendar
     @Environment(RestoreCoordinator.self) private var restoreCoordinator
     @Environment(\.dependencies) private var dependencies
 

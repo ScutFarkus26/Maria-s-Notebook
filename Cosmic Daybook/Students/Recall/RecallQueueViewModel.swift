@@ -28,8 +28,6 @@ struct RecallStudentRetention: Identifiable {
 
 @Observable
 final class RecallQueueViewModel {
-    private static let logger = Logger.app_
-
     private(set) var sections: [RecallStudentSection] = []
     private(set) var isLoading = false
     private(set) var summary: RecallRetentionStats.Summary?

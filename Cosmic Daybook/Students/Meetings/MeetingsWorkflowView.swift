@@ -7,7 +7,6 @@ struct MeetingsWorkflowView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     @Environment(\.dependencies) private var dependencies
-    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     // MARK: - Queries
 

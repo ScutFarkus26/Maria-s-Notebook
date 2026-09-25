@@ -127,12 +127,6 @@ final class StudentDetailViewModel {
         plannedLessonIDs = Set(nextLessonsForStudent.map(\.lessonID))
     }
 
-    // MARK: - UI Actions moved from View
-    func showToast(_ message: String) {
-        // Delegate to centralized ToastService
-        dependencies.toastService.showInfo(message)
-    }
-
     // MARK: - Business Logic (moved from View)
 
     /// Fetch work models for the student (non-complete only): the rows she

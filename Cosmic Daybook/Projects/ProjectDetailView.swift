@@ -6,7 +6,6 @@ struct ProjectDetailView: View {
 
     @Environment(\.managedObjectContext) private var modelContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.dependencies) private var dependencies
 
     // Test student filtering

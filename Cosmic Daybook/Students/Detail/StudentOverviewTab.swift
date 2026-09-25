@@ -103,13 +103,6 @@ struct StudentOverviewTab: View {
         return comps.day ?? 0
     }
 
-    private func ageDays(for work: CDWorkModel) -> Int {
-        let start = AppCalendar.startOfDay(SchoolYearCounters.countFrom(work.createdAt ?? Date()))
-        let now = AppCalendar.startOfDay(Date())
-        let comps = AppCalendar.shared.dateComponents([.day], from: start, to: now)
-        return comps.day ?? 0
-    }
-    
     private func ageSchoolDays(for work: CDWorkModel) -> Int {
         // Use cached value to avoid repeated database queries during rendering
         return cachedAgeSchoolDays[work.id ?? UUID()] ?? 0

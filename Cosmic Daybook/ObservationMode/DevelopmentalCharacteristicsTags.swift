@@ -80,11 +80,6 @@ enum DevelopmentalCharacteristic: String, CaseIterable, Identifiable {
         TagHelper.tagColor(tag).color
     }
 
-    /// All developmental characteristic tags
-    static var allTags: [String] {
-        allCases.map(\.tag)
-    }
-
     /// Check if a tag is a developmental characteristic tag
     static func isCharacteristicTag(_ tag: String) -> Bool {
         let name = TagHelper.tagName(tag)

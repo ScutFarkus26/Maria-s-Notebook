@@ -27,19 +27,6 @@ enum LessonFormatter {
         return trimmedName + suffix
     }
     
-    /// Formats a lesson title for duplicate detection display.
-    /// - Parameters:
-    ///   - name: The lesson name
-    ///   - area: The area
-    ///   - sequence: Optional sequence
-    /// - Returns: Formatted duplicate detection title
-    nonisolated static func duplicateDetectionTitle(name: String, area: String, sequence: String) -> String {
-        let trimmedSequence = sequence.trimmed()
-        return trimmedSequence.isEmpty 
-            ? "\(name) — \(area)" 
-            : "\(name) — \(area) • \(trimmedSequence)"
-    }
-    
     /// Returns a fallback title if the name is empty.
     /// - Parameters:
     ///   - name: The lesson name

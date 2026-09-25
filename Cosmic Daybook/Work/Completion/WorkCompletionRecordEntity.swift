@@ -27,20 +27,6 @@ nonisolated public class CDWorkCompletionRecord: NSManagedObject {
     }
 }
 
-// MARK: - Computed Properties
-
-nonisolated extension CDWorkCompletionRecord {
-    var workIDUUID: UUID? {
-        get { UUID(uuidString: workID) }
-        set { workID = newValue?.uuidString ?? "" }
-    }
-
-    var studentIDUUID: UUID? {
-        get { UUID(uuidString: studentID) }
-        set { studentID = newValue?.uuidString ?? "" }
-    }
-}
-
 // MARK: - Generated Accessors for To-Many Relationships
 
 nonisolated extension CDWorkCompletionRecord {

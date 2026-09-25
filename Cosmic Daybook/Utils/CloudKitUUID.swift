@@ -58,9 +58,4 @@ nonisolated enum CloudKitStringArrayStorage {
             return nil
         }
     }
-
-    /// Convenience: Encodes a `[UUID]` array as `[String]` JSON `Data`.
-    static func encode(_ uuids: [UUID]) -> Data? {
-        encode(uuids.map(\.uuidString))
-    }
 }

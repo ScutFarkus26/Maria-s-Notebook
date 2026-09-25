@@ -13,15 +13,6 @@ enum AttendanceInsightsTimeframe: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var label: String {
-        switch self {
-        case .last7: return "Last 7 days"
-        case .last30: return "Last 30 days"
-        case .last90: return "Last 90 days"
-        case .schoolYear: return "This school year"
-        }
-    }
-
     var shortLabel: String {
         switch self {
         case .last7: return "7d"

@@ -11,7 +11,6 @@ struct ParshaSuggestionsDetailView: View {
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
-    @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var cached: CachedParshaSuggestions?
     @State private var isLoading = false

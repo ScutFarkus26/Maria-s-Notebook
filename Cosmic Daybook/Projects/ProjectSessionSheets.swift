@@ -7,7 +7,6 @@ import CoreData
 /// A minimal wrapper that reuses LessonPickerViewModel to choose a single lesson
 struct ProjectLessonPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var modelContext
     @Environment(\.dependencies) private var dependencies
 
     let viewModel: LessonPickerViewModel

@@ -32,8 +32,6 @@ nonisolated public class CDParentCommunication: NSManagedObject {
         set { communicationTypeRaw = newValue.rawValue }
     }
 
-    var studentUUID: UUID? { UUID(uuidString: studentID) }
-
     /// Review status; `sentAt` remains the authoritative sent marker.
     var status: MonthlyReportStatus {
         get {

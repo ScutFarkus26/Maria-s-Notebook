@@ -12,8 +12,6 @@ import CoreData
 struct LessonRepository: SavingRepository {
     typealias Model = CDLesson
 
-    private static let logger = Logger.database
-
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
@@ -41,16 +39,6 @@ struct LessonRepository: SavingRepository {
         request.sortDescriptors = sortBy
         request.fetchBatchSize = 20
         return context.safeFetch(request)
-    }
-
-    /// Fetch lessons by area
-    func fetchLessons(byArea area: String) -> [CDLesson] {
-        fetchLessons(predicate: NSPredicate(format: "area == %@", area))
-    }
-
-    /// Fetch lessons by area and sequence
-    func fetchLessons(byArea area: String, sequence: String) -> [CDLesson] {
-        fetchLessons(predicate: NSPredicate(format: "area == %@ AND sequence == %@", area, sequence))
     }
 
     /// Fetch child stories that branch off a given parent story

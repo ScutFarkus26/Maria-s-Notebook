@@ -11,15 +11,6 @@ extension Array {
     }
 }
 
-extension Collection {
-    /// Safely access collection element by index, returning nil if index is out of bounds
-    /// - Parameter index: The index to access
-    /// - Returns: The element at the index, or nil if index is invalid
-    subscript(safe index: Index) -> Element? {
-        return indices.contains(index) ? self[index] : nil
-    }
-}
-
 // MARK: - Deduplication
 
 extension Array where Element: Identifiable {

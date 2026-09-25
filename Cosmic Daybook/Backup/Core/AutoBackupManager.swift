@@ -59,14 +59,6 @@ final class AutoBackupManager {
         /// nothing new to protect, so no file was written.
         case skippedNoChanges(Date)
 
-        var date: Date {
-            switch self {
-            case .success(let date, _): return date
-            case .failure(let date, _): return date
-            case .skippedNoChanges(let date): return date
-            }
-        }
-
     }
 
     enum BackupTrigger: String, Sendable {

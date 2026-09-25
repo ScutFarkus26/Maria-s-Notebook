@@ -27,28 +27,6 @@ enum WorkCompletionService {
         return try context.fetch(request)
     }
 
-    /// Fetch the latest (most recent) completion record for a given work + student.
-    static func latest(
-        for workID: UUID,
-        studentID: UUID,
-        in context: NSManagedObjectContext
-    ) throws -> CDWorkCompletionRecord? {
-        try records(for: workID, studentID: studentID, in: context).first
-    }
-
-    /// Whether a student has at least one completion record for the given work.
-    static func isCompleted(workID: UUID, studentID: UUID, in context: NSManagedObjectContext) throws -> Bool {
-        let request = CDFetchRequest(CDWorkCompletionRecord.self)
-        let workIDString = workID.uuidString
-        let studentIDString = studentID.uuidString
-        request.predicate = NSPredicate(
-            format: "workID == %@ AND studentID == %@",
-            workIDString, studentIDString
-        )
-        request.fetchLimit = 1
-        return try !context.fetch(request).isEmpty
-    }
-
     // MARK: - Mutations
 
     /// Record a completion event for a given work + student.
@@ -73,19 +51,6 @@ enum WorkCompletionService {
             try context.save()
         }
         return record
-    }
-
-    /// Convenience overload using instances if the caller has them.
-    @discardableResult
-    static func markCompleted(
-        work: CDWorkModel, student: CDStudent,
-        note: String = "", at date: Date = Date(),
-        in context: NSManagedObjectContext
-    ) throws -> CDWorkCompletionRecord {
-        try markCompleted(
-            workID: work.id ?? UUID(), studentID: student.id ?? UUID(),
-            note: note, at: date, in: context
-        )
     }
 
 }

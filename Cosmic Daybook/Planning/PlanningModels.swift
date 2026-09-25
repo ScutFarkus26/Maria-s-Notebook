@@ -12,13 +12,6 @@ enum DayPeriod: CaseIterable, Hashable, Sendable {
         }
     }
 
-    public var color: Color {
-        switch self {
-        case .morning: return .blue
-        case .afternoon: return .orange
-        }
-    }
-
     public var baseHour: Int {
         switch self {
         case .morning: return UIConstants.morningHour
@@ -31,9 +24,4 @@ struct ScheduledItem: Identifiable, Hashable {
     let work: CDWorkModel
     let checkIn: CDWorkCheckIn
     var id: UUID { checkIn.id ?? UUID() }
-
-    init(work: CDWorkModel, checkIn: CDWorkCheckIn) {
-        self.work = work
-        self.checkIn = checkIn
-    }
 }

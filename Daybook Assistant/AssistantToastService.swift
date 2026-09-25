@@ -25,9 +25,7 @@ final class ToastService {
 
     private init() {}
 
-    func showSuccess(_ message: String) { show(message, kind: .success) }
     func showError(_ message: String) { show(message, kind: .error) }
-    func showInfo(_ message: String) { show(message, kind: .info) }
 
     private func show(_ message: String, kind: Kind) {
         let toast = Toast(message: message, kind: kind)

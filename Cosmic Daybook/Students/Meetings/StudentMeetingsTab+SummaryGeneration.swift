@@ -8,10 +8,6 @@ extension StudentMeetingsTab {
 
     // MARK: - Summary Generation (delegated to MeetingSummaryGenerator)
 
-    var isAIEnabled: Bool {
-        MeetingSummaryGenerator.isAIEnabled
-    }
-
     func summaryText(for item: CDStudentMeeting) -> String {
         MeetingSummaryGenerator.generateFallbackSummary(for: item)
     }

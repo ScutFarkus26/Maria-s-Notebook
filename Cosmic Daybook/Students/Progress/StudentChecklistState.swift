@@ -55,17 +55,6 @@ public enum ChecklistDisplayStatus: Sendable {
     case reviewing
     case proficient
 
-    public var color: SwiftUI.Color {
-        switch self {
-        case .proficient:  return .green
-        case .reviewing:   return .yellow
-        case .practicing:  return .blue
-        case .presented:   return .blue
-        case .scheduled:   return .orange
-        case .empty:       return .gray
-        }
-    }
-
     public var label: String {
         switch self {
         case .proficient:  return "Mastered"

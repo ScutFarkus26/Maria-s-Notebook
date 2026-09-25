@@ -138,7 +138,6 @@ struct CalendarMonthGridView: View {
 }
 
 private struct DayCell: View {
-    @Environment(\.managedObjectContext) private var viewContext
     let date: Date?
     let calendar: Calendar
     let nonSchoolDates: Set<Date>?

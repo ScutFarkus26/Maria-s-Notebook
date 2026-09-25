@@ -300,40 +300,7 @@ final class WorkDetailViewModel {
     }
     
     // MARK: - Actions
-    // PERF: Uses pre-loaded relatedLessons and relatedLessonAssignments
-    func checkAndOfferUnlock() {
-        guard status == .mastered,
-              relatedLesson != nil,
-              let studentID = UUID(uuidString: work?.studentID ?? ""),
-              let nextLesson = likelyNextLesson() else {
-            return
-        }
 
-        // Find CDLessonAssignment for next lesson
-        let nextLessonAssignment = relatedLessonAssignments.first { la in
-            la.lessonIDUUID == nextLesson.id &&
-            la.resolvedStudentIDs.contains(studentID)
-        }
-
-        // Offer unlock if blocked
-        if let la = nextLessonAssignment, !la.manuallyUnblocked && !la.isGiven {
-            nextLessonToUnlock = nextLesson
-            showUnlockNextLessonAlert = true
-        }
-    }
-
-    func addPlan(modelContext: NSManagedObjectContext) {
-        guard let work else { return }
-
-        let checkIn = CDWorkCheckIn.make(for: work, on: newPlanDate, purpose: newPlanPurpose, in: modelContext)
-
-        let trimmedNote = newPlanNote.trimmed()
-        if !trimmedNote.isEmpty {
-            checkIn.setLegacyNoteText(trimmedNote, in: modelContext)
-        }
-        showPlannedBanner = true
-    }
-    
     func save(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
         guard let work else { return }
 
@@ -377,15 +344,6 @@ final class WorkDetailViewModel {
             Self.logger.error("Failed to delete work: \(error)"); return
         }
         onDeleted()
-    }
-    
-    // MARK: - Helpers
-    func studentName() -> String {
-        relatedStudent?.firstName ?? "Unknown"
-    }
-    
-    func lessonTitle() -> String {
-        relatedLesson?.name ?? "Unknown Lesson"
     }
     
 }

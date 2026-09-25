@@ -113,28 +113,12 @@ enum AppTheme {
         let x: CGFloat
         let y: CGFloat
         
-        /// Subtle shadow for slight elevation
-        static let subtle = ShadowStyle(
-            color: .black.opacity(0.08),
-            radius: 4,
-            x: 0,
-            y: 2
-        )
-        
         /// Medium shadow for cards and elevated elements
         static let medium = ShadowStyle(
             color: .black.opacity(0.12),
             radius: 12,
             x: 0,
             y: 6
-        )
-        
-        /// Strong shadow for modals and overlays
-        static let strong = ShadowStyle(
-            color: .black.opacity(UIConstants.OpacityConstants.moderate),
-            radius: 24,
-            x: 0,
-            y: 12
         )
     }
 
@@ -146,21 +130,6 @@ enum AppTheme {
         /// Timestamps, "3 days ago", "last updated", relative dates
         nonisolated static var metadata: Font {
             .system(.caption2, design: .default, weight: .light)
-        }
-
-        /// Form labels, field names, row labels
-        nonisolated static var label: Font {
-            .system(.callout, design: .default, weight: .medium)
-        }
-
-        /// Form values, data points, row values — rounded to match title hierarchy
-        nonisolated static var value: Font {
-            .system(.headline, design: .rounded, weight: .semibold)
-        }
-
-        /// Hero numbers on dashboards, large stats — rounded for display impact
-        nonisolated static var stat: Font {
-            .system(.largeTitle, design: .rounded, weight: .heavy)
         }
 
     }

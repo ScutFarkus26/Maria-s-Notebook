@@ -24,12 +24,6 @@ final class PaginationState {
         displayedCount < totalCount
     }
 
-    /// Progress indicator (0.0 to 1.0)
-    var progress: Double {
-        guard totalCount > 0 else { return 1.0 }
-        return Double(displayedCount) / Double(totalCount)
-    }
-
     /// Initialize with a page size
     /// - Parameter pageSize: Number of items per page (default: 30)
     init(pageSize: Int = 30) {

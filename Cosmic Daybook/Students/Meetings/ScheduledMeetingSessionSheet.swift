@@ -10,7 +10,6 @@ struct ScheduledMeetingSessionSheet: View {
     let studentID: UUID
     var onComplete: (() -> Void)?
 
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])

@@ -88,9 +88,6 @@ nonisolated extension CDNote {
         set { categoryRaw = newValue.rawValue }
     }
 
-    /// The legacy categoryRaw value (read-only, for migration)
-    var legacyCategoryRaw: String { categoryRaw }
-
     // Computed, Codable scope
     var scope: NoteScope {
         get {

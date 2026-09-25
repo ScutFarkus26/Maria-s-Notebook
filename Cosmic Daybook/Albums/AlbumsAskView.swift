@@ -8,7 +8,6 @@ import SwiftUI
 
 struct AlbumsAskView: View {
     @Environment(AlbumLibrary.self) private var library
-    @Environment(AlbumsNavModel.self) private var nav
     @Environment(AlbumIntelligence.self) private var intelligence
 
     @State private var question = ""

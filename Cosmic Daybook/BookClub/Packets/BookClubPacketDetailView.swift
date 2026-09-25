@@ -20,8 +20,6 @@ struct BookClubPacketDetailView: View {
     @State private var showingDeleteConfirm = false
     @State private var showingSessionEditor = false
 
-    nonisolated private static let logger = Logger.bookClub
-
     var body: some View {
         VStack(spacing: 0) {
             header

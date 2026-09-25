@@ -46,7 +46,6 @@ struct LessonAttachmentsSection: View {
     
     @State private var showingScopeSheet = false
     @State private var selectedScope: AttachmentScope = .lesson
-    @State private var pendingImportURL: URL?
     @State private var showingDeleteAlert = false
     @State private var attachmentToDelete: CDLessonAttachment?
     @State private var attachmentToRename: CDLessonAttachment?

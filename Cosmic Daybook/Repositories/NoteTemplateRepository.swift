@@ -12,8 +12,6 @@ import CoreData
 struct NoteTemplateRepository: SavingRepository {
     typealias Model = CDNoteTemplate
 
-    private static let logger = Logger.database
-
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 
@@ -26,23 +24,6 @@ struct NoteTemplateRepository: SavingRepository {
 
     /// Fetch a NoteTemplate by ID
     func fetchTemplate(id: UUID) -> CDNoteTemplate? { fetch(id: id) }
-
-    /// Fetch multiple NoteTemplates with optional filtering and sorting
-    func fetchTemplates(
-        predicate: NSPredicate? = nil,
-        sortBy: [NSSortDescriptor] = [NSSortDescriptor(key: "sortOrder", ascending: true)]
-    ) -> [CDNoteTemplate] {
-        let request = CDFetchRequest(CDNoteTemplate.self)
-        request.predicate = predicate
-        request.sortDescriptors = sortBy
-        request.fetchBatchSize = 20
-        return context.safeFetch(request)
-    }
-
-    /// Fetch only built-in templates
-    func fetchBuiltInTemplates() -> [CDNoteTemplate] {
-        fetchTemplates(predicate: NSPredicate(format: "isBuiltIn == YES"))
-    }
 
     // MARK: - Delete
 

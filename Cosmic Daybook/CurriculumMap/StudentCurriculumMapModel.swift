@@ -34,11 +34,6 @@ struct CurriculumRow: Identifiable, Hashable {
         if case .area = kind { return true }
         return false
     }
-
-    var lessonID: UUID? {
-        if case .lesson(let id) = kind { return id }
-        return nil
-    }
 }
 
 struct CurriculumGlyphSpec: Hashable {

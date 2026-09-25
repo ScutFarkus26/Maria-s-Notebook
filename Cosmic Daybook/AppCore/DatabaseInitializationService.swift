@@ -7,10 +7,6 @@ import OSLog
 /// Service for initializing and managing the Core Data database container.
 enum DatabaseInitializationService {
 
-    // MARK: - Logger
-
-    private static let logger = Logger.database
-
     // MARK: - Store URL
 
     /// Returns the URL of the primary on-disk store (the private store).

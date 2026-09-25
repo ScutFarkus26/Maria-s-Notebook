@@ -176,32 +176,9 @@ nonisolated extension CDPracticeSession {
         studentIDsArray.contains(studentID.uuidString)
     }
 
-    /// Checks if a specific work item was practiced in this session
-    func includes(workItemID: UUID) -> Bool {
-        workItemIDsArray.contains(workItemID.uuidString)
-    }
-
     /// Returns student UUIDs from the stored string IDs
     var resolvedStudentIDs: [UUID] {
         studentIDsArray.compactMap { UUID(uuidString: $0) }
-    }
-
-    /// Adds a student to the practice session if not already present
-    func addStudent(_ studentID: UUID) {
-        let idString = studentID.uuidString
-        var ids = studentIDsArray
-        if !ids.contains(idString) {
-            ids.append(idString)
-            studentIDsArray = ids
-        }
-    }
-
-    /// Removes a student from the practice session
-    func removeStudent(_ studentID: UUID) {
-        let idString = studentID.uuidString
-        var ids = studentIDsArray
-        ids.removeAll { $0 == idString }
-        studentIDsArray = ids
     }
 
 }

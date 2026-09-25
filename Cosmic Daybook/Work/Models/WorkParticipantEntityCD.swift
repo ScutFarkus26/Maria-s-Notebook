@@ -21,13 +21,3 @@ nonisolated public class CDWorkParticipantEntity: NSManagedObject {
         self.completedAt = nil
     }
 }
-
-// MARK: - Computed Properties
-
-nonisolated extension CDWorkParticipantEntity {
-    // Computed property for backward compatibility with UUID
-    var studentIDUUID: UUID? {
-        get { UUID(uuidString: studentID) }
-        set { studentID = newValue?.uuidString ?? "" }
-    }
-}

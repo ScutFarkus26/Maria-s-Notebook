@@ -175,7 +175,6 @@ struct StudentInfoRows: View {
     /// Two-column layout for wide panes (macOS / iPad regular) so label-value
     /// pairs don't stretch across the full detail width.
     var useGrid: Bool = false
-    @Environment(\.managedObjectContext) private var viewContext
 
     private var formattedBirthday: String {
         DateFormatters.longDate.string(from: student.birthday ?? Date())

@@ -91,14 +91,6 @@ nonisolated extension CDGoingOut {
         ((checklistItems as? Set<CDGoingOutChecklistItem>).map(Array.init) ?? [])
             .sorted { $0.sortOrder < $1.sortOrder }
     }
-
-    /// Cross-store inverse: fetches Notes whose goingOutID matches this going out.
-    var observationNotes: [CDNote] {
-        guard let id, let ctx = managedObjectContext else { return [] }
-        let req = CDFetchRequest(CDNote.self)
-        req.predicate = NSPredicate(format: "goingOutID == %@", id.uuidString)
-        return (try? ctx.fetch(req)) ?? []
-    }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships

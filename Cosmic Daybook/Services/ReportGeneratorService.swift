@@ -19,8 +19,6 @@ typealias PlatformColor = NSColor
 #endif
 
 struct ReportGeneratorService {
-    private static let logger = Logger.reports
-
     // MARK: - Core Data API (Primary)
 
     /// Fetch flagged notes for a student within a date range (Core Data)

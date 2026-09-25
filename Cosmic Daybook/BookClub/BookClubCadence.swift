@@ -23,12 +23,4 @@ enum BookClubCadence: Sendable {
     case weekly(weekday: Int)
     case biweekly(weekday: Int)
     case custom(weekdayMask: Int64)
-
-    var kind: BookClubCadenceKind {
-        switch self {
-        case .weekly: return .weekly
-        case .biweekly: return .biweekly
-        case .custom: return .custom
-        }
-    }
 }

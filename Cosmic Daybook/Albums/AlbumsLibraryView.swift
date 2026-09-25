@@ -10,7 +10,6 @@ import UniformTypeIdentifiers
 
 struct AlbumsLibraryView: View {
     @Environment(AlbumLibrary.self) private var library
-    @Environment(AlbumsNavModel.self) private var nav
     @Environment(\.managedObjectContext) private var context
     @FetchRequest(sortDescriptors: [
         NSSortDescriptor(keyPath: \CDAlbumRecentVisit.visitedAt, ascending: false)

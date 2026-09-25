@@ -22,7 +22,6 @@ struct TrackFilteredListView: View, Identifiable {
     }
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var viewContext
 
     // Use uniquingKeysWith to handle CloudKit sync duplicates
     private var lessonsByID: [UUID: CDLesson] {

@@ -300,20 +300,6 @@ public final class SchoolCalendarService {
     public func nextSchoolDay(after date: Date, using context: NSManagedObjectContext) async -> Date {
         nextSchoolDaySync(after: date, using: context)
     }
-
-    /// Returns the previous school day strictly before the given date.
-    /// Weekends and configured non-school days are skipped; weekend overrides are respected.
-    public func previousSchoolDay(before date: Date, using context: NSManagedObjectContext) async -> Date {
-        previousSchoolDaySync(before: date, using: context)
-    }
-
-    /// Coerces the provided date to the nearest school day.
-    /// If the date is already a school day, it is returned unchanged.
-    /// Otherwise, the closer of the previous/next school day is chosen
-    /// (ties prefer the next day).
-    public func nearestSchoolDay(to date: Date, using context: NSManagedObjectContext) async -> Date {
-        nearestSchoolDaySync(to: date, using: context)
-    }
 }
 
 // MARK: - Change Notification

@@ -2,8 +2,6 @@ import SwiftUI
 import CoreData
 
 struct CloudKitStatusSettingsView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.dependencies) private var dependencies
     @State private var syncService: CloudKitSyncStatusService
     @State private var isSyncDetailsExpanded = false
     @AppStorage(UserDefaultsKeys.enableCloudKitSync) private var isCloudKitEnabled = true

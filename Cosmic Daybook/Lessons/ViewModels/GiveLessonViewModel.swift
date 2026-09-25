@@ -86,10 +86,6 @@ final class LessonPickerViewModel {
         allLessons
     }
     
-    var sortedStudents: [CDStudent] {
-        allStudents
-    }
-    
     var filteredLessons: [CDLesson] {
         let query = lessonSearchText.normalizedForComparison()
         guard !query.isEmpty else { return sortedLessons }
@@ -101,35 +97,8 @@ final class LessonPickerViewModel {
         }
     }
     
-    var selectedStudents: [CDStudent] {
-        sortedStudents.filter { student in
-            guard let id = student.id else { return false }
-            return selectedStudentIDs.contains(id)
-        }
-    }
-    
-    var isValid: Bool {
-        selectedLessonID != nil && !selectedStudentIDs.isEmpty
-    }
-    
     // MARK: - Actions
 
-    func toggleStudentSelection(_ studentID: UUID) {
-        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-            if selectedStudentIDs.contains(studentID) {
-                selectedStudentIDs.remove(studentID)
-            } else {
-                selectedStudentIDs.insert(studentID)
-            }
-        }
-    }
-    
-    func removeStudent(_ studentID: UUID) {
-        adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-            _ = selectedStudentIDs.remove(studentID)
-        }
-    }
-    
     func selectLesson(_ lessonID: UUID) {
         selectedLessonID = lessonID
         if let l = allLessons.first(where: { $0.id == lessonID }) {
@@ -139,24 +108,11 @@ final class LessonPickerViewModel {
         }
     }
     
-    func reset() {
-        lessonSearchText = ""
-        studentSearchText = ""
-        showFollowUpField = false
-    }
-    
     // MARK: - Save Logic
     
     enum SaveError: LocalizedError {
         case missingLesson
         case persistFailed(underlying: Error)
-        
-        var title: String {
-            switch self {
-            case .missingLesson: return "Choose a Lesson"
-            case .persistFailed: return "Save Failed"
-            }
-        }
         
         var errorDescription: String? {
             switch self {
@@ -365,9 +321,6 @@ final class LessonPickerViewModel {
     }
     
     // MARK: - Formatting Helpers
-    func displayName(for student: CDStudent) -> String {
-        student.shortName
-    }
 
     func lessonDisplayTitle(for lesson: CDLesson) -> String {
         LessonFormatter.displayTitle(

@@ -14,7 +14,6 @@ struct StudentFilesTab: View {
 
     let student: CDStudent
 
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 

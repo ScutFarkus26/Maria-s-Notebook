@@ -25,8 +25,6 @@ nonisolated public class CDGuardian: NSManagedObject {
         set { relationshipRaw = newValue.rawValue }
     }
 
-    var studentUUID: UUID? { UUID(uuidString: studentID) }
-
     // MARK: - Convenience Initializer
 
     @discardableResult

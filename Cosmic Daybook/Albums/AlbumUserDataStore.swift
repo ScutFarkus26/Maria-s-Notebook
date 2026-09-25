@@ -157,11 +157,6 @@ enum AlbumUserDataStore {
         context.safeSave()
     }
 
-    static func delete(_ highlight: CDAlbumHighlight, in context: NSManagedObjectContext) {
-        context.delete(highlight)
-        context.safeSave()
-    }
-
     // MARK: Ink
 
     static func ink(albumID: String, in context: NSManagedObjectContext) -> [CDAlbumPageInk] {

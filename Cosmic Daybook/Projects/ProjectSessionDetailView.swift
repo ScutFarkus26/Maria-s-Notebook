@@ -3,7 +3,6 @@ import SwiftUI
 import CoreData
 
 struct ProjectSessionDetailView: View {
-    private static let logger = Logger.projects
     let session: CDProjectSession
 
     @Environment(\.managedObjectContext) private var modelContext

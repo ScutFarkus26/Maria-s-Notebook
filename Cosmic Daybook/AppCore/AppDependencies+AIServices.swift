@@ -15,8 +15,6 @@ extension AppDependencies {
         aiRouter
     }
 
-    var chatService: ChatService { _chatService }
-
     var studentAnalysisService: StudentAnalysisService { _studentAnalysisService }
 
     var reportGeneratorService: ReportGeneratorService { _reportGeneratorService }

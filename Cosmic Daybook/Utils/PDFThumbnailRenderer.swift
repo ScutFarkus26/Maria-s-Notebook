@@ -11,18 +11,6 @@ import UIKit
 /// `StoryThumbnailGenerator` and `ResourceThumbnailGenerator` forward here; they
 /// differ only in target size and logger.
 enum PDFThumbnailRenderer {
-    /// First page of the PDF at `url`, or `nil` when it can't be opened or rendered.
-    static func thumbnailData(from url: URL, fitting size: CGSize) -> Data? {
-        guard let page = PDFDocument(url: url)?.page(at: 0) else { return nil }
-        return thumbnailData(from: page, fitting: size)
-    }
-
-    /// First page of the PDF in `data`, or `nil` when it can't be opened or rendered.
-    static func thumbnailData(from data: Data, fitting size: CGSize) -> Data? {
-        guard let page = PDFDocument(data: data)?.page(at: 0) else { return nil }
-        return thumbnailData(from: page, fitting: size)
-    }
-
     static func thumbnailData(from page: PDFPage, fitting size: CGSize) -> Data? {
         let pageRect = page.bounds(for: .mediaBox)
         let scale = Swift.min(

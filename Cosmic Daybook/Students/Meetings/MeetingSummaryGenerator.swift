@@ -101,15 +101,4 @@ enum MeetingSummaryGenerator {
         onSummaryGenerated(manualSummary, false)
         #endif
     }
-
-    // MARK: - AI Availability
-
-    /// Returns true if AI summary generation is available.
-    static var isAIEnabled: Bool {
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        return SystemLanguageModel.default.isAvailable
-        #else
-        return false
-        #endif
-    }
 }

@@ -156,16 +156,6 @@ final class SearchIndexService {
         apply(outcome)
     }
 
-    /// Rebuild synchronously on the caller's context, without touching the snapshot.
-    /// Prefer `refresh(container:)` at launch so nothing blocks the main thread.
-    func rebuildIndex(context: NSManagedObjectContext) {
-        let start = Date()
-        let entries = Self.collectAllEntries(context: context)
-        apply(SearchIndexRefreshOutcome(contents: Self.buildContents(from: entries), source: .fullRebuild))
-        let elapsed = Date().timeIntervalSince(start)
-        Self.logger.info("Search index built synchronously in \(String(format: "%.2f", elapsed))s")
-    }
-
     private func apply(_ outcome: SearchIndexRefreshOutcome) {
         index = outcome.contents.index
         resultsById = outcome.contents.resultsById

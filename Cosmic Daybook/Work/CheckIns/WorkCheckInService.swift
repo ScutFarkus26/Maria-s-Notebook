@@ -11,7 +11,7 @@ import CoreData
 /// (no implicit saves), while callers can perform explicit, transactional
 /// operations that throw on failure.
 /// This file includes only structural and documentation improvements; behavior is unchanged.
-struct WorkCheckInService: WorkCheckInServiceProtocol {
+struct WorkCheckInService {
     let context: NSManagedObjectContext
 
     // MARK: - Creation
@@ -50,37 +50,5 @@ struct WorkCheckInService: WorkCheckInServiceProtocol {
         if let note {
             checkIn.setLegacyNoteText(note, in: context)
         }
-    }
-
-    /// Skip a check-in and persist immediately.
-    func skip(_ checkIn: CDWorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
-        checkIn.status = .skipped
-        checkIn.date = date
-        if let note {
-            checkIn.setLegacyNoteText(note, in: context)
-        }
-    }
-
-    /// Update the note on a check-in and persist immediately.
-    func updateNote(_ checkIn: CDWorkCheckIn, to note: String?) throws {
-        checkIn.setLegacyNoteText(note, in: context)
-    }
-
-    /// Update core fields on a check-in and persist immediately.
-    func update(_ checkIn: CDWorkCheckIn, date: Date, status: WorkCheckInStatus, purpose: String, note: String) throws {
-        checkIn.date = date
-        checkIn.status = status
-        checkIn.purpose = purpose.trimmed()
-        checkIn.setLegacyNoteText(note, in: context)
-    }
-
-    // MARK: - Deletion
-
-    /// Delete a check-in from its context and persist immediately.
-    func delete(_ checkIn: CDWorkCheckIn, from work: CDWorkModel? = nil) throws {
-        if let work {
-            work.removeFromCheckIns(checkIn)
-        }
-        context.delete(checkIn)
     }
 }

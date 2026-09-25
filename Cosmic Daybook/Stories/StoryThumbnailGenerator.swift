@@ -14,8 +14,4 @@ enum StoryThumbnailGenerator {
         }
         return PDFThumbnailRenderer.thumbnailData(from: page, fitting: thumbnailSize)
     }
-
-    static func generateThumbnail(from data: Data) -> Data? {
-        PDFThumbnailRenderer.thumbnailData(from: data, fitting: thumbnailSize)
-    }
 }

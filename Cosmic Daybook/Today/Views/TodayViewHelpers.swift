@@ -49,21 +49,6 @@ extension TodayView {
         return names.joined(separator: ", ")
     }
 
-    /// Returns student names for a note based on its scope
-    func studentNames(for note: CDNote) -> String {
-        switch note.scope {
-        case .all: return ""
-        case .student(let id):
-            if viewModel.recentNoteStudentsByID[id] != nil { return displayNameForID(id) }
-            return ""
-        case .students(let ids):
-            let names = ids.compactMap { sid in
-                viewModel.recentNoteStudentsByID[sid].map { _ in displayNameForID(sid) }
-            }
-            return names.prefix(3).joined(separator: ", ")
-        }
-    }
-
     /// Resolves student name from a CDWorkModel
     func resolveStudentName(for work: CDWorkModel) -> String {
         guard let uuid = UUID(uuidString: work.studentID) else { return "Student" }

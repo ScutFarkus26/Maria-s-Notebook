@@ -65,11 +65,6 @@ struct PresentationNotesSectionUnified: View {
         return merged.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
     }
     
-    // Legacy computed property for backwards compatibility (now just uses allUnifiedNotes)
-    private var unifiedNotes: [CDNote] {
-        allUnifiedNotes
-    }
-    
     var body: some View {
         // Merged once per pass; the body reads it five times and each read
         // used to re-run the fetch, the merge, and the sort.

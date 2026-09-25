@@ -59,8 +59,6 @@ enum CloudExportWaitResult: Sendable {
 // MARK: - Restore Preview & Import
 
 extension BackupService {
-    private static let logger = Logger.backup
-
     /// Post-decode import path. Shared by:
     ///   - `BackupCoordinator` for archive imports (which reconstructs
     ///     a `BackupPayload` from archive entries then calls this)

@@ -2,8 +2,6 @@ import Foundation
 import OSLog
 import CoreData
 
-nonisolated private let logger = Logger.backup
-
 /// Helper functions for counting and filtering entities during backup operations.
 /// Reduces duplication in BackupService restore operations.
 enum BackupCountHelpers {

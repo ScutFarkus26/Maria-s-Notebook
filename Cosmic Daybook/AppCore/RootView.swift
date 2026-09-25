@@ -51,15 +51,7 @@ struct RootView: View {
     private var isNotebookCompanionDetached = false
 
     // Preferences for presentations preloading
-    @AppStorage(UserDefaultsKeys.planningInboxOrder) private var inboxOrderRaw: String = ""
-    @AppStorage(UserDefaultsKeys.lessonsAgendaMissWindow)
-    private var missWindowRaw: String = PresentationsMissWindow.all.rawValue
-    @TestStudentVisibility private var testStudents
     
-    private var missWindow: PresentationsMissWindow {
-        PresentationsMissWindow(rawValue: missWindowRaw) ?? .all
-    }
-
     // MARK: - Computed
     /// The saved selection, migrated by `NavigationSelectionRestorer` (retired
     /// raw values, the legacy `Tab` enum, aliased cases). A restore that lands

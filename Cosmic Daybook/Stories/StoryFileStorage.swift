@@ -34,22 +34,6 @@ enum StoryFileStorage {
         storage.resolveURL(bookmark: bookmark, relativePath: relativePath)
     }
 
-    static func makeBookmark(for url: URL) throws -> Data {
-        try storage.makeBookmark(for: url)
-    }
-
-    static func relativePath(forManagedURL url: URL) throws -> String {
-        try storage.relativePath(forManagedURL: url)
-    }
-
-    static func resolve(relativePath: String) throws -> URL {
-        try storage.resolve(relativePath: relativePath)
-    }
-
-    static func isManagedURL(_ url: URL) -> Bool {
-        storage.isManagedURL(url)
-    }
-
     static func deleteIfManaged(_ url: URL) throws {
         try storage.deleteIfManaged(url)
     }

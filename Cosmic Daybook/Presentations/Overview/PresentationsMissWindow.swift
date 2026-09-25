@@ -14,13 +14,4 @@ enum PresentationsMissWindow: String, CaseIterable, Sendable {
         case .d3: return 3
         }
     }
-
-    var label: String {
-        switch self {
-        case .all: return "All"
-        case .d1: return "Today"
-        case .d2: return "2d"
-        case .d3: return "3d"
-        }
-    }
 }

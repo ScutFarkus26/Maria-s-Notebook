@@ -32,10 +32,6 @@ enum StudentDeparturePlans {
         var plansEdited = 0
         /// Plans that named only her, deleted rather than left with nobody on them.
         var plansDeleted = 0
-
-        /// Plans touched. Year-plan entries are counted separately because they
-        /// are a different kind of record and the guide is told about them apart.
-        var total: Int { plansEdited + plansDeleted }
     }
 
     /// Lessons planned for `studentID` that have not been given, soonest first.

@@ -45,10 +45,6 @@ final class ChatViewModel {
         currentModel.requiresAPIKey && !AnthropicAPIClient.hasAPIKey()
     }
 
-    var hasAPIKey: Bool {
-        AnthropicAPIClient.hasAPIKey()
-    }
-
     /// CDStudent names for dynamic suggested questions.
     var studentNames: [String] {
         session?.studentNames ?? []

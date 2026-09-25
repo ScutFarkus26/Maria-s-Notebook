@@ -223,14 +223,6 @@ nonisolated extension CDLesson {
         }
     }
 
-    /// Cross-store inverse: fetches Notes whose lessonID matches this lesson.
-    var notes: [CDNote] {
-        guard let id, let ctx = managedObjectContext else { return [] }
-        let req = CDFetchRequest(CDNote.self)
-        req.predicate = NSPredicate(format: "lessonID == %@", id.uuidString)
-        return (try? ctx.fetch(req)) ?? []
-    }
-
     /// Cross-store inverse: fetches LessonAssignments whose lessonID matches this lesson.
     var lessonAssignments: [CDLessonAssignment] {
         guard let id, let ctx = managedObjectContext else { return [] }

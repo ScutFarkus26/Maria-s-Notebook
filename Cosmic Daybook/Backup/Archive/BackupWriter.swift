@@ -505,7 +505,6 @@ nonisolated public struct BackupEntityEntry: Sendable {
     public let storeName: String     // "private" or "shared"
     public let count: Int
     public let ndjson: Data
-    public var archivePath: String { "\(storeName)/\(entityName).ndjson" }
 
     public init(entityName: String, storeName: String, count: Int, ndjson: Data) {
         self.entityName = entityName

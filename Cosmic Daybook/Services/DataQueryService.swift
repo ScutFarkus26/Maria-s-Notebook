@@ -82,15 +82,6 @@ final class DataQueryService {
         }
     }
 
-    /// Fetch a single student by ID.
-    func fetchStudent(id: UUID) -> CDStudent? {
-        if let cache = studentsByIDCache {
-            return cache[id]
-        }
-
-        return context.object(CDStudent.self, id: id)
-    }
-
     /// Get students as a dictionary keyed by ID.
     func fetchStudentsDictionary() -> [UUID: CDStudent] {
         if let cached = studentsByIDCache {
@@ -182,34 +173,6 @@ final class DataQueryService {
             || context.deletedObjects.contains { $0 is CDLesson }
     }
 
-    /// Fetch lessons by ID set.
-    func fetchLessons(ids: Set<UUID>) -> [CDLesson] {
-        guard !ids.isEmpty else { return [] }
-
-        // Try to use cache if available
-        if let cache = lessonsCache {
-            return ids.compactMap { cache[$0] }
-        }
-
-        // PERFORMANCE: Fetch all lessons and filter with Set lookup (O(1) per check)
-        // NSPredicate doesn't efficiently support IN with large local Set variables
-        let allLessons = context.safeFetch(CDFetchRequest(CDLesson.self))
-        // ids is already a Set, so .contains() is O(1)
-        return allLessons.filter { lesson in
-            guard let lessonID = lesson.id else { return false }
-            return ids.contains(lessonID)
-        }
-    }
-
-    /// Fetch a single lesson by ID.
-    func fetchLesson(id: UUID) -> CDLesson? {
-        if let cache = lessonsCache {
-            return cache[id]
-        }
-
-        return context.object(CDLesson.self, id: id)
-    }
-
     /// Get lessons as a dictionary keyed by ID.
     func fetchLessonsDictionary() -> [UUID: CDLesson] {
         if let cached = lessonsCache {
@@ -239,12 +202,5 @@ final class DataQueryService {
             WorkStatus.active.rawValue, WorkStatus.review.rawValue
         )
         return context.safeFetch(request)
-    }
-
-    // MARK: - Cache Management
-
-    /// Invalidate just the lessons cache.
-    func invalidateLessonsCache() {
-        lessonsCache = nil
     }
 }

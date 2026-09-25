@@ -22,52 +22,11 @@ final class SaveCoordinator {
 
     // Weak reference wrapper to safely hold NSManagedObjectContext references
     private class WeakContextHolder {
-        weak var context: NSManagedObjectContext?
-        let reason: String?
-
-        init(context: NSManagedObjectContext, reason: String?) {
-            self.context = context
-            self.reason = reason
-        }
     }
 
     // Save batching to reduce database write contention
     private var pendingSaves: [ObjectIdentifier: WeakContextHolder] = [:]
     private var saveTimer: Timer?
-    private let saveBatchInterval: TimeInterval = 0.5 // 500ms debounce
-
-    /// CDSchedule a batched save operation (debounced by 500ms).
-    /// Multiple save requests for the same context within the debounce window are coalesced.
-    /// - Parameters:
-    ///   - context: The `NSManagedObjectContext` to save.
-    ///   - reason: Optional, short description of why the save is occurring.
-    func scheduleSave(_ context: NSManagedObjectContext, reason: String? = nil) {
-        let contextID = ObjectIdentifier(context)
-        pendingSaves[contextID] = WeakContextHolder(context: context, reason: reason)
-
-        saveTimer?.invalidate()
-        let timer = Timer.scheduledTimer(withTimeInterval: saveBatchInterval, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.executePendingSaves()
-            }
-        }
-        // This is a debounce, not a deadline — allowing the fire to slide lets the
-        // system batch the wake instead of forcing a precise one.
-        timer.tolerance = saveBatchInterval * 0.2
-        saveTimer = timer
-    }
-
-    /// Execute all pending saves immediately
-    private func executePendingSaves() {
-        let saves = pendingSaves
-        pendingSaves.removeAll()
-
-        for (_, holder) in saves {
-            // Only save if context still exists
-            guard let context = holder.context else { continue }
-            save(context, reason: holder.reason)
-        }
-    }
 
     /// Perform a centralized save with consistent error handling.
     /// - Parameters:
@@ -94,16 +53,6 @@ final class SaveCoordinator {
             }
             return false
         }
-    }
-
-    /// Perform a save and show a success toast if it succeeds.
-    @discardableResult
-    func saveWithToast(_ context: NSManagedObjectContext, successMessage: String, reason: String? = nil) -> Bool {
-        let success = save(context, reason: reason)
-        if success {
-            toastService.showSuccess(successMessage)
-        }
-        return success
     }
 
     /// Clear any previously captured error state and dismiss the alert.

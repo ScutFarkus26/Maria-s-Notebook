@@ -55,30 +55,12 @@ enum TriageBucket: String, CaseIterable, Identifiable, Sendable {
     /// switch away to.
     static let listCases: [TriageBucket] = [.attention, .toSchedule]
 
-    var title: String {
-        switch self {
-        case .attention: "Attention"
-        case .scheduled: "Scheduled"
-        case .toSchedule: "To Schedule"
-        case .done: "Done"
-        }
-    }
-
     var systemImage: String {
         switch self {
         case .attention: "exclamationmark.circle"
         case .scheduled: "calendar"
         case .toSchedule: "tray.and.arrow.down"
         case .done: "checkmark.circle"
-        }
-    }
-
-    var searchPrompt: String {
-        switch self {
-        case .attention: "Search children, lessons, or work"
-        case .scheduled: "Search scheduled lessons or children"
-        case .toSchedule: "Search what still needs a day"
-        case .done: "Search finished records"
         }
     }
 

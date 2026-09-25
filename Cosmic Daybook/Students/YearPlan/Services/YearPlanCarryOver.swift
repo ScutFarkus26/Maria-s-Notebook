@@ -88,16 +88,6 @@ enum YearPlanCarryOver {
             .sorted(by: plannedOrder)
     }
 
-    /// Entries for every child named, each entry once, still in target order.
-    static func entries(
-        for studentIDs: [UUID], in context: NSManagedObjectContext, yearStart: Date
-    ) -> [CDYearPlanEntry] {
-        var seen = Set<NSManagedObjectID>()
-        return studentIDs
-            .flatMap { entries(for: $0, in: context, yearStart: yearStart) }
-            .filter { seen.insert($0.objectID).inserted }
-    }
-
     /// A row per child who has any, in roster order, skipping the children who
     /// have none — the chooser shows only the work there is.
     static func survey(

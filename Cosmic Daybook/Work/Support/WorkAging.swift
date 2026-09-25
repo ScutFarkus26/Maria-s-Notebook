@@ -72,40 +72,6 @@ enum WorkAgingPolicy {
         return latestCheckIn ?? latestNote ?? statusChange ?? assigned
     }
 
-    /// Returns the most recent scheduling-action date for a work model.
-    /// Like `lastMeaningfulTouchDate` but excludes notes — used by `isOverdue()`
-    /// so that adding a note alone does not clear the overdue flag.
-    /// Only scheduling actions (completing check-ins, extending due dates) clear overdue.
-    nonisolated static func lastSchedulingActionDate(
-        for work: CDWorkModel,
-        checkIns: [CDWorkCheckIn]? = nil
-    ) -> Date {
-        let today = AppCalendar.startOfDay(Date())
-
-        // 1) Explicit lastTouchedAt (highest priority)
-        if let lastTouched = work.lastTouchedAt {
-            return AppCalendar.startOfDay(lastTouched)
-        }
-
-        // 2) Most recent past completed check-in date
-        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
-        let pastCheckInDates: [Date] = workCheckIns
-            .filter { $0.status == .completed }
-            .map { AppCalendar.startOfDay($0.date ?? .distantPast) }
-            .filter { $0 <= today }
-        let latestCheckIn = pastCheckInDates.max()
-
-        // 3) SKIP notes — notes are documentation, not scheduling actions
-
-        // 4) Status change timestamp (completedAt)
-        let statusChange: Date? = work.completedAt.map { AppCalendar.startOfDay($0) }
-
-        // 5) Fallbacks
-        let assigned = AppCalendar.startOfDay(work.assignedAt ?? Date())
-
-        return latestCheckIn ?? statusChange ?? assigned
-    }
-    
     /// School-day aware difference between today and the last meaningful touch.
     /// This is the authoritative version for business rules.
     nonisolated static func daysSinceLastTouch(
@@ -150,49 +116,4 @@ enum WorkAgingPolicy {
         agingBucket(for: work, using: context, checkIns: checkIns, notes: notes) == .stale
     }
 
-    /// Intent-aware overdue check.
-    /// True only when:
-    /// - There exists a dueAt date (or due date from check-ins)
-    /// - That date is in the past (strictly before today start)
-    /// - There has been no scheduling action since before that due date
-    /// Note: Adding a note alone does NOT clear overdue — only scheduling
-    /// actions (completing/rescheduling check-ins, extending due dates) do.
-    nonisolated static func isOverdue(
-        _ work: CDWorkModel,
-        checkIns: [CDWorkCheckIn]? = nil,
-        lastTouch overrideLastTouch: Date? = nil
-    ) -> Bool {
-        if let until = work.restingUntil, until > AppCalendar.startOfDay(Date()) {
-            return false
-        }
-        let today = AppCalendar.startOfDay(Date())
-
-        // Check CDWorkModel.dueAt first
-        if let dueAt = work.dueAt {
-            let dueDay = AppCalendar.startOfDay(dueAt)
-            guard dueDay < today else { return false }
-
-            let last = overrideLastTouch ?? lastSchedulingActionDate(for: work, checkIns: checkIns)
-            return AppCalendar.startOfDay(last) < dueDay
-        }
-
-        // Fallback: check scheduled check-ins for due dates
-        let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
-        let dueCheckIns = workCheckIns
-            .filter { $0.status == .scheduled }
-            .map { AppCalendar.startOfDay($0.date ?? .distantPast) }
-            .filter { $0 < today }
-
-        guard let earliestDue = dueCheckIns.min() else { return false }
-
-        let last: Date
-        if let override = overrideLastTouch {
-            last = override
-        } else {
-            last = lastSchedulingActionDate(for: work, checkIns: checkIns)
-        }
-
-        return AppCalendar.startOfDay(last) < earliestDue
-    }
-    
 }

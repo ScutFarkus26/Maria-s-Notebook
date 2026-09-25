@@ -61,16 +61,8 @@ enum ResourceFileStorage {
         try storage.resolve(relativePath: relativePath)
     }
 
-    static func isManagedURL(_ url: URL) -> Bool {
-        storage.isManagedURL(url)
-    }
-
     /// Returns a sanitized filename stem suitable for exported resource documents.
     static func sanitizedExportFilename(_ title: String?) -> String {
         storage.sanitizedBaseName(title)
-    }
-
-    static func deleteIfManaged(_ url: URL) throws {
-        try storage.deleteIfManaged(url)
     }
 }

@@ -394,20 +394,6 @@ extension SyncedPreferencesStore {
         return false
     }
 
-    public func integer(forKey key: String) -> Int {
-        if let value = get(key: key) as? Int {
-            return value
-        }
-        return 0
-    }
-
-    public func double(forKey key: String) -> Double {
-        if let value = get(key: key) as? Double {
-            return value
-        }
-        return 0.0
-    }
-
     public func string(forKey key: String) -> String? {
         return get(key: key) as? String
     }

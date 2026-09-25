@@ -104,11 +104,4 @@ enum FocusItemService {
 
         return lines.joined(separator: "\n")
     }
-
-    /// Reorders focus items by updating their sortOrder values.
-    static func reorder(_ items: [CDStudentFocusItem]) {
-        for (index, item) in items.enumerated() {
-            item.sortOrder = Int64(index)
-        }
-    }
 }

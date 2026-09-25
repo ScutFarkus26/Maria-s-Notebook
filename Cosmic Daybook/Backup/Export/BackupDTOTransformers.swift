@@ -24,8 +24,6 @@ import OSLog
 /// carries their full field set. Duplicating them here caused silent field loss
 /// in the past — keep a single transformer per entity.
 enum BackupDTOTransformers {
-    static let logger = Logger.backup
-
     // MARK: - LegacyPresentation (removed — model fully migrated to CDLessonAssignment)
     // LegacyPresentationDTO is kept for import backward compatibility only.
 

@@ -29,7 +29,6 @@ struct AttendanceExpandedView: View {
     @State private var showMailSheet = false
     @State var showingTardyReport = false
     @State var showingAbsenceReport = false
-    @State private var toastMessage: String?
     @State var isEditing: Bool = true
     @State var localSortKey: AttendanceViewModel.SortKey = AttendanceViewModel.storedSortKey()
     @State private var activeChipPopover: AttendanceStatus?

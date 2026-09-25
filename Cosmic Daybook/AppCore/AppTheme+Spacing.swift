@@ -49,13 +49,7 @@ extension AppTheme {
         
         // MARK: - Semantic Spacing (specific use cases)
         
-        /// 6pt - Horizontal padding for status pills
-        nonisolated static let statusPillHorizontal: CGFloat = 6
-        
         /// 3pt - Vertical padding for status pills
         nonisolated static let statusPillVertical: CGFloat = 3
-        
-        /// 16pt - Spacing between sections
-        nonisolated static let sectionSpacing: CGFloat = 16
     }
 }

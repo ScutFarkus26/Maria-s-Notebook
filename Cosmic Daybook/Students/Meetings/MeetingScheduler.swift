@@ -4,8 +4,6 @@ import CoreData
 
 /// Service for scheduling and clearing student meetings.
 enum MeetingScheduler {
-    private static let logger = Logger.students
-
     /// What ``bookMeeting(studentID:date:purpose:workID:context:)`` did with
     /// the booking it hands back.
     enum BookingOutcome: Equatable {
@@ -104,12 +102,6 @@ enum MeetingScheduler {
         }
     }
 
-    /// Returns the next scheduled meeting date for a student, or nil.
-    static func scheduledDate(for studentID: UUID, context: NSManagedObjectContext) -> Date? {
-        let studentIDString = studentID.uuidString
-        return fetchAll(studentID: studentIDString, context: context).first?.date
-    }
-
     // MARK: - Group Meetings
 
     /// Schedules a sequence meeting for multiple students, optionally linked to a work item.
@@ -130,16 +122,6 @@ enum MeetingScheduler {
         meeting.workIDUUID = workID
 
         context.safeSave()
-    }
-
-    /// Returns all scheduled meetings involving a given student
-    /// (either as primary student or as a sequence meeting participant).
-    static func scheduledMeetings(involving studentID: UUID, context: NSManagedObjectContext) -> [CDScheduledMeeting] {
-        let descriptor = CDFetchRequest(CDScheduledMeeting.self)
-        descriptor.sortDescriptors = [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)]
-        let all = context.safeFetch(descriptor)
-        let idString = studentID.uuidString
-        return all.filter { $0.allStudentIDs.contains(idString) }
     }
 
     // MARK: - Private

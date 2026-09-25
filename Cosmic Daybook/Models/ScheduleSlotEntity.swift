@@ -42,9 +42,4 @@ nonisolated extension CDScheduleSlot {
         get { Weekday(rawValue: weekdayRaw) ?? .monday }
         set { weekdayRaw = newValue.rawValue }
     }
-
-    /// Updates the modification timestamp
-    func touch() {
-        modifiedAt = Date()
-    }
 }

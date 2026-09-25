@@ -7,8 +7,6 @@ import OSLog
 /// Central facade for data migrations.
 /// Delegates to DataCleanupService for ongoing cleanup and deduplication.
 nonisolated enum DataMigrations {
-    private static let logger = Logger.migration
-
     // MARK: - Data Cleanup (delegated to DataCleanupService)
 
     /// Remove all duplicate records across all model types.
@@ -20,11 +18,6 @@ nonisolated enum DataMigrations {
         container: NSPersistentCloudKitContainer? = nil
     ) -> [String: Int] {
         DataCleanupService.deduplicateAllModels(using: context, container: container)
-    }
-
-    /// Deduplicate draft CDLessonAssignment records.
-    static func deduplicateDraftLessonAssignments(using context: NSManagedObjectContext) {
-        DataCleanupService.deduplicateDraftLessonAssignments(using: context)
     }
 
     /// Normalizes lesson scheduling to the day-only model (snaps `scheduledFor` to

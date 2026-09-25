@@ -479,21 +479,4 @@ extension StudentsViewModel {
         
         return result
     }
-    
-    /// Computes days since last lesson for a single student.
-    /// This is a convenience method that queries SwiftData directly.
-    /// For multiple students, use computeDaysSinceLastLessonCache instead.
-    func daysSinceLastLesson(
-        for student: CDStudent,
-        using viewContext: NSManagedObjectContext,
-        calendar: Calendar = .current
-    ) -> Int {
-        // Reuse the shared logic by calling the batch method with a single student
-        let result = computeDaysSinceLastLessonCache(
-            for: [student],
-            using: viewContext,
-            calendar: calendar
-        )
-        return student.id.flatMap { result[$0] } ?? -1
-    }
 }

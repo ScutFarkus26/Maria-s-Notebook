@@ -90,84 +90,9 @@ nonisolated struct GeneratedClassroomCapture {
 /// in a detached task; it holds no state, so it is safely `Sendable`.
 @available(macOS 26.0, iOS 26.0, *)
 nonisolated final class AppleIntelligenceCommandParser: Sendable {
-    private static let logger = Logger.ai
-
     /// Returns true if Apple Intelligence is available on this device.
     var isAvailable: Bool {
         SystemLanguageModel.default.isAvailable
-    }
-
-    func parse(
-        input: String,
-        studentNames: [String],
-        lessonNames: [String],
-        students: [StudentData],
-        lessons: [LessonData]
-    ) async throws -> ParsedCommand {
-        let model = SystemLanguageModel.default
-        guard model.isAvailable else {
-            throw LocalModelError.unavailable("Apple Intelligence is not available.")
-        }
-        guard model.supportsLocale() else {
-            throw LocalModelError.unavailable("Apple Intelligence does not support the current language.")
-        }
-
-        let studentList = studentNames.joined(separator: ", ")
-        let lessonList = lessonNames.prefix(100).joined(separator: ", ")
-
-        let instructions = """
-        You are a command parser for a Montessori classroom app. \
-        Parse the teacher's input into structured data.
-
-        Available intents:
-        - recordPresentation: Teacher gave/presented/showed a lesson to student(s)
-        - assignWork: Teacher assigns follow-up work or practice to student(s)
-        - addNote: Teacher wants to record an observation about student(s)
-        - addTodo: Teacher wants to create a reminder/task for themselves
-
-        Available students: \(studentList)
-        Available lessons: \(lessonList)
-
-        Match student and lesson names fuzzily. Use exact names from the lists.
-        """
-
-        let session = LanguageModelSession(instructions: instructions)
-
-        let response = try await session.respond(
-            to: "Parse this command: \"\(input)\"",
-            generating: ParsedTeacherCommand.self,
-            options: .init(temperature: 0.0)
-        )
-
-        let parsed = response.content
-
-        // Map intent string to enum
-        guard let intent = RecordIntent(rawValue: parsed.intent) else {
-            Self.logger.warning("Apple Intelligence returned unrecognized intent: \(parsed.intent)")
-            throw AppleIntelligenceParserError.invalidIntent(parsed.intent)
-        }
-
-        // Map student names back to UUIDs
-        let resolvedStudentIDs = resolveStudentIDs(from: parsed.studentNames, in: students)
-
-        // Map lesson name to UUID
-        let resolvedLessonID = resolveLessonID(named: parsed.lessonName, in: lessons)
-
-        // Apple Intelligence with @Generable is reliable, give it decent confidence
-        var confidence = 0.7
-        if !resolvedStudentIDs.isEmpty { confidence += 0.1 }
-        if resolvedLessonID != nil { confidence += 0.1 }
-
-        return ParsedCommand(
-            intent: intent,
-            studentIDs: resolvedStudentIDs,
-            lessonID: resolvedLessonID,
-            rawStudentNames: parsed.studentNames,
-            rawLessonName: parsed.lessonName.isEmpty ? nil : parsed.lessonName,
-            freeText: parsed.freeText,
-            inferredTags: [],
-            confidence: min(confidence, 1.0)
-        )
     }
 
     /// Uses structured, on-device generation to turn one classroom account into
@@ -221,10 +146,6 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
     }
 
     // MARK: - Private Helpers
-
-    private func resolveStudentIDs(from names: [String], in students: [StudentData]) -> [UUID] {
-        names.compactMap { resolveUniqueStudentID(named: $0, in: students) }
-    }
 
     private func resolveLessonID(named lessonName: String, in lessons: [LessonData]) -> UUID? {
         guard !lessonName.isEmpty else { return nil }
@@ -347,17 +268,6 @@ nonisolated final class AppleIntelligenceCommandParser: Sendable {
             $0.score == $1.score ? $0.name < $1.name : $0.score > $1.score
         }.prefix(100).map(\.name)
         return matches.isEmpty ? Array(lessons.prefix(100).map(\.name)) : matches
-    }
-}
-
-enum AppleIntelligenceParserError: LocalizedError {
-    case invalidIntent(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidIntent(let intent):
-            return "Apple Intelligence returned an unrecognized command: \(intent)"
-        }
     }
 }
 

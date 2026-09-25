@@ -104,8 +104,6 @@ struct ObservationsView: View {
     // Lookup cache for student names shown on rows
     @State var studentsByID: [UUID: CDStudent] = [:]
 
-    let pageSize: Int = 50
-
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     enum SummaryMode { case digest, narrative }
 
@@ -122,16 +120,6 @@ struct ObservationsView: View {
             case .specificDay(let date): return "day-\(date.timeIntervalSince1970)"
             case .context(let ctx): return "context-\(ctx)"
             case .selectedNotes: return "selected"
-            }
-        }
-
-        var label: String {
-            switch self {
-            case .today: return "Today's Observations"
-            case .specificDay(let date):
-                return DateFormatters.mediumDate.string(from: date)
-            case .context(let ctx): return ctx
-            case .selectedNotes: return "Selected Notes"
             }
         }
     }

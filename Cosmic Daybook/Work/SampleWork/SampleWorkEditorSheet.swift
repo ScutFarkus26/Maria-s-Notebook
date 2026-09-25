@@ -4,8 +4,6 @@ import OSLog
 
 // Sheet for adding or editing a CDSampleWork and its template steps.
 struct SampleWorkEditorSheet: View {
-    private static let logger = Logger.lessons
-
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var modelContext
 

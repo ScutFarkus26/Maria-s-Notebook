@@ -135,39 +135,6 @@ struct CalendarDayCell<Extra: View>: View {
     }
 }
 
-// MARK: - Convenience initializer (no extra rows)
-
-extension CalendarDayCell where Extra == EmptyView {
-    init(
-        cellID: CellID,
-        isToday: Bool,
-        isNonSchool: Bool,
-        parsha: String?,
-        displayText: String,
-        isHoliday: Bool,
-        isEditing: Bool,
-        editText: Binding<String>,
-        metrics: CalendarDayMetrics,
-        onBeginEdit: @escaping () -> Void,
-        onCommit: @escaping () -> Void
-    ) {
-        self.init(
-            cellID: cellID,
-            isToday: isToday,
-            isNonSchool: isNonSchool,
-            parsha: parsha,
-            displayText: displayText,
-            isHoliday: isHoliday,
-            isEditing: isEditing,
-            editText: editText,
-            metrics: metrics,
-            onBeginEdit: onBeginEdit,
-            onCommit: onCommit,
-            extra: { EmptyView() }
-        )
-    }
-}
-
 // MARK: - Shared day text
 
 /// The text decisions both grids make about a day cell.

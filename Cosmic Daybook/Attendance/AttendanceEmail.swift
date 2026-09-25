@@ -234,20 +234,6 @@ public enum AttendanceEmail {
         SyncedPreferencesStore.shared.bool(forKey: AttendanceEmailPrefs.groupByLevelKey)
     }
 
-    /// Indicates whether the current platform can compose/send email using the built-in mechanisms.
-    /// - iOS: Uses MFMailComposeViewController.canSendMail().
-    /// - macOS: Checks for NSSharingService(named: .composeEmail).
-    public static var isAvailable: Bool {
-    #if os(iOS)
-        // Import is in iOS block below; we avoid a hard dependency here by deferring to MessageUI only at compile time.
-        return MFMailComposeViewController.canSendMail()
-    #elseif os(macOS)
-        return NSSharingService(named: .composeEmail) != nil
-    #else
-        return false
-    #endif
-    }
-
     /// Parses a user-entered recipients string into an array of
     /// email addresses by splitting on commas/semicolons and trimming
     /// whitespace.

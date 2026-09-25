@@ -17,7 +17,6 @@ struct LessonAssignmentSnapshot: Identifiable, Sendable {
     let followUpWork: String
     let manuallyUnblocked: Bool
 
-    var isScheduled: Bool { scheduledFor != nil }
     var isGiven: Bool { state == .presented }
     var isPresented: Bool { state == .presented }
 }

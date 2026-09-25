@@ -45,8 +45,6 @@ import OSLog
 /// ```
 @Observable
 final class AppDependencies {
-    private static let logger = Logger.app_
-
     /// The Core Data stack powering all persistence.
     let coreDataStack: CoreDataStack
 
@@ -136,7 +134,6 @@ final class AppDependencies {
     // MARK: - AI Services (backing stores for AppDependencies+AIServices.swift)
 
     @ObservationIgnored lazy var _aiRouter = AIClientRouter()
-    @ObservationIgnored lazy var _chatService = ChatService(modelContext: viewContext, mcpClient: mcpClient)
     @ObservationIgnored lazy var _studentAnalysisService = StudentAnalysisService(
         modelContext: viewContext,
         mcpClient: mcpClient
@@ -231,19 +228,12 @@ final class AppDependencies {
 
     @ObservationIgnored lazy var saveCoordinator = SaveCoordinator(toastService: toastService)
 
-    @ObservationIgnored lazy var restoreCoordinator = RestoreCoordinator()
-
     // MARK: - Testing Support
 
     /// Create dependencies with in-memory Core Data storage for testing
     static func makeTest() throws -> AppDependencies {
         let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
         return AppDependencies(coreDataStack: stack)
-    }
-
-    /// Create dependencies with specific CoreDataStack for testing
-    static func makeTest(coreDataStack: CoreDataStack) -> AppDependencies {
-        return AppDependencies(coreDataStack: coreDataStack)
     }
 
     // MARK: - Memory Pressure Handling

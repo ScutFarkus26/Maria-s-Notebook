@@ -7,7 +7,6 @@ import CoreData
 struct GuardianListSection: View {
     let student: CDStudent
 
-    @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest private var guardians: FetchedResults<CDGuardian>
     @State private var editingGuardian: CDGuardian?
     @State private var showingAddSheet = false

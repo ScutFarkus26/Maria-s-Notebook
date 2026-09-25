@@ -326,10 +326,6 @@ final class StudentProgressTabViewModel {
         return colors[index]
     }
 
-    var cardBackgroundColor: Color {
-        Color.windowBackgroundColor()
-    }
-
     // MARK: - Auto-Complete CDTrackEntity
 
     func autoCompleteTrackIfNeeded(

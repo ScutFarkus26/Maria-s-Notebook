@@ -21,8 +21,6 @@ import FoundationModels
 /// Apple Private Cloud Compute AI client using the FoundationModels framework.
 /// Falls back cleanly when PCC is unavailable (no entitlement, offline, quota).
 final class PrivateCloudModelClient: FoundationModelClient {
-    private static let logger = Logger.ai
-
     private let model = PrivateCloudComputeLanguageModel()
 
     // MARK: - Availability

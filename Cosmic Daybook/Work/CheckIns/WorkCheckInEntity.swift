@@ -91,7 +91,6 @@ nonisolated extension CDWorkCheckIn {
 
     // Convenience flags
     var isScheduled: Bool { status == .scheduled }
-    var isCompleted: Bool { status == .completed }
 }
 
 // MARK: - Generated Accessors for To-Many Relationships

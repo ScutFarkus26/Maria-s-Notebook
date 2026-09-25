@@ -7,8 +7,6 @@ import SwiftUI
 import CoreData
 
 struct RecordPracticeSheet: View {
-    static let logger = Logger.work
-
     @Environment(\.dismiss) var dismiss
     @Environment(\.managedObjectContext) var viewContext
 

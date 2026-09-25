@@ -14,8 +14,6 @@ import OSLog
 
 @Observable
 final class ProgressDashboardViewModel {
-    private static let logger = Logger.app_
-
     // MARK: - Outputs
 
     private(set) var studentCards: [StudentProgressionCard] = []

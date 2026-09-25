@@ -41,23 +41,11 @@ enum MeetingSentiment: String, Sendable {
         case .insufficient: "Not enough data"
         }
     }
-
-    var color: String {
-        switch self {
-        case .confident: "green"
-        case .progressing: "blue"
-        case .mixed: "orange"
-        case .struggling: "red"
-        case .insufficient: "gray"
-        }
-    }
 }
 
 // MARK: - Meeting Insights Service
 
 final class MeetingInsightsService {
-    private static let logger = Logger.ai
-
     private let modelContext: NSManagedObjectContext
     private let mcpClient: MCPClientProtocol
 

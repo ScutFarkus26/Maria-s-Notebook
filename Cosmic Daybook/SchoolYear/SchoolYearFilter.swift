@@ -65,16 +65,4 @@ enum SchoolYearFilter {
             withdrawnKey, withdrawnKey, range.start as NSDate
         )
     }
-
-    /// ANDs an optional year predicate onto an existing one, dropping nils. Returns nil only
-    /// when both are nil (no filtering at all).
-    static func combine(_ base: NSPredicate?, _ year: NSPredicate?) -> NSPredicate? {
-        switch (base, year) {
-        case (nil, nil): return nil
-        case let (base?, nil): return base
-        case let (nil, year?): return year
-        case let (base?, year?):
-            return NSCompoundPredicate(andPredicateWithSubpredicates: [base, year])
-        }
-    }
 }

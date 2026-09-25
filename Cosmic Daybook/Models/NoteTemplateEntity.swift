@@ -32,12 +32,6 @@ nonisolated public class CDNoteTemplateEntity: NSManagedObject {
 
 // MARK: - Computed Properties
 nonisolated extension CDNoteTemplate {
-    /// Legacy category field -- kept for migration; new code uses `tags`
-    var category: NoteCategory {
-        get { NoteCategory(rawValue: categoryRaw) ?? .general }
-        set { categoryRaw = newValue.rawValue }
-    }
-
     /// The legacy categoryRaw value (read-only, for migration)
     var legacyCategoryRaw: String { categoryRaw }
 

@@ -126,13 +126,6 @@ nonisolated extension CDDevelopmentSnapshotEntity {
         set { interventionSuggestionsData = Self.encodeStringArray(newValue) }
     }
 
-    // MARK: - Helper Properties
-
-    /// Returns the student UUID from the stored string
-    var studentUUID: UUID? {
-        UUID(uuidString: studentID)
-    }
-
     // MARK: - Private Encoding/Decoding
 
     private static func decodeStringArray(from data: Data?) -> [String] {

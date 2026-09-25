@@ -166,10 +166,8 @@ extension OpenAIAPIClient {
     static let keyStore = APIKeyStore.openAI
 
     static func loadAPIKey() -> String { keyStore.load() }
-    static func saveAPIKey(_ key: String) { keyStore.save(key) }
     /// Whether a non-empty, plausibly-shaped OpenAI key is configured.
     static func hasAPIKey() -> Bool { keyStore.hasKey() }
-    static func clearAPIKey() { keyStore.clear() }
 }
 
 // MARK: - Errors

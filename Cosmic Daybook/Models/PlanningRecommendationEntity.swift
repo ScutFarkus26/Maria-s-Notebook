@@ -65,40 +65,4 @@ nonisolated extension CDPlanningRecommendation {
         get { CloudKitStringArrayStorage.decode(from: _studentIDsData) }
         set { _studentIDsData = CloudKitStringArrayStorage.encode(newValue) }
     }
-
-    var decision: TeacherDecision? {
-        get {
-            guard let raw = decisionRaw else { return nil }
-            return TeacherDecision(rawValue: raw)
-        }
-        set {
-            decisionRaw = newValue?.rawValue
-            if newValue != nil {
-                decisionAt = Date()
-                modifiedAt = Date()
-            }
-        }
-    }
-
-    var outcome: RecommendationOutcome? {
-        get {
-            guard let raw = outcomeRaw else { return nil }
-            return RecommendationOutcome(rawValue: raw)
-        }
-        set {
-            outcomeRaw = newValue?.rawValue
-            if newValue != nil {
-                outcomeRecordedAt = Date()
-                modifiedAt = Date()
-            }
-        }
-    }
-
-    var lessonIDUUID: UUID? {
-        UUID(uuidString: lessonID)
-    }
-
-    var resolvedStudentIDs: [UUID] {
-        studentIDs.compactMap { UUID(uuidString: $0) }
-    }
 }

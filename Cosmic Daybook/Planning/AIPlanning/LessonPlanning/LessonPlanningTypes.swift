@@ -401,16 +401,6 @@ enum TeacherDecision: String, Codable {
     case deferred
 }
 
-// MARK: - Recommendation Outcome
-
-/// Outcome after a recommendation was accepted and applied.
-enum RecommendationOutcome: String, Codable {
-    case presented
-    case deferred
-    case cancelled
-    case modified
-}
-
 // MARK: - Planning Response (API Parsing)
 
 /// Intermediate type for parsing structured API responses.

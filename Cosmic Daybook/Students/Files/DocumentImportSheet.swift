@@ -8,7 +8,6 @@ struct DocumentImportSheet: View {
     let student: CDStudent
     let onSave: () -> Void
     
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(\.dismiss) private var dismiss
     @Environment(SaveCoordinator.self) private var saveCoordinator

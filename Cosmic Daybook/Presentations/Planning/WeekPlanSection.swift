@@ -14,8 +14,6 @@ import CoreData
 import OSLog
 
 struct WeekPlanSection: View {
-    static let logger = Logger.presentations
-
     var focusedPresentationID: UUID?
     var onSelectPresentation: (CDLessonAssignment) -> Void
     var onOpenWork: (UUID) -> Void

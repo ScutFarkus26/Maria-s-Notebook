@@ -132,30 +132,6 @@ final class CommandBarViewModel {
 
     // MARK: - Editable Capture Proposal
 
-    func setStudent(_ student: StudentData, isSelected: Bool) {
-        guard var proposal = captureProposal else { return }
-        if isSelected {
-            guard !proposal.studentEntries.contains(where: { $0.studentID == student.id }) else { return }
-            proposal.studentEntries.append(StudentCaptureProposal(
-                studentID: student.id,
-                studentName: "\(student.firstName) \(student.lastName)"
-            ))
-        } else {
-            proposal.studentEntries.removeAll { $0.studentID == student.id }
-        }
-        captureProposal = proposal
-    }
-
-    func updateStudentEntry(
-        id: UUID,
-        _ update: (inout StudentCaptureProposal) -> Void
-    ) {
-        guard var proposal = captureProposal,
-              let index = proposal.studentEntries.firstIndex(where: { $0.id == id }) else { return }
-        update(&proposal.studentEntries[index])
-        captureProposal = proposal
-    }
-
     var captureValidationMessage: String? {
         guard let proposal = captureProposal else { return "There is nothing to review." }
 

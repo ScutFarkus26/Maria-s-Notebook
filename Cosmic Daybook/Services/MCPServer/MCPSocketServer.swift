@@ -53,8 +53,6 @@ actor MCPSocketServer {
         self.onFailure = onFailure
     }
 
-    var isRunning: Bool { listener != nil }
-
     // MARK: - Lifecycle
 
     /// Returns once the listener is actually accepting connections, and

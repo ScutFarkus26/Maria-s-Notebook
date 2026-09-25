@@ -18,8 +18,6 @@ import OSLog
 
 @Observable
 final class BackupCoordinator {
-    private static let logger = Logger.backup
-
     private enum ImportError: LocalizedError {
         case legacyManualImportNoLongerSupported
 
@@ -57,10 +55,6 @@ final class BackupCoordinator {
 
     func backupStatus() -> BackupStatus {
         BackupVerification.getBackupStatus()
-    }
-
-    func verifyBackup(at url: URL) -> Result<BackupInfo, Error> {
-        BackupVerification.verifyBackup(at: url)
     }
 
     // MARK: - Export

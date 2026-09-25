@@ -264,10 +264,6 @@ final class ClassroomSharingService {
 
     // MARK: - Permission Queries
 
-    func canWrite(entityName: String) -> Bool {
-        ClassroomPermissions.canWrite(entityName: entityName, role: currentRole)
-    }
-
     func canManageSharing() -> Bool {
         ClassroomPermissions.canManageSharing(role: currentRole)
     }

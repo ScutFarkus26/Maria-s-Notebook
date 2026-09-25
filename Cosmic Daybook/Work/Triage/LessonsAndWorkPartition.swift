@@ -152,15 +152,4 @@ struct LessonsAndWorkPartition {
         )
         return context.safeFetch(request)
     }
-
-    /// Everything in one list, presentations before work — the order the
-    /// Attention list already renders them in.
-    func count(_ bucket: TriageBucket) -> Int {
-        presentations[bucket].count + work[bucket].count
-    }
-
-    /// True when the bucket has nothing to show.
-    func isEmpty(_ bucket: TriageBucket) -> Bool {
-        count(bucket) == 0
-    }
 }

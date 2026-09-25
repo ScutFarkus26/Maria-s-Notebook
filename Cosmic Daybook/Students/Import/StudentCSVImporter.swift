@@ -92,20 +92,6 @@ enum StudentCSVImporter {
     }
 
     // MARK: - Public API
-    static func parse(data: Data, mapping: Mapping?, existingStudents: [CDStudent]) throws -> Parsed {
-        // Existing keys for duplicate detection
-        let existingKeys: Set<String> = Set(existingStudents.map { duplicateKey(for: $0) })
-        let existingNameKeys: Set<String> = Set(existingStudents.map {
-            ("\($0.firstName) \($0.lastName)".normalizedNameKey())
-        })
-        
-        return try parse(
-            data: data,
-            mapping: mapping,
-            existingFullKeys: existingKeys,
-            existingNameKeys: existingNameKeys
-        )
-    }
 
     /// Parse CSV into rows and detect potential duplicates using precomputed keys.
     /// This overload avoids referencing SwiftData model values so it can be used from a background task safely.

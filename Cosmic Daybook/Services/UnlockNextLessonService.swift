@@ -12,8 +12,6 @@ import OSLog
 
 /// Service for manually unlocking next lessons when students are ready to progress
 struct UnlockNextLessonService {
-    private static let logger = Logger.lessons
-
     // MARK: - Result Type
 
     enum UnlockResult {
@@ -21,7 +19,6 @@ struct UnlockNextLessonService {
         case noNextLesson
         case alreadyUnlocked
         case noCurrentLesson
-        case error(String)
     }
 
     // MARK: - Core Data Unlock Logic

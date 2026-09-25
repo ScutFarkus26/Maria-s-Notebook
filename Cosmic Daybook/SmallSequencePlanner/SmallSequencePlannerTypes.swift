@@ -54,14 +54,6 @@ enum ReadinessTier: String, Sendable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String {
-        switch self {
-        case .ready: return "Ready"
-        case .almostReady: return "Almost Ready"
-        case .notReady: return "Not Ready"
-        }
-    }
-
     var color: Color {
         switch self {
         case .ready: return AppColors.success

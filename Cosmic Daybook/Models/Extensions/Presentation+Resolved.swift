@@ -22,20 +22,6 @@ extension Presentation: DenormalizedSchedulable {
     var studentRelationshipIDStrings: [String] { studentIDs }
 }
 
-// MARK: - Display Helpers
-
-extension Presentation {
-    /// Display title - prefer snapshot for historical accuracy, fall back to lesson relationship.
-    var displayTitle: String {
-        lessonTitleSnapshot ?? lesson?.name ?? "Unknown Lesson"
-    }
-
-    /// Number of students assigned.
-    var studentCount: Int {
-        studentIDs.count
-    }
-}
-
 // MARK: - State Helpers
 
 extension Presentation {

@@ -9,7 +9,7 @@ import CoreData
 /// This service ensures that model methods remain free of side-effects
 /// (no implicit saves), while callers can perform explicit, transactional
 /// operations that throw on failure.
-struct WorkStepService: WorkStepServiceProtocol {
+struct WorkStepService {
     let context: NSManagedObjectContext
 
     // MARK: - Creation
@@ -42,17 +42,6 @@ struct WorkStepService: WorkStepServiceProtocol {
         step.title = title.trimmed()
         step.instructions = instructions.trimmed()
         step.notes = notes.trimmed()
-    }
-
-    /// Mark step as completed.
-    func markCompleted(_ step: CDWorkStep, at date: Date = Date()) throws {
-        let cal = AppCalendar.shared
-        step.completedAt = cal.startOfDay(for: date)
-    }
-
-    /// Mark step as incomplete.
-    func markIncomplete(_ step: CDWorkStep) throws {
-        step.completedAt = nil
     }
 
     /// Toggle step completion.

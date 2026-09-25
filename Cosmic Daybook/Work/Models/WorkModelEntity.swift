@@ -132,7 +132,6 @@ nonisolated extension CDWorkModel {
 
     // MARK: - Status Helpers
 
-    var isActive: Bool { status == .active }
     var isClosed: Bool { status.isClosed }
 
     func participant(for studentID: UUID) -> CDWorkParticipantEntity? {

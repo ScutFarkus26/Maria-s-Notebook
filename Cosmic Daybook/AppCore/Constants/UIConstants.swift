@@ -132,9 +132,6 @@ nonisolated enum UIConstants {
         /// 6pt - Horizontal padding for status pills
         static let statusPillHorizontal: CGFloat = 6
         
-        /// 3pt - Vertical padding for status pills
-        static let statusPillVertical: CGFloat = 3
-        
         /// 80pt - Standard student avatar size
         static let studentAvatar: CGFloat = 80
         
@@ -202,9 +199,6 @@ nonisolated enum UIConstants {
         
         /// 0.2s - Quick animations
         static let quick: Double = 0.2
-        
-        /// 0.25s - Standard animations
-        static let standard: Double = 0.25
     }
     
     // MARK: - Spring Animations
@@ -213,8 +207,5 @@ nonisolated enum UIConstants {
     enum SpringAnimation {
         /// Standard spring: response 0.25, damping 0.85
         static let standard = Animation.spring(response: 0.25, dampingFraction: 0.85)
-        
-        /// Bouncy spring: response 0.3, damping 0.7
-        static let bouncy = Animation.spring(response: 0.3, dampingFraction: 0.7)
     }
 }

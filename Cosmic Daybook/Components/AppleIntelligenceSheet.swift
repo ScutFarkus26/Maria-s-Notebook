@@ -30,7 +30,6 @@ struct AppleIntelligenceSheet: View {
     // (AppleIntelligenceSheet+Generation.swift) can drive it.
     @State var editorText: String = ""
     @State private var isAnonymized: Bool = false
-    @FocusState private var isFocused: Bool
     @State private var aiTriggerCounter: Int = 0
     @State private var pendingAITrigger: Bool = false
 

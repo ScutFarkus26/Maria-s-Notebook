@@ -57,29 +57,6 @@ public enum PhotoStorageService {
         return filename
     }
     
-    /// Loads an image from the photos directory using a filename.
-    /// - Parameter filename: The filename returned from saveImage
-    /// - Returns: The NSImage if found, nil otherwise
-    nonisolated public static func loadImage(filename: String) -> NSImage? {
-        let photosDir: URL
-        do {
-            photosDir = try photosDirectory()
-        } catch {
-            logger.warning("Failed to get photos directory: \(error.localizedDescription)")
-            return nil
-        }
-
-        let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
-        let imageData: Data
-        do {
-            imageData = try Data(contentsOf: fileURL)
-        } catch {
-            logger.warning("Failed to load image data for \(filename, privacy: .public): \(error.localizedDescription)")
-            return nil
-        }
-
-        return NSImage(data: imageData)
-    }
     #else
     public static func saveImage(_ image: UIImage) throws -> String {
         // Convert UIImage to JPEG data
@@ -96,29 +73,6 @@ public enum PhotoStorageService {
         return filename
     }
     
-    /// Loads an image from the photos directory using a filename.
-    /// - Parameter filename: The filename returned from saveImage
-    /// - Returns: The UIImage if found, nil otherwise
-    nonisolated public static func loadImage(filename: String) -> UIImage? {
-        let photosDir: URL
-        do {
-            photosDir = try photosDirectory()
-        } catch {
-            logger.warning("Failed to get photos directory: \(error.localizedDescription)")
-            return nil
-        }
-
-        let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
-        let imageData: Data
-        do {
-            imageData = try Data(contentsOf: fileURL)
-        } catch {
-            logger.warning("Failed to load image data for \(filename, privacy: .public): \(error.localizedDescription)")
-            return nil
-        }
-
-        return UIImage(data: imageData)
-    }
     #endif
     
     /// Loads a downsampled image from the photos directory using a filename.
@@ -252,5 +206,4 @@ public enum PhotoStorageService {
 
 public enum PhotoStorageError: Error {
     case imageConversionFailed
-    case fileNotFound
 }

@@ -60,9 +60,4 @@ nonisolated extension CDProcedure {
     var displayIcon: String {
         icon.isEmpty ? category.icon : icon
     }
-
-    /// Updates the modification timestamp
-    func touch() {
-        modifiedAt = Date()
-    }
 }

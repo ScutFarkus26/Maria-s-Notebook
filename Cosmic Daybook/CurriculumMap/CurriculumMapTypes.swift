@@ -177,11 +177,6 @@ nonisolated struct CurriculumEvidence: Sendable, Hashable {
     var workIDs: [UUID] = []
     var practiceSessionIDs: [UUID] = []
     var recallCheckIDs: [UUID] = []
-
-    var isEmpty: Bool {
-        presentationIDs.isEmpty && masteryRecordIDs.isEmpty && workIDs.isEmpty
-            && practiceSessionIDs.isEmpty && recallCheckIDs.isEmpty
-    }
 }
 
 /// One dated record, placed on the time axis. `state` is what the record

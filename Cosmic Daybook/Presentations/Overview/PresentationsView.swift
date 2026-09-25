@@ -100,15 +100,8 @@ struct PresentationsView: View {
     }
 
     // Computed properties that use ViewModel (preserves exact same functionality)
-    var readyLessons: [CDLessonAssignment] { viewModel.readyLessons }
-    var blockedLessons: [CDLessonAssignment] { viewModel.blockedLessons }
     func getBlockingWork(_ la: CDLessonAssignment) -> [UUID: CDWorkModel] {
         viewModel.getBlockingWork(la)
-    }
-
-    // Use ViewModel's cached value (preserves exact same functionality)
-    var daysSinceLastLessonByStudent: [UUID: Int] {
-        viewModel.daysSinceLastLessonByStudent
     }
 
     // MARK: - body is defined in PresentationsView+Body.swift

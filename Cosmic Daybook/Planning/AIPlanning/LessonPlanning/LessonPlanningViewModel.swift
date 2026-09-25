@@ -234,17 +234,6 @@ final class LessonPlanningViewModel {
         isLoading = false
     }
     
-    /// Resets the planning session.
-    func reset() {
-        messages = []
-        recommendations = []
-        weekPlan = nil
-        currentSession = nil
-        currentStep = .idle
-        errorMessage = nil
-        isLoading = false
-    }
-    
     // MARK: - Private Pipeline Methods
     
     private func planForStudent(

@@ -101,18 +101,6 @@ nonisolated extension CDReminder {
         let allNotes = (noteItems?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
     }
-
-    @discardableResult
-    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
-        return CDNote.upsertLegacyFieldNote(
-            text: text,
-            scope: .all,
-            existingNotes: noteItems,
-            context: context
-        ) { note in
-            note.reminder = self
-        }
-    }
 }
 
 nonisolated extension CDWorkModel {
@@ -199,43 +187,6 @@ nonisolated extension CDWorkCompletionRecord {
 nonisolated extension CDStudentTrackEnrollmentEntity {
     var latestUnifiedNoteText: String {
         CDNote.latestBody(in: richNotes)
-    }
-
-    @discardableResult
-    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
-        let scope: NoteScope
-        if let studentUUID = UUID(uuidString: studentID) {
-            scope = .student(studentUUID)
-        } else {
-            scope = .all
-        }
-
-        return CDNote.upsertLegacyFieldNote(
-            text: text,
-            scope: scope,
-            existingNotes: NSSet(array: richNotes),
-            context: context
-        ) { note in
-            note.studentTrackEnrollment = self
-        }
-    }
-}
-
-nonisolated extension CDSchoolDayOverride {
-    var latestUnifiedNoteText: String {
-        CDNote.latestBody(in: notes)
-    }
-
-    @discardableResult
-    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
-        return CDNote.upsertLegacyFieldNote(
-            text: text,
-            scope: .all,
-            existingNotes: NSSet(array: notes),
-            context: context
-        ) { note in
-            note.schoolDayOverride = self
-        }
     }
 }
 

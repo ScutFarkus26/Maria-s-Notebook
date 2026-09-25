@@ -93,13 +93,4 @@ final class TodayCacheManager {
             }
         }
     }
-
-    // MARK: - Clear Cache
-
-    /// Clears all cached data.
-    func clearAll() {
-        studentsByID = [:]
-        lessonsByID = [:]
-        workByID = [:]
-    }
 }

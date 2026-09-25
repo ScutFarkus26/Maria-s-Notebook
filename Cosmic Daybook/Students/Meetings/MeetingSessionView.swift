@@ -12,8 +12,6 @@ struct MeetingSessionView: View {
     let workOverdueDays: Int
     var onComplete: (() -> Void)?
 
-    @Environment(\.managedObjectContext) private var viewContext
-
     // Shared state for work reviews during this meeting session
     @State private var workReviewDrafts: [UUID: String] = [:]
     @State private var reviewedWorkIDs: Set<UUID> = []

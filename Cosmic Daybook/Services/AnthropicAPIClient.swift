@@ -359,10 +359,6 @@ extension AnthropicAPIClient {
     static let keyStore = APIKeyStore.anthropic
 
     private static func loadAPIKey() -> String { keyStore.load() }
-    /// Save API key to Keychain
-    static func saveAPIKey(_ key: String) { keyStore.save(key) }
     /// Check if API key is configured
     static func hasAPIKey() -> Bool { keyStore.hasKey() }
-    /// Clear saved API key
-    static func clearAPIKey() { keyStore.clear() }
 }

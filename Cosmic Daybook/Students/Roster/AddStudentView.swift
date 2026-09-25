@@ -3,7 +3,6 @@ import CoreData
 
 struct AddStudentView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.managedObjectContext) private var managedObjectContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
 

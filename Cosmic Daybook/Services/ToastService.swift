@@ -156,15 +156,6 @@ final class ToastService {
         showNextToast()
     }
 
-    /// Clear all toasts (current and queued)
-    func clearAll() {
-        dismissTask?.cancel()
-        toastQueue.removeAll()
-        adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
-            currentToast = nil
-        }
-    }
-
     // MARK: - Private
 
     private func showToast(_ toast: ToastMessage) {
@@ -271,15 +262,5 @@ struct ToastView: View {
         .foregroundStyle(.white)
         .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.moderate), radius: 6, x: 0, y: 3)
         .transition(.move(edge: .top).combined(with: .opacity))
-    }
-}
-
-// MARK: - Preview Support
-
-extension ToastService {
-    /// Preview instance with suppressed auto-dismiss
-    static var preview: ToastService {
-        let service = ToastService()
-        return service
     }
 }

@@ -232,32 +232,6 @@ enum BlockingAlgorithmEngine {
         )
     }
 
-    // MARK: - Single Item Blocking Check (Convenience)
-
-    /// Check if a CDLessonAssignment is blocked by incomplete prerequisite work from the preceding lesson.
-    ///
-    /// Note: For checking multiple LessonAssignments, use `checkBlocking(forBatch:)` instead for better performance.
-    ///
-    /// - Parameters:
-    ///   - la: The CDLessonAssignment to check
-    ///   - lessons: All lessons (needed for sequence structure)
-    ///   - allLessonAssignments: All LessonAssignments (for presented lookup)
-    ///   - workModels: All WorkModels (preferably filtered to non-complete)
-    /// - Returns: A BlockingCheckResult indicating if blocked and how many prerequisites are open
-    static func checkBlocking(
-        for la: CDLessonAssignment,
-        lessons: [CDLesson],
-        allLessonAssignments: [CDLessonAssignment] = [],
-        workModels: [CDWorkModel]
-    ) -> BlockingCheckResult {
-        let context = BlockingContext(
-            lessons: lessons,
-            lessonAssignments: allLessonAssignments.isEmpty ? [la] : allLessonAssignments,
-            workModels: workModels
-        )
-        return checkBlocking(for: la, context: context)
-    }
-
     // MARK: - Find Preceding CDLesson
 
     /// Find the preceding lesson in the sequence (same area/sequence, previous orderInSequence).

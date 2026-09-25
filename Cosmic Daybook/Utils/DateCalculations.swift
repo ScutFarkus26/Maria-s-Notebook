@@ -19,20 +19,6 @@ enum DateCalculations {
         calendar.date(byAdding: component, value: value, to: date) ?? date
     }
     
-    /// Safely adds days to a date.
-    /// - Parameters:
-    ///   - days: The number of days to add (can be negative)
-    ///   - date: The base date
-    ///   - calendar: The calendar to use (default: AppCalendar.shared)
-    /// - Returns: The new date, or the original date if calculation fails
-    static func addingDays(
-        _ days: Int,
-        to date: Date,
-        calendar: Calendar = AppCalendar.shared
-    ) -> Date {
-        adding(.day, value: days, to: date, calendar: calendar)
-    }
-    
     /// Safely adds hours to a date.
     /// - Parameters:
     ///   - hours: The number of hours to add (can be negative)

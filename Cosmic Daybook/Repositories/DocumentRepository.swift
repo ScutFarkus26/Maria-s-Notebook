@@ -12,8 +12,6 @@ import CoreData
 struct DocumentRepository: SavingRepository {
     typealias Model = CDDocument
 
-    private static let logger = Logger.database
-
     let context: NSManagedObjectContext
     let saveCoordinator: SaveCoordinator?
 

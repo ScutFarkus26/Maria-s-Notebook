@@ -52,7 +52,6 @@ nonisolated extension CDYearPlanEntry {
         }
     }
 
-    var studentUUID: UUID? { UUID(uuidString: studentID) }
     var lessonUUID: UUID? { UUID(uuidString: lessonID) }
 
     var isPlanned: Bool { status == .planned }
