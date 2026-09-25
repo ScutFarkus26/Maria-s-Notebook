@@ -839,7 +839,7 @@ Orchestrates AI chat sessions with classroom context.
 5. Assemble system message with classroom context
 6. Trim message history to token budget (max 10 messages)
 7. Call API (temperature: 0.7, max tokens: 2048)
-8. Stream response chunks to UI via onDelta callback
+8. Hand the answer to the UI via the onText callback (the whole answer so far; StreamingTextThrottle shows at most ~10 updates a second)
 ```
 
 ### ReminderSyncService (macOS)

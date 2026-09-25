@@ -127,19 +127,20 @@ private struct SuggestionRow: View {
     let onTagged: () -> Void
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
     @Environment(SaveCoordinator.self) private var saveCoordinator
 
     @State private var didTag = false
 
+    /// From the workspace's live lesson catalog: a lookup, not a fetch.
     private var lesson: CDLesson? {
-        viewContext.object(CDLesson.self, id: suggestion.lessonID)
-    }
-
-    private var isAlreadyTagged: Bool {
-        lesson?.parshaKey == parshaKey
+        dependencies.lessonCatalog.lesson(id: suggestion.lessonID, in: viewContext)
     }
 
     var body: some View {
+        // Looked up once per pass rather than once per use below.
+        let lesson = self.lesson
+        let isAlreadyTagged = lesson?.parshaKey == parshaKey
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
             HStack {
                 if let lesson {

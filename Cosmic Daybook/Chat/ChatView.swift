@@ -141,8 +141,14 @@ struct ChatView: View {
                     }
                 }
             }
-            .onChange(of: viewModel.streamingContent) {
-                if viewModel.isStreaming {
+            .onChange(of: viewModel.streamingContent) { previous, current in
+                guard let current else { return }
+                if let previous, !previous.isEmpty, !current.isEmpty {
+                    // The answer growing: follow it without starting an
+                    // animation on every update.
+                    proxy.scrollTo("streaming", anchor: .bottom)
+                } else {
+                    // The typing indicator, then the first text, glide in as before.
                     adaptiveWithAnimation(.easeOut(duration: UIConstants.AnimationDuration.quick)) {
                         proxy.scrollTo("streaming", anchor: .bottom)
                     }

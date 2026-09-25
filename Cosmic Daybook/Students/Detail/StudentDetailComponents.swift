@@ -250,47 +250,42 @@ struct AttendanceInfoRow: View {
     @Environment(\.managedObjectContext) private var viewContext
     
     private var daysTardyThisSchoolYear: Int {
-        let calendar = AppCalendar.shared
-        let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
-        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentIDString = student.id?.uuidString ?? ""
-        let from = start
-        let to = end
-        let descriptor = CDFetchRequest(CDAttendanceRecord.self)
-        descriptor.predicate = NSPredicate(
-            format: "studentID == %@ AND date >= %@ AND date < %@",
-            studentIDString, from as CVarArg, to as CVarArg
-        )
-        let records: [CDAttendanceRecord]
         do {
-            records = try viewContext.fetch(descriptor)
+            return try Self.schoolYearCount(of: .tardy, studentID: student.id, on: Date(), in: viewContext)
         } catch {
             Self.logger.warning("Failed to fetch tardy records: \(error)")
-            records = []
+            return 0
         }
-        return records.filter { $0.status == .tardy }.count
     }
 
     private var daysAbsentThisSchoolYear: Int {
-        let calendar = AppCalendar.shared
-        let start = FloridaGradeCalculator.schoolYearStart(for: Date(), calendar: calendar)
-        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
-        let studentIDString = student.id?.uuidString ?? ""
-        let from = start
-        let to = end
-        let descriptor = CDFetchRequest(CDAttendanceRecord.self)
-        descriptor.predicate = NSPredicate(
-            format: "studentID == %@ AND date >= %@ AND date < %@",
-            studentIDString, from as CVarArg, to as CVarArg
-        )
-        let records: [CDAttendanceRecord]
         do {
-            records = try viewContext.fetch(descriptor)
+            return try Self.schoolYearCount(of: .absent, studentID: student.id, on: Date(), in: viewContext)
         } catch {
             Self.logger.warning("Failed to fetch absent records: \(error)")
-            records = []
+            return 0
         }
-        return records.filter { $0.status == .absent }.count
+    }
+
+    /// The student's records marked `status` in the school year containing
+    /// `date`, counted by the store: only the number is shown, so no row is
+    /// fetched. The predicate is the one the rows were fetched with plus
+    /// `statusRaw`, which is the in-memory `status ==` filter that used to run
+    /// over them — `status` reads an unknown raw value as `.unmarked`, so pass
+    /// any status but that one. `count(for:)` sees unsaved changes as the
+    /// fetch did.
+    static func schoolYearCount(
+        of status: AttendanceStatus, studentID: UUID?, on date: Date, in context: NSManagedObjectContext
+    ) throws -> Int {
+        let calendar = AppCalendar.shared
+        let start = FloridaGradeCalculator.schoolYearStart(for: date, calendar: calendar)
+        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return 0 }
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(
+            format: "studentID == %@ AND date >= %@ AND date < %@ AND statusRaw == %@",
+            studentID?.uuidString ?? "", start as CVarArg, end as CVarArg, status.rawValue
+        )
+        return try context.count(for: request)
     }
     
     private func metricBadge(label: String, count: Int, color: Color) -> some View {

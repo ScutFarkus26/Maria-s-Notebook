@@ -24,7 +24,7 @@ private struct UnavailableModelClient: MCPClientProtocol {
     func streamConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, model: String?, timeout: TimeInterval?,
-        onDelta: @escaping @Sendable (String) -> Void
+        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String { throw Unavailable() }
 }
 
@@ -42,7 +42,7 @@ private struct FixedNarrativeClient: MCPClientProtocol {
     func streamConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
         maxTokens: Int, model: String?, timeout: TimeInterval?,
-        onDelta: @escaping @Sendable (String) -> Void
+        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String { narrative }
 }
 

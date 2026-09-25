@@ -57,9 +57,11 @@ extension MCPNotebookTools {
 
         let current = lessonsInSequence(sequence, area: area, from: lessons)
         let label = filingLabel(area: area, sequence: sequence)
+        // The table read above answers every reference; nothing is written until they all resolve.
+        let resolver = LessonReferences(in: modelContext, table: lessons)
         var listed: [CDLesson] = []
         for reference in references {
-            let lesson = try resolveLessonReference(reference, in: modelContext)
+            let lesson = try resolver.resolve(reference)
             guard current.contains(lesson) else {
                 throw MCPToolError(
                     "\(describeLesson(lesson)) is not in \(label). Move it there with update_lesson "

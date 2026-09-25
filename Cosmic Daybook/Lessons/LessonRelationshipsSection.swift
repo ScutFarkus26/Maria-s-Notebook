@@ -8,7 +8,11 @@ struct LessonRelationshipsSection: View {
     let lessonIDs: [UUID]
     let viewContext: NSManagedObjectContext
 
+    @Environment(\.dependencies) private var dependencies
+
     var body: some View {
+        // Resolved once per pass, from the workspace's live lesson catalog.
+        let lessons = resolvedLessons
         VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
             HStack(spacing: AppTheme.Spacing.small + 2) {
                 Image(systemName: icon)
@@ -18,7 +22,7 @@ struct LessonRelationshipsSection: View {
                     .font(AppTheme.ScaledFont.calloutSemibold)
                     .foregroundStyle(.secondary)
             }
-            ForEach(resolvedLessons) { lesson in
+            ForEach(lessons) { lesson in
                 HStack(spacing: AppTheme.Spacing.small) {
                     Text("•").font(AppTheme.ScaledFont.body)
                     Text(lesson.name.isEmpty ? "Untitled Lesson" : lesson.name)
@@ -30,7 +34,7 @@ struct LessonRelationshipsSection: View {
                     }
                 }
             }
-            if resolvedLessons.isEmpty {
+            if lessons.isEmpty {
                 Text("Lessons not found")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
@@ -40,6 +44,7 @@ struct LessonRelationshipsSection: View {
     }
 
     private var resolvedLessons: [CDLesson] {
-        lessonIDs.compactMap { viewContext.object(CDLesson.self, id: $0) }
+        let catalog = dependencies.lessonCatalog
+        return lessonIDs.compactMap { catalog.lesson(id: $0, in: viewContext) }
     }
 }

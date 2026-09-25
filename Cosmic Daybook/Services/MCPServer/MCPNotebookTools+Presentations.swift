@@ -36,6 +36,8 @@ extension MCPNotebookTools {
             annotations: .write,
             handler: { arguments in
                 let modelContext = context()
+                // One lesson table for the whole call, however many items name a lesson.
+                let lessons = LessonReferences(in: modelContext)
                 let filings: [PresentationFiling]
                 if let batch = arguments["presentations"]?.arrayValue {
                     guard !batch.isEmpty else {
@@ -46,13 +48,13 @@ extension MCPNotebookTools {
                             throw MCPToolError("presentations[\(index)] must be an object.")
                         }
                         do {
-                            return try makeFiling(arguments: fields, in: modelContext)
+                            return try makeFiling(arguments: fields, lessons: lessons, in: modelContext)
                         } catch let error as MCPToolError {
                             throw MCPToolError("presentations[\(index)]: \(error.message)")
                         }
                     }
                 } else {
-                    filings = [try makeFiling(arguments: arguments, in: modelContext)]
+                    filings = [try makeFiling(arguments: arguments, lessons: lessons, in: modelContext)]
                 }
                 return try file(filings, in: modelContext)
             }
@@ -81,9 +83,9 @@ extension MCPNotebookTools {
     }
 
     private static func makeFiling(
-        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+        arguments: [String: JSONValue], lessons: LessonReferences, in modelContext: NSManagedObjectContext
     ) throws -> PresentationFiling {
-        let lesson = try resolveLessonReference(requireString(arguments, "lesson"), in: modelContext)
+        let lesson = try lessons.resolve(requireString(arguments, "lesson"))
         guard let lessonID = lesson.id else {
             throw MCPToolError("\"\(lesson.name)\" has no saved identifier and cannot be presented.")
         }

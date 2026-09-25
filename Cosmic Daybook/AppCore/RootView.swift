@@ -42,6 +42,7 @@ struct RootView: View {
     #endif
     @State var activeSheet: ActiveSheet?
     @State private var focusedSearchAction = FocusedSearchAction()
+    @State private var quickCaptureActions = QuickCaptureActions()
     @State private var selectedNavItem: NavigationItem = .today
     @State private var companionViewModel = NotebookCompanionViewModel()
     @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
@@ -89,16 +90,18 @@ struct RootView: View {
             focusedSearchAction.setAction {
                 activeSheet = .search
             }
+            installQuickCaptureHandlers()
         }
         .onDisappear {
             focusedSearchAction.clearAction()
         }
-        .focusedSceneValue(\.quickCapture, QuickCaptureActions(
-            newPresentation: { createPresentationDraft() },
-            recordPractice: { activeSheet = .recordPractice },
-            newTodo: { activeSheet = .newTodo(initialTitle: "") },
-            newNote: { activeSheet = .quickNote(QuickNoteParams()) }
-        ))
+        // One object for the window's life, so File > New is not rebuilt on
+        // every RootView body pass; the handlers are refilled only when the
+        // context or dependencies they capture change.
+        .focusedSceneValue(\.quickCapture, quickCaptureActions)
+        .onChange(of: quickCaptureInputs) {
+            installQuickCaptureHandlers()
+        }
     #if os(macOS)
         .background(
             EnsureResizableWindow(
@@ -299,6 +302,21 @@ struct RootView: View {
             appRouter.triggerCommandBar = false
             activeSheet = .commandBar
         }
+    }
+
+    /// What the quick-capture handlers capture by copy.
+    private var quickCaptureInputs: [ObjectIdentifier] {
+        [ObjectIdentifier(viewContext), ObjectIdentifier(dependencies)]
+    }
+
+    /// File > New's quick-capture actions — the radial menu's set.
+    private func installQuickCaptureHandlers() {
+        quickCaptureActions.setHandlers(QuickCaptureActions.Handlers(
+            newPresentation: { createPresentationDraft() },
+            recordPractice: { activeSheet = .recordPractice },
+            newTodo: { activeSheet = .newTodo(initialTitle: "") },
+            newNote: { activeSheet = .quickNote(QuickNoteParams()) }
+        ))
     }
 
     /// Creates a presentation draft and opens its editor sheet. Shared by the

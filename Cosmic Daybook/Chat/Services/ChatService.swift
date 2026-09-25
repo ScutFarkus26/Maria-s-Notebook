@@ -90,13 +90,14 @@ final class ChatService {
 
     // MARK: - Send Message (Streaming)
 
-    /// Sends a user message with streaming. Calls onDelta for each text chunk.
+    /// Sends a user message with streaming. Calls onText with the whole answer so
+    /// far each time it grows.
     /// Adds a placeholder assistant message immediately and updates it as text arrives.
     /// Returns the message ID of the streaming assistant message so the caller can track it.
     func sendMessageStreaming(
         _ question: String,
         session: inout ChatSession,
-        onDelta: @escaping @Sendable (String) -> Void
+        onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
         // Refresh snapshot if stale
         if session.isSnapshotStale {
@@ -134,7 +135,7 @@ final class ChatService {
             temperature: 0.7,
             maxTokens: 2048,
             model: chatModelID,
-            onDelta: onDelta
+            onText: onText
         )
         let sources = await mcpClient.consumeEvidenceSources()
 

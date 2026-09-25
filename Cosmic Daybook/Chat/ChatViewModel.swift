@@ -139,15 +139,19 @@ final class ChatViewModel {
         session = optimisticSession
 
         Task { [self] in
+            // The answer so far, shown at most about ten times a second rather
+            // than once per chunk; flushed before the stream's outcome lands.
+            let throttle = StreamingTextThrottle { [weak self] answerSoFar in
+                self?.streamingContent = answerSoFar
+            }
             do {
                 _ = try await service.sendMessageStreaming(
                     text,
                     session: &currentSession
-                ) { [weak self] delta in
-                    Task { @MainActor in
-                        self?.streamingContent = (self?.streamingContent ?? "") + delta
-                    }
+                ) { answerSoFar in
+                    throttle.submit(answerSoFar)
                 }
+                throttle.flush()
                 // Tag the last assistant message with the model that generated it
                 if let lastIndex = currentSession.messages.indices.last,
                    currentSession.messages[lastIndex].role == .assistant {
@@ -159,6 +163,7 @@ final class ChatViewModel {
                 // Persist after each message exchange
                 currentSession.save()
             } catch {
+                throttle.flush()
                 Self.logger.warning("Chat send failed: \(error)")
                 // Roll back the optimistic message and put the text back in the
                 // input field so the message isn't lost.

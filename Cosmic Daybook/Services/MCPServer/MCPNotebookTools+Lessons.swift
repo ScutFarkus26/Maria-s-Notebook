@@ -100,32 +100,71 @@ extension MCPNotebookTools {
     static func resolveLessonReference(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDLesson {
-        let lessons = modelContext.safeFetch(CDFetchRequest(CDLesson.self))
+        try LessonReferences(in: modelContext).resolve(reference)
+    }
 
-        if let id = UUID(uuidString: reference) {
-            guard let lesson = lessons.first(where: { $0.id == id }) else {
-                throw MCPToolError("No lesson with id \(reference) was found.")
+    /// Resolves the lesson references of one tool call. An id is a point read
+    /// (`object(_:id:)`, one row); a name needs the whole lesson table, which
+    /// is read once for the call however many names it carries. Batch tools
+    /// resolve every item before writing anything, so every reference sees the
+    /// table exactly as a fresh read would have shown it.
+    final class LessonReferences {
+        private let modelContext: NSManagedObjectContext
+        private var table: [CDLesson]?
+        /// Whole-table reads this resolver has made — 0 or 1.
+        private(set) var tableReads = 0
+
+        /// `table` is the unsorted lesson table when the caller has already
+        /// read it, so no reference needs another read.
+        init(in modelContext: NSManagedObjectContext, table: [CDLesson]? = nil) {
+            self.modelContext = modelContext
+            self.table = table
+        }
+
+        func resolve(_ reference: String) throws -> CDLesson {
+            if let id = UUID(uuidString: reference) {
+                // The table's first row with the id when it is already read,
+                // as the whole-table read found it; otherwise a point read.
+                let match: CDLesson? = if let table {
+                    table.first { $0.id == id }
+                } else {
+                    modelContext.object(CDLesson.self, id: id)
+                }
+                guard let lesson = match else {
+                    throw MCPToolError("No lesson with id \(reference) was found.")
+                }
+                return lesson
             }
-            return lesson
-        }
 
-        let token = reference.folded()
-        guard !token.isEmpty else {
-            throw MCPToolError("A lesson name or id is required.")
-        }
-
-        for candidates in [lessons.filter { $0.name.folded() == token },
-                           lessons.filter { $0.name.folded().contains(token) }] {
-            if candidates.count == 1, let lesson = candidates.first { return lesson }
-            if candidates.count > 1 {
-                throw MCPToolError(ambiguityMessage(reference: reference, candidates: candidates))
+            let token = reference.folded()
+            guard !token.isEmpty else {
+                throw MCPToolError("A lesson name or id is required.")
             }
+
+            let lessons = loadTable()
+            for candidates in [lessons.filter { $0.name.folded() == token },
+                               lessons.filter { $0.name.folded().contains(token) }] {
+                if candidates.count == 1, let lesson = candidates.first { return lesson }
+                if candidates.count > 1 {
+                    throw MCPToolError(
+                        MCPNotebookTools.ambiguityMessage(reference: reference, candidates: candidates)
+                    )
+                }
+            }
+
+            throw MCPToolError(
+                "No lesson matching \"\(reference)\" is in the curriculum. "
+                    + "Use find_lessons to search, and ask the guide if nothing fits."
+            )
         }
 
-        throw MCPToolError(
-            "No lesson matching \"\(reference)\" is in the curriculum. "
-                + "Use find_lessons to search, and ask the guide if nothing fits."
-        )
+        private func loadTable() -> [CDLesson] {
+            if let table { return table }
+            let lessons = modelContext.safeFetch(CDFetchRequest(CDLesson.self))
+            table = lessons
+            tableReads += 1
+            return lessons
+        }
     }
 
     private static func ambiguityMessage(reference: String, candidates: [CDLesson]) -> String {

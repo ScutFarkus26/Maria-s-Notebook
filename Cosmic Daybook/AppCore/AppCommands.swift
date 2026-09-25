@@ -16,11 +16,29 @@ import SwiftUI
 /// Quick-capture actions the key main window exposes to the menu bar.
 /// Mirrors `PieMenuAction` so File > New and the radial quick-command menu
 /// always offer the same set.
-struct QuickCaptureActions {
-    let newPresentation: () -> Void
-    let recordPractice: () -> Void
-    let newTodo: () -> Void
-    let newNote: () -> Void
+///
+/// A reference type, like `FocusedSearchAction` below: RootView creates one
+/// per window and fills in its handlers, so the focused value keeps its
+/// identity across RootView's body passes and File > New is not rebuilt on
+/// each of them. The command still acts only on the key main window.
+final class QuickCaptureActions {
+    struct Handlers {
+        let newPresentation: () -> Void
+        let recordPractice: () -> Void
+        let newTodo: () -> Void
+        let newNote: () -> Void
+    }
+
+    private var handlers: Handlers?
+
+    func setHandlers(_ handlers: Handlers) {
+        self.handlers = handlers
+    }
+
+    func newPresentation() { handlers?.newPresentation() }
+    func recordPractice() { handlers?.recordPractice() }
+    func newTodo() { handlers?.newTodo() }
+    func newNote() { handlers?.newNote() }
 }
 
 /// A stable, per-window target for the standard Find command.

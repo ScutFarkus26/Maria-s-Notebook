@@ -108,6 +108,19 @@ nonisolated enum CurriculumMapEngine {
         }
     }
 
+    /// Cells for every child on `lessonIDs` only, keyed student → lesson: the
+    /// entries `cells(input:)` holds for those lessons, without building the
+    /// rest of the grid. A cell reads only its own (child, lesson) records —
+    /// practice reaches a lesson through `lessonByWork`, which still spans every
+    /// work row — so leaving the other lessons out changes none of these cells.
+    static func cells(input: CurriculumMapInput, lessons lessonIDs: Set<UUID>) -> [UUID: [UUID: CurriculumCell]] {
+        builders(input: input, only: nil, lessons: lessonIDs).mapValues { byLesson in
+            byLesson.reduce(into: [UUID: CurriculumCell]()) { cells, entry in
+                cells[entry.key] = finalize(entry.value)
+            }
+        }
+    }
+
     /// Folds a row's cells: the best state, the latest dates, every event.
     static func aggregate(_ cells: [CurriculumCell], lessonCount: Int) -> CurriculumAggregate {
         var result = CurriculumAggregate()
@@ -153,11 +166,12 @@ nonisolated enum CurriculumMapEngine {
     /// sessions reach a lesson through the work items they touched; a session
     /// counts for every child in it, on every lesson those items belong to.
     private static func builders(
-        input: CurriculumMapInput, only studentID: UUID?
+        input: CurriculumMapInput, only studentID: UUID?, lessons lessonIDs: Set<UUID>? = nil
     ) -> [UUID: [UUID: CellBuilder]] {
         var byStudent: [UUID: [UUID: CellBuilder]] = [:]
         func update(_ student: UUID, _ lesson: UUID, _ body: (inout CellBuilder) -> Void) {
             if let studentID, studentID != student { return }
+            if let lessonIDs, !lessonIDs.contains(lesson) { return }
             body(&byStudent[student, default: [:]][lesson, default: CellBuilder(studentID: student, lessonID: lesson)])
         }
 

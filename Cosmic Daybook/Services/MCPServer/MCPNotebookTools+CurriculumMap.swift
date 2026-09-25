@@ -222,7 +222,9 @@ extension MCPNotebookTools {
         guard !students.isEmpty else { return "No enrolled students." }
 
         let (title, lessonIDs) = try resolveMapScope(reference, lessons: input.lessons, in: modelContext)
-        let all = CurriculumMapEngine.cells(input: input)
+        // Only the lesson (or area) asked about: the same cells the whole grid
+        // holds for it, without finalising every other (child, lesson) pair.
+        let all = CurriculumMapEngine.cells(input: input, lessons: Set(lessonIDs))
         let today = Date()
         let calendar = AppCalendar.shared
 

@@ -76,6 +76,11 @@ struct AlbumDetailView: View {
     @State private var inkSaveTask: Task<Void, Never>?
     #endif
 
+    #if os(macOS)
+    /// One menu-bar target for the view's life, so page turns don't rebuild the Album menu.
+    @State private var focusActions = AlbumFocusActions()
+    #endif
+
     private var currentLesson: AlbumLessonRef? { album.lesson(forPage: currentPage) }
     private var albumHighlights: [CDAlbumHighlight] { Array(highlights) }
 
@@ -104,7 +109,7 @@ struct AlbumDetailView: View {
                 }
             }
             .onChange(of: nav.pageTarget) { consumeTarget() }
-            .onChange(of: albumHighlights) { album.applyHighlights(albumHighlights) }
+            .onChange(of: albumHighlights) { highlightsChanged() }
             .onChange(of: currentPage) {
                 didRestorePosition = true
                 schedulePositionSave()
@@ -152,6 +157,9 @@ struct AlbumDetailView: View {
                     .frame(width: 96)
             }
         }
+        // Kept off `body`'s long modifier chain, which type-checks slowly.
+        .onAppear { installFocusActions() }
+        .onChange(of: focusActionInputs) { installFocusActions() }
         #else
         VStack(spacing: 0) {
             viewerStack
@@ -251,9 +259,20 @@ struct AlbumDetailView: View {
 
     // MARK: Focus actions (menu bar)
 
-    private var focusActions: AlbumFocusActions {
-        AlbumFocusActions(
-            albumID: album.id,
+    private func highlightsChanged() {
+        album.applyHighlights(albumHighlights)
+        #if os(macOS)
+        installFocusActions() // Highlight Selection re-applies the highlights it reads.
+        #endif
+    }
+
+    #if os(macOS)
+    private var focusActionInputs: [ObjectIdentifier] { [ObjectIdentifier(album), ObjectIdentifier(context)] }
+
+    /// Page, popovers and viewer are `@State`, shared by every copy of the view, so the handlers
+    /// need refilling only when the album object, the context or the highlights change.
+    private func installFocusActions() {
+        focusActions.install(albumID: album.id, handlers: AlbumFocusActions.Handlers(
             toggleBookmark: { toggleBookmark() },
             addNote: { showNotesPopover = true },
             nextPage: { proxy.nextPage() },
@@ -267,8 +286,9 @@ struct AlbumDetailView: View {
             highlightSelection: { highlightCurrentSelection() },
             exportLesson: { exportCurrentLesson() },
             toggleThumbnails: { showThumbnails.toggle() }
-        )
+        ))
     }
+    #endif
 
     // MARK: Toolbars
 
@@ -765,6 +785,8 @@ struct AlbumOutlineListView: View {
     }
 
     var body: some View {
+        // `lesson(forPage:)` scans the outline: once per pass, not once per row.
+        let currentLesson = album.lesson(forPage: currentPage)
         VStack(spacing: 0) {
             TextField("Filter contents", text: $filter)
                 .textFieldStyle(.roundedBorder)
@@ -773,11 +795,11 @@ struct AlbumOutlineListView: View {
             List(selection: $selection) {
                 if filter.trimmingCharacters(in: .whitespaces).isEmpty {
                     OutlineGroup(album.outline, children: \.children) { node in
-                        row(for: node)
+                        row(for: node, currentLesson: currentLesson)
                     }
                 } else {
                     ForEach(filteredNodes) { node in
-                        row(for: node)
+                        row(for: node, currentLesson: currentLesson)
                     }
                 }
             }
@@ -806,8 +828,8 @@ struct AlbumOutlineListView: View {
         return out
     }
 
-    private func row(for node: AlbumOutlineNode) -> some View {
-        let isCurrent = album.lesson(forPage: currentPage)
+    private func row(for node: AlbumOutlineNode, currentLesson: AlbumLessonRef?) -> some View {
+        let isCurrent = currentLesson
             .map { $0.pageIndex == node.pageIndex && $0.title == node.title } ?? false
         return HStack {
             Text(node.title)

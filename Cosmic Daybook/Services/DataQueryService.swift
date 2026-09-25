@@ -151,6 +151,37 @@ final class DataQueryService {
         return lessons
     }
 
+    /// The distinct non-empty lesson areas, sorted: exactly
+    /// `Set(fetchAllLessons().map(\.area)).filter { !$0.isEmpty }.sorted()`,
+    /// read as the one `area` column of the same (at most 2000) rows instead
+    /// of whole lesson rows and their long text. A dictionary fetch reads the
+    /// store, not the context, so while this context holds unsaved lesson
+    /// changes — or once the lesson cache is loaded, which `fetchAllLessons`
+    /// would answer from — it takes that managed-object read instead.
+    func fetchLessonAreas() -> [String] {
+        if lessonsCache != nil || hasUnsavedLessonChanges {
+            return Set(fetchAllLessons().map(\.area)).filter { !$0.isEmpty }.sorted()
+        }
+        let request = NSFetchRequest<NSDictionary>(entityName: CDFetchRequest(CDLesson.self).entityName ?? "Lesson")
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["area"]
+        request.fetchLimit = 2000 // the rows fetchAllLessons() reads (its cache's safety limit)
+        let rows: [NSDictionary]
+        do {
+            rows = try context.fetch(request)
+        } catch {
+            return Set(fetchAllLessons().map(\.area)).filter { !$0.isEmpty }.sorted()
+        }
+        return Set(rows.compactMap { $0["area"] as? String }).filter { !$0.isEmpty }.sorted()
+    }
+
+    private var hasUnsavedLessonChanges: Bool {
+        guard context.hasChanges else { return false }
+        return context.insertedObjects.contains { $0 is CDLesson }
+            || context.updatedObjects.contains { $0 is CDLesson }
+            || context.deletedObjects.contains { $0 is CDLesson }
+    }
+
     /// Fetch lessons by ID set.
     func fetchLessons(ids: Set<UUID>) -> [CDLesson] {
         guard !ids.isEmpty else { return [] }

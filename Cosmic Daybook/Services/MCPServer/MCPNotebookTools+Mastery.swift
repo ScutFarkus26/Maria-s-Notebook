@@ -90,8 +90,10 @@ extension MCPNotebookTools {
     private static func makeMarkings(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> [MasteryMarking] {
+        // One lesson table for the whole call, however many marks name a lesson.
+        let lessons = LessonReferences(in: modelContext)
         guard let batch = arguments["marks"]?.arrayValue else {
-            return [try makeMarking(arguments: arguments, in: modelContext)]
+            return [try makeMarking(arguments: arguments, lessons: lessons, in: modelContext)]
         }
         guard arguments["lesson"] == nil, arguments["student_names"] == nil else {
             throw MCPToolError(
@@ -106,7 +108,7 @@ extension MCPNotebookTools {
                 throw MCPToolError("marks[\(index)] must be an object.")
             }
             do {
-                return try makeMarking(arguments: fields, in: modelContext)
+                return try makeMarking(arguments: fields, lessons: lessons, in: modelContext)
             } catch let error as MCPToolError {
                 throw MCPToolError("marks[\(index)]: \(error.message)")
             }
@@ -114,9 +116,9 @@ extension MCPNotebookTools {
     }
 
     private static func makeMarking(
-        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+        arguments: [String: JSONValue], lessons: LessonReferences, in modelContext: NSManagedObjectContext
     ) throws -> MasteryMarking {
-        let lesson = try resolveLessonReference(requireString(arguments, "lesson"), in: modelContext)
+        let lesson = try lessons.resolve(requireString(arguments, "lesson"))
         guard let lessonID = lesson.id?.uuidString else {
             throw MCPToolError("\"\(lesson.name)\" has no saved identifier and cannot be marked.")
         }

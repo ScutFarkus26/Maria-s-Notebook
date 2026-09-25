@@ -570,9 +570,11 @@ private struct InlineSuggestionRow: View {
     let parshaKey: String
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dependencies) private var dependencies
 
+    /// From the workspace's live lesson catalog: a lookup, not a fetch.
     private var lesson: CDLesson? {
-        viewContext.object(CDLesson.self, id: suggestion.lessonID)
+        dependencies.lessonCatalog.lesson(id: suggestion.lessonID, in: viewContext)
     }
 
     var body: some View {
