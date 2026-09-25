@@ -108,10 +108,18 @@ nonisolated enum CurriculumMapLoader {
         }
     }
 
-    private static func work(in context: NSManagedObjectContext) -> [CurriculumWorkRef] {
+    /// Every work row, with its participants. Each row reads `participants`
+    /// below, so they are prefetched: one `IN` query per batch of rows instead
+    /// of a to-many fault — one SELECT — per row.
+    static func workRequest() -> NSFetchRequest<CDWorkModel> {
         let request = CDFetchRequest(CDWorkModel.self)
         request.fetchBatchSize = 200
-        return context.safeFetch(request).compactMap { work in
+        request.relationshipKeyPathsForPrefetching = ["participants"]
+        return request
+    }
+
+    private static func work(in context: NSManagedObjectContext) -> [CurriculumWorkRef] {
+        context.safeFetch(workRequest()).compactMap { work in
             guard let id = work.id, let lessonID = UUID(uuidString: work.lessonID) else { return nil }
             let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
             var studentIDs: [UUID] = participants.compactMap { UUID(uuidString: $0.studentID) }
