@@ -88,7 +88,7 @@ extension SchoolCalendarService {
         }
 
         if change != .unchanged {
-            invalidateMonthCache(for: day)
+            invalidateMonthCache(for: day, in: context)
             Self.notifySchoolDayDataChanged()
         }
         return change

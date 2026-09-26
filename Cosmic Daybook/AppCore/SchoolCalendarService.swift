@@ -12,6 +12,12 @@ import OSLog
 /// `SchoolDayDataVersion`; the service also checks that version lazily on every
 /// lookup, so a stale month is never served even if the observer fires late.
 ///
+/// The cache is kept per persistent store coordinator, because one process reads
+/// more than one calendar: Sample Class has its own store (its seeder copies no
+/// non-school days), and on the Mac the MCP server always reads My Class while
+/// the window may be showing Sample Class. Keyed by month alone, whichever store
+/// filled a month first answered for every other store until the next change.
+///
 /// `@MainActor` to align with NSManagedObjectContext thread requirements in
 /// Swift 6. Nonisolated callers (model initializers, engines that already hold
 /// their own record sets) use `SchoolDayChecker` directly.
@@ -20,10 +26,19 @@ public final class SchoolCalendarService {
 
     // MARK: - State
 
-    /// Start-of-month date -> non-school start-of-day dates within that month.
-    private var monthSets: [Date: Set<Date>] = [:]
-    /// Memoized `schoolDaysBetween` results, keyed by their [start, end) day range.
-    private var schoolDayCounts: [Range<Date>: Int] = [:]
+    /// One store's cached calendar.
+    private struct StoreCache {
+        /// Held weakly and compared on every lookup, so a coordinator that is
+        /// freed and replaced at the same address starts from an empty cache.
+        weak var coordinator: NSPersistentStoreCoordinator?
+        /// Start-of-month date -> non-school start-of-day dates within that month.
+        var monthSets: [Date: Set<Date>] = [:]
+        /// Memoized `schoolDaysBetween` results, keyed by their [start, end) day range.
+        var schoolDayCounts: [Range<Date>: Int] = [:]
+    }
+
+    /// Each coordinator's cache, keyed by its identity.
+    private var storeCaches: [ObjectIdentifier: StoreCache] = [:]
     /// The `SchoolDayDataVersion` the caches were built against.
     private var dataVersion: Int = SchoolDayDataVersion.current
 
@@ -44,17 +59,31 @@ public final class SchoolCalendarService {
 
     // MARK: - Cache Helpers
 
-    func invalidateMonthCache(for date: Date) {
-        monthSets.removeValue(forKey: monthKey(for: date))
-        schoolDayCounts.removeAll()
+    /// Drops one month and every count from the cache of the store `context` writes to.
+    func invalidateMonthCache(for date: Date, in context: NSManagedObjectContext) {
+        guard let key = cacheKey(for: context) else { return }
+        storeCaches[key]?.monthSets.removeValue(forKey: monthKey(for: date))
+        storeCaches[key]?.schoolDayCounts.removeAll()
     }
 
-    /// Clears every cached month and count. Use when school-day data may have
-    /// changed in bulk (a CloudKit sync or a restore) rather than at a single
-    /// known date.
+    /// Clears every store's cached months and counts. Use when school-day data
+    /// may have changed in bulk (a CloudKit sync or a restore) rather than at a
+    /// single known date.
     public func invalidateCache() {
-        monthSets.removeAll()
-        schoolDayCounts.removeAll()
+        storeCaches.removeAll()
+    }
+
+    /// The key of `context`'s store cache, starting an empty cache the first time
+    /// a coordinator is asked about (and dropping those whose coordinator is gone).
+    /// Nil when the context has no coordinator; its lookups are not cached.
+    private func cacheKey(for context: NSManagedObjectContext) -> ObjectIdentifier? {
+        guard let coordinator = context.persistentStoreCoordinator else { return nil }
+        let key = ObjectIdentifier(coordinator)
+        if storeCaches[key]?.coordinator !== coordinator {
+            storeCaches = storeCaches.filter { $0.value.coordinator != nil }
+            storeCaches[key] = StoreCache(coordinator: coordinator)
+        }
+        return key
     }
 
     /// Drops the caches if school-day data changed since they were built.
@@ -73,14 +102,15 @@ public final class SchoolCalendarService {
 
     private func setForMonth(_ date: Date, using context: NSManagedObjectContext) -> Set<Date> {
         dropCachesIfStale()
+        let store = cacheKey(for: context)
         let key = monthKey(for: date)
-        if let cached = monthSets[key] {
+        if let store, let cached = storeCaches[store]?.monthSets[key] {
             return cached
         }
         let set = SchoolDayChecker.nonSchoolDaySet(
             in: monthRange(containing: date), using: context, calendar: cal
         )
-        monthSets[key] = set
+        if let store { storeCaches[store]?.monthSets[key] = set }
         return set
     }
 
@@ -144,6 +174,7 @@ public final class SchoolCalendarService {
     /// `schoolDaysBetween` calls over the range is pure dictionary work.
     public func preloadNonSchoolDays(from start: Date, to end: Date, using context: NSManagedObjectContext) {
         dropCachesIfStale()
+        guard let store = cacheKey(for: context) else { return }
         let firstMonth = monthKey(for: start)
         let lastMonth = monthKey(for: end)
         guard firstMonth <= lastMonth else { return }
@@ -151,7 +182,7 @@ public final class SchoolCalendarService {
         var missing: [Date] = []
         var cursor = firstMonth
         while cursor <= lastMonth {
-            if monthSets[cursor] == nil { missing.append(cursor) }
+            if storeCaches[store]?.monthSets[cursor] == nil { missing.append(cursor) }
             guard let next = cal.date(byAdding: .month, value: 1, to: cursor), next > cursor else { break }
             cursor = next
         }
@@ -161,7 +192,7 @@ public final class SchoolCalendarService {
         let span = SchoolDayChecker.nonSchoolDaySet(in: firstMissing..<spanEnd, using: context, calendar: cal)
         let byMonth = Dictionary(grouping: span, by: { monthKey(for: $0) })
         for month in missing {
-            monthSets[month] = Set(byMonth[month] ?? [])
+            storeCaches[store]?.monthSets[month] = Set(byMonth[month] ?? [])
         }
     }
 
@@ -173,8 +204,9 @@ public final class SchoolCalendarService {
         let endDay = cal.startOfDay(for: end)
         guard startDay < endDay else { return 0 }
 
+        let store = cacheKey(for: context)
         let key = startDay..<endDay
-        if let cached = schoolDayCounts[key] {
+        if let store, let cached = storeCaches[store]?.schoolDayCounts[key] {
             return cached
         }
 
@@ -193,7 +225,7 @@ public final class SchoolCalendarService {
             cursor = next
         }
 
-        schoolDayCounts[key] = count
+        if let store { storeCaches[store]?.schoolDayCounts[key] = count }
         return count
     }
 
@@ -267,7 +299,7 @@ public final class SchoolCalendarService {
                 becameNonSchool = false
             }
             // Save is handled by caller or autosave - no immediate save needed
-            invalidateMonthCache(for: day)
+            invalidateMonthCache(for: day, in: context)
             Self.notifySchoolDayDataChanged()
             return becameNonSchool
         } else {
@@ -289,7 +321,7 @@ public final class SchoolCalendarService {
                 isNowNonSchool = true
             }
             // Save is handled by caller or autosave - no immediate save needed
-            invalidateMonthCache(for: day)
+            invalidateMonthCache(for: day, in: context)
             Self.notifySchoolDayDataChanged()
             return isNowNonSchool
         }

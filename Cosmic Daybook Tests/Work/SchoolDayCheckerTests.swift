@@ -201,4 +201,35 @@ final class SchoolDayCheckerTests {
         #expect(service.previousSchoolDaySync(before: nextMonday, using: ctx) == saturday)
         #expect(service.nearestSchoolDaySync(to: sunday, using: ctx) == nextMonday)
     }
+
+    /// Sample Class has its own store, and the Mac's MCP server reads My Class
+    /// whichever classroom the window shows, so one service answers for two
+    /// calendars. A month cached from one store must not answer for the other.
+    @Test("SchoolCalendarService answers each store from that store's own calendar")
+    func calendarServiceKeepsStoresApart() throws {
+        let closedStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let closed = closedStack.viewContext
+        let holiday = CDNonSchoolDay(context: closed)
+        holiday.date = wednesday
+        #expect(CoreDataTestHelpers.save(closed))
+        let openStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let open = openStack.viewContext
+
+        // Not `.shared`, which the other suites fill as they run.
+        let service = SchoolCalendarService()
+
+        // June is cached from the store with the holiday first, and counted from it.
+        #expect(service.isNonSchoolDaySync(wednesday, using: closed))
+        #expect(service.schoolDaysBetween(start: monday, end: nextMonday, using: closed) == 4)
+
+        #expect(!service.isNonSchoolDaySync(wednesday, using: open))
+        #expect(service.nextSchoolDaySync(after: day(2026, 6, 9), using: open) == wednesday)
+        #expect(service.nearestSchoolDaySync(to: wednesday, using: open) == wednesday)
+        #expect(service.schoolDaysBetween(start: monday, end: nextMonday, using: open) == 5)
+
+        // The open store's reads leave the first store's month and count intact.
+        #expect(service.isNonSchoolDaySync(wednesday, using: closed))
+        #expect(service.nearestSchoolDaySync(to: wednesday, using: closed) == day(2026, 6, 11))
+        #expect(service.schoolDaysBetween(start: monday, end: nextMonday, using: closed) == 4)
+    }
 }

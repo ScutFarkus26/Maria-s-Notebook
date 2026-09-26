@@ -956,7 +956,7 @@ The daily dashboard. Shows everything relevant to the selected date.
 - **TodayDataFetcher** — batches related database queries
 - **TodayScheduleBuilder** — constructs the schedule from work data
 - **TodayAttendanceLoader** — fetches and summarizes attendance
-- **SchoolCalendarService** — the app-wide school-day cache (`AppCore/`)
+- **SchoolCalendarService** — the app-wide school-day cache (`AppCore/`), kept per persistent store coordinator so Sample Class and My Class never answer for each other
 
 ### Reload Strategy
 
