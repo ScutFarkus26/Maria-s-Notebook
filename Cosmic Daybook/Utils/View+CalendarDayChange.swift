@@ -7,15 +7,22 @@ import SwiftUI
 ///
 /// Foundation posts `.NSCalendarDayChanged` at midnight (and once on wake if
 /// the device slept through it), but delivery timing is not guaranteed and a
-/// suspended app runs no code at midnight, so the action is also invoked when
-/// the scene becomes active. Handlers must therefore be idempotent: compare
-/// against the day last rendered and only react when it actually changed.
+/// suspended app runs no code at midnight, so a scene activation also runs the
+/// action — when `CalendarDayActivationGate` finds the day, the school calendar
+/// or the counter epoch moved since the view last caught up (on appear, or when
+/// the action last ran). Handlers must still be idempotent: the notification and
+/// an activation can both fire for one rollover.
 private struct CalendarDayChangeModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     let action: @MainActor () -> Void
+    @State private var gate = CalendarDayActivationGate()
 
     func body(content: Content) -> some View {
         content
+            .onAppear {
+                // Every caller loads itself on appear.
+                gate.record(.current())
+            }
             .task {
                 // The notification arrives on an arbitrary thread and
                 // Notification is not Sendable — map each element to Void so
@@ -24,11 +31,12 @@ private struct CalendarDayChangeModifier: ViewModifier {
                     .notifications(named: .NSCalendarDayChanged)
                     .map { _ in () }
                 for await _ in dayChanges {
+                    gate.record(.current())
                     action()
                 }
             }
             .onChange(of: scenePhase) { _, newPhase in
-                if newPhase == .active {
+                if newPhase == .active, gate.activationIsDue(.current()) {
                     action()
                 }
             }
@@ -38,8 +46,9 @@ private struct CalendarDayChangeModifier: ViewModifier {
 extension View {
     /// Runs `action` on the main actor when the calendar day changes —
     /// midnight rollover, wake from sleep, or resume from suspension.
-    /// `action` is also called on scene activation as a safety net, so it
-    /// must be idempotent.
+    /// A scene activation runs it only when the day, the school calendar or the
+    /// counter epoch moved since the view appeared or the action last ran, so
+    /// load on appear yourself, and keep `action` idempotent.
     func onCalendarDayChange(perform action: @escaping @MainActor () -> Void) -> some View {
         modifier(CalendarDayChangeModifier(action: action))
     }

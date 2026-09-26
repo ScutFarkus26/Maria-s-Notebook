@@ -85,9 +85,10 @@ struct AlbumsRootView: View {
         .onChange(of: nav.selection) {
             storedSelection = nav.selection?.rawStorage ?? ""
         }
-        .onChange(of: scenePhase) {
+        .onChangeWhenVisible(of: scenePhase == .active) {
             // Albums edited outside the app get picked up when the guide
-            // comes back.
+            // comes back — here, or on the next visit if another tab is
+            // showing (the check reads every album file on the main thread).
             if scenePhase == .active {
                 library.refreshIfChanged()
             }
