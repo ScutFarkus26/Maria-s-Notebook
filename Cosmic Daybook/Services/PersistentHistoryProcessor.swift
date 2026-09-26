@@ -6,9 +6,10 @@ import OSLog
 /// Serialized via Swift actor to prevent concurrent history processing.
 ///
 /// Responsibilities:
-/// 1. Fetch remote history transactions since the last processed token
+/// 1. Fetch each store's remote history transactions since that store's last
+///    processed position (see `PersistentHistoryProcessor+StoreHistory.swift`)
 /// 2. Detect remote inserts and trigger DeduplicationCoordinator
-/// 3. Persist the last processed token to UserDefaults
+/// 3. Persist each store's position to UserDefaults
 /// 4. Occasionally purge months-old history that the CloudKit mirroring
 ///    delegate has provably finished exporting (see `purgeOldHistory`)
 ///
@@ -21,7 +22,7 @@ actor PersistentHistoryProcessor {
     // MARK: - Constants
 
     static let transactionAuthor = "CosmicDaybook"
-    nonisolated private static let logger = Logger.historyProcessor
+    nonisolated static let logger = Logger.historyProcessor
 
     /// Entities whose remote changes must invalidate the school-day caches.
     /// `CoreDataStack` used to post `.schoolDayDataDidChange` on *every*
@@ -47,7 +48,12 @@ actor PersistentHistoryProcessor {
     // MARK: - State
 
     private let container: NSPersistentCloudKitContainer
-    private var lastToken: NSPersistentHistoryToken?
+    private let defaults: UserDefaults
+
+    /// How far each store's history has been read, keyed by
+    /// `NSPersistentStore.identifier`. One token cannot stand for both
+    /// stores: a transaction's token holds a position in its own store only.
+    private var positions: [String: NSPersistentHistoryToken]
 
     /// A pass is in flight. `.NSPersistentStoreRemoteChange` arrives in bursts during
     /// a CloudKit sync — one per imported batch — and each notification used to queue
@@ -59,19 +65,24 @@ actor PersistentHistoryProcessor {
 
     // MARK: - Init
 
-    init(container: NSPersistentCloudKitContainer) {
+    init(container: NSPersistentCloudKitContainer, defaults: UserDefaults = .standard) {
         self.container = container
-        self.lastToken = Self.loadToken()
+        self.defaults = defaults
+        self.positions = Self.loadPositions(from: defaults)
+        // The single token kept before per-store positions covered one store,
+        // and nothing records which. Without it the first pass reads each
+        // store from its beginning, exactly as on a first launch.
+        defaults.removeObject(forKey: UserDefaultsKeys.persistentHistoryLastToken)
     }
 
     // MARK: - Public: Process Remote Changes
 
-    /// Process new persistent history transactions since the last token.
+    /// Process new persistent history transactions since each store's position.
     /// Called when `.NSPersistentStoreRemoteChange` fires.
     ///
     /// Callers that arrive while a pass is running are folded into a single follow-up
     /// pass rather than each running their own. Nothing is dropped: the follow-up reads
-    /// from the same token, so it still sees every transaction written in the meantime.
+    /// from the same positions, so it still sees every transaction written in the meantime.
     func processRemoteChanges() async {
         guard !isProcessing else {
             needsAnotherPass = true
@@ -88,23 +99,26 @@ actor PersistentHistoryProcessor {
     private func performProcessingPass() async {
         let context = container.newBackgroundContext()
         context.transactionAuthor = Self.transactionAuthor
-        let currentToken = lastToken
+        let currentPositions = positions
         let author = Self.transactionAuthor
 
-        let result: HistoryProcessingResult = await context.perform {
-            Self.processHistory(after: currentToken, author: author, in: context)
+        let pass: HistoryPass = await context.perform {
+            Self.readHistory(after: currentPositions, author: author, in: context)
         }
 
-        switch result {
+        // Only a moved cursor is worth a defaults write. A store whose read
+        // failed has already lost its position, so it restarts from its
+        // beginning next time; the other stores keep what they read.
+        if pass.positions != positions {
+            positions = pass.positions
+            Self.savePositions(pass.positions, to: defaults)
+        }
+
+        switch pass.outcome {
         case .noTransactions:
             break
 
-        case let .processed(newToken, remoteCount, totalCount, insertedEntityNames, changedEntityNames):
-            // Only an advanced cursor is worth a defaults write.
-            if newToken != lastToken {
-                lastToken = newToken
-                Self.saveToken(newToken)
-            }
+        case let .processed(remoteCount, totalCount, insertedEntityNames, changedEntityNames):
             Self.react(
                 remoteCount: remoteCount, totalCount: totalCount,
                 insertedEntityNames: insertedEntityNames, changedEntityNames: changedEntityNames
@@ -116,11 +130,6 @@ actor PersistentHistoryProcessor {
             // event no longer triggers.
             Self.postEntityNotifications(for: Self.schoolDayEntityNames.union(Self.presentationEntityNames))
             Self.requestFullDeduplication()
-            if lastToken != nil {
-                Self.logger.info("Resetting stale history token for next attempt")
-                lastToken = nil
-                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.persistentHistoryLastToken)
-            }
         }
     }
 
@@ -261,114 +270,6 @@ actor PersistentHistoryProcessor {
             Self.logger.info("Purged persistent history older than \(cutoff, privacy: .public)")
         }
     }
-
-    // MARK: - Private: Core Data Processing (runs inside context.perform)
-
-    /// Performs all Core Data work on the context's queue and returns Sendable results.
-    /// Uses predicate-based author filtering at the store level (Apple recommended).
-    private static func processHistory(
-        after token: NSPersistentHistoryToken?,
-        author: String,
-        in context: NSManagedObjectContext
-    ) -> HistoryProcessingResult {
-        let request = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
-        request.resultType = .transactionsAndChanges
-
-        // Filter out our own transactions at the store level (more efficient than in-memory)
-        if let fetchRequest = NSPersistentHistoryTransaction.fetchRequest {
-            fetchRequest.predicate = NSPredicate(format: "author != %@", author)
-            request.fetchRequest = fetchRequest
-        }
-
-        do {
-            guard let result = try context.execute(request) as? NSPersistentHistoryResult,
-                  let transactions = result.result as? [NSPersistentHistoryTransaction],
-                  !transactions.isEmpty else {
-                // Still need to advance the token even if no remote transactions
-                return advanceToken(after: token, in: context)
-            }
-
-            let (insertedEntityNames, changedEntityNames) = entityNames(in: transactions)
-
-            guard let lastToken = transactions.last?.token else {
-                return .noTransactions
-            }
-
-            return .processed(
-                newToken: lastToken,
-                remoteCount: transactions.count,
-                totalCount: transactions.count,
-                insertedEntityNames: insertedEntityNames,
-                changedEntityNames: changedEntityNames
-            )
-        } catch {
-            logger.error("Failed to process history: \(error.localizedDescription)")
-            return .failed
-        }
-    }
-
-    /// The entities the transactions inserted into, and every entity they touched.
-    private static func entityNames(
-        in transactions: [NSPersistentHistoryTransaction]
-    ) -> (inserted: Set<String>, changed: Set<String>) {
-        var inserted: Set<String> = []
-        var changed: Set<String> = []
-        let changes: [NSPersistentHistoryChange] = transactions.flatMap { $0.changes ?? [] }
-        for change in changes {
-            guard let name: String = change.changedObjectID.entity.name else { continue }
-            changed.insert(name)
-            let isInsert: Bool = change.changeType == .insert
-            if isInsert { inserted.insert(name) }
-        }
-        return (inserted, changed)
-    }
-
-    /// Fetches the latest token even when there are no remote transactions,
-    /// so the next fetch doesn't rescan transactions we already skipped.
-    private static func advanceToken(
-        after token: NSPersistentHistoryToken?,
-        in context: NSManagedObjectContext
-    ) -> HistoryProcessingResult {
-        let allRequest = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
-        allRequest.resultType = .transactionsOnly
-
-        guard let result = try? context.execute(allRequest) as? NSPersistentHistoryResult,
-              let transactions = result.result as? [NSPersistentHistoryTransaction],
-              let lastToken = transactions.last?.token else {
-            return .noTransactions
-        }
-
-        return .processed(
-            newToken: lastToken,
-            remoteCount: 0,
-            totalCount: transactions.count,
-            insertedEntityNames: [],
-            changedEntityNames: []
-        )
-    }
-
-    // MARK: - Private: Token Persistence
-
-    private static func loadToken() -> NSPersistentHistoryToken? {
-        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKeys.persistentHistoryLastToken) else {
-            return nil
-        }
-        return try? NSKeyedUnarchiver.unarchivedObject(
-            ofClass: NSPersistentHistoryToken.self,
-            from: data
-        )
-    }
-
-    private static func saveToken(_ token: NSPersistentHistoryToken) {
-        guard let data = try? NSKeyedArchiver.archivedData(
-            withRootObject: token,
-            requiringSecureCoding: true
-        ) else {
-            logger.warning("Failed to archive history token")
-            return
-        }
-        UserDefaults.standard.set(data, forKey: UserDefaultsKeys.persistentHistoryLastToken)
-    }
 }
 
 // MARK: - Notification
@@ -380,21 +281,4 @@ extension Notification.Name {
     /// the touched entity names under
     /// `PersistentHistoryProcessor.changedEntityNamesKey`.
     nonisolated static let presentationDataDidChange = Notification.Name("CosmicDaybook.presentationDataDidChange")
-}
-
-// MARK: - Result Type
-
-/// Result of history processing — bridges Core Data work to actor state updates.
-/// @unchecked because NSPersistentHistoryToken is not Sendable but is safely
-/// transferred (created on one queue, consumed on another, no concurrent access).
-private enum HistoryProcessingResult: @unchecked Sendable {
-    case noTransactions
-    case processed(
-        newToken: NSPersistentHistoryToken,
-        remoteCount: Int,
-        totalCount: Int,
-        insertedEntityNames: Set<String>,
-        changedEntityNames: Set<String>
-    )
-    case failed
 }

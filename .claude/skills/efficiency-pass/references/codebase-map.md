@@ -38,7 +38,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Sync event log | `SyncEventLogger` (coalesces repeats, 1 s debounced write) | `Services/` |
 | Scoped reads for a sequence / track / student | `SequenceTrackService+ScopedReads` (`sequenceLessons`, `trackCandidates`, …) | Services |
 | Preceding-lesson lookups in a loop | `BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)` | Services |
-| Entity-scoped reaction to remote changes | `PersistentHistoryProcessor.processHistory` (posts `.schoolDayDataDidChange` etc.) | Services |
+| Entity-scoped reaction to remote changes | `PersistentHistoryProcessor.readHistory(after:author:in:)`, one position per store (the actor posts `.schoolDayDataDidChange` etc.) | `Services/PersistentHistoryProcessor+StoreHistory.swift` |
 | Zone repair gating | `SharedStoreZoneRepair+HistoryGate` (`gateDecision`, clean watermark; since 2026-09-26 a clean history pass advances the watermark too, so each pass reads only what arrived since the last) | Services |
 | Launch repairs | `MigrationRunner.runIfNeeded(coreDataStack:includeIntegrityRepairs:)`: every launch repair in one background-context pass (the two whole-table assignment repairs one launch in ten, as before); nothing on the view context | `Services/MigrationRunner.swift` |
 | Delete old per-day rows | `TodayRetentionCleanup.startIfDue(for:)`: background context at `.utility`, once per store per day (`TodayRetentionCleanupGate`), same cutoff and caps as the old main-thread cleanup | `Today/Support/TodayRetentionCleanup.swift` |
@@ -130,6 +130,10 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
 
 - `.NSPersistentStoreRemoteChange` carries only a history token; reading
   `NSInsertedObjectsKey` etc. off it is always empty and a filter built on it fails open.
+- A history token read from a transaction covers only that transaction's store, and a fetch
+  given a token ignores `affectedStores`. A cursor that has to see both stores keeps one
+  token per store (as `PersistentHistoryProcessor` does); one shared token silently stops
+  reading the other store. Pinned by `PersistentHistoryTokenScopeTests`.
 - Never create, delete, or move a CKShare zone. The 13-zone fragmentation came from an
   unguarded auto-create.
 - The macOS test host is the real app; its startup runs launch repairs on the live store.

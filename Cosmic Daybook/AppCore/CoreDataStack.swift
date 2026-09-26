@@ -245,10 +245,10 @@ final class CoreDataStack {
         #if !ASSISTANT_APP
         // Create the persistent history processor — but only for the primary
         // on-disk stack. Sample Class and test stacks (localStoreURL / inMemory)
-        // must not create one: all processors persist their token under the same
-        // UserDefaults key, and history tokens are per-store, so a secondary
-        // stack's saves would clobber the primary stack's cursor with one that
-        // references a different store file.
+        // must not create one: all processors persist their per-store positions
+        // under the same UserDefaults key, and a pass keeps positions only for
+        // the stores its own container loaded, so a secondary stack's pass
+        // would erase the primary stack's cursor.
         if localStoreURL == nil && !inMemory {
             historyProcessor = PersistentHistoryProcessor(container: container)
         }

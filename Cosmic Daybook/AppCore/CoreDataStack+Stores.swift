@@ -154,6 +154,8 @@ extension CoreDataStack {
         defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairLastTimeoutAt)
         // The clean watermark belongs to the store file being deleted.
         defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairCleanHistoryToken)
+        // So do the history processor's per-store positions.
+        defaults.removeObject(forKey: UserDefaultsKeys.persistentHistoryStoreTokens)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)

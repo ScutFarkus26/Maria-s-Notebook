@@ -14,7 +14,12 @@ nonisolated enum UserDefaultsKeys {
     static let cloudKitLastSuccessfulSyncDate = "CloudKitSync.lastSuccessfulSyncDate"
     static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
     static let cloudKitErrorLog = "cloudKitErrorLog"
+    /// Legacy — the history processor's single token for both stores, which
+    /// only ever held a position in one of them. Removed on launch.
     static let persistentHistoryLastToken = "PersistentHistory.lastToken"
+    /// The history processor's position in each store: archived
+    /// `NSPersistentHistoryToken` data keyed by `NSPersistentStore.identifier`.
+    static let persistentHistoryStoreTokens = "PersistentHistory.storeTokens"
     static let persistentHistoryLastPurgeDate = "PersistentHistory.lastPurgeDate"
     static let cloudKitLastSuccessfulExportStartDate = "CloudKitSync.lastSuccessfulExportStartDate"
 
