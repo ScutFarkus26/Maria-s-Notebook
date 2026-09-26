@@ -26,4 +26,34 @@ struct AlbumSemanticQueryCacheTests {
         AlbumSemanticIndex.releaseQueryEmbedders()
         #expect(AlbumSemanticIndex.hasCachedQueryEmbedder == false)
     }
+
+    @Test("Five quiet minutes after a search the model goes; the next search reloads it and gets the same vector")
+    func idleReleaseKeepsVectors() async throws {
+        _ = await AlbumSemanticIndex.resolveTitleBackend()
+        let text = "borrowing in subtraction"
+        AlbumSemanticIndex.releaseQueryEmbedders()
+        let before = try #require(AlbumSemanticIndex.embedQuery(text, backend: "sentence"))
+
+        // The search armed the app's countdown, five minutes out.
+        let appRelease = AlbumSemanticIndex.queryModelIdleRelease
+        #expect(appRelease.interval == .seconds(300))
+        #expect(appRelease.deadline != nil)
+        #expect(AlbumSemanticIndex.hasCachedQueryEmbedder)
+
+        // The same release on a clock the test moves.
+        let clock = ManualTestClock()
+        let release = IdleCountdown(interval: appRelease.interval, clock: clock) {
+            AlbumSemanticIndex.releaseQueryEmbedders()
+        }
+        release.touch()
+        clock.advance(by: .seconds(299))
+        #expect(AlbumSemanticIndex.hasCachedQueryEmbedder)
+        clock.advance(by: .seconds(1))
+        #expect(await AlbumTestSupport.waitUntil { !AlbumSemanticIndex.hasCachedQueryEmbedder })
+
+        let after = AlbumSemanticIndex.embedQuery(text, backend: "sentence")
+        #expect(after == before)
+        #expect(AlbumSemanticIndex.hasCachedQueryEmbedder)
+        AlbumSemanticIndex.releaseQueryEmbedders()
+    }
 }

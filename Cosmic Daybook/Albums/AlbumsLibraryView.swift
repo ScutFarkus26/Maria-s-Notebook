@@ -184,7 +184,9 @@ private struct AlbumCard: View {
             }
             #endif
         }
-        .task { library.loadCoverIfNeeded(album) }
+        // Keyed on whether the cover is loaded, so one dropped by a memory trim
+        // comes back while the card is still on screen.
+        .task(id: album.cover == nil) { library.loadCoverIfNeeded(album) }
     }
 
     @ViewBuilder
