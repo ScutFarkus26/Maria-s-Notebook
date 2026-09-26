@@ -159,7 +159,11 @@ struct ObservationsView: View {
                 noteBeingEdited = nil
             }
             #endif
-            .onReceive(NotificationCenter.default.publisher(for: .noteDidSave)) { _ in
+            // Only while on screen: a TabView keeps this tab alive behind the
+            // others. `.onAppear` above loads only an empty list, so a save
+            // missed while hidden is caught up once on return (this appear
+            // hook runs after that one, being further out).
+            .onReceiveWhenVisible(NotificationCenter.default.publisher(for: .noteDidSave)) {
                 reloadAllNotes()
             }
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)

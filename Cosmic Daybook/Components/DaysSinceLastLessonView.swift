@@ -11,6 +11,11 @@ struct DaysSinceLastLessonView: View {
     /// queries (one over every presented assignment in the store, decoding each
     /// one's students).
     @State private var daysSince: Int?
+    /// Bumped by every change that could move `daysSince`, on screen or not.
+    /// The reload follows it only while the row is on screen: a TabView keeps
+    /// the Students tab alive behind the others, and `.onAppear` reloads when
+    /// it comes back.
+    @State private var changeCount = 0
 
     var body: some View {
         InfoRowView(
@@ -20,16 +25,17 @@ struct DaysSinceLastLessonView: View {
         )
         .onAppear { reload() }
         .onChange(of: student.id) { reload() }
-        .onPresentationDataChange(of: ["LessonAssignment", "Lesson"], in: viewContext) { _ in reload() }
-        .onCalendarDayChange { reload() }
+        .onPresentationDataChange(of: ["LessonAssignment", "Lesson"], in: viewContext) { _ in changeCount &+= 1 }
+        .onCalendarDayChange { changeCount &+= 1 }
         .onReceive(NotificationCenter.default.publisher(for: .schoolDayDataDidChange)) { _ in
             // AppDependencies drops the shared school-day cache for this same
             // notification, but from a task that can run after this handler;
             // drop it here too, or a synced or restored change would be counted
             // on the old calendar. (A local edit has dropped it already.)
             SchoolCalendarService.shared.invalidateCache()
-            reload()
+            changeCount &+= 1
         }
+        .onChangeWhenVisible(of: changeCount, catchUpOnAppear: false) { reload() }
     }
 
     private func reload() {

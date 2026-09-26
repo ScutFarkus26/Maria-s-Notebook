@@ -59,8 +59,13 @@ extension PresentationsView {
         // Memory pressure drops the view model's cached object graph. If this
         // screen is on-screen when that happens, refetch immediately so the user
         // never sees the list blank out; an off-screen instance refills from its
-        // own `.task` the next time it appears.
-        .onReceive(NotificationCenter.default.publisher(for: .memoryPressureDetected)) { _ in
+        // own `.task` the next time it appears (a Mac window nobody can see,
+        // once it can be seen again), instead of undoing the release while
+        // another tab is on screen.
+        .onReceiveWhenVisible(
+            NotificationCenter.default.publisher(for: .memoryPressureDetected),
+            catchUpOnAppear: false
+        ) {
             updateViewModel()
         }
         .onChange(of: embeddedSearchText) { _, newValue in
