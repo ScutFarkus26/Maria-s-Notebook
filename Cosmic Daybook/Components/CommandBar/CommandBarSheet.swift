@@ -79,6 +79,13 @@ struct CommandBarSheet: View {
                 viewModel.inputText = newValue
             }
         }
+        // Closing mid-dictation would otherwise leave the microphone tap and
+        // the recognition task running with nowhere to show the transcript.
+        .onDisappear {
+            if viewModel.speechService.isRecording {
+                viewModel.speechService.stopRecording()
+            }
+        }
         .alert("Couldn't Save", isPresented: Binding(
             get: { saveErrorMessage != nil },
             set: { if !$0 { saveErrorMessage = nil } }
