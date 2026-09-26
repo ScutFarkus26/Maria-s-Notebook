@@ -59,15 +59,6 @@ enum SettingsExportService {
               defaultValue: WorkAgeDefaults.warningColorHex),
         .init(jsonKey: "workAgeOverdueColorHex", storeKey: "WorkAge.overdueColorHex", store: .synced, type: .string,
               defaultValue: WorkAgeDefaults.overdueColorHex),
-        // AI Models (no API keys!)
-        .init(jsonKey: "aiModelChat", storeKey: UserDefaultsKeys.aiModelChat, store: .userDefaults, type: .string,
-              defaultValue: AIFeatureArea.chat.defaultModel.rawValue),
-        .init(jsonKey: "aiModelLessonPlanning", storeKey: UserDefaultsKeys.aiModelLessonPlanning,
-              store: .userDefaults, type: .string,
-              defaultValue: AIFeatureArea.lessonPlanning.defaultModel.rawValue),
-        .init(jsonKey: "aiModelBackgroundTasks", storeKey: UserDefaultsKeys.aiModelBackgroundTasks,
-              store: .userDefaults, type: .string,
-              defaultValue: AIFeatureArea.backgroundTasks.defaultModel.rawValue),
         // CDLesson Planning — defaults mirror LessonPlanningSettingsView's @AppStorage values
         .init(jsonKey: "lessonPlanningTimeout", storeKey: UserDefaultsKeys.lessonPlanningTimeout,
               store: .userDefaults, type: .int, defaultValue: 120),

@@ -2,8 +2,8 @@
 // Drafts, stores, and tracks monthly parent progress reports.
 //
 // Per Documentation/Architecture/AI.md: AI organizes and reflects; the guide
-// decides. Drafts route through AIClientRouter (.backgroundTasks — on-device
-// by default), are labeled as AI-generated, and only ever land in an editable
+// decides. Drafts route through AIClientRouter (Apple Intelligence,
+// on-device first), are labeled as AI-generated, and only ever land in an editable
 // CDParentCommunication draft. Nothing is sent without the guide's review.
 
 import Foundation
@@ -56,7 +56,6 @@ final class MonthlyReportDraftService {
             return Draft(narrative: "", aiGenerated: false, includedRefs: [])
         }
 
-        mcpClient.configureForFeature(.backgroundTasks)
         let systemMessage = AIPrompts.monthlyParentReportAssistant
         let prompt = Self.buildPrompt(from: reportContext, includeReflection: includeStudentReflection)
 

@@ -22,27 +22,12 @@ struct ChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if viewModel.needsAPIKey {
-                    apiKeyPrompt
-                } else {
-                    chatContent
-                }
+                chatContent
             }
             .navigationTitle("Ask AI")
             .inlineNavigationTitle()
             .toolbar {
-                // Model indicator in toolbar
-                #if os(macOS)
-                ToolbarItem(placement: .navigation) {
-                    ModelBadgeView(model: viewModel.currentModel, style: .toolbar)
-                }
-                #else
-                ToolbarItem(placement: .topBarLeading) {
-                    ModelBadgeView(model: viewModel.currentModel, style: .toolbar)
-                }
-                #endif
-
-                if !viewModel.needsAPIKey && viewModel.session != nil {
+                if viewModel.session != nil {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             viewModel.resetSession()
@@ -68,8 +53,7 @@ struct ChatView: View {
     }
 
     private func submitPendingCompanionQuestion() {
-        guard !viewModel.needsAPIKey,
-              !viewModel.isLoading,
+        guard !viewModel.isLoading,
               let question = appRouter.consumePendingAIQuestion() else { return }
         viewModel.inputText = question
         viewModel.sendMessage()
@@ -199,11 +183,10 @@ struct ChatView: View {
     // MARK: - Streaming Model Label
 
     private var streamingModelLabel: some View {
-        let model = viewModel.currentModel
-        return HStack(spacing: 3) {
-            Image(systemName: model.iconName)
+        HStack(spacing: 3) {
+            Image(systemName: "apple.logo")
                 .font(AppTheme.ScaledFont.captionSmall)
-            Text("Responding with \(model.displayName)")
+            Text("Responding with Apple Intelligence")
                 .font(AppTheme.ScaledFont.captionSmall)
         }
         .foregroundStyle(.tertiary)
@@ -287,9 +270,6 @@ struct ChatView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
-
-                // Model badge
-                ModelBadgeView(model: viewModel.currentModel, style: .standard)
 
                 // Suggestion cards with staggered animation
                 suggestionCards
@@ -408,32 +388,6 @@ struct ChatView: View {
                 )
             }
         }
-    }
-
-    // MARK: - API Key Prompt
-
-    private var apiKeyPrompt: some View {
-        VStack(spacing: AppTheme.Spacing.medium) {
-            Spacer()
-            Image(systemName: "key")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
-            Text("API Key Required")
-                .font(AppTheme.ScaledFont.header)
-            let modelName = viewModel.currentModel.displayName
-            Text(
-                """
-                The selected model (\(modelName)) requires \
-                an Anthropic API key. Add one in Settings, \
-                or switch to a local model.
-                """
-            )
-                .font(AppTheme.ScaledFont.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Spacer()
-        }
-        .padding(AppTheme.Spacing.large)
     }
 
     // MARK: - Error Banner

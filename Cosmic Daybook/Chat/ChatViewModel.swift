@@ -35,16 +35,6 @@ final class ChatViewModel {
         !inputText.trimmed().isEmpty && !isLoading
     }
 
-    /// The currently configured AI model for the chat feature area.
-    var currentModel: AIModelOption {
-        AIFeatureArea.chat.resolvedModel()
-    }
-
-    /// Whether the current model needs an API key and one is configured.
-    var needsAPIKey: Bool {
-        currentModel.requiresAPIKey && !AnthropicAPIClient.hasAPIKey()
-    }
-
     /// CDStudent names for dynamic suggested questions.
     var studentNames: [String] {
         session?.studentNames ?? []
@@ -117,10 +107,6 @@ final class ChatViewModel {
         let text = inputText.trimmed()
         guard !text.isEmpty, var currentSession = session, let service = chatService else { return }
 
-        // Capture the model before sending so we know which model was used
-        let resolvedModel = AIFeatureArea.chat.resolvedModel()
-        let resolvedModelID = resolvedModel.rawValue
-
         inputText = ""
         isLoading = true
         appRouter?.isAIWorking = true
@@ -148,11 +134,6 @@ final class ChatViewModel {
                     throttle.submit(answerSoFar)
                 }
                 throttle.flush()
-                // Tag the last assistant message with the model that generated it
-                if let lastIndex = currentSession.messages.indices.last,
-                   currentSession.messages[lastIndex].role == .assistant {
-                    currentSession.messages[lastIndex].modelID = resolvedModelID
-                }
                 self.session = currentSession
                 self.streamingContent = nil
 

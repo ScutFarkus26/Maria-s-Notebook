@@ -73,16 +73,12 @@ final class ChatService {
         // Build messages array for API (keep within token budget)
         let apiMessages = buildAPIMessages(from: session.messages)
 
-        // Configure router for chat feature area and stream through protocol
-        mcpClient.configureForFeature(.chat)
-        let chatModelID = AIFeatureArea.chat.resolvedClaudeModelID()
-
         let fullResponse = try await mcpClient.streamConversation(
             messages: apiMessages,
             systemMessage: systemMessage,
             temperature: 0.7,
             maxTokens: 2048,
-            model: chatModelID,
+            model: nil,
             onText: onText
         )
         let sources = await mcpClient.consumeEvidenceSources()

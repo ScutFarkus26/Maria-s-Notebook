@@ -2,32 +2,21 @@
 //  AIClientRouter.swift
 //  Cosmic Daybook
 //
-//  Routes AI requests to the appropriate provider based on per-feature model selection.
-//  Supports Apple Intelligence by default, with Claude available only when explicitly selected.
+//  Sends every in-app AI request to Apple Intelligence: the on-device model
+//  first, then Private Cloud Compute when the guide allows it in Settings → AI.
 //  Implements MCPClientProtocol so it can be injected anywhere the protocol is used.
 //
 
 import Foundation
 import OSLog
 
-/// Routes AI requests based on the user's per-feature model selection.
-///
-/// Supports two routing strategies:
-/// - **Direct**: Route to a specific provider (Claude, Apple on-device, Apple Private Cloud)
-/// - **Apple Intelligence (Auto)**: On-device first, then Private Cloud Compute
-///
-/// Usage:
-/// ```swift
-/// let router = AIClientRouter()
-/// router.activeFeatureArea = .chat
-/// let response = try await router.generateText(prompt: "Hello", temperature: 0.7)
-/// ```
+/// Routes every request on-device first, then to Private Cloud Compute when
+/// `automaticPrivateCloudAllowed`. The app has no other AI provider; Claude is
+/// reached only from outside, over the MCP server.
 final class AIClientRouter: MCPClientProtocol {
     private static let logger = Logger.ai
 
     // MARK: - Provider Clients
-
-    let anthropicClient: AnthropicAPIClient
 
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     private var _localClient: LocalModelClient?
@@ -51,35 +40,15 @@ final class AIClientRouter: MCPClientProtocol {
     }
     #endif
 
-    /// The feature area currently being served (determines routing).
-    /// Set before each call by the calling service via `configureForFeature(_:)`.
-    var activeFeatureArea: AIFeatureArea = .chat
-
-    init(anthropicClient: AnthropicAPIClient = AnthropicAPIClient()) {
-        self.anthropicClient = anthropicClient
-    }
-
-    // MARK: - Routing
-
-    private enum Route {
-        case claude(String)        // model ID
-        case appleOnDevice
-        case applePrivateCloud
-        case localFirstAuto        // cascade
-    }
-
-    private func resolveRoute() -> Route {
-        let model = activeFeatureArea.resolvedModel()
-        switch model {
-        case .claudeSonnet, .claudeHaiku:
-            return .claude(model.rawValue)
-        case .appleOnDevice:
-            return .appleOnDevice
-        case .applePrivateCloud:
-            return .applePrivateCloud
-        case .localFirstAuto:
-            return .localFirstAuto
-        }
+    /// Whether a request could be served right now: the on-device model is
+    /// ready, or Private Cloud Compute is allowed and ready.
+    static var isAvailable: Bool {
+        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
+        LocalModelClient().isAvailable
+            || (automaticPrivateCloudAllowed && PrivateCloudModelClient().isAvailable)
+        #else
+        false
+        #endif
     }
 
     // MARK: - MCPClientProtocol — generateText
@@ -194,34 +163,15 @@ final class AIClientRouter: MCPClientProtocol {
 
     // MARK: - Routing Engine
 
-    /// Routes a request to the appropriate provider based on the current feature area's model setting.
-    private func route<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
-        switch resolveRoute() {
-        case .claude(let modelID):
-            Self.logger.debug("Routing to Claude (\(modelID)) for \(self.activeFeatureArea.rawValue)")
-            return try await work(anthropicClient)
-
-        case .appleOnDevice:
-            return try await callAppleIntelligence(work)
-
-        case .applePrivateCloud:
-            return try await callApplePrivateCloud(work)
-
-        case .localFirstAuto:
-            return try await localFirstCascade(work)
-        }
-    }
-
     /// Tries Apple's models in order: on-device, then Private Cloud Compute.
-    /// Claude is never a hidden fallback; it is used only when explicitly selected.
-    private func localFirstCascade<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
+    private func route<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
         #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
         var failures: [String] = []
 
         // 1. Apple Intelligence on-device (fastest, fully private, free)
         if localClient.isAvailable {
             do {
-                Self.logger.debug("Apple-first: trying on-device for \(self.activeFeatureArea.rawValue)")
+                Self.logger.debug("Apple-first: trying on-device")
                 return try await work(localClient)
             } catch {
                 Self.logger.info("On-device failed (\(error.localizedDescription)), trying next provider")
@@ -233,7 +183,7 @@ final class AIClientRouter: MCPClientProtocol {
 
         guard Self.automaticPrivateCloudAllowed else {
             let localReason = failures.filter { !$0.isEmpty }.joined(separator: " ")
-            let privacyReason = "Automatic Private Cloud use is off in Settings. Choose Apple Private Cloud explicitly or allow it for automatic mode."
+            let privacyReason = "Private Cloud Compute is off in Settings → AI."
             throw LocalModelError.unavailable(
                 localReason.isEmpty ? privacyReason : "\(localReason) \(privacyReason)"
             )
@@ -242,7 +192,7 @@ final class AIClientRouter: MCPClientProtocol {
         // 2. Private Cloud Compute (larger context, still private, no API key)
         if privateCloudClient.isAvailable {
             do {
-                Self.logger.debug("Apple-first: trying Private Cloud Compute for \(self.activeFeatureArea.rawValue)")
+                Self.logger.debug("Apple-first: trying Private Cloud Compute")
                 return try await work(privateCloudClient)
             } catch {
                 Self.logger.info("Private Cloud Compute failed (\(error.localizedDescription))")
@@ -264,36 +214,5 @@ final class AIClientRouter: MCPClientProtocol {
     /// Automatic cloud movement is an explicit school-level choice and defaults off.
     static var automaticPrivateCloudAllowed: Bool {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.aiAllowAutomaticPrivateCloud)
-    }
-
-    // MARK: - Provider Helpers
-
-    private func callAppleIntelligence<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        Self.logger.debug("Routing to Apple Intelligence for \(self.activeFeatureArea.rawValue)")
-        return try await work(localClient)
-        #else
-        throw LocalModelError.unavailable("Apple Intelligence is not available in this build.")
-        #endif
-    }
-
-    private func callApplePrivateCloud<T>(_ work: (MCPClientProtocol) async throws -> T) async throws -> T {
-        #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-        Self.logger.debug("Routing to Private Cloud Compute for \(self.activeFeatureArea.rawValue)")
-        return try await work(privateCloudClient)
-        #else
-        throw LocalModelError.unavailable("Private Cloud Compute is not available in this build.")
-        #endif
-    }
-
-}
-
-// MARK: - Protocol Extension for Feature Configuration
-
-extension MCPClientProtocol {
-    /// Sets the active feature area on the router if the client is a router.
-    /// Safe no-op for non-router clients (e.g., MockMCPClient in tests).
-    func configureForFeature(_ area: AIFeatureArea) {
-        (self as? AIClientRouter)?.activeFeatureArea = area
     }
 }

@@ -8,8 +8,6 @@ struct ChatMessage: Identifiable, Codable {
     let role: ChatRole
     var content: String
     let timestamp: Date
-    /// The rawValue of the AIModelOption that generated this response (assistant messages only).
-    var modelID: String?
     /// Whether this message is an escalation prompt (special UI card, not a regular bubble).
     var isEscalationPrompt: Bool
     /// Classroom records actually returned by notebook tools for this answer.
@@ -18,7 +16,6 @@ struct ChatMessage: Identifiable, Codable {
     init(
         id: UUID = UUID(), role: ChatRole,
         content: String, timestamp: Date = Date(),
-        modelID: String? = nil,
         isEscalationPrompt: Bool = false,
         sources: [EvidenceReference] = []
     ) {
@@ -26,13 +23,12 @@ struct ChatMessage: Identifiable, Codable {
         self.role = role
         self.content = content
         self.timestamp = timestamp
-        self.modelID = modelID
         self.isEscalationPrompt = isEscalationPrompt
         self.sources = sources
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, role, content, timestamp, modelID, isEscalationPrompt, sources
+        case id, role, content, timestamp, isEscalationPrompt, sources
     }
 
     init(from decoder: Decoder) throws {
@@ -41,7 +37,6 @@ struct ChatMessage: Identifiable, Codable {
         role = try container.decode(ChatRole.self, forKey: .role)
         content = try container.decode(String.self, forKey: .content)
         timestamp = try container.decode(Date.self, forKey: .timestamp)
-        modelID = try container.decodeIfPresent(String.self, forKey: .modelID)
         isEscalationPrompt = try container.decodeIfPresent(Bool.self, forKey: .isEscalationPrompt) ?? false
         sources = try container.decodeIfPresent([EvidenceReference].self, forKey: .sources) ?? []
     }
@@ -52,7 +47,6 @@ struct ChatMessage: Identifiable, Codable {
         try container.encode(role, forKey: .role)
         try container.encode(content, forKey: .content)
         try container.encode(timestamp, forKey: .timestamp)
-        try container.encodeIfPresent(modelID, forKey: .modelID)
         try container.encode(isEscalationPrompt, forKey: .isEscalationPrompt)
         try container.encode(sources, forKey: .sources)
     }

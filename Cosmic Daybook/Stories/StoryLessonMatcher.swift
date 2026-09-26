@@ -9,9 +9,9 @@
 //      each lesson (name + area + sequence + purpose + writeUp) using Apple's
 //      `NLEmbedding.wordEmbedding(for: .english)` — averaged word vectors.
 //   2. Rank lessons by cosine similarity, keep the top 25 candidates.
-//   3. If an Anthropic API key is configured, ask Claude to rerank the candidates
-//      down to 3-5 with a one-sentence pedagogical explanation per match.
-//      Otherwise return the top 5 from step 2 with a generic reason.
+//   3. Ask Apple Intelligence (through `client`) to rerank the candidates down to
+//      3-5 with a one-sentence pedagogical explanation per match. When it is
+//      unavailable or fails, return the top 5 from step 2 with a generic reason.
 //
 //  Falls back to Jaccard keyword overlap when word embeddings can't be loaded.
 //
@@ -38,7 +38,7 @@ enum StoryLessonMatcher {
     enum MatcherError: LocalizedError {
         case noLessons
         case noStoryContent
-        case claudeFailed(String)
+        case rerankFailed(String)
 
         var errorDescription: String? {
             switch self {
@@ -46,7 +46,7 @@ enum StoryLessonMatcher {
                 return "No lessons in your library to match against."
             case .noStoryContent:
                 return "This story has too little metadata yet — add themes or a summary first."
-            case .claudeFailed(let message):
+            case .rerankFailed(let message):
                 return message
             }
         }
@@ -55,7 +55,8 @@ enum StoryLessonMatcher {
     /// Top-level entry point. Returns 0–5 matches.
     static func findConnections(
         for story: CDStory,
-        in context: NSManagedObjectContext
+        in context: NSManagedObjectContext,
+        client: MCPClientProtocol
     ) async throws -> [LessonMatch] {
         let lessons = DataQueryService(context: context).fetchAllLessons(
             sortBy: [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
@@ -70,17 +71,14 @@ enum StoryLessonMatcher {
         let candidates = preFilterCandidates(storyText: storyText, lessons: lessons, max: 25)
         guard !candidates.isEmpty else { return [] }
 
-        if AnthropicAPIClient.hasAPIKey() {
-            do {
-                return try await rerankWithClaude(story: story, candidates: candidates)
-            } catch {
-                logger.warning(
-                    "Claude rerank failed, falling back to embedding ranking. \(error.localizedDescription, privacy: .public)"
-                )
-                return fallbackMatches(from: candidates)
-            }
+        do {
+            return try await rerank(story: story, candidates: candidates, client: client)
+        } catch {
+            logger.warning(
+                "Rerank failed, falling back to embedding ranking. \(error.localizedDescription, privacy: .public)"
+            )
+            return fallbackMatches(from: candidates)
         }
-        return fallbackMatches(from: candidates)
     }
 
     // MARK: - Pre-filter
@@ -220,20 +218,21 @@ enum StoryLessonMatcher {
         return tokens
     }
 
-    // MARK: - Claude rerank
+    // MARK: - Rerank
 
-    private struct ClaudeMatch: Decodable {
+    private struct RerankMatch: Decodable {
         let lessonID: String
         let reason: String
     }
 
-    private struct ClaudeResponse: Decodable {
-        let matches: [ClaudeMatch]
+    private struct RerankResponse: Decodable {
+        let matches: [RerankMatch]
     }
 
-    private static func rerankWithClaude(
+    private static func rerank(
         story: CDStory,
-        candidates: [Candidate]
+        candidates: [Candidate],
+        client: MCPClientProtocol
     ) async throws -> [LessonMatch] {
         let candidateLines: String = candidates.compactMap { candidate -> String? in
             guard let id = candidate.lesson.id else { return nil }
@@ -272,7 +271,6 @@ enum StoryLessonMatcher {
         let system = "You are a Montessori curriculum expert helping a guide find "
             + "connections between children's books and the lessons they teach."
 
-        let client = AnthropicAPIClient()
         let raw: String
         do {
             raw = try await client.generateStructuredJSON(
@@ -280,19 +278,19 @@ enum StoryLessonMatcher {
                 systemMessage: system,
                 temperature: 0.3,
                 maxTokens: 1024,
-                model: "claude-haiku-4-5",
+                model: nil,
                 timeout: 30
             )
         } catch {
-            throw MatcherError.claudeFailed(error.localizedDescription)
+            throw MatcherError.rerankFailed(error.localizedDescription)
         }
 
-        let response: ClaudeResponse
+        let response: RerankResponse
         do {
-            response = try JSONDecoder().decode(ClaudeResponse.self, from: Data(raw.utf8))
+            response = try JSONDecoder().decode(RerankResponse.self, from: Data(raw.utf8))
         } catch {
-            logger.warning("Failed to parse Claude rerank response: \(raw, privacy: .public)")
-            throw MatcherError.claudeFailed("Couldn't parse Claude's response.")
+            logger.warning("Failed to parse rerank response: \(raw, privacy: .public)")
+            throw MatcherError.rerankFailed("Couldn't parse the model's response.")
         }
 
         let lessonsByID = Dictionary(uniqueKeysWithValues: candidates.compactMap { candidate -> (String, Candidate)? in

@@ -22,7 +22,7 @@ final class LessonPlanningService {
     init(context: NSManagedObjectContext, mcpClient: MCPClientProtocol) {
         self.managedObjectContext = context
         self.mcpClient = mcpClient
-        self.config = AIConfigurationResolver(for: .lessonPlanning)
+        self.config = AIConfigurationResolver()
     }
 
     // MARK: - Public API
@@ -35,7 +35,6 @@ final class LessonPlanningService {
         areaFilter: String? = nil,
         preferences: String? = nil
     ) async throws -> (recommendations: [LessonRecommendation], session: PlanningSession) {
-        mcpClient.configureForFeature(.lessonPlanning)
         guard let studentID = student.id else {
             throw PlanningError.studentNotFound
         }
@@ -62,7 +61,7 @@ final class LessonPlanningService {
             systemMessage: config.systemPrompt,
             temperature: config.temperature,
             maxTokens: 4096,
-            model: config.model,
+            model: nil,
             timeout: config.timeout
         )
 
@@ -88,7 +87,7 @@ final class LessonPlanningService {
                 systemMessage: config.systemPrompt,
                 temperature: config.temperature,
                 maxTokens: 4096,
-                model: config.model,
+                model: nil,
                 timeout: config.timeout
             )
 
@@ -122,7 +121,6 @@ final class LessonPlanningService {
         weekStartDate: Date? = nil,
         preferences: String? = nil
     ) async throws -> (weekPlan: WeekPlan?, session: PlanningSession) {
-        mcpClient.configureForFeature(.lessonPlanning)
         var session = PlanningSession(mode: .wholeClass, depth: .deep)
         let weekStart = weekStartDate ?? nextWeekStart()
 
@@ -147,7 +145,7 @@ final class LessonPlanningService {
             systemMessage: config.systemPrompt,
             temperature: config.temperature,
             maxTokens: 6144,
-            model: config.model,
+            model: nil,
             timeout: config.timeout
         )
 
@@ -172,7 +170,7 @@ final class LessonPlanningService {
             systemMessage: config.systemPrompt,
             temperature: config.temperature,
             maxTokens: 6144,
-            model: config.model,
+            model: nil,
             timeout: config.timeout
         )
 
@@ -196,7 +194,7 @@ final class LessonPlanningService {
             systemMessage: config.systemPrompt,
             temperature: config.temperature,
             maxTokens: 6144,
-            model: config.model,
+            model: nil,
             timeout: config.timeout
         )
 
@@ -234,7 +232,6 @@ final class LessonPlanningService {
         _ question: String,
         inSession session: inout PlanningSession
     ) async throws -> [LessonRecommendation] {
-        mcpClient.configureForFeature(.lessonPlanning)
         // Add teacher message
         session.messages.append(PlanningMessage(role: .teacher, content: question))
 
@@ -256,7 +253,7 @@ final class LessonPlanningService {
             systemMessage: config.systemPrompt,
             temperature: min(config.temperature + 0.1, 1.0),
             maxTokens: 4096,
-            model: config.model,
+            model: nil,
             timeout: config.timeout
         )
 

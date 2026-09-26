@@ -19,17 +19,16 @@ Apple Private Cloud Compute in Settings. If the on-device model cannot complete
 a request while that permission is off, the app stops and explains why; it does
 not silently move student records to any cloud model.
 
-There are two deliberate ways to use Apple's Private Cloud Compute (PCC):
-
-1. A school turns on **Allow Automatic Apple Private Cloud**, permitting
-   automatic mode to fall back from the on-device model to PCC.
-2. A guide explicitly chooses **Apple Private Cloud** for a feature area.
+The app's own AI is Apple Intelligence only (since 2026-09-26). The one way
+work reaches Apple's Private Cloud Compute (PCC) is a school turning on
+**Allow Apple Private Cloud**, which lets a request the on-device model can't
+finish fall back to PCC.
 
 PCC is Apple's larger server model for jobs such as long report-card drafts. It
 does not require an API key, but it needs a network connection and an
-Apple-granted entitlement (see §8). Claude (Anthropic's cloud model) is also an
-explicit model choice only and requires the guide's own API key. It is never a
-hidden fallback.
+Apple-granted entitlement (see §8). The app has no Claude or OpenAI client and
+stores no API keys; Claude works with the notebook only from outside, over the
+MCP server (see `MCP_SERVER.md`).
 
 Some classroom workflows have a stricter boundary regardless of the general
 setting: raw classroom capture and observation reflection run only on the
@@ -53,12 +52,10 @@ implementations:
 |----------|------|------|-------|
 | Apple On-Device | `LocalModelClient` | `Services/AI/LocalModelClient.swift` | Wraps `SystemLanguageModel.default`. Also hosts the tool-enabled chat path. |
 | Apple Private Cloud | `PrivateCloudModelClient` | `Services/AI/PrivateCloudModelClient.swift` | Wraps `PrivateCloudComputeLanguageModel`. Adds `generateDraft(reasoning:)`. |
-| Claude | `AnthropicAPIClient` | `Services/AnthropicAPIClient.swift` | REST client; API key in Keychain. Real streaming + multi-turn. |
 | Router | `AIClientRouter` | `Services/AI/AIClientRouter.swift` | Implements `MCPClientProtocol`; dispatches to the above. |
 
-`AIClientRouter` is the only client most code holds. It reads the guide's
-per-feature model choice and routes accordingly. Automatic ("Apple Intelligence")
-mode begins on-device:
+`AIClientRouter` is the only client most code holds. Every request begins
+on-device:
 
 ```
 on-device
@@ -71,10 +68,9 @@ on-device
 When `AI.allowAutomaticPrivateCloud` is off (the default), an on-device failure
 returns an availability/privacy explanation instead of falling through to PCC.
 When it is on, an unavailable or unsuccessful on-device request may fall through
-to PCC. Selecting `.applePrivateCloud` directly is an explicit request and does
-not depend on the automatic-PCC toggle. If the selected Apple provider fails,
-the router returns an Apple Intelligence availability error. It never changes
-the request to Claude on its own.
+to PCC. If neither can serve it, the router returns an Apple Intelligence
+availability error. `AIClientRouter.isAvailable` answers whether a request could
+be served now; screens use it to enable or explain their AI buttons.
 
 > **History:** A local **Ollama** provider existed before the WWDC26 work and
 > was removed — Apple's on-device + PCC models now fill that "local, private"
@@ -82,33 +78,20 @@ the request to Claude on its own.
 
 ---
 
-## 3. Per-feature model selection
+## 3. The one setting
 
-AI is configured **per feature area**, not globally, so the guide can keep chat
-on-device but send lesson planning to Claude. Defined in
-`Settings/AIModelSettingsView.swift`.
+There is no per-feature model choice. `Allow Apple Private Cloud`
+(`Settings/PrivateCloudSettingsView.swift`) is a school-level privacy
+permission, stored as `AI.allowAutomaticPrivateCloud` and off by default.
+Changing it should be an informed school choice because it changes where
+student records are processed.
 
-`AIFeatureArea` (the surfaces) and their defaults:
-
-| Area | Purpose | Default model |
-|------|---------|---------------|
-| `.chat` | Conversational "Ask AI" assistant | Apple Intelligence (Auto) |
-| `.lessonPlanning` | Curriculum planning recommendations | Apple Intelligence (Auto) |
-| `.backgroundTasks` | Note suggestions, drafting, analysis | Apple Intelligence (Auto) |
-
-`AIModelOption` (the choices): `.localFirstAuto` (cascade), `.appleOnDevice`,
-`.applePrivateCloud`, `.claudeSonnet`, `.claudeHaiku`. Selections persist in
-`UserDefaults` and are read by `AIFeatureArea.resolvedModel()`. Claude options
-report `requiresAPIKey == true`; the Apple options report `isPrivate == true`.
-
-`Allow Automatic Apple Private Cloud` is a separate, school-level privacy
-permission. It is stored as `AI.allowAutomaticPrivateCloud`, defaults to off,
-and controls only `.localFirstAuto`. It does not prevent a guide from explicitly
-selecting Apple Private Cloud. Changing this permission should be an informed
-school choice because it changes where student records are processed.
-
-A service tells the router which area it's serving via
-`mcpClient.configureForFeature(.chat)` before each call.
+> **History:** until 2026-09-26 each feature area (chat, lesson planning,
+> background tasks) had its own picker offering Apple On-Device, Apple Private
+> Cloud, Apple Auto, Claude Sonnet and Claude Haiku, with the guide's Anthropic
+> key; story covers could use OpenAI `gpt-image-1`. All of it was removed.
+> Old `AI.chatModel` / `AI.lessonPlanningModel` / `AI.backgroundTasksModel`
+> values and Keychain keys may linger on devices; nothing reads them.
 
 ---
 
@@ -129,10 +112,12 @@ equivalent) at runtime before calling the model.
 | Command bar parsing and classroom capture proposal | `Services/CommandBar/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` / `GeneratedClassroomCapture` | No | — |
 | Ask-your-notebook chat | `Chat/Services/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
 | Lesson planning | `Planning/AIPlanning/LessonPlanning/*` | Structured | — | — |
+| Story ↔ lesson connections (rerank + one-line reasons) | `Stories/StoryLessonMatcher.swift` | JSON via `generateStructuredJSON` | No | — |
+| Parsha ↔ album lesson suggestions | `Parsha/Services/ParshaSuggestionService.swift` | JSON via `generateStructuredJSON` | No | — |
+| Story cover | `Stories/StoryCoverGenerator.swift` | Image Playground image | — | — |
 
 The command bar first uses deterministic keyword/fuzzy parsing, then asks the
-on-device Apple Intelligence model when the result is uncertain. It never makes
-a hidden Claude request.
+on-device Apple Intelligence model when the result is uncertain.
 
 **Raw classroom capture is on-device and review-first.** The structured capture
 parser receives the guide's account and local candidate names, then returns an
@@ -140,7 +125,7 @@ editable proposal. It has no Core Data access and cannot save by itself. It must
 ground each observation and next step in words the guide actually supplied;
 unsupported interpretations are discarded. The guide reviews the proposed
 lesson, children, observations, and explicitly stated follow-ups before any
-record is created. The parser never falls back to PCC or Claude.
+record is created. The parser never falls back to PCC.
 
 **Observation reflection is on-device and source-linked.** It presents factual
 observations, repeated patterns to review, and questions for future observation.
@@ -214,13 +199,11 @@ authority to make a guide-owned pedagogical decision.
 - **On-device is the default boundary.** Automatic AI stays on the device unless
   the school explicitly enables automatic PCC. Raw classroom capture and
   observation reflection stay on-device in all cases.
-- **PCC is permitted only by an explicit choice.** That can be the school-level
-  automatic-PCC permission or the guide directly selecting Apple Private Cloud
-  for a feature. PCC is stateless (no prompts retained) and independently
+- **PCC is permitted only by an explicit choice:** the school-level
+  Allow Apple Private Cloud permission. PCC is stateless (no prompts retained) and independently
   verifiable; Apple does not use the input to train foundation models.
-- **Claude sends data to Anthropic** and requires the user's own API key (stored
-  in the Keychain, never in the binary). It is opt-in per feature and is never a
-  fallback from an Apple provider.
+- **No third-party model inside the app.** Claude sees notebook data only
+  through the MCP server, which the guide turns on in Settings → AI.
 - `AppleIntelligenceSheet` has an **anonymize** toggle that strips student names
   from the context before drafting (`SmartNoteFormatter(anonymize:)`).
 - Test/sample students are filtered out of AI context (`TestStudentsFilter`).
@@ -300,20 +283,19 @@ on-device. Activation steps: `PrivateCloudCompute.md`.
 ```
 Services/
   MCPClient.swift                     # MCPClientProtocol + shared types
-  AnthropicAPIClient.swift            # Claude provider
   AI/
     AIClientRouter.swift              # routing + cascade
     LocalModelClient.swift            # on-device provider + tool chat
     PrivateCloudModelClient.swift     # Private Cloud Compute provider
     TokenBudget.swift                 # token-based input budgeting
     NotebookTools.swift               # on-device search tools for chat
-  CommandBar/                         # command parsing (local/AI/Claude tiers)
+  CommandBar/                         # command parsing (local and on-device tiers)
 Chat/Services/ChatService.swift       # chat orchestration + escalation
 Planning/AIPlanning/LessonPlanning/   # lesson planning service and state
 Todos/Services/                       # todo parsing and student suggestions
 AppCore/AIPrompts.swift               # all system prompts/personas
 Settings/
-  AIModelSettingsView.swift           # AIFeatureArea, AIModelOption, picker
+  PrivateCloudSettingsView.swift      # the Allow Apple Private Cloud toggle
   SettingsView.swift                  # Apple Intelligence status rows
 Components/
   AppleIntelligenceSheet.swift        # draft generation UI

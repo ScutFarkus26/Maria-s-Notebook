@@ -68,7 +68,7 @@ struct ParshaSuggestionsDetailView: View {
                         Label(cached == nil ? "Generate" : "Refresh", systemImage: "sparkles")
                     }
                 }
-                .disabled(isLoading || !AnthropicAPIClient.hasAPIKey())
+                .disabled(isLoading || !AIClientRouter.isAvailable)
             }
         }
         .onAppear { cached = service.cachedSuggestions(forParshaKey: parshaKey) }
@@ -89,10 +89,10 @@ struct ParshaSuggestionsDetailView: View {
                 .padding(.vertical, AppTheme.Spacing.xxsmall)
             }
         }
-        if !AnthropicAPIClient.hasAPIKey() {
+        if !AIClientRouter.isAvailable {
             Section {
                 Label(
-                    "Add an Anthropic API key in Settings → AI to enable suggestions.",
+                    "Apple Intelligence isn't available on this device, so suggestions are off.",
                     systemImage: "exclamationmark.triangle.fill"
                 )
                     .font(AppTheme.ScaledFont.caption)

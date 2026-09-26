@@ -147,19 +147,12 @@ enum AppErrorMessages {
             return userMessage(for: error, context: "connecting to the AI service")
         }
 
-        // API-specific errors (Anthropic, etc.)
         let desc = nsError.localizedDescription.lowercased()
-        if desc.contains("api key") || desc.contains("unauthorized") || desc.contains("authentication") {
-            return "Your API key may be invalid or expired. Check it in Settings \u{2192} AI Features."
-        }
         if desc.contains("rate limit") || desc.contains("429") {
             return "Too many requests. Wait a moment and try again."
         }
-        if desc.contains("model") && desc.contains("not found") {
-            return "The selected AI model isn't available. Check your AI settings."
-        }
 
-        return "The AI feature encountered a problem. Check your connection and API settings, then try again."
+        return "The AI feature encountered a problem. Try again in a moment."
     }
 
     #endif

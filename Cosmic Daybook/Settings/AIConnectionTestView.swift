@@ -61,7 +61,6 @@ struct AIConnectionTestView: View {
         testResult = nil
         do {
             let router = dependencies.aiRouter
-            router.activeFeatureArea = .chat
             let response = try await router.generateText(
                 prompt: "Reply with exactly: 'Connection successful'",
                 systemMessage: "You are a test assistant. Reply concisely with the requested text.",

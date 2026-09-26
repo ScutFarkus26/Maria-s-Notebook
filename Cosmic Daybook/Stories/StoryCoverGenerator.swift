@@ -20,8 +20,7 @@ enum StoryCoverGeneratorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            return "No cover-generation provider is available. Add an OpenAI API key in "
-                + "Settings, or enable Apple Intelligence."
+            return "Cover generation needs Apple Intelligence with Image Playground."
         case .noImageReturned:
             return "The image provider didn't return an image."
         case .generationFailed(let message):
@@ -30,37 +29,19 @@ enum StoryCoverGeneratorError: LocalizedError {
     }
 }
 
-/// Generates an illustrated cover for a story.
-///
-/// Pipeline (in order of preference):
-/// 1. **OpenAI `gpt-image-1`** — used when an OpenAI API key is configured. Highest quality.
-///    The prompt is refined by Claude when an Anthropic key is also configured.
-/// 2. **Apple Image Playground** — used as a fallback when no OpenAI key exists.
-///    Constrained to abstract / no-people prompts because Image Playground's text-only
-///    path requires a source face for any prompt that implies specific characters.
+/// Generates an illustrated cover for a story with Apple Image Playground,
+/// constrained to abstract / no-people prompts because Image Playground's
+/// text-only path requires a source face for any prompt that implies specific
+/// characters.
 enum StoryCoverGenerator {
     private static let logger = Logger.stories
 
-    enum Provider: String {
-        case openAI
-        case imagePlayground
-        case none
-    }
-
-    /// Whether ANY provider is currently configured to generate a cover.
+    /// Whether this build can generate a cover at all.
     static var isAvailable: Bool {
-        provider != .none
-    }
-
-    /// The provider that will actually be used given current keys / system state.
-    static var provider: Provider {
-        if OpenAIAPIClient.hasAPIKey() {
-            return .openAI
-        }
         #if canImport(ImagePlayground)
-        return .imagePlayground
+        true
         #else
-        return .none
+        false
         #endif
     }
 
@@ -68,94 +49,12 @@ enum StoryCoverGenerator {
 
     static func generateCover(
         title: String,
-        themes: [String],
-        summary: String
+        themes: [String]
     ) async throws -> Data {
-        switch provider {
-        case .openAI:
-            return try await generateWithOpenAI(title: title, themes: themes, summary: summary)
-        case .imagePlayground:
-            return try await generateWithImagePlayground(title: title, themes: themes)
-        case .none:
-            throw StoryCoverGeneratorError.unavailable
-        }
+        try await generateWithImagePlayground(title: title, themes: themes)
     }
 
-    // MARK: - OpenAI path
-
-    private static func generateWithOpenAI(
-        title: String,
-        themes: [String],
-        summary: String
-    ) async throws -> Data {
-        // Build the visual prompt. Claude refines it when available; otherwise we use
-        // the same theme/title/setting-hint heuristic as the Image Playground path.
-        let prompt: String
-        if AnthropicAPIClient.hasAPIKey() {
-            do {
-                prompt = try await buildPromptWithClaude(
-                    title: title, themes: themes, summary: summary
-                )
-                logger.info("Using Claude-refined cover prompt: \(prompt, privacy: .public)")
-            } catch {
-                logger.warning(
-                    "Claude prompt refinement failed; using heuristic. \(error.localizedDescription, privacy: .public)"
-                )
-                prompt = buildHeuristicPrompt(title: title, themes: themes)
-            }
-        } else {
-            prompt = buildHeuristicPrompt(title: title, themes: themes)
-        }
-
-        let client = OpenAIAPIClient()
-        do {
-            return try await client.generateImage(prompt: prompt, size: .portrait, quality: .low)
-        } catch let error as OpenAIAPIError {
-            throw StoryCoverGeneratorError.generationFailed(error.errorDescription ?? "OpenAI failed")
-        } catch {
-            throw StoryCoverGeneratorError.generationFailed(error.localizedDescription)
-        }
-    }
-
-    /// Asks Claude (via the existing Anthropic client) to write a single-paragraph,
-    /// vivid prompt suitable for `gpt-image-1`. Title and summary are allowed —
-    /// gpt-image-1 has fewer person restrictions than Image Playground.
-    private static func buildPromptWithClaude(
-        title: String,
-        themes: [String],
-        summary: String
-    ) async throws -> String {
-        let themeList = themes.prefix(7).joined(separator: ", ")
-        let userMessage = """
-        Title: \(title)
-        Themes: \(themeList)
-        Summary: \(summary.trimmingCharacters(in: .whitespacesAndNewlines))
-        """
-
-        let system = """
-        You are an art director writing a single image-generation prompt for a children's \
-        book cover. Output ONE concise paragraph (60-100 words) describing a vivid, \
-        evocative cover illustration. Focus on setting, mood, palette, composition, \
-        and lighting. Style: warm, painterly, watercolor or gouache, suitable for ages 4-10. \
-        Do NOT include the title text in the image; do NOT use quotation marks; do NOT \
-        preface with "Here is" or similar. Output the prompt only.
-        """
-
-        let client = AnthropicAPIClient()
-        let response = try await client.generateText(
-            prompt: userMessage,
-            systemMessage: system,
-            temperature: 0.6,
-            maxTokens: 400,
-            model: "claude-haiku-4-5",
-            timeout: 30
-        )
-        let cleaned = response.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else { throw StoryCoverGeneratorError.generationFailed("Empty Claude response") }
-        return cleaned
-    }
-
-    // MARK: - Image Playground path (fallback)
+    // MARK: - Image Playground path
 
     private static func generateWithImagePlayground(
         title: String,
@@ -223,11 +122,10 @@ enum StoryCoverGenerator {
     }
     #endif
 
-    // MARK: - Prompt construction (heuristic, used for Image Playground & OpenAI fallback)
+    // MARK: - Prompt construction
 
     /// Themes whose words map to a known person-noun are stripped — used to satisfy
-    /// Image Playground's "no source face" guard. The OpenAI path also uses this to
-    /// keep prompts focused on scene/mood when Claude isn't available.
+    /// Image Playground's "no source face" guard.
     static func stripPersonThemes(_ themes: [String]) -> [String] {
         themes.compactMap { theme in
             let lowered = theme.lowercased()

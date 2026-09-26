@@ -3,7 +3,7 @@ import CoreData
 import OSLog
 
 /// Generates AI-powered narrative summaries for student progress reports.
-/// Uses the AnthropicAPIClient to produce structured narratives from student data.
+/// Shared types for the narrative sections of student progress reports.
 enum AIReportService {
     struct MasteryBreakdown {
         let presented: Int

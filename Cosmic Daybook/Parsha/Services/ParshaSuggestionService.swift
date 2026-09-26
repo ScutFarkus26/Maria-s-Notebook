@@ -97,7 +97,6 @@ final class ParshaSuggestionService {
         lessons and weekly parshas. Be precise and avoid stretched analogies.
         """
 
-        mcpClient.configureForFeature(.lessonPlanning)
         let response = try await mcpClient.generateStructuredJSON(
             prompt: prompt,
             systemMessage: systemMessage,

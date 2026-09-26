@@ -316,7 +316,7 @@ private struct ParshaContentList: View {
 
     @ViewBuilder
     private var generateSuggestionsRow: some View {
-        if AnthropicAPIClient.hasAPIKey() {
+        if AIClientRouter.isAvailable {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
                 Text("Let AI find lessons in your albums that connect to \(displayName).")
                     .font(AppTheme.ScaledFont.caption)
@@ -342,7 +342,7 @@ private struct ParshaContentList: View {
             .padding(.vertical, AppTheme.Spacing.xxsmall)
         } else {
             Label(
-                "Add an Anthropic API key in Settings → AI to enable suggestions.",
+                "Apple Intelligence isn't available on this device, so suggestions are off.",
                 systemImage: "exclamationmark.triangle.fill"
             )
                 .font(AppTheme.ScaledFont.caption)

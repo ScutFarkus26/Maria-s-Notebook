@@ -67,27 +67,19 @@ nonisolated enum UserDefaultsKeys {
     static let todoTagOrder = "Todo.tagOrder"
     static let todoHideCompleted = "Todo.hideCompleted"
 
-    // MARK: - AI Models (per-area)
-    static let aiModelChat = "AI.chatModel"
-    static let aiModelLessonPlanning = "AI.lessonPlanningModel"
-    static let aiModelBackgroundTasks = "AI.backgroundTasksModel"
-    /// Off by default: automatic mode must not move student records from the
+    // MARK: - AI
+    /// Off by default: the app's AI must not move student records from the
     /// device to Private Cloud Compute without an explicit school choice.
     static let aiAllowAutomaticPrivateCloud = "AI.allowAutomaticPrivateCloud"
     /// Off by default: exposing notebook data to MCP clients (Claude
     /// Desktop) is an explicit teacher choice. macOS only.
     static let aiMCPServerEnabled = "AI.mcpServerEnabled"
-    /// Legacy plaintext API keys. Read once on launch, copied into the
-    /// Keychain, then removed; never written again.
-    static let anthropicAPIKey = "anthropicAPIKey"
-    static let openAIAPIKey = "openAIAPIKey"
 
     // MARK: - Parent Reports
 
     static let parentReportsReminderEnabled = "ParentReports.reminderEnabled"
 
     // MARK: - CDLesson Planning
-    static let lessonPlanningModel = "LessonPlanning.model"
     static let lessonPlanningTimeout = "LessonPlanning.timeout"
     static let lessonPlanningSystemPrompt = "LessonPlanning.systemPrompt"
     static let lessonPlanningDefaultDepth = "LessonPlanning.defaultDepth"

@@ -203,7 +203,7 @@ struct SettingsView: View {
                 .frame(width: 8, height: 8)
         case .aiFeatures:
             Circle()
-                .fill(AnthropicAPIClient.hasAPIKey() ? AppColors.success : AppColors.warning)
+                .fill(AIClientRouter.isAvailable ? AppColors.success : AppColors.warning)
                 .frame(width: 8, height: 8)
         default:
             EmptyView()

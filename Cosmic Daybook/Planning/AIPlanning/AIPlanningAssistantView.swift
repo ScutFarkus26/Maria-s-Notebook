@@ -76,17 +76,6 @@ struct AIPlanningAssistantView: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: 220)
 
-            ModelBadgeView(model: vm.selectedModel, style: .compact)
-            
-            if !vm.estimatedCost.isEmpty {
-                Text(vm.estimatedCost)
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.secondary.opacity(UIConstants.OpacityConstants.light), in: Capsule())
-            }
-            
             Button("Done") { dismiss() }
                 .buttonStyle(.bordered)
         }

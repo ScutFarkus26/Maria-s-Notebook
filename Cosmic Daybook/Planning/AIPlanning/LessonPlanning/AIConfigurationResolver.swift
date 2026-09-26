@@ -1,19 +1,17 @@
 // AIConfigurationResolver.swift
-// Reads and encapsulates resolved AI settings from UserDefaults for a given feature area.
+// Reads and encapsulates resolved lesson-planning AI settings from UserDefaults.
 
 import Foundation
 
-/// Encapsulates the resolved AI model, timeout, temperature, and system prompt
-/// for a single feature area, reading from UserDefaults at initialisation time.
+/// Encapsulates the resolved timeout, temperature, and system prompt for lesson
+/// planning, reading from UserDefaults at initialisation time.
 struct AIConfigurationResolver {
-    let model: String?
     let timeout: TimeInterval
     let temperature: Double
     let systemPrompt: String
 
-    init(for feature: AIFeatureArea) {
+    init() {
         let defaults = UserDefaults.standard
-        self.model = feature.resolvedClaudeModelID()
         let storedTimeout = defaults.integer(forKey: UserDefaultsKeys.lessonPlanningTimeout)
         self.timeout = storedTimeout > 0 ? TimeInterval(storedTimeout) : 120
         if defaults.object(forKey: UserDefaultsKeys.lessonPlanningTemperature) != nil {

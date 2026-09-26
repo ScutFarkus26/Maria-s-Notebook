@@ -178,7 +178,7 @@ struct ChatMessageBubble: View {
         AppTheme.ShadowStyle(color: .purple.opacity(UIConstants.OpacityConstants.veryFaint), radius: 8, x: 0, y: 3)
     }
 
-    // MARK: - Footer (timestamp + model badge)
+    // MARK: - Footer (timestamp)
 
     @ViewBuilder
     private var messageFooter: some View {
@@ -186,12 +186,6 @@ struct ChatMessageBubble: View {
             Text(message.timestamp, style: .time)
                 .font(AppTheme.ScaledFont.captionSmall)
                 .foregroundStyle(.secondary)
-
-            // Model badge for assistant messages
-            if !isUser, let modelID = message.modelID,
-               let model = AIModelOption(rawValue: modelID) {
-                ModelBadgeView(model: model, style: .compact)
-            }
         }
     }
 }

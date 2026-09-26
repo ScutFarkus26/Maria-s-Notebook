@@ -347,8 +347,8 @@ extension SettingsView {
                     .frame(maxWidth: .infinity)
             }
 
-            SettingsGroup(title: "AI Models", systemImage: "cpu") {
-                AIModelSettingsView()
+            SettingsGroup(title: "Private Cloud Compute", systemImage: "lock.icloud") {
+                PrivateCloudSettingsView()
                     .frame(maxWidth: .infinity)
             }
 
@@ -367,84 +367,6 @@ extension SettingsView {
                 siriShortcutsTips
             }
 
-            SettingsGroup(title: "Claude API Key", systemImage: "key.fill") {
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Anthropic API")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.primary)
-
-                            if AnthropicAPIClient.hasAPIKey() {
-                                Label("API key configured", systemImage: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(AppColors.success)
-                            } else {
-                                Label("API key required for Claude models", systemImage: "exclamationmark.triangle")
-                                    .font(.caption)
-                                    .foregroundStyle(AppColors.warning)
-                            }
-                        }
-                        Spacer()
-                    }
-
-                    Divider()
-
-                    NavigationLink {
-                        APIKeySettingsView()
-                            .settingsBreadcrumb("Settings › AI Features")
-                    } label: {
-                        HStack {
-                            Text("Configure API Key")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            SettingsGroup(title: "OpenAI API Key", systemImage: "key.viewfinder") {
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("OpenAI API")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.primary)
-
-                            if OpenAIAPIClient.hasAPIKey() {
-                                Label("API key configured", systemImage: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(AppColors.success)
-                            } else {
-                                Label("Optional — enables Story cover generation", systemImage: "info.circle")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                    }
-
-                    Divider()
-
-                    NavigationLink {
-                        OpenAIAPIKeySettingsView()
-                            .settingsBreadcrumb("Settings › AI Features")
-                    } label: {
-                        HStack {
-                            Text("Configure API Key")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
             SettingsGroup(title: "Lesson Planning Assistant", systemImage: "list.clipboard", collapsible: true) {
                 LessonPlanningSettingsView()
                     .frame(maxWidth: .infinity)
@@ -452,11 +374,6 @@ extension SettingsView {
 
             SettingsGroup(title: "Test AI Connection", systemImage: "bolt.fill") {
                 AIConnectionTestView()
-                    .frame(maxWidth: .infinity)
-            }
-
-            SettingsGroup(title: "API Usage", systemImage: "chart.bar.fill") {
-                APIUsageStatsView()
                     .frame(maxWidth: .infinity)
             }
         }

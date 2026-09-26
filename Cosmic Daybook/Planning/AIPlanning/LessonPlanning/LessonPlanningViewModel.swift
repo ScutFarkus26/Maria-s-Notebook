@@ -27,35 +27,6 @@ final class LessonPlanningViewModel {
     
     // MARK: - Computed
 
-    /// The model currently selected for lesson planning. This is shown in the
-    /// planning window so the guide can see whether the work stays with Apple
-    /// Intelligence or uses a configured Claude model.
-    var selectedModel: AIModelOption {
-        AIFeatureArea.lessonPlanning.resolvedModel()
-    }
-
-    var estimatedCost: String {
-        guard selectedModel.requiresAPIKey else { return "" }
-        let tokens = currentSession?.tokensUsed ?? 0
-        if tokens == 0 { return "" }
-        // This session stores a local input-token estimate. Estimate output at
-        // half that size and use the selected Claude model's configured rates.
-        let ratesPerMillion: (input: Double, output: Double)
-        switch selectedModel {
-        case .claudeSonnet:
-            ratesPerMillion = (3, 15)
-        case .claudeHaiku:
-            ratesPerMillion = (0.25, 1.25)
-        case .localFirstAuto, .appleOnDevice, .applePrivateCloud:
-            return ""
-        }
-        let inputTokens = Double(tokens)
-        let outputTokens = inputTokens * 0.5
-        let cost = inputTokens * ratesPerMillion.input / 1_000_000
-            + outputTokens * ratesPerMillion.output / 1_000_000
-        return String(format: "Est. $%.3f", cost)
-    }
-    
     var modeTitle: String {
         switch mode {
         case .singleStudent: return "Student Plan"

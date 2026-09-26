@@ -63,7 +63,6 @@ final class MeetingInsightsService {
         lessonAssignments: [CDLessonAssignment],
         timeframeDays: Int
     ) async throws -> MeetingInsightsResult {
-        mcpClient.configureForFeature(.backgroundTasks)
 
         let cutoff = AppCalendar.shared.date(byAdding: .day, value: -timeframeDays, to: Date()) ?? Date()
         let relevantMeetings = meetings.filter { ($0.date ?? .distantPast) >= cutoff }

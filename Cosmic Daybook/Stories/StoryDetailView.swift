@@ -164,30 +164,12 @@ struct StoryDetailView: View {
                     }
                     Spacer(minLength: 0)
                 }
-                providerHint
                 if let message = coverGenerationError {
                     Text(message)
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var providerHint: some View {
-        switch StoryCoverGenerator.provider {
-        case .openAI:
-            let claudeHint = AnthropicAPIClient.hasAPIKey() ? " · Claude refines the prompt" : ""
-            Text("Using OpenAI gpt-image-1\(claudeHint)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        case .imagePlayground:
-            Text("Using Apple Image Playground · add an OpenAI key in Settings for higher-quality covers")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        case .none:
-            EmptyView()
         }
     }
 
@@ -314,12 +296,6 @@ struct StoryDetailView: View {
             if let analyzedAt = story.relatedLessonsAnalyzedAt,
                !story.relatedLessonUUIDs.isEmpty {
                 Text("Analyzed \(analyzedAt.formatted(.relative(presentation: .named)))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-
-            if !AnthropicAPIClient.hasAPIKey() {
-                Text("Add a Claude API key in Settings for explanations of each match.")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -517,18 +493,13 @@ struct StoryDetailView: View {
 
         let title = story.title
         let themes = story.themesArray
-        let summary = story.summary
         let objectID = story.objectID
         let context = viewContext
 
         Task {
             defer { isGeneratingCover = false }
             do {
-                let data = try await StoryCoverGenerator.generateCover(
-                    title: title,
-                    themes: themes,
-                    summary: summary
-                )
+                let data = try await StoryCoverGenerator.generateCover(title: title, themes: themes)
                 if let target = context.existing(CDStory.self, objectID) {
                     target.generatedCoverData = data
                     target.modifiedAt = Date()
@@ -566,7 +537,8 @@ struct StoryDetailView: View {
                 }
                 let matches = try await StoryLessonMatcher.findConnections(
                     for: target,
-                    in: context
+                    in: context,
+                    client: dependencies.mcpClient
                 )
                 target.storeRelatedLessons(matches.map { ($0.lessonID, $0.reason) })
                 if !dependencies.saveCoordinator.save(context, reason: "Save related lessons") {

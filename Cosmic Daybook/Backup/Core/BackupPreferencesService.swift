@@ -60,12 +60,8 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.autoBackupRetentionCount,
         UserDefaultsKeys.autoBackupScheduledEnabled,
         UserDefaultsKeys.autoBackupIntervalHours,
-        // AI (model choices only — API keys live in the Keychain and are never exported)
-        UserDefaultsKeys.aiModelChat,
-        UserDefaultsKeys.aiModelLessonPlanning,
-        UserDefaultsKeys.aiModelBackgroundTasks,
+        // AI
         UserDefaultsKeys.aiAllowAutomaticPrivateCloud,
-        UserDefaultsKeys.lessonPlanningModel,
         UserDefaultsKeys.lessonPlanningTimeout,
         UserDefaultsKeys.lessonPlanningSystemPrompt,
         UserDefaultsKeys.lessonPlanningDefaultDepth,

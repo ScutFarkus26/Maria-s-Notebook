@@ -29,7 +29,7 @@ RootView (main shell)
     |       |
     |       +-- Services
     |       |       +-- LifecycleService
-    |       |       +-- ChatService + AnthropicAPIClient
+    |       |       +-- ChatService + AIClientRouter
     |       |       +-- ReminderSyncService
     |       |       +-- CloudKitSyncStatusService
     |       |       +-- BackupService
@@ -365,7 +365,7 @@ The container is split across extension files for organization:
 | File | Services |
 |------|----------|
 | `AppDependencies.swift` | Core: repositories, toast, router, memory monitor, sync, command bar |
-| `AppDependencies+AIServices.swift` | AnthropicAPIClient, ChatService, StudentAnalysisService, ReportGeneratorService |
+| `AppDependencies+AIServices.swift` | AIClientRouter, ChatService, StudentAnalysisService, ReportGeneratorService |
 | `AppDependencies+BackupServices.swift` | BackupService, EnhancedBackupService, RestoreCoordinator, CloudBackupService |
 
 ### Key Services Available
@@ -808,22 +808,15 @@ Manages work item state transitions and data integrity.
 
 **Performance:** Uses predicates and fetch limits to minimize in-memory work. Never loads all records when only one is needed.
 
-### ChatService + AnthropicAPIClient
+### ChatService + AIClientRouter
 
-**Files:** `Chat/Services/ChatService.swift`, `Services/AnthropicAPIClient.swift`
+**Files:** `Chat/Services/ChatService.swift`, `Services/AI/AIClientRouter.swift`
 
-#### AnthropicAPIClient
+#### AIClientRouter
 
-Conforms to `MCPClientProtocol`. Provides two main methods:
-
-```swift
-func generateText(prompt:, systemMessage:, temperature:, maxTokens:, model:, timeout:) async throws -> String
-func generateStructuredJSON(prompt:, systemMessage:, temperature:, maxTokens:, model:, timeout:) async throws -> String
-```
-
-- API key loaded from UserDefaults or keychain
-- URL: `https://api.anthropic.com/v1/messages`
-- Auto-cleans JSON responses (removes markdown code fences)
+Conforms to `MCPClientProtocol` and sends every request to Apple Intelligence:
+the on-device model first, then Private Cloud Compute when Settings → AI allows
+it. See `Documentation/Architecture/AI.md`.
 
 #### ChatService
 
@@ -1492,12 +1485,10 @@ When modifying any model or adding new features:
 - Calendar access separate from reminder access
 - Conditional compilation: only available on macOS
 
-## API Key Management
+## API Keys
 
-- Stored in UserDefaults or Keychain (`KeychainStore`)
-- Configured in Settings > AI/Chat
-- `APIUsageTracker` monitors quota consumption
-- No API key shipped with the app — user provides their own
+The app's AI is Apple Intelligence only and needs no API key. (Claude and
+OpenAI keys were removed on 2026-09-26.)
 
 ## Performance Monitoring
 
@@ -1636,7 +1627,6 @@ Cosmic Daybook/
 +-- Backup/                              Backup and restore
 |
 +-- Services/
-|   +-- AnthropicAPIClient.swift         Claude API
 |   +-- CloudKitSyncStatusService.swift  Sync monitoring
 |   +-- CommandBar/                      Natural language parsing
 |   +-- (cross-feature infrastructure and system integrations)

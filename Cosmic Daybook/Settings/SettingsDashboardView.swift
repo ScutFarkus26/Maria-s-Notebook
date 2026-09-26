@@ -91,26 +91,19 @@ struct SettingsDashboardView: View {
     // MARK: - AI Model Card
 
     private var aiModelCard: some View {
-        let hasKey = AnthropicAPIClient.hasAPIKey()
-        let chatModel = AIFeatureArea.chat.resolvedModel()
+        let available = AIClientRouter.isAvailable
         return DashboardCard(
             title: "AI Model",
             systemImage: "brain.head.profile",
-            color: hasKey ? AppColors.info : AppColors.warning
+            color: available ? AppColors.info : AppColors.warning
         ) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(chatModel.displayName)
+                Text("Apple Intelligence")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
-                if !hasKey && chatModel.requiresAPIKey {
-                    Text("API key required")
-                        .font(.caption)
-                        .foregroundStyle(AppColors.warning)
-                } else {
-                    Text(chatModel.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(available ? "Ready" : "Not available on this device")
+                    .font(.caption)
+                    .foregroundStyle(available ? AnyShapeStyle(.secondary) : AnyShapeStyle(AppColors.warning))
             }
         }
     }
