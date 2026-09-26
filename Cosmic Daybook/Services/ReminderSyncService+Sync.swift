@@ -70,44 +70,13 @@ extension ReminderSyncService {
             return
         }
 
-        // Get all existing reminders from our database that were synced from this calendar
-        let existingReminders = fetchAllCDReminders(context: context)
-        // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        let existingByEKID = [String: CDReminder](
-            existingReminders.compactMap { rem -> (String, CDReminder)? in
-                guard let ekID = rem.eventKitReminderID else { return nil }
-                return (ekID, rem)
-            },
-            uniquingKeysWith: { first, _ in first }
+        // Insert new reminders, rewrite only the rows whose values changed
+        // (re-uncompleted reminders included), and delete the ones gone from
+        // the list. An unchanged list leaves the context clean, so the save
+        // below writes nothing.
+        EventKitMirror.reconcileReminders(
+            syncData, listID: targetCalendar.calendarIdentifier, in: context, now: Date()
         )
-
-        // Sync each reminder using the safe data
-        var syncedCount = 0
-        for data in syncData {
-            if let existing = existingByEKID[data.calendarItemIdentifier] {
-                // Update existing reminder (handles re-uncompleted reminders too)
-                updateCDReminder(existing, from: data)
-                syncedCount += 1
-            } else {
-                // Create new reminder
-                let newReminder = createCDReminder(
-                    from: data, calendarID: targetCalendar.calendarIdentifier, context: context
-                )
-                _ = newReminder // already inserted via init(context:)
-                syncedCount += 1
-            }
-        }
-
-        // Delete reminders that no longer exist in EventKit (orphan cleanup)
-        let currentEKIDs = Set(syncData.map(\.calendarItemIdentifier))
-        for existing in existingReminders {
-            if let ekID = existing.eventKitReminderID,
-               !currentEKIDs.contains(ekID),
-               existing.eventKitCalendarID == targetCalendar.calendarIdentifier {
-                // CDReminder was deleted in EventKit - remove from local database
-                context.delete(existing)
-            }
-        }
 
         context.safeSave()
 
@@ -180,39 +149,6 @@ extension ReminderSyncService {
         }
 
         return ekRemindersData
-    }
-
-    // MARK: - Core Data CRUD Helpers
-
-    func fetchAllCDReminders(context: NSManagedObjectContext) -> [CDReminder] {
-        context.safeFetch(CDFetchRequest(CDReminder.self))
-    }
-
-    func createCDReminder(
-        from data: ReminderSyncData, calendarID: String, context: NSManagedObjectContext
-    ) -> CDReminder {
-        let reminder = CDReminder(context: context)
-        reminder.title = data.title
-        reminder.notes = data.notes
-        reminder.dueDate = data.dueDateComponents?.date
-        reminder.isCompleted = data.isCompleted
-        reminder.completedAt = data.completionDate
-        reminder.createdAt = data.creationDate ?? Date()
-        reminder.updatedAt = data.lastModifiedDate ?? Date()
-        reminder.eventKitReminderID = data.calendarItemIdentifier
-        reminder.eventKitCalendarID = calendarID
-        reminder.lastSyncedAt = Date()
-        return reminder
-    }
-
-    func updateCDReminder(_ reminder: CDReminder, from data: ReminderSyncData) {
-        reminder.title = data.title
-        reminder.notes = data.notes
-        reminder.dueDate = data.dueDateComponents?.date
-        reminder.isCompleted = data.isCompleted
-        reminder.completedAt = data.completionDate
-        reminder.updatedAt = data.lastModifiedDate ?? Date()
-        reminder.lastSyncedAt = Date()
     }
 
 }
