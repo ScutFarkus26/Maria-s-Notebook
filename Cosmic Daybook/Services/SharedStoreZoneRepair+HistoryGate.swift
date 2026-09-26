@@ -20,6 +20,15 @@ import OSLog
 // inserted → check only the inserted rows (history names them, so the pass
 // never reads the rest of the table). History unavailable → scan everything,
 // exactly as before, so a bad answer can never hide a real orphan.
+//
+// A pass whose history read finds no shared insert has nothing to attach
+// either, so it records its starting token the same way (`advanceCleanToken`).
+// Without that, every pass re-read everything since the last *scan* — a window
+// that grew with each remote batch until the next shared insert. The read is
+// scoped to the private store: detection only ever reports private-store rows
+// (see `+Detection`), and the watermark only has a position in that store.
+// Core Data already skips a store a token has no position in, so the scope
+// changes no result; it states which history the gate depends on.
 
 extension SharedStoreZoneRepair {
 
@@ -49,11 +58,26 @@ extension SharedStoreZoneRepair {
         container.persistentStoreCoordinator.currentPersistentHistoryToken(fromStores: [store])
     }
 
-    /// Reads persistent history after `token` and reports which shared entities
-    /// were inserted. Runs on its own background context; never touches the
-    /// entity tables themselves.
+    /// The history read behind every gate decision: the transactions `store`
+    /// recorded after `token`, with their changes. Scoped to `store` — the
+    /// private store, where every row detection can report lives, and the
+    /// only store the watermark has a position in.
+    nonisolated static func gateHistoryRequest(
+        after token: NSPersistentHistoryToken,
+        in store: NSPersistentStore
+    ) -> NSPersistentHistoryChangeRequest {
+        let request = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
+        request.resultType = .transactionsAndChanges
+        request.affectedStores = [store]
+        return request
+    }
+
+    /// Reads `store`'s persistent history after `token` and reports which
+    /// shared entities were inserted. Runs on its own background context;
+    /// never touches the entity tables themselves.
     nonisolated static func gateDecision(
         since token: NSPersistentHistoryToken?,
+        store: NSPersistentStore,
         container: NSPersistentCloudKitContainer,
         sharedEntityNames: Set<String> = CoreDataStack.sharedEntityNames
     ) async -> GateDecision {
@@ -62,8 +86,7 @@ extension SharedStoreZoneRepair {
         }
         let context = container.newBackgroundContext()
         return await context.perform {
-            let request = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
-            request.resultType = .transactionsAndChanges
+            let request = gateHistoryRequest(after: token, in: store)
             do {
                 guard let result = try context.execute(request) as? NSPersistentHistoryResult,
                       let transactions = result.result as? [NSPersistentHistoryTransaction] else {
@@ -87,6 +110,26 @@ extension SharedStoreZoneRepair {
                 return .scanEverything(reason: error.localizedDescription)
             }
         }
+    }
+
+    /// Moves the watermark up to `tokenBefore` after a `.clean` verdict;
+    /// any other verdict leaves it where it is (a scanning pass records it
+    /// itself, once the scan has found nothing left to attach).
+    ///
+    /// `tokenBefore` must be the store's token captured *before* the history
+    /// read. The read then covered everything from the watermark up to it and
+    /// found no shared insert, so every shared row that existed at
+    /// `tokenBefore` already existed at the watermark — no row a scan could
+    /// check is skipped. An insert that lands after the capture, whether
+    /// during the read or between the read and this write, is after
+    /// `tokenBefore` and still opens the gate next pass.
+    nonisolated static func advanceCleanToken(
+        after decision: GateDecision,
+        to tokenBefore: NSPersistentHistoryToken?,
+        defaults: UserDefaults = .standard
+    ) {
+        guard decision == .clean, let tokenBefore else { return }
+        saveCleanToken(tokenBefore, defaults: defaults)
     }
 
     // MARK: Watermark persistence

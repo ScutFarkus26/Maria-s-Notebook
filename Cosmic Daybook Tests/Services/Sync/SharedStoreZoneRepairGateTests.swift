@@ -45,7 +45,7 @@ struct SharedStoreZoneRepairGateTests {
         let fixture = try makeFixture()
         defer { fixture.cleanUp() }
         let decision = await SharedStoreZoneRepair.gateDecision(
-            since: nil, container: fixture.stack.container, sharedEntityNames: sharedNames
+            since: nil, store: fixture.store, container: fixture.stack.container, sharedEntityNames: sharedNames
         )
         guard case .scanEverything = decision else {
             Issue.record("expected scanEverything, got \(decision)")
@@ -63,7 +63,8 @@ struct SharedStoreZoneRepairGateTests {
         #expect(CoreDataTestHelpers.save(fixture.stack.viewContext))
 
         let decision = await SharedStoreZoneRepair.gateDecision(
-            since: watermark, container: fixture.stack.container, sharedEntityNames: sharedNames
+            since: watermark, store: fixture.store, container: fixture.stack.container,
+            sharedEntityNames: sharedNames
         )
         #expect(decision == .clean)
     }
@@ -79,7 +80,8 @@ struct SharedStoreZoneRepairGateTests {
         #expect(CoreDataTestHelpers.save(fixture.stack.viewContext))
 
         let decision = await SharedStoreZoneRepair.gateDecision(
-            since: watermark, container: fixture.stack.container, sharedEntityNames: sharedNames
+            since: watermark, store: fixture.store, container: fixture.stack.container,
+            sharedEntityNames: sharedNames
         )
         guard case let .scan(names, objectIDs) = decision else {
             Issue.record("expected scan, got \(decision)")
@@ -104,7 +106,8 @@ struct SharedStoreZoneRepairGateTests {
         #expect(CoreDataTestHelpers.save(context))
 
         let decision = await SharedStoreZoneRepair.gateDecision(
-            since: watermark, container: fixture.stack.container, sharedEntityNames: sharedNames
+            since: watermark, store: fixture.store, container: fixture.stack.container,
+            sharedEntityNames: sharedNames
         )
         #expect(decision == .clean)
     }
@@ -170,7 +173,8 @@ struct SharedStoreZoneRepairGateTests {
         #expect(CoreDataTestHelpers.save(context))
 
         let decision = await SharedStoreZoneRepair.gateDecision(
-            since: watermark, container: fixture.stack.container, sharedEntityNames: sharedNames
+            since: watermark, store: fixture.store, container: fixture.stack.container,
+            sharedEntityNames: sharedNames
         )
         let targets = try #require(SharedStoreZoneRepair.scanTargets(for: decision))
         let insertedIDs = try #require(targets.objectIDs)
