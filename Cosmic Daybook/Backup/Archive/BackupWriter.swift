@@ -84,13 +84,22 @@ nonisolated public enum BackupWriter {
     /// view context); the Keychain read, encoding, encryption, writing, and
     /// verification all run off the main actor (`encodeAndWrite` is
     /// `@concurrent`) so the UI stays responsive during export.
+    ///
+    /// `stopsWhenCancelled` is for the iPad's overnight background task only.
+    /// That export checks its task before collecting, between record types,
+    /// and before verifying, and once iPadOS has ended the task it throws
+    /// `CancellationError` there, leaving nothing at `url` (the hidden temp
+    /// file is removed). Every other export runs to the end even if its task
+    /// is cancelled.
     @MainActor
     @discardableResult
     public static func write(
         viewContext: NSManagedObjectContext,
         to url: URL,
+        stopsWhenCancelled: Bool = false,
         progress: @escaping BackupService.ProgressCallback = { _, _ in }
     ) async throws -> BackupOperationSummary {
+        if stopsWhenCancelled { try Task.checkCancellation() }
         progress(0.0, "Collecting entities\u{2026}")
 
         // Reuse the shared collector — the same transformer code path that's
@@ -108,6 +117,7 @@ nonisolated public enum BackupWriter {
             payload: payload,
             deviceName: deviceName,
             to: url,
+            stopsWhenCancelled: stopsWhenCancelled,
             progress: progress
         )
 
@@ -135,8 +145,11 @@ nonisolated public enum BackupWriter {
         payload: BackupPayload,
         deviceName: String,
         to url: URL,
+        stopsWhenCancelled: Bool = false,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupArchiveManifest {
+        // Collection held the main actor; the task may have been ended meanwhile.
+        if stopsWhenCancelled { try Task.checkCancellation() }
         // SecItemCopyMatching blocks its thread on a round trip to securityd,
         // which Apple says to keep off the main thread.
         let encryptionKey = try BackupEncryptionKeyStore.fetchOrCreateKey()
@@ -171,6 +184,9 @@ nonisolated public enum BackupWriter {
                 // happens here so each entity's bytes are released before the next
                 // one is built.
                 for serialization in entitySerializations {
+                    // A stopping export ends here, between record types; the
+                    // catch below removes what was written so far.
+                    if stopsWhenCancelled { try Task.checkCancellation() }
                     BackupPipelineProbe.reach("encode \(serialization.entityName)")
                     let ndjson: Data?
                     do {
@@ -193,6 +209,9 @@ nonisolated public enum BackupWriter {
                 }
             }
 
+            // Verification re-reads the whole archive, and an unverified file
+            // never moves into place, so a stopping export ends here too.
+            if stopsWhenCancelled { try Task.checkCancellation() }
             await progress(0.9, "Verifying\u{2026}")
             BackupPipelineProbe.reach("verify")
             try verifyWrittenArchive(at: tempURL, encryptionKey: encryptionKey, expected: manifest)

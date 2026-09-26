@@ -255,10 +255,13 @@ final class AutoBackupManager {
     /// on a hot device or in Low Power Mode, and (for the scene-phase trigger,
     /// `enforcingMinimumGap`) within the profile's gap of the previous one.
     /// The quit and pre-destructive backups are never gated.
+    /// `stopsWhenCancelled` is for the BGProcessingTask only: its export stops
+    /// between record types once iPadOS ends the task, writing nothing.
     @discardableResult
     func performBackgroundBackup(
         viewContext: NSManagedObjectContext,
         enforcingMinimumGap: Bool = true,
+        stopsWhenCancelled: Bool = false,
         policy: EnergyPolicy = .shared,
         now: Date = Date()
     ) async -> BackgroundBackupOutcome {
@@ -271,20 +274,36 @@ final class AutoBackupManager {
             Self.logger.info("Auto-backup (Background) skipped \u{2014} last one under \(Int(gap / 60)) min ago")
             return .tooSoon
         }
-        let result = await performBackup(viewContext: viewContext, trigger: .background, prefix: "AutoBackup")
-        switch result {
-        case .success, .failure:
-            // A failure also starts the gap, so a failing export is not
-            // retried in full on every app switch.
+        let result = await performBackup(
+            viewContext: viewContext,
+            trigger: .background,
+            prefix: "AutoBackup",
+            stopsWhenCancelled: stopsWhenCancelled
+        )
+        if Self.startsBackgroundGap(result) {
             lastBackgroundBackupDate = now
             UserDefaults.standard.set(
                 now.timeIntervalSinceReferenceDate,
                 forKey: UserDefaultsKeys.autoBackupLastBackgroundDate
             )
-        case .skippedNoChanges:
-            break
         }
         return .ran
+    }
+
+    /// Whether a background backup's result starts the scene-phase gap. A
+    /// written file does, and so does a failure, so a failing export is not
+    /// retried in full on every app switch. Nothing to back up doesn't, and
+    /// neither does a run iPadOS ended early: nothing was written, so the
+    /// next app switch should try again.
+    static func startsBackgroundGap(_ result: BackupResult) -> Bool {
+        switch result {
+        case .success:
+            return true
+        case .failure(_, let error):
+            return !(error is CancellationError)
+        case .skippedNoChanges:
+            return false
+        }
     }
 
     // MARK: - Core Backup Logic
@@ -292,7 +311,8 @@ final class AutoBackupManager {
     fileprivate func performBackup(
         viewContext: NSManagedObjectContext,
         trigger: BackupTrigger,
-        prefix: String
+        prefix: String,
+        stopsWhenCancelled: Bool = false
     ) async -> BackupResult {
         guard !isPerformingBackup else {
             let result = BackupResult.failure(Date(), NSError(
@@ -326,9 +346,15 @@ final class AutoBackupManager {
         let (backupDir, securityScopedRoot) = resolveAutoBackupDirectory()
         if let root = securityScopedRoot, root.startAccessingSecurityScopedResource() {
             defer { root.stopAccessingSecurityScopedResource() }
-            return await runExport(in: backupDir, trigger: trigger, prefix: prefix, viewContext: viewContext)
+            return await runExport(
+                in: backupDir, trigger: trigger, prefix: prefix,
+                viewContext: viewContext, stopsWhenCancelled: stopsWhenCancelled
+            )
         }
-        return await runExport(in: backupDir, trigger: trigger, prefix: prefix, viewContext: viewContext)
+        return await runExport(
+            in: backupDir, trigger: trigger, prefix: prefix,
+            viewContext: viewContext, stopsWhenCancelled: stopsWhenCancelled
+        )
     }
 
     /// Returns the directory auto-backups should be written into, plus the security-scoped
@@ -348,7 +374,8 @@ final class AutoBackupManager {
         in backupDir: URL,
         trigger: BackupTrigger,
         prefix: String,
-        viewContext: NSManagedObjectContext
+        viewContext: NSManagedObjectContext,
+        stopsWhenCancelled: Bool
     ) async -> BackupResult {
         // Ensure directory exists
         do {
@@ -364,7 +391,11 @@ final class AutoBackupManager {
         let url = backupDir.appendingPathComponent(filename)
 
         do {
-            _ = try await coordinator.exportBackup(viewContext: viewContext, to: url) { _, _ in
+            _ = try await coordinator.exportBackup(
+                viewContext: viewContext,
+                to: url,
+                stopsWhenCancelled: stopsWhenCancelled
+            ) { _, _ in
                 // Silent progress
             }
 
@@ -386,10 +417,17 @@ final class AutoBackupManager {
 
             return result
         } catch {
-            // A failed auto-backup is a data-protection gap, not a debug detail.
-            Self.logger.error(
-                "Backup failed (\(trigger.rawValue, privacy: .public)): \(error.localizedDescription, privacy: .public)"
-            )
+            let triggerName = trigger.rawValue
+            if error is CancellationError {
+                // Only the BGProcessingTask's export stops when cancelled.
+                Self.logger.notice(
+                    "Auto-backup (\(triggerName, privacy: .public)) stopped \u{2014} the system ended the task"
+                )
+            } else {
+                // A failed auto-backup is a data-protection gap, not a debug detail.
+                let reason = error.localizedDescription
+                Self.logger.error("Backup failed (\(triggerName, privacy: .public)): \(reason, privacy: .public)")
+            }
 
             let result = BackupResult.failure(Date(), error)
             lastBackupResult = result

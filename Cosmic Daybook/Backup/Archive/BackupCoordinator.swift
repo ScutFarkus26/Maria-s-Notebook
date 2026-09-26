@@ -61,11 +61,13 @@ final class BackupCoordinator {
 
     /// Exports a v19 encrypted backup. Payload collection happens on the main
     /// actor (Core Data); encoding, encryption, write, and verification run
-    /// off-main inside BackupWriter.
+    /// off-main inside BackupWriter. `stopsWhenCancelled` is for the iPad's
+    /// overnight background task only (see `BackupWriter.write`).
     @discardableResult
     func exportBackup(
         viewContext: NSManagedObjectContext,
         to url: URL,
+        stopsWhenCancelled: Bool = false,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
         let needsAccess = url.startAccessingSecurityScopedResource()
@@ -74,6 +76,7 @@ final class BackupCoordinator {
         return try await BackupWriter.write(
             viewContext: viewContext,
             to: url,
+            stopsWhenCancelled: stopsWhenCancelled,
             progress: progress
         )
     }
