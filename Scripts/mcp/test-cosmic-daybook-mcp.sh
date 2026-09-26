@@ -6,8 +6,9 @@
 # It runs a COPY of the bridge whose bundle id, port and ~/.cosmic-daybook
 # directory are swapped for a fake bundle id, port 43199 and a temporary
 # directory, with fake `lsappinfo` / `open` and dummy processes (sleep, nc -lk,
-# kill -STOP) standing in for copies of the app. It never touches port 43117,
-# the real bundle id, ~/.cosmic-daybook, LaunchServices or the app.
+# kill -STOP) standing in for copies of the app, and a temporary folder for
+# the installed copy. It never touches port 43117, the real bundle id,
+# ~/.cosmic-daybook, /Applications, LaunchServices or the app.
 #
 # usage: Scripts/mcp/test-cosmic-daybook-mcp.sh [bridge script] [label]
 # Takes about a minute; prints one line per check and exits non-zero on a failure.
@@ -83,6 +84,7 @@ sed -e 's|^BUNDLE_ID="DanielSDeBerry.MariasNoteBook"$|BUNDLE_ID="test.fake.daybo
     -e "s|^PORT=43117\$|PORT=$TEST_PORT|" \
     -e "s|^SUPPORT_DIR=\"\$HOME/.cosmic-daybook\"\$|SUPPORT_DIR=\"$T/support\"|" \
     -e "s|^TOKEN_FILE=\"\$HOME/.cosmic-daybook/mcp.token\"\$|TOKEN_FILE=\"$T/support/mcp.token\"|" \
+    -e "s|^INSTALLED_APP=\"/Applications/Cosmic Daybook.app\"\$|INSTALLED_APP=\"$T/Installed/Cosmic Daybook.app\"|" \
     -e "s|/usr/bin/lsappinfo|$T/fake-lsappinfo|g" \
     -e "s|/usr/bin/open |$T/fake-open |g" \
     -e "s|    open -g -b |    $T/fake-open -g -b |" \
@@ -93,9 +95,9 @@ diff "$SCRIPT_UNDER_TEST" "$BRIDGE" | grep '^[<>]' | sed 's/^/   /'
 
 # Never run a copy that could still reach the real app: if the bridge changed
 # so that a substitution above no longer matches, stop here.
-if grep -nE 'DanielSDeBerry|43117|HOME/\.cosmic-daybook|/usr/bin/open|/usr/bin/lsappinfo|(^|[;&|[:space:]])open ' "$BRIDGE" \
+if grep -nE 'DanielSDeBerry|43117|HOME/\.cosmic-daybook|/Applications/|/usr/bin/open|/usr/bin/lsappinfo|(^|[;&|[:space:]])open ' "$BRIDGE" \
     | grep -v '^[0-9]*:[[:space:]]*#'; then
-    echo "refusing to run: the test copy above still points at the real app, port or ~/.cosmic-daybook" >&2
+    echo "refusing to run: the test copy above still points at the real app, port, ~/.cosmic-daybook or /Applications" >&2
     exit 2
 fi
 
@@ -109,7 +111,7 @@ reset_case() {
     wait 2>/dev/null
     CHILDREN=""
     rm -rf "$T/support" "$T/registry" "$T/open.log" "$T/received" "$T/open-starts-listener" "$T/spawned" \
-        "$T/out" "$T/err" "$T/feeder.pid"
+        "$T/out" "$T/err" "$T/feeder.pid" "$T/Installed"
     mkdir -p "$T/support"
     printf 'test-token\n' > "$T/support/mcp.token"
     touch "$T/registry"
@@ -179,7 +181,7 @@ check() {  # check <description> <condition...>
 
 # ---- cases -----------------------------------------------------------------
 
-echo "== 1. Port closed, no copy running, access on: launch once (MCP-only), then relay =="
+echo "== 1. Port closed, no copy running, access on, none installed: launch once by bundle id (MCP-only), then relay =="
 reset_case
 touch "$T/support/enabled" "$T/open-starts-listener"
 : > "$T/received"
@@ -258,6 +260,17 @@ echo "$LAST" >> "$T/registry"
 relay_bridge
 check "launched once, after the old copy had gone (launches: $(opens))" [ "$(opens)" = 1 ]
 check "relayed to the fresh copy" [ "$RELAYED" = 1 ]
+
+echo "== 9. Port closed, no copy running, access on, a copy installed: launch that copy by path, then relay =="
+reset_case
+touch "$T/support/enabled" "$T/open-starts-listener"
+mkdir -p "$T/Installed/Cosmic Daybook.app"
+: > "$T/received"
+relay_bridge
+check "opened the app exactly once (launches: $(opens))" [ "$(opens)" = 1 ]
+check "with -g -a <installed copy> and the MCP-only arguments ($(cat "$T/open.log" 2>/dev/null))" \
+    grep -qxF -- "-g -a $T/Installed/Cosmic Daybook.app --args -CosmicDaybookMCPAutolaunch YES -ApplePersistenceIgnoreState YES" "$T/open.log"
+check "relayed the AUTH line and the request" [ "$RELAYED" = 1 ]
 
 echo "== $LABEL: $PASS passed, $FAIL failed =="
 [ "$FAIL" = 0 ]

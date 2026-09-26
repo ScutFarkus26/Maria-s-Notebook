@@ -15,7 +15,9 @@
 # keeps ~/.cosmic-daybook/enabled in step with that toggle). That launch is
 # MCP-only: no main window, and the app quits about ten minutes after the
 # last Claude session disconnects. Set COSMIC_DAYBOOK_NO_AUTOLAUNCH=1 to
-# never launch it.
+# never launch it. The copy it launches is /Applications/Cosmic Daybook.app
+# (a Release build of main, put there by Scripts/install_release.sh) when
+# that exists, and otherwise whichever copy macOS picks for the bundle id.
 #
 # Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json):
 #   { "mcpServers": { "cosmic-daybook": { "command": "<absolute path to this script>" } } }
@@ -27,6 +29,7 @@ PORT=43117
 SUPPORT_DIR="$HOME/.cosmic-daybook"
 TOKEN_FILE="$SUPPORT_DIR/mcp.token"
 ENABLED_MARKER="$SUPPORT_DIR/enabled"
+INSTALLED_APP="/Applications/Cosmic Daybook.app"
 
 port_open() {
     /usr/bin/nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1
@@ -76,10 +79,21 @@ not_listening() {
 # reopening the last session's windows (AppKit says it leaves that saved
 # state untouched for the next normal launch). Launch arguments are not
 # persisted.
+#
+# The installed copy is opened by path. Every Xcode build registers another
+# copy under the same bundle id — worktree builds of unmerged code among
+# them — and `open -b` may pick any of them. If the installed copy is there
+# but will not start, the wait below ends in "not listening" rather than
+# falling back to one of those.
 launch_app() {
     # With Claude access switched off the app would never listen.
     [ -e "$ENABLED_MARKER" ] || not_listening
-    /usr/bin/open -g -b "$BUNDLE_ID" --args \
+    if [ -d "$INSTALLED_APP" ]; then
+        set -- -a "$INSTALLED_APP"
+    else
+        set -- -b "$BUNDLE_ID"
+    fi
+    /usr/bin/open -g "$@" --args \
         -CosmicDaybookMCPAutolaunch YES -ApplePersistenceIgnoreState YES 2>/dev/null || true
 }
 
