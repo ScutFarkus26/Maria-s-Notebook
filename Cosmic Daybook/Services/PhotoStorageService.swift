@@ -76,16 +76,16 @@ public enum PhotoStorageService {
     #endif
     
     /// Loads a downsampled image from the photos directory using a filename.
-    /// Uses CGImageSource to create thumbnails efficiently, drastically reducing memory usage.
+    /// Uses CGImageSource to create thumbnails efficiently, drastically reducing memory usage:
+    /// the full-size photo is never decoded, and the thumbnail is decoded on the calling thread.
     /// - Parameters:
     ///   - filename: The filename returned from saveImage
     ///   - pointSize: The desired size in points
-    ///   - scale: The display scale factor (typically from UIScreen.main.scale or NSScreen.main?.backingScaleFactor)
-    /// - Returns: The downsampled NSImage if found, nil otherwise
-    #if os(macOS)
-    nonisolated public static func loadDownsampledImage(
+    ///   - scale: The display scale factor (see `DisplayScale.current`)
+    /// - Returns: The downsampled bitmap (long edge at most `max(pointSize) × scale` pixels) if found, nil otherwise
+    nonisolated public static func downsampledCGImage(
         filename: String, pointSize: CGSize, scale: CGFloat
-    ) -> NSImage? {
+    ) -> CGImage? {
         let photosDir: URL
         do {
             photosDir = try photosDirectory()
@@ -95,64 +95,21 @@ public enum PhotoStorageService {
         }
 
         let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
-        
+
         guard let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
-            return nil
-        }
-        
-        let maxPixelSize = max(pointSize.width, pointSize.height) * scale
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
-        ]
-        
-        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) else {
-            return nil
-        }
-        
-        return NSImage(cgImage: thumbnail, size: pointSize)
-    }
-    #else
-    /// Loads a downsampled image from the photos directory using a filename.
-    /// Uses CGImageSource to create thumbnails efficiently, drastically reducing memory usage.
-    /// - Parameters:
-    ///   - filename: The filename returned from saveImage
-    ///   - pointSize: The desired size in points
-    ///   - scale: The display scale factor (typically from UIScreen.main.scale)
-    /// - Returns: The downsampled UIImage if found, nil otherwise
-    nonisolated public static func loadDownsampledImage(
-        filename: String, pointSize: CGSize, scale: CGFloat
-    ) -> UIImage? {
-        let photosDir: URL
-        do {
-            photosDir = try photosDirectory()
-        } catch {
-            logger.warning("Failed to get photos directory for downsampled image: \(error.localizedDescription)")
             return nil
         }
 
-        let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
-        
-        guard let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
-            return nil
-        }
-        
         let maxPixelSize = max(pointSize.width, pointSize.height) * scale
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
         ]
-        
-        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) else {
-            return nil
-        }
-        
-        return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
+
+        return CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary)
     }
-    #endif
-    
+
     /// Loads a downsampled CGImage suitable for on-device AI analysis.
     /// Platform-independent; capped at `maxPixelSize` on the long edge to keep
     /// token cost and latency reasonable.
