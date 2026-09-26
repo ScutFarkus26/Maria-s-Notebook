@@ -60,7 +60,9 @@ extension CosmicDaybookApp {
 
         let assertion = BackgroundTaskAssertion()
         assertion.begin(named: "AutoBackup")
-        Task {
+        // Self-initiated work, so utility priority rather than the main
+        // thread's, which it used to inherit.
+        Task(priority: .utility) {
             await BackupBackgroundTaskManager.schedule()
             await dependencies.autoBackupManager.performBackgroundBackup(
                 viewContext: coreDataStack.viewContext
