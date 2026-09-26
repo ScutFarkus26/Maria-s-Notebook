@@ -1,10 +1,21 @@
-// swiftlint:disable file_length
 import Foundation
 import CoreData
 import EventKit
 import OSLog
 
-// swiftlint:disable type_body_length
+/// Sendable DTO carrying one EventKit event out of `EKEvent` into the mirror.
+nonisolated struct CalendarEventSyncData: Sendable, Equatable {
+    let title: String
+    let startDate: Date
+    let endDate: Date
+    let location: String?
+    let notes: String?
+    let isAllDay: Bool
+    let eventIdentifier: String
+    /// The event's calendar. A new row takes its first occurrence's.
+    let calendarIdentifier: String?
+}
+
 /// Service that syncs calendar events with Apple's Calendar app via EventKit.
 /// Only syncs events from a specific calendar configured by the user.
 @Observable
@@ -17,14 +28,19 @@ final class CalendarSyncService {
     /// to the active store; only the dependency container names `.shared`.
     static let shared = CalendarSyncService()
 
-    private let eventStore = EKEventStore()
+    /// Created on first use, not with the service: Apple calls an event store
+    /// slow to set up, and with no calendar chosen nothing here needs one.
+    @ObservationIgnored private lazy var eventStore = EKEventStore()
     var managedObjectContext: NSManagedObjectContext?
+
+    /// Where the calendar choice is kept; tests pass their own suite.
+    private let defaults: UserDefaults
 
     /// The identifiers of calendars to sync from (supports multiple calendars)
     /// If empty, syncing is disabled
     var syncCalendarIdentifiers: [String] {
         didSet {
-            UserDefaults.standard.set(syncCalendarIdentifiers, forKey: UserDefaultsKeys.calendarSyncIdentifiers)
+            defaults.set(syncCalendarIdentifiers, forKey: UserDefaultsKeys.calendarSyncIdentifiers)
             Task {
                 if !self.syncCalendarIdentifiers.isEmpty && self.hasFullAccess {
                     self.startObservingChanges()
@@ -38,7 +54,7 @@ final class CalendarSyncService {
     /// The display names of calendars (for UI display only)
     var syncCalendarNames: [String] {
         didSet {
-            UserDefaults.standard.set(syncCalendarNames, forKey: UserDefaultsKeys.calendarSyncNames)
+            defaults.set(syncCalendarNames, forKey: UserDefaultsKeys.calendarSyncNames)
         }
     }
 
@@ -48,28 +64,28 @@ final class CalendarSyncService {
     // MARK: - Change Observation
     private let storeChangeObserver = EventKitChangeObserver()
 
-    init(context: NSManagedObjectContext? = nil) {
+    init(context: NSManagedObjectContext? = nil, defaults: UserDefaults = .standard) {
         self.managedObjectContext = context
+        self.defaults = defaults
 
         // Load calendar identifiers (with migration from legacy single-calendar storage)
-        let defaults = UserDefaults.standard
         if let identifiers = defaults.array(forKey: UserDefaultsKeys.calendarSyncIdentifiers) as? [String] {
             self.syncCalendarIdentifiers = identifiers
         } else if let legacyIdentifier = defaults.string(forKey: UserDefaultsKeys.calendarSyncLegacyIdentifier) {
             // Migrate from legacy single calendar
             self.syncCalendarIdentifiers = [legacyIdentifier]
-            UserDefaults.standard.set([legacyIdentifier], forKey: UserDefaultsKeys.calendarSyncIdentifiers)
+            defaults.set([legacyIdentifier], forKey: UserDefaultsKeys.calendarSyncIdentifiers)
         } else {
             self.syncCalendarIdentifiers = []
         }
 
         // Load calendar names (with migration from legacy single-calendar storage)
-        if let names = UserDefaults.standard.array(forKey: UserDefaultsKeys.calendarSyncNames) as? [String] {
+        if let names = defaults.array(forKey: UserDefaultsKeys.calendarSyncNames) as? [String] {
             self.syncCalendarNames = names
-        } else if let legacyName = UserDefaults.standard.string(forKey: UserDefaultsKeys.calendarSyncLegacyName) {
+        } else if let legacyName = defaults.string(forKey: UserDefaultsKeys.calendarSyncLegacyName) {
             // Migrate from legacy single calendar
             self.syncCalendarNames = [legacyName]
-            UserDefaults.standard.set([legacyName], forKey: UserDefaultsKeys.calendarSyncNames)
+            defaults.set([legacyName], forKey: UserDefaultsKeys.calendarSyncNames)
         } else {
             self.syncCalendarNames = []
         }
@@ -142,26 +158,15 @@ final class CalendarSyncService {
         }
     }
 
-    // MARK: - Safe Data Transfer
-
-    /// A Sendable struct to transport data safely from the non-isolated EventKit closure
-    private struct EventSyncData: Sendable {
-        let title: String
-        let startDate: Date
-        let endDate: Date
-        let location: String?
-        let notes: String?
-        let isAllDay: Bool
-        let eventIdentifier: String
-    }
-
     /// Sync calendar events from the configured calendar
     /// - Parameter force: If true, bypasses the throttle interval
-    func syncEvents(force: Bool = false) async throws {
+    /// - Returns: false when the throttle skipped the call, true when a sync ran.
+    @discardableResult
+    func syncEvents(force: Bool = false) async throws -> Bool {
         // Throttle: Skip if called too soon (within 10 minutes of last sync)
         let throttleInterval: TimeInterval = 10 * 60
         if !force, let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < throttleInterval {
-            return
+            return false
         }
 
         isSyncing = true
@@ -181,9 +186,9 @@ final class CalendarSyncService {
         }
 
         isSyncing = false
+        return true
     }
 
-    // swiftlint:disable:next function_body_length
     private func performSync() async throws {
         guard hasFullAccess else {
             throw CalendarSyncError.notAuthorized
@@ -197,8 +202,11 @@ final class CalendarSyncService {
             throw CalendarSyncError.noCalendarConfigured
         }
 
-        // Find all target calendars
-        let targetCalendars = syncCalendarIdentifiers.compactMap { findCalendar(byIdentifier: $0) }
+        // Find all target calendars, from one walk of the calendars (it was one per identifier)
+        let calendars = eventStore.calendars(for: .event)
+        let targetCalendars = syncCalendarIdentifiers.compactMap { identifier in
+            calendars.first { $0.calendarIdentifier == identifier }
+        }
         guard !targetCalendars.isEmpty else {
             throw CalendarSyncError.calendarNotFound(syncCalendarNames.joined(separator: ", "))
         }
@@ -212,63 +220,28 @@ final class CalendarSyncService {
 
         // Convert to safe data
         let syncData = ekEvents.map { event in
-            EventSyncData(
+            CalendarEventSyncData(
                 title: event.title ?? "Untitled",
                 startDate: event.startDate,
                 endDate: event.endDate,
                 location: event.location,
                 notes: event.notes,
                 isAllDay: event.isAllDay,
-                eventIdentifier: event.eventIdentifier
+                eventIdentifier: event.eventIdentifier,
+                calendarIdentifier: event.calendar?.calendarIdentifier
             )
         }
 
-        // Get existing events from our database (Core Data)
-        let existingEvents = fetchAllCDCalendarEvents(context: context)
-        // Use uniquingKeysWith to handle potential duplicates from CloudKit sync
-        let existingByEKID = [String: CDCalendarEvent](
-            existingEvents.compactMap { event -> (String, CDCalendarEvent)? in
-                guard let ekID = event.eventKitEventID else { return nil }
-                return (ekID, event)
-            },
-            uniquingKeysWith: { first, _ in first }
+        // Insert new events, rewrite only the rows whose values changed, and
+        // delete the ones gone from the fetched window. An unchanged calendar
+        // leaves the context clean, so the save below writes nothing.
+        let fetch = EventKitMirror.CalendarFetch(
+            calendarIDs: Set(targetCalendars.map(\.calendarIdentifier)),
+            fallbackCalendarID: targetCalendars.first?.calendarIdentifier ?? "",
+            windowStart: startDate,
+            windowEnd: endDate
         )
-
-        // Build a set of target calendar identifiers for quick lookup
-        let targetCalendarIDs = Set(targetCalendars.map(\.calendarIdentifier))
-
-        // Sync each event
-        for data in syncData {
-            if let existing = existingByEKID[data.eventIdentifier] {
-                updateCDCalendarEvent(existing, from: data)
-            } else {
-                // Find which calendar this event belongs to
-                let calendarID = ekEvents
-                    .first { $0.eventIdentifier == data.eventIdentifier }?
-                    .calendar.calendarIdentifier
-                    ?? targetCalendars.first?.calendarIdentifier ?? ""
-                _ = createCDCalendarEvent(from: data, calendarID: calendarID, context: context)
-            }
-        }
-
-        // Delete events that no longer exist in EventKit (only for selected calendars).
-        // Scope the check to the fetched window: EventKit only returned events
-        // overlapping [startDate, endDate], so a stored event outside that window
-        // being absent from `currentEKIDs` means "not fetched", not "deleted".
-        // Deleting on absence alone wiped all history older than 7 days on every
-        // sync — and the deletes propagated to every device via CloudKit.
-        let currentEKIDs = Set(syncData.map(\.eventIdentifier))
-        for existing in existingEvents {
-            guard let ekID = existing.eventKitEventID,
-                  let calendarID = existing.eventKitCalendarID,
-                  !currentEKIDs.contains(ekID),
-                  targetCalendarIDs.contains(calendarID),
-                  let existingStart = existing.startDate,
-                  let existingEnd = existing.endDate,
-                  existingEnd >= startDate, existingStart <= endDate
-            else { continue }
-            context.delete(existing)
-        }
+        EventKitMirror.reconcileEvents(syncData, from: fetch, in: context, now: Date())
 
         context.safeSave()
         lastSyncTime = Date()
@@ -301,52 +274,13 @@ final class CalendarSyncService {
         return calendars.map { CalendarInfo(identifier: $0.calendarIdentifier, name: $0.title, color: $0.cgColor) }
     }
 
-    // MARK: - Private Helpers
-
-    private func findCalendar(byIdentifier identifier: String) -> EKCalendar? {
-        let calendars = eventStore.calendars(for: .event)
-        return calendars.first { $0.calendarIdentifier == identifier }
-    }
-
-    // MARK: - Core Data CRUD Helpers
-
-    private func fetchAllCDCalendarEvents(context: NSManagedObjectContext) -> [CDCalendarEvent] {
-        context.safeFetch(CDFetchRequest(CDCalendarEvent.self))
-    }
-
-    private func createCDCalendarEvent(
-        from data: EventSyncData, calendarID: String, context: NSManagedObjectContext
-    ) -> CDCalendarEvent {
-        let event = CDCalendarEvent(context: context)
-        event.title = data.title
-        event.startDate = data.startDate
-        event.endDate = data.endDate
-        event.location = data.location
-        event.notes = data.notes
-        event.isAllDay = data.isAllDay
-        event.eventKitEventID = data.eventIdentifier
-        event.eventKitCalendarID = calendarID
-        event.lastSyncedAt = Date()
-        return event
-    }
-
-    private func updateCDCalendarEvent(_ event: CDCalendarEvent, from data: EventSyncData) {
-        event.title = data.title
-        event.startDate = data.startDate
-        event.endDate = data.endDate
-        event.location = data.location
-        event.notes = data.notes
-        event.isAllDay = data.isAllDay
-        event.lastSyncedAt = Date()
-    }
-
     // MARK: - Automatic Syncing
 
     private func startObservingChanges() {
         guard hasFullAccess else { return }
         guard !syncCalendarIdentifiers.isEmpty else { return }
 
-        storeChangeObserver.start(eventStore: eventStore) { [weak self] in
+        storeChangeObserver.start(observing: eventStore) { [weak self] in
             await self?.handleEventStoreChanged()
         }
     }
@@ -357,32 +291,34 @@ final class CalendarSyncService {
         }
     }
 
-    private func handleEventStoreChanged() async {
+    /// Runs a sync after the store has gone quiet (`EventKitChangeObserver`).
+    func handleEventStoreChanged() async {
         guard !syncCalendarIdentifiers.isEmpty else { return }
         guard hasFullAccess else { return }
         guard managedObjectContext != nil else { return }
 
-        // Debounce: Only sync if we haven't synced recently (within last 30 seconds)
-        if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < 30.0 {
-            return
-        }
-
+        // `syncEvents` skips a call within 10 minutes of the last sync, so the
+        // time is recorded only when a sync ran. Recording it after a skipped
+        // one (as this did, behind a 30-second check the throttle covers)
+        // pushed the next sync back on every change: while the calendar kept
+        // changing at least every 10 minutes, no unforced sync ran at all.
         do {
-            try await syncEvents()
-            lastSyncTime = Date()
+            if try await syncEvents() {
+                lastSyncTime = Date()
+            }
         } catch {
             Self.logger.warning("Automatic sync failed: \(error.localizedDescription)")
         }
     }
 
-    private var lastSyncTime: Date?
+    /// When the last sync ran; the 10-minute throttle reads it.
+    var lastSyncTime: Date?
 
     /// Sync status for UI visibility
     var lastSuccessfulSync: Date?
     var lastSyncError: String?
     var isSyncing: Bool = false
 }
-// swiftlint:enable type_body_length
 
 enum CalendarSyncError: LocalizedError, Equatable {
     case notAuthorized
