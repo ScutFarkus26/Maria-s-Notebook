@@ -36,7 +36,11 @@ struct DocumentCard: View {
 
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            PDFThumbnail(url: fileURL, data: document.pdfData)
+            PDFThumbnail(
+                url: fileURL,
+                data: document.pdfData,
+                recordKey: document.objectID.uriRepresentation().absoluteString
+            )
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: 120)
                 .frame(alignment: .center)
