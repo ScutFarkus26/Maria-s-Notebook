@@ -183,6 +183,11 @@ final class AppBootstrapper {
 
         await PDFFolderMigrationService.runIfNeeded(coreDataStack: coreDataStack)
 
+        // Drop the Claude/OpenAI API keys and model choices the Apple-only AI
+        // change left on this device. Once per device; retried if the
+        // Keychain refuses.
+        RetiredAIKeysCleanup.runIfNeeded()
+
         // Save all migration changes in one batch to minimize store coordinator changes
         if coreDataStack.viewContext.hasChanges {
             if coreDataStack.viewContext.safeSave() {

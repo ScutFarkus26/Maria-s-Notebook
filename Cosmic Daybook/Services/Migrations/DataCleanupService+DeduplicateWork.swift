@@ -113,5 +113,18 @@ nonisolated extension DataCleanupService {
             setter: { (note: CDNote) in note.projectSession = canonical }
         )
     }
+
+    /// A practice session owns its notes through a Cascade rule, so the
+    /// duplicate's notes move onto the survivor before the duplicate is deleted.
+    static func mergePracticeSession(canonical: CDPracticeSession, duplicate: CDPracticeSession) {
+        var existingNoteIDs = Set((canonical.notes as? Set<CDNote>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.notes,
+            addTo: canonical,
+            relationshipKey: "notes",
+            existingIDs: &existingNoteIDs,
+            setter: { (note: CDNote) in note.practiceSession = canonical }
+        )
+    }
 }
 // swiftlint:enable cyclomatic_complexity

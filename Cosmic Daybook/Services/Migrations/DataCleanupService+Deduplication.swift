@@ -278,6 +278,9 @@ nonisolated extension DataCleanupService {
             CDWorkParticipantEntity.self, using: context, container: c, scope: s
         )
         results["WorkStep"] = deduplicate(CDWorkStep.self, using: context, container: c, scope: s)
+        results["PracticeSession"] = deduplicate(
+            CDPracticeSession.self, using: context, container: c, scope: s, merge: mergePracticeSession
+        )
 
         // CDProject models
         results["Project"] = deduplicate(CDProject.self, using: context, container: c, scope: s)

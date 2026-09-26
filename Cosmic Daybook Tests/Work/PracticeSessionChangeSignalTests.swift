@@ -46,6 +46,8 @@ struct PracticeSessionChangeSignalTests {
 }
 
 /// Posted synchronously on the test's own thread (queue: nil), so no locking.
-private final class SeenBox: @unchecked Sendable {
+/// `nonisolated` so the observer's `@Sendable` closure may write to it; under the
+/// target's main-actor default the property would otherwise be main-actor isolated.
+private nonisolated final class SeenBox: @unchecked Sendable {
     var names: Set<String> = []
 }

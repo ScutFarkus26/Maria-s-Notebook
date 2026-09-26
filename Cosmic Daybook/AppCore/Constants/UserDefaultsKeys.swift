@@ -170,6 +170,7 @@ nonisolated enum UserDefaultsKeys {
 
     // MARK: - Migrations
     static let pdfFolderMigrationV1Complete = "Migration.pdfFolder.v1"
+    static let retiredAIKeysRemovedV1 = "Migration.retiredAIKeysRemoved.v1"
     static let classroomStoreMigrationV1Complete = "ClassroomStoreMigration.v1.completed"
 
     // MARK: - Shared Store Sync Repair

@@ -7,22 +7,41 @@ import Testing
 @Suite("Album semantic index: cached query model", .serialized)
 struct AlbumSemanticQueryCacheTests {
 
-    @Test("A cached query model gives the same vector as a fresh one", arguments: ["sentence", "contextual"])
-    func cachedMatchesFresh(backend: String) async {
-        // Waits out the simulator's lazy sentence-model load, so a nil `fresh`
-        // below means "this runtime has no model" rather than "not loaded yet".
+    @Test("A cached sentence model gives the same vector as a fresh one")
+    func cachedSentenceMatchesFresh() async throws {
+        // Waits out the simulator's lazy sentence-model load (the first request
+        // in a process returns nil). Every runtime the suite runs on has this
+        // model, so a missing vector is a failure, not a pass.
         _ = await AlbumSemanticIndex.resolveTitleBackend()
-        let text = "borrowing in subtraction"
-        let fresh: [Float]? = backend == "sentence"
-            ? AlbumSemanticIndex.sentenceEmbed([text])?.first
-            : AlbumSemanticIndex.contextualEmbed([text])?.first
+        let fresh = try #require(AlbumSemanticIndex.sentenceEmbed([Self.text])?.first)
+        expectCachedMatches(fresh, backend: "sentence")
+    }
+
+    /// The iOS 27 simulator can't load the contextual model ("Embedding model
+    /// requires compilation"), so there this shows as skipped rather than
+    /// passing with two empty results.
+    @Test(
+        "A cached contextual model gives the same vector as a fresh one",
+        .enabled(
+            if: AlbumSemanticIndex.loadedContextualEmbedding() != nil,
+            "The contextual model can't load on this runtime"
+        )
+    )
+    func cachedContextualMatchesFresh() throws {
+        let fresh = try #require(AlbumSemanticIndex.contextualEmbed([Self.text])?.first)
+        expectCachedMatches(fresh, backend: "contextual")
+    }
+
+    private static let text = "borrowing in subtraction"
+
+    private func expectCachedMatches(_ fresh: [Float], backend: String) {
         AlbumSemanticIndex.releaseQueryEmbedders()
-        let first = AlbumSemanticIndex.embedQuery(text, backend: backend)
-        let second = AlbumSemanticIndex.embedQuery(text, backend: backend)
+        let first = AlbumSemanticIndex.embedQuery(Self.text, backend: backend)
+        let second = AlbumSemanticIndex.embedQuery(Self.text, backend: backend)
         #expect(first == fresh)
         #expect(second == fresh)
-        // A model that exists on this runtime stays cached until released.
-        #expect(AlbumSemanticIndex.hasCachedQueryEmbedder == (fresh != nil))
+        // The model stays cached until released.
+        #expect(AlbumSemanticIndex.hasCachedQueryEmbedder)
         AlbumSemanticIndex.releaseQueryEmbedders()
         #expect(AlbumSemanticIndex.hasCachedQueryEmbedder == false)
     }
