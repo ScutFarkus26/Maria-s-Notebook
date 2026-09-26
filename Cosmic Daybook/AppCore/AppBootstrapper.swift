@@ -172,16 +172,14 @@ final class AppBootstrapper {
         // blocked. Runs once per device (UserDefaults-guarded); idempotent.
         DataMigrations.backfillWorkPresentationLinks(using: coreDataStack.viewContext)
 
-        // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact)
-        if Int.random(in: 1...10) == 1 {
-            let integrityStart = Date()
-            await DataMigrations.repairScheduledForDayMirror(using: coreDataStack.viewContext)
-            await DataMigrations.cleanOrphanedStudentIDs(using: coreDataStack.viewContext)
-            let intElapsed = formatSeconds(Date().timeIntervalSince(integrityStart))
-            logger.info("Post-launch: integrity repairs completed in \(intElapsed)")
-        }
+        // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact).
+        // They run first in MigrationRunner's background pass — the same place in
+        // this sequence as before, but no longer on the view context.
+        let includeIntegrityRepairs = Int.random(in: 1...10) == 1
 
-        await MigrationRunner.runIfNeeded(coreDataStack: coreDataStack)
+        await MigrationRunner.runIfNeeded(
+            coreDataStack: coreDataStack, includeIntegrityRepairs: includeIntegrityRepairs
+        )
 
         await PDFFolderMigrationService.runIfNeeded(coreDataStack: coreDataStack)
 

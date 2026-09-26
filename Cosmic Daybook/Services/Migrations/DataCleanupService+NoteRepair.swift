@@ -94,14 +94,15 @@ nonisolated extension DataCleanupService {
     /// then push the flattening to every device through CloudKit. This is the
     /// same mirror-only shape used after a restore in
     /// `BackupService+Restoration`.
-    static func repairScheduledForDayMirror(using context: NSManagedObjectContext) async {
+    ///
+    /// Synchronous, on `context`'s queue: the launch pass runs it inside
+    /// `perform` on a background context (see `MigrationRunner.runPass`).
+    static func repairScheduledForDayMirror(using context: NSManagedObjectContext) {
         let fetch = CDFetchRequest(CDLessonAssignment.self)
         let assignments = context.safeFetch(fetch)
         var repaired = 0
 
-        for (index, la) in assignments.enumerated() {
-            if index % 100 == 0 { await Task.yield() }
-
+        for la in assignments {
             let correctMirror = la.scheduledFor.map(AppCalendar.startOfDay) ?? Date.distantPast
             if la.scheduledForDay != correctMirror {
                 la.scheduledForDay = correctMirror

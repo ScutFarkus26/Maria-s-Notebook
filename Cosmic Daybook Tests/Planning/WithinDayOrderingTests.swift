@@ -56,7 +56,7 @@ struct WithinDayOrderingTests {
     // MARK: - The repair pass
 
     @Test("The launch repair fixes the day mirror and never touches the time")
-    func mirrorRepairIsNonDestructive() async throws {
+    func mirrorRepairIsNonDestructive() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
 
@@ -72,7 +72,7 @@ struct WithinDayOrderingTests {
         unscheduled.scheduledForDay = monday
 
         #expect(CoreDataTestHelpers.save(context))
-        await DataMigrations.repairScheduledForDayMirror(using: context)
+        DataMigrations.repairScheduledForDayMirror(using: context)
 
         // The regression this guards: the pass used to write `scheduledFor = day`,
         // erasing every guide's within-day order on a random tenth of launches.
