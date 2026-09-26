@@ -36,8 +36,7 @@ extension AlbumLibrary {
         // next search.
         AlbumSemanticIndex.releaseQueryEmbedders()
         for album in albums {
-            album.cover = nil
-            album.coverRequested = false
+            album.releaseCover()
         }
         guard critical else { return }
         pageTexts.removeAll()

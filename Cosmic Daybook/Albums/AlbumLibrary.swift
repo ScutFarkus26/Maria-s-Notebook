@@ -150,17 +150,6 @@ final class Album: Identifiable {
         default: .systemYellow
         }
     }
-
-    nonisolated static func renderCoverData(url: URL) -> Data? {
-        guard let doc = PDFDocument(url: url), let page = doc.page(at: 0) else { return nil }
-        let size = CGSize(width: 420, height: 560)
-        let image = page.thumbnail(of: size, for: .mediaBox)
-        #if os(macOS)
-        return image.tiffRepresentation
-        #else
-        return image.pngData()
-        #endif
-    }
 }
 
 // MARK: - Library
@@ -587,11 +576,11 @@ final class AlbumLibrary {
         album.coverRequested = true
         let url = album.url
         Task {
-            let data = await Task.detached(priority: .utility) {
-                Album.renderCoverData(url: url)
+            let bitmap = await Task.detached(priority: .utility) {
+                Album.renderCover(url: url)
             }.value
-            if let data, let image = PlatformImage(data: data) {
-                album.cover = image
+            if let bitmap {
+                album.cover = Album.coverImage(from: bitmap)
             }
         }
     }
