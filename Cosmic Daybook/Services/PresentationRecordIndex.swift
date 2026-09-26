@@ -15,7 +15,10 @@
 //  from one definition.
 //
 //  Scoped to a handful of lessons it is three small fetches; unscoped it reads
-//  the whole record, which is what a class-wide sweep needs anyway.
+//  the whole record, which is what a class-wide sweep needs anyway. The
+//  whole-record read takes plain column rows instead of managed objects when
+//  the context holds no unsaved record edit (see `+Rows`), so it registers
+//  nothing in the context it reads through.
 //
 
 import CoreData
@@ -64,14 +67,21 @@ nonisolated struct PresentationRecordIndex: Sendable {
         students: Set<String>? = nil,
         in context: NSManagedObjectContext
     ) {
+        self.init(rows: Self.readRows(lessonIDs: lessonIDs, in: context), students: students)
+    }
+
+    /// Folds rows already read. Both read paths end here, so they cannot
+    /// disagree about what a row means.
+    /// - Parameter students: the children to keep; `nil` keeps everyone.
+    init(rows: RecordRows, students: Set<String>?) {
         var builder = Builder(students: students)
-        for row in Self.fetch(CDLessonPresentation.self, lessonIDs: lessonIDs, in: context) {
+        for row in rows.presentations {
             builder.fold(row)
         }
-        for assignment in Self.fetch(CDLessonAssignment.self, lessonIDs: lessonIDs, in: context) {
+        for assignment in rows.assignments {
             builder.fold(assignment)
         }
-        for entry in Self.fetch(CDYearPlanEntry.self, lessonIDs: lessonIDs, in: context) {
+        for entry in rows.planEntries {
             builder.fold(entry)
         }
 
@@ -156,17 +166,17 @@ nonisolated struct PresentationRecordIndex: Sendable {
         }
 
         /// A presentation record row: given on its day, mastered if marked.
-        mutating func fold(_ row: CDLessonPresentation) {
+        mutating func fold(_ row: PresentationRow) {
             guard keeps(row.studentID) else { return }
             note(row.lessonID, row.studentID) { detail in
                 Self.addDay(row.presentedAt, to: &detail)
-                if row.masteredAt != nil || row.state == .proficient { detail.mastered = true }
+                if row.mastered { detail.mastered = true }
             }
         }
 
         /// A presented assignment is given for everyone on it, confirmed for
         /// those the guide confirmed; an unpresented one is an open plan.
-        mutating func fold(_ assignment: CDLessonAssignment) {
+        mutating func fold(_ assignment: AssignmentRow) {
             let roster = assignment.studentIDs.filter(keeps)
             guard !roster.isEmpty else { return }
             guard assignment.isPresented else {
@@ -188,21 +198,9 @@ nonisolated struct PresentationRecordIndex: Sendable {
         }
 
         /// A year-plan entry that is not skipped is an open plan.
-        mutating func fold(_ entry: CDYearPlanEntry) {
-            guard entry.status != .skipped, keeps(entry.studentID) else { return }
+        mutating func fold(_ entry: PlanEntryRow) {
+            guard !entry.isSkipped, keeps(entry.studentID) else { return }
             openPlan[entry.lessonID, default: []].insert(entry.studentID)
         }
-    }
-
-    // MARK: - Fetching
-
-    private static func fetch<T: NSManagedObject>(
-        _ type: T.Type, lessonIDs: Set<String>?, in context: NSManagedObjectContext
-    ) -> [T] {
-        let request = CDFetchRequest(T.self)
-        if let lessonIDs {
-            request.predicate = NSPredicate(format: "lessonID IN %@", Array(lessonIDs))
-        }
-        return context.safeFetch(request).filter { !$0.isDeleted }
     }
 }
