@@ -106,6 +106,9 @@
 		5141E8022ED77B10004F918F /* Exceptions for "Cosmic Daybook" folder in "Cosmic Daybook" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				".swift-format.json",
+				.swiftlint.yml,
+				CLAUDE.md,
 				"Info-macOS.plist",
 				Info.plist,
 				README.md,
