@@ -94,6 +94,29 @@ Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
   `CosmicDaybookApp+Startup.swift`) and from the Settings toggle
   (Settings → AI Features → Claude Desktop, backed by
   `UserDefaultsKeys.aiMCPServerEnabled`, default **off**).
+- **MCP-only launch** (2026-09-25): when the bridge has to launch the app it
+  passes `-CosmicDaybookMCPAutolaunch YES` (read from argv by
+  `AppLaunchMode`; launch arguments are never persisted), and that launch is
+  a server only. The main `WindowGroup` gets
+  `.defaultLaunchBehavior(.suppressed)` — every other launch keeps
+  `.automatic`, SwiftUI's default — so no main window or `RootView` is
+  built, and `AutoBackupAppDelegate.applicationDidFinishLaunching` starts the
+  app services through `AppServicesLauncher` instead (store bootstrap, sync,
+  backups, Spotlight, this server). `MCPIdleQuitController` quits with
+  `NSApp.terminate` — an ordinary quit, so the quit backup runs — once no
+  client has been connected and no window open for ten minutes
+  (`MCPIdleQuitPolicy`, pure and unit-tested). Clients are counted in
+  `MCPSocketServer` once past the `AUTH` line (a bridge's `nc -z` probe does
+  not count) and surface as `MCPServerService.connectedClientCount`; windows
+  are counted by AppKit's reopen rule (visible `NSWindow`s, not panels,
+  minimized ones included). The port closes just before the quit, so a
+  session that starts during the quit backup gets a fresh copy from its
+  bridge. A Dock click with no window open opens the main window: SwiftUI
+  also consults the suppressed launch behavior there, so the delegate's
+  `applicationShouldHandleReopen` does it with an `openWindow` captured from
+  the menu bar's commands (`MainWindowOpenerCommands`); on a normal launch
+  `responds(to:)` hides that method. Closing the window again restarts the
+  countdown.
 
 ## Tools
 

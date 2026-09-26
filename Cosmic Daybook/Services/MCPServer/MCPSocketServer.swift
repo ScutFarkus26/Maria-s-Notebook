@@ -35,22 +35,31 @@ actor MCPSocketServer {
     /// Called if the listener dies after it was ready (never for a plain
     /// `stop()`), so the owning service can stop reporting "listening".
     private let onFailure: (@Sendable (String) -> Void)?
+    /// Called with the number of connected clients (those past the `AUTH`
+    /// line) whenever it changes, with a sequence number that rises on every
+    /// call, so a receiver that hops actors can drop an update overtaken by a
+    /// newer one. An MCP-only launch quits once this has been zero for a while.
+    private let onClientCountChange: (@Sendable (_ count: Int, _ sequence: Int) -> Void)?
     private let queue = DispatchQueue(label: "mcp-server.socket")
     private let logger = Logger.mcpServer
 
     private var listener: NWListener?
     private var connectionTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+    private var authenticatedClients: Set<ObjectIdentifier> = []
+    private var clientCountSequence = 0
 
     init(
         port: UInt16,
         authToken: String,
         requestHandler: MCPRequestHandler,
-        onFailure: (@Sendable (String) -> Void)? = nil
+        onFailure: (@Sendable (String) -> Void)? = nil,
+        onClientCountChange: (@Sendable (_ count: Int, _ sequence: Int) -> Void)? = nil
     ) {
         self.port = port
         self.authToken = authToken
         self.requestHandler = requestHandler
         self.onFailure = onFailure
+        self.onClientCountChange = onClientCountChange
     }
 
     // MARK: - Lifecycle
@@ -125,6 +134,8 @@ actor MCPSocketServer {
             task.cancel()
         }
         connectionTasks.removeAll()
+        // The owner stops counting a stopped server's clients itself.
+        authenticatedClients.removeAll()
     }
 
     // MARK: - Connections
@@ -132,9 +143,13 @@ actor MCPSocketServer {
     private func adopt(_ connection: NWConnection) {
         let id = ObjectIdentifier(connection)
         connection.start(queue: queue)
+        let didAuthenticate: @Sendable () async -> Void = { [weak self] in
+            await self?.clientDidAuthenticate(id)
+        }
         connectionTasks[id] = Task { [weak self, requestHandler, authToken, logger] in
             await Self.runMessageLoop(
-                on: connection, handler: requestHandler, authToken: authToken, logger: logger
+                on: connection, handler: requestHandler, authToken: authToken, logger: logger,
+                didAuthenticate: didAuthenticate
             )
             connection.cancel()
             await self?.forget(id)
@@ -143,6 +158,21 @@ actor MCPSocketServer {
 
     private func forget(_ id: ObjectIdentifier) {
         connectionTasks[id] = nil
+        if authenticatedClients.remove(id) != nil {
+            publishClientCount()
+        }
+    }
+
+    private func clientDidAuthenticate(_ id: ObjectIdentifier) {
+        // A connection whose task `stop()` already cancelled is not counted.
+        guard connectionTasks[id] != nil else { return }
+        authenticatedClients.insert(id)
+        publishClientCount()
+    }
+
+    private func publishClientCount() {
+        clientCountSequence += 1
+        onClientCountChange?(authenticatedClients.count, clientCountSequence)
     }
 
     /// A ready listener died on its own (not via `stop()`); tear down and
@@ -159,7 +189,8 @@ actor MCPSocketServer {
         on connection: NWConnection,
         handler: MCPRequestHandler,
         authToken: String,
-        logger: Logger
+        logger: Logger,
+        didAuthenticate: @Sendable () async -> Void
     ) async {
         var buffer = Data()
         var authenticated = false
@@ -184,6 +215,7 @@ actor MCPSocketServer {
                         // archive, and "did a client ever connect" is the
                         // first question when diagnosing this feature.
                         logger.notice("MCP client connected")
+                        await didAuthenticate()
                         continue
                     }
 

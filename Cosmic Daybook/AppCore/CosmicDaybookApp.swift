@@ -40,6 +40,13 @@ struct CosmicDaybookApp: App {
     /// Starts the app-wide services once per process (see `startAppServicesIfNeeded`).
     let servicesLauncher: AppServicesLauncher
 
+    #if os(macOS)
+    /// `.suppressed` only for an MCP-only launch (the Claude bridge started
+    /// the app; see `AppLaunchMode`), so it comes up with no main window;
+    /// `.automatic` — SwiftUI's default — for every other launch.
+    let mainWindowLaunchBehavior: SceneLaunchBehavior
+    #endif
+
     // MARK: - Initialization
 
     init() {
@@ -50,6 +57,7 @@ struct CosmicDaybookApp: App {
         // Before any window exists: the toolbar NaN assertion has to be caught
         // on the main thread, and this is the first main-thread code we own.
         ToolbarLayoutAssertionGuard.install()
+        mainWindowLaunchBehavior = AppLaunchMode.current == .mcpOnly ? .suppressed : .automatic
         #endif
 
         AppBootstrapping.performInitialSetup()
@@ -115,9 +123,13 @@ struct CosmicDaybookApp: App {
         // Default must be >= the enforced minimum (900x600, see EnsureResizableWindow)
         // so a freshly-opened window isn't immediately snapped wider.
         .defaultSize(width: 1000, height: 720)
+        .defaultLaunchBehavior(mainWindowLaunchBehavior)
         #endif
         .commands {
             NotebookCommands(appRouter: appRouter, classroomWorkspace: classroomWorkspace)
+            #if os(macOS)
+            MainWindowOpenerCommands()
+            #endif
         }
 
         #if os(macOS)
