@@ -36,21 +36,22 @@ nonisolated enum TestImages {
         return image
     }
 
-    /// `image` encoded as `type`, tagged with the EXIF `orientation`.
+    /// `image` encoded as `type`, tagged with the EXIF `orientation` and any extra
+    /// `properties` (camera metadata, resolution).
     static func encoded(
         _ image: CGImage,
         as type: UTType,
         orientation: CGImagePropertyOrientation = .up,
-        quality: CGFloat = 0.95
+        quality: CGFloat = 0.95,
+        properties extra: [CFString: Any] = [:]
     ) -> Data? {
         let output = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(output, type.identifier as CFString, 1, nil) else {
             return nil
         }
-        let properties: [CFString: Any] = [
-            kCGImagePropertyOrientation: orientation.rawValue,
-            kCGImageDestinationLossyCompressionQuality: quality
-        ]
+        var properties = extra
+        properties[kCGImagePropertyOrientation] = orientation.rawValue
+        properties[kCGImageDestinationLossyCompressionQuality] = quality
         CGImageDestinationAddImage(destination, image, properties as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { return nil }
         return output as Data
@@ -74,6 +75,12 @@ nonisolated enum TestImages {
             kCGImageSourceThumbnailMaxPixelSize: max(width, height)
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    }
+
+    /// The uniform type identifier of an encoded image ("public.jpeg").
+    static func typeIdentifier(_ data: Data) -> String? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceGetType(source) as String?
     }
 
     /// The image properties an encoder wrote (orientation, resolution, pixel size).

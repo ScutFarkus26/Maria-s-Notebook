@@ -152,27 +152,7 @@ extension UnifiedNoteEditor {
             if let newItem {
                 do {
                     if let data = try await newItem.loadTransferable(type: Data.self) {
-                        #if os(macOS)
-                        if let image = NSImage(data: data) {
-                        selectedImage = image
-                        do {
-                            let newPath = try PhotoStorageService.saveImage(image)
-                            // Clean up any intermediate image that might have been selected
-                            cleanupPreviousImageIfNeeded(newPath: newPath)
-                            imagePath = newPath
-                        } catch {
-                            #if DEBUG
-                            Self.logger.error("Failed to save image: \(error)")
-                            #endif
-                            selectedImage = nil
-                            selectedPhoto = nil
-                        }
-                    }
-                    #else
-                    if let image = UIImage(data: data) {
-                        handleCameraImage(image)
-                    }
-                    #endif
+                        await attachPickedPhoto(data, from: newItem)
                     }
                 } catch {
                     Self.logger.error("[\(#function)] Failed to load photo data: \(error)")
@@ -186,6 +166,49 @@ extension UnifiedNoteEditor {
         }
     }
 
+    /// Stores a picked photo and shows its preview. ImageIO transcodes the photo off
+    /// the main thread (`PhotoStorageService.savePickedPhoto`) into the same file
+    /// decoding it into an `NSImage` / `UIImage` wrote, and the editor keeps a
+    /// preview sized for its thumbnail instead of the decoded photo.
+    private func attachPickedPhoto(_ data: Data, from item: PhotosPickerItem) async {
+        let scale = DisplayScale.current
+        let result = await PhotoStorageService.savePickedPhoto(
+            data, previewSide: NotePhotoPreview.editorSide, scale: scale
+        )
+        // A newer pick, or a clear, replaced this one while it was being saved.
+        guard selectedPhoto == item else {
+            if case .saved(let filename, _) = result {
+                deleteUnusedPhoto(filename)
+            }
+            return
+        }
+        switch result {
+        case .notAnImage:
+            return
+        case .saved(let filename, let preview):
+            // Clean up any intermediate image that might have been selected
+            cleanupPreviousImageIfNeeded(newPath: filename)
+            imagePath = filename
+            selectedImage = preview.map { NotePhotoPreview.image($0, scale: scale) }
+        case .failed(_, let error):
+            #if DEBUG
+            Self.logger.error("Failed to save image: \(error)")
+            #endif
+            selectedImage = nil
+            #if os(macOS)
+            selectedPhoto = nil
+            #endif
+        }
+    }
+
+    private func deleteUnusedPhoto(_ filename: String) {
+        do {
+            try PhotoStorageService.deleteImage(filename: filename)
+        } catch {
+            Self.logger.error("[\(#function)] Failed to delete superseded image: \(error)")
+        }
+    }
+
     #if os(iOS)
     func handleCameraImage(_ image: UIImage) {
         selectedImage = image
@@ -194,11 +217,27 @@ extension UnifiedNoteEditor {
             // Clean up any intermediate image that might have been selected
             cleanupPreviousImageIfNeeded(newPath: newPath)
             imagePath = newPath
+            showPreview(ofSavedPhoto: newPath)
         } catch {
             #if DEBUG
             Self.logger.error("Failed to save image: \(error)")
             #endif
             selectedImage = nil
+        }
+    }
+
+    /// Swaps the full-size capture in the thumbnail for a preview that size, read
+    /// from the saved file off the main thread, so the editor stops holding the
+    /// decoded camera image.
+    private func showPreview(ofSavedPhoto filename: String) {
+        let scale = DisplayScale.current
+        Task {
+            let preview = await PhotoStorageService.preview(
+                ofSavedPhoto: filename, side: NotePhotoPreview.editorSide, scale: scale
+            )
+            // Only while that photo is still the one attached
+            guard let preview, imagePath == filename else { return }
+            selectedImage = NotePhotoPreview.image(preview, scale: scale)
         }
     }
     #endif

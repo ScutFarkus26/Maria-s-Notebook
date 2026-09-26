@@ -15,7 +15,6 @@ import UIKit
 #endif
 
 @Observable
-// swiftlint:disable:next type_body_length
 class QuickNoteViewModel {
     private static let logger = Logger.notes
 
@@ -275,29 +274,6 @@ class QuickNoteViewModel {
         ToastService.shared.show("Note saved", type: .success, duration: 1.5)
     }
 
-    func loadPhoto(_ item: PhotosPickerItem?) {
-        guard let item else { return }
-        Task {
-            do {
-                if let data = try await item.loadTransferable(type: Data.self),
-                   let uiImage = PlatformImage(data: data) {
-                    processImage(uiImage)
-                }
-            } catch {
-                Self.logger.warning("Failed to load photo: \(error)")
-            }
-        }
-    }
-    
-    func processImage(_ image: PlatformImage) {
-        self.attachedImage = image
-        do {
-            self.attachedImagePath = try PhotoStorageService.saveImage(image)
-        } catch {
-            Self.logger.error("Failed to save image: \(error)")
-        }
-    }
-    
     func getDisplayName(for student: CDStudent, students: [CDStudent]) -> String {
         // If there are other students in the full roster with the same first name, use Last Initial
         let duplicateCount = students.filter { $0.firstName.lowercased() == student.firstName.lowercased() }.count

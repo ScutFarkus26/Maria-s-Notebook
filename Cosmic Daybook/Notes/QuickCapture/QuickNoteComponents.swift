@@ -205,7 +205,7 @@ struct QuickNoteAttachmentThumbnail: View {
             Image(nsImage: image as NSImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: 20, height: 20)
+                .frame(width: NotePhotoPreview.quickNoteSide, height: NotePhotoPreview.quickNoteSide)
                 .clipRounded(4)
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)

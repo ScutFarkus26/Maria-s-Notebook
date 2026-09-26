@@ -4,9 +4,7 @@ import ImageIO
 import CoreGraphics
 import OSLog
 
-#if os(macOS)
-import AppKit
-#else
+#if !os(macOS)
 import UIKit
 #endif
 
@@ -31,50 +29,85 @@ public enum PhotoStorageService {
         return documentsURL
     }
     
+    /// What became of a picked photo handed to `savePickedPhoto`.
+    nonisolated public enum PickedPhotoResult: Sendable {
+        /// The bytes aren't an image (where `NSImage(data:)` / `UIImage(data:)` gave nil).
+        case notAnImage
+        /// Stored in the photos directory as `filename`.
+        case saved(filename: String, preview: CGImage?)
+        /// An image, but converting or writing it failed.
+        case failed(preview: CGImage?, error: any Error)
+    }
+
+    /// Stores a picked photo — the bytes PhotosPicker hands over — as the app's
+    /// JPEG, and makes the editor's preview of it for a `previewSide`-point square.
+    /// ImageIO transcodes the photo on the concurrent executor, so no full-size
+    /// `NSImage` / `UIImage` is decoded and the main thread never touches it; the
+    /// file is the one decoding into a platform image and saving that wrote
+    /// (`PhotoImageIO.savedPhotoJPEG`). The preview is made from that JPEG, so it
+    /// shows the photo exactly as the note will. `directory` replaces
+    /// `photosDirectory()`.
+    @concurrent
+    nonisolated public static func savePickedPhoto(
+        _ data: Data,
+        previewSide: CGFloat,
+        scale: CGFloat,
+        in directory: URL? = nil
+    ) async -> PickedPhotoResult {
+        guard PhotoImageIO.containsImage(data) else { return .notAnImage }
+        do {
+            guard let jpegData = PhotoImageIO.savedPhotoJPEG(from: data) else {
+                throw PhotoStorageError.imageConversionFailed
+            }
+            let filename = try writePhotoJPEG(jpegData, in: directory ?? photosDirectory())
+            let preview = PhotoImageIO.preview(from: jpegData, side: previewSide, scale: scale)
+            return .saved(filename: filename, preview: preview)
+        } catch {
+            let preview = PhotoImageIO.preview(from: data, side: previewSide, scale: scale)
+            return .failed(preview: preview, error: error)
+        }
+    }
+
+    #if !os(macOS)
     /// Saves a platform image to the photos directory and returns the filename.
     /// The filename is generated using a UUID to ensure uniqueness.
-    /// - Parameter image: The platform image (UIImage/NSImage) to save
+    /// Used for camera captures, which arrive as a `UIImage`; picked photos go
+    /// through `savePickedPhoto`.
+    /// - Parameter image: The platform image (UIImage) to save
     /// - Returns: The filename (not the full path) that can be stored in the CDNote model
     /// - Throws: An error if the image cannot be saved
-    #if os(macOS)
-    public static func saveImage(_ image: NSImage) throws -> String {
-        // Convert NSImage to JPEG data
-        guard let tiffData = image.tiffRepresentation,
-              let bitmapImage = NSBitmapImageRep(data: tiffData),
-              let jpegData = bitmapImage.representation(
-                  using: .jpeg,
-                  properties: [NSBitmapImageRep.PropertyKey.compressionFactor: 0.8]
-              ) else {
-            throw PhotoStorageError.imageConversionFailed
-        }
-        
-        let photosDir = try photosDirectory()
-        let filename = UUID().uuidString + ".jpg"
-        let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
-        
-        try jpegData.write(to: fileURL)
-        
-        return filename
-    }
-    
-    #else
     public static func saveImage(_ image: UIImage) throws -> String {
         // Convert UIImage to JPEG data
-        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
+        guard let jpegData = image.jpegData(compressionQuality: PhotoImageIO.jpegQuality) else {
             throw PhotoStorageError.imageConversionFailed
         }
-        
-        let photosDir = try photosDirectory()
-        let filename = UUID().uuidString + ".jpg"
+        return try writePhotoJPEG(jpegData, in: photosDirectory())
+    }
+
+    /// The editor's preview of a photo already in the photos directory (a camera
+    /// capture), read from the file at preview size on the concurrent executor.
+    /// `directory` replaces `photosDirectory()`.
+    @concurrent
+    nonisolated public static func preview(
+        ofSavedPhoto filename: String,
+        side: CGFloat,
+        scale: CGFloat,
+        in directory: URL? = nil
+    ) async -> CGImage? {
+        guard let photosDir = directory ?? (try? photosDirectory()) else { return nil }
         let fileURL = photosDir.appendingPathComponent(filename, isDirectory: false)
-        
+        return PhotoImageIO.preview(contentsOf: fileURL, side: side, scale: scale)
+    }
+    #endif
+
+    /// Writes JPEG bytes to `directory` under a new UUID filename and returns the filename.
+    nonisolated private static func writePhotoJPEG(_ jpegData: Data, in directory: URL) throws -> String {
+        let filename = UUID().uuidString + ".jpg"
+        let fileURL = directory.appendingPathComponent(filename, isDirectory: false)
         try jpegData.write(to: fileURL)
-        
         return filename
     }
-    
-    #endif
-    
+
     /// Loads a downsampled image from the photos directory using a filename.
     /// Uses CGImageSource to create thumbnails efficiently, drastically reducing memory usage:
     /// the full-size photo is never decoded, and the thumbnail is decoded on the calling thread.
