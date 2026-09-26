@@ -52,8 +52,9 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | File | Trigger |
 |------|---------|
 | `AppCore/AutoBackupAppDelegate.swift` | macOS quit — `applicationShouldTerminate` returns `.terminateLater`, backup runs async, then replies. |
-| `AppCore/BackupBackgroundTaskManager.swift` | iOS — `BGProcessingTask` registration + scheduling. |
-| `AppCore/CosmicDaybookApp.swift` | iOS scene-phase `.background` trigger (under a `UIApplication` background-task assertion); starts the interval loop. |
+| `AppCore/BackupBackgroundTaskManager.swift` | iOS — `BGProcessingTask` registration + scheduling (requires external power; an expired run stops between entity types and leaves no file). |
+| `AppCore/CosmicDaybookApp+Startup.swift` | iOS scene-phase `.background` trigger (under a `UIApplication` background-task assertion, at `.utility`). |
+| `AppCore/AppServicesLauncher.swift` | Starts the interval schedule once per process (`AutoBackupManager.startScheduledBackups`): a loop on iOS, `NSBackgroundActivityScheduler` on macOS (`Backup/Core/ScheduledBackupActivity.swift`). |
 
 ---
 
@@ -136,7 +137,7 @@ silently missing data is worse than a failed one.
 
 ## Automatic Backups
 
-- **Triggers:** macOS quit, iOS background (scene phase + `BGProcessingTask`), in-app interval loop, pre-destructive.
+- **Triggers:** macOS quit, iOS background (scene phase + `BGProcessingTask`), the interval schedule (iOS loop; macOS `NSBackgroundActivityScheduler` with 10% tolerance at `.utility`), pre-destructive.
 - **Change-gated:** `BackupChangeTracker` records the persistent-history token after each auto-backup and skips the next one if no transactions occurred since. Fail-open — any uncertainty performs the backup.
 - **Retention:** keeps the newest N (default 10) of `AutoBackup-`/`ScheduledBackup-`/`PreOp-` files.
 

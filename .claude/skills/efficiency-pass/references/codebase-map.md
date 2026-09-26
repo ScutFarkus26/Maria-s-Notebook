@@ -51,7 +51,13 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Keep a value built from saved sequence/section orders | `FilterOrderStore.revision` (bumped on every save and cache reset); `MapLayoutMemo` keys the Lessons map's sections on it plus catalog version, area and spine | `Components/FilterOrderStore.swift`, `Lessons/LessonsScopeMapLayout.swift` |
 | Menu-bar actions that don't rebuild menus per body pass | a reference-type focused value filled in `onAppear` (`FocusedSearchAction`, `QuickCaptureActions`, `AlbumFocusActions`), never a struct of closures | `AppCore/AppCommands.swift`, `Albums/AlbumModels.swift` |
 | Pace streamed text onto the screen | `StreamingTextThrottle` (≤ 10 updates/s, always flushes the last text) | `Chat/StreamingTextThrottle.swift` |
-| Reload only while a screen is on screen (TabView keeps visited tabs alive with live `.onReceive`/`.onChange`) | `.onChangeWhenVisible(of:catchUpOnAppear:)` / `.onReceiveWhenVisible(_:catchUpOnAppear:)`: hidden = mark stale, run once on reappear (pass `false` when the screen's own `.task`/`.onAppear` already reloads). No-op-safe on macOS, where the split-view detail is torn down. Wired (2026-09-23): Students DidSave token refresh, Progress, Presentations (pending tokens → change tokens), Works Agenda DidSave, Week plan check-ins (`ClassCurriculumMapView` needs nothing: its watcher runs inside `.task`, which is cancelled while hidden) | `Utils/View+WhenVisible.swift` |
+| Reload only while a screen is on screen (TabView keeps visited tabs alive with live `.onReceive`/`.onChange`) | `.onChangeWhenVisible(of:catchUpOnAppear:)` / `.onReceiveWhenVisible(_:catchUpOnAppear:)`: hidden = mark stale, run once on reappear (pass `false` when the screen's own `.task`/`.onAppear` already reloads). Since 2026-09-25 they also treat a Mac window nobody can see (minimized, covered, other Space) as hidden and catch up once when it's visible again, whatever `catchUpOnAppear` says. Wired (2026-09-23): Students DidSave token refresh, Progress, Presentations (pending tokens → change tokens), Works Agenda DidSave, Week plan check-ins, the desktop companion's counts, Albums' activation refresh (`ClassCurriculumMapView` needs nothing: its watcher runs inside `.task`, which is cancelled while hidden) | `Utils/View+WhenVisible.swift`, `Utils/WhenVisibleGate.swift` |
+| Know whether a Mac window can be seen (SwiftUI and `scenePhase` don't report occlusion) | `.onWindowVisibilityChange { visible in … }` (a zero-size `WindowOcclusionProbe` watching its own window; no-op on iOS) | `Utils/View+WindowOcclusion.swift`, `Components/WindowOcclusionProbe.swift` |
+| Show the main window from AppKit or the companion | `MainWindowRegistry.bringMostRecentForward()` (weak registry filled by `EnsureResizableWindow`); `openWindow(id: "mainWindow")` only when none is open | `AppCore/MainWindowRegistry.swift` |
+| App-wide services (bootstrap, sync status, pushes, backups, Spotlight, MCP) | `AppServicesLauncher.startIfNeeded` — once per process, from the first main window's `.task` or, for an MCP-only launch, the app delegate | `AppCore/AppServicesLauncher.swift` |
+| Act on scene activation only when the day, school calendar or counter epoch changed | `.onCalendarDayChange` (via `CalendarDayActivationGate`) | `Utils/View+CalendarDayChange.swift`, `Utils/CalendarDayActivationGate.swift` |
+| Copy EventKit data into Core Data without rewriting unchanged rows | `EventKitMirror` (assign only differing fields; stamp `lastSyncedAt` only on new/changed rows) | `Services/EventKitMirror.swift` |
+| Mac maintenance on a schedule | `ScheduledBackupActivity` (`NSBackgroundActivityScheduler`, 10% tolerance, `.utility`, honours `shouldDefer`); timing in `ScheduledBackupTiming` | `Backup/Core/` |
 
 Services that already consult `EnergyPolicy`: `AppBootstrapper` (post-launch migrations),
 startup Spotlight/search reindex, `AutoBackupManager`, `AlbumLibrary.buildIndexes`,
@@ -89,10 +95,13 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
 5. **The 2026-09-25 "Energy Fifty" audit** (private artifact "Daybook Energy Fifty"; baseline
    and per-item numbers in `perf-baselines/2026-09-25-energy-fifty-wave1.md`) lists 50 items by
    number. Wave one landed 2026-09-25: items 17, 19–21, 23, 24 and 26–36 (29 as the memo half
-   only; 32 without the Progress Dashboard row).
-   Still open: the Mac process items (a Release build day to day, the MCP bridge, occlusion,
-   per-window startup), EventKit mirrors rewriting every row each sync, backup encoding on the
-   main actor, idle cache trims, hidden iPad tabs beyond the five wired, and the memory items.
+   only; 32 without the Progress Dashboard row). Wave two landed the same day
+   (`perf-baselines/2026-09-25-energy-fifty-wave2.md`): 2, 3, 4, 6–11, 15, 16, 18, 48, 50 — the MCP
+   bridge and MCP-only launch, occlusion-aware gates, services once per process, EventKit
+   mirrors writing only changed rows, backup encoding `@concurrent`, the Mac backup on
+   `NSBackgroundActivityScheduler`. 49 (the Assistant's push background mode) was left as is.
+   Still open: 1 (a Release build day to day — Danny's step), idle cache trims (5), hidden iPad
+   tabs beyond those wired (46), the memory items (37–45, 47), 12–14, 25, 43.
 
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
@@ -149,4 +158,10 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   capped read keeps.
 - `verify.sh` calls `xcodebuild` directly (not `Scripts/locked_xcodebuild.sh`) and builds the
   Daybook Assistant for `platform=macOS`; for a lock-respecting gate build every target through
-  the lock (the Assistant on an iOS simulator) and run `test-without-building`.
+  the lock (the Assistant on an iOS simulator) and run `test-without-building`, whose verdict
+  line is `** TEST EXECUTE SUCCEEDED **` (read totals with `xcrun xcresulttool get test-results
+  summary`).
+- `AlbumSemanticBackendTests` need the sentence-embedding model, which the iPhone 17 simulator
+  loads in ~100 ms and the iPhone Air / iPhone 17e simulators never load. Run gates on iPhone 17;
+  on the others those two tests fail (and can starve main-actor timing tests such as
+  `StreamingTextThrottleTests.scheduledUpdateArrives`).
