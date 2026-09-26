@@ -2,12 +2,9 @@
 // Builds the unified agenda by merging lessons and work items with persisted ordering.
 
 import Foundation
-import OSLog
 import CoreData
 
 enum TodayAgendaBuilder {
-
-    private static let logger = Logger.app_
 
     // Builds the unified agenda by merging items with persisted order.
     // Items with a saved position appear first (in position order).
@@ -159,50 +156,6 @@ enum TodayAgendaBuilder {
         }
 
         context.safeSave()
-    }
-
-    /// Deletes agenda order entries older than 30 days.
-    static func cleanupOldOrders(context: NSManagedObjectContext) {
-        let cutoff = AppCalendar.startOfDay(
-            AppCalendar.addingDays(-30, to: Date())
-        )
-        do {
-            let request = CDFetchRequest(CDTodayAgendaOrder.self)
-            request.predicate = NSPredicate(format: "day < %@", cutoff as NSDate)
-            request.fetchLimit = 1000
-            let old = try context.fetch(request)
-            guard !old.isEmpty else { return }
-            for entry in old {
-                context.delete(entry)
-            }
-            context.safeSave()
-        } catch {
-            logger.warning("Failed to cleanup old agenda orders: \(error)")
-        }
-    }
-
-    /// Deletes empty day pads older than 30 days. Non-empty pads are preserved
-    /// so a teacher can return to past notes indefinitely.
-    static func cleanupOldDayPads(context: NSManagedObjectContext) {
-        let cutoff = AppCalendar.startOfDay(
-            AppCalendar.addingDays(-30, to: Date())
-        )
-        do {
-            let request = CDFetchRequest(CDDayPad.self)
-            request.predicate = NSPredicate(
-                format: "day < %@ AND (body == nil OR body == %@)",
-                cutoff as NSDate, ""
-            )
-            request.fetchLimit = 1000
-            let old = try context.fetch(request)
-            guard !old.isEmpty else { return }
-            for entry in old {
-                context.delete(entry)
-            }
-            context.safeSave()
-        } catch {
-            logger.warning("Failed to cleanup old day pads: \(error)")
-        }
     }
 
     // MARK: - Private

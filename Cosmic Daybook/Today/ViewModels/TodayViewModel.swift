@@ -187,12 +187,10 @@ final class TodayViewModel {
         // competing with SwiftUI's initial body evaluation for the store coordinator.
         self.date = date.startOfDay
 
-        // Clean up old agenda order entries and empty day pads in the background
-        let ctx = context
-        Task(priority: .background) { @MainActor in
-            TodayAgendaBuilder.cleanupOldOrders(context: ctx)
-            TodayAgendaBuilder.cleanupOldDayPads(context: ctx)
-        }
+        // Clean up old agenda order entries and empty day pads: once a day per
+        // store, on a background context (TodayView makes a new view model on
+        // every parent redraw, and this used to run on the main thread each time).
+        TodayRetentionCleanup.startIfDue(for: context)
     }
 
     func setCalendar(_ cal: Calendar) {
