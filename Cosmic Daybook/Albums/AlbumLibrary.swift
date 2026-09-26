@@ -1,6 +1,7 @@
 // AlbumLibrary.swift
-// The content layer. Album wraps one PDF: its outline (parsed into lesson
-// references), cover rendering, and highlight annotations. AlbumLibrary
+// The content layer. Album stands for one PDF: its outline and lessons (read
+// once by AlbumContents), cover rendering, highlight annotations, and the
+// document itself, opened on use and let go by memory trims. AlbumLibrary
 // owns the set of album folders (security-scoped bookmarks), the full-text
 // page index (built in the background, cached per file modification date),
 // change detection for "Updated" badges, and the semantic index build.
@@ -20,45 +21,34 @@ final class Album: Identifiable {
     let url: URL
     let title: String
     let subject: AlbumSubject
-    let document: PDFDocument
     let pageCount: Int
     let outline: [AlbumOutlineNode]
     let lessons: [AlbumLessonRef]  // flattened outline in document order
+    /// Content fingerprint, used to recognise this album again after the PDF
+    /// is renamed or moved. Read at load, while the PDF is open for its outline.
+    let fingerprint: String
     var cover: PlatformImage?
     var coverRequested = false
 
-    @ObservationIgnored private var cachedFingerprint: String?
-
-    /// Content fingerprint, used to recognise this album again after the PDF
-    /// is renamed or moved. Computed once — the document is already open and
-    /// the outline already parsed by the time anything asks for it.
-    var fingerprint: String {
-        if let cachedFingerprint { return cachedFingerprint }
-        let value = AlbumIdentityRepair.fingerprint(
-            pageCount: pageCount,
-            lessonTitles: lessons.map(\.title),
-            firstPageText: document.page(at: 0)?.string ?? "")
-        cachedFingerprint = value
-        return value
-    }
+    /// The PDF, opened on first use and held until `releaseDocument()`. It is
+    /// what a reader shows and what Find and highlighting fill in with page
+    /// objects and page text, so an album read once used to stay that big.
+    @ObservationIgnored private var heldDocument: PDFDocument?
+    /// The same PDF for as long as anything else still has it, a reader's
+    /// PDFView, so a release never swaps it out from under a reader.
+    @ObservationIgnored private weak var openDocument: PDFDocument?
 
     init?(url: URL) {
-        guard let document = PDFDocument(url: url) else { return nil }
+        // Only values are kept; the PDF closes here and reopens on first use.
+        guard let contents = AlbumContents.read(url: url) else { return nil }
         self.id = url.lastPathComponent
         self.url = url
         self.title = Album.cleanTitle(from: url)
         self.subject = AlbumSubject.detect(from: title)
-        self.document = document
-        self.pageCount = document.pageCount
-
-        var nodes: [AlbumOutlineNode] = []
-        var flat: [AlbumLessonRef] = []
-        if let root = document.outlineRoot {
-            Album.parse(outline: root, document: document, depth: 0, path: "r",
-                        into: &nodes, flat: &flat)
-        }
-        self.outline = nodes
-        self.lessons = flat.sorted { $0.pageIndex == $1.pageIndex ? $0.depth < $1.depth : $0.pageIndex < $1.pageIndex }
+        self.pageCount = contents.pageCount
+        self.outline = contents.outline
+        self.lessons = contents.lessons
+        self.fingerprint = contents.fingerprint
     }
 
     static func cleanTitle(from url: URL) -> String {
@@ -69,24 +59,22 @@ final class Album: Identifiable {
         return t.isEmpty ? url.deletingPathExtension().lastPathComponent : t
     }
 
-    private static func parse(outline: PDFOutline, document: PDFDocument, depth: Int, path: String,
-                              into nodes: inout [AlbumOutlineNode], flat: inout [AlbumLessonRef]) {
-        for i in 0..<outline.numberOfChildren {
-            guard let child = outline.child(at: i) else { continue }
-            let title = (child.label ?? "Untitled").trimmingCharacters(in: .whitespacesAndNewlines)
-            var pageIndex = 0
-            if let page = child.destination?.page { pageIndex = document.index(for: page) }
-            let nodePath = "\(path).\(i)"
-            var node = AlbumOutlineNode(id: nodePath, title: title, pageIndex: pageIndex, children: nil)
-            flat.append(AlbumLessonRef(title: title, pageIndex: pageIndex, depth: depth))
-            if child.numberOfChildren > 0 {
-                var sub: [AlbumOutlineNode] = []
-                parse(outline: child, document: document, depth: depth + 1, path: nodePath,
-                      into: &sub, flat: &flat)
-                node.children = sub
-            }
-            nodes.append(node)
-        }
+    /// The album's PDF for a reader, an export or a page thumbnail: opened on
+    /// first use and kept until `releaseDocument()`. Nil only when the file
+    /// can no longer be opened (moved or deleted since the library loaded).
+    var document: PDFDocument? {
+        if let heldDocument { return heldDocument }
+        let document = openDocument ?? PDFDocument(url: url)
+        heldDocument = document
+        openDocument = document
+        return document
+    }
+
+    /// Lets go of the PDF, as a memory trim does. It closes once nothing else
+    /// has it (at once for an album no reader is showing) and the next use
+    /// reopens the file; a reader still showing it keeps that same document.
+    func releaseDocument() {
+        heldDocument = nil
     }
 
     /// Number of leaf outline entries — a decent proxy for "lessons".
@@ -113,15 +101,25 @@ final class Album: Identifiable {
 
     // MARK: CDAlbumHighlight rendering
 
-    /// Annotations we've injected into the in-memory document (never written
-    /// back to the PDF file), so they can be cleanly replaced.
-    private var appliedHighlightAnnotations: [(annotation: PDFAnnotation, page: PDFPage)] = []
+    /// One annotation we've injected into the open document (never written
+    /// back to the PDF file). Weak: its page owns it, and once the document
+    /// closes there is nothing left to take off.
+    private struct AppliedHighlight {
+        weak var annotation: PDFAnnotation?
+        weak var page: PDFPage?
+    }
+
+    /// The injected annotations, so they can be cleanly replaced.
+    private var appliedHighlightAnnotations: [AppliedHighlight] = []
 
     func applyHighlights(_ items: [CDAlbumHighlight]) {
         for entry in appliedHighlightAnnotations {
-            entry.page.removeAnnotation(entry.annotation)
+            if let annotation = entry.annotation, let page = entry.page {
+                page.removeAnnotation(annotation)
+            }
         }
         appliedHighlightAnnotations = []
+        guard let document else { return }
         for item in items {
             guard let page = document.page(at: Int(item.pageIndex)) else { continue }
             for rect in item.rects {
@@ -137,7 +135,7 @@ final class Album: Identifiable {
                 annotation.quadrilateralPoints = local.map { NSValue(cgPoint: $0) }
                 #endif
                 page.addAnnotation(annotation)
-                appliedHighlightAnnotations.append((annotation, page))
+                appliedHighlightAnnotations.append(AppliedHighlight(annotation: annotation, page: page))
             }
         }
     }

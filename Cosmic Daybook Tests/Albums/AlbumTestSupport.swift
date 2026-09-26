@@ -65,13 +65,22 @@ enum AlbumTestSupport {
 
         let url = dir.appendingPathComponent(fileName)
         try autoreleasepool {
-            guard let document = PDFDocument(url: draft) else { throw CocoaError(.fileReadCorruptFile) }
+            guard let drawn = PDFDocument(url: draft) else { throw CocoaError(.fileReadCorruptFile) }
+            // PDFKit writes an outline only for a document it assembled itself:
+            // set on one opened from a file, the outline is dropped on write.
+            let document = PDFDocument()
+            for index in 0..<drawn.pageCount {
+                guard let page = drawn.page(at: index)?.copy() as? PDFPage else { continue }
+                document.insert(page, at: document.pageCount)
+            }
             let root = PDFOutline()
             for entry in outline {
                 root.insertChild(makeOutlineItem(entry, in: document), at: root.numberOfChildren)
             }
             document.outlineRoot = root
-            guard document.write(to: url) else { throw CocoaError(.fileWriteUnknown) }
+            // The copied pages draw from the drawn document's file.
+            let written = withExtendedLifetime(drawn) { document.write(to: url) }
+            guard written else { throw CocoaError(.fileWriteUnknown) }
         }
         return url
     }

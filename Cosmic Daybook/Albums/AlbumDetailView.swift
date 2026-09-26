@@ -179,16 +179,23 @@ struct AlbumDetailView: View {
             }
     }
 
+    @ViewBuilder
     private var viewer: some View {
-        #if os(iOS)
-        AlbumPDFViewer(document: album.document, currentPageIndex: $currentPage,
-                      jump: jump, proxy: proxy, inkController: ink)
-            .ignoresSafeArea(edges: .bottom)
-        #else
-        AlbumPDFViewer(document: album.document, currentPageIndex: $currentPage,
-                      jump: jump, proxy: proxy)
-            .ignoresSafeArea(edges: .bottom)
-        #endif
+        if let document = album.document {
+            #if os(iOS)
+            AlbumPDFViewer(document: document, currentPageIndex: $currentPage,
+                          jump: jump, proxy: proxy, inkController: ink)
+                .ignoresSafeArea(edges: .bottom)
+            #else
+            AlbumPDFViewer(document: document, currentPageIndex: $currentPage,
+                          jump: jump, proxy: proxy)
+                .ignoresSafeArea(edges: .bottom)
+            #endif
+        } else {
+            // The PDF was open when the library loaded; it has gone since.
+            ContentUnavailableView("Album Unavailable", systemImage: "questionmark.folder",
+                                   description: Text("The PDF may have been moved or deleted."))
+        }
     }
 
     // MARK: Find bar
@@ -574,11 +581,11 @@ struct AlbumDetailView: View {
     // MARK: Highlights
 
     private func highlightCurrentSelection() {
-        guard let selection = proxy.currentSelection,
+        guard let selection = proxy.currentSelection, let document = album.document,
               let text = selection.string?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else { return }
         for page in selection.pages {
-            let pageIndex = album.document.index(for: page)
+            let pageIndex = document.index(for: page)
             let rects = selection.selectionsByLine()
                 .filter { $0.pages.contains(page) }
                 .map { $0.bounds(for: page) }
@@ -633,11 +640,13 @@ struct AlbumDetailView: View {
     }
 
     private func exportCurrentLesson() {
+        // The reader's own document, highlights and all, as before.
+        guard let document = album.document else { return }
         let range = album.lessonRange(forPage: currentPage)
         let exported = PDFDocument()
         var inserted = 0
         for pageIndex in range {
-            if let page = album.document.page(at: pageIndex),
+            if let page = document.page(at: pageIndex),
                let copy = page.copy() as? PDFPage {
                 exported.insert(copy, at: inserted)
                 inserted += 1
@@ -669,26 +678,6 @@ struct AlbumDetailView: View {
         }
     }
 
-}
-
-// MARK: - Export document
-
-nonisolated struct PDFExportDocument: FileDocument {
-    static let readableContentTypes: [UTType] = [.pdf]
-
-    var data: Data
-
-    init(data: Data) {
-        self.data = data
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        data = configuration.file.regularFileContents ?? Data()
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: data)
-    }
 }
 
 // MARK: - Related lessons

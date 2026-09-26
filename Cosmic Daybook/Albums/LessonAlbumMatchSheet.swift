@@ -214,7 +214,7 @@ struct AlbumPageThumbnail: View {
         .accessibilityHidden(true)
         .task(id: "\(albumID)|\(pageIndex)") {
             guard image == nil,
-                  let page = library.album(id: albumID)?.document.page(at: pageIndex) else { return }
+                  let page = library.album(id: albumID)?.document?.page(at: pageIndex) else { return }
             let size = CGSize(width: width * 3, height: width * 4)
             image = page.thumbnail(of: size, for: .mediaBox)
         }
