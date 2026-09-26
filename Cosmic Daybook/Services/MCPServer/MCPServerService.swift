@@ -2,9 +2,9 @@
 //  MCPServerService.swift
 //  Cosmic Daybook
 //
-//  Lifecycle owner for the in-app MCP server. Started from
-//  performStartupBootstrap on macOS when the Settings toggle is on;
-//  the Settings pane starts and stops it live via applySettings().
+//  Lifecycle owner for the in-app MCP server. Started once per process by
+//  AppServicesLauncher on macOS when the Settings toggle is on; the
+//  Settings pane starts and stops it live via applySettings().
 //
 
 #if os(macOS)

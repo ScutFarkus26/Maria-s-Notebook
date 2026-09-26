@@ -89,8 +89,10 @@ Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
   `NWListener`, accepts any number of concurrent clients, buffers lines
   per connection, and answers sequentially per connection.
 - **Lifecycle**: `MCPServerService.shared` (macOS-only, `@Observable`)
-  starts/stops the socket server from `performStartupBootstrap()` and from
-  the Settings toggle (Settings → AI Features → Claude Desktop, backed by
+  starts/stops the socket server when the app-wide services start
+  (`AppServicesLauncher`, once per process — see
+  `CosmicDaybookApp+Startup.swift`) and from the Settings toggle
+  (Settings → AI Features → Claude Desktop, backed by
   `UserDefaultsKeys.aiMCPServerEnabled`, default **off**).
 
 ## Tools
@@ -266,7 +268,7 @@ parents.
 **App-level services.** `AutoBackupManager` and `MonthlyReportDraftService`
 are reached through `AppDependencies`, which is injected into the SwiftUI
 environment rather than resolvable from a static tool handler. `MCPAppServices`
-is the one-slot locator that bridges the gap: `performStartupBootstrap`
+is the one-slot locator that bridges the gap: `AppServicesLauncher`
 registers the app's container just before `MCPServerService` starts, and
 `makeTools(context:dependencies:)` hands the two tools that need it
 (`create_backup`, `draft_parent_report`) a provider closure — nil before

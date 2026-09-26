@@ -37,6 +37,9 @@ struct CosmicDaybookApp: App {
     /// The shared Core Data stack — initialized once in init() and used by all scenes.
     let coreDataStack: CoreDataStack
 
+    /// Starts the app-wide services once per process (see `startAppServicesIfNeeded`).
+    let servicesLauncher: AppServicesLauncher
+
     // MARK: - Initialization
 
     init() {
@@ -63,6 +66,14 @@ struct CosmicDaybookApp: App {
         // failures recorded on one never reach the other's "Couldn't Save" alert.
         saveCoordinator = deps.saveCoordinator
         restoreCoordinator = RestoreCoordinator(appRouter: deps.appRouter)
+
+        let launcher = AppServicesLauncher(
+            coreDataStack: stack,
+            dependencies: deps,
+            bootstrapper: AppBootstrapper.shared
+        )
+        servicesLauncher = launcher
+        AppServicesLauncher.register(launcher)
 
         #if os(iOS)
         // BGTaskScheduler handlers must be registered before launch finishes.
