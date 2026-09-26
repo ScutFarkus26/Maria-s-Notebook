@@ -72,7 +72,13 @@ final class AutoBackupManager {
 
     private let coordinator: BackupCoordinator
     private let changeTracker = BackupChangeTracker()
+    #if os(macOS)
+    /// The Mac's interval backup: one system-scheduled activity per backup.
+    private let scheduledActivity = ScheduledBackupActivity()
+    #else
+    /// The interval loop (it only runs while the app is in the foreground).
     private var scheduledBackupTask: Task<Void, Never>?
+    #endif
     private var viewContext: NSManagedObjectContext?
 
     // MARK: - Initialization
@@ -95,14 +101,20 @@ final class AutoBackupManager {
 
     // MARK: - Scheduled Backup Management
 
-    /// Starts the scheduled backup timer
-    /// - Parameter viewContext: The SwiftData model context to use for backups
+    /// Starts (or restarts, from the current switch and interval) the
+    /// interval backups, replacing any already scheduled. On the Mac the
+    /// system runs each one (`ScheduledBackupActivity`); elsewhere a loop
+    /// sleeps until it is due.
+    /// - Parameter viewContext: The Core Data context to back up from
     func startScheduledBackups(viewContext: NSManagedObjectContext) {
         self.viewContext = viewContext
         stopScheduledBackups()
 
         guard scheduledEnabled && intervalHours > 0 else { return }
 
+        #if os(macOS)
+        armScheduledActivity()
+        #else
         // Utility: automatic work the guide didn't ask for. The encode half
         // of the export inherits this priority off the main actor.
         scheduledBackupTask = Task(priority: .utility) { [weak self] in
@@ -139,13 +151,42 @@ final class AutoBackupManager {
                 await self.performScheduledBackup()
             }
         }
+        #endif
     }
 
-    /// Stops the scheduled backup timer
+    /// Stops the interval backups. A backup already running finishes.
     func stopScheduledBackups() {
+        #if os(macOS)
+        scheduledActivity.invalidate()
+        #else
         scheduledBackupTask?.cancel()
         scheduledBackupTask = nil
+        #endif
     }
+
+    #if os(macOS)
+    /// Arms the next interval backup, due when the loop would wake. Each run
+    /// re-arms with the wait the loop would compute next: from the current
+    /// interval, and none once the switch is off.
+    private func armScheduledActivity() {
+        guard let delay = nextScheduledBackupDelay() else { return }
+        scheduledActivity.arm(after: delay) { [weak self] in
+            // The loop's check after its sleep: switched off meanwhile?
+            guard let self, self.scheduledEnabled else { return nil }
+            await self.performScheduledBackup()
+            return self.nextScheduledBackupDelay()
+        }
+    }
+
+    private func nextScheduledBackupDelay() -> TimeInterval? {
+        ScheduledBackupTiming.nextDelay(
+            enabled: scheduledEnabled,
+            intervalHours: intervalHours,
+            lastBackup: lastScheduledBackupDate,
+            now: Date()
+        )
+    }
+    #endif
 
     /// Performs a scheduled backup.
     ///
@@ -166,8 +207,9 @@ final class AutoBackupManager {
         _ = await performBackup(viewContext: viewContext, trigger: .scheduled, prefix: "ScheduledBackup")
         // Advance the schedule clock regardless of outcome (success, skip, or
         // failure). A failed attempt must still move `lastScheduledBackupDate`
-        // forward, otherwise the timer loop computes a zero wait and retries
-        // the full payload collection in a hot loop until the app quits.
+        // forward, otherwise the next wait (the loop's sleep, or the Mac's
+        // next activity) is zero and the full payload collection retries in
+        // a hot loop until the app quits.
         markScheduledBackupPerformed()
     }
 
