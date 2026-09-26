@@ -237,6 +237,12 @@ final class CoreDataStack {
         }
         #endif
 
+        // The Daybook Assistant gets neither the processor nor the listener:
+        // on every remote-change burst they read history for dedup requests
+        // (compiled out there) and entity notifications nothing in it observes.
+        // History tracking stays on in its store descriptions; CloudKit
+        // mirroring needs it.
+        #if !ASSISTANT_APP
         // Create the persistent history processor — but only for the primary
         // on-disk stack. Sample Class and test stacks (localStoreURL / inMemory)
         // must not create one: all processors persist their token under the same
@@ -259,6 +265,7 @@ final class CoreDataStack {
                 self?.handleRemoteChangeNotification()
             }
         }
+        #endif
 
         let elapsed = String(format: "%.3f", Date().timeIntervalSince(start))
         Self.logger.info("CoreDataStack initialized in \(elapsed)s")
