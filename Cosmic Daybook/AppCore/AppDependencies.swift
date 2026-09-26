@@ -72,15 +72,28 @@ final class AppDependencies {
 
     // MARK: - Core Services
 
-    /// Started on first access; `CosmicDaybookApp+Startup` touches it once
-    /// so monitoring begins at launch.
+    /// Started on first access; `AppServicesLauncher` touches it once per
+    /// process so monitoring begins at launch. On the Mac that also starts
+    /// the idle trim (`trimIdleMemory`), which has no hook of its own.
     @ObservationIgnored lazy var memoryPressureMonitor: MemoryPressureMonitor = {
         let monitor = MemoryPressureMonitor()
         monitor.startMonitoring { [weak self] level in
             self?.handleMemoryPressure(level: level)
         }
+        #if os(macOS)
+        let idleTrim = IdleMemoryTrimController { [weak self] reason in
+            self?.trimIdleMemory(reason: reason)
+        }
+        idleTrim.start()
+        self.idleMemoryTrimController = idleTrim
+        #endif
         return monitor
     }()
+
+    #if os(macOS)
+    /// Kept for the life of the process; see `memoryPressureMonitor`.
+    @ObservationIgnored private var idleMemoryTrimController: IdleMemoryTrimController?
+    #endif
 
     // MARK: - Data Services
 
@@ -283,6 +296,31 @@ final class AppDependencies {
             // resets; this is the same call the backup deletion path already uses.
             viewContext.refreshAllObjects()
         }
+    }
+
+    /// Frees what the album library rebuilds on demand once the app has gone
+    /// idle: on iOS as it moves to the background (memory held while
+    /// suspended decides which app iOS ends first), on the Mac after about
+    /// ten minutes inactive or as the last main window closes (a Mac with
+    /// room to spare almost never sends a pressure event, so these otherwise
+    /// stay for the whole session).
+    ///
+    /// Only the library's warning-level release, which the guide doesn't
+    /// see: covers re-render when shown, folded page text re-folds and the
+    /// query models reload on the next search. Deliberately not
+    /// `handleMemoryPressure`: the image cache stays (Danny's call, Energy
+    /// Fifty item 5), and nothing posts `.memoryPressureDetected`, on which
+    /// Presentations refetches. Skipped while the library hasn't loaded.
+    @discardableResult
+    func trimIdleMemory(reason: IdleMemoryTrimReason) -> Bool {
+        let library = AlbumLibrary.shared
+        guard library.state == .ready else { return false }
+        let covers = library.albums.count { $0.cover != nil }
+        library.releaseMemory(critical: false)
+        let message = "Idle trim (\(reason.rawValue)): released album covers (\(covers)), " +
+            "folded page text and query models (footprint: \(MemoryPressureMonitor.footprintDescription))"
+        Logger.cache.notice("\(message, privacy: .public)")
+        return true
     }
 }
 

@@ -83,11 +83,13 @@ final class MemoryPressureMonitor {
         sourceHolder.source = source
 
         source.setEventHandler { [weak self] in
+            // The event that fired is `source.data` (NOT `source.mask`), which
+            // Dispatch defines only inside this handler: read it here and carry
+            // the value into the hop to the main actor.
+            let event = DispatchSource.MemoryPressureEvent(rawValue: source.data)
             Task { @MainActor [weak self] in
                 guard let self else { return }
 
-                // Read the actual event that fired via source.data (NOT source.mask)
-                let event = DispatchSource.MemoryPressureEvent(rawValue: source.data)
                 let now = Date()
 
                 switch event {
@@ -99,9 +101,8 @@ final class MemoryPressureMonitor {
                     self.lastCriticalResponse = now
                     self.lastPressureLevel = .critical
 
-                    let footprint = currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
                     let criticalMsg = "Critical memory pressure - clearing caches aggressively " +
-                        "(footprint: \(footprint), event #\(self.pressureEventCount + 1))"
+                        "(footprint: \(Self.footprintDescription), event #\(self.pressureEventCount + 1))"
                     logger.warning("\(criticalMsg, privacy: .public)")
 
                     self.lastPressureEvent = now
@@ -116,9 +117,8 @@ final class MemoryPressureMonitor {
                     self.lastWarningResponse = now
                     self.lastPressureLevel = .warning
 
-                    let footprint = currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
                     let warningMsg = "Memory pressure warning - clearing non-essential caches " +
-                        "(footprint: \(footprint), event #\(self.pressureEventCount + 1))"
+                        "(footprint: \(Self.footprintDescription), event #\(self.pressureEventCount + 1))"
                     logger.info("\(warningMsg, privacy: .public)")
 
                     self.lastPressureEvent = now
@@ -141,6 +141,12 @@ final class MemoryPressureMonitor {
         sourceHolder.source?.cancel()
         sourceHolder.source = nil
         onPressureHandler = nil
+    }
+
+    /// The process footprint for a log line ("123.4 MB", or "unknown"); the
+    /// idle trim (`AppDependencies.trimIdleMemory`) logs it too.
+    static var footprintDescription: String {
+        currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
     }
 }
 
