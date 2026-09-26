@@ -47,6 +47,10 @@ actor PersistentHistoryProcessor {
     // MARK: - State
 
     private let container: NSPersistentCloudKitContainer
+    /// Where the cursor is kept and the export and purge dates are read:
+    /// `.standard` in the app, a suite of its own in a test, since the test
+    /// host's own processor keeps its cursor under the same key.
+    private let defaults: UserDefaults
     private var lastToken: NSPersistentHistoryToken?
 
     /// A pass is in flight. `.NSPersistentStoreRemoteChange` arrives in bursts during
@@ -59,9 +63,10 @@ actor PersistentHistoryProcessor {
 
     // MARK: - Init
 
-    init(container: NSPersistentCloudKitContainer) {
+    init(container: NSPersistentCloudKitContainer, defaults: UserDefaults = .standard) {
         self.container = container
-        self.lastToken = Self.loadToken()
+        self.defaults = defaults
+        self.lastToken = Self.loadToken(from: defaults)
     }
 
     // MARK: - Public: Process Remote Changes
@@ -103,7 +108,7 @@ actor PersistentHistoryProcessor {
             // Only an advanced cursor is worth a defaults write.
             if newToken != lastToken {
                 lastToken = newToken
-                Self.saveToken(newToken)
+                Self.saveToken(newToken, to: defaults)
             }
             Self.react(
                 remoteCount: remoteCount, totalCount: totalCount,
@@ -119,7 +124,7 @@ actor PersistentHistoryProcessor {
             if lastToken != nil {
                 Self.logger.info("Resetting stale history token for next attempt")
                 lastToken = nil
-                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.persistentHistoryLastToken)
+                defaults.removeObject(forKey: UserDefaultsKeys.persistentHistoryLastToken)
             }
         }
     }
@@ -222,8 +227,6 @@ actor PersistentHistoryProcessor {
     /// history available for other consumers (BackupChangeTracker) and for
     /// devices that re-enable sync after running in the degraded local mode.
     func purgeOldHistory() async {
-        let defaults = UserDefaults.standard
-
         // Never purge before CloudKit has demonstrably exported. On stores
         // that have never synced this keeps all history for a future first
         // export; disk cost is acceptable at this app's write volume.
@@ -349,17 +352,12 @@ actor PersistentHistoryProcessor {
 
     // MARK: - Private: Token Persistence
 
-    private static func loadToken() -> NSPersistentHistoryToken? {
-        guard let data = UserDefaults.standard.data(forKey: UserDefaultsKeys.persistentHistoryLastToken) else {
-            return nil
-        }
-        return try? NSKeyedUnarchiver.unarchivedObject(
-            ofClass: NSPersistentHistoryToken.self,
-            from: data
-        )
+    private static func loadToken(from defaults: UserDefaults) -> NSPersistentHistoryToken? {
+        guard let data = defaults.data(forKey: UserDefaultsKeys.persistentHistoryLastToken) else { return nil }
+        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSPersistentHistoryToken.self, from: data)
     }
 
-    private static func saveToken(_ token: NSPersistentHistoryToken) {
+    private static func saveToken(_ token: NSPersistentHistoryToken, to defaults: UserDefaults) {
         guard let data = try? NSKeyedArchiver.archivedData(
             withRootObject: token,
             requiringSecureCoding: true
@@ -367,7 +365,7 @@ actor PersistentHistoryProcessor {
             logger.warning("Failed to archive history token")
             return
         }
-        UserDefaults.standard.set(data, forKey: UserDefaultsKeys.persistentHistoryLastToken)
+        defaults.set(data, forKey: UserDefaultsKeys.persistentHistoryLastToken)
     }
 }
 
