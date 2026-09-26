@@ -267,7 +267,7 @@ struct RootView: View {
             companionViewModel.reload(calendar: calendar)
         }
         .onCalendarDayChange {
-            companionViewModel.reload(calendar: calendar)
+            if showsInWindowCompanion { companionViewModel.reload(calendar: calendar) }
         }
         .onChange(of: selectedNavItem) { _, item in
             persistSelection(item)

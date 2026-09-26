@@ -6,9 +6,10 @@ struct DaysSinceLastLessonView: View {
 
     @Environment(\.managedObjectContext) private var viewContext
 
-    /// Computed on appear and when an assignment, a lesson or the day changes,
-    /// instead of on every body pass through two live queries (one over every
-    /// presented assignment in the store, decoding each one's students).
+    /// Computed on appear and when an assignment, a lesson, the school calendar
+    /// or the day changes, instead of on every body pass through two live
+    /// queries (one over every presented assignment in the store, decoding each
+    /// one's students).
     @State private var daysSince: Int?
 
     var body: some View {
@@ -21,6 +22,14 @@ struct DaysSinceLastLessonView: View {
         .onChange(of: student.id) { reload() }
         .onPresentationDataChange(of: ["LessonAssignment", "Lesson"], in: viewContext) { _ in reload() }
         .onCalendarDayChange { reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .schoolDayDataDidChange)) { _ in
+            // AppDependencies drops the shared school-day cache for this same
+            // notification, but from a task that can run after this handler;
+            // drop it here too, or a synced or restored change would be counted
+            // on the old calendar. (A local edit has dropped it already.)
+            SchoolCalendarService.shared.invalidateCache()
+            reload()
+        }
     }
 
     private func reload() {
