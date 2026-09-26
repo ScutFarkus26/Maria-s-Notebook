@@ -13,7 +13,7 @@ import Synchronization
 ///   the CloudKit import context (`NSManagedObjectContextDidSave` carries
 ///   every saved object, registered in `context` or not);
 /// - a remote import the history processor reports through
-///   `.presentationDataDidChange`;
+///   `.presentationDataDidChange` (unless `listensForImportSignal` is false);
 /// - a context reset (`NSInvalidatedAllObjectsKey`).
 ///
 /// Because delivery is synchronous, a background save has flipped the flag
@@ -36,7 +36,17 @@ nonisolated final class ManagedObjectChangeFlag: Sendable {
         func set() { value.withLock { $0 = true } }
     }
 
-    init(entityNames: Set<String>, context: NSManagedObjectContext, center: NotificationCenter = .default) {
+    /// - Parameter listensForImportSignal: whether `.presentationDataDidChange`
+    ///   also sets the flag. That signal is process-wide and names no store, so
+    ///   a watcher that must react only to its own store (the backup snapshot
+    ///   watch) passes false; the import it reports has already arrived as a
+    ///   save on this context's coordinator.
+    init(
+        entityNames: Set<String>,
+        context: NSManagedObjectContext,
+        center: NotificationCenter = .default,
+        listensForImportSignal: Bool = true
+    ) {
         self.entityNames = entityNames
         self.contextID = ObjectIdentifier(context)
         self.center = center
@@ -59,18 +69,21 @@ nonisolated final class ManagedObjectChangeFlag: Sendable {
             objectHandler(note)
         }
         let key = PersistentHistoryProcessor.changedEntityNamesKey
-        observers = [
+        var tokens = [
             center.addObserver(
                 forName: .NSManagedObjectContextObjectsDidChange, object: context, queue: nil, using: objectHandler
             ),
             center.addObserver(
                 forName: .NSManagedObjectContextDidSave, object: nil, queue: nil, using: saveHandler
-            ),
-            center.addObserver(forName: .presentationDataDidChange, object: nil, queue: nil) { note in
+            )
+        ]
+        if listensForImportSignal {
+            tokens.append(center.addObserver(forName: .presentationDataDidChange, object: nil, queue: nil) { note in
                 guard let changed = note.userInfo?[key] as? Set<String> else { return }
                 if !changed.isDisjoint(with: names) { dirty.set() }
-            }
-        ]
+            })
+        }
+        observers = tokens
     }
 
     deinit {

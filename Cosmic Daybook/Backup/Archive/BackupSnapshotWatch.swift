@@ -18,8 +18,8 @@ import Foundation
 @MainActor
 final class BackupSnapshotWatch {
     /// Edits on the view context (announced or still pending), saves on any
-    /// context of its coordinator (the CloudKit import context included), the
-    /// history processor's remote-import signal, and resets.
+    /// context of its coordinator (the CloudKit import context included), and
+    /// resets.
     private let flag: ManagedObjectChangeFlag
     private let entityNames: Set<String>
     private let coordinator: NSPersistentStoreCoordinator
@@ -38,7 +38,14 @@ final class BackupSnapshotWatch {
             return nil
         }
         let names = Set(coordinator.managedObjectModel.entitiesByName.keys)
-        let flag = ManagedObjectChangeFlag(entityNames: names, context: viewContext, center: center)
+        // Not the process-wide import signal: it names no store, so another
+        // store's import (another workspace, or a test running alongside) would
+        // throw away a stream this store never saw change. Every import it
+        // reports arrives first as a save on this coordinator, which the flag
+        // does watch, and the end-of-run history check backs that up.
+        let flag = ManagedObjectChangeFlag(
+            entityNames: names, context: viewContext, center: center, listensForImportSignal: false
+        )
         // The flag starts dirty. A save it saw before this line committed before
         // the first fetch, so that fetch reads it like any other row.
         _ = flag.consume(pendingIn: viewContext)
