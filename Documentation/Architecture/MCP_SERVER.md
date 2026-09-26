@@ -89,9 +89,34 @@ Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
   `NWListener`, accepts any number of concurrent clients, buffers lines
   per connection, and answers sequentially per connection.
 - **Lifecycle**: `MCPServerService.shared` (macOS-only, `@Observable`)
-  starts/stops the socket server from `performStartupBootstrap()` and from
-  the Settings toggle (Settings → AI Features → Claude Desktop, backed by
+  starts/stops the socket server when the app-wide services start
+  (`AppServicesLauncher`, once per process — see
+  `CosmicDaybookApp+Startup.swift`) and from the Settings toggle
+  (Settings → AI Features → Claude Desktop, backed by
   `UserDefaultsKeys.aiMCPServerEnabled`, default **off**).
+- **MCP-only launch** (2026-09-25): when the bridge has to launch the app it
+  passes `-CosmicDaybookMCPAutolaunch YES` (read from argv by
+  `AppLaunchMode`; launch arguments are never persisted), and that launch is
+  a server only. The main `WindowGroup` gets
+  `.defaultLaunchBehavior(.suppressed)` — every other launch keeps
+  `.automatic`, SwiftUI's default — so no main window or `RootView` is
+  built, and `AutoBackupAppDelegate.applicationDidFinishLaunching` starts the
+  app services through `AppServicesLauncher` instead (store bootstrap, sync,
+  backups, Spotlight, this server). `MCPIdleQuitController` quits with
+  `NSApp.terminate` — an ordinary quit, so the quit backup runs — once no
+  client has been connected and no window open for ten minutes
+  (`MCPIdleQuitPolicy`, pure and unit-tested). Clients are counted in
+  `MCPSocketServer` once past the `AUTH` line (a bridge's `nc -z` probe does
+  not count) and surface as `MCPServerService.connectedClientCount`; windows
+  are counted by AppKit's reopen rule (visible `NSWindow`s, not panels,
+  minimized ones included). The port closes just before the quit, so a
+  session that starts during the quit backup gets a fresh copy from its
+  bridge. A Dock click with no window open opens the main window: SwiftUI
+  also consults the suppressed launch behavior there, so the delegate's
+  `applicationShouldHandleReopen` does it with an `openWindow` captured from
+  the menu bar's commands (`MainWindowOpenerCommands`); on a normal launch
+  `responds(to:)` hides that method. Closing the window again restarts the
+  countdown.
 
 ## Tools
 
@@ -266,7 +291,7 @@ parents.
 **App-level services.** `AutoBackupManager` and `MonthlyReportDraftService`
 are reached through `AppDependencies`, which is injected into the SwiftUI
 environment rather than resolvable from a static tool handler. `MCPAppServices`
-is the one-slot locator that bridges the gap: `performStartupBootstrap`
+is the one-slot locator that bridges the gap: `AppServicesLauncher`
 registers the app's container just before `MCPServerService` starts, and
 `makeTools(context:dependencies:)` hands the two tools that need it
 (`create_backup`, `draft_parent_report`) a provider closure — nil before
@@ -456,9 +481,19 @@ ambiguity comes back as a tool error naming the candidates.
    }
    ```
 
-3. Restart Claude Desktop. The bridge launches the app (backgrounded) if it
-   isn't running; set `COSMIC_DAYBOOK_NO_AUTOLAUNCH=1` in the server's
-   `env` to disable that.
+3. Restart Claude Desktop. When the server isn't listening, the bridge
+   launches the app backgrounded, as an MCP-only launch (no main window;
+   it quits about ten minutes after the last Claude session disconnects) —
+   but only when no copy is running already (found by bundle id through
+   `lsappinfo`; a running copy is waited for instead, never duplicated)
+   and `~/.cosmic-daybook/enabled` exists, which the app keeps in step with
+   the toggle in step 1 (`MCPEnabledMarker`, from
+   `MCPServerService.applySettings`). A copy stopped in the debugger
+   (`ps` state `T`), whether it is merely running or holding the port, is
+   reported with its pid instead of being waited on or relayed to. Set
+   `COSMIC_DAYBOOK_NO_AUTOLAUNCH=1` in the server's `env` to never launch.
+   `Scripts/mcp/test-cosmic-daybook-mcp.sh` checks these decisions against a
+   copy of the bridge on a test port, without touching the app.
 
 The same bridge works for Claude Code:
 `claude mcp add cosmic-daybook -- "/Users/dannydeberry/Developer/Cosmic Daybook/Scripts/mcp/cosmic-daybook-mcp"`.
@@ -578,6 +613,20 @@ can be lost.
   and clipped arguments) and what is not (reads, errors).
 - `MCPToolRegistryTests` also pins the tool count, the exact non-read-only
   and destructive sets, and `openWorldHint == false` everywhere.
+- Launch and lifecycle: `Cosmic Daybook Tests/AppCore/AppLaunchModeTests.swift`
+  (which arguments make an MCP-only launch), `MCPIdleQuitPolicyTests.swift`
+  (when that launch quits: clients and windows, cancel and re-arm, the full
+  interval), and `Services/MCPServer/MCPEnabledMarkerTests.swift` (the
+  bridge's marker, created and removed with the toggle). The AppKit wiring
+  (`MCPIdleQuitController`, the Dock-click reopen) is checked by hand.
+- The bridge's launch decisions: `Scripts/mcp/test-cosmic-daybook-mcp.sh`
+  runs a copy of the bridge on port 43199 with a fake bundle id, a temporary
+  marker directory, fake `lsappinfo` / `open` and dummy processes (`nc -lk`,
+  `sleep`, `kill -STOP`): launch once, no launch with access off, no second
+  copy beside a starting one, stopped copies and stopped port holders
+  refused, `COSMIC_DAYBOOK_NO_AUTOLAUNCH`, relaunch after an idle quit. It
+  refuses to run a copy that still names the real port, bundle id or
+  `~/.cosmic-daybook`.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash

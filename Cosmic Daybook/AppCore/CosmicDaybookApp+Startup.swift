@@ -2,16 +2,13 @@
 //  CosmicDaybookApp+Startup.swift
 //  Cosmic Daybook
 //
-//  What happens once the main window is on screen: bootstrapping the store,
-//  wiring sync and background services, and the iOS backgrounding backup.
+//  What happens once a main window is on screen: surfacing a store-load
+//  failure, starting the app-wide services (once per process, see
+//  AppServicesLauncher), and the iOS backgrounding backup.
 //
 
-import OSLog
 import SwiftUI
 import TipKit
-#if os(macOS)
-import AppKit
-#endif
 
 extension CosmicDaybookApp {
     // MARK: - Startup
@@ -28,57 +25,26 @@ extension CosmicDaybookApp {
         #if !os(macOS)
         // TipKit's root quick-action tip is temporarily disabled on macOS
         // because it can trigger a SwiftUI update loop when switching views.
+        // A second window's call throws "already configured", which try? drops.
         try? Tips.configure([
             .displayFrequency(.weekly)
         ])
         #endif
 
-        // Only bootstrap if the store loaded successfully
-        if AppBootstrapping.initError == nil {
-            #if os(macOS)
-            appDelegate.setCoreDataStack(coreDataStack, dependencies: dependencies)
-            #endif
-            await bootstrapper.bootstrap(coreDataStack: coreDataStack)
+        await startAppServicesIfNeeded()
+    }
 
-            // Configure CloudKit sync status monitoring
-            CloudKitSyncStatusService.shared.configure(with: coreDataStack)
-
-            // Register for remote notifications so CloudKit can push sync events.
-            // NSPersistentCloudKitContainer handles incoming notifications
-            // internally — we just need to ensure the app is registered.
-            #if os(iOS)
-            UIApplication.shared.registerForRemoteNotifications()
-            #elseif os(macOS)
-            NSApplication.shared.registerForRemoteNotifications()
-            #endif
-
-            // PERFORMANCE: Start memory pressure monitoring
-            // This allows the app to proactively clear caches before being terminated
-            _ = dependencies.memoryPressureMonitor
-
-            // Start the interval auto-backup loop (no-op unless the user
-            // enabled scheduled backups). This also hands the manager its
-            // context so toggling the setting later can restart the loop.
-            dependencies.autoBackupManager.startScheduledBackups(viewContext: coreDataStack.viewContext)
-
-            // Index students + lessons into Spotlight (searchable + Siri-referenceable); idempotent, off critical path.
-            // A hot device or Low Power Mode skips it for this launch; the pass
-            // is change-gated, so the next launch indexes everything anyway.
-            if EnergyPolicy.shared.shouldDeferMaintenance {
-                Logger.startup
-                    .notice("Spotlight reindex skipped — device hot or in Low Power Mode")
-            } else {
-                Task { await SpotlightIndexer.reindexAll() }
-            }
-
-            #if os(macOS)
-            // Start the MCP server for Claude Desktop if the teacher enabled it.
-            // The tools that reach past Core Data (backups, report drafts)
-            // find the app's services through this registration.
-            MCPAppServices.register(dependencies)
-            MCPServerService.shared.applySettings()
-            #endif
-        }
+    /// Starts the store bootstrap and the app-wide services unless this
+    /// process already has: the first main window's task does it, later
+    /// windows find it done, and on the Mac an MCP-only launch (no window)
+    /// does it from the app delegate. Nothing starts while the store failed
+    /// to load.
+    func startAppServicesIfNeeded() async {
+        #if os(macOS)
+        await servicesLauncher.startIfNeeded(quitBackupDelegate: appDelegate)
+        #else
+        await servicesLauncher.startIfNeeded()
+        #endif
     }
 
     // MARK: - Scene Phase
@@ -94,7 +60,9 @@ extension CosmicDaybookApp {
 
         let assertion = BackgroundTaskAssertion()
         assertion.begin(named: "AutoBackup")
-        Task {
+        // Self-initiated work, so utility priority rather than the main
+        // thread's, which it used to inherit.
+        Task(priority: .utility) {
             await BackupBackgroundTaskManager.schedule()
             await dependencies.autoBackupManager.performBackgroundBackup(
                 viewContext: coreDataStack.viewContext

@@ -37,6 +37,16 @@ struct CosmicDaybookApp: App {
     /// The shared Core Data stack — initialized once in init() and used by all scenes.
     let coreDataStack: CoreDataStack
 
+    /// Starts the app-wide services once per process (see `startAppServicesIfNeeded`).
+    let servicesLauncher: AppServicesLauncher
+
+    #if os(macOS)
+    /// `.suppressed` only for an MCP-only launch (the Claude bridge started
+    /// the app; see `AppLaunchMode`), so it comes up with no main window;
+    /// `.automatic` — SwiftUI's default — for every other launch.
+    let mainWindowLaunchBehavior: SceneLaunchBehavior
+    #endif
+
     // MARK: - Initialization
 
     init() {
@@ -47,6 +57,7 @@ struct CosmicDaybookApp: App {
         // Before any window exists: the toolbar NaN assertion has to be caught
         // on the main thread, and this is the first main-thread code we own.
         ToolbarLayoutAssertionGuard.install()
+        mainWindowLaunchBehavior = AppLaunchMode.current == .mcpOnly ? .suppressed : .automatic
         #endif
 
         AppBootstrapping.performInitialSetup()
@@ -63,6 +74,14 @@ struct CosmicDaybookApp: App {
         // failures recorded on one never reach the other's "Couldn't Save" alert.
         saveCoordinator = deps.saveCoordinator
         restoreCoordinator = RestoreCoordinator(appRouter: deps.appRouter)
+
+        let launcher = AppServicesLauncher(
+            coreDataStack: stack,
+            dependencies: deps,
+            bootstrapper: AppBootstrapper.shared
+        )
+        servicesLauncher = launcher
+        AppServicesLauncher.register(launcher)
 
         #if os(iOS)
         // BGTaskScheduler handlers must be registered before launch finishes.
@@ -104,9 +123,13 @@ struct CosmicDaybookApp: App {
         // Default must be >= the enforced minimum (900x600, see EnsureResizableWindow)
         // so a freshly-opened window isn't immediately snapped wider.
         .defaultSize(width: 1000, height: 720)
+        .defaultLaunchBehavior(mainWindowLaunchBehavior)
         #endif
         .commands {
             NotebookCommands(appRouter: appRouter, classroomWorkspace: classroomWorkspace)
+            #if os(macOS)
+            MainWindowOpenerCommands()
+            #endif
         }
 
         #if os(macOS)

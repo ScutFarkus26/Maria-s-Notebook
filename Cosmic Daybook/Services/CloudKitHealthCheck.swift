@@ -71,8 +71,9 @@ final class CloudKitHealthCheck {
     }
     
     // MARK: - Private State
-    
-    private var iCloudAccountTask: Task<Void, Never>?
+
+    /// The `.CKAccountChanged` listener; there is only ever one (see `listenForAccountChanges`).
+    private(set) var iCloudAccountTask: Task<Void, Never>?
     private var pendingICloudTask: Task<Void, Never>?
     private var iCloudChangeContinuation: AsyncStream<Bool>.Continuation?
     
@@ -142,6 +143,22 @@ final class CloudKitHealthCheck {
     /// whenever the user turns iCloud Drive off, even though CloudKit sync
     /// keeps working, which produced false "iCloud unavailable" states.
     func startICloudAccountMonitoring() {
+        listenForAccountChanges()
+
+        // Replace the synchronous init-time hint with the authoritative status.
+        pendingICloudTask?.cancel()
+        pendingICloudTask = Task { [weak self] in
+            await self?.handleICloudAccountChange()
+        }
+    }
+
+    /// (Re)starts the `.CKAccountChanged` listener. Every reconfigure of
+    /// `CloudKitSyncStatusService` calls this again, and the old listener used
+    /// to be overwritten without being cancelled, so each call left one more
+    /// running for the rest of the session. It is cancelled first now, so a
+    /// call replaces the listener instead of adding one.
+    func listenForAccountChanges() {
+        iCloudAccountTask?.cancel()
         iCloudAccountTask = Task { [weak self] in
             let changes = NotificationCenter.default
                 .notifications(named: .CKAccountChanged)
@@ -155,14 +172,8 @@ final class CloudKitHealthCheck {
                 }
             }
         }
-
-        // Replace the synchronous init-time hint with the authoritative status.
-        pendingICloudTask?.cancel()
-        pendingICloudTask = Task { [weak self] in
-            await self?.handleICloudAccountChange()
-        }
     }
-    
+
     // swiftlint:disable function_parameter_count
     /// Update the sync health status
     /// - Parameters:

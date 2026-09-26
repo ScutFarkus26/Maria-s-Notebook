@@ -31,9 +31,14 @@ enum SpotlightIndexer {
     /// hash differs from the last run's.
     static func reindexAll() async {
         let context = AppBootstrapping.getSharedCoreDataStack().container.newBackgroundContext()
-        let snapshot = await context.perform { Self.loadSnapshot(in: context) }
+        // Read and hash on the context's queue. The fingerprint joins and
+        // hashes every indexed row, and it used to be computed back on the
+        // main actor after the read.
+        let (snapshot, fingerprint) = await context.perform {
+            let snapshot = Self.loadSnapshot(in: context)
+            return (snapshot, snapshot.fingerprint)
+        }
 
-        let fingerprint = snapshot.fingerprint
         if fingerprint == UserDefaults.standard.string(forKey: fingerprintKey) {
             logger.debug("Spotlight index unchanged; skipping reindex.")
             return

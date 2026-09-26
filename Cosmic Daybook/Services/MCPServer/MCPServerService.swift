@@ -2,9 +2,9 @@
 //  MCPServerService.swift
 //  Cosmic Daybook
 //
-//  Lifecycle owner for the in-app MCP server. Started from
-//  performStartupBootstrap on macOS when the Settings toggle is on;
-//  the Settings pane starts and stops it live via applySettings().
+//  Lifecycle owner for the in-app MCP server. Started once per process by
+//  AppServicesLauncher on macOS when the Settings toggle is on; the
+//  Settings pane starts and stops it live via applySettings().
 //
 
 #if os(macOS)
@@ -23,16 +23,24 @@ final class MCPServerService {
 
     private(set) var isRunning = false
     private(set) var lastError: String?
+    /// Claude clients connected to the running server right now.
+    private(set) var connectedClientCount = 0
+    /// Told each time `connectedClientCount` changes. An MCP-only launch's
+    /// idle quit (MCPIdleQuitController) is the one listener.
+    @ObservationIgnored var onConnectedClientCountChange: ((Int) -> Void)?
 
     private var server: MCPSocketServer?
     /// Identifies the start attempt each async status update belongs to,
     /// so a stale readiness or failure can't clobber a newer server's state.
     private var currentServerID: UUID?
+    /// The newest client-count update applied from the current server.
+    @ObservationIgnored private var clientCountSequence = 0
     private let logger = Logger.mcpServer
 
     private init() {}
 
-    /// Directory shared with the bridge script for the auth token.
+    /// Directory shared with the bridge script for the auth token and the
+    /// enabled marker.
     /// Lives in the user's *real* home (granted by a scoped
     /// temporary-exception entitlement) — NSHomeDirectory() would be the
     /// sandbox container, which external processes cannot read.
@@ -48,12 +56,27 @@ final class MCPServerService {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.aiMCPServerEnabled)
     }
 
-    /// Reconciles the running state with the Settings toggle.
+    /// Reconciles the running state with the Settings toggle, and keeps the
+    /// bridge script's `~/.cosmic-daybook/enabled` marker in step with it.
+    /// Runs at every launch (AppServicesLauncher) and on every toggle.
     func applySettings() {
-        if isEnabled {
+        let enabled = isEnabled
+        updateEnabledMarker(enabled)
+        if enabled {
             start()
         } else {
             stop()
+        }
+    }
+
+    /// Without the marker the bridge would launch the app for a server that
+    /// is switched off and never listens. A failure is only logged: the
+    /// server itself does not depend on the marker.
+    private func updateEnabledMarker(_ enabled: Bool) {
+        do {
+            try MCPEnabledMarker.sync(enabled: enabled, in: Self.supportDirectory)
+        } catch {
+            logger.error("MCP enabled marker not updated: \(error, privacy: .public)")
         }
     }
 
@@ -70,13 +93,24 @@ final class MCPServerService {
                 onWrite: { record in await journal.record(record) }
             )
             let serverID = UUID()
-            let server = MCPSocketServer(port: Self.port, authToken: token, requestHandler: handler) { message in
-                Task { @MainActor in
-                    MCPServerService.shared.serverDidFail(id: serverID, message: message)
+            let server = MCPSocketServer(
+                port: Self.port,
+                authToken: token,
+                requestHandler: handler,
+                onFailure: { message in
+                    Task { @MainActor in
+                        MCPServerService.shared.serverDidFail(id: serverID, message: message)
+                    }
+                },
+                onClientCountChange: { count, sequence in
+                    Task { @MainActor in
+                        MCPServerService.shared.clientCountDidChange(id: serverID, count: count, sequence: sequence)
+                    }
                 }
-            }
+            )
             self.server = server
             currentServerID = serverID
+            clientCountSequence = 0
             Task {
                 do {
                     try await server.start()
@@ -103,7 +137,16 @@ final class MCPServerService {
         self.server = nil
         currentServerID = nil
         isRunning = false
+        setConnectedClientCount(0)
         Task { await server.stop() }
+    }
+
+    /// Closes the port ahead of an MCP-only launch's idle quit (the Settings
+    /// toggle is left alone), so a Claude session that starts while the quit
+    /// backup runs finds no listener, and its bridge starts a fresh copy once
+    /// this one has exited, rather than connecting to a process about to go.
+    func stopBeforeQuit() {
+        stop()
     }
 
     /// A previously-ready listener died (the socket server already tore
@@ -115,6 +158,21 @@ final class MCPServerService {
         currentServerID = nil
         isRunning = false
         lastError = message
+        setConnectedClientCount(0)
+    }
+
+    /// Applies a client count from the current server, unless a newer one
+    /// already arrived (each hop to the main actor is its own task).
+    private func clientCountDidChange(id: UUID, count: Int, sequence: Int) {
+        guard currentServerID == id, sequence > clientCountSequence else { return }
+        clientCountSequence = sequence
+        setConnectedClientCount(count)
+    }
+
+    private func setConnectedClientCount(_ count: Int) {
+        guard count != connectedClientCount else { return }
+        connectedClientCount = count
+        onConnectedClientCountChange?(count)
     }
 
     /// Returns the persistent per-install auth token, creating it (0600,
