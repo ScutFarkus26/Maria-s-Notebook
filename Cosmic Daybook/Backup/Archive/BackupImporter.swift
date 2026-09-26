@@ -31,9 +31,13 @@ enum BackupImporter {
     // MARK: - Public API
 
     /// Reads, decrypts, and JSON-decodes the archive into a typed payload.
-    /// `nonisolated async` so the whole decode pipeline runs off the main
-    /// actor; only the Core Data import that follows needs the main actor.
+    /// `@concurrent` so the whole decode pipeline runs off the main actor
+    /// (a plain `nonisolated async` function runs on its caller's actor, and
+    /// every caller is main-actor code); only the Core Data import that
+    /// follows needs the main actor.
+    @concurrent
     nonisolated static func decodeArchive(at url: URL) async throws -> DecodedArchive {
+        BackupPipelineProbe.reach("decode")
         let decoded = try BackupReader.read(from: url)
         let (payload, warnings) = reconstructPayload(from: decoded)
         return DecodedArchive(

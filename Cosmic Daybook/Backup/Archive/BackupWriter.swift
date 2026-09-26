@@ -81,8 +81,9 @@ nonisolated public enum BackupWriter {
     /// resource (if any) for `url`.
     ///
     /// Payload collection runs on the main actor (Core Data's queue for the
-    /// view context); encoding, encryption, writing, and verification all run
-    /// off the main actor so the UI stays responsive during export.
+    /// view context); the Keychain read, encoding, encryption, writing, and
+    /// verification all run off the main actor (`encodeAndWrite` is
+    /// `@concurrent`) so the UI stays responsive during export.
     @MainActor
     @discardableResult
     public static func write(
@@ -94,6 +95,7 @@ nonisolated public enum BackupWriter {
 
         // Reuse the shared collector — the same transformer code path that's
         // been shipping. Collection must stay on the view context's queue.
+        BackupPipelineProbe.reach("collect")
         let backupService = BackupService()
         let payload = backupService.collectPayload(viewContext: viewContext) { sub, message in
             // Map the collector's 0-1 inner progress into the 0.0-0.6 outer band.
@@ -101,12 +103,10 @@ nonisolated public enum BackupWriter {
         }
 
         let deviceName = currentDeviceName()
-        let encryptionKey = try BackupEncryptionKeyStore.fetchOrCreateKey()
 
         let manifest = try await encodeAndWrite(
             payload: payload,
             deviceName: deviceName,
-            encryptionKey: encryptionKey,
             to: url,
             progress: progress
         )
@@ -124,15 +124,22 @@ nonisolated public enum BackupWriter {
 
     // MARK: - Off-Main Pipeline
 
-    /// Encode, write, verify, move. `nonisolated async` so it runs on the
-    /// global executor, not the main actor — this is the CPU/IO-heavy part.
-    private static func encodeAndWrite(
+    /// Key, encode, encrypt, write, verify, move: the CPU- and IO-heavy half
+    /// of an export. `@concurrent`, so it runs on the global executor at the
+    /// calling task's priority. A plain `nonisolated async` function would run
+    /// on its caller's actor under NonisolatedNonsendingByDefault, and every
+    /// caller is main-actor code: until 2026-09-25 this all ran on the main
+    /// thread. Internal so tests can hand it a fixed payload.
+    @concurrent
+    static func encodeAndWrite(
         payload: BackupPayload,
         deviceName: String,
-        encryptionKey: SymmetricKey,
         to url: URL,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupArchiveManifest {
+        // SecItemCopyMatching blocks its thread on a round trip to securityd,
+        // which Apple says to keep off the main thread.
+        let encryptionKey = try BackupEncryptionKeyStore.fetchOrCreateKey()
         await progress(0.65, "Encoding\u{2026}")
         // The manifest needs per-entity counts and store routing — not the encoded
         // bytes — so it can be built before anything is serialized. That's what
@@ -164,6 +171,7 @@ nonisolated public enum BackupWriter {
                 // happens here so each entity's bytes are released before the next
                 // one is built.
                 for serialization in entitySerializations {
+                    BackupPipelineProbe.reach("encode \(serialization.entityName)")
                     let ndjson: Data?
                     do {
                         ndjson = try serialization.encode(payload, encoder)
@@ -186,6 +194,7 @@ nonisolated public enum BackupWriter {
             }
 
             await progress(0.9, "Verifying\u{2026}")
+            BackupPipelineProbe.reach("verify")
             try verifyWrittenArchive(at: tempURL, encryptionKey: encryptionKey, expected: manifest)
             try moveIntoPlace(from: tempURL, to: url)
         } catch {

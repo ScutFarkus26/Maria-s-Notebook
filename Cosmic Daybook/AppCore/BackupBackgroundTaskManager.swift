@@ -68,7 +68,8 @@ enum BackupBackgroundTaskManager {
         dependencies: AppDependencies,
         coreDataStack: CoreDataStack
     ) {
-        let backupWork = Task {
+        // Utility: the export's encode half inherits it off the main actor.
+        let backupWork = Task(priority: .utility) {
             // Keep the chain alive for the next opportunity.
             await schedule()
             // The overnight window ignores the scene-phase gap (it is 12 h

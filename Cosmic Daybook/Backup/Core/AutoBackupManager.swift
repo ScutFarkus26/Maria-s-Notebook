@@ -103,7 +103,9 @@ final class AutoBackupManager {
 
         guard scheduledEnabled && intervalHours > 0 else { return }
 
-        scheduledBackupTask = Task { [weak self] in
+        // Utility: automatic work the guide didn't ask for. The encode half
+        // of the export inherits this priority off the main actor.
+        scheduledBackupTask = Task(priority: .utility) { [weak self] in
             while !Task.isCancelled {
                 guard let self else { break }
 
@@ -171,8 +173,9 @@ final class AutoBackupManager {
 
     // MARK: - App Quit Backup
 
-    /// Performs an automatic backup when the app quits.
-    /// This runs on the main thread (acceptable since app is closing).
+    /// Performs an automatic backup when the app quits. Collection runs on
+    /// the main actor; the encode/verify half runs off it (`BackupWriter`)
+    /// at the quitting task's priority.
     func performBackupOnQuit(viewContext: NSManagedObjectContext) async {
         guard isEnabled else { return }
         _ = await performBackup(viewContext: viewContext, trigger: .appQuit, prefix: "AutoBackup")
