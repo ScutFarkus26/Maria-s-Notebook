@@ -4,7 +4,7 @@
 //
 //  What happens once a main window is on screen: surfacing a store-load
 //  failure, starting the app-wide services (once per process, see
-//  AppServicesLauncher), and the iOS backgrounding backup.
+//  AppServicesLauncher), and the iOS backgrounding trim and backup.
 //
 
 import SwiftUI
@@ -52,10 +52,15 @@ extension CosmicDaybookApp {
     /// iOS/iPadOS auto-backup trigger: the app rarely "quits" on iOS, so the
     /// move to the background is the data-protection moment. The backup is
     /// change-gated (persistent history), so idle backgrounding costs nothing.
+    /// It is also the idle trim's moment: memory held while suspended decides
+    /// which app iOS ends first.
     func handleScenePhaseChange(_ phase: ScenePhase) {
         #if os(iOS)
-        guard phase == .background,
-              bootstrapper.state == .ready,
+        guard phase == .background else { return }
+        // Before the backup starts, and whatever the store's state: the album
+        // library's rebuildable caches don't depend on it.
+        dependencies.trimIdleMemory(reason: .appBackgrounded)
+        guard bootstrapper.state == .ready,
               AppBootstrapping.initError == nil else { return }
 
         let assertion = BackgroundTaskAssertion()
