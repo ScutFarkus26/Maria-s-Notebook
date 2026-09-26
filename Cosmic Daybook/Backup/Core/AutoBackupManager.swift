@@ -72,7 +72,13 @@ final class AutoBackupManager {
 
     private let coordinator: BackupCoordinator
     private let changeTracker = BackupChangeTracker()
+    #if os(macOS)
+    /// The Mac's interval backup: one system-scheduled activity per backup.
+    private let scheduledActivity = ScheduledBackupActivity()
+    #else
+    /// The interval loop (it only runs while the app is in the foreground).
     private var scheduledBackupTask: Task<Void, Never>?
+    #endif
     private var viewContext: NSManagedObjectContext?
 
     // MARK: - Initialization
@@ -95,15 +101,23 @@ final class AutoBackupManager {
 
     // MARK: - Scheduled Backup Management
 
-    /// Starts the scheduled backup timer
-    /// - Parameter viewContext: The SwiftData model context to use for backups
+    /// Starts (or restarts, from the current switch and interval) the
+    /// interval backups, replacing any already scheduled. On the Mac the
+    /// system runs each one (`ScheduledBackupActivity`); elsewhere a loop
+    /// sleeps until it is due.
+    /// - Parameter viewContext: The Core Data context to back up from
     func startScheduledBackups(viewContext: NSManagedObjectContext) {
         self.viewContext = viewContext
         stopScheduledBackups()
 
         guard scheduledEnabled && intervalHours > 0 else { return }
 
-        scheduledBackupTask = Task { [weak self] in
+        #if os(macOS)
+        armScheduledActivity()
+        #else
+        // Utility: automatic work the guide didn't ask for. The encode half
+        // of the export inherits this priority off the main actor.
+        scheduledBackupTask = Task(priority: .utility) { [weak self] in
             while !Task.isCancelled {
                 guard let self else { break }
 
@@ -137,13 +151,42 @@ final class AutoBackupManager {
                 await self.performScheduledBackup()
             }
         }
+        #endif
     }
 
-    /// Stops the scheduled backup timer
+    /// Stops the interval backups. A backup already running finishes.
     func stopScheduledBackups() {
+        #if os(macOS)
+        scheduledActivity.invalidate()
+        #else
         scheduledBackupTask?.cancel()
         scheduledBackupTask = nil
+        #endif
     }
+
+    #if os(macOS)
+    /// Arms the next interval backup, due when the loop would wake. Each run
+    /// re-arms with the wait the loop would compute next: from the current
+    /// interval, and none once the switch is off.
+    private func armScheduledActivity() {
+        guard let delay = nextScheduledBackupDelay() else { return }
+        scheduledActivity.arm(after: delay) { [weak self] in
+            // The loop's check after its sleep: switched off meanwhile?
+            guard let self, self.scheduledEnabled else { return nil }
+            await self.performScheduledBackup()
+            return self.nextScheduledBackupDelay()
+        }
+    }
+
+    private func nextScheduledBackupDelay() -> TimeInterval? {
+        ScheduledBackupTiming.nextDelay(
+            enabled: scheduledEnabled,
+            intervalHours: intervalHours,
+            lastBackup: lastScheduledBackupDate,
+            now: Date()
+        )
+    }
+    #endif
 
     /// Performs a scheduled backup.
     ///
@@ -164,15 +207,17 @@ final class AutoBackupManager {
         _ = await performBackup(viewContext: viewContext, trigger: .scheduled, prefix: "ScheduledBackup")
         // Advance the schedule clock regardless of outcome (success, skip, or
         // failure). A failed attempt must still move `lastScheduledBackupDate`
-        // forward, otherwise the timer loop computes a zero wait and retries
-        // the full payload collection in a hot loop until the app quits.
+        // forward, otherwise the next wait (the loop's sleep, or the Mac's
+        // next activity) is zero and the full payload collection retries in
+        // a hot loop until the app quits.
         markScheduledBackupPerformed()
     }
 
     // MARK: - App Quit Backup
 
-    /// Performs an automatic backup when the app quits.
-    /// This runs on the main thread (acceptable since app is closing).
+    /// Performs an automatic backup when the app quits. Collection runs on
+    /// the main actor; the encode/verify half runs off it (`BackupWriter`)
+    /// at the quitting task's priority.
     func performBackupOnQuit(viewContext: NSManagedObjectContext) async {
         guard isEnabled else { return }
         _ = await performBackup(viewContext: viewContext, trigger: .appQuit, prefix: "AutoBackup")
@@ -210,10 +255,13 @@ final class AutoBackupManager {
     /// on a hot device or in Low Power Mode, and (for the scene-phase trigger,
     /// `enforcingMinimumGap`) within the profile's gap of the previous one.
     /// The quit and pre-destructive backups are never gated.
+    /// `stopsWhenCancelled` is for the BGProcessingTask only: its export stops
+    /// between record types once iPadOS ends the task, writing nothing.
     @discardableResult
     func performBackgroundBackup(
         viewContext: NSManagedObjectContext,
         enforcingMinimumGap: Bool = true,
+        stopsWhenCancelled: Bool = false,
         policy: EnergyPolicy = .shared,
         now: Date = Date()
     ) async -> BackgroundBackupOutcome {
@@ -226,20 +274,36 @@ final class AutoBackupManager {
             Self.logger.info("Auto-backup (Background) skipped \u{2014} last one under \(Int(gap / 60)) min ago")
             return .tooSoon
         }
-        let result = await performBackup(viewContext: viewContext, trigger: .background, prefix: "AutoBackup")
-        switch result {
-        case .success, .failure:
-            // A failure also starts the gap, so a failing export is not
-            // retried in full on every app switch.
+        let result = await performBackup(
+            viewContext: viewContext,
+            trigger: .background,
+            prefix: "AutoBackup",
+            stopsWhenCancelled: stopsWhenCancelled
+        )
+        if Self.startsBackgroundGap(result) {
             lastBackgroundBackupDate = now
             UserDefaults.standard.set(
                 now.timeIntervalSinceReferenceDate,
                 forKey: UserDefaultsKeys.autoBackupLastBackgroundDate
             )
-        case .skippedNoChanges:
-            break
         }
         return .ran
+    }
+
+    /// Whether a background backup's result starts the scene-phase gap. A
+    /// written file does, and so does a failure, so a failing export is not
+    /// retried in full on every app switch. Nothing to back up doesn't, and
+    /// neither does a run iPadOS ended early: nothing was written, so the
+    /// next app switch should try again.
+    static func startsBackgroundGap(_ result: BackupResult) -> Bool {
+        switch result {
+        case .success:
+            return true
+        case .failure(_, let error):
+            return !(error is CancellationError)
+        case .skippedNoChanges:
+            return false
+        }
     }
 
     // MARK: - Core Backup Logic
@@ -247,7 +311,8 @@ final class AutoBackupManager {
     fileprivate func performBackup(
         viewContext: NSManagedObjectContext,
         trigger: BackupTrigger,
-        prefix: String
+        prefix: String,
+        stopsWhenCancelled: Bool = false
     ) async -> BackupResult {
         guard !isPerformingBackup else {
             let result = BackupResult.failure(Date(), NSError(
@@ -281,9 +346,15 @@ final class AutoBackupManager {
         let (backupDir, securityScopedRoot) = resolveAutoBackupDirectory()
         if let root = securityScopedRoot, root.startAccessingSecurityScopedResource() {
             defer { root.stopAccessingSecurityScopedResource() }
-            return await runExport(in: backupDir, trigger: trigger, prefix: prefix, viewContext: viewContext)
+            return await runExport(
+                in: backupDir, trigger: trigger, prefix: prefix,
+                viewContext: viewContext, stopsWhenCancelled: stopsWhenCancelled
+            )
         }
-        return await runExport(in: backupDir, trigger: trigger, prefix: prefix, viewContext: viewContext)
+        return await runExport(
+            in: backupDir, trigger: trigger, prefix: prefix,
+            viewContext: viewContext, stopsWhenCancelled: stopsWhenCancelled
+        )
     }
 
     /// Returns the directory auto-backups should be written into, plus the security-scoped
@@ -303,7 +374,8 @@ final class AutoBackupManager {
         in backupDir: URL,
         trigger: BackupTrigger,
         prefix: String,
-        viewContext: NSManagedObjectContext
+        viewContext: NSManagedObjectContext,
+        stopsWhenCancelled: Bool
     ) async -> BackupResult {
         // Ensure directory exists
         do {
@@ -319,7 +391,11 @@ final class AutoBackupManager {
         let url = backupDir.appendingPathComponent(filename)
 
         do {
-            _ = try await coordinator.exportBackup(viewContext: viewContext, to: url) { _, _ in
+            _ = try await coordinator.exportBackup(
+                viewContext: viewContext,
+                to: url,
+                stopsWhenCancelled: stopsWhenCancelled
+            ) { _, _ in
                 // Silent progress
             }
 
@@ -341,10 +417,17 @@ final class AutoBackupManager {
 
             return result
         } catch {
-            // A failed auto-backup is a data-protection gap, not a debug detail.
-            Self.logger.error(
-                "Backup failed (\(trigger.rawValue, privacy: .public)): \(error.localizedDescription, privacy: .public)"
-            )
+            let triggerName = trigger.rawValue
+            if error is CancellationError {
+                // Only the BGProcessingTask's export stops when cancelled.
+                Self.logger.notice(
+                    "Auto-backup (\(triggerName, privacy: .public)) stopped \u{2014} the system ended the task"
+                )
+            } else {
+                // A failed auto-backup is a data-protection gap, not a debug detail.
+                let reason = error.localizedDescription
+                Self.logger.error("Backup failed (\(triggerName, privacy: .public)): \(reason, privacy: .public)")
+            }
 
             let result = BackupResult.failure(Date(), error)
             lastBackupResult = result
