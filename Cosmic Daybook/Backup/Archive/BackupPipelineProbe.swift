@@ -4,7 +4,8 @@
 // The export and restore paths call `BackupPipelineProbe.reach(_:)` at each
 // phase ("collect", "encode <Entity>", "verify", "decode"). In a Debug build a
 // test can bind a `BackupPipelineRecorder` to its task to see which thread
-// each phase ran on, or to act at a phase (cancel the task mid-export). The
+// each phase ran on, to act at a phase (cancel the task mid-export), or to
+// hand the export fixed settings instead of the app's own. The
 // recorder is a task-local, so it follows the work into `@concurrent`
 // functions (same task, different executor) and concurrent tests never see
 // each other's recorders. Release builds compile `reach(_:)` to nothing.
@@ -38,10 +39,16 @@ nonisolated final class BackupPipelineRecorder: Sendable {
 
     private let steps = Mutex<[Step]>([])
     private let onPhase: (@Sendable (String) -> Void)?
+    /// What `BackupService.buildPreferencesDTO()` returns in place of the
+    /// app's settings. Those live in process-wide UserDefaults, which other
+    /// suites write while a test runs, so a test that compares two reads of
+    /// them (the export's, then the old collector's) binds fixed ones.
+    let preferences: PreferencesDTO?
 
     /// `onPhase` runs synchronously on the pipeline's own thread, inside its
     /// task, each time a phase is reached.
-    init(onPhase: (@Sendable (String) -> Void)? = nil) {
+    init(preferences: PreferencesDTO? = nil, onPhase: (@Sendable (String) -> Void)? = nil) {
+        self.preferences = preferences
         self.onPhase = onPhase
     }
 

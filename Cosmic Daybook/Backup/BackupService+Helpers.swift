@@ -10,7 +10,11 @@ extension BackupService {
     // MARK: - Preferences (delegated to BackupPreferencesService)
 
     func buildPreferencesDTO() -> PreferencesDTO {
-        BackupPreferencesService.buildPreferencesDTO()
+        #if DEBUG
+        // A test's fixed settings, when it bound some (see BackupPipelineRecorder).
+        if let preferences = BackupPipelineRecorder.current?.preferences { return preferences }
+        #endif
+        return BackupPreferencesService.buildPreferencesDTO()
     }
 
     func applyPreferencesDTO(_ dto: PreferencesDTO) {

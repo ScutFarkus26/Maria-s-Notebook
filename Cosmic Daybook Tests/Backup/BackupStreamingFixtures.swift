@@ -36,6 +36,35 @@ enum BackupStreamingFixtures {
         }
     }
 
+    // MARK: - Settings
+
+    /// The settings every compared collection reads (bound through
+    /// `BackupPipelineRecorder.preferences`). The app's own live in
+    /// process-wide UserDefaults, which other suites write while these tests
+    /// run (`SchoolYearTests` sets a backed-up key), so an export's read and
+    /// the old collector's later one could disagree. One of every value kind.
+    static let preferences = PreferencesDTO(values: [
+        "Fixture.bool": .bool(true),
+        "Fixture.int": .int(42),
+        "Fixture.double": .double(0.25),
+        "Fixture.string": .string("Upper Elementary / Adolescent"),
+        "Fixture.data": .data(Data([0x00, 0x7F, 0xFF])),
+        "Fixture.date": .date(Date(timeIntervalSince1970: 1_760_000_000)),
+        "Fixture.plist": .plist(Data("bplist00".utf8))
+    ])
+
+    /// A recorder that binds `preferences` and, optionally, acts at a phase.
+    static func recorder(onPhase: (@Sendable (String) -> Void)? = nil) -> BackupPipelineRecorder {
+        BackupPipelineRecorder(preferences: preferences, onPhase: onPhase)
+    }
+
+    /// The old collector's payload of `context`, read with `preferences` bound.
+    static func legacyPayload(of context: NSManagedObjectContext) -> BackupPayload {
+        BackupPipelineRecorder.$current.withValue(recorder()) {
+            BackupService().legacyCollectPayload(viewContext: context)
+        }
+    }
+
     /// An on-disk, history-tracked store in its own directory (Sample Class's
     /// shape), so two collections read rows in the same SQLite order.
     struct Store {
@@ -198,6 +227,7 @@ enum BackupStreamingFixtures {
                 #expect(actual == expected, "\(entry.entityName) differs")
             }
         }
+        #expect(legacy.preferences.values == preferences.values, "collect the reference with legacyPayload(of:)")
         #expect(archive.bodies["preferences.json"] == (try legacyPreferencesJSON(legacy)))
         let manifest = try archive.manifest()
         let counts = Dictionary(uniqueKeysWithValues: reference.map { ($0.entityName, $0.count) })

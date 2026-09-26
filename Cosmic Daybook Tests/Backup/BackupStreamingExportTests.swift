@@ -33,8 +33,12 @@ struct BackupStreamingExportTests {
 
         let tableLog = Fixtures.ProgressLog()
         let legacyLog = Fixtures.ProgressLog()
-        let table = service.collectPayload(viewContext: store.context) { tableLog.append($0, $1) }
-        let legacy = service.legacyCollectPayload(viewContext: store.context) { legacyLog.append($0, $1) }
+        let (table, legacy) = BackupPipelineRecorder.$current.withValue(Fixtures.recorder()) {
+            (
+                service.collectPayload(viewContext: store.context) { tableLog.append($0, $1) },
+                service.legacyCollectPayload(viewContext: store.context) { legacyLog.append($0, $1) }
+            )
+        }
 
         #expect(tableLog.steps == legacyLog.steps)
         #expect(!tableLog.steps.isEmpty)
@@ -47,6 +51,7 @@ struct BackupStreamingExportTests {
             let newBytes = try Fixtures.comparable(new.ndjson, entityName: new.entityName)
             #expect(newBytes == (try Fixtures.comparable(old.ndjson, entityName: old.entityName)), "\(new.entityName)")
         }
+        #expect(table.preferences.values == Fixtures.preferences.values, "read through buildPreferencesDTO")
         #expect((try Fixtures.legacyPreferencesJSON(table)) == (try Fixtures.legacyPreferencesJSON(legacy)))
     }
 
@@ -59,7 +64,7 @@ struct BackupStreamingExportTests {
         try Fixtures.seedEveryType(in: store.context)
         let url = store.archiveURL("Streamed")
 
-        let recorder = BackupPipelineRecorder()
+        let recorder = Fixtures.recorder()
         let summary = try await BackupPipelineRecorder.$current.withValue(recorder) {
             try await BackupWriter.write(viewContext: store.context, to: url)
         }
@@ -72,7 +77,7 @@ struct BackupStreamingExportTests {
         #expect(summary.entityCounts["WorkCheckIn"] == 1_011)
 
         let streamed = try Fixtures.contents(of: url)
-        let legacy = BackupService().legacyCollectPayload(viewContext: store.context)
+        let legacy = Fixtures.legacyPayload(of: store.context)
         try Fixtures.expectLegacyEntries(streamed, for: legacy)
 
         // And the one-pass path, fed the old collector's payload, writes the same file.
@@ -103,13 +108,13 @@ struct BackupStreamingExportTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("Backup").appendingPathExtension(BackupFile.fileExtension)
 
-        let recorder = BackupPipelineRecorder()
+        let recorder = Fixtures.recorder()
         try await BackupPipelineRecorder.$current.withValue(recorder) {
             _ = try await BackupWriter.write(viewContext: context, to: url)
         }
 
         #expect(recorder.reached.map(\.phase).contains("write staged"))
-        let legacy = BackupService().legacyCollectPayload(viewContext: context)
+        let legacy = Fixtures.legacyPayload(of: context)
         try Fixtures.expectLegacyEntries(try Fixtures.contents(of: url), for: legacy)
     }
 
@@ -124,7 +129,7 @@ struct BackupStreamingExportTests {
         let once = Fixtures.FirstTime()
         // Once the students are encoded, a background context saves a note —
         // how a CloudKit import lands while the main actor is free.
-        let recorder = BackupPipelineRecorder { phase in
+        let recorder = Fixtures.recorder { phase in
             guard phase == "encode Student", once.claim() else { return }
             background.performAndWait {
                 Fixtures.insertNote("Arrived mid-export", into: background)
@@ -143,7 +148,7 @@ struct BackupStreamingExportTests {
         #expect(phases.last == "verify")
         #expect(summary.entityCounts["Note"] == 1_207, "the one-pass collection saw the new note")
         // Nothing has changed since, so the archive is the old export of the store as it is now.
-        let legacy = BackupService().legacyCollectPayload(viewContext: store.context)
+        let legacy = Fixtures.legacyPayload(of: store.context)
         try Fixtures.expectLegacyEntries(try Fixtures.contents(of: url), for: legacy)
     }
 
@@ -164,7 +169,7 @@ struct BackupStreamingExportTests {
         lesson.setValue("Typed but not saved", forKey: "name")
         let url = store.archiveURL("Pending")
 
-        let recorder = BackupPipelineRecorder()
+        let recorder = Fixtures.recorder()
         let summary = try await BackupPipelineRecorder.$current.withValue(recorder) {
             try await BackupWriter.write(viewContext: store.context, to: url)
         }
@@ -173,7 +178,7 @@ struct BackupStreamingExportTests {
         #expect(!phases.contains("write staged"))
         #expect(!phases.contains("collect in one pass"), "declined before collecting anything")
         #expect(summary.entityCounts["Lesson"] == 2, "the pending lesson is in the backup")
-        let legacy = BackupService().legacyCollectPayload(viewContext: store.context)
+        let legacy = Fixtures.legacyPayload(of: store.context)
         #expect(legacy.students.contains { $0.firstName == "Renamed, not saved" })
         try Fixtures.expectLegacyEntries(try Fixtures.contents(of: url), for: legacy, unordered: ["Lesson"])
     }
