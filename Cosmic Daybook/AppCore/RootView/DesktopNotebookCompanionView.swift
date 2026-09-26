@@ -196,8 +196,7 @@ struct DesktopNotebookCompanionView: View {
     private func returnToApp() {
         isPanelPresented = false
         isDetached = false
-        openWindow(id: "mainWindow")
-        NSApp.activate(ignoringOtherApps: true)
+        showMainWindow()
         dismissWindow(id: "notebookCompanion")
     }
 
@@ -208,15 +207,27 @@ struct DesktopNotebookCompanionView: View {
 
     private func performInMainApp(_ action: @escaping @MainActor () -> Void) {
         isPanelPresented = false
-        openWindow(id: "mainWindow")
-        NSApp.activate(ignoringOtherApps: true)
+        showMainWindow()
 
         // Give a newly reopened main window time to install its navigation
-        // observers before sending the requested action.
+        // observers before sending the requested action. Every main window's
+        // RootView watches the shared router, so one brought forward gets the
+        // action the same way.
         Task {
             try? await Task.sleep(for: .milliseconds(100))
             action()
         }
+    }
+
+    /// Brings the open main window forward — out of the Dock if it is
+    /// minimized — and opens one only when none is open. Each
+    /// `openWindow(id: "mainWindow")` builds another full main window: its
+    /// own RootView, Today model, observers and startup work.
+    private func showMainWindow() {
+        if !MainWindowRegistry.shared.bringMostRecentForward() {
+            openWindow(id: "mainWindow")
+        }
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 

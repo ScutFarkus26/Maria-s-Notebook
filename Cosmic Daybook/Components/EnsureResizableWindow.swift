@@ -4,6 +4,11 @@ import AppKit
 
 /// Inserts a lightweight NSView into the view hierarchy that, when attached to a window,
 /// ensures the window is resizable and applies optional min/max content sizes.
+///
+/// `RootView` attaches it, so it sits in every main window and nowhere else; it
+/// also registers that window with `MainWindowRegistry`, which the desktop
+/// companion uses to bring the main window forward instead of opening another.
+/// Attach it only to a main window's root.
 struct EnsureResizableWindow: NSViewRepresentable {
     var minSize: NSSize? = NSSize(width: 900, height: 600)
     var maxSize: NSSize?
@@ -87,7 +92,8 @@ final class ResizableFlagView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         // Defer window mutations to avoid layout recursion during window attachment
-        guard window != nil else { return }
+        guard let window else { return }
+        MainWindowRegistry.shared.register(window)
         scheduleWindowUpdate()
     }
 }
