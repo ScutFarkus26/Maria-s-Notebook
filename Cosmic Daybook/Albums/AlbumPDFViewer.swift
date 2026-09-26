@@ -94,22 +94,69 @@ final class InkController: NSObject {
     var drawings: [Int: PKDrawing] = [:]
     var onSave: ((Int, PKDrawing) -> Void)?
 
-    fileprivate var canvases: [Int: PKCanvasView] = [:]
+    /// The canvases PDFKit is showing, plus any with ink or drawn on since
+    /// the album opened. An empty one nobody drew on goes when its page
+    /// scrolls away (`canvasDidEndDisplaying`), so reading a long album no
+    /// longer leaves a canvas behind for every page passed.
+    private(set) var canvases: [Int: PKCanvasView] = [:]
+    /// Pages a Pencil tool has touched since the album opened.
+    @ObservationIgnored private var usedPages: Set<Int> = []
+    /// Pages that have had a canvas since the album opened.
+    @ObservationIgnored private var builtPages: Set<Int> = []
     private let toolPicker = PKToolPicker()
 
-    fileprivate func canvas(for pageIndex: Int) -> PKCanvasView {
+    func canvas(for pageIndex: Int) -> PKCanvasView {
         if let existing = canvases[pageIndex] { return existing }
         let canvas = PKCanvasView()
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
         canvas.drawingPolicy = .anyInput
         canvas.tag = pageIndex
-        canvas.delegate = self
-        canvas.drawing = drawings[pageIndex] ?? PKDrawing()
+        let drawing = drawings[pageIndex] ?? PKDrawing()
+        if builtPages.insert(pageIndex).inserted {
+            canvas.delegate = self
+            canvas.drawing = drawing
+        } else {
+            // Rebuilt after its page scrolled away. The old canvas used to be
+            // shown again without a word, so the drawing goes in before the
+            // delegate listens: PencilKit reports a drawing set after it as a
+            // change, and every change schedules an ink save.
+            canvas.drawing = drawing
+            canvas.delegate = self
+        }
         canvas.isUserInteractionEnabled = markupEnabled
         canvases[pageIndex] = canvas
         toolPicker.addObserver(canvas)
         return canvas
+    }
+
+    /// PDFKit is done with a page's canvas: the page scrolled away. An empty
+    /// canvas no tool has touched is let go, and rebuilt from the page's
+    /// drawing if the page comes back. One with ink, or drawn on and erased,
+    /// stays, since dropping it would lose its Pencil undo history.
+    func canvasDidEndDisplaying(_ canvas: PKCanvasView) {
+        let pageIndex = canvas.tag
+        guard canvases[pageIndex] === canvas,
+              Self.dropsCanvas(strokeCount: canvas.drawing.strokes.count,
+                               wasUsed: usedPages.contains(pageIndex)) else { return }
+        toolPicker.removeObserver(canvas)
+        canvases[pageIndex] = nil
+    }
+
+    /// PDFKit is showing a canvas. One it shows again without asking for a
+    /// new one is taken back, so markup mode and the tool picker still reach it.
+    func canvasWillDisplay(_ canvas: PKCanvasView) {
+        let pageIndex = canvas.tag
+        guard canvases[pageIndex] == nil else { return }
+        canvas.isUserInteractionEnabled = markupEnabled
+        canvases[pageIndex] = canvas
+        toolPicker.addObserver(canvas)
+    }
+
+    /// Whether a canvas scrolled out of view can go: only when it has no
+    /// strokes and no tool has touched it since the album opened.
+    nonisolated static func dropsCanvas(strokeCount: Int, wasUsed: Bool) -> Bool {
+        strokeCount == 0 && !wasUsed
     }
 
     private func updateToolPicker() {
@@ -127,6 +174,10 @@ extension InkController: PKCanvasViewDelegate {
         let pageIndex = canvasView.tag
         drawings[pageIndex] = canvasView.drawing
         onSave?(pageIndex, canvasView.drawing)
+    }
+
+    func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+        usedPages.insert(canvasView.tag)
     }
 }
 #endif
@@ -280,6 +331,16 @@ extension AlbumPDFViewer.Coordinator: PDFPageOverlayViewProvider {
     func pdfView(_ view: PDFView, overlayViewFor page: PDFPage) -> UIView? {
         guard let ink = parent.inkController, let doc = view.document else { return nil }
         return ink.canvas(for: doc.index(for: page))
+    }
+
+    func pdfView(_ pdfView: PDFView, willDisplayOverlayView overlayView: UIView, for page: PDFPage) {
+        guard let canvas = overlayView as? PKCanvasView else { return }
+        parent.inkController?.canvasWillDisplay(canvas)
+    }
+
+    func pdfView(_ pdfView: PDFView, willEndDisplayingOverlayView overlayView: UIView, for page: PDFPage) {
+        guard let canvas = overlayView as? PKCanvasView else { return }
+        parent.inkController?.canvasDidEndDisplaying(canvas)
     }
 }
 #endif
