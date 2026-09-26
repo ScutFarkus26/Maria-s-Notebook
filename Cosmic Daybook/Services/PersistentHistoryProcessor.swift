@@ -48,6 +48,9 @@ actor PersistentHistoryProcessor {
     // MARK: - State
 
     private let container: NSPersistentCloudKitContainer
+    /// Where the cursor is kept and the export and purge dates are read:
+    /// `.standard` in the app, a suite of its own in a test, since the test
+    /// host's own processor keeps its cursor under the same key.
     private let defaults: UserDefaults
 
     /// How far each store's history has been read, keyed by
@@ -231,8 +234,6 @@ actor PersistentHistoryProcessor {
     /// history available for other consumers (BackupChangeTracker) and for
     /// devices that re-enable sync after running in the degraded local mode.
     func purgeOldHistory() async {
-        let defaults = UserDefaults.standard
-
         // Never purge before CloudKit has demonstrably exported. On stores
         // that have never synced this keeps all history for a future first
         // export; disk cost is acceptable at this app's write volume.
@@ -270,15 +271,4 @@ actor PersistentHistoryProcessor {
             Self.logger.info("Purged persistent history older than \(cutoff, privacy: .public)")
         }
     }
-}
-
-// MARK: - Notification
-
-extension Notification.Name {
-    /// Posted on the main actor after the history processor sees a remote
-    /// change to a lesson assignment, lesson, student or work model — the
-    /// tables the Upcoming pane and the progress map read. `userInfo` carries
-    /// the touched entity names under
-    /// `PersistentHistoryProcessor.changedEntityNamesKey`.
-    nonisolated static let presentationDataDidChange = Notification.Name("CosmicDaybook.presentationDataDidChange")
 }

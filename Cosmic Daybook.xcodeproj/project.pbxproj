@@ -43,6 +43,7 @@
 		DAD27BA7186AA8858E25DD43 /* RepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */; };
 		DAE1A32F8081BE03784E8A02 /* CloudKitConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1A46BC25E7671E6710BDA4 /* CloudKitConfigurationService.swift */; };
 		DAE6A1DD965DBE18B12197DB /* CosmicDaybook.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = DA50D6010603DBA9AFE62598 /* CosmicDaybook.xcdatamodeld */; };
+		DAE9C4D27B1F4A6E9D3B5C02 /* Notification.Name+PresentationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE9C4D27B1F4A6E9D3B5C01 /* Notification.Name+PresentationData.swift */; };
 		DAFD1BD1FBEBC51F5948EA8A /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA11A2430630D5E6426CD0F8 /* SaveCoordinator.swift */; };
 /* End PBXBuildFile section */
 
@@ -95,6 +96,7 @@
 		DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RepositoryProtocol.swift; path = "Cosmic Daybook/Repositories/RepositoryProtocol.swift"; sourceTree = SOURCE_ROOT; };
 		DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomIdentity.swift; path = "Cosmic Daybook/Sharing/ClassroomIdentity.swift"; sourceTree = SOURCE_ROOT; };
 		DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomRepository.swift; path = "Cosmic Daybook/Sharing/ClassroomRepository.swift"; sourceTree = SOURCE_ROOT; };
+		DAE9C4D27B1F4A6E9D3B5C01 /* Notification.Name+PresentationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Notification.Name+PresentationData.swift"; path = "Cosmic Daybook/Services/Notification.Name+PresentationData.swift"; sourceTree = SOURCE_ROOT; };
 		DAF33D02953B353B5F308309 /* DocumentEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DocumentEntity.swift; path = "Cosmic Daybook/Models/DocumentEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DAF840824AAC3D22283214A2 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "String+Extensions.swift"; path = "Cosmic Daybook/Utils/String+Extensions.swift"; sourceTree = SOURCE_ROOT; };
 		DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceDeduplication.swift; path = "Cosmic Daybook/Attendance/AttendanceDeduplication.swift"; sourceTree = SOURCE_ROOT; };
@@ -238,6 +240,7 @@
 				DA9BCA099D416538E15471B5 /* AppErrorMessages.swift */,
 				DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */,
 				DA50D6010603DBA9AFE62598 /* CosmicDaybook.xcdatamodeld */,
+				DAE9C4D27B1F4A6E9D3B5C01 /* Notification.Name+PresentationData.swift */,
 			);
 			name = "Shared with Cosmic Daybook";
 			sourceTree = "<group>";
@@ -432,6 +435,7 @@
 				DA51602210037380301B0B85 /* AppErrorMessages.swift in Sources */,
 				DA77FCCADCA5FB5356650C93 /* ClassroomIdentity.swift in Sources */,
 				DAE6A1DD965DBE18B12197DB /* CosmicDaybook.xcdatamodeld in Sources */,
+				DAE9C4D27B1F4A6E9D3B5C02 /* Notification.Name+PresentationData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

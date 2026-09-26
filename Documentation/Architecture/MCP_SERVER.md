@@ -117,6 +117,17 @@ Claude Desktop ──stdio──▶ Scripts/mcp/cosmic-daybook-mcp (nc relay)
   the menu bar's commands (`MainWindowOpenerCommands`); on a normal launch
   `responds(to:)` hides that method. Closing the window again restarts the
   countdown.
+- **Which copy it launches** (2026-09-26): `/Applications/Cosmic Daybook.app`
+  by path when it exists — a Release build of `main` that
+  `Scripts/install_release.sh` puts there — and otherwise `open -b` with the
+  bundle id. Every Xcode build registers another copy under the same bundle
+  id, worktree builds of unmerged code among them, and `open -b` may pick any
+  of them. If the installed copy is there but will not start, the bridge
+  reports "not listening" rather than trying another copy. The installed copy
+  has only what `main` had when it was installed, so rerun the script after
+  merging. To try unmerged code against the notebook, quit the installed copy
+  and run that build (from Xcode, or `open` on its path): the bridge relays
+  to whichever copy is listening and launches nothing while one runs.
 
 ## Tools
 
@@ -482,7 +493,8 @@ ambiguity comes back as a tool error naming the candidates.
    ```
 
 3. Restart Claude Desktop. When the server isn't listening, the bridge
-   launches the app backgrounded, as an MCP-only launch (no main window;
+   launches the app backgrounded (`/Applications/Cosmic Daybook.app` when
+   installed, see above), as an MCP-only launch (no main window;
    it quits about ten minutes after the last Claude session disconnects) —
    but only when no copy is running already (found by bundle id through
    `lsappinfo`; a running copy is waited for instead, never duplicated)
@@ -624,9 +636,10 @@ can be lost.
   marker directory, fake `lsappinfo` / `open` and dummy processes (`nc -lk`,
   `sleep`, `kill -STOP`): launch once, no launch with access off, no second
   copy beside a starting one, stopped copies and stopped port holders
-  refused, `COSMIC_DAYBOOK_NO_AUTOLAUNCH`, relaunch after an idle quit. It
-  refuses to run a copy that still names the real port, bundle id or
-  `~/.cosmic-daybook`.
+  refused, `COSMIC_DAYBOOK_NO_AUTOLAUNCH`, relaunch after an idle quit, and an
+  installed copy launched by path (a temporary folder stands in for
+  `/Applications`). It refuses to run a copy that still names the real port,
+  bundle id, `~/.cosmic-daybook` or `/Applications`.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash

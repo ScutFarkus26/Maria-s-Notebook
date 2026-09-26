@@ -79,7 +79,8 @@ struct TwoStoreHistoryFixture {
     }
 
     /// Saves one new row, which is one history transaction, in `side`'s store.
-    func write(_ side: Side, as author: String = TwoStoreHistoryFixture.remoteAuthor) throws {
+    /// A nil `author` is a context that never set one.
+    func write(_ side: Side, as author: String? = TwoStoreHistoryFixture.remoteAuthor) throws {
         let context = container.viewContext
         context.transactionAuthor = author
         let object = NSEntityDescription.insertNewObject(forEntityName: side.entityName, into: context)

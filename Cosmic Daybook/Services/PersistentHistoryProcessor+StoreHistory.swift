@@ -131,7 +131,7 @@ extension PersistentHistoryProcessor {
                   let transactions = result.result as? [NSPersistentHistoryTransaction],
                   !transactions.isEmpty else {
                 // Still need to advance the token even if no remote transactions
-                return advanceToken(of: store, after: token, in: context)
+                return advanceToken(of: store, after: token, author: author, in: context)
             }
 
             let (insertedEntityNames, changedEntityNames) = entityNames(in: transactions)
@@ -172,11 +172,19 @@ extension PersistentHistoryProcessor {
         return (inserted, changed)
     }
 
-    /// Fetches the store's latest token even when it has no remote
-    /// transactions, so the next fetch doesn't rescan transactions we already skipped.
-    nonisolated private static func advanceToken(
+    /// Moves the store's position past what the filtered fetch leaves out, so
+    /// the next fetch doesn't rescan it: `author`'s own transactions, and nil
+    /// authors, which the store-level `author != %@` leaves out too.
+    ///
+    /// Only through their leading run. This is a second read, so a transaction
+    /// the filter would return committed after the filtered read ran: most
+    /// likely a CloudKit import, whose own remote-change notification schedules
+    /// the pass that reads it. Moving past it would lose its scoped dedup,
+    /// zone-repair trigger and entity notifications for good.
+    nonisolated static func advanceToken(
         of store: NSPersistentStore,
         after token: NSPersistentHistoryToken?,
+        author: String,
         in context: NSManagedObjectContext
     ) -> StoreHistoryResult {
         let allRequest = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
@@ -184,15 +192,18 @@ extension PersistentHistoryProcessor {
         allRequest.affectedStores = [store]
 
         guard let result = try? context.execute(allRequest) as? NSPersistentHistoryResult,
-              let transactions = result.result as? [NSPersistentHistoryTransaction],
-              let lastToken = transactions.last?.token else {
+              let transactions = result.result as? [NSPersistentHistoryTransaction] else {
+            return .noTransactions
+        }
+        let filteredOut = transactions.prefix { $0.author == nil || $0.author == author }
+        guard let lastToken = filteredOut.last?.token else {
             return .noTransactions
         }
 
         return .processed(
             newToken: lastToken,
             remoteCount: 0,
-            totalCount: transactions.count,
+            totalCount: filteredOut.count,
             insertedEntityNames: [],
             changedEntityNames: []
         )
@@ -243,9 +254,10 @@ extension PersistentHistoryProcessor {
 // MARK: - Result Type
 
 /// One store's history read — bridges Core Data work to the pass's result.
+/// Internal for `PersistentHistoryAdvanceTests`.
 /// @unchecked because NSPersistentHistoryToken is not Sendable but is safely
 /// transferred (created on one queue, consumed on another, no concurrent access).
-nonisolated private enum StoreHistoryResult: @unchecked Sendable {
+nonisolated enum StoreHistoryResult: @unchecked Sendable {
     case noTransactions
     case processed(
         newToken: NSPersistentHistoryToken,
