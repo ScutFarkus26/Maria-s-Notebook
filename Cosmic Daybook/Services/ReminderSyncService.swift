@@ -21,19 +21,33 @@ struct ReminderSyncData: Sendable {
 final class ReminderSyncService {
     private static let logger = Logger.reminders
     static let shared = ReminderSyncService()
-    
-    let eventStore = EKEventStore()
+
+    /// Created on first use, not with the service: Apple calls an event store
+    /// slow to set up, and the Mac made this one at every launch even with
+    /// no list chosen.
+    @ObservationIgnored private(set) lazy var eventStore = EKEventStore()
     var managedObjectContext: NSManagedObjectContext?
+
+    /// Where the list choice is kept; tests pass their own suite.
+    private let defaults: UserDefaults
 
     /// The identifier of the Reminders list to sync from (more robust than name)
     /// If nil, syncing is disabled
     var syncListIdentifier: String? {
         didSet {
-            UserDefaults.standard.set(syncListIdentifier, forKey: UserDefaultsKeys.reminderSyncListIdentifier)
+            defaults.set(syncListIdentifier, forKey: UserDefaultsKeys.reminderSyncListIdentifier)
+            // A new list choice lifts a pause for a missing list; listening
+            // resumes below and the new choice is tried once.
+            let retryAfterPause = changeListening.resume()
             // Restart observation if sync is enabled/disabled
             Task {
                 if self.syncListIdentifier != nil && self.hasFullAccess {
                     self.startObservingChanges()
+                    // A sync already running (a name lookup backfilling the
+                    // identifier sets this too) settles the pause itself.
+                    if retryAfterPause && !self.isSyncing {
+                        await self.handleEventStoreChanged()
+                    }
                 } else {
                     self.storeChangeObserver.stop()
                 }
@@ -45,7 +59,7 @@ final class ReminderSyncService {
     /// Stored alongside identifier for convenience
     var syncListName: String? {
         didSet {
-            UserDefaults.standard.set(syncListName, forKey: UserDefaultsKeys.reminderSyncListName)
+            defaults.set(syncListName, forKey: UserDefaultsKeys.reminderSyncListName)
         }
     }
 
@@ -55,10 +69,14 @@ final class ReminderSyncService {
     // MARK: - Change Observation
     private let storeChangeObserver = EventKitChangeObserver()
 
-    init(context: NSManagedObjectContext? = nil) {
+    /// Paused while the configured list is missing; see `ReminderChangeListening`.
+    @ObservationIgnored private var changeListening = ReminderChangeListening()
+
+    init(context: NSManagedObjectContext? = nil, defaults: UserDefaults = .standard) {
         self.managedObjectContext = context
-        self.syncListIdentifier = UserDefaults.standard.string(forKey: UserDefaultsKeys.reminderSyncListIdentifier)
-        self.syncListName = UserDefaults.standard.string(forKey: UserDefaultsKeys.reminderSyncListName)
+        self.defaults = defaults
+        self.syncListIdentifier = defaults.string(forKey: UserDefaultsKeys.reminderSyncListIdentifier)
+        self.syncListName = defaults.string(forKey: UserDefaultsKeys.reminderSyncListName)
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
 
         // Migrate from name-only storage to identifier-based storage
@@ -181,29 +199,52 @@ final class ReminderSyncService {
     // MARK: - Private Helpers
 
     func findReminderList(named name: String) -> EKCalendar? {
-        let calendars = eventStore.calendars(for: .reminder)
+        Self.reminderList(named: name, in: eventStore.calendars(for: .reminder))
+    }
+
+    /// The first of `lists` titled `name`.
+    static func reminderList(named name: String, in lists: [EKCalendar]) -> EKCalendar? {
         // Case/diacritic-insensitive: list names are user-typed in Reminders and
         // legacy stored names may not match the list's exact casing.
-        return calendars.first {
+        lists.first {
             $0.title.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
         }
     }
 
-    func findReminderList(byIdentifier identifier: String) -> EKCalendar? {
-        let calendars = eventStore.calendars(for: .reminder)
-        return calendars.first { $0.calendarIdentifier == identifier }
-    }
-    
     // MARK: - Automatic Syncing
     
     /// Start observing EventKit changes for automatic syncing
     private func startObservingChanges() {
-        guard hasFullAccess else { return }
-        guard syncListIdentifier != nil || syncListName != nil else { return }
+        guard changeListening.shouldListen(
+            hasFullAccess: hasFullAccess,
+            isListConfigured: syncListIdentifier != nil || syncListName != nil
+        ) else { return }
 
-        storeChangeObserver.start(eventStore: eventStore) { [weak self] in
+        storeChangeObserver.start(observing: eventStore) { [weak self] in
             await self?.handleEventStoreChanged()
         }
+    }
+
+    /// True while store changes are being listened for.
+    var isObservingChanges: Bool { storeChangeObserver.isObserving }
+
+    /// True while a missing list has paused listening.
+    var isChangeObservationPaused: Bool { changeListening.isPaused }
+
+    /// Stops listening for store changes after a sync found no list for the
+    /// setting (Danny, 2026-09-25): until the setting changes, a store change
+    /// would only run the same failing sync again. Logged once per pause.
+    func pauseChangeObservationForMissingList() {
+        guard changeListening.pause() else { return }
+        storeChangeObserver.stop()
+        Self.logger.notice("Reminders list not found; syncing on changes paused until the list setting changes")
+    }
+
+    /// Listens again after a sync found the list, whether it came back in
+    /// Reminders or a refresh had hidden it for a moment.
+    func resumeChangeObservationIfPaused() {
+        guard changeListening.resume() else { return }
+        startObservingChanges()
     }
 
     /// Stop observing EventKit changes
@@ -214,24 +255,23 @@ final class ReminderSyncService {
         }
     }
     
-    /// Handle EventKit store changes by syncing reminders
-    private func handleEventStoreChanged() async {
+    /// Handle EventKit store changes by syncing reminders, once the store has
+    /// gone quiet (`EventKitChangeObserver`)
+    func handleEventStoreChanged() async {
         // Only sync if we have a configured list (identifier or name) and access
         guard syncListIdentifier != nil || (syncListName.map { !$0.isEmpty } ?? false) else { return }
         guard hasFullAccess else { return }
         guard managedObjectContext != nil else { return }
         
-        // Debounce: Only sync if we haven't synced recently (within last 30 seconds)
-        // This prevents excessive syncing during rapid iCloud background updates,
-        // preserving battery life. The logic guarantees a sync happens eventually:
-        // once 30 seconds pass since last sync, the next change triggers a sync.
-        if let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < 30.0 {
-            return
-        }
-        
+        // `syncReminders` skips a call within 10 minutes of the last sync, so
+        // the time is recorded only when a sync ran. Recording it after a
+        // skipped one (as this did, behind a 30-second check the throttle
+        // covers) pushed the next sync back on every change: while the list
+        // kept changing at least every 10 minutes, no unforced sync ran at all.
         do {
-            try await syncReminders()
-            lastSyncTime = Date()
+            if try await syncReminders() {
+                lastSyncTime = Date()
+            }
         } catch let error as ReminderSyncError where error.isConfigurationIssue {
             // Stale/missing configuration (e.g. list deleted in Reminders) —
             // shown in Settings; not an error worth flagging on every change.
@@ -242,6 +282,7 @@ final class ReminderSyncService {
         }
     }
     
+    /// When the last sync ran; the 10-minute throttle reads it.
     var lastSyncTime: Date?
 
     /// Sync status for UI visibility

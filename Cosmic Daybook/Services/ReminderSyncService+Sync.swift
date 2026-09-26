@@ -10,13 +10,15 @@ extension ReminderSyncService {
     /// Sync reminders from the configured Reminders list
     /// This should be called when the user has configured a sync list and wants to pull reminders
     /// - Parameter force: If true, bypasses the throttle interval (use for explicit user actions like "Sync Now")
-    func syncReminders(force: Bool = false) async throws {
+    /// - Returns: false when the throttle skipped the call, true when a sync ran.
+    @discardableResult
+    func syncReminders(force: Bool = false) async throws -> Bool {
         // Throttle: Skip if called too soon (within 10 minutes of last sync)
         // This prevents redundant syncing when the view appears multiple times
         // Can be bypassed with force=true for explicit user actions
         let throttleInterval: TimeInterval = 10 * 60 // 10 minutes
         if !force, let lastSync = lastSyncTime, Date().timeIntervalSince(lastSync) < throttleInterval {
-            return // Skip sync - called too soon
+            return false // Skip sync - called too soon
         }
 
         // Update sync status
@@ -38,6 +40,7 @@ extension ReminderSyncService {
         }
 
         isSyncing = false
+        return true
     }
 
     func performSync() async throws {
@@ -60,8 +63,12 @@ extension ReminderSyncService {
         let targetCalendar = resolveTargetCalendar()
 
         guard let targetCalendar else {
+            // Store changes would only rerun this; stop listening until the
+            // list setting changes (Danny, 2026-09-25).
+            pauseChangeObservationForMissingList()
             throw ReminderSyncError.listNotFound(syncListName ?? "Unknown")
         }
+        resumeChangeObservationIfPaused()
 
         // Fetch all reminders from the target list
         let syncData = try await fetchRemindersFromEventKit(in: targetCalendar)
@@ -89,13 +96,15 @@ extension ReminderSyncService {
     /// Resolve the target EKCalendar, preferring identifier lookup over name lookup.
     /// A stale identifier (list deleted and recreated, or config restored on another
     /// device) falls back to the stored display name; a successful name lookup
-    /// backfills the identifier so future lookups resolve directly.
+    /// backfills the identifier so future lookups resolve directly. Both
+    /// lookups search one walk of the lists (they used to walk it each).
     func resolveTargetCalendar() -> EKCalendar? {
+        let lists = eventStore.calendars(for: .reminder)
         if let identifier = syncListIdentifier,
-           let calendar = findReminderList(byIdentifier: identifier) {
+           let calendar = lists.first(where: { $0.calendarIdentifier == identifier }) {
             return calendar
         }
-        if let name = syncListName, let calendar = findReminderList(named: name) {
+        if let name = syncListName, let calendar = Self.reminderList(named: name, in: lists) {
             if syncListIdentifier != calendar.calendarIdentifier {
                 syncListIdentifier = calendar.calendarIdentifier
             }
