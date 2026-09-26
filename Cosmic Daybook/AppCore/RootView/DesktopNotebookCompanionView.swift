@@ -78,14 +78,17 @@ struct DesktopNotebookCompanionView: View {
         // Debounce: objectsDidChange fires per change, not per save, so a single
         // CloudKit merge can post it hundreds of times — and each reload runs the
         // companion's count queries. Coalesce them (same pattern as StudentsView).
-        .onReceive(
+        // Only while the companion can be seen: hidden with the app (⌘H) or
+        // behind the lock screen nothing reads the counts, so it catches up
+        // once when it is back.
+        .onReceiveWhenVisible(
             NotificationCenter.default.publisher(
                 for: .NSManagedObjectContextObjectsDidChange,
                 object: viewContext
             )
             .filter(NotebookCompanionViewModel.affectsCounts)
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-        ) { _ in
+        ) {
             viewModel.reload(calendar: calendar)
         }
         .onCalendarDayChange {
@@ -273,6 +276,14 @@ private final class DetachedCompanionConfigurationView: NSView {
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
+            // A companion left on screen is a visible window, and an app with
+            // one never naps. ⌘H takes it away with the app and unhiding
+            // brings it back only if it was showing: AppKit does both for any
+            // window whose `canHide` is true. That is the default; pin it so
+            // it holds whatever SwiftUI sets up for a plain floating window.
+            // (The lock screen already covers it, which AppKit counts as not
+            // visible, like every other window.)
+            window.canHide = true
             self.controller?.window = window
             self.controller?.restoreSavedOrigin(self.savedOrigin)
             self.isConfigured = true
