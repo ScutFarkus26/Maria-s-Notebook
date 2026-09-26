@@ -53,16 +53,13 @@ struct LessonAssignmentHistoryView: View {
         students.uniqueByID
     }
 
-    // Fetch Notes that are attached to a lesson assignment
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDNote.createdAt, ascending: false)])
-    var recentNotes: FetchedResults<CDNote>
-
-    // Use @Query for change detection only - track count for efficient change detection
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)],
-        predicate: NSPredicate(format: "stateRaw == \"presented\"")
-    )
-    var allAssignmentsForChangeDetection: FetchedResults<CDLessonAssignment>
+    /// The notes `buildCachesAsync` counts per presentation, fetched when it
+    /// builds the caches. Two live whole-table `@FetchRequest`s (every note,
+    /// every presented assignment) used to sit here only to be counted; the
+    /// counts are now taken with `count(for:)` when those tables change while
+    /// the screen is on screen (see `assignmentNotes(in:)`, `noteCount(in:)`,
+    /// `presentedAssignmentCount(in:)`).
+    var recentNotes: [CDNote] { Self.assignmentNotes(in: viewContext) }
 
     @State var selectedAssignment: CDLessonAssignment?
     @State var notesCountCache: [String: Int] = [:]
@@ -70,7 +67,7 @@ struct LessonAssignmentHistoryView: View {
     @State var lessonTitleCache: [UUID: String] = [:]
     @State var hasBuiltCachesOnce: Bool = false
 
-    // CDTrackEntity counts for efficient change detection (avoids expensive .map operations)
+    // Counts for change detection (avoids expensive .map operations)
     @State var lastAssignmentCount: Int = 0
     @State var lastNotesCount: Int = 0
     @State var lastLessonsCount: Int = 0
@@ -214,13 +211,15 @@ struct LessonAssignmentHistoryView: View {
             #endif
             .task {
                 loadAssignments(limit: focusedAssignmentID == nil ? Self.initialLoadCount : nil)
-                if !hasBuiltCachesOnce {
+                // The note handler below runs only on screen, so a note count
+                // that moved while the screen was hidden rebuilds here, once.
+                if !hasBuiltCachesOnce || noteCountMoved {
                     await buildCachesAsync()
                     hasBuiltCachesOnce = true
                 }
                 // Initialize counts for change detection
-                lastAssignmentCount = allAssignmentsForChangeDetection.count
-                lastNotesCount = recentNotes.count
+                lastAssignmentCount = Self.presentedAssignmentCount(in: viewContext) ?? lastAssignmentCount
+                lastNotesCount = Self.noteCount(in: viewContext) ?? lastNotesCount
                 lastLessonsCount = lessons.count
                 lastStudentsCount = safeStudents.count
             }
@@ -234,17 +233,25 @@ struct LessonAssignmentHistoryView: View {
                 // in the list before ScrollViewReader tries to reveal it.
                 loadAssignments()
             }
-            .onChange(of: allAssignmentsForChangeDetection.count) { _, newCount in
+            // Only while on screen: a TabView keeps Logs alive behind the
+            // other tabs, and the `.task` above reloads when it is back.
+            .onPresentationDataChangeWhenVisible(
+                of: ["LessonAssignment"], in: viewContext, catchUpOnAppear: false
+            ) {
                 // Only reload when count actually changes
-                guard newCount != lastAssignmentCount else { return }
+                guard let newCount = Self.presentedAssignmentCount(in: viewContext),
+                      newCount != lastAssignmentCount else { return }
                 lastAssignmentCount = newCount
                 loadAssignments(limit: loadedAssignments.count >= Self.initialLoadCount ? nil : Self.initialLoadCount)
             }
-            .onChange(of: recentNotes.count) { _, newCount in
-                guard newCount != lastNotesCount else { return }
+            .onReceiveWhenVisible(Self.noteChanges(in: viewContext), catchUpOnAppear: false) {
+                guard let newCount = Self.noteCount(in: viewContext), newCount != lastNotesCount else { return }
                 lastNotesCount = newCount
                 Task { await buildCachesAsync() }
             }
+            // These two stay live: they count the shared lesson catalog and
+            // roster (no fetch of their own), move only when a lesson or a
+            // child is added or removed, and keep the names ready for return.
             .onChange(of: lessons.count) { _, newCount in
                 guard newCount != lastLessonsCount else { return }
                 lastLessonsCount = newCount

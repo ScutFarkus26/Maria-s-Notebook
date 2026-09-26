@@ -3,31 +3,34 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 struct SmallSequencePlannerView: View {
+    private static let logger = Logger.planning
+
     @Environment(\.managedObjectContext) private var viewContext
     @State private var viewModel = SmallSequencePlannerViewModel()
 
-    // Change detection
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.id, ascending: true)],
-        predicate: NSPredicate(
-            format: "stateRaw == %@",
-            LessonAssignmentState.presented.rawValue
-        )
-    ) private var presentedAssignments: FetchedResults<CDLessonAssignment>
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.id, ascending: true)]
-    ) private var allWork: FetchedResults<CDWorkModel>
-
-    private var changeToken: Int { presentedAssignments.count + allWork.count }
+    /// Presented assignments plus work items, the sum two live whole-table
+    /// `@FetchRequest`s used to count; the planner reloads when it moves.
+    /// Taken on appear and, while the screen is on screen, whenever either
+    /// entity changes (`changeToken(in:)`: two SQL counts).
+    @State private var changeToken = 0
 
     var body: some View {
         content
             .navigationTitle("Group Planner")
-            .onAppear { viewModel.loadData(context: viewContext) }
-            .onChange(of: changeToken) { _, _ in viewModel.loadData(context: viewContext) }
+            .onAppear {
+                if let token = Self.changeToken(in: viewContext) { changeToken = token }
+                viewModel.loadData(context: viewContext)
+            }
+            // Only while on screen: a TabView keeps this tab alive behind the
+            // others, and `.onAppear` above reloads when it comes back.
+            .onPresentationDataChangeWhenVisible(
+                of: ["LessonAssignment", "WorkModel"], in: viewContext, catchUpOnAppear: false
+            ) {
+                reloadIfCountsMoved()
+            }
             .onChange(of: viewModel.selectedArea) { _, _ in
                 viewModel.selectedSequence = viewModel.availableSequences.first
                 viewModel.loadData(context: viewContext)
@@ -38,6 +41,30 @@ struct SmallSequencePlannerView: View {
             .onChange(of: viewModel.levelFilter) { _, _ in
                 viewModel.loadData(context: viewContext)
             }
+    }
+
+    // MARK: - Change Detection
+
+    /// The number of presented assignments plus the number of work items,
+    /// counted with the predicates of the two fetches it replaced (unsaved
+    /// edits in `context` included, as those fetches saw them); nil when a
+    /// count fails (logged).
+    static func changeToken(in context: NSManagedObjectContext) -> Int? {
+        let presented = CDFetchRequest(CDLessonAssignment.self)
+        presented.predicate = NSPredicate(format: "stateRaw == %@", LessonAssignmentState.presented.rawValue)
+        do {
+            return try context.count(for: presented) + context.count(for: CDFetchRequest(CDWorkModel.self))
+        } catch {
+            logger.warning("Failed to count presented assignments and work: \(error)")
+            return nil
+        }
+    }
+
+    /// Reloads when the counts moved, as the old `onChange` of their sum did.
+    private func reloadIfCountsMoved() {
+        guard let token = Self.changeToken(in: viewContext), token != changeToken else { return }
+        changeToken = token
+        viewModel.loadData(context: viewContext)
     }
 
     // MARK: - Content
@@ -165,6 +192,12 @@ struct SmallSequencePlannerView: View {
                     candidate: candidate,
                     viewModel: viewModel
                 )
+                // Pushed, the detail reads this view model while the list
+                // under it counts as hidden, so the detail keeps the list's
+                // reload while it is on screen, and catches up on return.
+                .onPresentationDataChangeWhenVisible(of: ["LessonAssignment", "WorkModel"], in: viewContext) {
+                    reloadIfCountsMoved()
+                }
             }
         }
     }
