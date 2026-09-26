@@ -12,7 +12,8 @@ import CoreData
 /// on a row that is new or changed. Every other value is copied exactly as
 /// before, but assigned only when it differs from what the row holds, so a
 /// sync over unchanged EventKit data leaves the context without changes and
-/// `safeSave()` writes nothing.
+/// `safeSave()` writes nothing. Dates count as different only when they are
+/// a millisecond or more apart (Danny, 2026-09-25; see `isSameInstant`).
 enum EventKitMirror {
 
     /// What one pass did to the stored rows.
@@ -129,11 +130,11 @@ enum EventKitMirror {
             event.title = data.title
             changed = true
         }
-        if event.startDate != data.startDate {
+        if !isSameInstant(event.startDate, data.startDate) {
             event.startDate = data.startDate
             changed = true
         }
-        if event.endDate != data.endDate {
+        if !isSameInstant(event.endDate, data.endDate) {
             event.endDate = data.endDate
             changed = true
         }
@@ -246,7 +247,7 @@ enum EventKitMirror {
             changed = true
         }
         let dueDate = data.dueDateComponents?.date
-        if reminder.dueDate != dueDate {
+        if !isSameInstant(reminder.dueDate, dueDate) {
             reminder.dueDate = dueDate
             changed = true
         }
@@ -254,12 +255,12 @@ enum EventKitMirror {
             reminder.isCompleted = data.isCompleted
             changed = true
         }
-        if reminder.completedAt != data.completionDate {
+        if !isSameInstant(reminder.completedAt, data.completionDate) {
             reminder.completedAt = data.completionDate
             changed = true
         }
         let updatedAt = data.lastModifiedDate ?? now
-        if reminder.updatedAt != updatedAt {
+        if !isSameInstant(reminder.updatedAt, updatedAt) {
             reminder.updatedAt = updatedAt
             changed = true
         }
@@ -268,6 +269,24 @@ enum EventKitMirror {
     }
 
     // MARK: - Comparison
+
+    /// Whether a stored date already holds `incoming`, to the millisecond
+    /// (Danny, 2026-09-25). CloudKit keeps dates in milliseconds, so a row
+    /// another device wrote comes back with EventKit's sub-millisecond digits
+    /// cut off; comparing exactly would rewrite (and re-upload) it on every
+    /// sync, and with both devices syncing one list they would rewrite each
+    /// other's rows indefinitely. Dates less than a millisecond apart count as
+    /// the same, and the stored value is left as it is.
+    static func isSameInstant(_ stored: Date?, _ incoming: Date?) -> Bool {
+        switch (stored, incoming) {
+        case (nil, nil):
+            return true
+        case let (stored?, incoming?):
+            return abs(stored.timeIntervalSince(incoming)) < 0.001
+        default:
+            return false
+        }
+    }
 
     /// Whether a stored text field already holds `incoming`, code unit for
     /// code unit. Swift's `==` calls canonically equivalent strings equal (a
