@@ -23,18 +23,22 @@ nonisolated enum DataMigrations {
     /// Normalizes lesson scheduling to the day-only model (snaps `scheduledFor` to
     /// Repairs the `scheduledForDay` mirror. Does not touch `scheduledFor`,
     /// which carries each lesson's position within its day.
-    static func repairScheduledForDayMirror(using context: NSManagedObjectContext) async {
-        await DataCleanupService.repairScheduledForDayMirror(using: context)
+    /// On `context`'s queue (the launch pass: a background context's `perform`).
+    static func repairScheduledForDayMirror(using context: NSManagedObjectContext) {
+        DataCleanupService.repairScheduledForDayMirror(using: context)
     }
 
     /// Cleans orphaned student IDs from CDLessonAssignment records.
-    static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext) async {
-        await DataCleanupService.cleanOrphanedStudentIDs(using: context)
+    /// On `context`'s queue (the launch pass: a background context's `perform`).
+    static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext) {
+        DataCleanupService.cleanOrphanedStudentIDs(using: context)
     }
 
-    /// Cleans orphaned student IDs from CDWorkModel records.
-    static func cleanOrphanedWorkStudentIDs(using context: NSManagedObjectContext) async {
-        await DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
+    /// Cleans orphaned student IDs from CDWorkModel records; returns how many rows changed.
+    /// On `context`'s queue (the launch pass: a background context's `perform`).
+    @discardableResult
+    static func cleanOrphanedWorkStudentIDs(using context: NSManagedObjectContext) -> Int {
+        DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
     }
 
     /// Repair scope for notes that were incorrectly set to .all due to UI bugs.
