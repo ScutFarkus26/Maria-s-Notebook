@@ -115,7 +115,10 @@ struct StudentNotesTimelineList: View {
             noteBeingEdited = nil
         }
         #endif
-        .onReceive(NotificationCenter.default.publisher(for: .noteDidSave)) { _ in
+        // Only while on screen: a TabView keeps the Students tab alive behind
+        // the others, and nothing here reloads on appear, so a save missed
+        // while hidden is caught up once on return.
+        .onReceiveWhenVisible(NotificationCenter.default.publisher(for: .noteDidSave)) {
             viewModel.reload()
         }
         .toolbar {

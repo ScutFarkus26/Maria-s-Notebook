@@ -147,7 +147,11 @@ struct TodayView: View {
                 selectedMeetingID = nil
             }
             #endif
-            .onReceive(NotificationCenter.default.publisher(for: .noteDidSave)) { _ in
+            // Only while on screen: a TabView keeps Today alive behind the
+            // other tabs. The `.task` reload on appear waits out a 400 ms
+            // debounce, so a save missed while hidden is caught up once, at
+            // once, on return, and the notes are as fresh as they were.
+            .onReceiveWhenVisible(NotificationCenter.default.publisher(for: .noteDidSave)) {
                 viewModel.reload()
             }
             .onCalendarDayChange {
