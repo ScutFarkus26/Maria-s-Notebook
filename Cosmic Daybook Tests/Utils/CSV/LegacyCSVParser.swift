@@ -1,42 +1,24 @@
 import Foundation
+@testable import CosmicDaybook
 
-public struct CSVData: Identifiable {
-    public let id = UUID()
-    public let headers: [String]
-    public let rows: [[String]]
-}
+// `CSVParser` as it stood before it read UTF-8 bytes (2026-09-26), copied
+// verbatim — only the type is renamed and `public` dropped. `CSVByteScannerTests`
+// compares the new parser against it, so do not "fix" or modernise this code:
+// its only job is to be the old code.
 
-public enum CSVParser {
-    public static func parse(string: String) -> CSVData? {
-        let content = normalized(string)
-        // Bytes when that reads the same as characters (nearly always);
-        // characters, as before, when it might not.
-        let rows = CSVRecordScanner.records(in: content) ?? characterRecords(in: content)
-        return table(from: rows)
-    }
-
-    /// The text the records are read from: a leading BOM removed and line
-    /// endings normalized to "\n". Text without a carriage return is left as
-    /// it is — the replacements would find nothing to replace.
-    static func normalized(_ string: String) -> String {
+enum LegacyCSVParser {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    static func parse(string: String) -> CSVData? {
         // Remove BOM if present
         var content = string
         if content.hasPrefix("\u{FEFF}") {
             content.removeFirst()
         }
-
+        
         // Normalize line endings to \n
-        if content.utf8.contains(0x0D) {
-            content = content.replacingOccurrences(of: "\r\n", with: "\n")
-            content = content.replacingOccurrences(of: "\r", with: "\n")
-        }
-        return content
-    }
-
-    /// The records of normalized `content`, read one `Character` at a time.
-    /// The reference reading: `CSVRecordScanner` reads UTF-8 bytes and hands
-    /// back here whenever its reading could differ from this one.
-    static func characterRecords(in content: String) -> [[String]] {
+        content = content.replacingOccurrences(of: "\r\n", with: "\n")
+        content = content.replacingOccurrences(of: "\r", with: "\n")
+        
         // Parse CSV rows and fields
         var rows: [[String]] = []
         var currentRow: [String] = []
@@ -49,12 +31,12 @@ public enum CSVParser {
         var pendingRecord = false
         let chars = Array(content)
         var i = 0
-
+        
         func appendField() {
             currentRow.append(currentField)
             currentField = ""
         }
-
+        
         while i < chars.count {
             let c = chars[i]
             if insideQuotes {
@@ -98,25 +80,19 @@ public enum CSVParser {
             appendField()
             rows.append(currentRow)
         }
-        return rows
-    }
-
-    /// Headers and padded rows from the parsed records: the first record is
-    /// the header row when its trimmed fields are non-empty and unique;
-    /// otherwise headers are synthesized ("Column 1", …).
-    static func table(from rows: [[String]]) -> CSVData? {
+        
         // If empty result, return nil
         if rows.isEmpty { return nil }
-
+        
         // Check if first row can be header
         let firstRow = rows[0]
-
+        
         // Trim fields in first row
         let trimmedHeaders = firstRow.map { $0.trimmed() }
-
+        
         let allNonEmpty = !trimmedHeaders.contains(where: { $0.isEmpty })
         let uniqueHeaders = Set(trimmedHeaders).count == trimmedHeaders.count
-
+        
         if allNonEmpty && uniqueHeaders {
             // Use first row as headers, rest as data
             let dataRows = Array(rows.dropFirst())
@@ -132,8 +108,8 @@ public enum CSVParser {
             })
         }
     }
-
-    public static func parse(data: Data) -> CSVData? {
+    
+    static func parse(data: Data) -> CSVData? {
         // Try UTF8
         if let string = String(data: data, encoding: .utf8) {
             return parse(string: string)
@@ -143,67 +119,5 @@ public enum CSVParser {
             return parse(string: string)
         }
         return nil
-    }
-}
-
-public enum DateParser {
-    static let formats = [
-        "yyyy-MM-dd",
-        "MM/dd/yyyy",
-        "dd/MM/yyyy",
-        "MMM d, yyyy",
-        "MMMM d, yyyy",
-        "M/d/yy",
-        "d/M/yy",
-        "yyyy/MM/dd",
-        "yyyy-MM-dd'T'HH:mm:ssZ"
-    ]
-    
-    nonisolated(unsafe) private static let iso: ISO8601DateFormatter = DateFormatters.iso8601DateTime
-
-    private static let cachedFormatters: [String: DateFormatter] = {
-        var dict: [String: DateFormatter] = [:]
-        for fmt in formats {
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "en_US_POSIX")
-            df.timeZone = TimeZone(secondsFromGMT: 0)
-            df.dateFormat = fmt
-            dict[fmt] = df
-        }
-        return dict
-    }()
-
-    /// The only format that carries an explicit time and zone — parsed as an
-    /// absolute instant. Every other format is a calendar date.
-    private static let dateTimeFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-
-    private static let gmtCalendar: Calendar = {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = .gmt
-        return cal
-    }()
-
-    public static func parse(_ value: String) -> Date? {
-        let trimmed = value.trimmed()
-        if trimmed.isEmpty { return nil }
-
-        if let date = iso.date(from: trimmed) {
-            return date
-        }
-        for fmt in formats {
-            if let df = cachedFormatters[fmt], let date = df.date(from: trimmed) {
-                return fmt == dateTimeFormat ? date : rebasedToLocalMidnight(date)
-            }
-        }
-        return nil
-    }
-
-    /// Date-only strings parse at GMT midnight (the cached formatters are pinned to
-    /// GMT for stability), which displays as the previous day in western time zones
-    /// and never compares equal to locally-entered dates. Rebase the calendar day to
-    /// local midnight so the value stores, displays, and dedupes as the day the CSV named.
-    private static func rebasedToLocalMidnight(_ gmtMidnight: Date) -> Date {
-        let comps = gmtCalendar.dateComponents([.year, .month, .day], from: gmtMidnight)
-        return AppCalendar.shared.date(from: comps) ?? gmtMidnight
     }
 }

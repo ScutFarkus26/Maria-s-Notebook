@@ -660,6 +660,13 @@ final class BackupFieldCoverageTests {
         FieldSpec("OrderItem")
     ]
 
+    /// Inserts this suite's fixture — one instance of every backed-up entity,
+    /// every attribute populated — for other suites that need a store holding
+    /// every type (`BackupStreamingExportTests`). Does not save.
+    static func seedEveryBackedUpEntity(into context: NSManagedObjectContext) throws {
+        _ = try FieldCoverage.seed(specs: specs, into: context)
+    }
+
     // MARK: Tests
 
     @Test("Every attribute of every backed-up entity survives a round-trip")

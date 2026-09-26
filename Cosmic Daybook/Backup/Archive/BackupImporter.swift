@@ -98,40 +98,73 @@ enum BackupImporter {
         decoder.dateDecodingStrategy = .iso8601
 
         // Initialize with empty arrays; we fill the ones we have entries for.
-        var payload = BackupPayload(
-            items: [], students: [], lessons: [],
-            lessonAssignments: [],
-            notes: [], nonSchoolDays: [], schoolDayOverrides: [],
-            studentMeetings: [], communityTopics: [],
-            proposedSolutions: [], communityAttachments: [],
-            attendance: [], workCompletions: [],
-            projects: [], projectAssignmentTemplates: [],
-            projectSessions: [], projectRoles: [],
-            projectTemplateWeeks: [], projectWeekRoleAssignments: [],
+        var payload = BackupPayload.collecting(
             preferences: decoded.preferences ?? PreferencesDTO(values: [:])
         )
 
         var warnings: [String] = []
         for entry in decoded.entries {
-            guard let decodeEntry = entityDecoders[entry.entityName] else {
-                let message = "Unknown entity '\(entry.entityName)' in backup \u{2014} skipped " +
-                    "(likely created by a newer app version)."
-                logger.warning("\(message, privacy: .public)")
-                warnings.append(message)
-                continue
-            }
-            do {
-                let lines = BackupReader.ndjsonLines(in: entry)
-                try decodeEntry(&payload, lines, decoder)
-            } catch {
-                let message = "\(entry.entityName) records could not be read from this backup " +
-                    "and were skipped: \(error.localizedDescription)"
-                logger.warning("\(message, privacy: .public)")
-                warnings.append(message)
+            if let warning = decode(entry, into: &payload, using: decoder) {
+                warnings.append(warning)
             }
         }
 
         return (payload, warnings)
+    }
+
+    /// Decodes one entity entry into its `BackupPayload` field, every row with
+    /// that entity's DTO type. Returns the warning to surface when the entry is
+    /// skipped — an entity this version does not know, or a row that does not
+    /// decode (then the field keeps what it held) — and nil when it decoded.
+    nonisolated static func decode(
+        _ entry: BackupEntityEntry,
+        into payload: inout BackupPayload,
+        using decoder: JSONDecoder
+    ) -> String? {
+        guard let entityDecoder = entityDecoders[entry.entityName] else {
+            return unknownEntityWarning(entry.entityName)
+        }
+        do {
+            try entityDecoder.assign(&payload, BackupReader.ndjsonLines(in: entry), decoder)
+            return nil
+        } catch {
+            return unreadableEntryWarning(entry.entityName, error)
+        }
+    }
+
+    /// Decodes one entity entry's rows exactly as `decode(_:into:using:)`
+    /// does, but hands each row to `visit` and keeps none of them — the
+    /// preview's way to count and collect IDs with one record in memory at a
+    /// time. Returns the same warning `decode` would, and nil when every row
+    /// decoded; after a warning, `visit` may have seen some rows.
+    nonisolated static func visitRows(
+        of entry: BackupEntityEntry,
+        using decoder: JSONDecoder,
+        _ visit: (any Sendable) -> Void
+    ) -> String? {
+        guard let entityDecoder = entityDecoders[entry.entityName] else {
+            return unknownEntityWarning(entry.entityName)
+        }
+        do {
+            try entityDecoder.visit(BackupReader.ndjsonLines(in: entry), decoder, visit)
+            return nil
+        } catch {
+            return unreadableEntryWarning(entry.entityName, error)
+        }
+    }
+
+    private nonisolated static func unknownEntityWarning(_ entityName: String) -> String {
+        let message = "Unknown entity '\(entityName)' in backup \u{2014} skipped " +
+            "(likely created by a newer app version)."
+        logger.warning("\(message, privacy: .public)")
+        return message
+    }
+
+    private nonisolated static func unreadableEntryWarning(_ entityName: String, _ error: Error) -> String {
+        let message = "\(entityName) records could not be read from this backup " +
+            "and were skipped: \(error.localizedDescription)"
+        logger.warning("\(message, privacy: .public)")
+        return message
     }
 
     // MARK: - Per-Entity Dispatch
@@ -141,119 +174,4 @@ enum BackupImporter {
     nonisolated static var handledEntityNames: [String] {
         Array(entityDecoders.keys)
     }
-
-    private nonisolated static func decodeAll<T: Decodable>(
-        _ type: T.Type,
-        _ lines: [Data],
-        _ decoder: JSONDecoder
-    ) throws -> [T] {
-        try lines.map { try decoder.decode(T.self, from: $0) }
-    }
-
-    /// Entity name → closure that decodes that entity's NDJSON lines into the
-    /// matching `BackupPayload` field.
-    private nonisolated static let entityDecoders: [String: @Sendable (
-        inout BackupPayload, [Data], JSONDecoder
-    ) throws -> Void] = [
-        // Core (required)
-        "Student": { $0.students = try decodeAll(StudentDTO.self, $1, $2) },
-        "Lesson": { $0.lessons = try decodeAll(LessonDTO.self, $1, $2) },
-        "LessonAssignment": { $0.lessonAssignments = try decodeAll(LessonAssignmentDTO.self, $1, $2) },
-        "Note": { $0.notes = try decodeAll(NoteDTO.self, $1, $2) },
-        "NonSchoolDay": { $0.nonSchoolDays = try decodeAll(NonSchoolDayDTO.self, $1, $2) },
-        "SchoolDayOverride": { $0.schoolDayOverrides = try decodeAll(SchoolDayOverrideDTO.self, $1, $2) },
-        "StudentMeeting": { $0.studentMeetings = try decodeAll(StudentMeetingDTO.self, $1, $2) },
-        "CommunityTopic": { $0.communityTopics = try decodeAll(CommunityTopicDTO.self, $1, $2) },
-        "ProposedSolution": { $0.proposedSolutions = try decodeAll(ProposedSolutionDTO.self, $1, $2) },
-        "CommunityAttachment": { $0.communityAttachments = try decodeAll(CommunityAttachmentDTO.self, $1, $2) },
-        "AttendanceRecord": { $0.attendance = try decodeAll(AttendanceRecordDTO.self, $1, $2) },
-        "WorkCompletionRecord": { $0.workCompletions = try decodeAll(WorkCompletionRecordDTO.self, $1, $2) },
-        "Project": { $0.projects = try decodeAll(ProjectDTO.self, $1, $2) },
-        "ProjectSession": { $0.projectSessions = try decodeAll(ProjectSessionDTO.self, $1, $2) },
-        "ProjectRole": { $0.projectRoles = try decodeAll(ProjectRoleDTO.self, $1, $2) },
-
-        // Optional v8+ extensions
-        "WorkModel": { $0.workModels = try decodeAll(WorkModelDTO.self, $1, $2) },
-        "WorkCheckIn": { $0.workCheckIns = try decodeAll(WorkCheckInDTO.self, $1, $2) },
-        "WorkStep": { $0.workSteps = try decodeAll(WorkStepDTO.self, $1, $2) },
-        "WorkParticipantEntity": { $0.workParticipants = try decodeAll(WorkParticipantEntityDTO.self, $1, $2) },
-        "PracticeSession": { $0.practiceSessions = try decodeAll(PracticeSessionDTO.self, $1, $2) },
-        "LessonAttachment": { $0.lessonAttachments = try decodeAll(LessonAttachmentDTO.self, $1, $2) },
-        "LessonPresentation": { $0.lessonPresentations = try decodeAll(LessonPresentationDTO.self, $1, $2) },
-        "LessonRecallCheck": { $0.recallChecks = try decodeAll(LessonRecallCheckDTO.self, $1, $2) },
-        "SampleWork": { $0.sampleWorks = try decodeAll(SampleWorkDTO.self, $1, $2) },
-        "SampleWorkStep": { $0.sampleWorkSteps = try decodeAll(SampleWorkStepDTO.self, $1, $2) },
-        "NoteTemplate": { $0.noteTemplates = try decodeAll(NoteTemplateDTO.self, $1, $2) },
-        "MeetingTemplate": { $0.meetingTemplates = try decodeAll(MeetingTemplateDTO.self, $1, $2) },
-        "Reminder": { $0.reminders = try decodeAll(ReminderDTO.self, $1, $2) },
-        "CalendarEvent": { $0.calendarEvents = try decodeAll(CalendarEventDTO.self, $1, $2) },
-        "Track": { $0.tracks = try decodeAll(TrackDTO.self, $1, $2) },
-        "TrackStep": { $0.trackSteps = try decodeAll(TrackStepDTO.self, $1, $2) },
-        "StudentTrackEnrollment": {
-            $0.studentTrackEnrollments = try decodeAll(StudentTrackEnrollmentDTO.self, $1, $2)
-        },
-        "SequenceTrack": { $0.sequenceTracks = try decodeAll(SequenceTrackDTO.self, $1, $2) },
-        "Document": { $0.documents = try decodeAll(DocumentDTO.self, $1, $2) },
-        "Supply": { $0.supplies = try decodeAll(SupplyDTO.self, $1, $2) },
-        "Procedure": { $0.procedures = try decodeAll(ProcedureDTO.self, $1, $2) },
-        "Schedule": { $0.schedules = try decodeAll(ScheduleDTO.self, $1, $2) },
-        "ScheduleSlot": { $0.scheduleSlots = try decodeAll(ScheduleSlotDTO.self, $1, $2) },
-        "Issue": { $0.issues = try decodeAll(IssueDTO.self, $1, $2) },
-        "IssueAction": { $0.issueActions = try decodeAll(IssueActionDTO.self, $1, $2) },
-        "DevelopmentSnapshot": {
-            $0.developmentSnapshots = try decodeAll(DevelopmentSnapshotDTO.self, $1, $2)
-        },
-        "TodoItem": { $0.todoItems = try decodeAll(TodoItemDTO.self, $1, $2) },
-        "TodoSubtask": { $0.todoSubtasks = try decodeAll(TodoSubtaskDTO.self, $1, $2) },
-        "TodoTemplate": { $0.todoTemplates = try decodeAll(TodoTemplateDTO.self, $1, $2) },
-        "TodayAgendaOrder": { $0.todayAgendaOrders = try decodeAll(TodayAgendaOrderDTO.self, $1, $2) },
-        "PlanningRecommendation": {
-            $0.planningRecommendations = try decodeAll(PlanningRecommendationDTO.self, $1, $2)
-        },
-        "Resource": { $0.resources = try decodeAll(ResourceDTO.self, $1, $2) },
-        "NoteStudentLink": { $0.noteStudentLinks = try decodeAll(NoteStudentLinkDTO.self, $1, $2) },
-        "GoingOut": { $0.goingOuts = try decodeAll(GoingOutDTO.self, $1, $2) },
-        "GoingOutChecklistItem": {
-            $0.goingOutChecklistItems = try decodeAll(GoingOutChecklistItemDTO.self, $1, $2)
-        },
-        "ClassroomJob": { $0.classroomJobs = try decodeAll(ClassroomJobDTO.self, $1, $2) },
-        "JobAssignment": { $0.jobAssignments = try decodeAll(JobAssignmentDTO.self, $1, $2) },
-        "CalendarNote": { $0.calendarNotes = try decodeAll(CalendarNoteDTO.self, $1, $2) },
-        "ScheduledMeeting": { $0.scheduledMeetings = try decodeAll(ScheduledMeetingDTO.self, $1, $2) },
-        "ClassroomMembership": { $0.classroomMemberships = try decodeAll(ClassroomMembershipDTO.self, $1, $2) },
-        "MeetingWorkReview": { $0.meetingWorkReviews = try decodeAll(MeetingWorkReviewDTO.self, $1, $2) },
-        "StudentFocusItem": { $0.studentFocusItems = try decodeAll(StudentFocusItemDTO.self, $1, $2) },
-
-        // Format v18+ extensions
-        "DayPad": { $0.dayPads = try decodeAll(DayPadDTO.self, $1, $2) },
-        "YearPlanEntry": { $0.yearPlanEntries = try decodeAll(YearPlanEntryDTO.self, $1, $2) },
-        "LessonSequenceSettings": {
-            $0.lessonSequenceSettings = try decodeAll(LessonSequenceSettingsDTO.self, $1, $2)
-        },
-        "Story": { $0.stories = try decodeAll(StoryDTO.self, $1, $2) },
-        "BookClubPacket": { $0.bookClubPackets = try decodeAll(BookClubPacketDTO.self, $1, $2) },
-        "BookClubSession": { $0.bookClubSessions = try decodeAll(BookClubSessionDTO.self, $1, $2) },
-        "BookClubMeeting": { $0.bookClubMeetings = try decodeAll(BookClubMeetingDTO.self, $1, $2) },
-
-        // Format v20+ extensions
-        "Guardian": { $0.guardians = try decodeAll(GuardianDTO.self, $1, $2) },
-        "ParentCommunication": {
-            $0.parentCommunications = try decodeAll(ParentCommunicationDTO.self, $1, $2)
-        },
-
-        // Format v21+ extensions — teaching-album annotations
-        "AlbumBookmark": { $0.albumBookmarks = try decodeAll(AlbumBookmarkDTO.self, $1, $2) },
-        "AlbumPageNote": { $0.albumPageNotes = try decodeAll(AlbumPageNoteDTO.self, $1, $2) },
-        "AlbumRecentVisit": {
-            $0.albumRecentVisits = try decodeAll(AlbumRecentVisitDTO.self, $1, $2)
-        },
-        "AlbumReadingPosition": {
-            $0.albumReadingPositions = try decodeAll(AlbumReadingPositionDTO.self, $1, $2)
-        },
-        "AlbumHighlight": { $0.albumHighlights = try decodeAll(AlbumHighlightDTO.self, $1, $2) },
-        "AlbumPageInk": { $0.albumPageInk = try decodeAll(AlbumPageInkDTO.self, $1, $2) },
-
-        // Format v27+ extensions — Orders
-        "OrderItem": { $0.orderItems = try decodeAll(OrderItemDTO.self, $1, $2) }
-    ]
 }

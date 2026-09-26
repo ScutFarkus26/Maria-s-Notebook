@@ -1,13 +1,19 @@
-import Foundation
 import CoreData
+import Foundation
 import OSLog
+@testable import CosmicDaybook
 
+// `BackupPreviewAnalyzer` as it stood before the preview read a digest instead
+// of a whole decoded payload (2026-09-26), copied verbatim — only the type is
+// renamed. `BackupPreviewDigestTests` compares the new preview against it, so
+// do not "fix" or modernise this code: its only job is to be the old code.
+
+// swiftlint:disable type_body_length
 /// Analyzes backup payloads to generate preview statistics for restore operations.
 ///
 /// This extracts the analysis logic from BackupService.previewImport() for better
-/// testability and separation of concerns. It reads a `BackupPreviewDigest` —
-/// row counts and IDs — which is all the analysis ever needed from a backup.
-enum BackupPreviewAnalyzer {
+/// testability and separation of concerns.
+enum LegacyBackupPreviewAnalyzer {
     private static let logger = Logger.backup
 
     /// Result of analyzing a backup payload against the current database state.
@@ -21,31 +27,16 @@ enum BackupPreviewAnalyzer {
         var totalDeletes: Int { deletes.values.reduce(0, +) }
     }
 
-    /// Analyzes a whole backup payload; see `analyze(digest:…)`.
-    static func analyze(
-        payload: BackupPayload,
-        viewContext: NSManagedObjectContext,
-        mode: BackupService.RestoreMode,
-        entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool
-    ) -> AnalysisResult {
-        analyze(
-            digest: BackupPreviewDigest(payload: payload),
-            viewContext: viewContext,
-            mode: mode,
-            entityExists: entityExists
-        )
-    }
-
-    /// Analyzes a backup's digest to determine what changes would occur during restore.
+    /// Analyzes a backup payload to determine what changes would occur during restore.
     ///
     /// - Parameters:
-    ///   - digest: The backup's row counts and IDs
+    ///   - payload: The backup payload to analyze
     ///   - viewContext: The model context for checking existing entities
     ///   - mode: The restore mode (replace or merge)
     ///   - entityExists: Closure to check if an entity exists by type and ID
     /// - Returns: Analysis result with insert/skip/delete counts per entity type
     static func analyze(
-        digest: BackupPreviewDigest,
+        payload: BackupPayload,
         viewContext: NSManagedObjectContext,
         mode: BackupService.RestoreMode,
         entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool
@@ -65,13 +56,13 @@ enum BackupPreviewAnalyzer {
 
         if mode == .replace {
             analyzeReplaceMode(
-                digest: digest,
+                payload: payload,
                 viewContext: viewContext,
                 assign: assign
             )
         } else {
             analyzeMergeMode(
-                digest: digest,
+                payload: payload,
                 viewContext: viewContext,
                 entityExists: entityExists,
                 assign: assign,
@@ -85,7 +76,7 @@ enum BackupPreviewAnalyzer {
     // MARK: - Replace Mode Analysis
 
     private static func analyzeReplaceMode(
-        digest: BackupPreviewDigest,
+        payload: BackupPayload,
         viewContext: NSManagedObjectContext,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
     ) {
@@ -94,7 +85,7 @@ enum BackupPreviewAnalyzer {
         // preview enumerates that same registry. A hand-picked subset here once
         // under-reported the destructive-restore consent numbers by ~35 types.
         let model = viewContext.persistentStoreCoordinator?.managedObjectModel
-        let insertCounts = insertCountsByDisplayName(digest)
+        let insertCounts = payloadInsertCounts(payload)
 
         for type in BackupEntityRegistry.allTypes {
             let registryName = BackupEntityRegistry.entityName(for: type)
@@ -105,9 +96,9 @@ enum BackupPreviewAnalyzer {
 
         // Deprecated payload sections with no live entity behind them: nothing
         // gets deleted, but old backups may still carry records.
-        assign("ProjectAssignmentTemplate", digest.projectAssignmentTemplateCount, 0, 0)
-        assign("ProjectTemplateWeek", digest.projectTemplateWeekCount, 0, 0)
-        assign("ProjectWeekRoleAssignment", digest.projectWeekRoleAssignmentCount, 0, 0)
+        assign("ProjectAssignmentTemplate", payload.projectAssignmentTemplates.count, 0, 0)
+        assign("ProjectTemplateWeek", payload.projectTemplateWeeks.count, 0, 0)
+        assign("ProjectWeekRoleAssignment", payload.projectWeekRoleAssignments.count, 0, 0)
     }
 
     /// "CDCommunityTopicEntity" → "CommunityTopic"
@@ -137,41 +128,86 @@ enum BackupPreviewAnalyzer {
         }
     }
 
-    /// Insert counts from the digest, keyed by the display names derived from
-    /// BackupEntityRegistry (see `displayName(forEntityTypeName:)`). The album
-    /// annotation types have never been listed here, so replace mode shows no
-    /// inserts for them.
-    private static func insertCountsByDisplayName(_ digest: BackupPreviewDigest) -> [String: Int] {
-        var counts: [String: Int] = [:]
-        for key in insertCountKeys {
-            counts[key] = digest.count(key == "WorkParticipant" ? "WorkParticipantEntity" : key)
-        }
-        return counts
+    // swiftlint:disable:next orphaned_doc_comment
+    /// Insert counts from the payload, keyed by the display names derived from
+    /// BackupEntityRegistry (see `displayName(forEntityTypeName:)`).
+    // swiftlint:disable:next function_body_length
+    private static func payloadInsertCounts(_ payload: BackupPayload) -> [String: Int] {
+        [
+            "Student": payload.students.count,
+            "Lesson": payload.lessons.count,
+            "LessonAttachment": payload.lessonAttachments?.count ?? 0,
+            "LessonAssignment": payload.lessonAssignments.count,
+            "LessonPresentation": payload.lessonPresentations?.count ?? 0,
+            "LessonRecallCheck": payload.recallChecks?.count ?? 0,
+            "Note": payload.notes.count,
+            "NoteStudentLink": payload.noteStudentLinks?.count ?? 0,
+            "NonSchoolDay": payload.nonSchoolDays.count,
+            "SchoolDayOverride": payload.schoolDayOverrides.count,
+            "StudentMeeting": payload.studentMeetings.count,
+            "MeetingTemplate": payload.meetingTemplates?.count ?? 0,
+            "CommunityTopic": payload.communityTopics.count,
+            "ProposedSolution": payload.proposedSolutions.count,
+            "CommunityAttachment": payload.communityAttachments.count,
+            "AttendanceRecord": payload.attendance.count,
+            "WorkModel": payload.workModels?.count ?? 0,
+            "WorkCompletionRecord": payload.workCompletions.count,
+            "WorkCheckIn": payload.workCheckIns?.count ?? 0,
+            "WorkParticipant": payload.workParticipants?.count ?? 0,
+            "WorkStep": payload.workSteps?.count ?? 0,
+            "SampleWork": payload.sampleWorks?.count ?? 0,
+            "SampleWorkStep": payload.sampleWorkSteps?.count ?? 0,
+            "PracticeSession": payload.practiceSessions?.count ?? 0,
+            "Project": payload.projects.count,
+            "ProjectSession": payload.projectSessions.count,
+            "ProjectRole": payload.projectRoles.count,
+            "Issue": payload.issues?.count ?? 0,
+            "IssueAction": payload.issueActions?.count ?? 0,
+            "Track": payload.tracks?.count ?? 0,
+            "TrackStep": payload.trackSteps?.count ?? 0,
+            "StudentTrackEnrollment": payload.studentTrackEnrollments?.count ?? 0,
+            "SequenceTrack": payload.sequenceTracks?.count ?? 0,
+            "NoteTemplate": payload.noteTemplates?.count ?? 0,
+            "Reminder": payload.reminders?.count ?? 0,
+            "CalendarEvent": payload.calendarEvents?.count ?? 0,
+            "Document": payload.documents?.count ?? 0,
+            "Supply": payload.supplies?.count ?? 0,
+            "Procedure": payload.procedures?.count ?? 0,
+            "Schedule": payload.schedules?.count ?? 0,
+            "ScheduleSlot": payload.scheduleSlots?.count ?? 0,
+            "DevelopmentSnapshot": payload.developmentSnapshots?.count ?? 0,
+            "TodoItem": payload.todoItems?.count ?? 0,
+            "TodoSubtask": payload.todoSubtasks?.count ?? 0,
+            "TodoTemplate": payload.todoTemplates?.count ?? 0,
+            "TodayAgendaOrder": payload.todayAgendaOrders?.count ?? 0,
+            "DayPad": payload.dayPads?.count ?? 0,
+            "PlanningRecommendation": payload.planningRecommendations?.count ?? 0,
+            "Resource": payload.resources?.count ?? 0,
+            "GoingOut": payload.goingOuts?.count ?? 0,
+            "GoingOutChecklistItem": payload.goingOutChecklistItems?.count ?? 0,
+            "ClassroomJob": payload.classroomJobs?.count ?? 0,
+            "JobAssignment": payload.jobAssignments?.count ?? 0,
+            "CalendarNote": payload.calendarNotes?.count ?? 0,
+            "ScheduledMeeting": payload.scheduledMeetings?.count ?? 0,
+            "ClassroomMembership": payload.classroomMemberships?.count ?? 0,
+            "MeetingWorkReview": payload.meetingWorkReviews?.count ?? 0,
+            "StudentFocusItem": payload.studentFocusItems?.count ?? 0,
+            "YearPlanEntry": payload.yearPlanEntries?.count ?? 0,
+            "LessonSequenceSettings": payload.lessonSequenceSettings?.count ?? 0,
+            "Story": payload.stories?.count ?? 0,
+            "BookClubPacket": payload.bookClubPackets?.count ?? 0,
+            "BookClubSession": payload.bookClubSessions?.count ?? 0,
+            "BookClubMeeting": payload.bookClubMeetings?.count ?? 0,
+            "Guardian": payload.guardians?.count ?? 0,
+            "ParentCommunication": payload.parentCommunications?.count ?? 0,
+            "OrderItem": payload.orderItems?.count ?? 0
+        ]
     }
-
-    /// Display names reported as replace-mode inserts. Each is also the archive
-    /// entity name, except "WorkParticipant" ("WorkParticipantEntity").
-    private static let insertCountKeys: [String] = [
-        "Student", "Lesson", "LessonAttachment", "LessonAssignment", "LessonPresentation",
-        "LessonRecallCheck", "Note", "NoteStudentLink", "NonSchoolDay", "SchoolDayOverride",
-        "StudentMeeting", "MeetingTemplate", "CommunityTopic", "ProposedSolution", "CommunityAttachment",
-        "AttendanceRecord", "WorkModel", "WorkCompletionRecord", "WorkCheckIn", "WorkParticipant",
-        "WorkStep", "SampleWork", "SampleWorkStep", "PracticeSession", "Project",
-        "ProjectSession", "ProjectRole", "Issue", "IssueAction", "Track",
-        "TrackStep", "StudentTrackEnrollment", "SequenceTrack", "NoteTemplate", "Reminder",
-        "CalendarEvent", "Document", "Supply", "Procedure", "Schedule",
-        "ScheduleSlot", "DevelopmentSnapshot", "TodoItem", "TodoSubtask", "TodoTemplate",
-        "TodayAgendaOrder", "DayPad", "PlanningRecommendation", "Resource", "GoingOut",
-        "GoingOutChecklistItem", "ClassroomJob", "JobAssignment", "CalendarNote", "ScheduledMeeting",
-        "ClassroomMembership", "MeetingWorkReview", "StudentFocusItem", "YearPlanEntry", "LessonSequenceSettings",
-        "Story", "BookClubPacket", "BookClubSession", "BookClubMeeting", "Guardian",
-        "ParentCommunication", "OrderItem"
-    ]
 
     // MARK: - Merge Mode Analysis
 
     private static func analyzeMergeMode(
-        digest: BackupPreviewDigest,
+        payload: BackupPayload,
         viewContext: NSManagedObjectContext,
         entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
@@ -179,19 +215,19 @@ enum BackupPreviewAnalyzer {
     ) {
         // Students
         let studentCounts = BackupCountHelpers.countInsertAndSkip(
-            items: digest.ids("Student"),
+            items: payload.students,
             type: CDStudent.self,
             context: viewContext,
-            exists: { entityExists(CDStudent.self, $0) }
+            exists: { entityExists(CDStudent.self, $0.id) }
         )
         assign("Student", studentCounts.insert, studentCounts.skip, 0)
 
         // Lessons
         let lessonCounts = BackupCountHelpers.countInsertAndSkip(
-            items: digest.ids("Lesson"),
+            items: payload.lessons,
             type: CDLesson.self,
             context: viewContext,
-            exists: { entityExists(CDLesson.self, $0) }
+            exists: { entityExists(CDLesson.self, $0.id) }
         )
         assign("Lesson", lessonCounts.insert, lessonCounts.skip, 0)
 
@@ -203,17 +239,17 @@ enum BackupPreviewAnalyzer {
             logger.warning("Failed to fetch lessons: \(error)")
             lessonsInStore = Set()
         }
-        let lessonsInPayload = Set(digest.ids("Lesson"))
+        let lessonsInPayload = Set(payload.lessons.map(\.id))
 
         analyzeLessonAssignmentMerge(
-            digest: digest, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,
+            payload: payload, lessonsInStore: lessonsInStore, lessonsInPayload: lessonsInPayload,
             entityExists: entityExists, assign: assign, warnings: &warnings
         )
         analyzeSimpleEntityMerge(
-            digest: digest, entityExists: entityExists, assign: assign
+            payload: payload, entityExists: entityExists, assign: assign
         )
         analyzeFilteredEntityMerge(
-            digest: digest, entityExists: entityExists, assign: assign
+            payload: payload, entityExists: entityExists, assign: assign
         )
     }
 
@@ -223,16 +259,16 @@ enum BackupPreviewAnalyzer {
 
     // swiftlint:disable:next function_parameter_count
     private static func analyzeLessonAssignmentMerge(
-        digest: BackupPreviewDigest,
+        payload: BackupPayload,
         lessonsInStore: Set<UUID>,
         lessonsInPayload: Set<UUID>,
         entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void,
         warnings: inout [String]
     ) {
-        let analysis = digest.lessonAssignments.reduce(
+        let analysis = payload.lessonAssignments.reduce(
             into: ImportAnalysis()
-        ) { (acc: inout ImportAnalysis, la: BackupPreviewDigest.AssignmentReference) in
+        ) { (acc: inout ImportAnalysis, la: LessonAssignmentDTO) in
             guard let lessonUUID = UUID(uuidString: la.lessonID) else {
                 // The importer skips assignments whose lessonID isn't a valid UUID.
                 acc.sk += 1
@@ -261,59 +297,69 @@ enum BackupPreviewAnalyzer {
     }
 
     private static func analyzeSimpleEntityMerge(
-        digest: BackupPreviewDigest,
+        payload: BackupPayload,
         entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
     ) {
-        func assignCounts(_ key: String, type: NSManagedObject.Type) {
-            let ids = digest.ids(key)
-            let existing = ids.filter { entityExists(type, $0) }
-            let new = ids.filter { !entityExists(type, $0) }
+        func assignCounts<T>(_ key: String, items: [T], type: NSManagedObject.Type, idExtractor: (T) -> UUID) {
+            let existing = items.filter { entityExists(type, idExtractor($0)) }
+            let new = items.filter { !entityExists(type, idExtractor($0)) }
             assign(key, new.count, existing.count, 0)
         }
 
         // WorkPlanItem removed in Phase 6 - migrated to CDWorkCheckIn
-        assignCounts("Note", type: CDNote.self)
-        assignCounts("NonSchoolDay", type: CDNonSchoolDay.self)
-        assignCounts("SchoolDayOverride", type: CDSchoolDayOverride.self)
-        assignCounts("StudentMeeting", type: CDStudentMeeting.self)
-        assignCounts("CommunityTopic", type: CDCommunityTopicEntity.self)
-        assignCounts("ProposedSolution", type: CDProposedSolutionEntity.self)
+        assignCounts("Note", items: payload.notes, type: CDNote.self) { $0.id }
+        assignCounts("NonSchoolDay", items: payload.nonSchoolDays, type: CDNonSchoolDay.self) { $0.id }
+        assignCounts("SchoolDayOverride", items: payload.schoolDayOverrides, type: CDSchoolDayOverride.self) { $0.id }
+        assignCounts("StudentMeeting", items: payload.studentMeetings, type: CDStudentMeeting.self) { $0.id }
+        assignCounts("CommunityTopic", items: payload.communityTopics, type: CDCommunityTopicEntity.self) { $0.id }
+        assignCounts(
+            "ProposedSolution",
+            items: payload.proposedSolutions,
+            type: CDProposedSolutionEntity.self
+        ) { $0.id }
     }
 
     private static func analyzeFilteredEntityMerge(
-        digest: BackupPreviewDigest,
+        payload: BackupPayload,
         entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool,
         assign: (_ key: String, _ ins: Int, _ sk: Int, _ del: Int) -> Void
     ) {
-        func countFiltered(_ entityName: String, type: NSManagedObject.Type) -> (ins: Int, sk: Int) {
-            let ids = digest.ids(entityName)
-            let existing = ids.filter { entityExists(type, $0) }
-            let new = ids.filter { !entityExists(type, $0) }
+        func countFiltered<T>(
+            _ items: [T],
+            type: NSManagedObject.Type,
+            idExtractor: (T) -> UUID
+        ) -> (ins: Int, sk: Int) {
+            let existing = items.filter { entityExists(type, idExtractor($0)) }
+            let new = items.filter { !entityExists(type, idExtractor($0)) }
             return (new.count, existing.count)
         }
 
-        let attachmentCounts = countFiltered("CommunityAttachment", type: CDCommunityAttachment.self)
+        let attachmentCounts = countFiltered(
+            payload.communityAttachments,
+            type: CDCommunityAttachment.self
+        ) { $0.id }
         assign("CommunityAttachment", attachmentCounts.ins, attachmentCounts.sk, 0)
 
-        let attendanceCounts = countFiltered("AttendanceRecord", type: CDAttendanceRecord.self)
+        let attendanceCounts = countFiltered(payload.attendance, type: CDAttendanceRecord.self) { $0.id }
         assign("AttendanceRecord", attendanceCounts.ins, attendanceCounts.sk, 0)
 
-        let completionCounts = countFiltered("WorkCompletionRecord", type: CDWorkCompletionRecord.self)
+        let completionCounts = countFiltered(payload.workCompletions, type: CDWorkCompletionRecord.self) { $0.id }
         assign("WorkCompletionRecord", completionCounts.ins, completionCounts.sk, 0)
 
-        let projectCounts = countFiltered("Project", type: CDProject.self)
+        let projectCounts = countFiltered(payload.projects, type: CDProject.self) { $0.id }
         assign("Project", projectCounts.ins, projectCounts.sk, 0)
 
         assign("ProjectAssignmentTemplate", 0, 0, 0)
 
-        let sessionCounts = countFiltered("ProjectSession", type: CDProjectSession.self)
+        let sessionCounts = countFiltered(payload.projectSessions, type: CDProjectSession.self) { $0.id }
         assign("ProjectSession", sessionCounts.ins, sessionCounts.sk, 0)
 
-        let roleCounts = countFiltered("ProjectRole", type: CDProjectRole.self)
+        let roleCounts = countFiltered(payload.projectRoles, type: CDProjectRole.self) { $0.id }
         assign("ProjectRole", roleCounts.ins, roleCounts.sk, 0)
 
         assign("ProjectTemplateWeek", 0, 0, 0)
         assign("ProjectWeekRoleAssignment", 0, 0, 0)
     }
 }
+// swiftlint:enable type_body_length

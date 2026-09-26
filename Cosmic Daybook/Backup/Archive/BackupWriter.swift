@@ -1,23 +1,29 @@
 // BackupWriter.swift
 // Builds a v19 encrypted backup file from a Core Data context.
 //
-// Reuses `BackupService.collectPayload(viewContext:progress:)` for the
-// per-entity DTO transformer logic (same code path the legacy export used).
-// Adds:
+// Collection uses `BackupService.entityCollectors` (the per-entity DTO
+// transformer table `collectPayload` also runs). The archive holds:
 //   - Manifest entry (`manifest.json`) written first, with format version,
 //     entity counts, app version/build, device name, and origin-store routing.
+//   - Preferences entry (`preferences.json`) for the app's user-defined
+//     settings dictionary.
 //   - One NDJSON entry per non-empty entity array, named
 //     `<store>/<EntityName>.ndjson` so the importer can route to the right
 //     persistent store on the destination device.
-//   - Preferences entry (`preferences.json`) for the app's user-defined
-//     settings dictionary.
 //
-// Write pipeline (all off the main actor after payload collection):
-//   serialize → manifest → write encrypted archive to a hidden temp file in
-//   the destination directory → re-read and verify structure + counts →
-//   atomically move into place. A failed export can therefore never leave a
-//   truncated or unverified file at the destination, and an encode failure
-//   for any entity type aborts the export instead of silently dropping data.
+// Two ways to the same bytes. The streamed export (`BackupWriter+Streaming`)
+// collects one entity type on the main actor, encodes it off the main actor,
+// and packs it before collecting the next, so the whole database never sits
+// in memory as DTOs. The one-pass export (`encodeAndWrite`) collects every
+// type first; it runs when the view context holds unsaved edits or when
+// something changed mid-stream (`BackupSnapshotWatch`).
+//
+// Either way the write ends the same: encrypted archive to a hidden temp file
+// in the destination directory → re-read and verify structure + counts →
+// atomically move into place (`writeVerifiedArchive`). A failed export can
+// therefore never leave a truncated or unverified file at the destination,
+// and an encode failure for any entity type aborts the export instead of
+// silently dropping data.
 
 import Foundation
 import CoreData
@@ -80,10 +86,11 @@ nonisolated public enum BackupWriter {
     /// Builds a v19 backup at `url`. Caller must hold the security-scoped
     /// resource (if any) for `url`.
     ///
-    /// Payload collection runs on the main actor (Core Data's queue for the
-    /// view context); the Keychain read, encoding, encryption, writing, and
-    /// verification all run off the main actor (`encodeAndWrite` is
-    /// `@concurrent`) so the UI stays responsive during export.
+    /// Collection runs on the main actor (Core Data's queue for the view
+    /// context); the Keychain read, encoding, encryption, writing, and
+    /// verification all run off the main actor (`@concurrent`) so the UI stays
+    /// responsive during export. The streamed export is tried first; see the
+    /// file header for when the one-pass export runs instead.
     ///
     /// `stopsWhenCancelled` is for the iPad's overnight background task only.
     /// That export checks its task before collecting, between record types,
@@ -102,24 +109,44 @@ nonisolated public enum BackupWriter {
         if stopsWhenCancelled { try Task.checkCancellation() }
         progress(0.0, "Collecting entities\u{2026}")
 
-        // Reuse the shared collector — the same transformer code path that's
-        // been shipping. Collection must stay on the view context's queue.
+        // Collection must stay on the view context's queue.
         BackupPipelineProbe.reach("collect")
         let backupService = BackupService()
-        let payload = backupService.collectPayload(viewContext: viewContext) { sub, message in
-            // Map the collector's 0-1 inner progress into the 0.0-0.6 outer band.
-            progress(min(0.6, sub * 0.6), message)
-        }
-
         let deviceName = currentDeviceName()
 
-        let manifest = try await encodeAndWrite(
-            payload: payload,
-            deviceName: deviceName,
-            to: url,
-            stopsWhenCancelled: stopsWhenCancelled,
-            progress: progress
+        let manifest: BackupArchiveManifest
+        let streamed = try await writeStreaming(
+            service: backupService,
+            viewContext: viewContext,
+            request: ExportRequest(
+                url: url, deviceName: deviceName, stopsWhenCancelled: stopsWhenCancelled, progress: progress
+            )
         )
+        if case .written(let written) = streamed {
+            manifest = written
+        } else {
+            // One pass: every type in this main-actor turn, then encoded off it.
+            // After an abandoned stream its collection progress was already
+            // shown, so the second collection runs silently.
+            var reportsCollection = true
+            if case .abandoned = streamed {
+                reportsCollection = false
+                logger.info("Exporting in one pass: the notebook changed while the export streamed")
+                if stopsWhenCancelled { try Task.checkCancellation() }
+                BackupPipelineProbe.reach("collect in one pass")
+            }
+            let payload = backupService.collectPayload(viewContext: viewContext) { [reportsCollection] sub, message in
+                // Map the collector's 0-1 inner progress into the 0.0-0.6 outer band.
+                if reportsCollection { progress(min(0.6, sub * 0.6), message) }
+            }
+            manifest = try await encodeAndWrite(
+                payload: payload,
+                deviceName: deviceName,
+                to: url,
+                stopsWhenCancelled: stopsWhenCancelled,
+                progress: progress
+            )
+        }
 
         return BackupOperationSummary(
             kind: .export,
@@ -135,11 +162,11 @@ nonisolated public enum BackupWriter {
     // MARK: - Off-Main Pipeline
 
     /// Key, encode, encrypt, write, verify, move: the CPU- and IO-heavy half
-    /// of an export. `@concurrent`, so it runs on the global executor at the
-    /// calling task's priority. A plain `nonisolated async` function would run
-    /// on its caller's actor under NonisolatedNonsendingByDefault, and every
-    /// caller is main-actor code: until 2026-09-25 this all ran on the main
-    /// thread. Internal so tests can hand it a fixed payload.
+    /// of the one-pass export. `@concurrent`, so it runs on the global executor
+    /// at the calling task's priority. A plain `nonisolated async` function
+    /// would run on its caller's actor under NonisolatedNonsendingByDefault, and
+    /// every caller is main-actor code: until 2026-09-25 this all ran on the
+    /// main thread. Internal so tests can hand it a fixed payload.
     @concurrent
     static func encodeAndWrite(
         payload: BackupPayload,
@@ -161,64 +188,50 @@ nonisolated public enum BackupWriter {
         // DTO graph, which put the export's peak at roughly two copies of the
         // database, at app quit / iOS background where the jetsam limit is
         // tightest. Output bytes are identical.
-        let manifest = buildManifest(payload: payload, deviceName: deviceName)
-        let manifestData = try encodeManifest(manifest)
-        let preferencesData = try payload.preferencesJSON()
+        let manifest = makeManifest(
+            counts: entitySerializations.map { ($0.entityName, $0.count(payload)) },
+            deviceName: deviceName
+        )
+        let job = ArchiveJob(
+            manifest: manifest,
+            manifestData: try encodeManifest(manifest),
+            preferencesData: try payload.preferences.archiveJSON(),
+            encryptionKey: encryptionKey,
+            url: url,
+            stopsWhenCancelled: stopsWhenCancelled
+        )
 
         await progress(0.75, "Writing archive\u{2026}")
-        // Hidden temp file in the destination directory (same volume, so the
-        // final move is an atomic rename — also under any security scope the
-        // caller holds for that folder).
-        let tempURL = url.deletingLastPathComponent()
-            .appendingPathComponent(".\(url.lastPathComponent).partial-\(UUID().uuidString)")
-
-        var writtenEntryCount = 0
-        do {
+        let writtenEntryCount = try await writeVerifiedArchive(job, progress: progress) { appender in
+            // Each non-empty entity entry, in registry order. Encoding happens
+            // here so each entity's bytes are released before the next one is built.
             let encoder = ndjsonEncoder()
-            try BackupArchive.write(to: tempURL, encryptionKey: encryptionKey) { appender in
-                // Manifest first so readers can stream-validate.
-                try appender.append(path: "manifest.json", data: manifestData)
-                // Preferences as a single JSON document (not NDJSON).
-                try appender.append(path: "preferences.json", data: preferencesData)
-                // Then each non-empty entity entry, in registry order. Encoding
-                // happens here so each entity's bytes are released before the next
-                // one is built.
-                for serialization in entitySerializations {
-                    // A stopping export ends here, between record types; the
-                    // catch below removes what was written so far.
-                    if stopsWhenCancelled { try Task.checkCancellation() }
-                    BackupPipelineProbe.reach("encode \(serialization.entityName)")
-                    let ndjson: Data?
-                    do {
-                        ndjson = try serialization.encode(payload, encoder)
-                    } catch {
-                        // An encode failure aborts the whole export — a backup that
-                        // silently omits an entity type would verify clean and read
-                        // back as data loss months later.
-                        throw WriterError.entityEncodingFailed(
-                            entityName: serialization.entityName,
-                            underlying: error
-                        )
-                    }
-                    guard let ndjson else { continue }
-                    try appender.append(
-                        path: archivePath(for: serialization.entityName),
-                        data: ndjson
+            var written = 0
+            for serialization in entitySerializations {
+                // A stopping export ends here, between record types; the
+                // helper removes what was written so far.
+                if stopsWhenCancelled { try Task.checkCancellation() }
+                BackupPipelineProbe.reach("encode \(serialization.entityName)")
+                let ndjson: Data?
+                do {
+                    ndjson = try serialization.encode(payload, encoder)
+                } catch {
+                    // An encode failure aborts the whole export — a backup that
+                    // silently omits an entity type would verify clean and read
+                    // back as data loss months later.
+                    throw WriterError.entityEncodingFailed(
+                        entityName: serialization.entityName,
+                        underlying: error
                     )
-                    writtenEntryCount += 1
                 }
+                guard let ndjson else { continue }
+                try appender.append(
+                    path: archivePath(for: serialization.entityName),
+                    data: ndjson
+                )
+                written += 1
             }
-
-            // Verification re-reads the whole archive, and an unverified file
-            // never moves into place, so a stopping export ends here too.
-            if stopsWhenCancelled { try Task.checkCancellation() }
-            await progress(0.9, "Verifying\u{2026}")
-            BackupPipelineProbe.reach("verify")
-            try verifyWrittenArchive(at: tempURL, encryptionKey: encryptionKey, expected: manifest)
-            try moveIntoPlace(from: tempURL, to: url)
-        } catch {
-            try? FileManager.default.removeItem(at: tempURL)
-            throw error
+            return written
         }
 
         await progress(1.0, "Backup complete")
@@ -226,41 +239,6 @@ nonisolated public enum BackupWriter {
             "with \(writtenEntryCount) entity entries"
         logger.info("\(writeMsg, privacy: .public)")
         return manifest
-    }
-
-    /// Re-reads the just-written archive and checks that the manifest decodes
-    /// to what was intended and every entity entry holds exactly the promised
-    /// number of NDJSON rows. Catches truncation, encode bugs, and disk-level
-    /// corruption before the file ever reaches the destination.
-    private static func verifyWrittenArchive(
-        at url: URL,
-        encryptionKey: SymmetricKey,
-        expected: BackupArchiveManifest
-    ) throws {
-        let verification = try BackupReader.verifyStructure(at: url) { encryptionKey }
-
-        guard verification.manifest.formatVersion == expected.formatVersion,
-              verification.manifest.entityCounts == expected.entityCounts,
-              verification.manifest.originStores == expected.originStores else {
-            throw WriterError.verificationFailed("manifest did not round-trip")
-        }
-        for (entityName, expectedCount) in expected.entityCounts {
-            let actual = verification.entryLineCounts[entityName] ?? 0
-            guard actual == expectedCount else {
-                throw WriterError.verificationFailed(
-                    "\(entityName): wrote \(expectedCount) records, read back \(actual)"
-                )
-            }
-        }
-    }
-
-    private static func moveIntoPlace(from tempURL: URL, to url: URL) throws {
-        let fileManager = FileManager.default
-        do {
-            try fileManager.moveItem(at: tempURL, to: url)
-        } catch let error as CocoaError where error.code == .fileWriteFileExists {
-            _ = try fileManager.replaceItemAt(url, withItemAt: tempURL)
-        }
     }
 
     // MARK: - Entry Serialization
@@ -435,27 +413,25 @@ nonisolated public enum BackupWriter {
     }
 
     /// In-archive path for an entity entry. Must match `BackupEntityEntry.archivePath`.
-    private static func archivePath(for entityName: String) -> String {
+    static func archivePath(for entityName: String) -> String {
         "\(store(for: entityName))/\(entityName).ndjson"
     }
 
     // MARK: - Manifest
 
-    /// Built straight from the payload's array counts, before any encoding — the
-    /// manifest never needed the encoded bytes, only how many rows each entity has
-    /// and which store it came from. Only non-empty entities are listed, matching
-    /// the entries actually written.
-    private static func buildManifest(
-        payload: BackupPayload,
+    /// Built from per-entity row counts, before any entity entry is written —
+    /// the manifest never needed the encoded bytes, only how many rows each
+    /// entity has and which store it came from. Only non-empty entities are
+    /// listed, matching the entries actually written.
+    static func makeManifest(
+        counts: [(entityName: String, count: Int)],
         deviceName: String
     ) -> BackupArchiveManifest {
-        var counts: [String: Int] = [:]
+        var entityCounts: [String: Int] = [:]
         var stores: [String: String] = [:]
-        for serialization in entitySerializations {
-            let count = serialization.count(payload)
-            guard count > 0 else { continue }
-            counts[serialization.entityName] = count
-            stores[serialization.entityName] = store(for: serialization.entityName)
+        for (entityName, count) in counts where count > 0 {
+            entityCounts[entityName] = count
+            stores[entityName] = store(for: entityName)
         }
         return BackupArchiveManifest(
             formatVersion: formatVersion,
@@ -463,7 +439,7 @@ nonisolated public enum BackupWriter {
             appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
             appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
             device: deviceName,
-            entityCounts: counts,
+            entityCounts: entityCounts,
             originStores: stores
         )
     }
@@ -482,7 +458,7 @@ nonisolated public enum BackupWriter {
         #endif
     }
 
-    private static func encodeManifest(_ manifest: BackupArchiveManifest) throws -> Data {
+    static func encodeManifest(_ manifest: BackupArchiveManifest) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         encoder.dateEncodingStrategy = .iso8601
@@ -491,7 +467,7 @@ nonisolated public enum BackupWriter {
 
     // MARK: - NDJSON Encoding
 
-    private static func ndjsonEncoder() -> JSONEncoder {
+    static func ndjsonEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         // Sorted keys for deterministic output (helpful for diffing). No pretty-printing
         // inside NDJSON entries — each line is one JSON object.
@@ -539,18 +515,5 @@ nonisolated public struct BackupEntityEntry: Sendable {
         self.storeName = storeName
         self.count = count
         self.ndjson = ndjson
-    }
-}
-
-// MARK: - Preferences serialization
-
-nonisolated private extension BackupPayload {
-    /// Encodes the preferences dictionary as a single JSON document
-    /// (preferences are small, so we don't bother with NDJSON for them).
-    func preferencesJSON() throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        return try encoder.encode(preferences)
     }
 }
