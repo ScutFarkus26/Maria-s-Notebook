@@ -39,11 +39,33 @@ struct BackupCollectionPagingTests {
         return try #require(try context.fetch(request).first)
     }
 
+    /// Saves notes past one 1,000-row page — and nothing else, so each test
+    /// holds the main actor briefly (the suite's timing tests share it).
+    private static func seedNotes(in context: NSManagedObjectContext) throws {
+        for index in 0..<1_205 {
+            Fixtures.insertNote("Observation \(index)", into: context)
+        }
+        try context.save()
+    }
+
+    /// Saves attendance records past one 1,000-row page, and nothing else.
+    private static func seedAttendance(in context: NSManagedObjectContext) throws {
+        let start = Date(timeIntervalSince1970: 1_750_000_000)
+        let studentID = UUID().uuidString
+        for index in 0..<1_030 {
+            let record = NSEntityDescription.insertNewObject(forEntityName: "AttendanceRecord", into: context)
+            record.setValue(UUID(), forKey: "id")
+            record.setValue(studentID, forKey: "studentID")
+            record.setValue(start.addingTimeInterval(Double(index) * 86_400), forKey: "date")
+        }
+        try context.save()
+    }
+
     @Test("An unsaved note in a type past one page is backed up once, with every saved note")
     func pendingInsertIsCollectedOnce() throws {
         let store = try Fixtures.makeStore()
         defer { store.remove() }
-        try Fixtures.seedEveryType(in: store.context)
+        try Self.seedNotes(in: store.context)
         let saved = try Self.savedIDs("Note", in: store.context)
         #expect(saved.count > 1_000, "the notes fill more than one page")
         let pending = UUID()
@@ -62,7 +84,7 @@ struct BackupCollectionPagingTests {
     func pendingDeleteLeavesOutOnlyThatRow() throws {
         let store = try Fixtures.makeStore()
         defer { store.remove() }
-        try Fixtures.seedEveryType(in: store.context)
+        try Self.seedNotes(in: store.context)
         let saved = try Self.savedIDs("Note", in: store.context)
         let first = try Self.savedRow("Note", at: 0, in: store.context)
         let deleted = try #require(first.value(forKey: "id") as? UUID)
@@ -78,7 +100,7 @@ struct BackupCollectionPagingTests {
     func pendingUpdateIsCollectedAsEdited() throws {
         let store = try Fixtures.makeStore()
         defer { store.remove() }
-        try Fixtures.seedEveryType(in: store.context)
+        try Self.seedNotes(in: store.context)
         let saved = try Self.savedIDs("Note", in: store.context)
         let later = try Self.savedRow("Note", at: 1_100, in: store.context)
         let edited = try #require(later.value(forKey: "id") as? UUID)
@@ -94,7 +116,7 @@ struct BackupCollectionPagingTests {
     func skippedRowDoesNotEndTheType() async throws {
         let store = try Fixtures.makeStore()
         defer { store.remove() }
-        try Fixtures.seedEveryType(in: store.context)
+        try Self.seedAttendance(in: store.context)
         // The first attendance record in store order, made one the transformer
         // skips: its student id is not a UUID.
         let first = try Self.savedRow("AttendanceRecord", at: 0, in: store.context)

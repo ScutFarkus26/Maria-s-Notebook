@@ -158,7 +158,11 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
 - SwiftLint config is `Cosmic Daybook/.swiftlint.yml` (the Edit/Write hook runs it). Some
   files carry pre-existing `file_length` / `type_body_length` violations; check a baseline.
 - Timing tests under the parallel suite must poll with a deadline, never sleep a fixed
-  interval; main-actor tasks can wait seconds for a turn.
+  interval; main-actor tasks can wait seconds for a turn. The other half: keep synchronous
+  `@MainActor` tests light. One that seeds thousands of rows and collects without an `await`
+  holds the main actor for its whole run; on 2026-09-26, with four such tests newly added
+  and another build loading the Mac, `StreamingTextThrottleTests` missed its 10 s window.
+  Seed only the types a test needs.
 - `.contextMenu { … }` (and any non-escaping `@ViewBuilder` closure argument) runs on every
   body pass of its view. A fetch or lookup inside it belongs in a nested `View`'s body, which
   only runs when the menu is shown (`SameWorkPeersMenu`, `WorkCardStatusMenu`).

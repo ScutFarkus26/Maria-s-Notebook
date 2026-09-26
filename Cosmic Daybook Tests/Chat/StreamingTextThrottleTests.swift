@@ -129,7 +129,10 @@ struct StreamingTextThrottleTests {
         #expect(published.texts == ["Ora"])
         #expect(throttle.isUpdateScheduled)
 
-        let deadline = ContinuousClock.now + .seconds(10)
+        // Generous: the update needs a main-actor turn, which synchronous tests
+        // elsewhere in the parallel suite can hold off; on a busy Mac this once
+        // missed a 10 s window (2026-09-26). A pass takes ~50 ms.
+        let deadline = ContinuousClock.now + .seconds(60)
         while published.texts.count < 2, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(10))
         }
