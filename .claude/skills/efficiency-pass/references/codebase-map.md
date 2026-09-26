@@ -39,13 +39,18 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Scoped reads for a sequence / track / student | `SequenceTrackService+ScopedReads` (`sequenceLessons`, `trackCandidates`, …) | Services |
 | Preceding-lesson lookups in a loop | `BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)` | Services |
 | Entity-scoped reaction to remote changes | `PersistentHistoryProcessor.processHistory` (posts `.schoolDayDataDidChange` etc.) | Services |
-| Zone repair gating | `SharedStoreZoneRepair+HistoryGate` (`gateDecision`, clean watermark) | Services |
+| Zone repair gating | `SharedStoreZoneRepair+HistoryGate` (`gateDecision`, clean watermark; since 2026-09-26 a clean history pass advances the watermark too, so each pass reads only what arrived since the last) | Services |
+| Launch repairs | `MigrationRunner.runIfNeeded(coreDataStack:includeIntegrityRepairs:)`: every launch repair in one background-context pass (the two whole-table assignment repairs one launch in ten, as before); nothing on the view context | `Services/MigrationRunner.swift` |
+| Delete old per-day rows | `TodayRetentionCleanup.startIfDue(for:)`: background context at `.utility`, once per store per day (`TodayRetentionCleanupGate`), same cutoff and caps as the old main-thread cleanup | `Today/Support/TodayRetentionCleanup.swift` |
 | Launch timing | `LaunchSignposts.begin/end` (category `Launch`) | `Utils/LaunchSignposts.swift` |
 | Ad-hoc timing of a query | `PerformanceLogger.measure(screenName:itemCount:)` | `Utils/PerformanceLogger.swift` |
 | Background/scheduled work | `BackupBackgroundTaskManager` (BGTaskScheduler registration pattern) | `AppCore/BackupBackgroundTaskManager.swift` |
 | Network reachability | `CloudKitSyncStatusService.shared` (owns the single `NWPathMonitor`); never start a second | Services |
 | Midnight / day change | `.onCalendarDayChange` modifier | `Utils/View+CalendarDayChange.swift` |
-| Keep a derived value until one of its entities changes (rebuild on next read) | `ManagedObjectChangeFlag(entityNames:context:)` + `consume(pendingIn:)`: set synchronously by ObjectsDidChange on the context, DidSave on the same coordinator, `.presentationDataDidChange`, or a reset; also sees unannounced pending edits. Used by Today's ready queue and the Students roster memo | `Utils/ManagedObjectChangeFlag.swift` |
+| Keep a derived value until one of its entities changes (rebuild on next read) | `ManagedObjectChangeFlag(entityNames:context:)` + `consume(pendingIn:)`: set synchronously by ObjectsDidChange on the context, DidSave on the same coordinator, `.presentationDataDidChange`, or a reset; also sees unannounced pending edits. Used by Today's ready queue and the Students roster memo. A watcher that must hear only its own store passes `listensForImportSignal: false` (that signal names no store) | `Utils/ManagedObjectChangeFlag.swift` |
+| Read the whole model across several main-actor turns and know it was one moment | `BackupSnapshotWatch` (the flag without the import signal, asked after each type, then persistent history at the end); `BackupWriter+Streaming` streams the export one entity type at a time and falls back to the one-pass collect on any change or unsaved edit | `Backup/Archive/` |
+| Fold presentation records without making managed objects | `PresentationRecordIndex` reads dictionary rows of just its columns (`+Rows`); the managed-object read still runs when the context holds pending edits of the three entities, in a child context, and for lesson-scoped builds | `Services/PresentationRecordIndex+Rows.swift` |
+| Parse CSV | `CSVParser`, which reads through `CSVRecordScanner` (the text's UTF-8 bytes, not an `Array` of 16-byte `Character`s) and falls back to the character reader when a delimiter touches a non-ASCII neighbour; `LegacyCSVParser` in the tests is the old parser verbatim | `Utils/CSVRecordScanner.swift`, `Utils/CSVUtils.swift` |
 | A lesson by id in a view body (no table scan) | `lessonCatalog.lesson(id:in:)`: the catalog's row when it belongs to that context and isn't deleted, else the old `object(_:id:)` fetch | `Lessons/LessonCatalog+ContextLookup.swift` |
 | Lessons in the Lessons screen's order / any derived catalog order | `LessonCatalog.sortedByAreaSortIndexAndOrder` (area, sortIndex, orderInSequence); derived orders rebuild on first read behind the observed `version` — read `version` in a body that must refresh on any lesson change | `Lessons/LessonCatalog.swift` |
 | Keep a value built from saved sequence/section orders | `FilterOrderStore.revision` (bumped on every save and cache reset); `MapLayoutMemo` keys the Lessons map's sections on it plus catalog version, area and spine | `Components/FilterOrderStore.swift`, `Lessons/LessonsScopeMapLayout.swift` |
@@ -109,8 +114,11 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    Wave three landed the same day (`perf-baselines/2026-09-26-energy-fifty-wave3.md`): 5, 37–41,
    44–47 — idle trims, album covers/PDFs/model/canvases, photo attach and cache, Student Files
    thumbnails, the remaining hidden iPad tabs, UIKit memory warnings.
-   Still open: 1 (a Release build day to day — Danny's step) and the sync/data wave (12, 13, 25,
-   43); 14 and 42 parked by recommendation, 22 parked, 49 left by decision.
+   Wave four landed 2026-09-26 (`perf-baselines/2026-09-26-energy-fifty-wave4.md`): 12, 13, 25,
+   43 — launch repairs and the Today cleanup off the main thread, the zone-repair watermark on
+   clean passes, the presentation index from column rows, the streamed backup export.
+   Still open: 1 (a Release build day to day — Danny's step); 14 (now known to be a correctness
+   risk, see Traps) and 42 parked by recommendation, 22 parked, 49 left by decision.
 
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
@@ -174,3 +182,13 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   loads in ~100 ms and the iPhone Air / iPhone 17e simulators never load. Run gates on iPhone 17;
   on the others those two tests fail (and can starve main-actor timing tests such as
   `StreamingTextThrottleTests.scheduledUpdateArrives`).
+- `.presentationDataDidChange` is process-wide and names no store. Anything that must react
+  only to its own store must not listen to it: under the parallel suite other tests' stacks post
+  it, and on 2026-09-26 that sent every streamed backup export in the suite back to one pass
+  (five failures that each test file alone never showed).
+- Off the main thread, `.background` QoS work waited up to 50 s while builds loaded the Mac
+  (2026-09-26). Use `.utility` for work a test or the guide waits on.
+- `PersistentHistoryProcessor` keeps one history token for the two-store container, and from
+  then on reads only that token's store. If the newest transaction when its cursor was empty
+  came from the shared store, it stops seeing private-store imports (no post-import dedup, no
+  entity notifications). Energy Fifty item 14; a correctness risk, not yet fixed.

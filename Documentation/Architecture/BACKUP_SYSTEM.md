@@ -31,14 +31,16 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | `Backup/Archive/BackupArchive.swift` | Low-level AppleArchive wrapper. Encrypted write (`AA01`), read of both encrypted v19 and plain v17/v18 (`pbz*`), magic-byte detection, per-entry size guard. |
 | `Backup/Archive/BackupEncryptionKeyStore.swift` | The 256-bit symmetric key in the iCloud Keychain (synchronizable, after-first-unlock). `fetchOrCreateKey()` for export, `requireKey()` for restore. |
 | `Backup/Archive/BackupWriter.swift` | Builds a v19 backup: collect payload (main actor) → serialize NDJSON + manifest → write encrypted temp file → verify → atomic rename (all off-main). Aborts on any entity encode failure. |
+| `Backup/Archive/BackupWriter+Streaming.swift` | The export as it normally runs (2026-09-26): one entity type at a time — collect on the main actor, encode NDJSON and pack it (LZ4) off it — then key, manifest, preferences and the entries unpacked one by one into the archive. Same entries, order and bytes as the one-pass export. |
+| `Backup/Archive/BackupSnapshotWatch.swift` | Keeps a streamed export one moment: asked after every type (a change flag on the view context's coordinator) and at the end (persistent history). Any change, or unsaved edits at the start, sends the export to the one-pass path. |
 | `Backup/Archive/BackupReader.swift` | Decodes an archive into manifest + entries + preferences. `verifyStructure` streams the archive counting rows without holding the payload. |
-| `Backup/Archive/BackupImporter.swift` | Off-main: reconstructs a `BackupPayload` from NDJSON entries (table-driven dispatch). On-main: hands it to `BackupService.importPayload`. Surfaces decode skips as warnings. |
+| `Backup/Archive/BackupImporter.swift` | Off-main: reconstructs a `BackupPayload` from NDJSON entries (table-driven dispatch). On-main: hands it to `BackupService.importPayload`. Surfaces decode skips as warnings. `decodePreview` (`+Preview`) streams the entries for the restore preview and keeps only row counts and IDs (`BackupPreviewDigest`). |
 
 ### Shared services (reused by the archive implementation)
 
 | File | Purpose |
 |------|---------|
-| `Backup/BackupService+DataCollection.swift` | `collectPayload` — fetches every entity type in batches, runs DTO transformers. |
+| `Backup/BackupService+DataCollection.swift` | `collectPayload` — the one-pass collect: every entity type in one main-actor turn, through the collector table in `+EntityCollectors` (fetched in batches, run through the DTO transformers). The streamed export walks the same table one type at a time. |
 | `Backup/BackupService+Restoration.swift` | `importPayload` — dedup, replace-mode clear, ordered entity import, denormalized-field repair, CloudKit export wait. |
 | `Backup/BackupFetchHelper.swift` | `BackupEntityIndex` (restore: one lazy fetch per type) and `EntityIDIndexCache` (preview: one id-set fetch per type). Replaced the old per-record fetch. |
 | `Backup/Core/BackupEntityRegistry.swift` | Single source of truth for which entity types are backed up. |
@@ -97,8 +99,9 @@ importer routes each type to the correct persistent store on restore.
 ## Export Flow
 
 1. `BackupCoordinator.exportBackup` → `BackupWriter.write` (main actor).
-2. `collectPayload` fetches all entities as DTOs (main actor / view-context queue).
-3. Off the main actor: serialize NDJSON + manifest, fetch/create the Keychain key.
+2. **Streamed (the normal path, 2026-09-26):** for each entity type in archive order, collect its DTOs on the main actor (view-context queue), then encode its NDJSON and pack it with LZ4 off the main actor, so only one type's DTOs and NDJSON are alive at a time (export peak 53.8 → 38.2 MB on a 44,318-row store). The manifest has to be the first entry and needs every count, so the packed entries wait until the last type is collected. `BackupSnapshotWatch` is asked after every type and once at the end; if anything could have changed a fetch in between (an edit, a save on the coordinator including a CloudKit import, a reset, a history transaction), the streamed rows are dropped and the one-pass path runs instead.
+   **One pass (fallback):** when the view context holds unsaved edits at the start, or the watch saw a change, `collectPayload` fetches every type as DTOs in one main-actor turn, as the export always did before.
+3. Off the main actor: serialize NDJSON + manifest (one pass) or unpack each staged entry in turn (streamed), fetch/create the Keychain key.
 4. Write the encrypted archive to a hidden `.partial` temp file in the destination directory (`0600`).
 5. **Verify:** re-read via `BackupReader.verifyStructure` — manifest must round-trip and every entity's NDJSON row count must match the manifest.
 6. Atomically rename the temp file into place. On any failure the temp file is removed and nothing lands at the destination.
