@@ -229,7 +229,10 @@ final class AlbumSemanticIndex {
     }
 
     nonisolated static func embedQuery(_ text: String, backend: String) -> [Float]? {
-        queryEmbedders.withLock { models in
+        // Every search pushes the release back; five quiet minutes after the
+        // last one the models go, and the next search loads them again.
+        queryModelIdleRelease.touch()
+        return queryEmbedders.withLock { models in
             switch backend {
             case "sentence":
                 if models.sentence == nil {
@@ -249,7 +252,8 @@ final class AlbumSemanticIndex {
 
     /// The embedding models a query uses, created on the first search and
     /// kept so each keystroke's query doesn't load a model again. At most one
-    /// of each; `releaseQueryEmbedders()` drops them under memory pressure.
+    /// of each; `releaseQueryEmbedders()` drops them five minutes after the
+    /// last search (`queryModelIdleRelease`) and under memory pressure.
     /// Queries run one at a time under the lock, so the models are never used
     /// from two threads at once.
     nonisolated private struct QueryEmbedders: ~Copyable {
@@ -258,6 +262,17 @@ final class AlbumSemanticIndex {
     }
 
     nonisolated private static let queryEmbedders = Mutex(QueryEmbedders())
+
+    /// Lets go of the query models once searches stop: five minutes after the
+    /// last one (every search, including each MCP `search_albums`, pushes it
+    /// back). They used to stay until a memory warning; the Latin-script
+    /// sentence model alone is about 108 MB on the Mac. The next search loads
+    /// the same model again and gets the same vectors.
+    nonisolated static let queryModelIdleRelease = IdleCountdown(
+        interval: .seconds(5 * 60), tolerance: .seconds(30), clock: ContinuousClock()
+    ) {
+        AlbumSemanticIndex.releaseQueryEmbedders()
+    }
 
     /// Drops the cached query models; the next search recreates them.
     nonisolated static func releaseQueryEmbedders() {
