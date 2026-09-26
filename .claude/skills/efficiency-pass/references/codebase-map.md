@@ -57,6 +57,12 @@ hot paths are, and what has been checked and should not be re-litigated.
 | App-wide services (bootstrap, sync status, pushes, backups, Spotlight, MCP) | `AppServicesLauncher.startIfNeeded` — once per process, from the first main window's `.task` or, for an MCP-only launch, the app delegate | `AppCore/AppServicesLauncher.swift` |
 | Act on scene activation only when the day, school calendar or counter epoch changed | `.onCalendarDayChange` (via `CalendarDayActivationGate`) | `Utils/View+CalendarDayChange.swift`, `Utils/CalendarDayActivationGate.swift` |
 | Copy EventKit data into Core Data without rewriting unchanged rows | `EventKitMirror` (assign only differing fields; stamp `lastSyncedAt` only on new/changed rows) | `Services/EventKitMirror.swift` |
+| Drop rebuildable caches when the app goes idle (the Mac almost never sends memory pressure) | `AppDependencies.trimIdleMemory(reason:)` → `AlbumLibrary.releaseMemory(critical: false)` only (image cache left alone by Danny's choice); iOS on `.background`, Mac 10 min after resign-active or when the last main window closes (`IdleMemoryTrimPolicy`, `IdleMemoryTrimController`). Never posts `.memoryPressureDetected` | `AppCore/` |
+| Reload on presentation/lesson changes only while visible | `.onPresentationDataChangeWhenVisible` (the Presentations counter pattern packaged; the counter lives in the modifier) | `Utils/View+PresentationDataChangeWhenVisible.swift` |
+| Decode or save a photo without a full-size decode | `PhotoImageIO` (ImageIO thumbnails at display size, `CGImageDestination` transcode that matches the old output byte for byte); `CachedPhotoLoader` for disk hits off the main thread; `ImageCache` budget 32 MB | `Services/PhotoImageIO.swift`, `Components/CachedPhotoLoader.swift` |
+| A first-page thumbnail of a student's PDF | `StudentFileThumbnailCache` (rendered once per file version, cached on disk; no live `PDFView`) | `Students/Files/` |
+| An album's outline, lessons and page count without keeping its PDF open | `AlbumContents` (read once); `Album.document` opens on demand and `releaseDocument()` closes it (called by `releaseMemory` at both levels) | `Albums/AlbumContents.swift`, `Albums/AlbumLibrary.swift` |
+| Release something after a quiet period (resettable, injected clock) | `IdleCountdown` (used for the album query model: released 5 min after the last search) | `Albums/IdleCountdown.swift` |
 | Mac maintenance on a schedule | `ScheduledBackupActivity` (`NSBackgroundActivityScheduler`, 10% tolerance, `.utility`, honours `shouldDefer`); timing in `ScheduledBackupTiming` | `Backup/Core/` |
 
 Services that already consult `EnergyPolicy`: `AppBootstrapper` (post-launch migrations),
@@ -100,8 +106,11 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    bridge and MCP-only launch, occlusion-aware gates, services once per process, EventKit
    mirrors writing only changed rows, backup encoding `@concurrent`, the Mac backup on
    `NSBackgroundActivityScheduler`. 49 (the Assistant's push background mode) was left as is.
-   Still open: 1 (a Release build day to day — Danny's step), idle cache trims (5), hidden iPad
-   tabs beyond those wired (46), the memory items (37–45, 47), 12–14, 25, 43.
+   Wave three landed the same day (`perf-baselines/2026-09-26-energy-fifty-wave3.md`): 5, 37–41,
+   44–47 — idle trims, album covers/PDFs/model/canvases, photo attach and cache, Student Files
+   thumbnails, the remaining hidden iPad tabs, UIKit memory warnings.
+   Still open: 1 (a Release build day to day — Danny's step) and the sync/data wave (12, 13, 25,
+   43); 14 and 42 parked by recommendation, 22 parked, 49 left by decision.
 
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
