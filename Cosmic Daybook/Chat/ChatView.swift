@@ -14,6 +14,9 @@ struct ChatView: View {
     @State private var viewModel = ChatViewModel()
     @State private var iconPulse = false
     @State private var iconRotation: Double = 0
+    /// Whether the hero's window can be seen: the Mac's occlusion state,
+    /// always true elsewhere.
+    @State private var isHeroWindowVisible = true
     @State private var cardsAppeared = false
 
     var body: some View {
@@ -245,12 +248,24 @@ struct ChatView: View {
                         .scaleEffect(iconPulse ? 1.08 : 1.0)
                         .rotationEffect(.degrees(iconRotation))
                 }
-                .onAppear(perform: startHeroAnimation)
+                .onAppear {
+                    if isHeroWindowVisible { startHeroAnimation() }
+                }
                 .onChange(of: scenePhase) { _, newPhase in
-                    if newPhase == .active {
+                    if newPhase == .active && isHeroWindowVisible {
                         startHeroAnimation()
                     } else {
                         stopHeroAnimation()
+                    }
+                }
+                // `scenePhase` stays active while the Mac window is minimized,
+                // covered or on another Space; nobody sees the pulse then.
+                .onWindowVisibilityChange { visible in
+                    isHeroWindowVisible = visible
+                    if !visible {
+                        stopHeroAnimation()
+                    } else if scenePhase == .active {
+                        startHeroAnimation()
                     }
                 }
 
@@ -293,8 +308,9 @@ struct ChatView: View {
     }
 
     /// Starts the empty-state hero animation. Bounded rather than `repeatForever`,
-    /// and restarted on scene activation, so an idle or backgrounded window isn't
-    /// driving the render loop for nothing.
+    /// stopped while the scene is inactive or the window can't be seen, and
+    /// restarted when it can again, so an idle, backgrounded, minimized or
+    /// covered window isn't driving the render loop for nothing.
     private func startHeroAnimation() {
         guard !reduceMotion else { return }
         withAnimation(.easeInOut(duration: 2.5).repeatCount(120, autoreverses: true)) {
