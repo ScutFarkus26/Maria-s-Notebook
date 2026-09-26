@@ -101,14 +101,16 @@ final class BackupCoordinator {
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
 
         progress(0.10, "Reading backup\u{2026}")
-        let archive = try await BackupImporter.decodeArchive(at: url)
+        // Counts and IDs only, one entry at a time: the preview never needed
+        // the records themselves (see BackupPreviewDigest).
+        let archive = try await BackupImporter.decodePreview(at: url)
 
         progress(0.50, "Analyzing\u{2026}")
         // One ID-set fetch per entity type instead of one fetch per record —
         // the index is built lazily for only the types the payload contains.
         let idIndex = EntityIDIndexCache(context: viewContext)
         let analysis = BackupPreviewAnalyzer.analyze(
-            payload: archive.payload,
+            digest: archive.digest,
             viewContext: viewContext,
             mode: mode,
             entityExists: { type, id in

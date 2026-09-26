@@ -75,29 +75,67 @@ nonisolated public enum BackupReader {
         from url: URL,
         keyProvider: () throws -> SymmetricKey
     ) throws -> DecodedBackup {
-        guard BackupArchive.isBackupArchive(at: url) else {
-            throw ReadError.notArchiveFormat
-        }
-
-        var manifest: BackupArchiveManifest?
-        var preferences: PreferencesDTO?
+        var decodedPreferences: PreferencesDTO?
         var entries: [BackupEntityEntry] = []
 
-        try BackupArchive.read(from: url, encryptionKey: keyProvider) { path, data in
-            switch path {
-            case "manifest.json":
-                manifest = try decodeManifest(from: data)
-            case "preferences.json":
+        let manifest = try walk(
+            url,
+            keyProvider: keyProvider,
+            preferences: { data in
                 do {
-                    preferences = try decodePreferences(from: data)
+                    decodedPreferences = try decodePreferences(from: data)
                 } catch {
                     let msg = "Backup preferences entry failed to decode; " +
                         "restore will keep current settings: \(error.localizedDescription)"
                     logger.warning("\(msg, privacy: .public)")
                 }
+            },
+            entity: { entries.append($0) }
+        )
+
+        let readerMsg = "BackupReader decoded v\(manifest.formatVersion) backup with \(entries.count) entity entries"
+        logger.info("\(readerMsg, privacy: .public)")
+        return DecodedBackup(manifest: manifest, entries: entries, preferences: decodedPreferences)
+    }
+
+    /// Streams a backup file entry by entry: `body` sees each entity entry as
+    /// it is decrypted, and nothing keeps the entry once `body` returns, so
+    /// only one entity's bytes are in memory at a time. The preferences entry
+    /// is skipped. Validates exactly as `read(from:)` does: each entry's path
+    /// as it arrives, then that a manifest was present and its format version
+    /// is supported. Returns the manifest.
+    public static func streamEntities(
+        from url: URL,
+        keyProvider: () throws -> SymmetricKey,
+        body: (BackupEntityEntry) throws -> Void
+    ) throws -> BackupArchiveManifest {
+        try walk(url, keyProvider: keyProvider, preferences: { _ in }, entity: body)
+    }
+
+    /// The one pass over an archive that `read` and `streamEntities` share:
+    /// manifest decoded (a malformed one throws at once), preferences handed
+    /// over raw, entity entries parsed and handed over in archive order, then
+    /// the manifest's presence and format version checked.
+    private static func walk(
+        _ url: URL,
+        keyProvider: () throws -> SymmetricKey,
+        preferences: (Data) -> Void,
+        entity: (BackupEntityEntry) throws -> Void
+    ) throws -> BackupArchiveManifest {
+        guard BackupArchive.isBackupArchive(at: url) else {
+            throw ReadError.notArchiveFormat
+        }
+
+        var manifest: BackupArchiveManifest?
+        try BackupArchive.read(from: url, encryptionKey: keyProvider) { path, data in
+            switch path {
+            case "manifest.json":
+                manifest = try decodeManifest(from: data)
+            case "preferences.json":
+                preferences(data)
             default:
                 if let entry = try parseEntityEntry(path: path, ndjson: data) {
-                    entries.append(entry)
+                    try entity(entry)
                 }
             }
             return true
@@ -110,10 +148,7 @@ nonisolated public enum BackupReader {
                 supported: supportedFormatVersions
             )
         }
-
-        let readerMsg = "BackupReader decoded v\(manifest.formatVersion) backup with \(entries.count) entity entries"
-        logger.info("\(readerMsg, privacy: .public)")
-        return DecodedBackup(manifest: manifest, entries: entries, preferences: preferences)
+        return manifest
     }
 
     /// Streams the whole archive, decoding only the manifest and counting the

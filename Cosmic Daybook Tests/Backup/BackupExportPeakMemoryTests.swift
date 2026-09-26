@@ -6,9 +6,11 @@ import Testing
 @testable import CosmicDaybook
 
 // Peak heap during an export, the one-pass way (the old collector's whole
-// payload, then `encodeAndWrite`) against the streamed way (`write`), on one
-// store. A measurement, not a gate: it runs only on request, alone, because
-// every other test in the process allocates too.
+// payload, then `encodeAndWrite`) against the streamed way (`write`), and
+// during a restore preview, the whole-payload way (decode everything, then the
+// old analyzer) against the digest (`previewImport`), on one store. A
+// measurement, not a gate: it runs only on request, alone, because every other
+// test in the process allocates too.
 //
 //   TEST_RUNNER_BACKUP_PEAK_MEMORY=1 nice -n 10 xcodebuild test-without-building … \
 //     -only-testing:"Cosmic Daybook Tests/BackupExportPeakMemoryTests"
@@ -16,6 +18,7 @@ import Testing
 // The numbers go to the test log as "BackupPeakMemory: …" lines.
 @Suite(
     "Backup export peak memory (on request)",
+    .serialized,
     .enabled(if: ProcessInfo.processInfo.environment["BACKUP_PEAK_MEMORY"] != nil)
 )
 @MainActor
@@ -141,6 +144,61 @@ struct BackupExportPeakMemoryTests {
         print("BackupPeakMemory: median \(Self.megabytes(onePassRises[3])) -> \(Self.megabytes(streamedRises[3])); "
             + "best \(Self.megabytes(onePassRises[0])) -> \(Self.megabytes(streamedRises[0]))")
         #expect(streamedRises[3] < onePassRises[3])
+    }
+
+    @Test("Peak heap: whole-payload restore preview vs digest preview", arguments: [1_000, 12_000])
+    func measurePreviewPeakHeap(bulk: Int) async throws {
+        let store = try BackupStreamingFixtures.makeStore()
+        defer { store.remove() }
+        try BackupStreamingFixtures.seedEveryType(in: store.context, bulk: bulk)
+        try Self.seedPresentations(in: store.context, count: bulk * 2 / 3)
+        let context = store.context
+        let url = store.archiveURL("Source")
+        _ = try await BackupWriter.write(viewContext: context, to: url)
+        let coordinator = BackupCoordinator(
+            backupService: BackupService(), transactionManager: BackupTransactionManager(), appRouter: AppRouter()
+        )
+
+        var whole: [Rise] = []
+        var digest: [Rise] = []
+        for round in 0..<6 {
+            let wholeRun = {
+                whole.append(try await Self.peakRise {
+                    let archive = try await BackupImporter.decodeArchive(at: url)
+                    let index = EntityIDIndexCache(context: context)
+                    _ = LegacyBackupPreviewAnalyzer.analyze(
+                        payload: archive.payload, viewContext: context, mode: .merge,
+                        entityExists: { index.exists($0, id: $1) }
+                    )
+                })
+            }
+            let digestRun = {
+                digest.append(try await Self.peakRise {
+                    _ = try await coordinator.previewImport(
+                        viewContext: context, from: url, mode: .merge, progress: { _, _ in }
+                    )
+                })
+            }
+            if round.isMultiple(of: 2) {
+                try await wholeRun()
+                try await digestRun()
+            } else {
+                try await digestRun()
+                try await wholeRun()
+            }
+        }
+        let wholeRises = whole.map(\.overall).sorted()
+        let digestRises = digest.map(\.overall).sorted()
+        print("BackupPeakMemory: [bulk \(bulk)] whole-payload preview rise \(Self.describe(whole))")
+        print("BackupPeakMemory: [bulk \(bulk)] digest preview rise \(Self.describe(digest))")
+        print("BackupPeakMemory: [bulk \(bulk)] preview median \(Self.megabytes(wholeRises[3])) -> "
+            + "\(Self.megabytes(digestRises[3])); best \(Self.megabytes(wholeRises[0])) -> "
+            + "\(Self.megabytes(digestRises[0]))")
+        // On a small store the archive reader's own buffers (~27 MB, both
+        // paths) dwarf the records, and the two are within noise.
+        if bulk >= 10_000 {
+            #expect(digestRises[3] < wholeRises[3])
+        }
     }
 
     /// Lesson presentations: a fourth large type, with the long rows real
