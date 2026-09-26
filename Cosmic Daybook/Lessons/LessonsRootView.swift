@@ -224,7 +224,11 @@ struct LessonsRootView: View {
         .onChange(of: appRouter.pendingLessonID) { openPendingLesson() }
         .onAppear { refreshLessonsForArea() }
         .onChange(of: lessonsForAreaInputs) { refreshLessonsForArea() }
-        .onPresentationDataChange(of: ["Lesson"], in: viewContext) { _ in refreshLessonsForArea() }
+        // Only while on screen: a TabView keeps this tab alive behind the
+        // others, and `.onAppear` above re-derives the list when it is back.
+        .onPresentationDataChangeWhenVisible(of: ["Lesson"], in: viewContext, catchUpOnAppear: false) {
+            refreshLessonsForArea()
+        }
         .task(id: lessonsForArea.compactMap(\.id)) { await fetchPresentationHistory() }
         .onChange(of: filterState.selectedArea) { _, newValue in handleAreaChange(newValue) }
         .onChange(of: filterState.searchText) { _, newValue in handleSearchTextChange(newValue) }
