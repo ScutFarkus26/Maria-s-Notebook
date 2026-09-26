@@ -1,6 +1,9 @@
 import Foundation
 import OSLog
 import Darwin
+#if os(iOS)
+import UIKit
+#endif
 
 nonisolated private let logger = Logger.cache
 
@@ -30,6 +33,10 @@ nonisolated enum MemoryPressureLevel {
 /// Allows the app to proactively clear caches and reduce memory usage before the system terminates it.
 /// Differentiates between `.warning` and `.critical` pressure levels and throttles responses
 /// to avoid making pressure worse with expensive cleanup work.
+///
+/// Two sources feed it: the dispatch memory-pressure source on both platforms and, on iOS,
+/// UIKit's memory warning. Both go through `respond(to:from:)`, so a warning that reaches
+/// the app both ways inside one throttle window clears the caches once.
 @Observable
 final class MemoryPressureMonitor {
 
@@ -53,6 +60,15 @@ final class MemoryPressureMonitor {
     private let sourceHolder = SourceHolder()
     private var onPressureHandler: ((MemoryPressureLevel) -> Void)?
 
+    /// Where UIKit's memory warning is observed: the default center in the
+    /// app, a private one in tests.
+    private let notificationCenter: NotificationCenter
+    /// The clock the throttle reads; tests advance their own.
+    private let now: () -> Date
+    #if os(iOS)
+    @ObservationIgnored private var memoryWarningObservation: NotificationCenter.ObservationToken?
+    #endif
+
     // Throttle state — prevents rapid-fire cleanup from making pressure worse
     private var lastWarningResponse: Date = .distantPast
     private var lastCriticalResponse: Date = .distantPast
@@ -61,8 +77,10 @@ final class MemoryPressureMonitor {
 
     // MARK: - Initialization
 
-    init() {
+    init(notificationCenter: NotificationCenter = .default, now: @escaping () -> Date = { Date() }) {
         // Monitor will be started when handler is set
+        self.notificationCenter = notificationCenter
+        self.now = now
     }
 
     // MARK: - Public API
@@ -87,51 +105,25 @@ final class MemoryPressureMonitor {
             // Dispatch defines only inside this handler: read it here and carry
             // the value into the hop to the main actor.
             let event = DispatchSource.MemoryPressureEvent(rawValue: source.data)
+            guard let level = MemoryPressureMonitor.level(for: event) else { return }
             Task { @MainActor [weak self] in
-                guard let self else { return }
-
-                let now = Date()
-
-                switch event {
-                case .critical:
-                    guard now.timeIntervalSince(self.lastCriticalResponse) >= self.criticalThrottleInterval else {
-                        logger.debug("Critical memory pressure throttled")
-                        return
-                    }
-                    self.lastCriticalResponse = now
-                    self.lastPressureLevel = .critical
-
-                    let criticalMsg = "Critical memory pressure - clearing caches aggressively " +
-                        "(footprint: \(Self.footprintDescription), event #\(self.pressureEventCount + 1))"
-                    logger.warning("\(criticalMsg, privacy: .public)")
-
-                    self.lastPressureEvent = now
-                    self.pressureEventCount += 1
-                    self.onPressureHandler?(.critical)
-
-                case .warning:
-                    guard now.timeIntervalSince(self.lastWarningResponse) >= self.warningThrottleInterval else {
-                        logger.debug("Warning memory pressure throttled")
-                        return
-                    }
-                    self.lastWarningResponse = now
-                    self.lastPressureLevel = .warning
-
-                    let warningMsg = "Memory pressure warning - clearing non-essential caches " +
-                        "(footprint: \(Self.footprintDescription), event #\(self.pressureEventCount + 1))"
-                    logger.info("\(warningMsg, privacy: .public)")
-
-                    self.lastPressureEvent = now
-                    self.pressureEventCount += 1
-                    self.onPressureHandler?(.warning)
-
-                default:
-                    break
-                }
+                self?.respond(to: level, from: "dispatch")
             }
         }
 
         source.resume()
+
+        #if os(iOS)
+        // UIKit's memory warning is the signal Apple names for iOS apps
+        // ("Responding to low-memory warnings"). It takes the dispatch
+        // warning's path: same throttle, same caches, same log line.
+        memoryWarningObservation = notificationCenter.addObserver(
+            of: UIApplication.self,
+            for: .didReceiveMemoryWarning
+        ) { [weak self] _ in
+            self?.respond(to: .warning, from: "UIKit")
+        }
+        #endif
 
         logger.info("Memory pressure monitoring started")
     }
@@ -140,13 +132,63 @@ final class MemoryPressureMonitor {
     func stopMonitoring() {
         sourceHolder.source?.cancel()
         sourceHolder.source = nil
+        #if os(iOS)
+        if let memoryWarningObservation {
+            notificationCenter.removeObserver(memoryWarningObservation)
+            self.memoryWarningObservation = nil
+        }
+        #endif
         onPressureHandler = nil
+    }
+
+    /// The level a dispatch memory-pressure event stands for; nil for any
+    /// other value (the source asks only for these two).
+    nonisolated static func level(for event: DispatchSource.MemoryPressureEvent) -> MemoryPressureLevel? {
+        switch event {
+        case .critical: .critical
+        case .warning: .warning
+        default: nil
+        }
     }
 
     /// The process footprint for a log line ("123.4 MB", or "unknown"); the
     /// idle trim (`AppDependencies.trimIdleMemory`) logs it too.
     static var footprintDescription: String {
         currentMemoryFootprintMB().map { String(format: "%.1f MB", $0) } ?? "unknown"
+    }
+
+    // MARK: - Response
+
+    /// One pressure event, from either source: throttled per level, logged
+    /// with the footprint, then handed to the handler.
+    private func respond(to level: MemoryPressureLevel, from source: String) {
+        let time = now()
+        switch level {
+        case .critical:
+            guard time.timeIntervalSince(lastCriticalResponse) >= criticalThrottleInterval else {
+                logger.debug("Critical memory pressure throttled")
+                return
+            }
+            lastCriticalResponse = time
+            let criticalMsg = "Critical memory pressure - clearing caches aggressively " +
+                "(source: \(source), footprint: \(Self.footprintDescription), event #\(pressureEventCount + 1))"
+            logger.warning("\(criticalMsg, privacy: .public)")
+
+        case .warning:
+            guard time.timeIntervalSince(lastWarningResponse) >= warningThrottleInterval else {
+                logger.debug("Warning memory pressure throttled")
+                return
+            }
+            lastWarningResponse = time
+            let warningMsg = "Memory pressure warning - clearing non-essential caches " +
+                "(source: \(source), footprint: \(Self.footprintDescription), event #\(pressureEventCount + 1))"
+            logger.info("\(warningMsg, privacy: .public)")
+        }
+
+        lastPressureLevel = level
+        lastPressureEvent = time
+        pressureEventCount += 1
+        onPressureHandler?(level)
     }
 }
 
