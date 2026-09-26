@@ -28,14 +28,3 @@ extension BackupDTOTransformers {
         items.map { toDTO($0) }
     }
 }
-
-// MARK: - Collection
-
-extension BackupService {
-    /// Collects the format v27 entity type: Orders. Lives here rather than in
-    /// BackupService+DataCollection, which is at SwiftLint's file-length limit.
-    func collectOrderDTOs(into payload: inout BackupPayload, using viewContext: NSManagedObjectContext) {
-        payload.orderItems = fetchAndTransformInBatches(
-            CDOrderItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
-    }
-}
