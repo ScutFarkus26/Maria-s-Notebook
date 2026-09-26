@@ -481,9 +481,19 @@ ambiguity comes back as a tool error naming the candidates.
    }
    ```
 
-3. Restart Claude Desktop. The bridge launches the app (backgrounded) if it
-   isn't running; set `COSMIC_DAYBOOK_NO_AUTOLAUNCH=1` in the server's
-   `env` to disable that.
+3. Restart Claude Desktop. When the server isn't listening, the bridge
+   launches the app backgrounded, as an MCP-only launch (no main window;
+   it quits about ten minutes after the last Claude session disconnects) —
+   but only when no copy is running already (found by bundle id through
+   `lsappinfo`; a running copy is waited for instead, never duplicated)
+   and `~/.cosmic-daybook/enabled` exists, which the app keeps in step with
+   the toggle in step 1 (`MCPEnabledMarker`, from
+   `MCPServerService.applySettings`). A copy stopped in the debugger
+   (`ps` state `T`), whether it is merely running or holding the port, is
+   reported with its pid instead of being waited on or relayed to. Set
+   `COSMIC_DAYBOOK_NO_AUTOLAUNCH=1` in the server's `env` to never launch.
+   `Scripts/mcp/test-cosmic-daybook-mcp.sh` checks these decisions against a
+   copy of the bridge on a test port, without touching the app.
 
 The same bridge works for Claude Code:
 `claude mcp add cosmic-daybook -- "/Users/dannydeberry/Developer/Cosmic Daybook/Scripts/mcp/cosmic-daybook-mcp"`.
@@ -603,6 +613,20 @@ can be lost.
   and clipped arguments) and what is not (reads, errors).
 - `MCPToolRegistryTests` also pins the tool count, the exact non-read-only
   and destructive sets, and `openWorldHint == false` everywhere.
+- Launch and lifecycle: `Cosmic Daybook Tests/AppCore/AppLaunchModeTests.swift`
+  (which arguments make an MCP-only launch), `MCPIdleQuitPolicyTests.swift`
+  (when that launch quits: clients and windows, cancel and re-arm, the full
+  interval), and `Services/MCPServer/MCPEnabledMarkerTests.swift` (the
+  bridge's marker, created and removed with the toggle). The AppKit wiring
+  (`MCPIdleQuitController`, the Dock-click reopen) is checked by hand.
+- The bridge's launch decisions: `Scripts/mcp/test-cosmic-daybook-mcp.sh`
+  runs a copy of the bridge on port 43199 with a fake bundle id, a temporary
+  marker directory, fake `lsappinfo` / `open` and dummy processes (`nc -lk`,
+  `sleep`, `kill -STOP`): launch once, no launch with access off, no second
+  copy beside a starting one, stopped copies and stopped port holders
+  refused, `COSMIC_DAYBOOK_NO_AUTOLAUNCH`, relaunch after an idle quit. It
+  refuses to run a copy that still names the real port, bundle id or
+  `~/.cosmic-daybook`.
 - End-to-end smoke test from a shell (app running, toggle on):
 
   ```bash

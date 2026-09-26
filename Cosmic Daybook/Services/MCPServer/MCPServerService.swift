@@ -39,7 +39,8 @@ final class MCPServerService {
 
     private init() {}
 
-    /// Directory shared with the bridge script for the auth token.
+    /// Directory shared with the bridge script for the auth token and the
+    /// enabled marker.
     /// Lives in the user's *real* home (granted by a scoped
     /// temporary-exception entitlement) — NSHomeDirectory() would be the
     /// sandbox container, which external processes cannot read.
@@ -55,12 +56,27 @@ final class MCPServerService {
         UserDefaults.standard.bool(forKey: UserDefaultsKeys.aiMCPServerEnabled)
     }
 
-    /// Reconciles the running state with the Settings toggle.
+    /// Reconciles the running state with the Settings toggle, and keeps the
+    /// bridge script's `~/.cosmic-daybook/enabled` marker in step with it.
+    /// Runs at every launch (AppServicesLauncher) and on every toggle.
     func applySettings() {
-        if isEnabled {
+        let enabled = isEnabled
+        updateEnabledMarker(enabled)
+        if enabled {
             start()
         } else {
             stop()
+        }
+    }
+
+    /// Without the marker the bridge would launch the app for a server that
+    /// is switched off and never listens. A failure is only logged: the
+    /// server itself does not depend on the marker.
+    private func updateEnabledMarker(_ enabled: Bool) {
+        do {
+            try MCPEnabledMarker.sync(enabled: enabled, in: Self.supportDirectory)
+        } catch {
+            logger.error("MCP enabled marker not updated: \(error, privacy: .public)")
         }
     }
 
