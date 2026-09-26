@@ -153,10 +153,8 @@ struct BackupStreamingExportTests {
     }
 
     /// Unsaved edits mean the one-pass export, the old code, runs unchanged.
-    /// The edits here stay clear of one quirk of that code: a pending insert
-    /// into a type past one 1,000-row fetch page is written twice and pushes a
-    /// saved row off the first page, and which row varies between collections,
-    /// so no two exports could be compared.
+    /// What it collects of unsaved edits past one 1,000-row page (it once wrote
+    /// such an insert twice) is pinned in `BackupCollectionPagingTests`.
     @Test("Unsaved edits keep the one-pass export, pending rows and all")
     func unsavedEditsUseOnePass() async throws {
         let store = try Fixtures.makeStore()

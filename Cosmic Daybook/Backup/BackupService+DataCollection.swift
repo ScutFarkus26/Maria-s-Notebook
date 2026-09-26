@@ -35,8 +35,20 @@ extension BackupService {
 
     // MARK: - Batched Fetch Utilities
 
-    /// Modern fetch-and-transform pattern that converts entities to DTOs in batches.
-    /// This reduces peak memory usage by not holding both models and DTOs simultaneously.
+    /// Every row of `T` as DTOs, read a page (`batchSize` rows) at a time so no
+    /// more than one page of managed objects is alive at once.
+    ///
+    /// Pages come from the store alone (`includesPendingChanges = false`), so
+    /// each saved row lands on exactly one page and a short page is the last.
+    /// Unsaved edits still reach the backup: a fetch hands back the context's
+    /// own object, pending updates and all; a row the context has deleted is
+    /// left out; rows it has inserted are added once, after the saved ones.
+    /// Until 2026-09-26 the pages were read with the unsaved edits mixed in, so
+    /// in a type past one page an unsaved insert was written twice and pushed a
+    /// saved row off the first page, and an unsaved delete on the first page had
+    /// another row written twice; and the loop stopped at the first page that
+    /// produced fewer DTOs than `batchSize`, so one malformed row (which the
+    /// transformers skip) on a full page left every later page out.
     func fetchAndTransformInBatches<T: NSManagedObject, DTO>(
         _ type: T.Type,
         using context: NSManagedObjectContext,
@@ -74,10 +86,11 @@ extension BackupService {
 
         while true {
             // Fetch, transform, and release in one autoreleasepool
-            let dtos: [DTO]? = autoreleasepool {
+            let page: (dtos: [DTO], rowCount: Int)? = autoreleasepool {
                 let descriptor = NSFetchRequest<T>(entityName: entityName)
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = batchSize
+                descriptor.includesPendingChanges = false
 
                 let batch: [T]
                 do {
@@ -91,22 +104,29 @@ extension BackupService {
                     return nil
                 }
 
-                guard !batch.isEmpty else {
-                    return nil
-                }
-
-                // Transform to DTOs immediately while models are in scope
-                let transformed = transform(batch)
-
-                // Batch objects are released when autoreleasepool exits
-                return transformed
+                // Transform to DTOs immediately while models are in scope.
+                // Batch objects are released when autoreleasepool exits.
+                return (transform(batch.filter { !$0.isDeleted }), batch.count)
             }
 
-            guard let fetchedDTOs = dtos, !fetchedDTOs.isEmpty else { break }
-            allDTOs.append(contentsOf: fetchedDTOs)
+            guard let page else { break }
+            allDTOs.append(contentsOf: page.dtos)
 
-            if fetchedDTOs.count < batchSize { break }
+            // Rows, not DTOs: a transformer skips malformed rows, and a skipped
+            // row must not end the table.
+            if page.rowCount < batchSize { break }
             offset += batchSize
+        }
+
+        // Unsaved inserts, in a stable order so two collections agree.
+        let inserted = context.insertedObjects
+            .filter { $0.entity.name == entityName && !$0.isDeleted }
+            .compactMap { $0 as? T }
+            .map { (key: $0.objectID.uriRepresentation().absoluteString, object: $0) }
+            .sorted { $0.key < $1.key }
+            .map(\.object)
+        if !inserted.isEmpty {
+            allDTOs.append(contentsOf: autoreleasepool { transform(inserted) })
         }
 
         return allDTOs

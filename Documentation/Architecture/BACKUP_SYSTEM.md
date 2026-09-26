@@ -40,7 +40,7 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 
 | File | Purpose |
 |------|---------|
-| `Backup/BackupService+DataCollection.swift` | `collectPayload` — the one-pass collect: every entity type in one main-actor turn, through the collector table in `+EntityCollectors` (fetched in batches, run through the DTO transformers). The streamed export walks the same table one type at a time. |
+| `Backup/BackupService+DataCollection.swift` | `collectPayload` — the one-pass collect: every entity type in one main-actor turn, through the collector table in `+EntityCollectors` (fetched in batches, run through the DTO transformers). The streamed export walks the same table one type at a time. `fetchAndTransformInBatches` reads each type from the store 1,000 rows a page (`includesPendingChanges = false`), leaves out rows the context has deleted, adds its unsaved inserts once at the end, and ends a type on a short page of *rows*, never of DTOs, since the transformers skip malformed rows (2026-09-26; before that, unsaved edits in a type past one page duplicated or dropped rows, and one malformed row on a full page cut the rest of its type). |
 | `Backup/BackupService+Restoration.swift` | `importPayload` — dedup, replace-mode clear, ordered entity import, denormalized-field repair, CloudKit export wait. |
 | `Backup/BackupFetchHelper.swift` | `BackupEntityIndex` (restore: one lazy fetch per type) and `EntityIDIndexCache` (preview: one id-set fetch per type). Replaced the old per-record fetch. |
 | `Backup/Core/BackupEntityRegistry.swift` | Single source of truth for which entity types are backed up. |
