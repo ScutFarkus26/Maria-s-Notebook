@@ -1,4 +1,5 @@
 import Combine
+import OSLog
 import SwiftUI
 
 /// Reload work that should only run while a screen is on screen.
@@ -16,8 +17,13 @@ import SwiftUI
 /// to the screen when its own `.task` / `.onAppear` already reloads there.
 ///
 /// On macOS the detail of a `NavigationSplitView` is torn down when the
-/// sidebar selection changes, so a hidden screen does not exist to be gated;
-/// the modifiers then behave exactly like `onChange` / `onReceive`.
+/// sidebar selection changes, so a screen is never hidden that way. Its
+/// window can be, though — minimized, covered, on another Space — and
+/// SwiftUI reports none of it, so the modifiers also watch the window's
+/// occlusion state (`onWindowVisibilityChange`): while nobody can see the
+/// window a trigger only marks the screen stale, and the action runs once
+/// when the window comes back, whatever `catchUpOnAppear` says (the
+/// screen's own appear-time reload doesn't run again then).
 extension View {
 
     /// `onChange(of:)` that runs `action` only while the view is visible.
@@ -70,6 +76,8 @@ private struct ReceiveWhenVisible<P: Publisher>: ViewModifier where P.Failure ==
 }
 
 private struct VisibilityTracking: ViewModifier {
+    private static let logger = Logger.ui
+
     @Binding var gate: WhenVisibleGate
     let catchUpOnAppear: Bool
     let action: () -> Void
@@ -82,33 +90,11 @@ private struct VisibilityTracking: ViewModifier {
             .onDisappear {
                 gate.disappear()
             }
-    }
-}
-
-/// The decision itself, kept free of SwiftUI so it can be tested.
-struct WhenVisibleGate: Equatable {
-    private(set) var isVisible = false
-    private(set) var isStale = false
-
-    /// A trigger fired: true when the action should run now; otherwise the
-    /// screen is hidden and is only marked stale.
-    mutating func request() -> Bool {
-        guard isVisible else {
-            isStale = true
-            return false
-        }
-        return true
-    }
-
-    /// The screen appeared: true when a request arrived while it was hidden
-    /// and the caller wants it caught up here.
-    mutating func appear(catchUp: Bool) -> Bool {
-        isVisible = true
-        defer { isStale = false }
-        return catchUp && isStale
-    }
-
-    mutating func disappear() {
-        isVisible = false
+            .onWindowVisibilityChange { visible in
+                if gate.windowVisibilityChanged(visible) {
+                    Self.logger.info("Caught up once: the window can be seen again")
+                    action()
+                }
+            }
     }
 }

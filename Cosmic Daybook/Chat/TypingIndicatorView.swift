@@ -7,6 +7,13 @@ struct TypingIndicatorView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var activeIndex = 0
     @State private var timer: Timer?
+    /// Between `onAppear` and `onDisappear`. A row of a lazy stack can keep its
+    /// views after scrolling away, and a window report must not restart the
+    /// timer for dots nobody can reach.
+    @State private var isAppeared = false
+    /// Whether the window can be seen: the Mac's occlusion state, always true
+    /// elsewhere.
+    @State private var isWindowVisible = true
 
     private let dotCount = 3
     private let dotSize: CGFloat = 10
@@ -25,19 +32,34 @@ struct TypingIndicatorView: View {
         }
         .accessibilityLabel("Assistant is thinking")
         .onAppear {
-            guard !reduceMotion, scenePhase == .active else { return }
-            startBouncing()
+            isAppeared = true
+            updateBouncing(in: scenePhase)
         }
-        .onDisappear(perform: stopBouncing)
+        .onDisappear {
+            isAppeared = false
+            stopBouncing()
+        }
         // Nobody sees the dots while the scene is inactive or in the
         // background (e.g. the app left thinking behind another window), so
         // stop waking the CPU until it is active again.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                if !reduceMotion { startBouncing() }
-            } else {
-                stopBouncing()
-            }
+            updateBouncing(in: phase)
+        }
+        // Nor while the Mac window is minimized, covered or on another Space,
+        // which leaves `scenePhase` active.
+        .onWindowVisibilityChange { visible in
+            isWindowVisible = visible
+            updateBouncing(in: scenePhase)
+        }
+    }
+
+    /// Bounces only while the dots can be seen: on screen, in an active scene,
+    /// in a window someone can see, and with motion allowed.
+    private func updateBouncing(in phase: ScenePhase) {
+        if isAppeared, phase == .active, isWindowVisible, !reduceMotion {
+            startBouncing()
+        } else {
+            stopBouncing()
         }
     }
 
