@@ -24,8 +24,8 @@ import OSLog
 /// Every automatic run first consults persistent history (see
 /// `+HistoryGate`): when no shared entity has been inserted since the last
 /// pass that left nothing to attach, the run costs one small history query
-/// and reads no entity table at all. Only the manual "Repair Sync Errors"
-/// button forces a full scan.
+/// — covering only what landed since that pass — and reads no entity table
+/// at all. Only the manual "Repair Sync Errors" button forces a full scan.
 @Observable
 final class SharedStoreZoneRepair {
 
@@ -144,8 +144,9 @@ final class SharedStoreZoneRepair {
         let token = Self.currentHistoryToken(for: store, in: container)
         if let token, let seen = lastObservedToken, token == seen { return }
 
-        let decision = await Self.gateDecision(since: Self.loadCleanToken(), container: container)
+        let decision = await Self.gateDecision(since: Self.loadCleanToken(), store: store, container: container)
         guard let targets = Self.scanTargets(for: decision) else {
+            Self.advanceCleanToken(after: decision, to: token)
             lastObservedToken = token
             if lastRunAt == nil { lastRunAt = Date() }
             return
@@ -208,7 +209,7 @@ final class SharedStoreZoneRepair {
         tokenBefore: NSPersistentHistoryToken?
     ) async -> ScanTargets? {
         if force { return .everything }
-        let decision = await Self.gateDecision(since: Self.loadCleanToken(), container: container)
+        let decision = await Self.gateDecision(since: Self.loadCleanToken(), store: store, container: container)
         if case let .scanEverything(reason) = decision {
             Self.logger.notice("Zone repair pass scanning every shared entity: \(reason, privacy: .public)")
         }
@@ -219,6 +220,7 @@ final class SharedStoreZoneRepair {
             if lastRunAt == nil {
                 hasActiveShare = (try? container.fetchShares(in: store).first) != nil
             }
+            Self.advanceCleanToken(after: decision, to: tokenBefore)
             lastObservedToken = tokenBefore
             lastRunAt = Date()
             Self.logger.debug("Zone repair pass skipped: no shared entity inserted since the last clean pass")
