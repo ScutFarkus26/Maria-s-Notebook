@@ -9,8 +9,10 @@ import UIKit
 /// Renders a JPEG (quality 0.7, white background) of a PDF page scaled to fit a
 /// target size while keeping the page's aspect ratio. `BookClubThumbnailGenerator`,
 /// `StoryThumbnailGenerator` and `ResourceThumbnailGenerator` forward here; they
-/// differ only in target size and logger.
-enum PDFThumbnailRenderer {
+/// differ only in target size and logger. Nonisolated so the Student Files
+/// thumbnails (`StudentFileThumbnailCache`) can render off the main thread; the
+/// page and its document must stay on the calling thread.
+nonisolated enum PDFThumbnailRenderer {
     static func thumbnailData(from page: PDFPage, fitting size: CGSize) -> Data? {
         let pageRect = page.bounds(for: .mediaBox)
         let scale = Swift.min(

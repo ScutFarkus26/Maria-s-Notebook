@@ -1,5 +1,6 @@
 // PDFThumbnailView.swift
-// PDF thumbnail components extracted from StudentFilesTab
+// The Student Files card thumbnail, and the live PDFView page the Resources
+// detail sheet shows.
 
 import SwiftUI
 import CoreData
@@ -10,22 +11,37 @@ import AppKit
 import UIKit
 #endif
 
+/// A document card's first page: a thumbnail rendered off the main thread and
+/// cached by `StudentFileThumbnailCache`, with a drawn shadow standing in for
+/// `PDFView`'s page shadow. Unlike the `PDFView` it replaced, a card keeps no
+/// `PDFDocument` or `PDFView` alive.
 struct PDFThumbnail: View {
     let url: URL?
     let data: Data?
+    /// The record a PDF kept in `data` belongs to (its object URI), which keys its
+    /// cached thumbnail.
+    let recordKey: String
 
-    init(url: URL? = nil, data: Data? = nil) {
+    init(url: URL? = nil, data: Data? = nil, recordKey: String = "") {
         self.url = url
         self.data = data
+        self.recordKey = recordKey
     }
 
-    @State private var page: PDFPage?
+    @State private var thumbnail: StudentFileThumbnailCache.Thumbnail?
     @State private var isLoading = true
+
+    /// `PDFView`'s default page break margins, which it left around the page.
+    private static let pageMargins = EdgeInsets(top: 4.75, leading: 4, bottom: 4.75, trailing: 4)
 
     var body: some View {
         Group {
-            if let page {
-                PDFThumbnailView(page: page)
+            if let image = thumbnailImage {
+                Image(platformImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .shadow(color: Color.black.opacity(UIConstants.OpacityConstants.quarter), radius: 2, x: 0, y: 1)
+                    .padding(Self.pageMargins)
             } else if isLoading {
                 ProgressView()
                     .frame(maxWidth: 40, maxHeight: 40)
@@ -36,22 +52,21 @@ struct PDFThumbnail: View {
             }
         }
         .task {
-            await loadPDFPage()
+            await loadThumbnail()
         }
     }
 
-    private func loadPDFPage() async {
-        // Keep PDFKit objects on the current actor to avoid crossing non-Sendable types.
-        let pdfDocument: PDFDocument?
-        if let url {
-            pdfDocument = PDFDocument(url: url)
-        } else if let data {
-            pdfDocument = PDFDocument(data: data)
-        } else {
-            pdfDocument = nil
-        }
-        self.page = pdfDocument?.page(at: 0)
-        self.isLoading = false
+    /// Decoded once through the shared cache, as the Resources and Stories cards do.
+    private var thumbnailImage: PlatformImage? {
+        guard let thumbnail else { return nil }
+        return CachedThumbnail.image(from: thumbnail.jpegData, cacheKey: thumbnail.key)
+    }
+
+    private func loadThumbnail() async {
+        thumbnail = await StudentFileThumbnailCache.thumbnail(
+            url: url, data: data, recordKey: recordKey, scale: DisplayScale.current
+        )
+        isLoading = false
     }
 }
 
