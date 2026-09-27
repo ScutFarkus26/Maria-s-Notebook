@@ -29,7 +29,7 @@ extension AlbumDetailView {
     /// Per page: a drawing on one page never cancels another page's save.
     private func scheduleInkSave(pageIndex: Int, drawing: PKDrawing) {
         let albumID = album.id
-        inkSaves.schedule(pageIndex: pageIndex) {
+        inkSaves.schedule(pageIndex) {
             Self.saveInk(drawing, albumID: albumID, pageIndex: pageIndex, in: context)
         }
     }

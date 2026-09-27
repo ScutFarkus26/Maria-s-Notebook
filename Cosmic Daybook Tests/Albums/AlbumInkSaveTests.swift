@@ -13,7 +13,7 @@ import UIKit
 /// the test moves, so the timing is exact.
 @Suite("Album ink saves, page by page")
 @MainActor
-struct AlbumInkSaveDebouncerTests {
+struct AlbumInkSaveTests {
 
     private static let delay = Duration.milliseconds(800)
 
@@ -47,13 +47,13 @@ struct AlbumInkSaveDebouncerTests {
     @Test("Two pages drawn on within the window are both saved, each on its own schedule")
     func twoPagesBothSave() async {
         let clock = ManualTestClock()
-        let saves = AlbumInkSaveDebouncer(delay: Self.delay, clock: clock)
+        let saves = AlbumSaveDebouncer<Int, ManualTestClock>(delay: Self.delay, clock: clock)
         let log = SaveLog()
 
-        saves.schedule(pageIndex: 1) { log.saved.append("page 1") }
+        saves.schedule(1) { log.saved.append("page 1") }
         clock.advance(by: .milliseconds(400))
         // The old single task was cancelled here, and page 1 never saved.
-        saves.schedule(pageIndex: 2) { log.saved.append("page 2") }
+        saves.schedule(2) { log.saved.append("page 2") }
         #expect(await AlbumTestSupport.waitUntil {
             clock.pendingDeadlines == [Self.at(800), Self.at(1200)]
         })
@@ -61,49 +61,49 @@ struct AlbumInkSaveDebouncerTests {
 
         clock.advance(by: .milliseconds(400))
         #expect(await AlbumTestSupport.waitUntil { log.saved == ["page 1"] })
-        #expect(saves.pendingPages == [2])
+        #expect(saves.waitingKeys == [2])
         clock.advance(by: .milliseconds(400))
         #expect(await AlbumTestSupport.waitUntil { log.saved == ["page 1", "page 2"] })
-        #expect(saves.pendingPages.isEmpty)
+        #expect(saves.waitingKeys.isEmpty)
     }
 
     @Test("A later drawing of the same page replaces the save waiting for it and restarts the wait")
     func laterDrawingSupersedes() async {
         let clock = ManualTestClock()
-        let saves = AlbumInkSaveDebouncer(delay: Self.delay, clock: clock)
+        let saves = AlbumSaveDebouncer<Int, ManualTestClock>(delay: Self.delay, clock: clock)
         let log = SaveLog()
 
-        saves.schedule(pageIndex: 3) { log.saved.append("first stroke") }
+        saves.schedule(3) { log.saved.append("first stroke") }
         #expect(await AlbumTestSupport.waitUntil { clock.pendingDeadlines == [Self.at(800)] })
         clock.advance(by: .milliseconds(500))
-        saves.schedule(pageIndex: 3) { log.saved.append("second stroke") }
+        saves.schedule(3) { log.saved.append("second stroke") }
         // The first save's wait is cancelled; only the second's is left.
         #expect(await AlbumTestSupport.waitUntil { clock.pendingDeadlines == [Self.at(1300)] })
-        #expect(saves.pendingPages == [3])
+        #expect(saves.waitingKeys == [3])
 
         clock.advance(by: .milliseconds(300)) // where the first would have saved
         #expect(log.saved.isEmpty)
         clock.advance(by: .milliseconds(500))
         #expect(await AlbumTestSupport.waitUntil { log.saved == ["second stroke"] })
-        #expect(saves.pendingPages.isEmpty)
+        #expect(saves.waitingKeys.isEmpty)
     }
 
     @Test("Closing the album saves every page still waiting, at once, and nothing twice")
     func flushSavesEverythingWaiting() async {
         let clock = ManualTestClock()
-        let saves = AlbumInkSaveDebouncer(delay: Self.delay, clock: clock)
+        let saves = AlbumSaveDebouncer<Int, ManualTestClock>(delay: Self.delay, clock: clock)
         let log = SaveLog()
 
-        saves.schedule(pageIndex: 4) { log.saved.append("page 4") }
-        saves.schedule(pageIndex: 1) { log.saved.append("page 1") }
-        #expect(saves.pendingPages == [1, 4])
+        saves.schedule(4) { log.saved.append("page 4") }
+        saves.schedule(1) { log.saved.append("page 1") }
+        #expect(saves.waitingKeys == [1, 4])
         // What the reader does on disappearing and on going to the background.
         saves.flush()
         #expect(log.saved == ["page 1", "page 4"])
-        #expect(saves.pendingPages.isEmpty)
+        #expect(saves.waitingKeys.isEmpty)
 
         // The flushed waits end without saving again; a later page saves alone.
-        saves.schedule(pageIndex: 9) { log.saved.append("page 9") }
+        saves.schedule(9) { log.saved.append("page 9") }
         clock.advance(by: .seconds(1))
         #expect(await AlbumTestSupport.waitUntil { log.saved.count == 3 })
         #expect(log.saved == ["page 1", "page 4", "page 9"])
@@ -113,11 +113,11 @@ struct AlbumInkSaveDebouncerTests {
 
     /// An ink controller wired as `AlbumDetailView.loadInk()` wires it.
     private static func readerInk(albumID: String,
-                                  saves: AlbumInkSaveDebouncer<ManualTestClock>,
+                                  saves: AlbumSaveDebouncer<Int, ManualTestClock>,
                                   context: NSManagedObjectContext) -> InkController {
         let ink = InkController()
         ink.onSave = { pageIndex, drawing in
-            saves.schedule(pageIndex: pageIndex) {
+            saves.schedule(pageIndex) {
                 AlbumDetailView.saveInk(drawing, albumID: albumID, pageIndex: pageIndex, in: context)
             }
         }
@@ -139,25 +139,25 @@ struct AlbumInkSaveDebouncerTests {
     func twoPagesReachTheStore() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         let clock = ManualTestClock()
-        let saves = AlbumInkSaveDebouncer(delay: Self.delay, clock: clock)
+        let saves = AlbumSaveDebouncer<Int, ManualTestClock>(delay: Self.delay, clock: clock)
         let ink = Self.readerInk(albumID: "Math.pdf", saves: saves, context: context)
         let onA = PKDrawing(strokes: [Self.stroke(from: 10)])
         let onB = PKDrawing(strokes: [Self.stroke(from: 40), Self.stroke(from: 90)])
 
         let pageA = ink.canvas(for: 2)
         let pageB = ink.canvas(for: 3)
-        #expect(saves.pendingPages.isEmpty)
+        #expect(saves.waitingKeys.isEmpty)
 
         // PencilKit reports a drawing set on a listening canvas as a change,
         // as it does a stroke.
         pageA.drawing = onA
         clock.advance(by: .milliseconds(300))
         pageB.drawing = onB
-        #expect(saves.pendingPages == [2, 3])
+        #expect(saves.waitingKeys == [2, 3])
         clock.advance(by: .milliseconds(500))
-        #expect(await AlbumTestSupport.waitUntil { saves.pendingPages == [3] })
+        #expect(await AlbumTestSupport.waitUntil { saves.waitingKeys == [3] })
         clock.advance(by: .milliseconds(300))
-        #expect(await AlbumTestSupport.waitUntil { saves.pendingPages.isEmpty })
+        #expect(await AlbumTestSupport.waitUntil { saves.waitingKeys.isEmpty })
 
         let stored = try Self.storedInk(albumID: "Math.pdf", in: context)
         #expect(stored == [2: Self.strokeLocations(onA), 3: Self.strokeLocations(onB)])
@@ -167,7 +167,7 @@ struct AlbumInkSaveDebouncerTests {
     func closingStoresTheLatestDrawing() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let clock = ManualTestClock()
-        let saves = AlbumInkSaveDebouncer(delay: Self.delay, clock: clock)
+        let saves = AlbumSaveDebouncer<Int, ManualTestClock>(delay: Self.delay, clock: clock)
         let ink = Self.readerInk(albumID: "Math.pdf", saves: saves, context: context)
         let canvas = ink.canvas(for: 6)
         let firstStroke = PKDrawing(strokes: [Self.stroke(from: 10)])
@@ -175,7 +175,7 @@ struct AlbumInkSaveDebouncerTests {
 
         canvas.drawing = firstStroke
         canvas.drawing = twoStrokes
-        #expect(saves.pendingPages == [6])
+        #expect(saves.waitingKeys == [6])
         #expect(AlbumUserDataStore.ink(albumID: "Math.pdf", in: context).isEmpty)
 
         saves.flush()

@@ -55,8 +55,11 @@ struct AlbumDetailView: View {
     // Reading-position persistence. Both writes are debounced: flipping
     // through a lesson used to fire two Core Data saves — and two CloudKit
     // pushes — per page turn.
-    @State private var positionSaveTask: Task<Void, Never>?
+    @State private var positionSaves = AlbumSaveDebouncer<String, ContinuousClock>(
+        delay: Self.positionSaveDelay, clock: ContinuousClock())
     @State private var lastRecordedLessonTitle: String?
+    /// How long page turns settle before the reading position is written.
+    static let positionSaveDelay = Duration.milliseconds(1500)
 
     // Find in album
     @State private var showFindBar = false
@@ -73,7 +76,7 @@ struct AlbumDetailView: View {
     // Internal for AlbumDetailView+Ink.swift.
     @State var ink = InkController()
     /// Each page's ink saves 800 ms after that page's last change.
-    @State var inkSaves = AlbumInkSaveDebouncer(delay: .milliseconds(800), clock: ContinuousClock())
+    @State var inkSaves = AlbumSaveDebouncer<Int, ContinuousClock>(delay: .milliseconds(800), clock: ContinuousClock())
     #endif
 
     #if os(macOS)
@@ -117,8 +120,7 @@ struct AlbumDetailView: View {
             .onDisappear {
                 // Leaving mid-debounce still records where the guide got to,
                 // and saves any ink still waiting.
-                positionSaveTask?.cancel()
-                positionSaveTask = nil
+                positionSaves.cancelAll()
                 persistPosition(pageIndex: currentPage)
                 #if os(iOS)
                 inkSaves.flush()
@@ -173,9 +175,12 @@ struct AlbumDetailView: View {
                     .frame(height: 104)
             }
         }
-        // Ink still waiting goes to the store before the app can be suspended.
+        // A page turn and ink still waiting go to the store before the app
+        // can be suspended, and killed there.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { inkSaves.flush() }
+            guard phase == .background else { return }
+            positionSaves.flush()
+            inkSaves.flush()
         }
         #endif
     }
@@ -546,13 +551,8 @@ struct AlbumDetailView: View {
     /// Coalesces page turns into one write. Paging through a lesson is a
     /// burst of `currentPage` changes; only where the guide settles matters.
     private func schedulePositionSave() {
-        positionSaveTask?.cancel()
         let pageIndex = currentPage
-        positionSaveTask = Task {
-            try? await Task.sleep(for: .milliseconds(1500))
-            guard !Task.isCancelled else { return }
-            persistPosition(pageIndex: pageIndex)
-        }
+        positionSaves.schedule(album.id) { persistPosition(pageIndex: pageIndex) }
     }
 
     /// Writes the reading position, and a recent visit when the guide has
