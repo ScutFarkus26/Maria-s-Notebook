@@ -176,7 +176,12 @@ final class TodayViewModel {
 
     // MARK: - Init
 
+    /// How many view models this process has made (for tests pinning that a
+    /// redraw of Today's parent makes none; see `TodayRootView`).
+    private(set) static var madeCount = 0
+
     init(context: NSManagedObjectContext, date: Date = Date(), calendar: Calendar = AppCalendar.shared) {
+        Self.madeCount += 1
         self.context = context
         self.calendar = calendar
         self.readyForNextInputs = ManagedObjectChangeFlag(
@@ -188,8 +193,10 @@ final class TodayViewModel {
         self.date = date.startOfDay
 
         // Clean up old agenda order entries and empty day pads: once a day per
-        // store, on a background context (TodayView makes a new view model on
-        // every parent redraw, and this used to run on the main thread each time).
+        // store, on a background context. One view model is made per Today
+        // screen (`TodayRootView`); until 2026-09-27 `TodayView.init` made one
+        // on every redraw of its parent, and this once ran for each of them on
+        // the main thread.
         TodayRetentionCleanup.startIfDue(for: context)
     }
 

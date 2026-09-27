@@ -7,7 +7,6 @@ import CoreData
 /// Extracted detail content for RootView. Routes based on NavigationItem selection.
 struct RootDetailContent: View {
     let selectedNavItem: RootView.NavigationItem
-    @Environment(\.managedObjectContext) private var viewContext
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -53,9 +52,11 @@ struct RootDetailContent: View {
         }
     }
 
+    // Today is rebuilt on every pass of this body; `TodayRootView` makes its
+    // view model once, when the screen first appears, not per rebuild.
     private var dailyContent: AnyView {
         switch item {
-        case .today: AnyView(TodayView(context: viewContext))
+        case .today: AnyView(TodayRootView())
         case .attendance: AnyView(attendanceContent)
         default: AnyView(EmptyView())
         }
