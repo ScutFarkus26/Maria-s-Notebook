@@ -28,7 +28,7 @@ struct RootAdaptiveTabs: View {
     /// True on the iPad mini, the only iPad whose screen is 744 points on its
     /// short side (the next size up is 820). Reads the screen, not the window,
     /// so resizing a window never moves the bar.
-    private static var usesBottomTabBar: Bool {
+    static var usesBottomTabBar: Bool {
         guard UIDevice.current.userInterfaceIdiom == .pad,
               let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return false }
         let bounds = scene.screen.bounds

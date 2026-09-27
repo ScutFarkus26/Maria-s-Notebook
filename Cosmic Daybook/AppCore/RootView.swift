@@ -331,14 +331,14 @@ struct RootView: View {
         #else
         let layout = VStack(spacing: 0) {
             warningBanners
-            if horizontalSizeClass == .compact {
+            if usesPhoneChrome {
                 mobileContextBar
             }
             Divider()
             mainContent
         }
 
-        if horizontalSizeClass == .compact {
+        if usesPhoneChrome {
             layout
         } else {
             layout
@@ -346,6 +346,16 @@ struct RootView: View {
                     searchAndSyncOverlay
                 }
         }
+        #endif
+    }
+
+    /// The iPhone's context bar instead of the corner overlay: on iPhone, and on
+    /// the iPad mini, which also takes the iPhone's bottom tab bar.
+    private var usesPhoneChrome: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact || RootAdaptiveTabs.usesBottomTabBar
+        #else
+        horizontalSizeClass == .compact
         #endif
     }
 
