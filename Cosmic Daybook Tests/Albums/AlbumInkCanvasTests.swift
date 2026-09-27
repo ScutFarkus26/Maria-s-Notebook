@@ -90,18 +90,20 @@ struct AlbumInkCanvasTests {
         #expect(!rebuilt.isUserInteractionEnabled)
     }
 
-    @Test("A rebuilt canvas reports no drawing change, so it schedules no ink save")
-    func rebuiltCanvasSchedulesNoSave() {
+    @Test("Showing a page, first or rebuilt, reports no drawing change, so it schedules no ink save")
+    func shownCanvasSchedulesNoSave() {
         let ink = InkController()
         var reported: [Int] = []
         ink.onSave = { pageIndex, _ in reported.append(pageIndex) }
+        ink.drawings = [5: PKDrawing(strokes: [Self.stroke()])]
+        // A page's first canvas used to report its drawing as a change, so
+        // every page shown scheduled a save of ink it had not changed.
         let first = ink.canvas(for: 3)
-        // Whatever the first canvas reported is how it has always behaved;
-        // the page's old canvas came back without reporting anything.
-        let reportedByFirst = reported.count
+        let inked = ink.canvas(for: 5)
+        #expect(inked.drawing == ink.drawings[5])
         ink.canvasDidEndDisplaying(first)
         _ = ink.canvas(for: 3)
-        #expect(reported.count == reportedByFirst)
+        #expect(reported.isEmpty)
     }
 
     @Test("A canvas PDFKit shows again without asking for a new one is taken back")

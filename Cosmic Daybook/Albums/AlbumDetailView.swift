@@ -10,9 +10,6 @@ import CoreData
 import SwiftUI
 import PDFKit
 import UniformTypeIdentifiers
-#if os(iOS)
-import PencilKit
-#endif
 
 struct AlbumDetailView: View {
     @Environment(AlbumLibrary.self) private var library
@@ -22,6 +19,7 @@ struct AlbumDetailView: View {
     @Environment(\.openWindow) private var openWindow
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     #endif
 
     let album: Album
@@ -72,8 +70,10 @@ struct AlbumDetailView: View {
     @State private var showExporter = false
 
     #if os(iOS)
-    @State private var ink = InkController()
-    @State private var inkSaveTask: Task<Void, Never>?
+    // Internal for AlbumDetailView+Ink.swift.
+    @State var ink = InkController()
+    /// Each page's ink saves 800 ms after that page's last change.
+    @State var inkSaves = AlbumInkSaveDebouncer(delay: .milliseconds(800), clock: ContinuousClock())
     #endif
 
     #if os(macOS)
@@ -115,10 +115,14 @@ struct AlbumDetailView: View {
                 schedulePositionSave()
             }
             .onDisappear {
-                // Leaving mid-debounce still records where the guide got to.
+                // Leaving mid-debounce still records where the guide got to,
+                // and saves any ink still waiting.
                 positionSaveTask?.cancel()
                 positionSaveTask = nil
                 persistPosition(pageIndex: currentPage)
+                #if os(iOS)
+                inkSaves.flush()
+                #endif
             }
             .alert("Go to Page", isPresented: $showGoToPage) {
                 TextField("Page number", text: $goToPageText)
@@ -168,6 +172,10 @@ struct AlbumDetailView: View {
                 ThumbnailStripView(proxy: proxy)
                     .frame(height: 104)
             }
+        }
+        // Ink still waiting goes to the store before the app can be suspended.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { inkSaves.flush() }
         }
         #endif
     }
@@ -600,37 +608,6 @@ struct AlbumDetailView: View {
         proxy.clearSelection()
         album.applyHighlights(albumHighlights)
     }
-
-    // MARK: Ink
-
-    private func loadInk() {
-        #if os(iOS)
-        var drawings: [Int: PKDrawing] = [:]
-        for item in AlbumUserDataStore.ink(albumID: album.id, in: context) {
-            if let data = item.drawingData, let drawing = try? PKDrawing(data: data) {
-                drawings[Int(item.pageIndex)] = drawing
-            }
-        }
-        ink.drawings = drawings
-        ink.onSave = { pageIndex, drawing in
-            scheduleInkSave(pageIndex: pageIndex, drawing: drawing)
-        }
-        #endif
-    }
-
-    #if os(iOS)
-    private func scheduleInkSave(pageIndex: Int, drawing: PKDrawing) {
-        inkSaveTask?.cancel()
-        let albumID = album.id
-        inkSaveTask = Task {
-            try? await Task.sleep(for: .milliseconds(800))
-            guard !Task.isCancelled else { return }
-            let data = drawing.strokes.isEmpty ? Data() : drawing.dataRepresentation()
-            AlbumUserDataStore.saveInk(albumID: albumID, pageIndex: pageIndex,
-                             drawingData: data, in: context)
-        }
-    }
-    #endif
 
     // MARK: Export
 

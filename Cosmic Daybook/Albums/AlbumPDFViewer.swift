@@ -101,8 +101,6 @@ final class InkController: NSObject {
     private(set) var canvases: [Int: PKCanvasView] = [:]
     /// Pages a Pencil tool has touched since the album opened.
     @ObservationIgnored private var usedPages: Set<Int> = []
-    /// Pages that have had a canvas since the album opened.
-    @ObservationIgnored private var builtPages: Set<Int> = []
     private let toolPicker = PKToolPicker()
 
     func canvas(for pageIndex: Int) -> PKCanvasView {
@@ -112,18 +110,12 @@ final class InkController: NSObject {
         canvas.isOpaque = false
         canvas.drawingPolicy = .anyInput
         canvas.tag = pageIndex
-        let drawing = drawings[pageIndex] ?? PKDrawing()
-        if builtPages.insert(pageIndex).inserted {
-            canvas.delegate = self
-            canvas.drawing = drawing
-        } else {
-            // Rebuilt after its page scrolled away. The old canvas used to be
-            // shown again without a word, so the drawing goes in before the
-            // delegate listens: PencilKit reports a drawing set after it as a
-            // change, and every change schedules an ink save.
-            canvas.drawing = drawing
-            canvas.delegate = self
-        }
+        // The drawing goes in before the delegate listens: PencilKit reports a
+        // drawing set after it as a change, and every change schedules a save
+        // of that page. Showing a page changes nothing, so it saves nothing (a
+        // page's first canvas used to report its saved drawing as a change).
+        canvas.drawing = drawings[pageIndex] ?? PKDrawing()
+        canvas.delegate = self
         canvas.isUserInteractionEnabled = markupEnabled
         canvases[pageIndex] = canvas
         toolPicker.addObserver(canvas)
