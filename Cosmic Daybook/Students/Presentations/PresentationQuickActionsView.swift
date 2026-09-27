@@ -238,104 +238,22 @@ struct PresentationQuickActionsView: View {
         }
     }
 
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    /// The plans Save may add are optional; saving and closing are not
+    /// (`PresentationQuickActionsSave`).
     private func saveChanges() {
-        if presentedNow {
-            let presentedDate = AppCalendar.startOfDay(Date())
-            lessonAssignment.markPresented(at: presentedDate)
-            do {
-                _ = try LifecycleService.recordPresentation(
-                    from: lessonAssignment,
-                    presentedAt: presentedDate,
-                    modelContext: viewContext
-                )
-            } catch {
-                // ignore
-            }
-
-            // Auto-enroll in track if lesson belongs to a track
-            if let lesson = lessonAssignment.lesson {
-                SequenceTrackService.autoEnrollInTrackIfNeeded(
-                    lessonArea: lesson.area,
-                    lessonSequence: lesson.sequence,
-                    studentIDs: lessonAssignment.studentIDs,
-                    context: viewContext,
-                    saveCoordinator: saveCoordinator
-                )
-            }
+        PresentationQuickActionsSave(
+            lessonAssignment: lessonAssignment,
+            presentedNow: presentedNow,
+            needsAnotherPresentation: needsAnotherPresentation,
+            catalog: catalog,
+            lessonAssignmentsAll: { Array(lessonAssignmentsAll) },
+            studentsAll: studentsAll,
+            viewContext: viewContext,
+            saveCoordinator: saveCoordinator,
+            refreshPlanningInbox: { appRouter.refreshPlanningInbox() }
+        ).run {
+            onDone?() ?? dismiss()
         }
-
-        // Phase 3: Auto-create next lesson in sequence when marking presented now
-        if presentedNow, let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID),
-           let current = catalog.lesson(id: lessonIDUUID) {
-            let currentArea = current.area.trimmed()
-            let currentSequence = current.sequence.trimmed()
-            if !currentArea.isEmpty, !currentSequence.isEmpty {
-                let candidates = catalog.lessons(area: currentArea, sequence: currentSequence)
-                if let idx = candidates.firstIndex(where: { $0.id == current.id }), idx + 1 < candidates.count {
-                    let next = candidates[idx + 1]
-                    guard let nextID = next.id else { return }
-                    let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
-                    // Skip if there are no students attached
-                    guard !sameStudents.isEmpty else { return }
-                    let exists = lessonAssignmentsAll.contains { la in
-                        la.resolvedLessonID == nextID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
-                    }
-                    if !exists {
-                        let nextLesson = catalog.lesson(id: nextID)
-                        let nextStudents = studentsAll.filter { $0.id.map { sameStudents.contains($0) } ?? false }
-                        if let nextLesson {
-                            _ = PresentationFactory.makeDraft(
-                                lesson: nextLesson, students: nextStudents, context: viewContext
-                            )
-                        } else {
-                            _ = PresentationFactory.makeDraft(
-                                lessonID: nextID, studentIDs: Array(sameStudents), context: viewContext
-                            )
-                        }
-                        saveCoordinator.save(viewContext, reason: "Auto-creating next lesson")
-                        appRouter.refreshPlanningInbox()
-                    }
-                }
-            }
-        }
-
-        lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
-
-        // Ensure lesson relationship mirrors snapshot
-        if let lessonIDUUID = UUID(uuidString: lessonAssignment.lessonID) {
-            lessonAssignment.lesson = catalog.lesson(id: lessonIDUUID)
-        }
-
-        if needsAnotherPresentation {
-            // Skip creating follow-up if zero students
-            guard !lessonAssignment.resolvedStudentIDs.isEmpty else { return }
-            let sameStudents = Set(lessonAssignment.resolvedStudentIDs)
-            let currentLessonID = lessonAssignment.resolvedLessonID
-            let exists = lessonAssignmentsAll.contains { la in
-                la.resolvedLessonID == currentLessonID && Set(la.resolvedStudentIDs) == sameStudents && !la.isPresented
-            }
-            if !exists {
-                let currentLesson = UUID(uuidString: lessonAssignment.lessonID)
-                    .flatMap { lid in catalog.lesson(id: lid) }
-                let currentStudents = studentsAll.filter { s in
-                    s.id.map { lessonAssignment.resolvedStudentIDs.contains($0) } ?? false
-                }
-                if let currentLesson {
-                    _ = PresentationFactory.makeDraft(
-                        lesson: currentLesson, students: currentStudents, context: viewContext
-                    )
-                } else {
-                    _ = PresentationFactory.makeDraft(
-                        lessonID: currentLessonID, studentIDs: lessonAssignment.resolvedStudentIDs, context: viewContext
-                    )
-                }
-            }
-        }
-
-        saveCoordinator.save(viewContext, reason: "Saving quick actions")
-
-        onDone?() ?? dismiss()
     }
 
     private func addPracticeIfNeeded() {
