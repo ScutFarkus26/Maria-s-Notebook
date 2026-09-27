@@ -50,6 +50,9 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Keep a derived value until one of its entities changes (rebuild on next read) | `ManagedObjectChangeFlag(entityNames:context:)` + `consume(pendingIn:)`: set synchronously by ObjectsDidChange on the context, DidSave on the same coordinator, `.presentationDataDidChange`, or a reset; also sees unannounced pending edits. Used by Today's ready queue and the Students roster memo. A watcher that must hear only its own store passes `listensForImportSignal: false` (that signal names no store) | `Utils/ManagedObjectChangeFlag.swift` |
 | Read the whole model across several main-actor turns and know it was one moment | `BackupSnapshotWatch` (the flag without the import signal, asked after each type, then persistent history at the end); `BackupWriter+Streaming` streams the export one entity type at a time and falls back to the one-pass collect on any change or unsaved edit | `Backup/Archive/` |
 | Fold presentation records without making managed objects | `PresentationRecordIndex` reads dictionary rows of just its columns (`+Rows`); the managed-object read still runs when the context holds pending edits of the three entities, in a child context, and for lesson-scoped builds | `Services/PresentationRecordIndex+Rows.swift` |
+| Build a whole-record index off the main thread | `PresentationRecordIndex.readInBackground(students:from:)` (`@concurrent`, own private context on the coordinator) — only when `readPath` says the view context would take the column read; Today numbers every rebuild (`readyForNextGeneration`) so an overtaken one never publishes | `Services/PresentationRecordIndex+Background.swift`, `Today/ViewModels/TodayViewModel+ReadyForNext.swift` |
+| Resolve a file URL once per stored bookmark/path, not per redraw | `DocumentFileURLMemo` in `@State` (taps still resolve afresh) — Student Files cards, Book Club Open PDF, Resource detail | `Utils/DocumentFileURLMemo.swift` |
+| The iCloud Documents container URL without blocking the main thread | `UbiquityContainerCache` (looked up off-main at launch and on account change; each read checks the identity token) behind `…FileStorage.directory()` | `Utils/UbiquityContainerCache.swift` |
 | Parse CSV | `CSVParser`, which reads through `CSVRecordScanner` (the text's UTF-8 bytes, not an `Array` of 16-byte `Character`s) and falls back to the character reader when a delimiter touches a non-ASCII neighbour; `LegacyCSVParser` in the tests is the old parser verbatim | `Utils/CSVRecordScanner.swift`, `Utils/CSVUtils.swift` |
 | A lesson by id in a view body (no table scan) | `lessonCatalog.lesson(id:in:)`: the catalog's row when it belongs to that context and isn't deleted, else the old `object(_:id:)` fetch | `Lessons/LessonCatalog+ContextLookup.swift` |
 | Lessons in the Lessons screen's order / any derived catalog order | `LessonCatalog.sortedByAreaSortIndexAndOrder` (area, sortIndex, orderInSequence); derived orders rebuild on first read behind the observed `version` — read `version` in a body that must refresh on any lesson change | `Lessons/LessonCatalog.swift` |
@@ -59,6 +62,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Reload only while a screen is on screen (TabView keeps visited tabs alive with live `.onReceive`/`.onChange`) | `.onChangeWhenVisible(of:catchUpOnAppear:)` / `.onReceiveWhenVisible(_:catchUpOnAppear:)`: hidden = mark stale, run once on reappear (pass `false` when the screen's own `.task`/`.onAppear` already reloads). Since 2026-09-25 they also treat a Mac window nobody can see (minimized, covered, other Space) as hidden and catch up once when it's visible again, whatever `catchUpOnAppear` says. Wired (2026-09-23): Students DidSave token refresh, Progress, Presentations (pending tokens → change tokens), Works Agenda DidSave, Week plan check-ins, the desktop companion's counts, Albums' activation refresh (`ClassCurriculumMapView` needs nothing: its watcher runs inside `.task`, which is cancelled while hidden) | `Utils/View+WhenVisible.swift`, `Utils/WhenVisibleGate.swift` |
 | Know whether a Mac window can be seen (SwiftUI and `scenePhase` don't report occlusion) | `.onWindowVisibilityChange { visible in … }` (a zero-size `WindowOcclusionProbe` watching its own window; no-op on iOS) | `Utils/View+WindowOcclusion.swift`, `Components/WindowOcclusionProbe.swift` |
 | Show the main window from AppKit or the companion | `MainWindowRegistry.bringMostRecentForward()` (weak registry filled by `EnsureResizableWindow`); `openWindow(id: "mainWindow")` only when none is open | `AppCore/MainWindowRegistry.swift` |
+| Answer a notification every main window hears exactly once | `MainWindowRegistry.shared.answersRequests(in:)` (`MainWindowCandidate.indexToAnswer`: most recently used open main window); `OpenWindowOnNotificationModifier` does it for its four window requests | `AppCore/MainWindowRegistry.swift` |
 | App-wide services (bootstrap, sync status, pushes, backups, Spotlight, MCP) | `AppServicesLauncher.startIfNeeded` — once per process, from the first main window's `.task` or, for an MCP-only launch, the app delegate | `AppCore/AppServicesLauncher.swift` |
 | Act on scene activation only when the day, school calendar or counter epoch changed | `.onCalendarDayChange` (via `CalendarDayActivationGate`) | `Utils/View+CalendarDayChange.swift`, `Utils/CalendarDayActivationGate.swift` |
 | Copy EventKit data into Core Data without rewriting unchanged rows | `EventKitMirror` (assign only differing fields; stamp `lastSyncedAt` only on new/changed rows) | `Services/EventKitMirror.swift` |
@@ -67,6 +71,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Decode or save a photo without a full-size decode | `PhotoImageIO` (ImageIO thumbnails at display size, `CGImageDestination` transcode that matches the old output byte for byte); `CachedPhotoLoader` for disk hits off the main thread; `ImageCache` budget 32 MB | `Services/PhotoImageIO.swift`, `Components/CachedPhotoLoader.swift` |
 | A first-page thumbnail of a student's PDF | `StudentFileThumbnailCache` (rendered once per file version, cached on disk; no live `PDFView`) | `Students/Files/` |
 | An album's outline, lessons and page count without keeping its PDF open | `AlbumContents` (read once); `Album.document` opens on demand and `releaseDocument()` closes it (called by `releaseMemory` at both levels) | `Albums/AlbumContents.swift`, `Albums/AlbumLibrary.swift` |
+| Album search text, vectors and saves | `AlbumTextFolds` (fold off-main, once per album, on first search), `AlbumPageTextReader` (reopens the PDF every 50 pages), `AlbumVectorCacheFile` (raw Float32 cache), `AlbumSaveDebouncer` (per-key debounce: ink by page, position by album; flush on disappear/background) | `Albums/` |
 | Release something after a quiet period (resettable, injected clock) | `IdleCountdown` (used for the album query model: released 5 min after the last search) | `Albums/IdleCountdown.swift` |
 | Mac maintenance on a schedule | `ScheduledBackupActivity` (`NSBackgroundActivityScheduler`, 10% tolerance, `.utility`, honours `shouldDefer`); timing in `ScheduledBackupTiming` | `Backup/Core/` |
 
@@ -117,8 +122,11 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    Wave four landed 2026-09-26 (`perf-baselines/2026-09-26-energy-fifty-wave4.md`): 12, 13, 25,
    43 — launch repairs and the Today cleanup off the main thread, the zone-repair watermark on
    clean passes, the presentation index from column rows, the streamed backup export.
-   Still open: 1 (a Release build day to day — Danny's step); 14 (now known to be a correctness
-   risk, see Traps) and 42 parked by recommendation, 22 parked, 49 left by decision.
+   Wave five landed 2026-09-27 (`perf-baselines/2026-09-27-energy-fifty-wave5.md`): 42 and the
+   remaining halves of 25 and 43 — album vectors as raw floats, folds off-main, extraction reopening
+   the PDF, Today's index read off the main thread, restore holding the backup once — plus six bugs
+   from the audit's margins. 14 landed separately (per-store history cursor, 74d767f1). Still open:
+   1 (Danny now runs the Release copy; re-take the baseline); 22 parked, 49 left by decision.
 
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
@@ -190,6 +198,15 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   loads in ~100 ms and the iPhone Air / iPhone 17e simulators never load. Run gates on iPhone 17;
   on the others those two tests fail (and can starve main-actor timing tests such as
   `StreamingTextThrottleTests.scheduledUpdateArrives`).
+- An in-memory store gets `fetchOffset` + `fetchLimit` wrong on an unsorted fetch (the second
+  1,000-row page of 1,205 notes held one row). Page only SQLite stores, or sort.
+- On macOS 27 a split view's detail column is not a navigation stack: a root screen that pushes
+  (`NavigationLink(value:)`, `.navigationDestination`) must own a `NavigationStack` on every platform.
+- Memory-pressure events can arrive merged (`[.warning, .critical]`): test with `contains`.
+- A `@State` value assigned in `init` is built on every init of the view (SwiftUI keeps the first);
+  make an `@Observable` model lazily in the owning view (`TodayRootView`) instead.
+- Restore's import is one main-actor turn from the replace-mode clear to the save; never add an
+  `await` inside it (see CLAUDE.md, Backup System).
 - `.presentationDataDidChange` is process-wide and names no store. Anything that must react
   only to its own store must not listen to it: under the parallel suite other tests' stacks post
   it, and on 2026-09-26 that sent every streamed backup export in the suite back to one pass
