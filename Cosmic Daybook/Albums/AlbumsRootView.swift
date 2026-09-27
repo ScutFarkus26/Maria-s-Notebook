@@ -152,7 +152,8 @@ struct AlbumsWelcomeView: View {
             Text("""
                 Choose the folder that holds your album PDFs.
                 Every page becomes instantly searchable, with the table of contents, \
-                bookmarks, and notes built in.
+                bookmarks, and notes built in. Albums you keep in iCloud appear here \
+                on every device without choosing a folder again.
                 """)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)

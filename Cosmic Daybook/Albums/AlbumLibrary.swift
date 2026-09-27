@@ -167,6 +167,17 @@ final class AlbumLibrary {
     var indexProgress: Double = 0
     var indexedPageCount = 0
     private(set) var folderURLs: [URL] = []
+    /// The iCloud album shelf (`AlbumICloudShelf`) as of the last load; nil
+    /// when iCloud Drive is off. Always searched first, without a bookmark.
+    private(set) var shelfURL: URL?
+    /// Albums on the shelf still downloading to this device.
+    var pendingShelfAlbumNames: Set<String> = []
+    /// Albums being copied onto the shelf now.
+    var albumsBeingKept: Set<String> = []
+    /// The last shelf action's failure, for an alert; cleared by the view.
+    var shelfError: String?
+    /// The download of pending shelf albums in flight (`AlbumLibrary+ICloudShelf`).
+    @ObservationIgnored var shelfDownloadTask: Task<Void, Never>?
     /// Albums whose PDF changed since the user last opened them.
     var updatedAlbumIDs: Set<String> = []
     /// Set after each load; the Albums surface clears it by running
@@ -209,21 +220,24 @@ final class AlbumLibrary {
     func bootstrap() {
         let bookmarkList = (UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data]) ?? []
         let resolved = bookmarkList.compactMap { resolveBookmark($0) }
-        if !resolved.isEmpty {
-            load(from: resolved)
+        let folders = withShelf(resolved)
+        if !resolved.isEmpty || folders.count > resolved.count {
+            load(from: folders)
             return
         }
         state = .needsFolder
     }
 
-    /// True when at least one registered album folder bookmark still resolves
-    /// on this device. The backup restore asks this without loading the library
-    /// so it can tell the guide when restored annotations have no shelf yet.
+    /// True when this device can reach at least one album folder: a registered
+    /// bookmark that still resolves, or an iCloud shelf with albums on it. The
+    /// backup restore asks this without loading the library so it can tell the
+    /// guide when restored annotations have no shelf yet.
     static func hasResolvableFolderBookmark() -> Bool {
         let bookmarkList = (UserDefaults.standard.array(forKey: bookmarksKey) as? [Data]) ?? []
-        return bookmarkList.contains { data in
+        let bookmarked = bookmarkList.contains { data in
             (try? SecurityScopedBookmark.resolve(data)) != nil
         }
+        return bookmarked || shelfHasAlbums(AlbumICloudShelf.directory())
     }
 
     /// Re-reads the folder bookmarks and fingerprint map after a backup restore
@@ -330,7 +344,7 @@ final class AlbumLibrary {
             _ = url.startAccessingSecurityScopedResource()
             resolved = [url]
         }
-        load(from: resolved)
+        load(from: withShelf(resolved))
     }
 
     func removeFolder(_ url: URL) {
@@ -342,12 +356,13 @@ final class AlbumLibrary {
         }
         UserDefaults.standard.set(kept, forKey: Self.bookmarksKey)
         let resolved = kept.compactMap { resolveBookmark($0) }
-        if resolved.isEmpty {
+        let folders = withShelf(resolved)
+        if resolved.isEmpty, folders.isEmpty {
             albums = []
             folderURLs = []
             state = .needsFolder
         } else {
-            load(from: resolved)
+            load(from: folders)
         }
     }
 
@@ -359,21 +374,34 @@ final class AlbumLibrary {
 
     // MARK: Loading
 
+    /// Loads every album in `folders`, the first folder winning a filename
+    /// two share (the iCloud shelf is first; see `withShelf`). An album still
+    /// downloading from iCloud is left out and fetched in the background; the
+    /// library reloads once it arrives (`AlbumLibrary+ICloudShelf`).
     func load(from folders: [URL]) {
         state = .loading
         folderURLs = folders
+        let shelfPath = AlbumICloudShelf.directory()?.standardizedFileURL.path
+        shelfURL = folders.first { $0.standardizedFileURL.path == shelfPath }
         var pdfURLs: [URL] = []
+        var pending: [URL] = []
         var seenNames = Set<String>()
         for folder in folders {
-            let contents = (try? FileManager.default
-                .contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey])
-                .filter { $0.pathExtension.lowercased() == "pdf" }) ?? []
-            for url in contents where !seenNames.contains(url.lastPathComponent) {
+            let listing = AlbumICloudShelf.listing(of: folder)
+            for url in listing.ready where !seenNames.contains(url.lastPathComponent) {
                 seenNames.insert(url.lastPathComponent)
                 pdfURLs.append(url)
             }
+            pending += listing.pending
         }
+        pending.removeAll { seenNames.contains($0.lastPathComponent) }
+        pendingShelfAlbumNames = Set(pending.map(\.lastPathComponent))
+        downloadPendingAlbums(pending)
         pdfURLs.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        if pdfURLs.isEmpty, !pending.isEmpty {
+            // Everything is still on its way from iCloud; the download reloads.
+            return
+        }
         guard !pdfURLs.isEmpty else {
             state = .failed("No PDF files were found in the chosen folder. "
                 + "Choose a folder that contains your album PDFs.")
@@ -396,12 +424,11 @@ final class AlbumLibrary {
             return abs(current.timeIntervalSince(indexed)) >= 1
         }
         let fileNames = Set(albums.map(\.id))
-        let onDisk = Set(folderURLs.flatMap { folder in
-            ((try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? [])
-                .filter { $0.pathExtension.lowercased() == "pdf" }
-                .map(\.lastPathComponent)
-        })
-        if changed || fileNames != onDisk {
+        let listings = folderURLs.map(AlbumICloudShelf.listing(of:))
+        let onDisk = Set(listings.flatMap(\.ready).map(\.lastPathComponent))
+        let pending = Set(listings.flatMap(\.pending).map(\.lastPathComponent)).subtracting(onDisk)
+        // A new album on the shelf, or one another device added, joins too.
+        if changed || fileNames != onDisk || pending != pendingShelfAlbumNames {
             load(from: folderURLs)
         }
     }

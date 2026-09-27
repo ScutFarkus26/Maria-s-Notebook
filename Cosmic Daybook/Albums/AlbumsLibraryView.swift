@@ -31,6 +31,14 @@ struct AlbumsLibraryView: View {
                 if !recents.isEmpty {
                     continueSection
                 }
+                if !library.pendingShelfAlbumNames.isEmpty {
+                    Label(
+                        "Downloading \(library.pendingShelfAlbumNames.count) album(s) from iCloud…",
+                        systemImage: "icloud.and.arrow.down"
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                }
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(library.albums) { album in
                         AlbumCard(album: album, bookmarkCount: bookmarkCounts[album.id] ?? 0)
@@ -44,15 +52,21 @@ struct AlbumsLibraryView: View {
             ToolbarItem {
                 Menu {
                     Button("Add Albums Folder…") { showFolderPicker = true }
-                    if library.folderURLs.count > 1 {
+                    if library.removableFolderURLs.count > 1
+                        || (library.shelfURL != nil && !library.removableFolderURLs.isEmpty) {
                         Menu("Remove Folder") {
-                            ForEach(library.folderURLs, id: \.path) { url in
+                            ForEach(library.removableFolderURLs, id: \.path) { url in
                                 Button(url.lastPathComponent, role: .destructive) {
                                     library.removeFolder(url)
                                 }
                             }
                         }
                     }
+                    Button("Keep All Albums in iCloud") {
+                        Task { await library.keepInICloud(library.albums) }
+                    }
+                    .disabled(!library.canKeepInICloud
+                        || library.albums.allSatisfy { library.isKeptInICloud($0) })
                     Divider()
                     Button("Match Lessons to Albums…") { showMatchSheet = true }
                     Button("Rebuild Search Index") { library.rebuildIndex() }
@@ -75,6 +89,13 @@ struct AlbumsLibraryView: View {
             if case .success(let url) = result {
                 importSummary = AlbumsDataImporter.importData(from: url, into: context)
             }
+        }
+        .alert("iCloud",
+               isPresented: .init(get: { library.shelfError != nil },
+                                  set: { if !$0 { library.shelfError = nil } })) {
+            Button("OK") { library.shelfError = nil }
+        } message: {
+            Text(library.shelfError ?? "")
         }
         .alert("Import Albums App Data",
                isPresented: .init(get: { importSummary != nil },
@@ -153,6 +174,7 @@ private struct AlbumCard: View {
     @Environment(\.openWindow) private var openWindow
     let album: Album
     let bookmarkCount: Int
+    @State private var confirmingRemoval = false
 
     var body: some View {
         Button {
@@ -182,7 +204,30 @@ private struct AlbumCard: View {
             Button("Open in Preview") {
                 NSWorkspace.shared.open(album.url)
             }
+            Divider()
             #endif
+            if library.isKeptInICloud(album) {
+                Button("Remove from iCloud…", systemImage: "icloud.slash", role: .destructive) {
+                    confirmingRemoval = true
+                }
+            } else {
+                Button("Keep in iCloud", systemImage: "icloud.and.arrow.up") {
+                    Task { await library.keepInICloud([album]) }
+                }
+                .disabled(!library.canKeepInICloud || library.albumsBeingKept.contains(album.id))
+            }
+        }
+        .confirmationDialog(
+            "Remove \(album.title) from iCloud?",
+            isPresented: $confirmingRemoval,
+            titleVisibility: .visible
+        ) {
+            Button("Remove from iCloud", role: .destructive) {
+                Task { await library.removeFromICloud(album) }
+            }
+        } message: {
+            Text("It will be deleted from iCloud Drive on every device. Your bookmarks and notes are kept, "
+                + "and a copy in one of your own album folders will take its place.")
         }
         // Keyed on whether the cover is loaded, so one dropped by a memory trim
         // comes back while the card is still on screen.
@@ -214,6 +259,20 @@ private struct AlbumCard: View {
             .shadow(color: .black.opacity(0.12), radius: 5, y: 3)
 
             HStack {
+                if library.albumsBeingKept.contains(album.id) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(6)
+                        .accessibilityLabel("Copying to iCloud")
+                } else if library.isKeptInICloud(album) {
+                    Image(systemName: "icloud.fill")
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .padding(5)
+                        .background(.black.opacity(0.35), in: Circle())
+                        .padding(6)
+                        .accessibilityLabel("Kept in iCloud")
+                }
                 if library.updatedAlbumIDs.contains(album.id) {
                     Text("Updated")
                         .font(.caption2.bold())

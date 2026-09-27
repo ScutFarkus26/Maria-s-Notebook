@@ -93,13 +93,14 @@ nonisolated enum UbiquitousFile {
     /// when they are not. Returns the URL to read (a coordinated read may hand
     /// back a different one), or nil when the file is missing or the download
     /// failed or timed out. The checks and the wait run off the main actor.
+    /// `timeout` bounds the wait; the default suits a tapped PDF or a photo.
     @concurrent
-    static func ensureLocal(_ url: URL) async -> URL? {
+    static func ensureLocal(_ url: URL, timeout: Duration = downloadTimeout) async -> URL? {
         guard needsDownload(url) else {
             return FileManager.default.fileExists(atPath: url.path) ? url : nil
         }
         do {
-            return try await coordinatedRead(at: url) { readURL in
+            return try await coordinatedRead(at: url, timeout: timeout) { readURL in
                 FileManager.default.fileExists(atPath: readURL.path) ? readURL : nil
             }
         } catch {
@@ -124,16 +125,17 @@ nonisolated enum UbiquitousFile {
     /// Runs `body` inside a coordinated read of `url`, which downloads an
     /// iCloud item first when it is not local. Uses the asynchronous
     /// `coordinate(with:queue:byAccessor:)` Apple recommends, so no thread
-    /// blocks while the file arrives; after `downloadTimeout` the coordination
-    /// is cancelled.
+    /// blocks while the file arrives; after `timeout` the coordination is
+    /// cancelled.
     static func coordinatedRead<T: Sendable>(
         at url: URL,
+        timeout: Duration = downloadTimeout,
         _ body: @escaping @Sendable (URL) throws -> T
     ) async throws -> T {
         let coordinator = CoordinatorBox(NSFileCoordinator(filePresenter: nil))
         let intent = NSFileAccessIntent.readingIntent(with: url, options: [])
         let timeout = Task {
-            try await Task.sleep(for: downloadTimeout)
+            try await Task.sleep(for: timeout)
             coordinator.value.cancel()
         }
         defer { timeout.cancel() }
