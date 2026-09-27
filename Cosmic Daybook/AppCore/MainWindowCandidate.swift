@@ -19,4 +19,14 @@ struct MainWindowCandidate: Equatable {
         let pool = onScreen.isEmpty ? open : onScreen
         return pool.max { candidates[$0].lastUsed < candidates[$1].lastUsed }
     }
+
+    /// The one window that answers a request every main window hears (the
+    /// window-opening notifications), so the request is handled once however
+    /// many are open: the window `indexToBringForward` picks, else — none on
+    /// screen or in the Dock, as while the app is hidden — the most recently
+    /// used. Nil only when there is no candidate at all.
+    static func indexToAnswer(_ candidates: [MainWindowCandidate]) -> Int? {
+        indexToBringForward(candidates)
+            ?? candidates.indices.max { candidates[$0].lastUsed < candidates[$1].lastUsed }
+    }
 }
