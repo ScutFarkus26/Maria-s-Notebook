@@ -349,6 +349,7 @@ struct RootView: View {
         #endif
     }
 
+    #if !os(macOS)
     /// The iPhone's context bar instead of the corner overlay: on iPhone, and on
     /// the iPad mini, which also takes the iPhone's bottom tab bar.
     private var usesPhoneChrome: Bool {
@@ -358,6 +359,7 @@ struct RootView: View {
         horizontalSizeClass == .compact
         #endif
     }
+    #endif
 
     #if os(iOS)
     private var mobileContextBar: some View {
