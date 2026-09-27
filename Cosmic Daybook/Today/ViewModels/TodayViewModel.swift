@@ -38,6 +38,14 @@ final class TodayViewModel {
     @ObservationIgnored var readyForNextHiddenNames: Set<String>?
     /// How many times the queue has been built (for tests pinning the gate).
     @ObservationIgnored var readyForNextBuildCount = 0
+    /// Numbers the queue's rebuilds: one publishes only while its number is
+    /// still the latest, so an overtaken rebuild never replaces a newer queue.
+    @ObservationIgnored var readyForNextGeneration = 0
+    /// The rebuild whose record read is running off the main thread, if any.
+    @ObservationIgnored var readyForNextTask: Task<Void, Never>?
+    /// How many rebuilds have published (for tests pinning that an overtaken
+    /// one never does).
+    @ObservationIgnored var readyForNextPublishCount = 0
     /// The live lesson catalog bound to `context`, when the view supplies one.
     @ObservationIgnored weak var lessonCatalog: LessonCatalog?
     /// Flips when one of `derivedCountInputEntities` changes; made on first use.
@@ -214,6 +222,10 @@ final class TodayViewModel {
 
     // swiftlint:disable:next function_body_length
     func reload() {
+        // First, so the ready queue's record read, off the main thread when
+        // it can be, runs alongside the fetches below instead of after them.
+        refreshReadyForNextIfNeeded()
+
         let (day, nextDay) = AppCalendar.dayRange(for: date)
         let errorCollector = FetchErrorCollector()
 
@@ -331,7 +343,6 @@ final class TodayViewModel {
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs
         recentNotes = notesResult.notes
         recentNoteStudentsByID = updatedRecentNoteStudents
-        refreshReadyForNextIfNeeded()
         followUpCheckIns = followUps
         departedStudentsByID = departed
 
