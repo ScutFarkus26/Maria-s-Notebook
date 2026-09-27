@@ -2,12 +2,15 @@
 import AppKit
 
 /// The open main windows (the `mainWindow` scene), so the desktop companion can
-/// bring one forward instead of opening another full main window per action.
+/// bring one forward instead of opening another full main window per action,
+/// and so a request every main window hears is answered by just one of them.
 ///
-/// `EnsureResizableWindow` registers each one. Only `RootView` attaches it, and
-/// `RootView` is built only by the main `WindowGroup` — detail windows and the
-/// companion never host it — so every window here is a main window. SwiftUI
-/// doesn't document the identifiers it gives windows, so they aren't used.
+/// `EnsureResizableWindow` registers each one, and so does
+/// `OpenWindowOnNotificationModifier` (which also counts a window still
+/// loading or onboarding). Only `RootView` attaches the first, and `RootView`
+/// and the modifier are built only by the main `WindowGroup` — detail windows
+/// and the companion never host them — so every window here is a main window.
+/// SwiftUI doesn't document the identifiers it gives windows, so they aren't used.
 final class MainWindowRegistry {
     static let shared = MainWindowRegistry()
 
@@ -41,13 +44,6 @@ final class MainWindowRegistry {
     /// window is open, so the caller opens one.
     func bringMostRecentForward() -> Bool {
         pruneClosedWindows()
-        let candidates = entries.map { entry in
-            MainWindowCandidate(
-                isOnScreen: entry.window?.isVisible ?? false,
-                isMiniaturized: entry.window?.isMiniaturized ?? false,
-                lastUsed: entry.lastUsed
-            )
-        }
         guard let index = MainWindowCandidate.indexToBringForward(candidates),
               let window = entries[index].window else { return false }
         if window.isMiniaturized {
@@ -55,6 +51,27 @@ final class MainWindowRegistry {
         }
         window.makeKeyAndOrderFront(nil)
         return true
+    }
+
+    /// Whether `window` is the main window that answers a request every main
+    /// window hears (`MainWindowCandidate.indexToAnswer`). True for exactly one
+    /// registered window while any is open; false for the others, and for a
+    /// window that isn't registered.
+    func answersRequests(in window: NSWindow?) -> Bool {
+        pruneClosedWindows()
+        guard let window, let index = entries.firstIndex(where: { $0.window === window }) else { return false }
+        return MainWindowCandidate.indexToAnswer(candidates) == index
+    }
+
+    /// One candidate per entry, in entry order.
+    private var candidates: [MainWindowCandidate] {
+        entries.map { entry in
+            MainWindowCandidate(
+                isOnScreen: entry.window?.isVisible ?? false,
+                isMiniaturized: entry.window?.isMiniaturized ?? false,
+                lastUsed: entry.lastUsed
+            )
+        }
     }
 
     private func nextUse() -> Int {

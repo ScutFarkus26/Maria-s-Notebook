@@ -17,7 +17,14 @@ struct SmallSequencePlannerView: View {
     /// entity changes (`changeToken(in:)`: two SQL counts).
     @State private var changeToken = 0
 
-    var body: some View {
+    /// Its own stack, as every other root screen that pushes has (Settings,
+    /// This Week's Parsha): no container gives a root screen one — not the
+    /// iPad's tab view, the iPhone's More list or the Mac's split view detail
+    /// column — so without it the title was missing on iPad and iPhone and
+    /// every lesson card was dead.
+    var body: some View { NavigationStack { planner } }
+
+    private var planner: some View {
         content
             .navigationTitle("Group Planner")
             .onAppear {

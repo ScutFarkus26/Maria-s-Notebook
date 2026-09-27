@@ -50,4 +50,32 @@ struct MainWindowCandidateTests {
     func closedWindowIsSkipped() {
         #expect(MainWindowCandidate.indexToBringForward([closed(10), onScreen(1)]) == 1)
     }
+
+    // MARK: - Answering a request every main window hears
+
+    /// The windows that would open a window for one window-opening post.
+    private func answering(_ candidates: [MainWindowCandidate]) -> [Int] {
+        candidates.indices.filter { MainWindowCandidate.indexToAnswer(candidates) == $0 }
+    }
+
+    @Test("Of several main windows hearing one request, only the most recently used on screen answers")
+    func oneOfSeveralAnswers() {
+        #expect(answering([onScreen(3), onScreen(5), minimized(9), onScreen(4)]) == [1])
+        #expect(answering([onScreen(1)]) == [0])
+    }
+
+    @Test("With every main window in the Dock, only the most recently used answers")
+    func oneMinimizedWindowAnswers() {
+        #expect(answering([minimized(2), minimized(6), minimized(4)]) == [1])
+    }
+
+    @Test("With none on screen or in the Dock, as while the app is hidden, the most recently used still answers")
+    func orderedOutWindowsStillAnswerOnce() {
+        #expect(answering([closed(2), closed(7), closed(4)]) == [1])
+    }
+
+    @Test("With no main window, nothing answers")
+    func noWindowNoAnswer() {
+        #expect(MainWindowCandidate.indexToAnswer([]) == nil)
+    }
 }
