@@ -608,14 +608,7 @@ final class AlbumLibrary {
            abs(cached.modified.timeIntervalSince(modified)) < 1 {
             return cached.pageTexts
         }
-        var texts: [String] = []
-        if let doc = PDFDocument(url: url) {
-            for i in 0..<doc.pageCount {
-                // A pool per page: what PDFKit autoreleases reading a page goes
-                // before the next page, not when the whole album is done.
-                texts.append(autoreleasepool { normalize(doc.page(at: i)?.string ?? "") })
-            }
-        }
+        let texts = AlbumPageTextReader.pageTexts(url: url)
         if let cacheURL,
            let data = try? JSONEncoder().encode(CachedIndex(modified: modified, pageTexts: texts)) {
             try? data.write(to: cacheURL)
