@@ -79,7 +79,32 @@ private struct FieldSpec {
 // MARK: - Value Generation
 
 private enum FieldValueGenerator {
-    /// Deterministic-ish distinct values; whole-second dates so ISO8601
+    /// A UUID fixed by `label`: the fixture is identical on every run, which
+    /// lets `BackupGoldenOutputTests` compare a backup of it byte for byte.
+    static func uuid(_ label: String) -> UUID {
+        func fnv1a(_ text: String) -> UInt64 {
+            var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+            for byte in text.utf8 { hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01b3 }
+            return hash
+        }
+        let high = fnv1a(label), low = fnv1a(label + "#")
+        let text = String(
+            format: "%08X-%04X-4%03X-%04X-%04X%08X",
+            UInt32(truncatingIfNeeded: high >> 32),
+            UInt32(truncatingIfNeeded: high >> 16) & 0xFFFF,
+            UInt32(truncatingIfNeeded: high) & 0x0FFF,
+            (UInt32(truncatingIfNeeded: low >> 48) & 0x3FFF) | 0x8000,
+            UInt32(truncatingIfNeeded: low >> 32) & 0xFFFF,
+            UInt32(truncatingIfNeeded: low)
+        )
+        guard let id = UUID(uuidString: text) else { preconditionFailure("bad fixture UUID \(text)") }
+        return id
+    }
+
+    /// For timestamps a typed setter overwrites with the current time.
+    static let fixedStamp = Date(timeIntervalSince1970: 1_700_000_000)
+
+    /// Distinct values, the same on every run; whole-second dates so ISO8601
     /// (second precision) round-trips exactly.
     static func value(
         for attribute: NSAttributeDescription,
@@ -89,12 +114,12 @@ private enum FieldValueGenerator {
         let name = attribute.name
         switch attribute.attributeType {
         case .UUIDAttributeType:
-            return UUID()
+            return uuid("\(entityName).\(name)")
         case .stringAttributeType:
             // ID-suffixed strings hold UUID strings app-wide; several
             // transformers/importers `UUID(uuidString:)`-parse them.
             if name.hasSuffix("ID") || name.hasSuffix("Id") {
-                return UUID().uuidString
+                return uuid("\(entityName).\(name)").uuidString
             }
             return "fc-\(entityName).\(name)"
         case .dateAttributeType:
@@ -338,7 +363,10 @@ final class BackupFieldCoverageTests {
                 // "Adolescent" pins the newest case: a non-exhaustive mapping would clamp it to lower.
                 "levelRaw": "Adolescent",
                 // Exported via `nextLessonUUIDs` (compactMap UUID(uuidString:)) — elements must parse.
-                "nextLessons": [UUID().uuidString, UUID().uuidString] as NSArray
+                "nextLessons": [
+                    FieldValueGenerator.uuid("Student.nextLessons.1").uuidString,
+                    FieldValueGenerator.uuid("Student.nextLessons.2").uuidString
+                ] as NSArray
             ]
         ),
         FieldSpec(
@@ -359,8 +387,10 @@ final class BackupFieldCoverageTests {
                 // JSON-[String] blobs behind typed accessors; importer re-parses
                 // the elements as UUIDs, so they must be valid UUID strings.
                 guard let assignment = object as? CDLessonAssignment else { return }
-                assignment.studentIDs = [UUID().uuidString]
-                assignment.confirmedStudentIDs = [UUID().uuidString]
+                assignment.studentIDs = [FieldValueGenerator.uuid("LessonAssignment.studentIDs").uuidString]
+                assignment.confirmedStudentIDs = [
+                    FieldValueGenerator.uuid("LessonAssignment.confirmedStudentIDs").uuidString
+                ]
             }
         ),
         FieldSpec(
@@ -380,7 +410,7 @@ final class BackupFieldCoverageTests {
                 // scopeBlob is JSON-encoded NoteScope; setting `scope` also syncs
                 // searchIndexStudentID + scopeIsAll, keeping all three consistent.
                 guard let note = object as? CDNote else { return }
-                let studentID = (seeded["Student"]?.value(forKey: "id") as? UUID) ?? UUID()
+                let studentID = (seeded["Student"]?.value(forKey: "id") as? UUID) ?? FieldValueGenerator.uuid("Note.scope")
                 note.scope = .student(studentID)
             }
         ),
@@ -448,6 +478,10 @@ final class BackupFieldCoverageTests {
         FieldSpec("SampleWorkStep"),
         FieldSpec(
             "NoteTemplate",
+            // Written but not restored (below), so it comes back as the model
+            // default; holding that default keeps a restore-then-export of the
+            // golden backup identical (BackupGoldenOutputTests).
+            overrides: ["categoryRaw": "general"],
             skips: [
                 "categoryRaw": "legacy category field — importer maps it into tags "
                     + "(TagHelper.tagFromNoteCategory) instead of restoring it"
@@ -516,7 +550,9 @@ final class BackupFieldCoverageTests {
                 "categoryRaw": "Behavioral"
             ],
             customize: { object, _ in
-                (object as? CDIssue)?.studentIDs = [UUID().uuidString]
+                (object as? CDIssue)?.studentIDs = [FieldValueGenerator.uuid("Issue.studentIDs").uuidString]
+                // The setter stamps updatedAt with the current time; pin it so the fixture is fixed.
+                object.setValue(FieldValueGenerator.fixedStamp, forKey: "updatedAt")
             }
         ),
         FieldSpec(
@@ -524,7 +560,10 @@ final class BackupFieldCoverageTests {
             // Importer parses actionTypeRaw via IssueActionType(rawValue:).
             overrides: ["actionTypeRaw": "Conversation"],
             customize: { object, _ in
-                (object as? CDIssueAction)?.participantStudentIDs = [UUID().uuidString]
+                (object as? CDIssueAction)?.participantStudentIDs = [
+                    FieldValueGenerator.uuid("IssueAction.participantStudentIDs").uuidString
+                ]
+                object.setValue(FieldValueGenerator.fixedStamp, forKey: "updatedAt")
             }
         ),
         FieldSpec(
@@ -569,7 +608,9 @@ final class BackupFieldCoverageTests {
             // Importer DROPS the record if depthLevel isn't a valid PlanningDepth.
             overrides: ["depthLevel": "deep"],
             customize: { object, _ in
-                (object as? CDPlanningRecommendation)?.studentIDs = [UUID().uuidString]
+                (object as? CDPlanningRecommendation)?.studentIDs = [
+                    FieldValueGenerator.uuid("PlanningRecommendation.studentIDs").uuidString
+                ]
             }
         ),
         FieldSpec(
@@ -590,7 +631,9 @@ final class BackupFieldCoverageTests {
         FieldSpec(
             "ScheduledMeeting",
             customize: { object, _ in
-                (object as? CDScheduledMeeting)?.participantStudentIDs = [UUID().uuidString]
+                (object as? CDScheduledMeeting)?.participantStudentIDs = [
+                    FieldValueGenerator.uuid("ScheduledMeeting.participantStudentIDs").uuidString
+                ]
             }
         ),
         FieldSpec(
