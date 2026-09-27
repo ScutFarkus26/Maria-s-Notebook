@@ -78,8 +78,12 @@ extension MCPNotebookTools {
     /// a second copy anyway.
     static func duplicateNotice(subject: String, citation: String, on day: Date) -> String {
         "An identical \(subject) from \(dayString(day)) already exists \(citation). "
-            + "Nothing was filed — pass force: true to file another."
+            + "Nothing was filed" + duplicateForceHint
     }
+
+    /// The notice's closing clause. Chat has no `force` argument, so its
+    /// follow-up bridge swaps this for a plain full stop.
+    nonisolated static let duplicateForceHint = " — pass force: true to file another."
 
     /// `add_follow_up`'s side of the guard, kept here so both writers read the
     /// same wording. Returns nil when there is nothing in the way.
