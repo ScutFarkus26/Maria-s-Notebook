@@ -180,9 +180,9 @@ final class AlbumLibrary {
 
     /// Per-album page text, keyed by album id.
     var pageTexts: [String: [String]] = [:]
-    /// Case- and diacritic-folded copy of `pageTexts`, used for matching. Purely
-    /// derived, so memory pressure drops it and `folded(for:)` rebuilds per album
-    /// on the next search.
+    /// Case- and diacritic-folded copy of `pageTexts`, used for matching. Built per
+    /// album by the first search that needs it (`folded(for:)`), not by the index
+    /// build; purely derived, so trims and memory pressure drop it.
     var foldedTexts: [String: [String]] = [:]
     /// Modification date of each album's file at the time it was indexed.
     private var modDates: [String: Date] = [:]
@@ -471,11 +471,12 @@ final class AlbumLibrary {
                 .contentModificationDate ?? .distantPast
             // Indexing is background maintenance, not something the guide is waiting on:
             // `.utility` keeps the PDF text extraction off the cores the UI needs.
-            let result = await Task.detached(priority: .utility) {
+            let texts = await Task.detached(priority: .utility) {
                 Self.loadOrBuildIndex(url: item.url, modified: modified, cacheDir: cacheDir)
             }.value
-            pageTexts[item.id] = result.texts
-            foldedTexts[item.id] = result.folded
+            pageTexts[item.id] = texts
+            // Folded on first search; a changed album's fold of its old text goes.
+            if modDates[item.id] != modified { foldedTexts[item.id] = nil }
             modDates[item.id] = modified
             if let seen = lastSeen[item.id] {
                 if modified.timeIntervalSinceReferenceDate > seen + 1 {
@@ -486,7 +487,7 @@ final class AlbumLibrary {
                 lastSeen[item.id] = modified.timeIntervalSinceReferenceDate
                 lastSeenChanged = true
             }
-            indexedPageCount += result.texts.count
+            indexedPageCount += texts.count
             indexProgress = Double(i + 1) / Double(max(items.count, 1))
             // Give the main actor a turn between albums so a long shelf does not
             // monopolise it with the per-album bookkeeping above.
@@ -547,9 +548,9 @@ final class AlbumLibrary {
         return pages[pageIndex]
     }
 
-    /// Folded text for one album, rebuilt from `pageTexts` if memory pressure
-    /// dropped it. Folding a single album's pages is far cheaper than keeping a
-    /// second full copy of the corpus resident for the life of the app.
+    /// Folded text for one album, built from `pageTexts` on first use and kept until
+    /// a trim or memory pressure drops it: far cheaper than keeping a second full
+    /// copy of the corpus resident for the life of the app.
     private func folded(for albumID: String) -> [String] {
         if let cached = foldedTexts[albumID] { return cached }
         guard let texts = pageTexts[albumID] else { return [] }
@@ -598,27 +599,28 @@ final class AlbumLibrary {
         return dir
     }
 
-    nonisolated static func loadOrBuildIndex(url: URL, modified: Date, cacheDir: URL?)
-        -> (texts: [String], folded: [String]) {
+    /// The album's page text, from the cache or the PDF; `folded(for:)` folds it later.
+    nonisolated static func loadOrBuildIndex(url: URL, modified: Date, cacheDir: URL?) -> [String] {
         let cacheURL = cacheDir?.appendingPathComponent(url.lastPathComponent + ".index.json")
         if let cacheURL,
            let data = try? Data(contentsOf: cacheURL),
            let cached = try? JSONDecoder().decode(CachedIndex.self, from: data),
            abs(cached.modified.timeIntervalSince(modified)) < 1 {
-            return (cached.pageTexts, cached.pageTexts.map { $0.folded() })
+            return cached.pageTexts
         }
         var texts: [String] = []
         if let doc = PDFDocument(url: url) {
             for i in 0..<doc.pageCount {
-                let raw = doc.page(at: i)?.string ?? ""
-                texts.append(normalize(raw))
+                // A pool per page: what PDFKit autoreleases reading a page goes
+                // before the next page, not when the whole album is done.
+                texts.append(autoreleasepool { normalize(doc.page(at: i)?.string ?? "") })
             }
         }
         if let cacheURL,
            let data = try? JSONEncoder().encode(CachedIndex(modified: modified, pageTexts: texts)) {
             try? data.write(to: cacheURL)
         }
-        return (texts, texts.map { $0.folded() })
+        return texts
     }
 
     /// Normalizes extracted PDF text for display and searching:

@@ -13,7 +13,8 @@ import Synchronization
 /// - Body vectors (contextual embedding of title + lesson text) capture
 ///   what a lesson is about, and drive lesson-to-lesson "Related Lessons".
 ///
-/// Everything runs locally; vectors are cached per album.
+/// Everything runs locally; vectors are cached per album as raw floats
+/// (`AlbumVectorCacheFile`).
 ///
 /// Related to but separate from `Stories/StoryLessonMatcher`, which matches
 /// stories to lessons with averaged word vectors. This index works over album
@@ -60,17 +61,18 @@ final class AlbumSemanticIndex {
     /// Drops the embedding vectors under critical memory pressure. They are the
     /// index's whole footprint — one vector per lesson title and body, for every
     /// album — and `loadOrBuildVectors` reads them back from the on-disk cache,
-    /// so a purge costs a reload rather than a re-embedding.
+    /// so a purge costs a reload (a few milliseconds of copying floats) rather
+    /// than a re-embedding.
     func purge() {
         titleVectors.removeAll()
         bodyVectors.removeAll()
         status = .idle
     }
 
-    func build(items: [BuildItem]) async {
+    /// `cacheDir` is where each album's vectors are cached; tests pass their own.
+    func build(items: [BuildItem], cacheDir: URL? = AlbumSemanticIndex.cacheDirectory()) async {
         guard status != .building else { return }
         status = .building
-        let cacheDir = Self.cacheDirectory()
         // One title model for every album: queries are embedded with one
         // model, so an album built with the other could never match them.
         // Detached so the wait for the model is never cut short.
@@ -149,13 +151,6 @@ final class AlbumSemanticIndex {
 
     // MARK: Cache
 
-    nonisolated private struct CachedVectors: Codable {
-        let modified: Date
-        let titleBackend: String
-        let titles: [[Float]]
-        let bodies: [[Float]]?
-    }
-
     nonisolated static func cacheDirectory() -> URL? {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory,
                                                   in: .userDomainMask).first else { return nil }
@@ -170,24 +165,17 @@ final class AlbumSemanticIndex {
     nonisolated static func loadOrBuildVectors(for item: BuildItem, backend: String,
                                                cacheDir: URL?) -> VectorSet? {
         let (modified, titles, bodies) = (item.modified, item.titles, item.bodies)
-        let cacheURL = cacheDir?.appendingPathComponent(item.id + ".vectors2.json")
-        if let cacheURL,
-           let data = try? Data(contentsOf: cacheURL),
-           let cached = try? JSONDecoder().decode(CachedVectors.self, from: data),
-           abs(cached.modified.timeIntervalSince(modified)) < 1,
-           cached.titles.count == titles.count,
-           cached.titleBackend == backend {
+        if let cacheDir,
+           let cached = AlbumVectorCacheFile.cached(albumID: item.id, modified: modified, titleCount: titles.count,
+                                                    backend: backend, in: cacheDir) {
             return VectorSet(titles: cached.titles, titleBackend: cached.titleBackend,
                              bodies: cached.bodies)
         }
         guard let titleVecs = embedTitles(titles, backend: backend) else { return nil }
         let bodyVecs = contextualEmbed(bodies)
-        if let cacheURL,
-           let data = try? JSONEncoder().encode(CachedVectors(modified: modified,
-                                                              titleBackend: backend,
-                                                              titles: titleVecs,
-                                                              bodies: bodyVecs)) {
-            try? data.write(to: cacheURL)
+        if let cacheDir {
+            AlbumVectorCacheFile(modified: modified, titleBackend: backend, titles: titleVecs, bodies: bodyVecs)
+                .save(albumID: item.id, in: cacheDir)
         }
         return VectorSet(titles: titleVecs, titleBackend: backend, bodies: bodyVecs)
     }
@@ -294,11 +282,15 @@ final class AlbumSemanticIndex {
 
     nonisolated static func sentenceEmbed(_ texts: [String], with embedding: NLEmbedding) -> [[Float]] {
         texts.map { text in
-            let clipped = String(text.prefix(500))
-            guard let vector = embedding.vector(for: clipped) else {
-                return [Float](repeating: 0, count: embedding.dimension)
+            // A pool per text: what embedding one lesson leaves autoreleased
+            // goes before the next, not when the whole album is done.
+            autoreleasepool { () -> [Float] in
+                let clipped = String(text.prefix(500))
+                guard let vector = embedding.vector(for: clipped) else {
+                    return [Float](repeating: 0, count: embedding.dimension)
+                }
+                return normalize(vector.map(Float.init))
             }
-            return normalize(vector.map(Float.init))
         }
     }
 
@@ -317,23 +309,24 @@ final class AlbumSemanticIndex {
     nonisolated static func contextualEmbed(_ texts: [String], with embedding: NLContextualEmbedding) -> [[Float]] {
         var out: [[Float]] = []
         for text in texts {
-            let clipped = String(text.prefix(1200))
-            guard let result = try? embedding.embeddingResult(for: clipped, language: .english) else {
-                out.append([Float](repeating: 0, count: embedding.dimension))
-                continue
-            }
-            var sum = [Double](repeating: 0, count: embedding.dimension)
-            var count = 0
-            result.enumerateTokenVectors(in: clipped.startIndex..<clipped.endIndex) { vector, _ in
-                for (i, v) in vector.enumerated() where i < sum.count { sum[i] += v }
-                count += 1
-                return true
-            }
-            guard count > 0 else {
-                out.append([Float](repeating: 0, count: embedding.dimension))
-                continue
-            }
-            out.append(normalize(sum.map { Float($0 / Double(count)) }))
+            // A pool per text, as in `sentenceEmbed`.
+            out.append(autoreleasepool { () -> [Float] in
+                let clipped = String(text.prefix(1200))
+                guard let result = try? embedding.embeddingResult(for: clipped, language: .english) else {
+                    return [Float](repeating: 0, count: embedding.dimension)
+                }
+                var sum = [Double](repeating: 0, count: embedding.dimension)
+                var count = 0
+                result.enumerateTokenVectors(in: clipped.startIndex..<clipped.endIndex) { vector, _ in
+                    for (i, v) in vector.enumerated() where i < sum.count { sum[i] += v }
+                    count += 1
+                    return true
+                }
+                guard count > 0 else {
+                    return [Float](repeating: 0, count: embedding.dimension)
+                }
+                return normalize(sum.map { Float($0 / Double(count)) })
+            })
         }
         return out
     }
