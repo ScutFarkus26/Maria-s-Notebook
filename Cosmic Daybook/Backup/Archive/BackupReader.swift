@@ -25,6 +25,8 @@ nonisolated public enum BackupReader {
     public struct StructureVerification: Sendable {
         public let manifest: BackupArchiveManifest
         public let entryLineCounts: [String: Int]
+        /// How many `photos/` entries the archive holds (v28+).
+        public let photoCount: Int
     }
 
     public enum ReadError: LocalizedError {
@@ -57,8 +59,10 @@ nonisolated public enum BackupReader {
     /// v20 adds Guardian/ParentCommunication entries; v19 wraps the same
     /// entries in an encrypted AEA container; v18 added Stories/Book Club/
     /// Year Plan/Day Pad entries; v17/v18 files still read (plain compressed
-    /// container, new entries simply absent).
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...27
+    /// container, new entries simply absent). v28 adds `photos/<filename>`
+    /// entries (`BackupPhotos`), which a v27 reader would reject as an
+    /// unexpected path — hence the version.
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...28
 
     // MARK: - Public API
 
@@ -88,11 +92,13 @@ nonisolated public enum BackupReader {
     /// decodes its preferences entry as `read(from:)` does: nil when there is
     /// none or it does not decode (logged; the restore then keeps the current
     /// settings). The restore reads an archive this way, holding one entity's
-    /// bytes at a time.
+    /// bytes at a time. `photo` receives each note photo entry's filename and
+    /// bytes (v28+).
     public static func streamBackup(
         from url: URL,
         keyProvider: () throws -> SymmetricKey,
-        entity: (BackupEntityEntry) throws -> Void
+        entity: (BackupEntityEntry) throws -> Void,
+        photo: (String, Data) throws -> Void = { _, _ in }
     ) throws -> (manifest: BackupArchiveManifest, preferences: PreferencesDTO?) {
         var decodedPreferences: PreferencesDTO?
         let manifest = try walk(
@@ -107,7 +113,8 @@ nonisolated public enum BackupReader {
                     logger.warning("\(msg, privacy: .public)")
                 }
             },
-            entity: entity
+            entity: entity,
+            photo: photo
         )
         return (manifest, decodedPreferences)
     }
@@ -128,13 +135,15 @@ nonisolated public enum BackupReader {
 
     /// The one pass over an archive that `read` and `streamEntities` share:
     /// manifest decoded (a malformed one throws at once), preferences handed
-    /// over raw, entity entries parsed and handed over in archive order, then
-    /// the manifest's presence and format version checked.
+    /// over raw, entity entries parsed and handed over in archive order, photo
+    /// entries handed to `photo` (ignored by default), then the manifest's
+    /// presence and format version checked.
     private static func walk(
         _ url: URL,
         keyProvider: () throws -> SymmetricKey,
         preferences: (Data) -> Void,
-        entity: (BackupEntityEntry) throws -> Void
+        entity: (BackupEntityEntry) throws -> Void,
+        photo: (String, Data) throws -> Void = { _, _ in }
     ) throws -> BackupArchiveManifest {
         guard BackupArchive.isBackupArchive(at: url) else {
             throw ReadError.notArchiveFormat
@@ -148,7 +157,9 @@ nonisolated public enum BackupReader {
             case "preferences.json":
                 preferences(data)
             default:
-                if let entry = try parseEntityEntry(path: path, ndjson: data) {
+                if let name = try BackupPhotos.filename(fromArchivePath: path) {
+                    try photo(name, data)
+                } else if let entry = try parseEntityEntry(path: path, ndjson: data) {
                     try entity(entry)
                 }
             }
@@ -188,6 +199,7 @@ nonisolated public enum BackupReader {
 
         var manifest: BackupArchiveManifest?
         var lineCounts: [String: Int] = [:]
+        var photoCount = 0
 
         try BackupArchive.read(from: url, encryptionKey: keyProvider) { path, data in
             switch path {
@@ -196,7 +208,9 @@ nonisolated public enum BackupReader {
             case "preferences.json":
                 break
             default:
-                if let entry = try parseEntityEntry(path: path, ndjson: data) {
+                if try BackupPhotos.filename(fromArchivePath: path) != nil {
+                    photoCount += 1
+                } else if let entry = try parseEntityEntry(path: path, ndjson: data) {
                     lineCounts[entry.entityName] = entry.count
                 }
             }
@@ -210,7 +224,7 @@ nonisolated public enum BackupReader {
                 supported: supportedFormatVersions
             )
         }
-        return StructureVerification(manifest: manifest, entryLineCounts: lineCounts)
+        return StructureVerification(manifest: manifest, entryLineCounts: lineCounts, photoCount: photoCount)
     }
 
     // MARK: - Decode Helpers

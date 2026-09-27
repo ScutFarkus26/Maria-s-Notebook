@@ -14,6 +14,8 @@ nonisolated extension BackupWriter {
         let encryptionKey: SymmetricKey
         let url: URL
         let stopsWhenCancelled: Bool
+        /// Note photos appended after the entity entries (v28; `BackupPhotos`).
+        var photos: [BackupPhotos.File] = []
     }
 
     /// Writes `manifest.json`, `preferences.json` and whatever `appendEntities`
@@ -42,6 +44,7 @@ nonisolated extension BackupWriter {
                 // Preferences as a single JSON document (not NDJSON).
                 try appender.append(path: "preferences.json", data: job.preferencesData)
                 writtenEntryCount = try appendEntities(appender)
+                try appendPhotos(job, to: appender)
             }
 
             // Verification re-reads the whole archive, and an unverified file
@@ -56,6 +59,25 @@ nonisolated extension BackupWriter {
             throw error
         }
         return writtenEntryCount
+    }
+
+    /// Each photo file's bytes as a `photos/<filename>` entry, one file in
+    /// memory at a time. A photo that can't be read aborts the export: a
+    /// backup whose manifest promises a photo it lacks would fail verification
+    /// anyway, and one silently missing it would look complete.
+    private static func appendPhotos(_ job: ArchiveJob, to appender: BackupArchive.Appender) throws {
+        for photo in job.photos {
+            if job.stopsWhenCancelled { try Task.checkCancellation() }
+            try autoreleasepool {
+                let data: Data
+                do {
+                    data = try Data(contentsOf: photo.url, options: .mappedIfSafe)
+                } catch {
+                    throw WriterError.photoUnreadable(filename: photo.name, underlying: error)
+                }
+                try appender.append(path: BackupPhotos.archivePath(for: photo.name), data: data)
+            }
+        }
     }
 
     /// Re-reads the just-written archive and checks that the manifest decodes
@@ -73,6 +95,11 @@ nonisolated extension BackupWriter {
               verification.manifest.entityCounts == expected.entityCounts,
               verification.manifest.originStores == expected.originStores else {
             throw WriterError.verificationFailed("manifest did not round-trip")
+        }
+        guard verification.photoCount == (expected.photoCount ?? 0) else {
+            throw WriterError.verificationFailed(
+                "wrote \(expected.photoCount ?? 0) photos, read back \(verification.photoCount)"
+            )
         }
         for (entityName, expectedCount) in expected.entityCounts {
             let actual = verification.entryLineCounts[entityName] ?? 0

@@ -62,11 +62,16 @@ nonisolated public enum BackupWriter {
     ///   CDLessonSequenceSettings, CDStory, CDBookClubPacket, CDBookClubSession,
     ///   CDBookClubMeeting. Purely additive NDJSON entries.
     /// - v17: AppleArchive-framed NDJSON (replaced the legacy v16 JSON envelope).
-    public static let formatVersion: Int = 27
+    /// - v28: Note photos ride along as `photos/<filename>` entries after the
+    ///   entity entries, counted in the manifest's `photoCount`
+    ///   (`BackupPhotos`). Entity entries are unchanged; a v27 reader rejects
+    ///   the new paths, hence the version.
+    public static let formatVersion: Int = 28
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)
         case verificationFailed(String)
+        case photoUnreadable(filename: String, underlying: Error)
 
         public var errorDescription: String? {
             switch self {
@@ -77,6 +82,9 @@ nonisolated public enum BackupWriter {
             case .verificationFailed(let reason):
                 return "Backup aborted: the written file failed read-back verification (\(reason)). " +
                     "No file was saved to the destination."
+            case .photoUnreadable(let filename, let underlying):
+                return "Backup aborted: the note photo \(filename) could not be read " +
+                    "(\(underlying.localizedDescription)). No file was written."
             }
         }
     }
@@ -98,12 +106,16 @@ nonisolated public enum BackupWriter {
     /// `CancellationError` there, leaving nothing at `url` (the hidden temp
     /// file is removed). Every other export runs to the end even if its task
     /// is cancelled.
+    ///
+    /// `includesPhotos` adds the note photos (`BackupPhotos`); nil follows the
+    /// guide's setting, and the pre-restore checkpoint passes false.
     @MainActor
     @discardableResult
     public static func write(
         viewContext: NSManagedObjectContext,
         to url: URL,
         stopsWhenCancelled: Bool = false,
+        includesPhotos: Bool? = nil,
         progress: @escaping BackupService.ProgressCallback = { _, _ in }
     ) async throws -> BackupOperationSummary {
         if stopsWhenCancelled { try Task.checkCancellation() }
@@ -113,13 +125,18 @@ nonisolated public enum BackupWriter {
         BackupPipelineProbe.reach("collect")
         let backupService = BackupService()
         let deviceName = currentDeviceName()
+        // Names only, read here on the view context's queue; the files are
+        // found and read off the main actor.
+        let includesPhotos = includesPhotos ?? BackupPhotos.includesNotePhotos
+        let photoNames = includesPhotos ? BackupPhotos.referencedFilenames(in: viewContext) : []
 
         let manifest: BackupArchiveManifest
         let streamed = try await writeStreaming(
             service: backupService,
             viewContext: viewContext,
             request: ExportRequest(
-                url: url, deviceName: deviceName, stopsWhenCancelled: stopsWhenCancelled, progress: progress
+                url: url, deviceName: deviceName, stopsWhenCancelled: stopsWhenCancelled,
+                photoNames: photoNames, progress: progress
             )
         )
         if case .written(let written) = streamed {
@@ -144,6 +161,7 @@ nonisolated public enum BackupWriter {
                 deviceName: deviceName,
                 to: url,
                 stopsWhenCancelled: stopsWhenCancelled,
+                photoNames: photoNames,
                 progress: progress
             )
         }
@@ -155,7 +173,10 @@ nonisolated public enum BackupWriter {
             encryptUsed: true,
             createdAt: Date(),
             entityCounts: manifest.entityCounts,
-            warnings: ["Imported documents and file attachments are not included in backups by design."]
+            warnings: [includesPhotos
+                ? "Note photos are included (\(manifest.photoCount ?? 0)); imported documents and "
+                    + "file attachments are not, by design."
+                : "Note photos, imported documents and file attachments are not included in this backup."]
         )
     }
 
@@ -173,6 +194,7 @@ nonisolated public enum BackupWriter {
         deviceName: String,
         to url: URL,
         stopsWhenCancelled: Bool = false,
+        photoNames: [String] = [],
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupArchiveManifest {
         // Collection held the main actor; the task may have been ended meanwhile.
@@ -188,9 +210,11 @@ nonisolated public enum BackupWriter {
         // DTO graph, which put the export's peak at roughly two copies of the
         // database, at app quit / iOS background where the jetsam limit is
         // tightest. Output bytes are identical.
+        let photos = BackupPhotos.localFiles(for: photoNames)
         let manifest = makeManifest(
             counts: entitySerializations.map { ($0.entityName, $0.count(payload)) },
-            deviceName: deviceName
+            deviceName: deviceName,
+            photoCount: photos.count
         )
         let job = ArchiveJob(
             manifest: manifest,
@@ -198,7 +222,8 @@ nonisolated public enum BackupWriter {
             preferencesData: try payload.preferences.archiveJSON(),
             encryptionKey: encryptionKey,
             url: url,
-            stopsWhenCancelled: stopsWhenCancelled
+            stopsWhenCancelled: stopsWhenCancelled,
+            photos: photos
         )
 
         await progress(0.75, "Writing archive\u{2026}")
@@ -341,7 +366,8 @@ nonisolated public enum BackupWriter {
     /// listed, matching the entries actually written.
     static func makeManifest(
         counts: [(entityName: String, count: Int)],
-        deviceName: String
+        deviceName: String,
+        photoCount: Int = 0
     ) -> BackupArchiveManifest {
         var entityCounts: [String: Int] = [:]
         var stores: [String: String] = [:]
@@ -356,7 +382,8 @@ nonisolated public enum BackupWriter {
             appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
             device: deviceName,
             entityCounts: entityCounts,
-            originStores: stores
+            originStores: stores,
+            photoCount: photoCount > 0 ? photoCount : nil
         )
     }
 
@@ -413,6 +440,9 @@ nonisolated public struct BackupArchiveManifest: Codable, Sendable, Equatable {
     public var device: String
     public var entityCounts: [String: Int]
     public var originStores: [String: String]
+    /// How many note photo entries follow the entity entries (v28+); absent
+    /// when there are none, so a photo-less manifest encodes as before.
+    public var photoCount: Int? = nil
 }
 
 // MARK: - Entry Type

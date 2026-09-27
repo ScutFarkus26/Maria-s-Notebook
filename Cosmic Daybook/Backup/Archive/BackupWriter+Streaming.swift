@@ -36,6 +36,8 @@ nonisolated extension BackupWriter {
         let url: URL
         let deviceName: String
         let stopsWhenCancelled: Bool
+        /// The note photos to carry, by filename (`BackupPhotos`).
+        let photoNames: [String]
         let progress: BackupService.ProgressCallback
     }
 
@@ -170,9 +172,11 @@ nonisolated extension BackupWriter {
         // which Apple says to keep off the main thread.
         let encryptionKey = try BackupEncryptionKeyStore.fetchOrCreateKey()
         await progress(0.65, "Encoding\u{2026}")
+        let photos = BackupPhotos.localFiles(for: request.photoNames)
         let manifest = makeManifest(
             counts: staged.map { ($0.entityName, $0.count) },
-            deviceName: request.deviceName
+            deviceName: request.deviceName,
+            photoCount: photos.count
         )
         let job = ArchiveJob(
             manifest: manifest,
@@ -180,7 +184,8 @@ nonisolated extension BackupWriter {
             preferencesData: try preferences.archiveJSON(),
             encryptionKey: encryptionKey,
             url: request.url,
-            stopsWhenCancelled: stopsWhenCancelled
+            stopsWhenCancelled: stopsWhenCancelled,
+            photos: photos
         )
 
         await progress(0.75, "Writing archive\u{2026}")

@@ -38,6 +38,8 @@ nonisolated enum UserDefaultsKeys {
     /// `timeIntervalSinceReferenceDate` of the last scheduled auto-backup run.
     static let autoBackupLastScheduledDate = "AutoBackup.lastScheduledDate"
     static let autoBackupLastBackgroundDate = "AutoBackup.lastBackgroundDate"
+    /// Whether backups carry the note photos (format v28). Default on.
+    static let backupIncludesNotePhotos = "Backup.includesNotePhotos"
 
     // MARK: - Attendance
     // Dynamic keys: "Attendance.locked.<yyyy-MM-dd>"

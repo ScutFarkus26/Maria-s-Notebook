@@ -28,6 +28,9 @@ enum BackupImporter {
         let payload: BackupPayload
         let warnings: [String]
         let encrypted: Bool
+        /// The archive's note photos, written to a temporary folder as they
+        /// were read (`BackupPhotos`); nil when it has none.
+        var stagedPhotos: URL?
     }
 
     // MARK: - Public API
@@ -41,6 +44,10 @@ enum BackupImporter {
     /// Fails as `BackupReader.read` does. `@concurrent` so it runs off the
     /// main actor (a plain `nonisolated async` function runs on its caller's
     /// actor); only the Core Data import that follows needs the main actor.
+    ///
+    /// Note photos (v28) are written to a staging folder as they are read, so
+    /// no photo stays in memory; the caller installs them once the records
+    /// have imported, or removes the folder.
     @concurrent
     nonisolated static func decodeArchive(at url: URL) async throws -> DecodedArchive {
         BackupPipelineProbe.reach("decode")
@@ -48,24 +55,36 @@ enum BackupImporter {
         decoder.dateDecodingStrategy = .iso8601
         var payload = BackupPayload.collecting(preferences: PreferencesDTO(values: [:]))
         var warnings: [String] = []
-        let backup = try BackupReader.streamBackup(
-            from: url,
-            keyProvider: { try BackupEncryptionKeyStore.requireKey() },
-            entity: { entry in
-                autoreleasepool {
-                    if let warning = decode(entry, into: &payload, using: decoder) {
-                        warnings.append(warning)
+        var staging: URL?
+        do {
+            let backup = try BackupReader.streamBackup(
+                from: url,
+                keyProvider: { try BackupEncryptionKeyStore.requireKey() },
+                entity: { entry in
+                    autoreleasepool {
+                        if let warning = decode(entry, into: &payload, using: decoder) {
+                            warnings.append(warning)
+                        }
                     }
+                },
+                photo: { name, data in
+                    let folder = try staging ?? BackupPhotos.makeStagingDirectory()
+                    staging = folder
+                    try data.write(to: folder.appendingPathComponent(name, isDirectory: false))
                 }
-            }
-        )
-        payload.preferences = backup.preferences ?? PreferencesDTO(values: [:])
-        return DecodedArchive(
-            manifest: backup.manifest,
-            payload: payload,
-            warnings: warnings,
-            encrypted: BackupArchive.isEncryptedArchive(at: url)
-        )
+            )
+            payload.preferences = backup.preferences ?? PreferencesDTO(values: [:])
+            return DecodedArchive(
+                manifest: backup.manifest,
+                payload: payload,
+                warnings: warnings,
+                encrypted: BackupArchive.isEncryptedArchive(at: url),
+                stagedPhotos: staging
+            )
+        } catch {
+            if let staging { try? FileManager.default.removeItem(at: staging) }
+            throw error
+        }
     }
 
     /// Restores the backup at `url` into `viewContext`: decoded off the main
@@ -83,22 +102,36 @@ enum BackupImporter {
         appRouter: AppRouter,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
-        let (source, warnings) = try await decodedSource(at: url)
+        let (source, decodeWarnings, stagedPhotos) = try await decodedSource(at: url)
+        var warnings = decodeWarnings
 
         progress(0.35, "Importing\u{2026}")
-        let summary = try await BackupService().importRows(
-            from: source,
-            viewContext: viewContext,
-            mode: mode,
-            appRouter: appRouter,
-            progress: progress
-        )
+        let summary: BackupOperationSummary
+        do {
+            summary = try await BackupService().importRows(
+                from: source,
+                viewContext: viewContext,
+                mode: mode,
+                appRouter: appRouter,
+                progress: progress
+            )
+        } catch {
+            // The records didn't restore, so neither do the photos.
+            if let stagedPhotos { try? FileManager.default.removeItem(at: stagedPhotos) }
+            throw error
+        }
+        if let stagedPhotos {
+            let photos = await BackupPhotos.installStaged(from: stagedPhotos)
+            if photos.failed > 0 {
+                warnings.append("\(photos.failed) note photo(s) could not be restored.")
+            }
+        }
         return warnings.isEmpty ? summary : summary.appending(warnings: warnings)
     }
 
     /// The archive decoded into a source holding the payload's only copy:
     /// `decoded` goes when this returns, before the import starts.
-    private static func decodedSource(at url: URL) async throws -> (BackupPayloadSource, [String]) {
+    private static func decodedSource(at url: URL) async throws -> (BackupPayloadSource, [String], URL?) {
         let decoded = try await decodeArchive(at: url)
         let envelope = BackupEnvelope(
             formatVersion: decoded.manifest.formatVersion,
@@ -107,7 +140,7 @@ enum BackupImporter {
             fileName: url.lastPathComponent,
             entityCounts: decoded.manifest.entityCounts
         )
-        return (BackupPayloadSource(decoded.payload, envelope: envelope), decoded.warnings)
+        return (BackupPayloadSource(decoded.payload, envelope: envelope), decoded.warnings, decoded.stagedPhotos)
     }
 
     // MARK: - Payload Reconstruction

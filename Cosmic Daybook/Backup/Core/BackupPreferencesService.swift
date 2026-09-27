@@ -60,6 +60,7 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.autoBackupRetentionCount,
         UserDefaultsKeys.autoBackupScheduledEnabled,
         UserDefaultsKeys.autoBackupIntervalHours,
+        UserDefaultsKeys.backupIncludesNotePhotos,
         // AI
         UserDefaultsKeys.aiAllowAutomaticPrivateCloud,
         UserDefaultsKeys.lessonPlanningTimeout,

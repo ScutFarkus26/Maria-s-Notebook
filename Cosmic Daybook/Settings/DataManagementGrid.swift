@@ -23,6 +23,7 @@ struct DataManagementGrid: View {
     }
 
     @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var autoBackupEnabled = true
+    @AppStorage(UserDefaultsKeys.backupIncludesNotePhotos) private var backupIncludesNotePhotos = true
     @AppStorage(UserDefaultsKeys.autoBackupRetentionCount) private var autoBackupRetention = 10
 
     @State private var showingImporter = false
@@ -426,6 +427,16 @@ struct DataManagementGrid: View {
                 }
                 .opacity(autoBackupEnabled ? 1 : 0.4)
                 .disabled(!autoBackupEnabled)
+
+                // Every backup, manual or automatic, follows this.
+                Toggle(isOn: $backupIncludesNotePhotos) {
+                    Text("Include note photos")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .help("Photos make each backup larger: every kept backup holds its own copy.")
             }
         }
     }

@@ -72,9 +72,12 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | v20–v22 | Encrypted Apple Archive (`AEA1`) | Additive entries: Guardians + Parent Communications (v20), teaching-album annotations (v21), lesson↔album links (v22). |
 | v23 | Encrypted Apple Archive (`AEA1`) | `preferences.json` grows to the full user-settings set (school year, recall, AI models, view state, per-date attendance locks, album folder bookmarks + fingerprints) and gains a `plist` value type. Entity entries unchanged. |
 | v24 | Encrypted Apple Archive (`AEA1`) | `ScheduledMeeting` entries carry `purpose`. Additive. |
-| **v25** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** `Lesson` entries carry `isKeyLesson` (the Three-Year View's milestone flag), and `preferences.json` carries the view's untouched-area thresholds, zoom and granularity. Additive. |
+| v25 | Encrypted Apple Archive (`AEA1`) | `Lesson` entries carry `isKeyLesson` (the Three-Year View's milestone flag), and `preferences.json` carries the view's untouched-area thresholds, zoom and granularity. Additive. |
+| v26 | Encrypted Apple Archive (`AEA1`) | `WorkModel.statusRaw` may carry the merged status vocabulary. Entry layout unchanged. |
+| v27 | Encrypted Apple Archive (`AEA1`) | Adds `OrderItem` entries and the `Orders.*` preferences. Additive. |
+| **v28** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** Note photos follow the entity entries as `photos/<filename>` (the photo file's bytes), counted in the manifest's optional `photoCount` and checked by read-back verification (`BackupPhotos`). On by default (`Backup.includesNotePhotos`); never in the pre-restore checkpoint; a photo not on the device is left out. Restore stages them and installs after the records import, never over an existing file. Entity entries are byte-identical to v27; a v27 reader rejects the new paths. |
 
-`BackupReader.supportedFormatVersions = 17...25`.
+`BackupReader.supportedFormatVersions = 17...28`.
 
 ---
 

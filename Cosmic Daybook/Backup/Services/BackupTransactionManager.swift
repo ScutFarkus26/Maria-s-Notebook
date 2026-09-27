@@ -83,9 +83,12 @@ public final class BackupTransactionManager {
         let checkpointURL = checkpointDirectory.appendingPathComponent(filename)
 
         do {
+            // No photos: a restore never removes one, so the checkpoint needn't
+            // carry them back (and copying every photo would slow each restore).
             _ = try await BackupWriter.write(
                 viewContext: viewContext,
                 to: checkpointURL,
+                includesPhotos: false,
                 progress: progress ?? { _, _ in }
             )
 
