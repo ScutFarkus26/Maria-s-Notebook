@@ -28,12 +28,24 @@ import OSLog
 ///    the (now repaired) size and returns it. The bar re-measures on the next
 ///    pass anyway.
 ///
-/// Every other assertion is handed to the default handler unchanged, so the
-/// behaviour elsewhere stays exactly AppKit's.
+/// Any assertion whose object is an `NSToolbar` is logged with every toolbar
+/// that shares its identifier (search for `ToolbarFamily`): AppKit replays each
+/// insert and remove across same-identifier toolbars, so two of them with
+/// different items drift apart and the next change asserts. The duplicate-item
+/// one (`-[NSToolbar _insertNewItemWithItemIdentifier:…]`, NSToolbar.m:1696)
+/// returns without raising, which is exactly what AppKit does for apps linked
+/// before macOS 15: it inserts the item anyway. The out-of-range index ones
+/// (`_itemAtIndex:`, `removeItemAtIndex:`) cannot be carried past — the array
+/// access right after them raises regardless — so those are only logged.
 ///
-/// Verified in a scratch app on macOS 27.0: a poisoned viewer produced one
+/// Every other assertion is logged (the Release log redacts AppKit's own copy
+/// of the reason) and handed to the default handler, so the behaviour
+/// elsewhere stays exactly AppKit's.
+///
+/// Verified in scratch apps on macOS 27.0: a poisoned viewer produced one
 /// handled hit per pass, the layout completed, and AppKit recomputed the
-/// viewer's size on the following pass. (The history of this crash lives in
+/// viewer's size on the following pass; a duplicate insert left two items
+/// that later removes handled normally. (The history of these crashes lives in
 /// the project memory under `album-toolbar-nan-crash`.)
 nonisolated final class ToolbarLayoutAssertionGuard: NSAssertionHandler {
 
@@ -51,6 +63,11 @@ nonisolated final class ToolbarLayoutAssertionGuard: NSAssertionHandler {
 
     /// How many times the toolbar assertion has fired this launch.
     private(set) var hitCount = 0
+
+    /// How many `NSToolbar` assertions have been reported this launch.
+    private(set) var familyHitCount = 0
+
+    private static let duplicateItemAssertion = "already contains an item with the identifier"
 
     /// Installs the guard for the main thread — the only one that lays out
     /// toolbars, and the only one whose `NSAssert`s reach this handler.
@@ -77,6 +94,16 @@ nonisolated final class ToolbarLayoutAssertionGuard: NSAssertionHandler {
             MainActor.assumeIsolated { Self.recover(viewer, method: method, hit: hit) }
             return
         }
+        if let toolbar = object as? NSToolbar, Thread.isMainThread {
+            familyHitCount += 1
+            let hit = familyHitCount
+            let carryOn = description?.contains(Self.duplicateItemAssertion) == true
+            let site = "\(file):\(lineNumber) in \(NSStringFromSelector(method))"
+            MainActor.assumeIsolated {
+                Self.reportFamily(of: toolbar, site: site, description: description, hit: hit, carryOn: carryOn)
+            }
+            if carryOn { return }
+        }
         passThrough(method: method, object: object, file: file, lineNumber: lineNumber, description: description)
     }
 
@@ -97,15 +124,55 @@ nonisolated final class ToolbarLayoutAssertionGuard: NSAssertionHandler {
         } else {
             stack = ""
         }
+        // Public: the Release build redacts plain string interpolations. The
+        // window title stays private — a detail window's title is a child's name.
         logger.error("""
-            ToolbarNaN hit=\(hit) in \(NSStringFromSelector(method)) \
-            item='\(item?.itemIdentifier.rawValue ?? "?")' label='\(item?.label ?? "")' \
-            window='\(window?.title ?? "")' toolbar=\(siblings) \
-            min=\(describe(before.0)) max=\(describe(before.1)) \
-            repaired=\(repaired.map(describe) ?? "none") frame=\(NSStringFromRect(viewer.frame)) \
-            viewClass=\(item?.view.map { String(describing: type(of: $0)) } ?? "nil") \
-            event=\(NSApp.currentEvent.map { String(describing: $0.type) } ?? "none")\(stack)
+            ToolbarNaN hit=\(hit) in \(NSStringFromSelector(method), privacy: .public) \
+            item='\(item?.itemIdentifier.rawValue ?? "?", privacy: .public)' \
+            label='\(item?.label ?? "", privacy: .public)' \
+            scene='\(sceneName(of: window), privacy: .public)' window='\(window?.title ?? "")' \
+            toolbar=\(siblings, privacy: .public) \
+            min=\(describe(before.0), privacy: .public) max=\(describe(before.1), privacy: .public) \
+            repaired=\(repaired.map(describe) ?? "none", privacy: .public) \
+            frame=\(NSStringFromRect(viewer.frame), privacy: .public) \
+            viewClass=\(item?.view.map { String(describing: type(of: $0)) } ?? "nil", privacy: .public) \
+            event=\(currentEventName(), privacy: .public)\(stack, privacy: .public)
             """)
+    }
+
+    /// Logs every window whose toolbar shares `toolbar`'s identifier, with its
+    /// items; `*` marks the toolbar that asserted.
+    @MainActor
+    private static func reportFamily(of toolbar: NSToolbar, site: String,
+                                     description: String?, hit: Int, carryOn: Bool) {
+        let family = NSApp.windows.compactMap { window -> String? in
+            guard let other = window.toolbar, other.identifier == toolbar.identifier else { return nil }
+            let items = other.items.map(\.itemIdentifier.rawValue).joined(separator: ",")
+            return "\(other === toolbar ? "*" : "")\(sceneName(of: window))=[\(items)]"
+        }
+        let stack = hit <= 3 ? " stack=[" + Thread.callStackSymbols.dropFirst(3).prefix(18)
+            .map { frameSummary($0) }.joined(separator: " < ") + "]" : ""
+        logger.error("""
+            ToolbarFamily hit=\(hit) \(carryOn ? "carried on" : "raising", privacy: .public) \
+            \(site, privacy: .public) \
+            reason='\(description ?? "", privacy: .public)' \
+            identifier='\(toolbar.identifier, privacy: .public)' \
+            family=\(family.joined(separator: " "), privacy: .public) \
+            event=\(currentEventName(), privacy: .public)\(stack, privacy: .public)
+            """)
+    }
+
+    /// SwiftUI's scene identifier for the window ("main-AppWindow-1",
+    /// "AlbumWindow-AppWindow-2") — names the kind of window without its title.
+    @MainActor
+    private static func sceneName(of window: NSWindow?) -> String {
+        guard let window else { return "?" }
+        return window.identifier?.rawValue ?? "\(type(of: window))#\(window.windowNumber)"
+    }
+
+    @MainActor
+    private static func currentEventName() -> String {
+        NSApp.currentEvent.map { String(describing: $0.type) } ?? "none"
     }
 
     /// Writes the first usable size into the viewer's NaN'd caches and asks the
@@ -184,6 +251,13 @@ nonisolated final class ToolbarLayoutAssertionGuard: NSAssertionHandler {
     /// reading garbage off the stack.
     private func passThrough(method: Selector, object: AnyObject,
                              file: String, lineNumber: Int, description: String?) {
+        // AppKit's own log line shows only "<redacted reason>" in Release builds.
+        Self.logger.error("""
+            Assertion \(file, privacy: .public):\(lineNumber) \
+            in \(NSStringFromSelector(method), privacy: .public) \
+            on \(String(describing: type(of: object)), privacy: .public): \
+            \(description ?? "", privacy: .public)
+            """)
         let literal = description?.replacingOccurrences(of: "%", with: "%%")
         if let defaultHandler = Self.defaultHandler {
             defaultHandler(self, Self.failureSelector, method, object, file as NSString,

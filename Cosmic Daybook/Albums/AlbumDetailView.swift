@@ -89,7 +89,7 @@ struct AlbumDetailView: View {
             .navigationTitle(album.title)
             #if os(macOS)
             .navigationSubtitle(currentLesson?.title ?? "")
-            .toolbar(id: "album") { toolbarContent }
+            .toolbar(id: nav.isAlbumWindow ? Self.albumWindowToolbarID : Self.readerToolbarID) { toolbarContent }
             .focusedSceneValue(\.albumActions, focusActions)
             #else
             .toolbar { iosToolbarContent }
