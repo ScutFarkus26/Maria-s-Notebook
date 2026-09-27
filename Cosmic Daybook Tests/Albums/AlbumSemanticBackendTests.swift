@@ -43,7 +43,7 @@ struct AlbumSemanticBackendTests {
         let dir = try makeCacheDir()
         defer { try? FileManager.default.removeItem(at: dir) }
         try #require(await AlbumSemanticIndex.resolveTitleBackend() == "sentence")
-        let file = dir.appendingPathComponent("Math.vectors2.json")
+        let file = AlbumVectorCacheFile.url(for: album.id, in: dir)
         func build(_ backend: String) -> AlbumSemanticIndex.VectorSet? {
             AlbumSemanticIndex.loadOrBuildVectors(for: album, backend: backend, cacheDir: dir)
         }

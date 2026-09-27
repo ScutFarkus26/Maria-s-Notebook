@@ -32,7 +32,8 @@ nonisolated enum AlbumCorpusLookup {
         let library = await AlbumLibrary.shared
         await library.ensureIndexed()
 
-        let corpus = await MainActor.run { library.corpus() }
+        // Folds any album whose fold isn't kept, off the main actor.
+        let corpus = await library.corpus()
         guard !corpus.albums.isEmpty else { return [] }
 
         let boost = await semanticBoost(for: query, corpus: corpus, library: library)

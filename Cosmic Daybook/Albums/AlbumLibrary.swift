@@ -174,16 +174,15 @@ final class AlbumLibrary {
     private(set) var needsIdentityRepair = false
     let semantic = AlbumSemanticIndex()
 
-    // The three index caches below are `internal` rather than `private` only so
+    // The index caches below are `internal` rather than `private` only so
     // `AlbumLibrary+MemoryPressure.swift` can release them. Nothing else should
     // touch them — read page text through `text(albumID:pageIndex:)` or `corpus()`.
 
     /// Per-album page text, keyed by album id.
     var pageTexts: [String: [String]] = [:]
-    /// Case- and diacritic-folded copy of `pageTexts`, used for matching. Purely
-    /// derived, so memory pressure drops it and `folded(for:)` rebuilds per album
-    /// on the next search.
-    var foldedTexts: [String: [String]] = [:]
+    /// The case- and diacritic-folded copy of `pageTexts` that search matches
+    /// against, folded off the main actor by the first search that needs it.
+    let folds = AlbumTextFolds()
     /// Modification date of each album's file at the time it was indexed.
     private var modDates: [String: Date] = [:]
     /// Set when critical memory pressure purged `pageTexts`. The on-disk index
@@ -445,7 +444,7 @@ final class AlbumLibrary {
         guard !indexing else { return }
         indexPurged = false
         pageTexts = [:]
-        foldedTexts = [:]
+        folds.dropAll()
         if let dir = Self.indexCacheDirectory() {
             try? FileManager.default.removeItem(at: dir)
         }
@@ -471,11 +470,12 @@ final class AlbumLibrary {
                 .contentModificationDate ?? .distantPast
             // Indexing is background maintenance, not something the guide is waiting on:
             // `.utility` keeps the PDF text extraction off the cores the UI needs.
-            let result = await Task.detached(priority: .utility) {
+            let texts = await Task.detached(priority: .utility) {
                 Self.loadOrBuildIndex(url: item.url, modified: modified, cacheDir: cacheDir)
             }.value
-            pageTexts[item.id] = result.texts
-            foldedTexts[item.id] = result.folded
+            pageTexts[item.id] = texts
+            // Folded on first search; a changed album's fold of its old text goes.
+            if modDates[item.id] != modified { folds.drop(albumID: item.id) }
             modDates[item.id] = modified
             if let seen = lastSeen[item.id] {
                 if modified.timeIntervalSinceReferenceDate > seen + 1 {
@@ -486,7 +486,7 @@ final class AlbumLibrary {
                 lastSeen[item.id] = modified.timeIntervalSinceReferenceDate
                 lastSeenChanged = true
             }
-            indexedPageCount += result.texts.count
+            indexedPageCount += texts.count
             indexProgress = Double(i + 1) / Double(max(items.count, 1))
             // Give the main actor a turn between albums so a long shelf does not
             // monopolise it with the per-album bookkeeping above.
@@ -547,23 +547,15 @@ final class AlbumLibrary {
         return pages[pageIndex]
     }
 
-    /// Folded text for one album, rebuilt from `pageTexts` if memory pressure
-    /// dropped it. Folding a single album's pages is far cheaper than keeping a
-    /// second full copy of the corpus resident for the life of the app.
-    private func folded(for albumID: String) -> [String] {
-        if let cached = foldedTexts[albumID] { return cached }
-        guard let texts = pageTexts[albumID] else { return [] }
-        let built = texts.map { $0.folded() }
-        foldedTexts[albumID] = built
-        return built
-    }
-
-    func corpus() -> AlbumSearchCorpus {
-        AlbumSearchCorpus(albums: albums.map {
-            AlbumSearchCorpus.AlbumData(id: $0.id, title: $0.title, subject: $0.subject,
-                                   lessons: $0.lessons,
-                                   texts: pageTexts[$0.id] ?? [],
-                                   folded: folded(for: $0.id))
+    /// Every album's page text with its fold, for a search. An album whose fold
+    /// a load, a trim or a change left missing is folded off the main actor
+    /// (`AlbumTextFolds`), so the first search after one no longer stalls it.
+    func corpus() async -> AlbumSearchCorpus {
+        let albums = self.albums
+        let pages = await folds.pages(for: albums.map { (id: $0.id, texts: pageTexts[$0.id] ?? []) })
+        return AlbumSearchCorpus(albums: zip(albums, pages).map { album, pages in
+            AlbumSearchCorpus.AlbumData(id: album.id, title: album.title, subject: album.subject,
+                                        lessons: album.lessons, texts: pages.texts, folded: pages.folded)
         })
     }
 
@@ -598,27 +590,21 @@ final class AlbumLibrary {
         return dir
     }
 
-    nonisolated static func loadOrBuildIndex(url: URL, modified: Date, cacheDir: URL?)
-        -> (texts: [String], folded: [String]) {
+    /// The album's page text, from the cache or the PDF; a search folds it later.
+    nonisolated static func loadOrBuildIndex(url: URL, modified: Date, cacheDir: URL?) -> [String] {
         let cacheURL = cacheDir?.appendingPathComponent(url.lastPathComponent + ".index.json")
         if let cacheURL,
            let data = try? Data(contentsOf: cacheURL),
            let cached = try? JSONDecoder().decode(CachedIndex.self, from: data),
            abs(cached.modified.timeIntervalSince(modified)) < 1 {
-            return (cached.pageTexts, cached.pageTexts.map { $0.folded() })
+            return cached.pageTexts
         }
-        var texts: [String] = []
-        if let doc = PDFDocument(url: url) {
-            for i in 0..<doc.pageCount {
-                let raw = doc.page(at: i)?.string ?? ""
-                texts.append(normalize(raw))
-            }
-        }
+        let texts = AlbumPageTextReader.pageTexts(url: url)
         if let cacheURL,
            let data = try? JSONEncoder().encode(CachedIndex(modified: modified, pageTexts: texts)) {
             try? data.write(to: cacheURL)
         }
-        return (texts, texts.map { $0.folded() })
+        return texts
     }
 
     /// Normalizes extracted PDF text for display and searching:

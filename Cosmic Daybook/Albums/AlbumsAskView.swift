@@ -139,9 +139,10 @@ struct AlbumsAskView: View {
         question = ""
         let exchange = AlbumAskExchange(question: trimmed)
         history.append(exchange)
-        let corpus = library.corpus()
         let id = exchange.id
         Task {
+            // Folds any album whose fold isn't kept, off the main actor.
+            let corpus = await library.corpus()
             do {
                 var boost: [String: [Float]]?
                 if let queryVector = await library.semantic.queryVector(for: trimmed) {

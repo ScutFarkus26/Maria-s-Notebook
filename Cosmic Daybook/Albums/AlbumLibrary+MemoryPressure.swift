@@ -6,11 +6,11 @@ import Foundation
 extension AlbumLibrary {
 
     /// The library is app-lifetime and independent of the active classroom, so nothing
-    /// else ever drops what it holds: the full page text of every album PDF (twice —
-    /// raw and folded), a rendered cover per album, every PDF opened for reading, and
-    /// the semantic index's embedding vectors. That made it the largest resident
-    /// allocation in the app and the only large one `AppDependencies.handleMemoryPressure`
-    /// did not reach.
+    /// else ever drops what it holds: the full page text of every album PDF (and a
+    /// folded copy once a search has needed one), a rendered cover per album, every
+    /// PDF opened for reading, and the semantic index's embedding vectors. That made
+    /// it the largest resident allocation in the app and the only large one
+    /// `AppDependencies.handleMemoryPressure` did not reach.
     ///
     /// Every piece released here is backed by an on-disk cache in Application Support
     /// or by the PDF itself, so recovering costs a reload, not a re-extraction.
@@ -32,7 +32,7 @@ extension AlbumLibrary {
     /// `.critical` the page-text and semantic indexes go too, which surfaces as the
     /// normal "still indexing" state until `ensureIndexed()` reloads them from disk.
     func releaseMemory(critical: Bool) {
-        foldedTexts.removeAll()
+        folds.dropAll()
         // The cached query models (the contextual one is large) reload on the
         // next search.
         AlbumSemanticIndex.releaseQueryEmbedders()

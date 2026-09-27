@@ -10,9 +10,6 @@ import CoreData
 import SwiftUI
 import PDFKit
 import UniformTypeIdentifiers
-#if os(iOS)
-import PencilKit
-#endif
 
 struct AlbumDetailView: View {
     @Environment(AlbumLibrary.self) private var library
@@ -22,6 +19,7 @@ struct AlbumDetailView: View {
     @Environment(\.openWindow) private var openWindow
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     #endif
 
     let album: Album
@@ -57,8 +55,11 @@ struct AlbumDetailView: View {
     // Reading-position persistence. Both writes are debounced: flipping
     // through a lesson used to fire two Core Data saves — and two CloudKit
     // pushes — per page turn.
-    @State private var positionSaveTask: Task<Void, Never>?
+    @State private var positionSaves = AlbumSaveDebouncer<String, ContinuousClock>(
+        delay: Self.positionSaveDelay, clock: ContinuousClock())
     @State private var lastRecordedLessonTitle: String?
+    /// How long page turns settle before the reading position is written.
+    static let positionSaveDelay = Duration.milliseconds(1500)
 
     // Find in album
     @State private var showFindBar = false
@@ -72,8 +73,10 @@ struct AlbumDetailView: View {
     @State private var showExporter = false
 
     #if os(iOS)
-    @State private var ink = InkController()
-    @State private var inkSaveTask: Task<Void, Never>?
+    // Internal for AlbumDetailView+Ink.swift.
+    @State var ink = InkController()
+    /// Each page's ink saves 800 ms after that page's last change.
+    @State var inkSaves = AlbumSaveDebouncer<Int, ContinuousClock>(delay: .milliseconds(800), clock: ContinuousClock())
     #endif
 
     #if os(macOS)
@@ -115,10 +118,13 @@ struct AlbumDetailView: View {
                 schedulePositionSave()
             }
             .onDisappear {
-                // Leaving mid-debounce still records where the guide got to.
-                positionSaveTask?.cancel()
-                positionSaveTask = nil
+                // Leaving mid-debounce still records where the guide got to,
+                // and saves any ink still waiting.
+                positionSaves.cancelAll()
                 persistPosition(pageIndex: currentPage)
+                #if os(iOS)
+                inkSaves.flush()
+                #endif
             }
             .alert("Go to Page", isPresented: $showGoToPage) {
                 TextField("Page number", text: $goToPageText)
@@ -168,6 +174,13 @@ struct AlbumDetailView: View {
                 ThumbnailStripView(proxy: proxy)
                     .frame(height: 104)
             }
+        }
+        // A page turn and ink still waiting go to the store before the app
+        // can be suspended, and killed there.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .background else { return }
+            positionSaves.flush()
+            inkSaves.flush()
         }
         #endif
     }
@@ -538,13 +551,8 @@ struct AlbumDetailView: View {
     /// Coalesces page turns into one write. Paging through a lesson is a
     /// burst of `currentPage` changes; only where the guide settles matters.
     private func schedulePositionSave() {
-        positionSaveTask?.cancel()
         let pageIndex = currentPage
-        positionSaveTask = Task {
-            try? await Task.sleep(for: .milliseconds(1500))
-            guard !Task.isCancelled else { return }
-            persistPosition(pageIndex: pageIndex)
-        }
+        positionSaves.schedule(album.id) { persistPosition(pageIndex: pageIndex) }
     }
 
     /// Writes the reading position, and a recent visit when the guide has
@@ -600,37 +608,6 @@ struct AlbumDetailView: View {
         proxy.clearSelection()
         album.applyHighlights(albumHighlights)
     }
-
-    // MARK: Ink
-
-    private func loadInk() {
-        #if os(iOS)
-        var drawings: [Int: PKDrawing] = [:]
-        for item in AlbumUserDataStore.ink(albumID: album.id, in: context) {
-            if let data = item.drawingData, let drawing = try? PKDrawing(data: data) {
-                drawings[Int(item.pageIndex)] = drawing
-            }
-        }
-        ink.drawings = drawings
-        ink.onSave = { pageIndex, drawing in
-            scheduleInkSave(pageIndex: pageIndex, drawing: drawing)
-        }
-        #endif
-    }
-
-    #if os(iOS)
-    private func scheduleInkSave(pageIndex: Int, drawing: PKDrawing) {
-        inkSaveTask?.cancel()
-        let albumID = album.id
-        inkSaveTask = Task {
-            try? await Task.sleep(for: .milliseconds(800))
-            guard !Task.isCancelled else { return }
-            let data = drawing.strokes.isEmpty ? Data() : drawing.dataRepresentation()
-            AlbumUserDataStore.saveInk(albumID: albumID, pageIndex: pageIndex,
-                             drawingData: data, in: context)
-        }
-    }
-    #endif
 
     // MARK: Export
 
