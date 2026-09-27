@@ -12,7 +12,8 @@
 //
 // Rows are in archive order, which `BackupStreamingExportTests` pins. The
 // restore order is separate: each importer is different, so
-// `BackupService.importPayload` still calls them one by one.
+// `BackupService.importRows` still calls them one by one (through
+// `BackupRestoreRun`), asking for each type by its payload field.
 
 import CoreData
 import Foundation
@@ -27,13 +28,25 @@ nonisolated protocol BackupRowDTO: Codable, Sendable {
 nonisolated struct BackupEntity: Sendable {
     /// The archive entity name ("Student", "WorkParticipantEntity", …).
     let name: String
+    /// The `BackupPayload` array holding this type's rows. The restore asks
+    /// for a type by this key path (`BackupRestoreRun.rows`), so a type can't
+    /// be asked for under the wrong name.
+    let field: PartialKeyPath<BackupPayload> & Sendable
     /// The Core Data class, for the registry and replace-mode clearing.
     let managedType: @Sendable () -> NSManagedObject.Type
     let collector: BackupService.EntityCollector
     let serialization: BackupWriter.EntitySerialization
     let decoder: BackupImporter.EntityDecoder
-    /// Keeps the first row of each `id` in this type's payload array.
+    /// Keeps the first row of each `id` in this type's payload array, as a
+    /// new array (the one-pass restore's deduplication, which left the
+    /// original rows to its caller, so every type existed twice).
     let deduplicate: @Sendable (inout BackupPayload) -> Void
+    /// Moves this type's rows from the first payload into the second, keeping
+    /// the first row of each `id` — the same rows, in the same order, as
+    /// `deduplicate` — in place: no second copy is made, and the first payload
+    /// no longer holds them. How the restore reads a decoded payload one type
+    /// at a time (`BackupPayloadSource`).
+    let take: @Sendable (_ from: inout BackupPayload, _ into: inout BackupPayload) -> Void
 
     /// A type stored in one of the payload's always-present arrays.
     static func required<Object: NSManagedObject, DTO: BackupRowDTO>(
@@ -45,11 +58,18 @@ nonisolated struct BackupEntity: Sendable {
     ) -> BackupEntity {
         BackupEntity(
             name: name,
+            field: field,
             managedType: { Object.self },
             collector: .required(name, type, field, transform, announcing: announcement),
             serialization: BackupWriter.serialization(name) { $0[keyPath: field] },
             decoder: BackupImporter.rows(DTO.self, field),
-            deduplicate: { $0[keyPath: field] = uniqueByID($0[keyPath: field]) }
+            deduplicate: { $0[keyPath: field] = uniqueByID($0[keyPath: field]) },
+            take: { from, into in
+                var rows = from[keyPath: field]
+                from[keyPath: field] = []
+                removeRepeatedIDs(from: &rows)
+                into[keyPath: field] = rows
+            }
         )
     }
 
@@ -63,11 +83,19 @@ nonisolated struct BackupEntity: Sendable {
     ) -> BackupEntity {
         BackupEntity(
             name: name,
+            field: field,
             managedType: { Object.self },
             collector: .optional(name, type, field, transform, announcing: announcement),
             serialization: BackupWriter.serialization(name) { $0[keyPath: field] ?? [] },
             decoder: BackupImporter.optionalRows(DTO.self, field),
-            deduplicate: { $0[keyPath: field] = $0[keyPath: field].map(uniqueByID) }
+            deduplicate: { $0[keyPath: field] = $0[keyPath: field].map(uniqueByID) },
+            take: { from, into in
+                // An absent type stays absent (nil), as the importers expect.
+                guard var rows = from[keyPath: field] else { return }
+                from[keyPath: field] = nil
+                removeRepeatedIDs(from: &rows)
+                into[keyPath: field] = rows
+            }
         )
     }
 
@@ -75,6 +103,16 @@ nonisolated struct BackupEntity: Sendable {
     static func uniqueByID<DTO: BackupRowDTO>(_ rows: [DTO]) -> [DTO] {
         var seen = Set<UUID>()
         return rows.filter { seen.insert($0.id).inserted }
+    }
+
+    /// `uniqueByID` in place: every row whose `id` an earlier row has is
+    /// removed, and the rest keep their order. Rows with no repeated `id` —
+    /// every well-formed backup — are not touched at all.
+    static func removeRepeatedIDs<DTO: BackupRowDTO>(from rows: inout [DTO]) {
+        var seen = Set<UUID>(minimumCapacity: rows.count)
+        let repeated = rows.indices.filter { !seen.insert(rows[$0].id).inserted }
+        guard !repeated.isEmpty else { return }
+        rows.removeSubranges(RangeSet(repeated, within: rows))
     }
 }
 
@@ -87,6 +125,12 @@ nonisolated enum BackupEntityTable {
 
     /// Every entity name, in archive order.
     static var names: [String] { entities.map(\.name) }
+
+    /// The type whose rows `field` holds, or nil for a payload array no
+    /// backed-up type fills (the retired project types).
+    static func entity(for field: AnyKeyPath) -> BackupEntity? {
+        entities.first { ($0.field as AnyKeyPath) == field }
+    }
 
     // MARK: - Groups
 

@@ -103,8 +103,4 @@ extension BackupService {
             if page.count < pageSize { break }
         }
     }
-
-    func deduplicatePayload(_ payload: BackupPayload) -> BackupPayload {
-        BackupPayloadDeduplicator.deduplicate(payload)
-    }
 }

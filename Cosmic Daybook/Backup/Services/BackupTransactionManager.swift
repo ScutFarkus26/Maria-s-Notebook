@@ -227,9 +227,7 @@ public final class BackupTransactionManager {
             }
 
             progress(0.05, "Reading checkpoint…")
-            let archive = try await BackupImporter.decodeArchive(at: checkpointURL)
-            _ = try await BackupImporter.importDecoded(
-                archive,
+            _ = try await BackupImporter.restore(
                 from: checkpointURL,
                 into: viewContext,
                 mode: .replace,

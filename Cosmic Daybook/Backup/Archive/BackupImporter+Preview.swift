@@ -9,7 +9,7 @@ nonisolated extension BackupImporter {
     struct DecodedPreview: Sendable {
         let manifest: BackupArchiveManifest
         let digest: BackupPreviewDigest
-        /// The same warnings a restore of this file would add (`reconstructPayload`).
+        /// The same warnings a restore of this file would add (`restore(from:into:…)`).
         let warnings: [String]
     }
 

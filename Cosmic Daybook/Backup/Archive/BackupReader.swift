@@ -75,9 +75,26 @@ nonisolated public enum BackupReader {
         from url: URL,
         keyProvider: () throws -> SymmetricKey
     ) throws -> DecodedBackup {
-        var decodedPreferences: PreferencesDTO?
         var entries: [BackupEntityEntry] = []
+        let backup = try streamBackup(from: url, keyProvider: keyProvider) { entries.append($0) }
 
+        let readerMsg = "BackupReader decoded v\(backup.manifest.formatVersion) backup " +
+            "with \(entries.count) entity entries"
+        logger.info("\(readerMsg, privacy: .public)")
+        return DecodedBackup(manifest: backup.manifest, entries: entries, preferences: backup.preferences)
+    }
+
+    /// Streams a backup file entry by entry, as `streamEntities` does, and
+    /// decodes its preferences entry as `read(from:)` does: nil when there is
+    /// none or it does not decode (logged; the restore then keeps the current
+    /// settings). The restore reads an archive this way, holding one entity's
+    /// bytes at a time.
+    public static func streamBackup(
+        from url: URL,
+        keyProvider: () throws -> SymmetricKey,
+        entity: (BackupEntityEntry) throws -> Void
+    ) throws -> (manifest: BackupArchiveManifest, preferences: PreferencesDTO?) {
+        var decodedPreferences: PreferencesDTO?
         let manifest = try walk(
             url,
             keyProvider: keyProvider,
@@ -90,12 +107,9 @@ nonisolated public enum BackupReader {
                     logger.warning("\(msg, privacy: .public)")
                 }
             },
-            entity: { entries.append($0) }
+            entity: entity
         )
-
-        let readerMsg = "BackupReader decoded v\(manifest.formatVersion) backup with \(entries.count) entity entries"
-        logger.info("\(readerMsg, privacy: .public)")
-        return DecodedBackup(manifest: manifest, entries: entries, preferences: decodedPreferences)
+        return (manifest, decodedPreferences)
     }
 
     /// Streams a backup file entry by entry: `body` sees each entity entry as

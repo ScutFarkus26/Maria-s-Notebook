@@ -292,29 +292,3 @@ enum BackupServiceHelpers {
     }
 
 }
-
-/// Helper for deduplicating backup payloads
-enum BackupPayloadDeduplicator {
-
-    // Removes duplicate records from the backup payload, keeping the first occurrence of each ID.
-    // This handles backups created from databases that had duplicate records due to CloudKit sync issues.
-    // Every backed-up type is deduplicated through `BackupEntityTable`, so none can be missed
-    // (ClassroomMembership once was, and every restore dropped it); the payload is copied, not
-    // rebuilt, so no field can fall out either.
-    static func deduplicate(_ payload: BackupPayload) -> BackupPayload {
-        var result = payload
-        for entity in BackupEntityTable.entities {
-            entity.deduplicate(&result)
-        }
-        // The retired project types still decode from old backups.
-        result.projectAssignmentTemplates = uniqueByID(payload.projectAssignmentTemplates) { $0.id }
-        result.projectTemplateWeeks = uniqueByID(payload.projectTemplateWeeks) { $0.id }
-        result.projectWeekRoleAssignments = uniqueByID(payload.projectWeekRoleAssignments) { $0.id }
-        return result
-    }
-
-    private static func uniqueByID<T>(_ items: [T], id: (T) -> UUID) -> [T] {
-        var seen = Set<UUID>()
-        return items.filter { seen.insert(id($0)).inserted }
-    }
-}

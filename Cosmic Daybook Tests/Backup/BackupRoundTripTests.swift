@@ -26,14 +26,13 @@ private enum BackupTestUtil {
         _ = try await BackupWriter.write(viewContext: context, to: url, progress: noopProgress)
     }
 
+    /// The app's restore of the file at `url` (`BackupImporter.restore`).
     static func importCurrentBackup(
         from url: URL,
         into context: NSManagedObjectContext,
         mode: BackupService.RestoreMode
     ) async throws {
-        let archive = try await BackupImporter.decodeArchive(at: url)
-        _ = try await BackupImporter.importDecoded(
-            archive,
+        _ = try await BackupImporter.restore(
             from: url,
             into: context,
             mode: mode,
@@ -653,8 +652,7 @@ final class Backup2RoundTripTests {
         #expect(archive.warnings.isEmpty, "Clean archive should decode without warnings")
 
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
-        _ = try await BackupImporter.importDecoded(
-            archive,
+        _ = try await BackupImporter.restore(
             from: url,
             into: destStack.viewContext,
             mode: .merge,
