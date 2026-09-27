@@ -257,12 +257,8 @@ struct BookClubPacketDetailView: View {
             }
 
             HStack(spacing: 8) {
-                Button { openPDF() } label: {
-                    Label("Open PDF", systemImage: "doc.richtext")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .disabled(resolvedURL() == nil)
+                // Its own view, so a redraw of this screen doesn't resolve the PDF.
+                BookClubOpenPDFButton(packet: packet)
 
                 Button(role: .destructive) {
                     showingDeleteConfirm = true
@@ -334,20 +330,12 @@ struct BookClubPacketDetailView: View {
         touch()
     }
 
+    /// Where the PDF is now, resolved afresh for deleting, as it always was.
     private func resolvedURL() -> URL? {
         BookClubFileStorage.resolveURL(
             bookmark: packet.packetPDFBookmark,
             relativePath: packet.packetPDFRelativePath
         )
-    }
-
-    private func openPDF() {
-        guard let url = resolvedURL() else { return }
-        #if os(macOS)
-        NSWorkspace.shared.open(url)
-        #else
-        UIApplication.shared.open(url)
-        #endif
     }
 
     private func deletePacket() {

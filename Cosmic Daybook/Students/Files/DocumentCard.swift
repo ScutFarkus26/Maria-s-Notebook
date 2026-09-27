@@ -46,7 +46,8 @@ struct DocumentCard: View {
             PDFThumbnail(
                 url: thumbnailFile.url(
                     bookmark: document.pdfFileBookmark,
-                    relativePath: document.pdfFileRelativePath
+                    relativePath: document.pdfFileRelativePath,
+                    resolve: StudentDocumentFileStorage.resolveURL
                 ),
                 data: document.pdfData,
                 recordKey: document.objectID.uriRepresentation().absoluteString

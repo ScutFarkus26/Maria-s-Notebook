@@ -61,6 +61,15 @@ enum ResourceFileStorage {
         try storage.resolve(relativePath: relativePath)
     }
 
+    /// Where a resource stored at `relativePath` is kept: the managed folder
+    /// plus the path, whether or not the file is there; nil for an empty path
+    /// or a folder that can't be made. What the resource detail draws its
+    /// Share and Print items from.
+    static func fileURL(relativePath: String) -> URL? {
+        guard !relativePath.isEmpty else { return nil }
+        return try? resolve(relativePath: relativePath)
+    }
+
     /// Returns a sanitized filename stem suitable for exported resource documents.
     static func sanitizedExportFilename(_ title: String?) -> String {
         storage.sanitizedBaseName(title)
