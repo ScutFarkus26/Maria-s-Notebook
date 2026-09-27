@@ -18,6 +18,18 @@
       "prompt": "Do a battery pass on the week planner views.",
       "expected_output": "Runs the audit script scoped to the planner files, fixes computed-property recomputation or a comparable per-body cost in the planner files (the per-card @FetchRequests were already removed on 2026-09-10, so finding none of those is correct), avoids touching CKShare or Core Data schema, measures body evaluations or fetch counts before/after, and records a baseline note.",
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "The Mac app is open all day and my battery drains faster than it should. What's it doing, and can you make it cheaper without changing anything I'd notice?",
+      "expected_output": "Checks which copy is running first (DerivedData Debug under the debugger vs the Release copy in /Applications) and says which the numbers come from; measures idle cost (footprint, CPU seconds, wakes, log repeats); walks the Mac checklist (memory pressure never fires so caches need idle trims, occluded windows, App Nap blockers such as a panel on every Space, per-window work with several main windows, NSBackgroundActivityScheduler, stale LaunchServices copies); runs the audit script including the 2026-09-27 rules; proposes only behavior-preserving changes and flags anything Danny would notice as a decision; verifies with verify.sh.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "From the energy list, do items 12, 13, 25 and 43 — run them in parallel like last time and merge when everything passes.",
+      "expected_output": "Follows references/audit-and-waves.md: groups items by files touched, creates worktrees by hand from local main, builds one first to warm the compile cache, gives each agent its own simulator (iPhone 17 for album work) and a brief with build/test commands, rules and measurement/equivalence requirements, forbids shared-doc edits, reviews trade-offs (no added main-thread time), integrates into one branch, runs verify.sh, fast-forwards main, writes the baseline file and doc updates, cleans up worktrees and DerivedData, updates the artifact, and does not push unless asked.",
+      "files": []
     }
   ]
 }

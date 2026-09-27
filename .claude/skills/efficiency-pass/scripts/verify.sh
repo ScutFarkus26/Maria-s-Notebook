@@ -1,110 +1,161 @@
 #!/bin/zsh
 # verify.sh — the "did I break anything?" gate for an efficiency pass.
 #
-# Builds every target that shares the touched code, then runs the FULL test
-# suite on the iOS simulator, serially (two xcodebuilds at once lock the build
-# database). Prints the real verdict line and pulls failure messages out of the
-# .xcresult, because the xcodebuild log does not contain them.
+# Builds everything that shares the touched code, through Scripts/locked_xcodebuild.sh
+# (the Mac-wide build lock Tide's builds also take, so builds take turns):
+#   - the app for the iOS simulator (build-for-testing, so the tests can run without rebuilding),
+#   - the app for macOS,
+#   - the Daybook Assistant, an iPhone/iPad app, for the same iOS simulator.
+# Then runs the FULL test suite once on the iOS simulator with test-without-building
+# (a test run compiles nothing, so it skips the lock) and reads the verdict, the totals
+# and the failures from the .xcresult, because the xcodebuild log does not contain them.
 #
-# Usage:  [SIM_ID=<udid> | SIM_NAME='iPhone 17 Pro'] [PROJECT=… APP_SCHEME=…] \
-#           .claude/skills/efficiency-pass/scripts/verify.sh [--skip-tests] [--macos-tests]
+# Usage:  [SIM_ID=<udid> | SIM_NAME='iPhone 17'] .claude/skills/efficiency-pass/scripts/verify.sh \
+#           [--skip-tests] [--macos-tests]
 #
-#   --skip-tests   build only (quick loop while iterating)
-#   --macos-tests  also run the suite on macOS. OFF by default: the macOS test
-#                  host launches the real app, whose startup runs the launch
-#                  repairs against Danny's LIVE store. Only pass this after a
-#                  fresh backup.
+#   --skip-tests   builds only (the quick loop while iterating; never for the final report)
+#   --macos-tests  also run the suite on macOS. OFF by default: the macOS test host is the
+#                  real app, whose startup runs launch repairs against Danny's LIVE store.
+#                  Only pass it after a fresh backup.
 #
-# Never pipe this script through `tail` or `head`; the exit code would be tail's.
+# The default simulator is the first available one named "iPhone 17": the album semantic
+# tests need its NaturalLanguage sentence model, which the iPhone Air / 17e simulators never
+# load. In an agent worktree the build adds the prefix-mapping settings so it shares the
+# compile cache with other worktrees (CLAUDE.md, "In an agent worktree").
+#
+# Env: BUILD_LOCK_WAIT (seconds to wait for the lock, default 3600), LOGDIR.
+# Never pipe this script through `tail` or `head`; the exit code would be theirs.
+# Rewritten 2026-09-27 from the gate the Energy Fifty waves used; the old version called
+# xcodebuild directly (no lock) and built the Assistant for macOS, which it does not support.
 
-set -u
-cd "$(git rev-parse --show-toplevel)" || exit 2
+emulate -R zsh
+setopt no_unset pipe_fail
 
-# The project was renamed from "Maria's Notebook" to "Cosmic Daybook" on 2026-09-15;
-# older worktrees still carry the old name, so derive it unless overridden.
-if [ -z "${PROJECT:-}" ]; then
-  if [ -d "Cosmic Daybook.xcodeproj" ]; then PROJECT="Cosmic Daybook.xcodeproj"; APP_SCHEME="${APP_SCHEME:-Cosmic Daybook}"
-  elif [ -d "Maria's Notebook.xcodeproj" ]; then PROJECT="Maria's Notebook.xcodeproj"; APP_SCHEME="${APP_SCHEME:-Maria's Notebook}"
-  else echo "no .xcodeproj found in $(pwd)"; exit 2; fi
+top=$(git rev-parse --show-toplevel 2>/dev/null) || { print "not in a git checkout"; exit 2 }
+cd $top
+
+# The project was renamed from "Maria's Notebook" to "Cosmic Daybook" on 2026-09-15; older
+# worktrees still carry the old name, so derive it unless overridden.
+if [[ -z ${PROJECT:-} ]]; then
+  if [[ -d "Cosmic Daybook.xcodeproj" ]]; then PROJECT="Cosmic Daybook.xcodeproj"; APP_SCHEME="${APP_SCHEME:-Cosmic Daybook}"
+  elif [[ -d "Maria's Notebook.xcodeproj" ]]; then PROJECT="Maria's Notebook.xcodeproj"; APP_SCHEME="${APP_SCHEME:-Maria's Notebook}"
+  else print "no .xcodeproj found in $top"; exit 2; fi
 fi
-APP_SCHEME="${APP_SCHEME:-Cosmic Daybook}"
-COMPANION_SCHEME="${COMPANION_SCHEME:-Daybook Assistant}"
-# Simulator: SIM_ID=<UDID> is unambiguous (this Mac has two devices named "iPhone 17" and two
-# "iPhone 17 Pro"; `xcrun simctl list devices available`). SIM_NAME is the fallback.
-if [ -n "${SIM_ID:-}" ]; then SIM_DEST="platform=iOS Simulator,id=${SIM_ID}"
-else SIM_NAME="${SIM_NAME:-iPhone 17}"; SIM_DEST="platform=iOS Simulator,name=${SIM_NAME},OS=27.0"; fi
-MAC_DEST="platform=macOS"
-LOGDIR="${TMPDIR:-/tmp}/efficiency-pass-verify"
-mkdir -p "$LOGDIR"
+APP_SCHEME=${APP_SCHEME:-Cosmic Daybook}
+COMPANION_SCHEME=${COMPANION_SCHEME:-Daybook Assistant}
+LOGDIR=${LOGDIR:-${TMPDIR:-/tmp}/efficiency-pass-verify}
+mkdir -p $LOGDIR
 
-SKIP_TESTS=0; MAC_TESTS=0
+skip_tests=0 mac_tests=0
 for a in "$@"; do
-  case "$a" in
-    --skip-tests) SKIP_TESTS=1 ;;
-    --macos-tests) MAC_TESTS=1 ;;
-    *) echo "unknown flag $a"; exit 2 ;;
+  case $a in
+    --skip-tests) skip_tests=1 ;;
+    --macos-tests) mac_tests=1 ;;
+    *) print "unknown flag $a"; exit 2 ;;
   esac
 done
 
+# Simulator: SIM_ID is unambiguous; otherwise the first available device with SIM_NAME.
+if [[ -n ${SIM_ID:-} ]]; then
+  sim=$SIM_ID
+else
+  sim_name=${SIM_NAME:-iPhone 17}
+  sim=$(xcrun simctl list devices available -j 2>/dev/null | python3 -c '
+import json, sys
+name = sys.argv[1]
+devices = json.load(sys.stdin)["devices"]
+ids = [d["udid"] for runtime, ds in devices.items() if "iOS" in runtime for d in ds if d["name"] == name]
+print(ids[0] if ids else "")' $sim_name)
+  [[ -n $sim ]] || { print "no available simulator named '$sim_name'; pass SIM_ID=<udid> (xcrun simctl list devices available)"; exit 2 }
+fi
+sim_dest="platform=iOS Simulator,id=$sim"
+
+# Builds go through the lock when the script is there (it is on main since 2026-09-24).
+if [[ -x Scripts/locked_xcodebuild.sh ]]; then build_cmd=(Scripts/locked_xcodebuild.sh)
+else build_cmd=(xcodebuild); print "note: Scripts/locked_xcodebuild.sh not found; building without the lock"; fi
+flags=(COMPILER_INDEX_STORE_ENABLE=NO)
+if [[ $(git rev-parse --path-format=absolute --git-dir) != $(git rev-parse --path-format=absolute --git-common-dir) ]]; then
+  flags+=(SWIFT_ENABLE_PREFIX_MAPPING=YES SWIFT_ENABLE_PROJECT_PREFIX_MAPPING=YES CLANG_ENABLE_PREFIX_MAPPING=YES)
+fi
+print "project: $PROJECT   simulator: $sim   logs: $LOGDIR"
+
 verify_status=0
-step() { echo; echo "=== $1"; }
 
-run_build() { # scheme dest logname
-  local log="$LOGDIR/$3.log"
-  xcodebuild build -project "$PROJECT" -scheme "$1" -destination "$2" -quiet > "$log" 2>&1
-  local rc=$?
-  if [ $rc -ne 0 ]; then
-    echo "BUILD FAILED ($1, $2) — errors:"; grep -E "error:" "$log" | head -30
-    verify_status=1
+locked() {  # locked <log> <xcodebuild arguments…>: retries while the lock was never obtained (75)
+  local log=$1; shift
+  local rc=0
+  for attempt in 1 2 3; do
+    BUILD_LOCK_WAIT=${BUILD_LOCK_WAIT:-3600} $build_cmd "$@" > $log 2>&1
+    rc=$?
+    (( rc == 75 )) || return $rc
+    print "  (never got the build lock; retrying)"
+  done
+  return $rc
+}
+
+build_step() {  # build_step <label> <log name> <xcodebuild arguments…>
+  local label=$1 name=$2; shift 2
+  local log=$LOGDIR/$name.log
+  print "\n=== $label"
+  if locked $log "$@"; then
+    print "ok"
+    local timing others
+    timing=$(grep -c "took [0-9]*ms to type-check" $log)
+    others=$(grep "warning:" $log | grep -v "to type-check" | grep -v appintentsmetadataprocessor | sort -u)
+    [[ -n $others ]] && { print "  warnings:"; print -r -- $others | head -10 | sed 's/^/    /' }
+    (( timing > 0 )) && print "  note: $timing type-check timing warnings (wall-clock, heat-dependent; confirm with Scripts/typecheck_timing.py before acting)"
   else
-    echo "build ok ($1, $2)"
-    local warn; warn=$(grep -cE "warning: .*(took|expression|main actor|Sendable)" "$log")
-    [ "$warn" -gt 0 ] && echo "  note: $warn isolation/type-check warnings, see $log"
-  fi
-}
-
-step "Build $APP_SCHEME (iOS simulator)";   run_build "$APP_SCHEME" "$SIM_DEST" app-ios
-step "Build $APP_SCHEME (macOS)";           run_build "$APP_SCHEME" "$MAC_DEST" app-macos
-step "Build $COMPANION_SCHEME (macOS)";     run_build "$COMPANION_SCHEME" "$MAC_DEST" companion-macos
-
-if [ $verify_status -ne 0 ]; then echo; echo "Stopping before tests: a build failed."; exit 1; fi
-if [ $SKIP_TESTS -eq 1 ]; then echo; echo "Builds green; tests skipped by flag."; exit 0; fi
-
-run_tests() { # dest logname
-  local log="$LOGDIR/$2.log"
-  local before; before=$(ls -dt ~/Library/Developer/Xcode/DerivedData/*/Logs/Test/*.xcresult 2>/dev/null | head -1)
-  xcodebuild test -project "$PROJECT" -scheme "$APP_SCHEME" -destination "$1" > "$log" 2>&1
-  local rc=$?
-  local verdict; verdict=$(grep -E "\*\* TEST (SUCCEEDED|FAILED) \*\*" "$log" | tail -1)
-  # XCTest prints "Executed N tests"; Swift Testing prints "Test run with N tests passed/failed".
-  local executed; executed=$(grep -E "Executed [0-9]+ tests?|Test run with [0-9]+ tests? (passed|failed)" "$log" | tail -2 | tr '\n' ' ')
-  echo "${verdict:-no verdict line found} — ${executed:-no test-count line found (suspicious: did anything run?)}"
-  local newest; newest=$(ls -dt ~/Library/Developer/Xcode/DerivedData/*/Logs/Test/*.xcresult 2>/dev/null | head -1)
-  if [ $rc -ne 0 ] || [ -z "$verdict" ] || echo "$verdict" | grep -q FAILED; then
+    print "FAILED — errors (full log: $log):"
+    grep -E "error:" $log | sort -u | head -20 | sed 's/^/  /'
     verify_status=1
-    if [ -n "$newest" ] && [ "$newest" != "$before" ]; then
-      echo "Failures from $newest:"
-      xcrun xcresulttool get test-results tests --path "$newest" --compact 2>/dev/null \
-        | python3 -c 'import json,sys
-def walk(n):
-    if isinstance(n,dict):
-        if n.get("result")=="Failed" and n.get("nodeType")=="Test Case":
-            print(" -",n.get("name"))
-            for c in n.get("children",[]):
-                if c.get("nodeType")=="Failure Message": print("     ",c.get("name"))
-        for c in n.get("children",[]): walk(c)
-    elif isinstance(n,list):
-        for c in n: walk(c)
-try: walk(json.load(sys.stdin))
-except Exception as e: print("   (could not parse xcresult:",e,")")'
-    fi
-    echo "Full log: $log"
   fi
 }
 
-step "Test suite (iOS simulator)"; run_tests "$SIM_DEST" tests-ios
-if [ $MAC_TESTS -eq 1 ]; then step "Test suite (macOS — live-store warning acknowledged)"; run_tests "$MAC_DEST" tests-macos; fi
+build_step "$APP_SCHEME for the iOS simulator (build-for-testing)" app-ios \
+  build-for-testing -project $PROJECT -scheme $APP_SCHEME -destination $sim_dest $flags
+build_step "$APP_SCHEME for macOS" app-macos \
+  build -project $PROJECT -scheme $APP_SCHEME -destination "platform=macOS" $flags
+build_step "$COMPANION_SCHEME for the iOS simulator" assistant-ios \
+  build -project $PROJECT -scheme $COMPANION_SCHEME -destination $sim_dest $flags
 
-echo
-if [ $verify_status -eq 0 ]; then echo "VERIFY PASSED"; else echo "VERIFY FAILED"; fi
+if (( verify_status != 0 )); then print "\nStopping before tests: a build failed.\nVERIFY FAILED"; exit 1; fi
+if (( skip_tests )); then print "\nBuilds green; tests skipped by flag."; exit 0; fi
+
+report_result() {  # report_result <xcresult>
+  xcrun xcresulttool get test-results summary --path $1 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception as e:
+    print("  (could not read the result bundle:", e, ")"); sys.exit(0)
+print("  totals: {} tests, {} passed, {} failed, {} skipped".format(
+    d.get("totalTestCount"), d.get("passedTests"), d.get("failedTests"), d.get("skippedTests")))
+for f in d.get("testFailures", []):
+    print("  FAIL", f.get("testName"), "|", (f.get("failureText") or "").replace("\n", " ")[:300])'
+}
+
+run_suite() {  # run_suite <label> <name> <xcodebuild arguments…>
+  local label=$1 name=$2; shift 2
+  local log=$LOGDIR/$name.log result=$LOGDIR/$name.xcresult
+  print "\n=== $label"
+  rm -rf $result
+  "$@" -resultBundlePath $result > $log 2>&1
+  local rc=$?
+  local verdict=$(grep -oE '\*\* TEST (EXECUTE )?(SUCCEEDED|FAILED) \*\*' $log | tail -1)
+  print "  ${verdict:-no verdict line (did anything run? see $log)}"
+  report_result $result
+  if (( rc != 0 )) || [[ $verdict != *SUCCEEDED* ]]; then verify_status=1; print "  log: $log"; fi
+}
+
+run_suite "Full suite on the iOS simulator" tests-ios \
+  nice -n 10 xcodebuild test-without-building -project $PROJECT -scheme $APP_SCHEME \
+  -destination $sim_dest -collect-test-diagnostics never
+if (( mac_tests )); then
+  run_suite "Full suite on macOS (live-store warning acknowledged)" tests-macos \
+    $build_cmd test -project $PROJECT -scheme $APP_SCHEME -destination "platform=macOS" $flags \
+    -collect-test-diagnostics never
+fi
+
+print
+if (( verify_status == 0 )); then print "VERIFY PASSED"; else print "VERIFY FAILED"; fi
 exit $verify_status

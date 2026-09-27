@@ -128,6 +128,21 @@ should join that list; user-initiated work (Sync Now, a manual backup, a search)
    from the audit's margins. 14 landed separately (per-store history cursor, 74d767f1). Still open:
    1 (Danny now runs the Release copy; re-take the baseline); 22 parked, 49 left by decision.
 
+## Found by the audit rules on 2026-09-27, not yet fixed
+
+The twelve rules added that day flag these on main 20e21cbd; each is a real candidate:
+
+- `model_built_in_view_init`: `QuickNoteSheet` (two inits), `AIPlanningAssistantView`,
+  `DataManagementGrid`, `StudentDetailView`, `WorkDetailView` build their model in `init` (a new
+  one per parent redraw, as TodayView did).
+- `file_resolve_in_view`: `LessonDetailView+FileHandling.resolveLessonFileURL()` is read from the
+  view's body.
+- `heavy_loop_without_pool`: `StoryAnalyzer` reads PDF pages in two loops with no pool;
+  `StoryLessonMatcher` embeds word by word.
+- `ubiquity_container_lookup`: `BackupFolderStorage` (two calls, one from the Settings label).
+- `open_window_call`: the Keyboard Shortcuts `WindowGroup` (pressing ⌘/ twice opens a second
+  window; a `Window` scene would not).
+
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
 All `repeatForever` animations are gated or bounded; RootView / StudentsView / WorksAgenda
@@ -165,8 +180,9 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   will touch changed on `main` (`git diff --stat HEAD...main -- <files>`), stay on your base,
   do the work, and say in the report that the diff needs a merge against `main`; do not
   rebase or merge on your own inside an eval or agent run.
-- This Mac has two simulators named "iPhone 17" and two named "iPhone 17 Pro". Pass
-  `SIM_ID=<UDID>` to `verify.sh` (from `xcrun simctl list devices available`) when it matters.
+- Simulator names can repeat on this Mac. `verify.sh` takes the first available device named
+  `SIM_NAME` (default "iPhone 17"); pass `SIM_ID=<UDID>` (from `xcrun simctl list devices
+  available`) when it matters, and give each parallel agent its own device.
 - SwiftLint config is `Cosmic Daybook/.swiftlint.yml` (the Edit/Write hook runs it). Some
   files carry pre-existing `file_length` / `type_body_length` violations; check a baseline.
 - Timing tests under the parallel suite must poll with a deadline, never sleep a fixed
@@ -189,11 +205,10 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
 - Adding a predicate can make SQLite pick another index (check `EXPLAIN QUERY PLAN`), which
   changes the row order of a fetch without complete sort descriptors, and so which rows a
   capped read keeps.
-- `verify.sh` calls `xcodebuild` directly (not `Scripts/locked_xcodebuild.sh`) and builds the
-  Daybook Assistant for `platform=macOS`; for a lock-respecting gate build every target through
-  the lock (the Assistant on an iOS simulator) and run `test-without-building`, whose verdict
-  line is `** TEST EXECUTE SUCCEEDED **` (read totals with `xcrun xcresulttool get test-results
-  summary`).
+- `verify.sh` was rewritten on 2026-09-27: every build goes through the lock (the Assistant on
+  the iOS simulator — it does not build for macOS), the suite runs with `test-without-building`
+  (verdict line `** TEST EXECUTE SUCCEEDED **`), and the totals and failures come from `xcrun
+  xcresulttool get test-results summary`. A hand-rolled gate should do the same.
 - `AlbumSemanticBackendTests` need the sentence-embedding model, which the iPhone 17 simulator
   loads in ~100 ms and the iPhone Air / iPhone 17e simulators never load. Run gates on iPhone 17;
   on the others those two tests fail (and can starve main-actor timing tests such as
