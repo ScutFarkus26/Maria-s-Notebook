@@ -259,7 +259,7 @@ nonisolated public enum BackupWriter {
 
     /// Builds one row of the table from a payload accessor, so the count pass and
     /// the encode pass can never disagree about which array an entity maps to.
-    private static func serialization<T: Encodable & Sendable>(
+    static func serialization<T: Encodable & Sendable>(
         _ entityName: String,
         _ select: @escaping @Sendable (BackupPayload) -> [T]
     ) -> EntitySerialization {
@@ -270,92 +270,8 @@ nonisolated public enum BackupWriter {
         )
     }
 
-    static let entitySerializations: [EntitySerialization] = [
-        // Core (required arrays)
-        serialization("Student") { $0.students },
-        serialization("Lesson") { $0.lessons },
-        serialization("LessonAssignment") { $0.lessonAssignments },
-        serialization("Note") { $0.notes },
-        serialization("NonSchoolDay") { $0.nonSchoolDays },
-        serialization("SchoolDayOverride") { $0.schoolDayOverrides },
-        serialization("StudentMeeting") { $0.studentMeetings },
-        serialization("CommunityTopic") { $0.communityTopics },
-        serialization("ProposedSolution") { $0.proposedSolutions },
-        serialization("CommunityAttachment") { $0.communityAttachments },
-        serialization("AttendanceRecord") { $0.attendance },
-        serialization("WorkCompletionRecord") { $0.workCompletions },
-        serialization("Project") { $0.projects },
-        serialization("ProjectSession") { $0.projectSessions },
-        serialization("ProjectRole") { $0.projectRoles },
-
-        // Optional arrays (v8+ extensions)
-        serialization("WorkModel") { $0.workModels ?? [] },
-        serialization("WorkCheckIn") { $0.workCheckIns ?? [] },
-        serialization("WorkStep") { $0.workSteps ?? [] },
-        serialization("WorkParticipantEntity") { $0.workParticipants ?? [] },
-        serialization("PracticeSession") { $0.practiceSessions ?? [] },
-        serialization("LessonAttachment") { $0.lessonAttachments ?? [] },
-        serialization("LessonPresentation") { $0.lessonPresentations ?? [] },
-        serialization("LessonRecallCheck") { $0.recallChecks ?? [] },
-        serialization("SampleWork") { $0.sampleWorks ?? [] },
-        serialization("SampleWorkStep") { $0.sampleWorkSteps ?? [] },
-        serialization("NoteTemplate") { $0.noteTemplates ?? [] },
-        serialization("MeetingTemplate") { $0.meetingTemplates ?? [] },
-        serialization("Reminder") { $0.reminders ?? [] },
-        serialization("CalendarEvent") { $0.calendarEvents ?? [] },
-        serialization("Track") { $0.tracks ?? [] },
-        serialization("TrackStep") { $0.trackSteps ?? [] },
-        serialization("StudentTrackEnrollment") { $0.studentTrackEnrollments ?? [] },
-        serialization("SequenceTrack") { $0.sequenceTracks ?? [] },
-        serialization("Document") { $0.documents ?? [] },
-        serialization("Supply") { $0.supplies ?? [] },
-        serialization("Procedure") { $0.procedures ?? [] },
-        serialization("Schedule") { $0.schedules ?? [] },
-        serialization("ScheduleSlot") { $0.scheduleSlots ?? [] },
-        serialization("Issue") { $0.issues ?? [] },
-        serialization("IssueAction") { $0.issueActions ?? [] },
-        serialization("DevelopmentSnapshot") { $0.developmentSnapshots ?? [] },
-        serialization("TodoItem") { $0.todoItems ?? [] },
-        serialization("TodoSubtask") { $0.todoSubtasks ?? [] },
-        serialization("TodoTemplate") { $0.todoTemplates ?? [] },
-        serialization("TodayAgendaOrder") { $0.todayAgendaOrders ?? [] },
-        serialization("PlanningRecommendation") { $0.planningRecommendations ?? [] },
-        serialization("Resource") { $0.resources ?? [] },
-        serialization("NoteStudentLink") { $0.noteStudentLinks ?? [] },
-        serialization("GoingOut") { $0.goingOuts ?? [] },
-        serialization("GoingOutChecklistItem") { $0.goingOutChecklistItems ?? [] },
-        serialization("ClassroomJob") { $0.classroomJobs ?? [] },
-        serialization("JobAssignment") { $0.jobAssignments ?? [] },
-        serialization("CalendarNote") { $0.calendarNotes ?? [] },
-        serialization("ScheduledMeeting") { $0.scheduledMeetings ?? [] },
-        serialization("ClassroomMembership") { $0.classroomMemberships ?? [] },
-        serialization("MeetingWorkReview") { $0.meetingWorkReviews ?? [] },
-        serialization("StudentFocusItem") { $0.studentFocusItems ?? [] },
-
-        // Format v18+ extensions
-        serialization("DayPad") { $0.dayPads ?? [] },
-        serialization("YearPlanEntry") { $0.yearPlanEntries ?? [] },
-        serialization("LessonSequenceSettings") { $0.lessonSequenceSettings ?? [] },
-        serialization("Story") { $0.stories ?? [] },
-        serialization("BookClubPacket") { $0.bookClubPackets ?? [] },
-        serialization("BookClubSession") { $0.bookClubSessions ?? [] },
-        serialization("BookClubMeeting") { $0.bookClubMeetings ?? [] },
-
-        // Format v20+ extensions
-        serialization("Guardian") { $0.guardians ?? [] },
-        serialization("ParentCommunication") { $0.parentCommunications ?? [] },
-
-        // Format v21+ extensions — teaching-album annotations
-        serialization("AlbumBookmark") { $0.albumBookmarks ?? [] },
-        serialization("AlbumPageNote") { $0.albumPageNotes ?? [] },
-        serialization("AlbumRecentVisit") { $0.albumRecentVisits ?? [] },
-        serialization("AlbumReadingPosition") { $0.albumReadingPositions ?? [] },
-        serialization("AlbumHighlight") { $0.albumHighlights ?? [] },
-        serialization("AlbumPageInk") { $0.albumPageInk ?? [] },
-
-        // Format v27+ extensions — Orders
-        serialization("OrderItem") { $0.orderItems ?? [] }
-    ]
+    /// The writer's rows, from `BackupEntityTable`, in archive order.
+    static let entitySerializations: [EntitySerialization] = BackupEntityTable.entities.map(\.serialization)
 
     /// Every entity name this writer can serialize, in archive order. The
     /// coverage tests compare this against `BackupEntityRegistry`.

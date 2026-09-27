@@ -313,111 +313,23 @@ enum BackupPayloadDeduplicator {
 
     // Removes duplicate records from the backup payload, keeping the first occurrence of each ID.
     // This handles backups created from databases that had duplicate records due to CloudKit sync issues.
-    // swiftlint:disable:next function_body_length
+    // Every backed-up type is deduplicated through `BackupEntityTable`, so none can be missed
+    // (ClassroomMembership once was, and every restore dropped it); the payload is copied, not
+    // rebuilt, so no field can fall out either.
     static func deduplicate(_ payload: BackupPayload) -> BackupPayload {
-        func uniqueBy<T>(_ items: [T], id: (T) -> UUID) -> [T] {
-            var seen = Set<UUID>()
-            return items.filter { item in
-                let itemId = id(item)
-                guard !seen.contains(itemId) else { return false }
-                seen.insert(itemId)
-                return true
-            }
+        var result = payload
+        for entity in BackupEntityTable.entities {
+            entity.deduplicate(&result)
         }
-
-        var result = BackupPayload(
-            items: payload.items,
-            students: uniqueBy(payload.students) { $0.id },
-            lessons: uniqueBy(payload.lessons) { $0.id },
-            lessonAssignments: uniqueBy(payload.lessonAssignments) { $0.id },
-            notes: uniqueBy(payload.notes) { $0.id },
-            nonSchoolDays: uniqueBy(payload.nonSchoolDays) { $0.id },
-            schoolDayOverrides: uniqueBy(payload.schoolDayOverrides) { $0.id },
-            studentMeetings: uniqueBy(payload.studentMeetings) { $0.id },
-            communityTopics: uniqueBy(payload.communityTopics) { $0.id },
-            proposedSolutions: uniqueBy(payload.proposedSolutions) { $0.id },
-            communityAttachments: uniqueBy(payload.communityAttachments) { $0.id },
-            attendance: uniqueBy(payload.attendance) { $0.id },
-            workCompletions: uniqueBy(payload.workCompletions) { $0.id },
-            projects: uniqueBy(payload.projects) { $0.id },
-            projectAssignmentTemplates: uniqueBy(payload.projectAssignmentTemplates) { $0.id },
-            projectSessions: uniqueBy(payload.projectSessions) { $0.id },
-            projectRoles: uniqueBy(payload.projectRoles) { $0.id },
-            projectTemplateWeeks: uniqueBy(payload.projectTemplateWeeks) { $0.id },
-            projectWeekRoleAssignments: uniqueBy(payload.projectWeekRoleAssignments) { $0.id },
-            preferences: payload.preferences
-        )
-        
-        // Format v8+ entity deduplication
-        result.workModels = payload.workModels.map { uniqueBy($0) { $0.id } }
-        result.workCheckIns = payload.workCheckIns.map { uniqueBy($0) { $0.id } }
-        result.workSteps = payload.workSteps.map { uniqueBy($0) { $0.id } }
-        result.workParticipants = payload.workParticipants.map { uniqueBy($0) { $0.id } }
-        result.practiceSessions = payload.practiceSessions.map { uniqueBy($0) { $0.id } }
-        result.lessonAttachments = payload.lessonAttachments.map { uniqueBy($0) { $0.id } }
-        result.lessonPresentations = payload.lessonPresentations.map { uniqueBy($0) { $0.id } }
-        result.recallChecks = payload.recallChecks.map { uniqueBy($0) { $0.id } }
-        result.sampleWorks = payload.sampleWorks.map { uniqueBy($0) { $0.id } }
-        result.sampleWorkSteps = payload.sampleWorkSteps.map { uniqueBy($0) { $0.id } }
-        result.noteTemplates = payload.noteTemplates.map { uniqueBy($0) { $0.id } }
-        result.meetingTemplates = payload.meetingTemplates.map { uniqueBy($0) { $0.id } }
-        result.reminders = payload.reminders.map { uniqueBy($0) { $0.id } }
-        result.calendarEvents = payload.calendarEvents.map { uniqueBy($0) { $0.id } }
-        result.tracks = payload.tracks.map { uniqueBy($0) { $0.id } }
-        result.trackSteps = payload.trackSteps.map { uniqueBy($0) { $0.id } }
-        result.studentTrackEnrollments = payload.studentTrackEnrollments.map { uniqueBy($0) { $0.id } }
-        result.sequenceTracks = payload.sequenceTracks.map { uniqueBy($0) { $0.id } }
-        result.documents = payload.documents.map { uniqueBy($0) { $0.id } }
-        result.supplies = payload.supplies.map { uniqueBy($0) { $0.id } }
-        result.procedures = payload.procedures.map { uniqueBy($0) { $0.id } }
-        result.schedules = payload.schedules.map { uniqueBy($0) { $0.id } }
-        result.scheduleSlots = payload.scheduleSlots.map { uniqueBy($0) { $0.id } }
-        result.issues = payload.issues.map { uniqueBy($0) { $0.id } }
-        result.issueActions = payload.issueActions.map { uniqueBy($0) { $0.id } }
-        result.developmentSnapshots = payload.developmentSnapshots.map { uniqueBy($0) { $0.id } }
-        result.todoItems = payload.todoItems.map { uniqueBy($0) { $0.id } }
-        result.todoSubtasks = payload.todoSubtasks.map { uniqueBy($0) { $0.id } }
-        result.todoTemplates = payload.todoTemplates.map { uniqueBy($0) { $0.id } }
-        result.todayAgendaOrders = payload.todayAgendaOrders.map { uniqueBy($0) { $0.id } }
-        // Format v11+ entity deduplication
-        result.planningRecommendations = payload.planningRecommendations.map { uniqueBy($0) { $0.id } }
-        result.resources = payload.resources.map { uniqueBy($0) { $0.id } }
-        result.noteStudentLinks = payload.noteStudentLinks.map { uniqueBy($0) { $0.id } }
-        // Format v12+ entity deduplication
-        result.goingOuts = payload.goingOuts.map { uniqueBy($0) { $0.id } }
-        result.goingOutChecklistItems = payload.goingOutChecklistItems.map { uniqueBy($0) { $0.id } }
-        result.classroomJobs = payload.classroomJobs.map { uniqueBy($0) { $0.id } }
-        result.jobAssignments = payload.jobAssignments.map { uniqueBy($0) { $0.id } }
-        result.calendarNotes = payload.calendarNotes.map { uniqueBy($0) { $0.id } }
-        result.scheduledMeetings = payload.scheduledMeetings.map { uniqueBy($0) { $0.id } }
-        // Format v13+ entity deduplication
-        // (classroomMemberships was previously omitted here, so the dedup pass at
-        // the start of importPayload silently dropped it on every restore.)
-        result.classroomMemberships = payload.classroomMemberships.map { uniqueBy($0) { $0.id } }
-        // Format v14+ entity deduplication
-        result.meetingWorkReviews = payload.meetingWorkReviews.map { uniqueBy($0) { $0.id } }
-        result.studentFocusItems = payload.studentFocusItems.map { uniqueBy($0) { $0.id } }
-        // Format v18+ entity deduplication
-        result.dayPads = payload.dayPads.map { uniqueBy($0) { $0.id } }
-        result.yearPlanEntries = payload.yearPlanEntries.map { uniqueBy($0) { $0.id } }
-        result.lessonSequenceSettings = payload.lessonSequenceSettings.map { uniqueBy($0) { $0.id } }
-        result.stories = payload.stories.map { uniqueBy($0) { $0.id } }
-        result.bookClubPackets = payload.bookClubPackets.map { uniqueBy($0) { $0.id } }
-        result.bookClubSessions = payload.bookClubSessions.map { uniqueBy($0) { $0.id } }
-        result.bookClubMeetings = payload.bookClubMeetings.map { uniqueBy($0) { $0.id } }
-        // Format v20+ entity deduplication
-        result.guardians = payload.guardians.map { uniqueBy($0) { $0.id } }
-        result.parentCommunications = payload.parentCommunications.map { uniqueBy($0) { $0.id } }
-        // Format v21+ entity deduplication
-        result.albumBookmarks = payload.albumBookmarks.map { uniqueBy($0) { $0.id } }
-        result.albumPageNotes = payload.albumPageNotes.map { uniqueBy($0) { $0.id } }
-        result.albumRecentVisits = payload.albumRecentVisits.map { uniqueBy($0) { $0.id } }
-        result.albumReadingPositions = payload.albumReadingPositions.map { uniqueBy($0) { $0.id } }
-        result.albumHighlights = payload.albumHighlights.map { uniqueBy($0) { $0.id } }
-        result.albumPageInk = payload.albumPageInk.map { uniqueBy($0) { $0.id } }
-        // Format v27+ entity deduplication
-        result.orderItems = payload.orderItems.map { uniqueBy($0) { $0.id } }
-
+        // The retired project types still decode from old backups.
+        result.projectAssignmentTemplates = uniqueByID(payload.projectAssignmentTemplates) { $0.id }
+        result.projectTemplateWeeks = uniqueByID(payload.projectTemplateWeeks) { $0.id }
+        result.projectWeekRoleAssignments = uniqueByID(payload.projectWeekRoleAssignments) { $0.id }
         return result
+    }
+
+    private static func uniqueByID<T>(_ items: [T], id: (T) -> UUID) -> [T] {
+        var seen = Set<UUID>()
+        return items.filter { seen.insert(id($0)).inserted }
     }
 }
