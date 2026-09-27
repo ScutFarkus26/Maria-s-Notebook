@@ -7,15 +7,18 @@ import OSLog
 ///
 /// Mirrors the pattern used by `StoryFileStorage`, `LessonFileStorage`,
 /// and `ResourceFileStorage` so manual exports land in a predictable,
-/// user-visible location without requiring a security-scoped bookmark.
+/// user-visible location without requiring a security-scoped bookmark. Like
+/// them, it reads the container's URL from `UbiquityContainerCache`, which
+/// looks it up off the main thread as Apple requires (the Settings label
+/// asked FileManager on the main thread on every draw).
 enum BackupFolderStorage {
     private static let logger = Logger.backup
     private static let folderName = "Backups"
 
     /// Returns the managed backup directory, creating it if needed.
-    static func managedBackupsDirectory() throws -> URL {
+    static func managedBackupsDirectory(container: UbiquityContainerCache = .shared) throws -> URL {
         let fm = FileManager.default
-        if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) {
+        if let ubiquityURL = container.url() {
             let dir = ubiquityURL
                 .appendingPathComponent("Documents", isDirectory: true)
                 .appendingPathComponent(folderName, isDirectory: true)
@@ -36,12 +39,11 @@ enum BackupFolderStorage {
     /// Best-effort label for UI display. Returns the iCloud-relative path
     /// when applicable (e.g. "iCloud Drive › Cosmic Daybook › Backups"),
     /// otherwise a local fallback label.
-    static func displayLabel() -> String {
-        guard let url = try? managedBackupsDirectory() else {
+    static func displayLabel(container: UbiquityContainerCache = .shared) -> String {
+        guard let url = try? managedBackupsDirectory(container: container) else {
             return "Default Backups Folder"
         }
-        let fm = FileManager.default
-        if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil),
+        if let ubiquityURL = container.url(),
            url.path.hasPrefix(ubiquityURL.path) {
             return "iCloud Drive › Cosmic Daybook › \(folderName)"
         }

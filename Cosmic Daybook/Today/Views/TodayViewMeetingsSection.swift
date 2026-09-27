@@ -118,11 +118,16 @@ extension TodayView {
         }
     }
 
+    /// Opens the plan once its file is on this device (an iCloud file may
+    /// still have to download; see `UbiquitousFile`).
     private func openLessonPlan(at url: URL) {
+        Task {
+            let url = await UbiquitousFile.localURL(for: url)
 #if os(iOS)
-        UIApplication.shared.open(url)
+            _ = await UIApplication.shared.open(url)
 #elseif os(macOS)
-        NSWorkspace.shared.open(url)
+            NSWorkspace.shared.open(url)
 #endif
+        }
     }
 }

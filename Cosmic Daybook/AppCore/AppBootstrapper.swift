@@ -184,6 +184,16 @@ final class AppBootstrapper {
             logger.notice("Post-launch: search index refresh skipped — device hot or in Low Power Mode")
             return
         }
+
+        // 3.95. iCloud files. Photos kept on this device before note photos
+        // moved to iCloud (2026-09-27) join them, once iCloud Drive is on; a
+        // no-op once the local folder is empty. Then, on iPhone and iPad, ask
+        // iCloud for every file of the app's not yet downloaded, so lesson
+        // files, stories and photos open without a network.
+        await PhotoStorageService.moveLocalPhotosToICloud()
+        #if !os(macOS)
+        UbiquitousDownloadSweep.shared.start()
+        #endif
         let searchIndex = LaunchSignposts.begin("SearchIndexRebuild")
         await SearchIndexService.shared.refresh(container: coreDataStack.container)
         LaunchSignposts.end("SearchIndexRebuild", searchIndex)

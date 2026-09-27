@@ -12,7 +12,11 @@ enum ResourceDocumentActions {
     private static let logger = Logger.resources
 
     static func open(_ resource: CDResource) {
-        guard let url = exportableFileURL(for: resource) else { return }
+        Task { await openWhenReady(resource) }
+    }
+
+    private static func openWhenReady(_ resource: CDResource) async {
+        guard let url = await exportableFileURL(for: resource) else { return }
         #if os(macOS)
         NSWorkspace.shared.open(url)
         #else
@@ -35,7 +39,11 @@ enum ResourceDocumentActions {
     }
 
     static func print(_ resource: CDResource) {
-        guard let url = exportableFileURL(for: resource) else { return }
+        Task { await printWhenReady(resource) }
+    }
+
+    private static func printWhenReady(_ resource: CDResource) async {
+        guard let url = await exportableFileURL(for: resource) else { return }
         #if os(iOS)
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo(dictionary: nil)
@@ -81,10 +89,13 @@ enum ResourceDocumentActions {
         #endif
     }
 
-    private static func exportableFileURL(for resource: CDResource) -> URL? {
+    /// The file to hand to Open, Share or Print, once it is on this device (an
+    /// iCloud file may still have to download; see `UbiquitousFile`).
+    private static func exportableFileURL(for resource: CDResource) async -> URL? {
         guard !resource.fileRelativePath.isEmpty else { return nil }
         do {
-            let url = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
+            let stored = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
+            let url = await UbiquitousFile.localURL(for: stored)
             #if os(macOS)
             return url
             #else

@@ -98,14 +98,19 @@ extension PresentationDetailContentView {
         }
     }
 
+    /// Opens the file once it is on this device (an iCloud file may still
+    /// have to download; see `UbiquitousFile`).
     func openInPages(_ url: URL) {
-        let needsAccess = url.startAccessingSecurityScopedResource()
-        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        Task {
+            let url = await UbiquitousFile.localURL(for: url)
+            let needsAccess = url.startAccessingSecurityScopedResource()
+            defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
 #if os(iOS)
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
 #elseif os(macOS)
-        openInPagesOnMac(url)
+            openInPagesOnMac(url)
 #endif
+        }
     }
 
 #if os(macOS)

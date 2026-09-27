@@ -120,7 +120,7 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
         let destDir = try directory()
         let destination = uniqueDestination(in: destDir, baseName: sanitizedBaseName(title), extWithDot: ".pdf")
         do {
-            try fm.copyItem(at: sourceURL, to: destination)
+            try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destination)
         } catch {
             throw ImportError.copyFailed(underlying: error)
         }
@@ -138,7 +138,9 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
         let fm = FileManager.default
         var destination = directory.appendingPathComponent(baseName + extWithDot, isDirectory: false)
         var counter = 2
-        while fm.fileExists(atPath: destination.path) {
+        // A name held by a file still in iCloud (not yet downloaded here) is taken too.
+        while fm.fileExists(atPath: destination.path)
+            || fm.fileExists(atPath: UbiquitousFile.placeholderURL(for: destination).path) {
             destination = directory.appendingPathComponent("\(baseName)-\(counter)\(extWithDot)", isDirectory: false)
             counter += 1
         }
@@ -155,26 +157,42 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
     // MARK: - Resolution
 
     /// Resolves a stored file, preferring the bookmark and falling back to the relative path.
+    ///
+    /// A file that is in iCloud but not yet on this device (see `UbiquitousFile`)
+    /// resolves too, so Open and Share stay offered, and its download starts
+    /// here; the opening paths wait for it with `readyURL(bookmark:relativePath:)`.
     func resolveURL(bookmark: Data?, relativePath: String) -> URL? {
         if let bookmark, let url = resolveBookmark(bookmark) {
+            UbiquitousFile.requestDownloadIfNeeded(url)
             return url
         }
         let trimmed = relativePath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         do {
             let url = try resolve(relativePath: trimmed)
-            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+            guard UbiquitousFile.isAvailable(url) else { return nil }
+            UbiquitousFile.requestDownloadIfNeeded(url)
+            return url
         } catch {
             logger.warning("Failed to resolve relative path \(trimmed): \(error.localizedDescription)")
             return nil
         }
     }
 
+    /// `resolveURL(bookmark:relativePath:)`, then waits until the file's bytes
+    /// are on this device, downloading them from iCloud first when needed. For
+    /// paths that read the file (open, preview, share, print, analyze); nil
+    /// when the file is missing or could not be downloaded.
+    func readyURL(bookmark: Data?, relativePath: String) async -> URL? {
+        guard let url = resolveURL(bookmark: bookmark, relativePath: relativePath) else { return nil }
+        return await UbiquitousFile.ensureLocal(url)
+    }
+
     private func resolveBookmark(_ data: Data) -> URL? {
         var stale = false
         do {
             let url = try URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
-            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+            return UbiquitousFile.isAvailable(url) ? url : nil
         } catch {
             return nil
         }
@@ -205,11 +223,8 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
     }
 
     func deleteIfManaged(_ url: URL) throws {
-        let fm = FileManager.default
         guard isManagedURL(url) else { return }
-        if fm.fileExists(atPath: url.path) {
-            try fm.removeItem(at: url)
-        }
+        try UbiquitousFile.coordinatedDelete(url)
     }
 
     // MARK: - Filenames

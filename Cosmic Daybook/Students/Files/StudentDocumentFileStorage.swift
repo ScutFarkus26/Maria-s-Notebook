@@ -59,7 +59,7 @@ enum StudentDocumentFileStorage {
             extWithDot: ".pdf"
         )
         do {
-            try data.write(to: destination, options: .atomic)
+            try UbiquitousFile.coordinatedWrite(data, to: destination)
         } catch {
             throw StudentDocumentError.writeFailed(underlying: error)
         }

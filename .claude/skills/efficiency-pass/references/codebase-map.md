@@ -52,7 +52,8 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Fold presentation records without making managed objects | `PresentationRecordIndex` reads dictionary rows of just its columns (`+Rows`); the managed-object read still runs when the context holds pending edits of the three entities, in a child context, and for lesson-scoped builds | `Services/PresentationRecordIndex+Rows.swift` |
 | Build a whole-record index off the main thread | `PresentationRecordIndex.readInBackground(students:from:)` (`@concurrent`, own private context on the coordinator) — only when `readPath` says the view context would take the column read; Today numbers every rebuild (`readyForNextGeneration`) so an overtaken one never publishes | `Services/PresentationRecordIndex+Background.swift`, `Today/ViewModels/TodayViewModel+ReadyForNext.swift` |
 | Resolve a file URL once per stored bookmark/path, not per redraw | `DocumentFileURLMemo` in `@State` (taps still resolve afresh) — Student Files cards, Book Club Open PDF, Resource detail | `Utils/DocumentFileURLMemo.swift` |
-| The iCloud Documents container URL without blocking the main thread | `UbiquityContainerCache` (looked up off-main at launch and on account change; each read checks the identity token) behind `…FileStorage.directory()` | `Utils/UbiquityContainerCache.swift` |
+| The iCloud Documents container URL without blocking the main thread | `UbiquityContainerCache` (looked up off-main at launch and on account change; each read checks the identity token) behind `…FileStorage.directory()`, `BackupFolderStorage` and the note-photo folder | `Utils/UbiquityContainerCache.swift` |
+| Read, write or delete a file in the iCloud container | `UbiquitousFile`: `isAvailable` / `needsDownload` (iOS `.name.icloud` placeholders, macOS dataless), `ensureLocal` / `localURL(for:)` (async coordinated read, waits for the download, 60 s cap, off-main), `coordinatedWrite` / `Copy` / `Move` / `Delete` / `Replace`. Reads of files already local stay uncoordinated (write-once names). On iPhone/iPad `UbiquitousDownloadSweep` requests every not-current file once per launch/foreground (≥ 1 h apart, `EnergyPolicy`-gated, backups skipped) | `Utils/UbiquitousFile.swift`, `Services/UbiquitousDownloadSweep.swift` |
 | Parse CSV | `CSVParser`, which reads through `CSVRecordScanner` (the text's UTF-8 bytes, not an `Array` of 16-byte `Character`s) and falls back to the character reader when a delimiter touches a non-ASCII neighbour; `LegacyCSVParser` in the tests is the old parser verbatim | `Utils/CSVRecordScanner.swift`, `Utils/CSVUtils.swift` |
 | A lesson by id in a view body (no table scan) | `lessonCatalog.lesson(id:in:)`: the catalog's row when it belongs to that context and isn't deleted, else the old `object(_:id:)` fetch | `Lessons/LessonCatalog+ContextLookup.swift` |
 | Lessons in the Lessons screen's order / any derived catalog order | `LessonCatalog.sortedByAreaSortIndexAndOrder` (area, sortIndex, orderInSequence); derived orders rebuild on first read behind the observed `version` — read `version` in a body that must refresh on any lesson change | `Lessons/LessonCatalog.swift` |
@@ -139,7 +140,7 @@ The twelve rules added that day flag these on main 20e21cbd; each is a real cand
   view's body.
 - `heavy_loop_without_pool`: `StoryAnalyzer` reads PDF pages in two loops with no pool;
   `StoryLessonMatcher` embeds word by word.
-- `ubiquity_container_lookup`: `BackupFolderStorage` (two calls, one from the Settings label).
+- `ubiquity_container_lookup`: none since 2026-09-27 (`BackupFolderStorage` now reads `UbiquityContainerCache`).
 - `open_window_call`: the Keyboard Shortcuts `WindowGroup` (pressing ⌘/ twice opens a second
   window; a `Window` scene would not).
 

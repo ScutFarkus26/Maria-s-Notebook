@@ -133,12 +133,12 @@ enum StoryImportService {
     }
 
     /// Re-runs analysis for an existing story. Skips overwriting fields the user has
-    /// edited manually.
+    /// edited manually. A PDF still in iCloud is downloaded first (see `UbiquitousFile`).
     static func reanalyze(
         story: CDStory,
         context: NSManagedObjectContext
-    ) {
-        guard let url = StoryFileStorage.resolveURL(
+    ) async {
+        guard let url = await StoryFileStorage.storage.readyURL(
             bookmark: story.pdfFileBookmark,
             relativePath: story.pdfFileRelativePath
         ) else {

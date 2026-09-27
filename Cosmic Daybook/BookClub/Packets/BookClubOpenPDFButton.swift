@@ -41,15 +41,20 @@ struct BookClubOpenPDFButton: View {
         )
     }
 
+    /// Opens the PDF once it is on this device (an iCloud file may still
+    /// have to download; see `UbiquitousFile`).
     private func openPDF() {
         guard let url = BookClubFileStorage.resolveURL(
             bookmark: packet.packetPDFBookmark,
             relativePath: packet.packetPDFRelativePath
         ) else { return }
-        #if os(macOS)
-        NSWorkspace.shared.open(url)
-        #else
-        UIApplication.shared.open(url)
-        #endif
+        Task {
+            let url = await UbiquitousFile.localURL(for: url)
+            #if os(macOS)
+            NSWorkspace.shared.open(url)
+            #else
+            _ = await UIApplication.shared.open(url)
+            #endif
+        }
     }
 }

@@ -12,12 +12,17 @@ import UIKit
 #endif
 
 extension StudentFilesTab {
+    /// Opens the document once its file is on this device (an iCloud file
+    /// may still have to download; see `UbiquitousFile`).
     func openDocumentInDefaultApp(_ url: URL) {
-        #if os(macOS)
-        NSWorkspace.shared.open(url)
-        #else
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
-        #endif
+        Task {
+            let url = await UbiquitousFile.localURL(for: url)
+            #if os(macOS)
+            NSWorkspace.shared.open(url)
+            #else
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            #endif
+        }
     }
 
     func handleDrop(_ urls: [URL]) -> Bool {

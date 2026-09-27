@@ -84,12 +84,17 @@ nonisolated extension BackupWriter {
         }
     }
 
+    /// The rename that makes the backup appear under its real name. The usual
+    /// destination is the iCloud Drive backups folder, so it is a coordinated
+    /// write (see `UbiquitousFile`): iCloud sees one finished file arrive.
     private static func moveIntoPlace(from tempURL: URL, to url: URL) throws {
         let fileManager = FileManager.default
-        do {
-            try fileManager.moveItem(at: tempURL, to: url)
-        } catch let error as CocoaError where error.code == .fileWriteFileExists {
-            _ = try fileManager.replaceItemAt(url, withItemAt: tempURL)
+        try UbiquitousFile.coordinatedReplace(at: url) { target in
+            do {
+                try fileManager.moveItem(at: tempURL, to: target)
+            } catch let error as CocoaError where error.code == .fileWriteFileExists {
+                _ = try fileManager.replaceItemAt(target, withItemAt: tempURL)
+            }
         }
     }
 }

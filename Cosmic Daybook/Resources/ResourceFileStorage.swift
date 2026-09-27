@@ -42,7 +42,7 @@ enum ResourceFileStorage {
             baseName: storage.sanitizedBaseName(title),
             extWithDot: sourceExt.isEmpty ? ".pdf" : "." + sourceExt
         )
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destinationURL)
         let relPath = try relativePath(forManagedURL: destinationURL)
         return (url: destinationURL, relativePath: relPath)
     }

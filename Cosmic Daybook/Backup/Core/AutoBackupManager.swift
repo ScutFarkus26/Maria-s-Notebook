@@ -498,7 +498,8 @@ final class AutoBackupManager {
             let toDelete = sorted.prefix(sorted.count - count)
             for url in toDelete {
                 do {
-                    try FileManager.default.removeItem(at: url)
+                    // Coordinated: the folder is usually in iCloud Drive.
+                    try UbiquitousFile.coordinatedDelete(url)
                 } catch {
                     Self.logger.warning("Failed to delete old backup \(url.lastPathComponent): \(error)")
                 }

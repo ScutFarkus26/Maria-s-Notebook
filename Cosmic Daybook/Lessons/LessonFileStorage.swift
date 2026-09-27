@@ -63,7 +63,7 @@ public enum LessonFileStorage {
             baseName: storage.sanitizedBaseName(lessonName?.trimmed()),
             extWithDot: sourceExt.isEmpty ? "" : "." + sourceExt
         )
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destinationURL)
         return destinationURL
     }
 
@@ -166,7 +166,7 @@ public enum LessonFileStorage {
             baseName: scopePrefix(for: scope) + baseName,
             extWithDot: extWithDot
         )
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destinationURL)
 
         let relativePath = try self.relativePath(forManagedURL: destinationURL)
         return (url: destinationURL, relativePath: relativePath)
@@ -207,9 +207,8 @@ public enum LessonFileStorage {
             excluding: currentURL
         )
 
-        let fm = FileManager.default
         if currentURL.standardizedFileURL != destinationURL.standardizedFileURL {
-            try fm.moveItem(at: currentURL, to: destinationURL)
+            try UbiquitousFile.coordinatedMove(from: currentURL, to: destinationURL)
         }
 
         let relativePath = try relativePath(forManagedURL: destinationURL)

@@ -74,6 +74,8 @@ enum CachedPhotoLoader {
         if let cached = diskCache?.decodedImage(for: cacheKey) {
             return Loaded(cgImage: cached, isFromDiskCache: true, diskCache: diskCache)
         }
+        // A photo taken on another device may still be in iCloud; wait for it.
+        await PhotoStorageService.downloadIfNeeded(filename: filename)
         // Downsampled so the full-size photo is never decoded
         guard let original = PhotoStorageService.downsampledCGImage(
             filename: filename,

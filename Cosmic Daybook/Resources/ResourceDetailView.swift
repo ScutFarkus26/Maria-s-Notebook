@@ -155,8 +155,8 @@ struct ResourceDetailView: View {
             }
         }
         .task {
-            loadPDF()
             markViewed()
+            await loadPDF()
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 500)
@@ -428,10 +428,13 @@ struct ResourceDetailView: View {
 
     // MARK: - Actions
 
-    private func loadPDF() {
+    /// Draws the first page once the file is on this device (an iCloud file
+    /// may still have to download; see `UbiquitousFile`).
+    private func loadPDF() async {
         guard !resource.fileRelativePath.isEmpty else { return }
         do {
-            let url = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
+            let stored = try ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
+            let url = await UbiquitousFile.localURL(for: stored)
             if let document = PDFDocument(url: url) {
                 pdfPage = document.page(at: 0)
             }

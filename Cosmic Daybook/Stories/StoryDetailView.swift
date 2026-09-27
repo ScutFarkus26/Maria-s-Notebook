@@ -367,7 +367,7 @@ struct StoryDetailView: View {
                 .buttonStyle(.bordered)
                 if StoryAnalyzer.isAIEnabled && story.analysisStatus != .manual {
                     Button {
-                        StoryImportService.reanalyze(story: story, context: viewContext)
+                        Task { await StoryImportService.reanalyze(story: story, context: viewContext) }
                     } label: {
                         Label("Re-extract with AI", systemImage: "wand.and.stars")
                     }
@@ -552,17 +552,22 @@ struct StoryDetailView: View {
         }
     }
 
+    /// Opens the PDF once it is on this device (an iCloud file may still
+    /// have to download; see `UbiquitousFile`).
     private func openPDF() {
         guard let url = StoryFileStorage.resolveURL(
             bookmark: story.pdfFileBookmark,
             relativePath: story.pdfFileRelativePath
         ) else { return }
-        #if os(macOS)
-        NSWorkspace.shared.open(url)
-        #else
-        // On iOS, open via the system. Caller can route to a Quick Look sheet.
-        UIApplication.shared.open(url)
-        #endif
+        Task {
+            let url = await UbiquitousFile.localURL(for: url)
+            #if os(macOS)
+            NSWorkspace.shared.open(url)
+            #else
+            // On iOS, open via the system. Caller can route to a Quick Look sheet.
+            _ = await UIApplication.shared.open(url)
+            #endif
+        }
     }
 
     private func deleteStory() {

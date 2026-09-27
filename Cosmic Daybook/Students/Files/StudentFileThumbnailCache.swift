@@ -40,6 +40,12 @@ nonisolated enum StudentFileThumbnailCache {
         scale: CGFloat,
         directory: URL? = nil
     ) async -> Thumbnail? {
+        // A file still in iCloud is downloaded first (see `UbiquitousFile`); one
+        // that can't be keeps its URL, which renders nothing, as before.
+        var url = url
+        if let stored = url {
+            url = await UbiquitousFile.localURL(for: stored)
+        }
         guard let identity = identity(url: url, data: data, recordKey: recordKey) else { return nil }
         let key = "\(identity)@\(scale)x"
         let cacheFile = (directory ?? standardDirectory)?.appendingPathComponent(fileName(for: key))

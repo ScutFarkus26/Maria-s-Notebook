@@ -9,9 +9,17 @@ nonisolated extension DataCleanupService {
     // MARK: - Note Cleanup
 
     /// Clean up orphaned note images that are no longer referenced by any Note.
+    ///
+    /// **Local folder only.** The iCloud photo folder is shared by every device,
+    /// and a photo reaches it through iCloud Drive before its note arrives
+    /// through CloudKit (and on a newly set-up device, long before the first
+    /// import finishes). Judged from one device's store, every such photo looks
+    /// orphaned, and deleting it there would delete it on all devices. Photos in
+    /// iCloud are removed only with their note (`CDNote.prepareForDeletion`) or
+    /// by the editor that wrote them.
     static func cleanupOrphanedNoteImages(using context: NSManagedObjectContext) {
         do {
-            let photosDir = try PhotoStorageService.photosDirectory()
+            let photosDir = try PhotoStorageService.localPhotosDirectory()
             let fm = FileManager.default
 
             let files = try fm.contentsOfDirectory(at: photosDir, includingPropertiesForKeys: nil)
@@ -25,7 +33,7 @@ nonisolated extension DataCleanupService {
 
             for filename in orphanedFiles {
                 do {
-                    try PhotoStorageService.deleteImage(filename: filename)
+                    try PhotoStorageService.deleteLocalImage(filename: filename)
                 } catch {
                     logger.warning(
                         "Failed to delete orphaned image \(filename, privacy: .public): \(error.localizedDescription)"
