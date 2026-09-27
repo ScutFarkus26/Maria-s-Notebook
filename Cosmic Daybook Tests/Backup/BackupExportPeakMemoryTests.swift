@@ -46,8 +46,15 @@ struct BackupExportPeakMemoryTests {
         }
 
         func reached(_ phase: String) {
-            // "encode Student", "encode Note", … are one phase here.
-            let group = phase.hasPrefix("encode ") ? "encode" : phase
+            // "encode Student", "encode Note", … are one phase here, and so
+            // are a restore's "import Student", "import Note", ….
+            let group = if phase.hasPrefix("encode ") {
+                "encode"
+            } else if phase.hasPrefix("import ") {
+                "import"
+            } else {
+                phase
+            }
             state.withLock { $0.phase = group }
         }
 
@@ -65,7 +72,7 @@ struct BackupExportPeakMemoryTests {
         let byPhase: [String: Int]
     }
 
-    private static func peakRise(_ work: () async throws -> Void) async throws -> Rise {
+    static func peakRise(_ work: () async throws -> Void) async throws -> Rise {
         let baseline = PeakSampler.bytesInUse()
         let sampler = PeakSampler()
         let recorder = BackupPipelineRecorder { sampler.reached($0) }
@@ -77,14 +84,14 @@ struct BackupExportPeakMemoryTests {
         return Rise(overall: byPhase.values.max() ?? 0, byPhase: byPhase)
     }
 
-    private static func describe(_ rises: [Rise]) -> String {
+    static func describe(_ rises: [Rise]) -> String {
         rises.map { rise in
             let phases = rise.byPhase.sorted { $0.key < $1.key }.map { "\($0.key) \(megabytes($0.value))" }
             return "\(megabytes(rise.overall)) [\(phases.joined(separator: ", "))]"
         }.joined(separator: "; ")
     }
 
-    private static func megabytes(_ bytes: Int) -> String {
+    static func megabytes(_ bytes: Int) -> String {
         String(format: "%.1f MB", Double(bytes) / 1_048_576)
     }
 
@@ -164,7 +171,7 @@ struct BackupExportPeakMemoryTests {
         for round in 0..<6 {
             let wholeRun = {
                 whole.append(try await Self.peakRise {
-                    let archive = try await BackupImporter.decodeArchive(at: url)
+                    let archive = try await BackupImporter.legacyDecodeArchive(at: url)
                     let index = EntityIDIndexCache(context: context)
                     _ = LegacyBackupPreviewAnalyzer.analyze(
                         payload: archive.payload, viewContext: context, mode: .merge,
@@ -203,7 +210,7 @@ struct BackupExportPeakMemoryTests {
 
     /// Lesson presentations: a fourth large type, with the long rows real
     /// notebooks have.
-    private static func seedPresentations(in context: NSManagedObjectContext, count: Int) throws {
+    static func seedPresentations(in context: NSManagedObjectContext, count: Int) throws {
         let start = Date(timeIntervalSince1970: 1_750_000_000)
         for index in 0..<count {
             let presentation = NSEntityDescription.insertNewObject(forEntityName: "LessonPresentation", into: context)

@@ -13,7 +13,9 @@ import Testing
 // there, leaving every later page out of the backup. Pinned here on a store
 // with notes and attendance past one page: every saved row once, unsaved
 // inserts once, unsaved deletes left out, unsaved edits as edited, and a
-// skipped row costs only itself.
+// skipped row costs only itself. An in-memory store is read in one fetch
+// (2026-09-27): it gets an unsorted fetch's offset and limit wrong, so the
+// second page of 1,205 notes held 1 note, not 205, and 204 were left out.
 @Suite("Backup collection pages")
 @MainActor
 struct BackupCollectionPagingTests {
@@ -36,6 +38,13 @@ struct BackupCollectionPagingTests {
         request.fetchOffset = offset
         request.fetchLimit = 1
         request.includesPendingChanges = false
+        return try #require(try context.fetch(request).first)
+    }
+
+    /// The note with `id`.
+    private static func note(_ id: UUID, in context: NSManagedObjectContext) throws -> NSManagedObject {
+        let request = NSFetchRequest<NSManagedObject>(entityName: "Note")
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         return try #require(try context.fetch(request).first)
     }
 
@@ -137,5 +146,34 @@ struct BackupCollectionPagingTests {
         }
         #expect(recorder.reached.map(\.phase).contains("write staged"))
         #expect(summary.entityCounts["AttendanceRecord"] == saved.count - 1)
+    }
+
+    @Test("An in-memory store past one page: every saved note once, and unsaved changes as on disk")
+    func inMemoryStoreIsReadWhole() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = stack.viewContext
+        try Self.seedNotes(in: context)
+        let saved = try Self.savedIDs("Note", in: context)
+        #expect(saved.count == 1_205)
+
+        let notes = BackupService().collectPayload(viewContext: context).notes.map(\.id)
+        #expect(notes.count == saved.count)
+        #expect(Set(notes) == Set(saved), "every saved note, once")
+
+        // Unsaved changes reach the backup as they do from an on-disk store.
+        let pending = UUID()
+        let note = NSEntityDescription.insertNewObject(forEntityName: "Note", into: context)
+        note.setValue(pending, forKey: "id")
+        note.setValue("Typed, not saved", forKey: "body")
+        // Picked by id: an in-memory store gets offsets wrong.
+        let (deletedID, editedID) = (saved[0], saved[1_100])
+        context.delete(try Self.note(deletedID, in: context))
+        try Self.note(editedID, in: context).setValue("Edited, not saved", forKey: "body")
+
+        let changed = BackupService().collectPayload(viewContext: context).notes
+        let ids = changed.map(\.id)
+        #expect(ids.count == saved.count)
+        #expect(Set(ids) == Set(saved).subtracting([deletedID]).union([pending]))
+        #expect(changed.first { $0.id == editedID }?.body == "Edited, not saved")
     }
 }

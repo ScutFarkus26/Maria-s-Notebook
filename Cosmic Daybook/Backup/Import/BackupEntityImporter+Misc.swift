@@ -71,40 +71,42 @@ extension BackupEntityImporter {
     /// Notes import early, but most of their relationship targets (work,
     /// check-ins, meetings, issues, etc.) import in later phases — so they can't
     /// be resolved at note-import time. This runs as a final pass, once every
-    /// target type is in the store, and wires them up by id.
-    static func relinkNoteRelationships(_ dtos: [NoteDTO], index: BackupEntityIndex) throws {
-        for dto in dtos {
-            guard let note = try index.related(CDNote.self, id: dto.id) else { continue }
-            if let id = dto.workID {
+    /// target type is in the store, and wires them up by id. It gets only the
+    /// notes that point at something (`BackupNoteLinks`), so the notes' rows
+    /// need not be kept until the end of the restore.
+    static func relinkNoteRelationships(_ notes: [BackupNoteLinks], index: BackupEntityIndex) throws {
+        for links in notes {
+            guard let note = try index.related(CDNote.self, id: links.noteID) else { continue }
+            if let id = links.workID {
                 note.work = try index.related(CDWorkModel.self, id: id)
             }
-            if let id = dto.lessonAssignmentID {
+            if let id = links.lessonAssignmentID {
                 note.lessonAssignment = try index.related(CDLessonAssignment.self, id: id)
             }
-            if let id = dto.attendanceRecordID {
+            if let id = links.attendanceRecordID {
                 // A string FK, so it restores whether or not the record itself
                 // made this backup — nothing to resolve through the index.
                 note.attendanceRecordID = id.uuidString
             }
-            if let id = dto.workCheckInID {
+            if let id = links.workCheckInID {
                 note.workCheckIn = try index.related(CDWorkCheckIn.self, id: id)
             }
-            if let id = dto.workCompletionRecordID {
+            if let id = links.workCompletionRecordID {
                 note.workCompletionRecord = try index.related(CDWorkCompletionRecord.self, id: id)
             }
-            if let id = dto.studentMeetingID {
+            if let id = links.studentMeetingID {
                 note.studentMeeting = try index.related(CDStudentMeeting.self, id: id)
             }
-            if let id = dto.projectSessionID {
+            if let id = links.projectSessionID {
                 note.projectSession = try index.related(CDProjectSession.self, id: id)
             }
-            if let id = dto.reminderID {
+            if let id = links.reminderID {
                 note.reminder = try index.related(CDReminder.self, id: id)
             }
-            if let id = dto.practiceSessionID {
+            if let id = links.practiceSessionID {
                 note.practiceSession = try index.related(CDPracticeSession.self, id: id)
             }
-            if let id = dto.issueID {
+            if let id = links.issueID {
                 note.issue = try index.related(CDIssue.self, id: id)
             }
         }

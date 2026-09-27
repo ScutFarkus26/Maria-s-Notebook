@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import Foundation
 import CoreData
 import SwiftUI
@@ -18,6 +17,21 @@ private enum RestoreClearError: LocalizedError {
         case .replaceClearIncomplete(let names):
             return "Restore was stopped because existing \(names.joined(separator: ", ")) "
                 + "could not be cleared. Your data was returned to its previous state \u{2014} please try again."
+        }
+    }
+}
+
+/// Error thrown when edits the view context held before a restore began
+/// cannot be saved first (see `saveEditsMadeBeforeRestore`). Nothing has been
+/// restored, and those edits are left unsaved, as they were.
+private enum RestoreStartError: LocalizedError {
+    case unsavedEditsNotSaved(reason: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unsavedEditsNotSaved(let reason):
+            return "The restore didn't start because changes that weren't saved yet "
+                + "couldn't be saved first: \(reason)"
         }
     }
 }
@@ -56,15 +70,12 @@ enum CloudExportWaitResult: Sendable {
     case timedOut
 }
 
-// MARK: - Restore Preview & Import
+// MARK: - Restore
 
 extension BackupService {
-    /// Post-decode import path. Shared by:
-    ///   - `BackupCoordinator` for archive imports (which reconstructs
-    ///     a `BackupPayload` from archive entries then calls this)
-    /// Centralizing this method means deleteAll, the entity-import dispatch,
-    /// the denormalized-field repair, and the CloudKit-sync wait all share one
-    /// code path across format versions.
+    /// Restores a whole decoded payload: how tests that build a payload by
+    /// hand restore. The app restores archives through
+    /// `BackupImporter.restore`; both go through `importRows`.
     func importPayload(
         payload loadedPayload: BackupPayload,
         envelope: BackupEnvelope,
@@ -73,11 +84,131 @@ extension BackupService {
         appRouter: AppRouter,
         progress: @escaping ProgressCallback
     ) async throws -> BackupOperationSummary {
+        try await importRows(
+            from: BackupPayloadSource(loadedPayload, envelope: envelope),
+            viewContext: viewContext,
+            mode: mode,
+            appRouter: appRouter,
+            progress: progress
+        )
+    }
 
-        var payload = loadedPayload
+    /// The restore, for every path: the app's archive restore
+    /// (`BackupImporter.restore`), the checkpoint rollback, and
+    /// `importPayload`. Centralizing it means deleteAll, the entity-import
+    /// dispatch, the denormalized-field repair, and the CloudKit-sync wait all
+    /// share one code path across format versions.
+    ///
+    /// Types are imported in dependency order through `BackupRestoreRun`, each
+    /// taken from `source` when its turn comes and freed once imported.
+    /// Everything from the replace-mode clear to `viewContext.save()` runs in
+    /// one main-actor turn — nothing in it suspends. Keep it that way: between
+    /// types, the quit-time backup would export a half-restored store and let
+    /// the app quit before the save (after replace mode's clear has already
+    /// been saved), a scheduled or background backup would write one, an MCP
+    /// write could save or roll back the restore's pending changes, and
+    /// `isRestoring` would swap Settings — with this restore's progress and
+    /// summary — out of the window.
+    ///
+    /// Edits the view context already held are saved first, and a failure
+    /// before the restore's own save completes discards everything it left
+    /// unsaved: in that one turn, nothing else can have changed the context,
+    /// so a failed restore leaves neither half a restore for the next save
+    /// anywhere to commit nor any loss of the guide's own edits.
+    func importRows(
+        from source: any BackupRestoreSource,
+        viewContext: NSManagedObjectContext,
+        mode: RestoreMode,
+        appRouter: AppRouter,
+        progress: @escaping ProgressCallback
+    ) async throws -> BackupOperationSummary {
+        // Each type is deduplicated as `source` hands it over; the line keeps
+        // its place so the guide sees the same progress.
         progress(RestoreProgress.deduplication, "Deduplicating records\u{2026}")
-        payload = deduplicatePayload(payload)
+        try saveEditsMadeBeforeRestore(in: viewContext)
 
+        let run = try discardingChangesOnFailure(in: viewContext) {
+            try importEverything(from: source, into: viewContext, mode: mode, appRouter: appRouter, progress: progress)
+        }
+
+        // Subscribe to CloudKit export events BEFORE saving — a fast export
+        // could otherwise complete between save() and subscription, leaving
+        // the user staring at a 30-second timeout for an event that already
+        // fired.
+        let cloudExportWait = Task {
+            await awaitCloudKitExport(viewContext: viewContext, timeout: .seconds(30))
+        }
+        defer { cloudExportWait.cancel() }
+
+        try discardingChangesOnFailure(in: viewContext) {
+            progress(RestoreProgress.saving, "Saving\u{2026}")
+            try viewContext.save()
+
+            progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
+            try repairDenormalizedFields(viewContext: viewContext)
+        }
+
+        applyPreferencesDTO(source.preferences)
+        AlbumLibrary.shared.reloadAfterRestore()
+        appRouter.signalAppDataDidRestore()
+
+        // After save, the in-memory model is correct but CloudKit-mirrored stores still need
+        // to upload the new records. Block briefly so users see a definitive "synced" message
+        // when possible; on timeout, surface that sync is continuing in the background.
+        progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
+        let cloudResult = await cloudExportWait.value
+        let warnings = restoreWarnings(albumIDs: run.albumIDs, cloudResult: cloudResult)
+
+        progress(RestoreProgress.done, "Done")
+        let envelope = source.envelope
+        return BackupOperationSummary(
+            kind: .import,
+            fileName: envelope.fileName,
+            formatVersion: envelope.formatVersion,
+            encryptUsed: envelope.encrypted,
+            createdAt: envelope.createdAt,
+            entityCounts: envelope.entityCounts,
+            warnings: warnings
+        )
+    }
+
+    /// Saves edits the view context held before this restore began. The
+    /// restore's own save would commit them anyway, as it always has; saving
+    /// them first is what lets a failure discard exactly the restore's changes
+    /// and none of these. If they can't be saved, the restore doesn't begin
+    /// and they stay unsaved.
+    private func saveEditsMadeBeforeRestore(in viewContext: NSManagedObjectContext) throws {
+        guard viewContext.hasChanges else { return }
+        do {
+            try viewContext.save()
+        } catch {
+            throw RestoreStartError.unsavedEditsNotSaved(reason: error.localizedDescription)
+        }
+    }
+
+    /// `body`, and if it throws, every unsaved change in `viewContext`
+    /// discarded first — by then only the restore's own (see `importRows`).
+    private func discardingChangesOnFailure<T>(
+        in viewContext: NSManagedObjectContext,
+        _ body: () throws -> T
+    ) throws -> T {
+        do {
+            return try body()
+        } catch {
+            viewContext.rollback()
+            throw error
+        }
+    }
+
+    /// Everything the restore changes before its save: the replace-mode clear,
+    /// every type imported, then notes relinked.
+    private func importEverything(
+        from source: any BackupRestoreSource,
+        into viewContext: NSManagedObjectContext,
+        mode: RestoreMode,
+        appRouter: AppRouter,
+        progress: ProgressCallback
+    ) throws -> BackupRestoreRun {
         if mode == .replace {
             progress(RestoreProgress.clearing, "Clearing existing data\u{2026}")
             appRouter.signalAppDataWillBeReplaced()
@@ -95,77 +226,65 @@ extension BackupService {
         // One fetch per entity type instead of one fetch per record. Built
         // lazily so child-type lookups see parents inserted earlier in this
         // same restore (see BackupEntityIndex).
-        let index = BackupEntityIndex(context: viewContext)
-
-        progress(RestoreProgress.coreEntities, "Importing records\u{2026}")
-        try importCoreEntities(from: payload, into: viewContext, index: index)
-        try importCalendarAndRecordEntities(from: payload, into: viewContext, index: index)
-        try importProjectEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.workTracking, "Importing work tracking\u{2026}")
-        try importWorkTrackingEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.lessonExtras, "Importing lesson extras\u{2026}")
-        try importLessonExtras(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.templates, "Importing templates\u{2026}")
-        try importTemplateEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.tracks, "Importing tracks\u{2026}")
-        try importTrackEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.documentsSupplies, "Importing documents & supplies\u{2026}")
-        try importDocumentEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.schedules, "Importing schedules\u{2026}")
-        try importScheduleEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.issues, "Importing issues\u{2026}")
-        try importIssueEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.snapshotsTodos, "Importing snapshots & todos\u{2026}")
-        try importSnapshotAndTodoEntities(from: payload, into: viewContext, index: index)
-
-        progress(RestoreProgress.additionalEntities, "Importing recommendations, resources & links\u{2026}")
-        try importAdditionalEntities(from: payload, into: viewContext, index: index)
-        try importV12Entities(from: payload, into: viewContext, index: index)
-        try importV18Entities(from: payload, into: viewContext, index: index)
-        importV20Entities(from: payload, into: viewContext, index: index)
-        importV21Entities(from: payload, into: viewContext, index: index)
-        importV27Entities(from: payload, into: viewContext, index: index)
+        let run = BackupRestoreRun(source: source, context: viewContext)
+        try importEveryType(run, progress: progress)
 
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
         // that every target type is in the store.
-        try BackupEntityImporter.relinkNoteRelationships(payload.notes, index: index)
+        try BackupEntityImporter.relinkNoteRelationships(run.noteLinks, index: run.index)
+        return run
+    }
 
-        // Subscribe to CloudKit export events BEFORE saving — a fast export
-        // could otherwise complete between save() and subscription, leaving
-        // the user staring at a 30-second timeout for an event that already
-        // fired.
-        let cloudExportWait = Task {
-            await awaitCloudKitExport(viewContext: viewContext, timeout: .seconds(30))
-        }
-        defer { cloudExportWait.cancel() }
+    /// Every backed-up type, in the order the restore imports it: parents
+    /// before the types that link to them. The archive's order differs
+    /// (`BackupEntityTable`), so the source hands each type over when its
+    /// turn comes, whatever order the archive holds them in.
+    private func importEveryType(_ run: BackupRestoreRun, progress: ProgressCallback) throws {
+        progress(RestoreProgress.coreEntities, "Importing records\u{2026}")
+        try run.importCoreEntities()
+        try run.importCalendarAndRecordEntities()
+        try run.importProjectEntities()
 
-        progress(RestoreProgress.saving, "Saving\u{2026}")
-        try viewContext.save()
+        progress(RestoreProgress.workTracking, "Importing work tracking\u{2026}")
+        try run.importWorkTrackingEntities()
 
-        progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
-        try repairDenormalizedFields(viewContext: viewContext)
+        progress(RestoreProgress.lessonExtras, "Importing lesson extras\u{2026}")
+        try run.importLessonExtras()
 
-        applyPreferencesDTO(payload.preferences)
-        AlbumLibrary.shared.reloadAfterRestore()
-        appRouter.signalAppDataDidRestore()
+        progress(RestoreProgress.templates, "Importing templates\u{2026}")
+        try run.importTemplateEntities()
 
-        // After save, the in-memory model is correct but CloudKit-mirrored stores still need
-        // to upload the new records. Block briefly so users see a definitive "synced" message
-        // when possible; on timeout, surface that sync is continuing in the background.
-        progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
-        let cloudResult = await cloudExportWait.value
+        progress(RestoreProgress.tracks, "Importing tracks\u{2026}")
+        try run.importTrackEntities()
 
+        progress(RestoreProgress.documentsSupplies, "Importing documents & supplies\u{2026}")
+        try run.importDocumentEntities()
+
+        progress(RestoreProgress.schedules, "Importing schedules\u{2026}")
+        try run.importScheduleEntities()
+
+        progress(RestoreProgress.issues, "Importing issues\u{2026}")
+        try run.importIssueEntities()
+
+        progress(RestoreProgress.snapshotsTodos, "Importing snapshots & todos\u{2026}")
+        try run.importSnapshotAndTodoEntities()
+
+        progress(RestoreProgress.additionalEntities, "Importing recommendations, resources & links\u{2026}")
+        try run.importAdditionalEntities()
+        try run.importV12Entities()
+        try run.importV13AndV14Entities()
+        try run.importV18Entities()
+        try run.importV20Entities()
+        try run.importV21Entities()
+        try run.importV27Entities()
+    }
+
+    /// The restore's own warnings for the summary: the album reattach warning,
+    /// then how the post-restore CloudKit export went.
+    private func restoreWarnings(albumIDs: Set<String>, cloudResult: CloudExportWaitResult) -> [String] {
         var warnings: [String] = []
-        if let albumWarning = albumReattachWarning(for: payload) {
+        if let albumWarning = albumReattachWarning(for: albumIDs) {
             warnings.append(albumWarning)
         }
         switch cloudResult {
@@ -183,17 +302,7 @@ extension BackupService {
                 "Keep the app open for a moment to finish uploading."
             )
         }
-
-        progress(RestoreProgress.done, "Done")
-        return BackupOperationSummary(
-            kind: .import,
-            fileName: envelope.fileName,
-            formatVersion: envelope.formatVersion,
-            encryptUsed: envelope.encrypted,
-            createdAt: envelope.createdAt,
-            entityCounts: envelope.entityCounts,
-            warnings: warnings
-        )
+        return warnings
     }
 
     // MARK: - Album Reattachment
@@ -201,14 +310,10 @@ extension BackupService {
     /// Album bookmarks, notes, highlights, and ink key on the album PDF's
     /// filename. They restore intact, but on a device with no album folder
     /// registered they have nothing to attach to until the guide adds one —
-    /// say so, rather than letting them look lost.
-    private func albumReattachWarning(for payload: BackupPayload) -> String? {
-        var albumIDs = Set<String>()
-        albumIDs.formUnion(payload.albumBookmarks?.compactMap { $0.string("albumID") } ?? [])
-        albumIDs.formUnion(payload.albumPageNotes?.compactMap { $0.string("albumID") } ?? [])
-        payload.albumHighlights?.forEach { albumIDs.insert($0.albumID) }
-        payload.albumPageInk?.forEach { albumIDs.insert($0.albumID) }
-        albumIDs.formUnion(payload.albumReadingPositions?.compactMap { $0.string("albumID") } ?? [])
+    /// say so, rather than letting them look lost. `albumIDs` holds every
+    /// album the restored bookmarks, page notes, highlights, ink and reading
+    /// positions name (`BackupRestoreRun.albumIDs`).
+    private func albumReattachWarning(for albumIDs: Set<String>) -> String? {
         guard !albumIDs.isEmpty, !AlbumLibrary.hasResolvableFolderBookmark() else { return nil }
         let noun = albumIDs.count == 1 ? "album" : "albums"
         return "This backup includes bookmarks, notes, highlights, or drawings for "
@@ -267,666 +372,7 @@ extension BackupService {
         return false
     }
 
-    // MARK: - Import Helpers
-
-    private func importCoreEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        _ = try BackupEntityImporter.importStudents(
-            payload.students,
-            into: viewContext,
-            existing: { try index.existing(CDStudent.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importLessons(
-            payload.lessons,
-            into: viewContext,
-            existing: { try index.existing(CDLesson.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importCommunityTopics(
-            payload.communityTopics,
-            into: viewContext,
-            existing: { try index.existing(CDCommunityTopicEntity.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importLessonAssignments(
-            payload.lessonAssignments,
-            into: viewContext,
-            existing: { try index.existing(CDLessonAssignment.self, id: $0) },
-            lessonCheck: { try index.related(CDLesson.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importNotes(
-            payload.notes,
-            into: viewContext,
-            existing: { try index.existing(CDNote.self, id: $0) }
-        )
-    }
-
-    private func importCalendarAndRecordEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        try BackupEntityImporter.importNonSchoolDays(
-            payload.nonSchoolDays,
-            into: viewContext,
-            existing: { try index.existing(CDNonSchoolDay.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importSchoolDayOverrides(
-            payload.schoolDayOverrides,
-            into: viewContext,
-            existing: { try index.existing(CDSchoolDayOverride.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importStudentMeetings(
-            payload.studentMeetings,
-            into: viewContext,
-            existing: { try index.existing(CDStudentMeeting.self, id: $0) }
-        )
-
-        BackupEntityImporter.importRows(
-            payload.proposedSolutions, as: CDProposedSolutionEntity.self, into: viewContext,
-            existing: { try index.existing(CDProposedSolutionEntity.self, id: $0) },
-            parents: ["topic": { try index.related(CDCommunityTopicEntity.self, id: $0) }]
-        )
-
-        try BackupEntityImporter.importCommunityAttachments(
-            payload.communityAttachments,
-            into: viewContext,
-            existing: { try index.existing(CDCommunityAttachment.self, id: $0) },
-            topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importAttendanceRecords(
-            payload.attendance,
-            into: viewContext,
-            existing: { try index.existing(CDAttendanceRecord.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importWorkCompletionRecords(
-            payload.workCompletions,
-            into: viewContext,
-            existing: { try index.existing(CDWorkCompletionRecord.self, id: $0) }
-        )
-    }
-
-    private func importProjectEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        try BackupEntityImporter.importProjects(
-            payload.projects,
-            into: viewContext,
-            existing: { try index.existing(CDProject.self, id: $0) }
-        )
-
-        try BackupEntityImporter.importProjectRoles(
-            payload.projectRoles,
-            into: viewContext,
-            existing: { try index.existing(CDProjectRole.self, id: $0) }
-        )
-
-        // Import of CDProjectTemplateWeek, CDProjectAssignmentTemplate, and
-        // CDProjectWeekRoleAssignment skipped — entities deprecated.
-
-        try BackupEntityImporter.importProjectSessions(
-            payload.projectSessions,
-            into: viewContext,
-            existing: { try index.existing(CDProjectSession.self, id: $0) }
-        )
-    }
-
-    private func importWorkTrackingEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        // CDWorkModel must be imported first — child entities reference it
-        if let workModels = payload.workModels {
-            try BackupEntityImporter.importWorkModels(
-                workModels,
-                into: viewContext,
-                existing: { try index.existing(CDWorkModel.self, id: $0) }
-            )
-        }
-
-        if let workCheckIns = payload.workCheckIns {
-            try BackupEntityImporter.importWorkCheckIns(
-                workCheckIns,
-                into: viewContext,
-                existing: { try index.existing(CDWorkCheckIn.self, id: $0) },
-                workCheck: { try index.related(CDWorkModel.self, id: $0) }
-            )
-        }
-
-        if let workSteps = payload.workSteps {
-            BackupEntityImporter.importRows(
-                workSteps, as: CDWorkStep.self, into: viewContext,
-                existing: { try index.existing(CDWorkStep.self, id: $0) },
-                parents: ["work": { try index.related(CDWorkModel.self, id: $0) }]
-            )
-        }
-
-        if let workParticipants = payload.workParticipants {
-            try BackupEntityImporter.importWorkParticipants(
-                workParticipants,
-                into: viewContext,
-                existing: { try index.existing(CDWorkParticipantEntity.self, id: $0) },
-                workCheck: { try index.related(CDWorkModel.self, id: $0) }
-            )
-        }
-
-        if let practiceSessions = payload.practiceSessions {
-            try BackupEntityImporter.importPracticeSessions(
-                practiceSessions,
-                into: viewContext,
-                existing: { try index.existing(CDPracticeSession.self, id: $0) }
-            )
-        }
-    }
-
-    private func importLessonExtras(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let lessonAttachments = payload.lessonAttachments {
-            BackupEntityImporter.importRows(
-                lessonAttachments, as: CDLessonAttachment.self, into: viewContext,
-                existing: { try index.existing(CDLessonAttachment.self, id: $0) },
-                parents: ["lesson": { try index.related(CDLesson.self, id: $0) }]
-            )
-        }
-
-        if let lessonPresentations = payload.lessonPresentations {
-            try BackupEntityImporter.importLessonPresentations(
-                lessonPresentations,
-                into: viewContext,
-                existing: { try index.existing(CDLessonPresentation.self, id: $0) }
-            )
-        }
-
-        if let recallChecks = payload.recallChecks {
-            BackupEntityImporter.importRows(
-                recallChecks, as: CDLessonRecallCheck.self, into: viewContext,
-                existing: { try index.existing(CDLessonRecallCheck.self, id: $0) }
-            )
-        }
-
-        if let sampleWorks = payload.sampleWorks {
-            try BackupEntityImporter.importSampleWorks(
-                sampleWorks,
-                into: viewContext,
-                existing: { try index.existing(CDSampleWork.self, id: $0) },
-                lessonCheck: { try index.related(CDLesson.self, id: $0) }
-            )
-        }
-
-        if let sampleWorkSteps = payload.sampleWorkSteps {
-            BackupEntityImporter.importRows(
-                sampleWorkSteps, as: CDSampleWorkStep.self, into: viewContext,
-                existing: { try index.existing(CDSampleWorkStep.self, id: $0) },
-                parents: ["sampleWork": { try index.related(CDSampleWork.self, id: $0) }]
-            )
-        }
-    }
-
-    private func importTemplateEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let noteTemplates = payload.noteTemplates {
-            try BackupEntityImporter.importNoteTemplates(
-                noteTemplates,
-                into: viewContext,
-                existing: { try index.existing(CDNoteTemplate.self, id: $0) }
-            )
-        }
-
-        if let meetingTemplates = payload.meetingTemplates {
-            BackupEntityImporter.importRows(
-                meetingTemplates, as: CDMeetingTemplate.self, into: viewContext,
-                existing: { try index.existing(CDMeetingTemplate.self, id: $0) }
-            )
-        }
-
-        if let reminders = payload.reminders {
-            try BackupEntityImporter.importReminders(
-                reminders,
-                into: viewContext,
-                existing: { try index.existing(CDReminder.self, id: $0) }
-            )
-        }
-
-        if let calendarEvents = payload.calendarEvents {
-            try BackupEntityImporter.importCalendarEvents(
-                calendarEvents,
-                into: viewContext,
-                existing: { try index.existing(CDCalendarEvent.self, id: $0) }
-            )
-        }
-    }
-
-    private func importTrackEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let tracks = payload.tracks {
-            BackupEntityImporter.importRows(
-                tracks, as: CDTrackEntity.self, into: viewContext,
-                existing: { try index.existing(CDTrackEntity.self, id: $0) }
-            )
-        }
-
-        if let trackSteps = payload.trackSteps {
-            BackupEntityImporter.importRows(
-                trackSteps, as: CDTrackStep.self, into: viewContext,
-                existing: { try index.existing(CDTrackStep.self, id: $0) },
-                parents: ["track": { try index.related(CDTrackEntity.self, id: $0) }]
-            )
-        }
-
-        if let enrollments = payload.studentTrackEnrollments {
-            BackupEntityImporter.importRows(
-                enrollments, as: CDStudentTrackEnrollmentEntity.self, into: viewContext,
-                existing: { try index.existing(CDStudentTrackEnrollmentEntity.self, id: $0) },
-                parents: [
-                    "student": { try index.related(CDStudent.self, id: $0) },
-                    "track": { try index.related(CDTrackEntity.self, id: $0) }
-                ]
-            )
-        }
-
-        if let sequenceTracks = payload.sequenceTracks {
-            try BackupEntityImporter.importSequenceTracks(
-                sequenceTracks,
-                into: viewContext,
-                existing: { try index.existing(CDSequenceTrack.self, id: $0) }
-            )
-        }
-    }
-
-    private func importDocumentEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let documents = payload.documents {
-            try BackupEntityImporter.importDocuments(
-                documents,
-                into: viewContext,
-                existing: { try index.existing(CDDocument.self, id: $0) }
-            )
-        }
-
-        if let supplies = payload.supplies {
-            try BackupEntityImporter.importSupplies(
-                supplies,
-                into: viewContext,
-                existing: { try index.existing(CDSupply.self, id: $0) }
-            )
-        }
-
-        if let procedures = payload.procedures {
-            try BackupEntityImporter.importProcedures(
-                procedures,
-                into: viewContext,
-                existing: { try index.existing(CDProcedure.self, id: $0) }
-            )
-        }
-    }
-
-    private func importScheduleEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let schedules = payload.schedules {
-            BackupEntityImporter.importRows(
-                schedules, as: CDSchedule.self, into: viewContext,
-                existing: { try index.existing(CDSchedule.self, id: $0) }
-            )
-        }
-
-        if let scheduleSlots = payload.scheduleSlots {
-            try BackupEntityImporter.importScheduleSlots(
-                scheduleSlots,
-                into: viewContext,
-                existing: { try index.existing(CDScheduleSlot.self, id: $0) },
-                scheduleCheck: { try index.related(CDSchedule.self, id: $0) }
-            )
-        }
-    }
-
-    private func importIssueEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let issues = payload.issues {
-            try BackupEntityImporter.importIssues(
-                issues,
-                into: viewContext,
-                existing: { try index.existing(CDIssue.self, id: $0) }
-            )
-        }
-
-        if let issueActions = payload.issueActions {
-            try BackupEntityImporter.importIssueActions(
-                issueActions,
-                into: viewContext,
-                existing: { try index.existing(CDIssueAction.self, id: $0) },
-                issueCheck: { try index.related(CDIssue.self, id: $0) }
-            )
-        }
-    }
-
-    private func importSnapshotAndTodoEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let snapshots = payload.developmentSnapshots {
-            try BackupEntityImporter.importDevelopmentSnapshots(
-                snapshots,
-                into: viewContext,
-                existing: { try index.existing(CDDevelopmentSnapshotEntity.self, id: $0) }
-            )
-        }
-
-        if let todoItems = payload.todoItems {
-            try BackupEntityImporter.importTodoItems(
-                todoItems,
-                into: viewContext,
-                existing: { try index.existing(CDTodoItem.self, id: $0) }
-            )
-        }
-
-        if let todoSubtasks = payload.todoSubtasks {
-            BackupEntityImporter.importRows(
-                todoSubtasks, as: CDTodoSubtask.self, into: viewContext,
-                existing: { try index.existing(CDTodoSubtask.self, id: $0) },
-                parents: ["todo": { try index.related(CDTodoItem.self, id: $0) }]
-            )
-        }
-
-        if let todoTemplates = payload.todoTemplates {
-            try BackupEntityImporter.importTodoTemplates(
-                todoTemplates,
-                into: viewContext,
-                existing: { try index.existing(CDTodoTemplate.self, id: $0) }
-            )
-        }
-
-        if let agendaOrders = payload.todayAgendaOrders {
-            try BackupEntityImporter.importTodayAgendaOrders(
-                agendaOrders,
-                into: viewContext,
-                existing: { try index.existing(CDTodayAgendaOrder.self, id: $0) }
-            )
-        }
-    }
-
-    private func importAdditionalEntities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let recommendations = payload.planningRecommendations {
-            try BackupEntityImporter.importPlanningRecommendations(
-                recommendations,
-                into: viewContext,
-                existing: { try index.existing(CDPlanningRecommendation.self, id: $0) }
-            )
-        }
-
-        if let resources = payload.resources {
-            try BackupEntityImporter.importResources(
-                resources,
-                into: viewContext,
-                existing: { try index.existing(CDResource.self, id: $0) }
-            )
-        }
-
-        if let noteStudentLinks = payload.noteStudentLinks {
-            BackupEntityImporter.importRows(
-                noteStudentLinks, as: CDNoteStudentLink.self, into: viewContext,
-                existing: { try index.existing(CDNoteStudentLink.self, id: $0) },
-                parents: ["note": { try index.related(CDNote.self, id: $0) }]
-            )
-        }
-    }
-
-    private func importV12Entities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let goingOuts = payload.goingOuts {
-            BackupEntityImporter.importRows(
-                goingOuts, as: CDGoingOut.self, into: viewContext,
-                existing: { try index.existing(CDGoingOut.self, id: $0) }
-            )
-        }
-
-        if let goingOutItems = payload.goingOutChecklistItems {
-            try BackupEntityImporter.importGoingOutChecklistItems(
-                goingOutItems,
-                into: viewContext,
-                existing: { try index.existing(CDGoingOutChecklistItem.self, id: $0) },
-                goingOutCheck: { try index.related(CDGoingOut.self, id: $0) }
-            )
-        }
-
-        if let classroomJobs = payload.classroomJobs {
-            BackupEntityImporter.importRows(
-                classroomJobs, as: CDClassroomJob.self, into: viewContext,
-                existing: { try index.existing(CDClassroomJob.self, id: $0) }
-            )
-        }
-
-        if let jobAssignments = payload.jobAssignments {
-            BackupEntityImporter.importRows(
-                jobAssignments, as: CDJobAssignment.self, into: viewContext,
-                existing: { try index.existing(CDJobAssignment.self, id: $0) },
-                parents: ["job": { try index.related(CDClassroomJob.self, id: $0) }]
-            )
-        }
-
-        if let calendarNotes = payload.calendarNotes {
-            BackupEntityImporter.importRows(
-                calendarNotes, as: CDCalendarNote.self, into: viewContext,
-                existing: { try index.existing(CDCalendarNote.self, id: $0) }
-            )
-        }
-
-        if let scheduledMeetings = payload.scheduledMeetings {
-            try BackupEntityImporter.importScheduledMeetings(
-                scheduledMeetings,
-                into: viewContext,
-                existing: { try index.existing(CDScheduledMeeting.self, id: $0) }
-            )
-        }
-
-        // v13+ entities
-        if let memberships = payload.classroomMemberships {
-            BackupEntityImporter.importRows(
-                memberships, as: CDClassroomMembership.self, into: viewContext,
-                existing: { try index.existing(CDClassroomMembership.self, id: $0) }
-            )
-        }
-
-        // v14+ entities
-        if let meetingWorkReviews = payload.meetingWorkReviews {
-            BackupEntityImporter.importRows(
-                meetingWorkReviews, as: CDMeetingWorkReview.self, into: viewContext,
-                existing: { try index.existing(CDMeetingWorkReview.self, id: $0) },
-                parents: ["meeting": { viewContext.object(CDStudentMeeting.self, id: $0) }]
-            )
-        }
-
-        if let studentFocusItems = payload.studentFocusItems {
-            BackupEntityImporter.importRows(
-                studentFocusItems, as: CDStudentFocusItem.self, into: viewContext,
-                existing: { try index.existing(CDStudentFocusItem.self, id: $0) }
-            )
-        }
-    }
-
-    /// v18+ entities: Stories, Book Club, Year Plan, Lesson Sequence Settings, Day Pads.
-    /// Book Club is imported packet -> session -> meeting so meetings can re-wire
-    /// their `session` relationship against sessions already in the context.
-    private func importV18Entities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) throws {
-        if let dayPads = payload.dayPads {
-            BackupEntityImporter.importRows(
-                dayPads, as: CDDayPad.self, into: viewContext,
-                existing: { try index.existing(CDDayPad.self, id: $0) }
-            )
-        }
-
-        if let yearPlanEntries = payload.yearPlanEntries {
-            BackupEntityImporter.importRows(
-                yearPlanEntries, as: CDYearPlanEntry.self, into: viewContext,
-                existing: { try index.existing(CDYearPlanEntry.self, id: $0) }
-            )
-        }
-
-        if let sequenceSettings = payload.lessonSequenceSettings {
-            BackupEntityImporter.importRows(
-                sequenceSettings, as: CDLessonSequenceSettings.self, into: viewContext,
-                existing: { try index.existing(CDLessonSequenceSettings.self, id: $0) }
-            )
-        }
-
-        if let stories = payload.stories {
-            try BackupEntityImporter.importStories(
-                stories,
-                into: viewContext,
-                existing: { try index.existing(CDStory.self, id: $0) }
-            )
-        }
-
-        if let packets = payload.bookClubPackets {
-            try BackupEntityImporter.importBookClubPackets(
-                packets,
-                into: viewContext,
-                existing: { try index.existing(CDBookClubPacket.self, id: $0) }
-            )
-        }
-
-        if let sessions = payload.bookClubSessions {
-            BackupEntityImporter.importRows(
-                sessions, as: CDBookClubSession.self, into: viewContext,
-                existing: { try index.existing(CDBookClubSession.self, id: $0) }
-            )
-        }
-
-        if let meetings = payload.bookClubMeetings {
-            BackupEntityImporter.importRows(
-                meetings, as: CDBookClubMeeting.self, into: viewContext,
-                existing: { try index.existing(CDBookClubMeeting.self, id: $0) },
-                parents: ["session": { try index.related(CDBookClubSession.self, id: $0) }]
-            )
-        }
-    }
-
-    /// v20+ entities: Guardians and Parent Communications.
-    private func importV20Entities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) {
-        if let guardians = payload.guardians {
-            BackupEntityImporter.importRows(
-                guardians, as: CDGuardian.self, into: viewContext,
-                existing: { try index.existing(CDGuardian.self, id: $0) }
-            )
-        }
-
-        if let parentCommunications = payload.parentCommunications {
-            BackupEntityImporter.importRows(
-                parentCommunications, as: CDParentCommunication.self, into: viewContext,
-                existing: { try index.existing(CDParentCommunication.self, id: $0) }
-            )
-        }
-    }
-
-    /// v21+ entities: teaching-album annotations.
-    private func importV21Entities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) {
-        if let bookmarks = payload.albumBookmarks {
-            BackupEntityImporter.importRows(
-                bookmarks, as: CDAlbumBookmark.self, into: viewContext,
-                existing: { try index.existing(CDAlbumBookmark.self, id: $0) }
-            )
-        }
-
-        if let notes = payload.albumPageNotes {
-            BackupEntityImporter.importRows(
-                notes, as: CDAlbumPageNote.self, into: viewContext,
-                existing: { try index.existing(CDAlbumPageNote.self, id: $0) }
-            )
-        }
-
-        if let visits = payload.albumRecentVisits {
-            BackupEntityImporter.importRows(
-                visits, as: CDAlbumRecentVisit.self, into: viewContext,
-                existing: { try index.existing(CDAlbumRecentVisit.self, id: $0) }
-            )
-        }
-
-        if let positions = payload.albumReadingPositions {
-            BackupEntityImporter.importRows(
-                positions, as: CDAlbumReadingPosition.self, into: viewContext,
-                existing: { try index.existing(CDAlbumReadingPosition.self, id: $0) }
-            )
-        }
-
-        if let highlights = payload.albumHighlights {
-            BackupEntityImporter.importAlbumHighlights(
-                highlights,
-                into: viewContext,
-                existing: { try index.existing(CDAlbumHighlight.self, id: $0) }
-            )
-        }
-
-        if let ink = payload.albumPageInk {
-            BackupEntityImporter.importAlbumPageInk(
-                ink,
-                into: viewContext,
-                existing: { try index.existing(CDAlbumPageInk.self, id: $0) }
-            )
-        }
-    }
-
-    /// v27+ entities: Orders.
-    private func importV27Entities(
-        from payload: BackupPayload,
-        into viewContext: NSManagedObjectContext,
-        index: BackupEntityIndex
-    ) {
-        if let orderItems = payload.orderItems {
-            BackupEntityImporter.importRows(
-                orderItems, as: CDOrderItem.self, into: viewContext,
-                existing: { try index.existing(CDOrderItem.self, id: $0) }
-            )
-        }
-    }
+    // MARK: - Denormalized Fields
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {
         let assignmentsForRepair = try viewContext.fetch(

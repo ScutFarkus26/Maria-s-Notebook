@@ -284,11 +284,11 @@ nonisolated public struct BackupPayload: Codable, Sendable {
 
 /// The file-level facts about a backup being restored — everything the
 /// resulting `BackupOperationSummary` reports that isn't derived from the
-/// payload itself. Grouped so `importPayload` takes one value instead of five
-/// parallel `envelope*` parameters.
+/// payload itself. Grouped so a restore's source (`BackupRestoreSource`)
+/// carries one value instead of five parallel `envelope*` fields.
 ///
 /// `Sendable` because the decode half of the import pipeline
-/// (`BackupImporter.decodeArchive`) is `nonisolated async`, so these values
+/// (`BackupImporter.decodeArchive`) runs off the main actor, so these values
 /// cross an isolation boundary on their way to the main-actor import.
 nonisolated public struct BackupEnvelope: Sendable {
     public let formatVersion: Int

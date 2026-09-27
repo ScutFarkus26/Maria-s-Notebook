@@ -171,10 +171,7 @@ final class BackupCoordinator {
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
 
         progress(0.10, "Reading archive\u{2026}")
-        let archive = try await BackupImporter.decodeArchive(at: url)
-
-        return try await BackupImporter.importDecoded(
-            archive,
+        return try await BackupImporter.restore(
             from: url,
             into: viewContext,
             mode: mode,

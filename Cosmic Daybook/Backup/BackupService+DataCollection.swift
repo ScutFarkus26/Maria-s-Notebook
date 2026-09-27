@@ -36,7 +36,11 @@ extension BackupService {
     // MARK: - Batched Fetch Utilities
 
     /// Every row of `T` as DTOs, read a page (`batchSize` rows) at a time so no
-    /// more than one page of managed objects is alive at once.
+    /// more than one page of managed objects is alive at once — from an on-disk
+    /// store. An in-memory store is read in one fetch: its rows are all in
+    /// memory already, and it gets an unsorted fetch's offset and limit wrong
+    /// (2026-09-27: of 1,205 notes, the second 1,000-row page held 1, so the
+    /// backup had 1,001).
     ///
     /// Pages come from the store alone (`includesPendingChanges = false`), so
     /// each saved row lands on exactly one page and a short page is the last.
@@ -75,12 +79,11 @@ extension BackupService {
         // per-coordinator model lookup is unambiguous.
         guard let entityName = coordinator.managedObjectModel.entitiesByName.values
             .first(where: { $0.managedObjectClassName == NSStringFromClass(T.self) })?.name else {
-            Self.logger.info(
-                "Skipping fetch for \(typeName, privacy: .public) — no entity in model"
-            )
+            Self.logger.info("Skipping fetch for \(typeName, privacy: .public) — no entity in model")
             return []
         }
 
+        let pageSize = Self.readsWhole(coordinator) ? 0 : batchSize
         var allDTOs: [DTO] = []
         var offset = 0
 
@@ -89,7 +92,7 @@ extension BackupService {
             let page: (dtos: [DTO], rowCount: Int)? = autoreleasepool {
                 let descriptor = NSFetchRequest<T>(entityName: entityName)
                 descriptor.fetchOffset = offset
-                descriptor.fetchLimit = batchSize
+                descriptor.fetchLimit = pageSize  // 0: no limit
                 descriptor.includesPendingChanges = false
 
                 let batch: [T]
@@ -114,8 +117,8 @@ extension BackupService {
 
             // Rows, not DTOs: a transformer skips malformed rows, and a skipped
             // row must not end the table.
-            if page.rowCount < batchSize { break }
-            offset += batchSize
+            if pageSize == 0 || page.rowCount < pageSize { break }
+            offset += pageSize
         }
 
         // Unsaved inserts, in a stable order so two collections agree.
@@ -130,5 +133,12 @@ extension BackupService {
         }
 
         return allDTOs
+    }
+
+    /// Whether every store behind `coordinator` is in memory, so the export
+    /// reads each type in one fetch instead of pages.
+    private static func readsWhole(_ coordinator: NSPersistentStoreCoordinator) -> Bool {
+        let stores = coordinator.persistentStores
+        return !stores.isEmpty && stores.allSatisfy { $0.type == NSInMemoryStoreType }
     }
 }

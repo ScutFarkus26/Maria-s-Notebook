@@ -1,15 +1,17 @@
 // BackupImporter.swift
-// Imports a decoded v17+ backup into Core Data.
+// Restores a v17+ backup file into Core Data.
 //
-// The strategy: reconstruct a `BackupPayload` struct from the decoded NDJSON
-// entries (off the main actor — it's pure JSON decoding), then hand it to
-// `BackupService.importPayload(...)` — the single shared post-decode import
-// path used by the current import flow and the internal checkpoint restore
-// path. This way the entity-import dispatch, deleteAll-for-replace,
-// denormalized field repair, and CloudKit-sync wait all live in one place.
+// `restore(from:into:…)` is the app's restore and the checkpoint rollback's:
+// `decodeArchive` reads, decrypts and decodes the archive off the main actor,
+// each entry decoded as it is read, into one `BackupPayload`; then
+// `BackupService.importRows` — the one import path, which the tests'
+// hand-built payloads share through `importPayload` — imports it one entity
+// type at a time, moving each type out of the payload and freeing it once
+// imported. The entity-import dispatch, the replace-mode clear, the
+// denormalized-field repair and the CloudKit-sync wait all live there.
 //
-// Any entity type that fails to decode is skipped with a warning that
-// propagates into the operation summary the user sees — never silently.
+// Any entry that fails to decode is skipped with a warning that propagates
+// into the operation summary the user sees — never silently.
 
 import Foundation
 import CoreData
@@ -19,7 +21,7 @@ enum BackupImporter {
     // nonisolated so the off-main decode path (reconstructPayload) can log.
     private nonisolated static let logger = Logger.backup
 
-    /// Everything needed to import or preview a backup, produced off-main by
+    /// A whole archive decoded at once, produced off-main by
     /// `decodeArchive(at:)`.
     struct DecodedArchive: Sendable {
         let manifest: BackupArchiveManifest
@@ -30,55 +32,82 @@ enum BackupImporter {
 
     // MARK: - Public API
 
-    /// Reads, decrypts, and JSON-decodes the archive into a typed payload.
-    /// `@concurrent` so the whole decode pipeline runs off the main actor
-    /// (a plain `nonisolated async` function runs on its caller's actor, and
-    /// every caller is main-actor code); only the Core Data import that
-    /// follows needs the main actor.
+    /// Reads, decrypts, and JSON-decodes the archive into one typed payload,
+    /// decoding each entry as it is read — every entry through `decode`, in
+    /// archive order, so the payload and warnings are exactly
+    /// `reconstructPayload`'s — so no entry's NDJSON outlives its decode.
+    /// (Until 2026-09-27 every entry was read before any was decoded, so all
+    /// of the archive's NDJSON and all of its records were alive together.)
+    /// Fails as `BackupReader.read` does. `@concurrent` so it runs off the
+    /// main actor (a plain `nonisolated async` function runs on its caller's
+    /// actor); only the Core Data import that follows needs the main actor.
     @concurrent
     nonisolated static func decodeArchive(at url: URL) async throws -> DecodedArchive {
         BackupPipelineProbe.reach("decode")
-        let decoded = try BackupReader.read(from: url)
-        let (payload, warnings) = reconstructPayload(from: decoded)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        var payload = BackupPayload.collecting(preferences: PreferencesDTO(values: [:]))
+        var warnings: [String] = []
+        let backup = try BackupReader.streamBackup(
+            from: url,
+            keyProvider: { try BackupEncryptionKeyStore.requireKey() },
+            entity: { entry in
+                autoreleasepool {
+                    if let warning = decode(entry, into: &payload, using: decoder) {
+                        warnings.append(warning)
+                    }
+                }
+            }
+        )
+        payload.preferences = backup.preferences ?? PreferencesDTO(values: [:])
         return DecodedArchive(
-            manifest: decoded.manifest,
+            manifest: backup.manifest,
             payload: payload,
             warnings: warnings,
             encrypted: BackupArchive.isEncryptedArchive(at: url)
         )
     }
 
-    /// Imports a decoded backup into the given Core Data context.
-    /// Mode handling (merge/replace), deleteAll, save, CloudKit-sync-wait, and
-    /// the operation summary are all owned by the underlying `importPayload`.
-    /// Decode-time warnings are appended to the summary so partial decodes
-    /// are visible in the UI, not just the log.
-    static func importDecoded(
-        _ archive: DecodedArchive,
-        from fileURL: URL,
+    /// Restores the backup at `url` into `viewContext`: decoded off the main
+    /// actor, then imported on it in one turn, one entity type at a time (see
+    /// `BackupService.importRows`). The payload is handed over whole to the
+    /// source, which holds its only copy and gives each type up as it is
+    /// imported, so the records never exist twice and shrink as the import
+    /// goes. Warnings about entries left out — rows that do not decode, an
+    /// entity this version does not know — follow the import's own, in
+    /// archive order.
+    static func restore(
+        from url: URL,
         into viewContext: NSManagedObjectContext,
         mode: BackupService.RestoreMode,
         appRouter: AppRouter,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
+        let (source, warnings) = try await decodedSource(at: url)
 
         progress(0.35, "Importing\u{2026}")
-        let service = BackupService()
-        let summary = try await service.importPayload(
-            payload: archive.payload,
-            envelope: BackupEnvelope(
-                formatVersion: archive.manifest.formatVersion,
-                encrypted: archive.encrypted,
-                createdAt: archive.manifest.createdAt,
-                fileName: fileURL.lastPathComponent,
-                entityCounts: archive.manifest.entityCounts
-            ),
+        let summary = try await BackupService().importRows(
+            from: source,
             viewContext: viewContext,
             mode: mode,
             appRouter: appRouter,
             progress: progress
         )
-        return archive.warnings.isEmpty ? summary : summary.appending(warnings: archive.warnings)
+        return warnings.isEmpty ? summary : summary.appending(warnings: warnings)
+    }
+
+    /// The archive decoded into a source holding the payload's only copy:
+    /// `decoded` goes when this returns, before the import starts.
+    private static func decodedSource(at url: URL) async throws -> (BackupPayloadSource, [String]) {
+        let decoded = try await decodeArchive(at: url)
+        let envelope = BackupEnvelope(
+            formatVersion: decoded.manifest.formatVersion,
+            encrypted: decoded.encrypted,
+            createdAt: decoded.manifest.createdAt,
+            fileName: url.lastPathComponent,
+            entityCounts: decoded.manifest.entityCounts
+        )
+        return (BackupPayloadSource(decoded.payload, envelope: envelope), decoded.warnings)
     }
 
     // MARK: - Payload Reconstruction

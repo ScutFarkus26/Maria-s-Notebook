@@ -34,14 +34,15 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | `Backup/Archive/BackupWriter+Streaming.swift` | The export as it normally runs (2026-09-26): one entity type at a time — collect on the main actor, encode NDJSON and pack it (LZ4) off it — then key, manifest, preferences and the entries unpacked one by one into the archive. Same entries, order and bytes as the one-pass export. |
 | `Backup/Archive/BackupSnapshotWatch.swift` | Keeps a streamed export one moment: asked after every type (a change flag on the view context's coordinator) and at the end (persistent history). Any change, or unsaved edits at the start, sends the export to the one-pass path. |
 | `Backup/Archive/BackupReader.swift` | Decodes an archive into manifest + entries + preferences. `verifyStructure` streams the archive counting rows without holding the payload. |
-| `Backup/Archive/BackupImporter.swift` | Off-main: reconstructs a `BackupPayload` from NDJSON entries (table-driven dispatch). On-main: hands it to `BackupService.importPayload`. Surfaces decode skips as warnings. `decodePreview` (`+Preview`) streams the entries for the restore preview and keeps only row counts and IDs (`BackupPreviewDigest`). |
+| `Backup/Archive/BackupImporter.swift` | `restore(from:into:…)`, the app's restore and the checkpoint rollback's: `decodeArchive` (off-main, `@concurrent`) decodes each entry as it is read into one `BackupPayload`, then `BackupService.importRows` imports it one entity type at a time from a `BackupPayloadSource` holding its only copy. Surfaces decode skips and unknown entities as warnings, in archive order. `decodePreview` (`+Preview`) streams the entries for the restore preview and keeps only row counts and IDs (`BackupPreviewDigest`). |
+| `Backup/BackupRestoreRun.swift` (+ `+CoreTypes`, `+PlanningTypes`, `+LaterTypes`) | One restore in progress: the context, the `BackupEntityIndex`, the source, and the restore order — the importer calls, parents first — each asking for its type by payload field (`rows(\.students)`). `BackupPayloadSource` hands each type over once, moved out of the payload and deduplicated in place (`BackupEntity.take`), so the payload shrinks as the import goes. Keeps notes' link ids (`BackupNoteLinks`) for the end-of-restore relink and the album ids for the reattach warning. |
 
 ### Shared services (reused by the archive implementation)
 
 | File | Purpose |
 |------|---------|
-| `Backup/BackupService+DataCollection.swift` | `collectPayload` — the one-pass collect: every entity type in one main-actor turn, through the collector table in `+EntityCollectors` (fetched in batches, run through the DTO transformers). The streamed export walks the same table one type at a time. `fetchAndTransformInBatches` reads each type from the store 1,000 rows a page (`includesPendingChanges = false`), leaves out rows the context has deleted, adds its unsaved inserts once at the end, and ends a type on a short page of *rows*, never of DTOs, since the transformers skip malformed rows (2026-09-26; before that, unsaved edits in a type past one page duplicated or dropped rows, and one malformed row on a full page cut the rest of its type). |
-| `Backup/BackupService+Restoration.swift` | `importPayload` — dedup, replace-mode clear, ordered entity import, denormalized-field repair, CloudKit export wait. |
+| `Backup/BackupService+DataCollection.swift` | `collectPayload` — the one-pass collect: every entity type in one main-actor turn, through the collector table in `+EntityCollectors` (fetched in batches, run through the DTO transformers). The streamed export walks the same table one type at a time. `fetchAndTransformInBatches` reads each type from the store 1,000 rows a page (`includesPendingChanges = false`), leaves out rows the context has deleted, adds its unsaved inserts once at the end, and ends a type on a short page of *rows*, never of DTOs, since the transformers skip malformed rows (2026-09-26; before that, unsaved edits in a type past one page duplicated or dropped rows, and one malformed row on a full page cut the rest of its type). An in-memory store is read in one fetch (2026-09-27): it gets an unsorted fetch's offset and limit wrong, and a type of 1,205 notes was backed up as 1,001. |
+| `Backup/BackupService+Restoration.swift` | `importRows` — saves edits made before the restore, then the replace-mode clear, the ordered import (`BackupRestoreRun`), note relink, save and denormalized-field repair (anything left unsaved discarded if one fails), preferences, CloudKit export wait. `importPayload` restores a whole payload through it (tests that build payloads by hand). |
 | `Backup/BackupFetchHelper.swift` | `BackupEntityIndex` (restore: one lazy fetch per type) and `EntityIDIndexCache` (preview: one id-set fetch per type). Replaced the old per-record fetch. |
 | `Backup/Core/BackupEntityRegistry.swift` | Single source of truth for which entity types are backed up. |
 | `Backup/Core/BackupChangeTracker.swift` | Persistent-history gate: skips an automatic backup when nothing changed since the last one. |
@@ -115,17 +116,20 @@ silently missing data is worse than a failed one.
 
 1. `BackupCoordinator.importBackup` → `BackupTransactionManager.executeWithRollback`.
 2. For `.replace`, a safety checkpoint (current-format backup) is written first; if it fails, the restore aborts before deleting anything.
-3. `BackupImporter.decodeArchive` (off-main) reads + decrypts + JSON-decodes into a `BackupPayload`.
-4. `BackupService.importPayload` (main actor):
-   - dedup the payload,
+3. `BackupImporter.restore` → `decodeArchive` (off-main, `@concurrent`) reads and decrypts the archive and decodes each entry as it is read, in archive order, into one `BackupPayload` — the same payload and warnings as decoding after the whole read, with no entry's NDJSON outliving its decode. It fails exactly as the reader does (bad entry path, missing manifest, unsupported version).
+4. The payload is handed whole to a `BackupPayloadSource`, which then holds its only copy, and `BackupService.importRows` (main actor, **one turn from the pre-save to the CloudKit wait** — nothing in it suspends):
+   - saves any edits the view context already held (the restore's final save would commit them anyway, as it always has), so that a failure can discard exactly the restore's own changes; if they can't be saved, the restore doesn't start and they stay unsaved,
    - for `.replace`: context-level delete of every backed-up type (emits CloudKit tombstones — never `NSBatchDeleteRequest`),
-   - import entities in dependency order using a lazily built `BackupEntityIndex` for upsert/relationship lookups. **Merge mode updates in place:** each importer resolves the pre-restore record for the DTO's ID (`ExistingLookup`) and populates it; the backup wins for any ID it holds, records absent from the backup are kept. Replace mode has already cleared the store, so the same path inserts everything,
-   - `save()`,
-   - repair denormalized fields,
-   - apply preferences (`BackupPreferencesService`; album folder bookmarks union with the local list, the album fingerprint map merges local-wins),
-   - reload the album library if it was already open, and warn when the backup holds album annotations but no album folder resolves on this device.
+   - imports every type in dependency order through `BackupRestoreRun`. When a type's turn comes it is moved out of the payload and deduplicated in place (first row of each id, within the type — the deduplication never worked across types), imported, and freed, so the records never exist twice and shrink as the import goes (the one-pass restore deduplicated into a second full copy and kept both until the end). The restore order is not the archive's: CommunityTopic before LessonAssignment and Note, ProjectRole before ProjectSession. `BackupEntityIndex` is built lazily per type, so a type sees the parents imported before it in this restore. **Merge mode updates in place:** each importer resolves the pre-restore record for the DTO's ID (`ExistingLookup`) and populates it; the backup wins for any ID it holds, records absent from the backup are kept. Replace mode has already cleared the store, so the same path inserts everything,
+   - relinks notes to the records they point at, from the ids kept while notes were imported (`BackupNoteLinks`; the notes' rows are freed by then),
+   - `save()`, then repairs denormalized fields. If anything from the clear through the repair fails, everything the restore left unsaved is discarded (`viewContext.rollback()`): in that one turn nothing else can have changed the context, so a failed merge restore no longer leaves half a restore for the next save anywhere to commit, and the guide's edits, saved first, are kept,
+   - applies preferences (`BackupPreferencesService`; album folder bookmarks union with the local list, the album fingerprint map merges local-wins),
+   - reloads the album library if it was already open, and warns when the backup holds album annotations but no album folder resolves on this device.
+
+   The one turn is deliberate. Between two types, other main-actor work could run against a half-restored store: the quit-time backup would export it and let the app quit before the save (after replace mode's clear was already saved), a scheduled or background backup would write it, an MCP write could save or roll back the restore's pending changes, and `isRestoring` would swap Settings — with this restore's progress and summary — out of the window. Decoding stays off the main actor, before the turn. On a 44,318-row store (2026-09-27, iOS simulator on an M-series Mac, medians of six) the restore's peak heap fell from 54.4 MB to 28.2 MB with the import turn within the run-to-run spread of the old one (868 → 947 ms in one run, 1,002 → 1,057 ms in another). A version that decoded each type inside the turn peaked at 33.2 MB but nearly doubled the turn (1.88 s); decoding a type across cores was slower than one line at a time. `BackupRestorePeakMemoryTests` (on request) measures the old restore against the app's.
 5. The CloudKit export wait is subscribed **before** `save()` so a fast export isn't missed; it blocks up to 30 s, then reports "still syncing in background."
-6. On any import failure, the transaction manager rolls back to the checkpoint.
+6. The summary's warnings are the restore's own (album, iCloud), then the entries left out — rows that did not decode, entities this version does not know — in archive order, as before.
+7. On any import failure, the transaction manager rolls back to the checkpoint (`.replace`); a merge restore has no checkpoint, and has already discarded its own unsaved changes.
 
 ---
 
@@ -165,7 +169,7 @@ entity without backup coverage turns a test red.
 1. Add the `CDType` to `BackupEntityRegistry.allTypes`.
 2. Add a DTO + transformer (`Backup/Export/BackupDTOTransformers*.swift`) and a field on `BackupPayload`.
 3. Add a row to `BackupWriter.entitySerializations`.
-4. Add a decoder to `BackupImporter.entityDecoders` and an importer call in `BackupService+Restoration.swift`.
+4. Add a decoder to `BackupImporter.entityDecoders` and an importer call in the restore order (`BackupRestoreRun+CoreTypes` / `+PlanningTypes` / `+LaterTypes`, after the types it links to), reading its rows with `rows(\.field)`.
 5. Bump `BackupWriter.formatVersion` and extend `BackupReader.supportedFormatVersions` if the addition is structural.
 
 ---
@@ -183,6 +187,9 @@ entity without backup coverage turns a test red.
 - `Cosmic Daybook Tests/Backup/BackupRoundTripTests.swift` — end-to-end round trips, encryption/verification, merge mode, corruption rejection, v18 entity fidelity.
 - `Cosmic Daybook Tests/Backup/BackupCoverageTests.swift` — coverage exhaustiveness (registry ≡ writer ≡ importer ≡ model − exclusions).
 - `Cosmic Daybook Tests/Backup/BackupCheckpointSafetyTests.swift` — checkpoint failure aborts before any destructive delete.
+- `Cosmic Daybook Tests/Backup/BackupRestoreEquivalenceTests.swift` — the restore against the old one-pass restore (kept verbatim in `BackupService+LegacyRestore.swift`): the same records, summary, progress and re-export in merge and replace modes, with and without the guide's unsaved edits pending; children ahead of parents in the archive; undecodable rows, entries written twice and unknown entities.
+- `Cosmic Daybook Tests/Backup/BackupRestoreTransactionTests.swift` — the old errors for broken archives; a replace restore failing part-way rolls back to its checkpoint; a merge restore failing part-way discards exactly its own changes and keeps the guide's; every type asked for once, in order; decode off the main thread and one main-actor turn from the clear to the save.
+- `Cosmic Daybook Tests/Backup/BackupRestorePeakMemoryTests.swift` — on request (`TEST_RUNNER_BACKUP_PEAK_MEMORY=1`): peak heap and main-thread import time, the old one-pass restore vs the app's.
 
 ```bash
 DEVELOPER_DIR="$HOME/Downloads/Xcode-beta.app/Contents/Developer" \

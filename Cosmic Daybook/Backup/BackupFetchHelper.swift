@@ -33,10 +33,11 @@ enum BackupFetchHelper {
 ///   actually updates a matching row (then only that row is faulted in). The
 ///   map is built the first time a type is imported — i.e. before that type's
 ///   own rows are inserted — which is exactly right: replace-mode has already
-///   cleared the store, and within-payload duplicates were removed by
-///   `deduplicatePayload`, so the only thing that should count as "already
-///   exists" is a pre-restore row (merge mode). Dictionary fetches don't see
-///   pending inserts, which reinforces that pre-restore-only semantic.
+///   cleared the store, and duplicates within a type were removed as the
+///   restore's source handed the type over (`BackupRestoreSource`), so the
+///   only thing that should count as "already exists" is a pre-restore row
+///   (merge mode). Dictionary fetches don't see pending inserts, which
+///   reinforces that pre-restore-only semantic.
 ///
 /// - `related` (relationship target): "find the parent with this id, whether
 ///   it pre-existed OR was just inserted earlier in this same restore." This one

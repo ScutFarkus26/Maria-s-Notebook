@@ -26,14 +26,13 @@ private enum BackupTestUtil {
         _ = try await BackupWriter.write(viewContext: context, to: url, progress: noopProgress)
     }
 
+    /// The app's restore of the file at `url` (`BackupImporter.restore`).
     static func importCurrentBackup(
         from url: URL,
         into context: NSManagedObjectContext,
         mode: BackupService.RestoreMode
     ) async throws {
-        let archive = try await BackupImporter.decodeArchive(at: url)
-        _ = try await BackupImporter.importDecoded(
-            archive,
+        _ = try await BackupImporter.restore(
             from: url,
             into: context,
             mode: mode,
@@ -95,11 +94,11 @@ private enum BackupTestUtil {
 
 // MARK: - Suite 1: End-to-End Round Trip with Real Core Data
 //
-// NOTE: These tests use `.merge` mode, NOT `.replace`. The replace path calls
-// `NSBatchDeleteRequest` which is unsupported on `NSInMemoryStoreType` stores
-// (it raises an ObjC exception that can crash the test harness). Since we
-// restore into a FRESH in-memory stack, merge into an empty destination is
-// functionally equivalent to replace for our purposes.
+// NOTE: These tests use `.merge` mode: they restore into a FRESH in-memory
+// stack, where merge into an empty destination does what replace would.
+// Replace mode clears the store with context-level deletes (never
+// `NSBatchDeleteRequest`, so CloudKit mirroring sees tombstones), which work
+// on in-memory stores too; BackupRestoreEquivalenceTests restores in both modes.
 
 @Suite("Backup round-trip with real Core Data")
 @MainActor
@@ -653,8 +652,7 @@ final class Backup2RoundTripTests {
         #expect(archive.warnings.isEmpty, "Clean archive should decode without warnings")
 
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
-        _ = try await BackupImporter.importDecoded(
-            archive,
+        _ = try await BackupImporter.restore(
             from: url,
             into: destStack.viewContext,
             mode: .merge,
