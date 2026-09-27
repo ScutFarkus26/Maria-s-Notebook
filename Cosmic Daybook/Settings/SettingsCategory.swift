@@ -23,7 +23,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .backup: return "Export, restore & auto-backup"
         case .templates: return "Note & meeting templates"
         case .communication: return "Attendance email, parent reports & order requests"
-        case .aiFeatures: return "Apple Intelligence & optional models"
+        case .aiFeatures: return "Apple Intelligence, companion & Siri"
         case .database: return "Record counts & statistics"
         case .advanced: return "Testing & debug tools"
         }
@@ -37,7 +37,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .backup: return "Backup"
         case .templates: return "Templates"
         case .communication: return "Communication"
-        case .aiFeatures: return "AI & Models"
+        case .aiFeatures: return "AI"
         case .database: return "Database"
         case .advanced: return "Advanced"
         }

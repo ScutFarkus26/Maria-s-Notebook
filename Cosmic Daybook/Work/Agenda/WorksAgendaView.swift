@@ -224,7 +224,8 @@ struct WorksAgendaView: View {
         // once when it comes back.
         .onReceiveWhenVisible(
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-                .map { Self.saveTouchesAgenda($0.userInfo) }
+                // @Sendable: runs on the saving context's queue (see onPresentationDataChange).
+                .map { @Sendable note in Self.saveTouchesAgenda(note.userInfo) }
                 .receive(on: RunLoop.main)
                 .filter { touches in
                     touches || !AppCalendar.shared.isDate(partitionBuiltAt, inSameDayAs: Date())

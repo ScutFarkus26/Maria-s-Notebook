@@ -102,7 +102,10 @@ struct WeekPlanSection: View {
             // Only while on screen: a hidden iPad tab refreshes once on return.
             .onReceiveWhenVisible(
                 NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-                    .filter { ManagedObjectChangeScope.saveTouches(Self.checkInEntityNames, in: $0.userInfo) }
+                    // @Sendable: runs on the saving context's queue (see onPresentationDataChange).
+                    .filter { @Sendable note in
+                        ManagedObjectChangeScope.saveTouches(Self.checkInEntityNames, in: note.userInfo)
+                    }
                     .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
             ) {
                 Task { await refreshCheckIns() }

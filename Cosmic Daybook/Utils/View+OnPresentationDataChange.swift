@@ -49,6 +49,13 @@ extension View {
     /// `entityNames` must be a subset of
     /// `PersistentHistoryProcessor.presentationEntityNames`; the remote signal
     /// covers nothing else. Every path delivers on the main queue.
+    ///
+    /// The filter closures are `@Sendable` because they run on the posting
+    /// thread, before `receive(on:)`: any context's save — TipKit's own
+    /// SwiftData store included — posts on its own queue. Written inside this
+    /// main-actor method they would otherwise inherit main-actor isolation, and
+    /// Swift's runtime isolation check stops the app when one runs off the main
+    /// thread (seen at launch on the iOS 27 simulator, 2026-09-26).
     func onPresentationDataChange(
         of entityNames: Set<String>,
         in context: NSManagedObjectContext,
@@ -64,7 +71,7 @@ extension View {
         return self
             .onReceive(
                 center.publisher(for: .NSManagedObjectContextObjectsDidChange, object: context)
-                    .compactMap { note -> Set<String>? in
+                    .compactMap { @Sendable note -> Set<String>? in
                         let touched = ManagedObjectChangeScope.touched(entityNames, in: note.userInfo)
                         return touched.isEmpty ? nil : touched
                     }
@@ -73,7 +80,7 @@ extension View {
             )
             .onReceive(
                 center.publisher(for: .NSManagedObjectContextDidSave)
-                    .compactMap { note -> Set<String>? in
+                    .compactMap { @Sendable note -> Set<String>? in
                         // The view context's own saves were already seen as edits above.
                         guard let saved = note.object as AnyObject?, ObjectIdentifier(saved) != contextID else {
                             return nil
@@ -86,7 +93,7 @@ extension View {
             )
             .onReceive(
                 center.publisher(for: .presentationDataDidChange)
-                    .compactMap { note -> Set<String>? in
+                    .compactMap { @Sendable note -> Set<String>? in
                         guard let changed = note.userInfo?[key] as? Set<String> else { return nil }
                         let touched = changed.intersection(entityNames)
                         return touched.isEmpty ? nil : touched

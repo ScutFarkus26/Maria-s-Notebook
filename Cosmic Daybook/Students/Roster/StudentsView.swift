@@ -152,7 +152,8 @@ struct StudentsView: View {
         // others, and the `.task` above refreshes the tokens on reappear.
         .onReceiveWhenVisible(
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-                .filter { Self.saveTouchesChangeTokens($0.userInfo) }
+                // @Sendable: runs on the saving context's queue (see onPresentationDataChange).
+                .filter { @Sendable note in Self.saveTouchesChangeTokens(note.userInfo) }
                 .debounce(for: .milliseconds(300), scheduler: RunLoop.main),
             catchUpOnAppear: false
         ) {
