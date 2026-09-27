@@ -115,20 +115,12 @@ extension WeekPlanSection {
 
     /// The rows under a pill, one per child — what its menu and sheet act on.
     func rows(of group: CalendarCheckInGroup) -> [CDWorkModel] {
-        var seen: Set<NSManagedObjectID> = []
-        return group.checkIns.compactMap { checkIn in
-            guard let work = checkIn.resolvedWork(in: viewContext),
-                  seen.insert(work.objectID).inserted else { return nil }
-            return work
-        }
+        WorkCheckPillActions.rows(of: group, in: viewContext)
     }
 
-    func children(of group: CalendarCheckInGroup) -> [WorkLogStatusMenu.Child] {
-        rows(of: group).compactMap { work in
-            guard let id = work.id else { return nil }
-            let name = checkInLookup.studentName(for: work)
-            return WorkLogStatusMenu.Child(id: id, name: name.isEmpty ? "Student" : name, work: work)
-        }
+    /// A pill's rows named for its menu's per-child submenus.
+    func children(of rows: [CDWorkModel]) -> [WorkLogStatusMenu.Child] {
+        WorkCheckPillActions.children(of: rows, lookup: checkInLookup)
     }
 
     var pillActions: WorkCheckPillActions {
