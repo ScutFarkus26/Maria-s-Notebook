@@ -141,14 +141,15 @@ final class MemoryPressureMonitor {
         onPressureHandler = nil
     }
 
-    /// The level a dispatch memory-pressure event stands for; nil for any
-    /// other value (the source asks only for these two).
+    /// The level a dispatch memory-pressure event stands for: critical when
+    /// it contains `.critical`, else warning when it contains `.warning`,
+    /// else nil (the source asks only for these two). Dispatch can merge
+    /// events that arrive before the handler runs into one value such as
+    /// `[.warning, .critical]`, so this tests membership, never equality.
     nonisolated static func level(for event: DispatchSource.MemoryPressureEvent) -> MemoryPressureLevel? {
-        switch event {
-        case .critical: .critical
-        case .warning: .warning
-        default: nil
-        }
+        if event.contains(.critical) { return .critical }
+        if event.contains(.warning) { return .warning }
+        return nil
     }
 
     /// The process footprint for a log line ("123.4 MB", or "unknown"); the

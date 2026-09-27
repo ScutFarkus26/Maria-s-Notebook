@@ -35,6 +35,13 @@ struct MemoryPressureMonitorTests {
         #expect(MemoryPressureMonitor.level(for: .normal) == nil)
     }
 
+    @Test("A merged dispatch event takes the most severe level it contains")
+    func mergedDispatchEventMapping() {
+        #expect(MemoryPressureMonitor.level(for: [.warning, .critical]) == .critical)
+        #expect(MemoryPressureMonitor.level(for: [.normal, .critical]) == .critical)
+        #expect(MemoryPressureMonitor.level(for: [.normal, .warning]) == .warning)
+    }
+
     #if os(iOS)
     private static func postMemoryWarning(to center: NotificationCenter) {
         center.post(name: UIApplication.didReceiveMemoryWarningNotification, object: UIApplication.shared)
