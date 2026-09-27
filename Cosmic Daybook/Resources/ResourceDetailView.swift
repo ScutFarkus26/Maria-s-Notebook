@@ -27,6 +27,8 @@ struct ResourceDetailView: View {
     @State private var editAreas: Set<String> = []
     @State private var showDeleteConfirmation = false
     @State private var pdfPage: PDFPage?
+    /// The resource's file as the toolbar menu draws it (see `resolvedFileURL`).
+    @State private var drawnFile = DocumentFileURLMemo()
 
     private static let logger = Logger.resources
 
@@ -415,9 +417,13 @@ struct ResourceDetailView: View {
 
     // MARK: - File Access
 
+    /// The file the toolbar menu's Share and Print items stand for, resolved
+    /// once per relative path (`DocumentFileURLMemo`). The menu is built with
+    /// the body, and each redraw looked up the managed folder, iCloud
+    /// container included. Share sends this URL, as it always sent the drawn
+    /// one; Open and Print resolve afresh when tapped.
     private var resolvedFileURL: URL? {
-        guard !resource.fileRelativePath.isEmpty else { return nil }
-        return try? ResourceFileStorage.resolve(relativePath: resource.fileRelativePath)
+        drawnFile.url(relativePath: resource.fileRelativePath, resolve: ResourceFileStorage.fileURL)
     }
 
     // MARK: - Actions

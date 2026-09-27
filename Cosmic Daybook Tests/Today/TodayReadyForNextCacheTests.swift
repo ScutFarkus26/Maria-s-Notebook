@@ -6,6 +6,8 @@ import Testing
 /// Today keeps its ready queue between reloads and rebuilds it only when one
 /// of the entities it reads changes. These pin that the kept queue is always
 /// the one a fresh build returns, and that the gate skips attendance taps.
+/// A rebuild publishes once its record read, off the main thread, comes back,
+/// so each check of the queue waits for that first (`readyForNextSettled`).
 @Suite("Today ready queue cache")
 @MainActor
 struct TodayReadyForNextCacheTests {
@@ -48,6 +50,7 @@ struct TodayReadyForNextCacheTests {
         let viewModel = TodayViewModel(context: context)
 
         viewModel.reload()
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext.count == 1)
         #expect(viewModel.readyForNext == fresh(context))
 
@@ -56,12 +59,14 @@ struct TodayReadyForNextCacheTests {
         assignment.confirmStudent(try #require(fixture.noa.id))
         #expect(CoreDataTestHelpers.save(context))
         viewModel.reload()
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext.count == 2)
         #expect(viewModel.readyForNext == fresh(context))
 
         // An unsaved edit in the same turn as the reload is still seen.
         PresentationPlanner.planDraft(lesson: fixture.second, students: [fixture.avital], purpose: nil, in: context)
         viewModel.reload()
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext.count == 1)
         #expect(viewModel.readyForNext == fresh(context))
         #expect(CoreDataTestHelpers.save(context))
@@ -83,12 +88,13 @@ struct TodayReadyForNextCacheTests {
         }
         #expect(fixture.noa.enrollmentStatus == .withdrawn)
         viewModel.reload()
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext.isEmpty)
         #expect(viewModel.readyForNext == fresh(context))
     }
 
     @Test("Attendance taps and repeat reloads do not rebuild the queue; a record change does")
-    func gateSkipsUnrelatedReloads() throws {
+    func gateSkipsUnrelatedReloads() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
         let viewModel = TodayViewModel(context: context)
@@ -102,12 +108,14 @@ struct TodayReadyForNextCacheTests {
         #expect(CoreDataTestHelpers.save(context))
         viewModel.reload()
         #expect(viewModel.readyForNextBuildCount == 1)
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == fresh(context))
 
         fixture.third.orderInSequence = 15
         #expect(CoreDataTestHelpers.save(context))
         viewModel.reload()
         #expect(viewModel.readyForNextBuildCount == 2)
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == fresh(context))
         #expect(viewModel.readyForNext.first?.nextLessonID == fixture.third.id?.uuidString)
 
@@ -117,7 +125,7 @@ struct TodayReadyForNextCacheTests {
     }
 
     @Test("The catalog path gives the same queue as the fetch path")
-    func catalogPathMatchesFetch() throws {
+    func catalogPathMatchesFetch() async throws {
         let dependencies = try CoreDataTestHelpers.makeDependencies()
         let context = dependencies.viewContext
         _ = try seed(in: context)
@@ -125,6 +133,7 @@ struct TodayReadyForNextCacheTests {
         viewModel.lessonCatalog = dependencies.lessonCatalog
 
         viewModel.reload()
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext.count == 1)
         #expect(viewModel.readyForNext == fresh(context))
         #expect(

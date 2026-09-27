@@ -10,10 +10,11 @@ import OSLog
 /// Pads with text are kept, so a guide can return to past notes indefinitely.
 ///
 /// Until 2026-09-26 `TodayViewModel` did this on the main thread each time it
-/// was created, and `TodayView.init` creates one on every redraw of its parent.
-/// Now the first view model made each day starts it for its store, on a
-/// background context: the same rows go, with the same cutoff, predicates and
-/// caps, once a day instead of many times, and never on the main thread.
+/// was created, and until 2026-09-27 `TodayView.init` created one on every
+/// redraw of its parent (`TodayRootView` now makes one per screen). Now the
+/// first view model made each day starts it for its store, on a background
+/// context: the same rows go, with the same cutoff, predicates and caps, once
+/// a day instead of many times, and never on the main thread.
 nonisolated enum TodayRetentionCleanup {
 
     /// How many rows one run deleted.

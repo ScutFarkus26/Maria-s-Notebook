@@ -9,6 +9,13 @@ import Testing
 /// an input change (or, for the count, a new day, a school-calendar change or
 /// the one-year window moving) still does, and that the kept values always
 /// equal what the old unconditional path computes.
+///
+/// The queue is published once its record read, off the main thread, comes
+/// back, so each comparison of it waits for that first (`readyForNextSettled`).
+/// Every check that nothing was rebuilt runs in the same main-actor turn as
+/// the appearances before it: while a test waits, the parallel suite's other
+/// tests can move process-wide inputs (the school-day version, the import
+/// signal), which would rebuild for reasons that have nothing to do with it.
 @Suite("Today appearance gates")
 @MainActor
 struct TodayAppearanceGateTests {
@@ -77,7 +84,7 @@ struct TodayAppearanceGateTests {
     }
 
     @Test("Five returns with nothing changed build each value once, not five times")
-    func repeatedAppearancesBuildOnce() throws {
+    func repeatedAppearancesBuildOnce() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         _ = try seed(in: context)
         let before = TodayViewModel(context: context)
@@ -92,17 +99,20 @@ struct TodayAppearanceGateTests {
         #expect(before.derivedCountsBuildCount == 5)
         #expect(after.readyForNextBuildCount == 1)
         #expect(after.derivedCountsBuildCount == 1)
-        #expect(after.readyForNext == before.readyForNext)
-        #expect(after.readyForNext == freshQueue(context))
         #expect(after.needsLessonCount == before.needsLessonCount)
         #expect(after.needsLessonCount == oldNeedsLessonCount(in: context))
         // At least Noa (never) and Liat (only a Parsha lesson); Maya's month
         // depends on the counter epoch the host has set.
         #expect(after.needsLessonCount >= 2)
+
+        await before.readyForNextSettled()
+        await after.readyForNextSettled()
+        #expect(after.readyForNext == before.readyForNext)
+        #expect(after.readyForNext == freshQueue(context))
     }
 
     @Test("An input change rebuilds on the next return; unrelated edits do not")
-    func inputChangesRebuild() throws {
+    func inputChangesRebuild() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
         let viewModel = TodayViewModel(context: context)
@@ -123,6 +133,7 @@ struct TodayAppearanceGateTests {
         appear(viewModel)
         #expect(viewModel.readyForNextBuildCount == 2)
         #expect(viewModel.derivedCountsBuildCount == 2)
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == freshQueue(context))
 
         // Presenting Noa a lesson moves the count.
@@ -133,6 +144,7 @@ struct TodayAppearanceGateTests {
         #expect(viewModel.derivedCountsBuildCount == 3)
         #expect(viewModel.needsLessonCount == countBefore - 1)
         #expect(viewModel.needsLessonCount == oldNeedsLessonCount(in: context))
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == freshQueue(context))
 
         // An unsaved edit in the same turn is seen too.
@@ -140,11 +152,12 @@ struct TodayAppearanceGateTests {
         appear(viewModel)
         #expect(viewModel.derivedCountsBuildCount == 4)
         #expect(viewModel.needsLessonCount == oldNeedsLessonCount(in: context))
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == freshQueue(context))
     }
 
     @Test("A new day, a school-calendar change and a non-school day recompute the count")
-    func dayAndCalendarChangesRecomputeTheCount() throws {
+    func dayAndCalendarChangesRecomputeTheCount() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         _ = try seed(in: context)
         let viewModel = TodayViewModel(context: context)
@@ -178,6 +191,7 @@ struct TodayAppearanceGateTests {
         viewModel.date = tomorrow
         viewModel.reload()
         #expect(viewModel.readyForNextBuildCount == built)
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext == freshQueue(context))
     }
 

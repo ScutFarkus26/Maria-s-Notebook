@@ -49,6 +49,8 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
     /// Logged when iCloud is unavailable and local Documents is used instead.
     let localFallbackWarning: String
     let logger: Logger
+    /// Where the iCloud container's URL comes from; tests pass their own.
+    var ubiquityContainer: UbiquityContainerCache = .shared
 
     // MARK: - Directory
 
@@ -57,7 +59,10 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
     func directory() throws -> URL {
         let fm = FileManager.default
 
-        if let ubiquityURL = fm.url(forUbiquityContainerIdentifier: nil) {
+        // Looked up off the main thread and kept until the iCloud identity
+        // changes (`UbiquityContainerCache`); this asked FileManager on the
+        // calling thread, usually the main one, every time.
+        if let ubiquityURL = ubiquityContainer.url() {
             let dir = ubiquityURL
                 .appendingPathComponent("Documents", isDirectory: true)
                 .appendingPathComponent(folderName, isDirectory: true)

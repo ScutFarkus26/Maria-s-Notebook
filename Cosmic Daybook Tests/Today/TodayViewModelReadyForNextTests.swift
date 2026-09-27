@@ -5,6 +5,8 @@ import Testing
 
 /// Today's ready queue: `reload()` fills `readyForNext` from the record, and
 /// a next lesson the guide has since planned takes the child back out of it.
+/// The queue is published once the rebuild's record read, off the main
+/// thread, comes back (`readyForNextSettled`).
 @Suite("Today Ready For Next")
 @MainActor
 struct TodayViewModelReadyForNextTests {
@@ -40,12 +42,13 @@ struct TodayViewModelReadyForNextTests {
     }
 
     @Test("reload fills the queue with the child whose next lesson is untouched")
-    func reloadFillsTheQueue() throws {
+    func reloadFillsTheQueue() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
 
         let viewModel = TodayViewModel(context: context)
         viewModel.reload()
+        await viewModel.readyForNextSettled()
 
         #expect(viewModel.readyForNext.count == 1)
         let item = try #require(viewModel.readyForNext.first)
@@ -56,12 +59,13 @@ struct TodayViewModelReadyForNextTests {
     }
 
     @Test("Planning that next lesson for her empties the queue on the next reload")
-    func draftingTheNextLessonEmptiesTheQueue() throws {
+    func draftingTheNextLessonEmptiesTheQueue() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
 
         let viewModel = TodayViewModel(context: context)
         viewModel.reload()
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext.count == 1)
 
         PresentationPlanner.planDraft(
@@ -73,11 +77,12 @@ struct TodayViewModelReadyForNextTests {
         #expect(CoreDataTestHelpers.save(context))
 
         viewModel.reload()
+        await viewModel.readyForNextSettled()
         #expect(viewModel.readyForNext.isEmpty)
     }
 
     @Test("A withdrawn child is not in Today's queue")
-    func withdrawnChildIsNotInTheQueue() throws {
+    func withdrawnChildIsNotInTheQueue() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         let fixture = try seed(in: context)
         fixture.avital.enrollmentStatus = .withdrawn
@@ -85,6 +90,7 @@ struct TodayViewModelReadyForNextTests {
 
         let viewModel = TodayViewModel(context: context)
         viewModel.reload()
+        await viewModel.readyForNextSettled()
 
         #expect(viewModel.readyForNext.isEmpty)
     }

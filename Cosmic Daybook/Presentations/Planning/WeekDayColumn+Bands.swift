@@ -205,6 +205,8 @@ extension WeekDayColumn {
 
     /// The pill's right-click menu. Logging a status here is the same write
     /// the sheet makes, without the note; the pill leaves the strip either way.
+    /// Built on every pass of the column, so the status items' row lookup
+    /// waits in `WorkCheckPillStatusMenu` until the menu is shown.
     @ViewBuilder
     func checkInMenu(_ group: CalendarCheckInGroup) -> some View {
         Button {
@@ -213,12 +215,7 @@ extension WeekDayColumn {
             Label("Log Check…", systemImage: "square.and.pencil")
         }
         Divider()
-        WorkLogStatusMenu(
-            targets: pillActions.rows(group),
-            children: pillActions.children(group)
-        ) { rows, status in
-            pillActions.log(group, rows, status)
-        }
+        WorkCheckPillStatusMenu(group: group, actions: pillActions)
         Divider()
         Menu {
             let ids = group.checkIns.compactMap(\.id)
@@ -299,14 +296,5 @@ extension WeekDayColumn {
     }
 }
 
-/// What a check-in pill's right-click menu can do, handed down from
-/// `WeekPlanSection`, which owns the check-in lookup, the save and the toast.
-struct WorkCheckPillActions {
-    /// The rows under a pill, one per child.
-    let rows: (CalendarCheckInGroup) -> [CDWorkModel]
-    /// The same rows named for per-child submenus.
-    let children: (CalendarCheckInGroup) -> [WorkLogStatusMenu.Child]
-    /// Logs a status on some of a pill's rows for the pill's day.
-    let log: (CalendarCheckInGroup, [CDWorkModel], WorkStatus) -> Void
-    let openWork: (UUID) -> Void
-}
+// `WorkCheckPillActions`, what the pill menu can do, and the menu's status
+// items live in WorkCheckPillMenu.swift.

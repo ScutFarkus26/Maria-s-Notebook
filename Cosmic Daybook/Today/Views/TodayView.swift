@@ -10,6 +10,7 @@
 // - TodayViewListRows.swift - Individual row components
 // - AttendanceExpandedView.swift - Expanded attendance grid
 // - TodayView+Sheets.swift - ActiveSheet and the sheets modifier
+// - TodayRootView.swift - Owns the view model; what the root detail shows
 
 import SwiftUI
 import CoreData
@@ -43,7 +44,8 @@ struct TodayView: View {
     #endif
 
     // MARK: - ViewModel
-    @State var viewModel: TodayViewModel
+    /// Made once by `TodayRootView`, which keeps it while the screen is up.
+    let viewModel: TodayViewModel
 
     // MARK: - Navigation State
     @State var selectedWorkID: UUID?
@@ -95,8 +97,8 @@ struct TodayView: View {
     }
 
     // MARK: - Init
-    init(context: NSManagedObjectContext) {
-        viewModel = TodayViewModel(context: context, calendar: AppCalendar.shared)
+    init(viewModel: TodayViewModel) {
+        self.viewModel = viewModel
     }
 
     // MARK: - Body

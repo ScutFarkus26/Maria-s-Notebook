@@ -10,6 +10,13 @@ struct DocumentCard: View {
     let onDelete: () -> Void
     let onRename: () -> Void
 
+    /// The thumbnail's file, resolved once per bookmark value instead of on
+    /// every redraw (see `DocumentFileURLMemo`); kept for the card's lifetime.
+    @State private var thumbnailFile = DocumentFileURLMemo()
+
+    /// Where the document is now, resolved on every tap as it always was: a
+    /// file that has moved or gone since the card was drawn opens, or falls
+    /// back to the record's data, exactly as before.
     private var fileURL: URL? {
         StudentDocumentFileStorage.resolveURL(
             bookmark: document.pdfFileBookmark,
@@ -37,7 +44,11 @@ struct DocumentCard: View {
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             PDFThumbnail(
-                url: fileURL,
+                url: thumbnailFile.url(
+                    bookmark: document.pdfFileBookmark,
+                    relativePath: document.pdfFileRelativePath,
+                    resolve: StudentDocumentFileStorage.resolveURL
+                ),
                 data: document.pdfData,
                 recordKey: document.objectID.uriRepresentation().absoluteString
             )
