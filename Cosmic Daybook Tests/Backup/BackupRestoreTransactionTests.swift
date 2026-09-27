@@ -6,9 +6,12 @@ import Testing
 // How a restore fails, and what runs where. Broken archives throw the one-pass
 // restore's errors (BackupService+LegacyRestore.swift) and leave the store
 // untouched; a replace restore failing part-way rolls back to its checkpoint;
-// every backed-up type is imported once, in the old order; and the archive
-// decodes off the main thread while nothing else runs on the main actor from
-// the clear to the save.
+// a merge restore failing part-way (2026-09-27; it used to leave its partial
+// changes pending, for the next save anywhere to commit) discards exactly its
+// own changes and keeps the guide's unsaved edits, which it saves first; every
+// backed-up type is imported once, in the old order; and the archive decodes
+// off the main thread while nothing else runs on the main actor from the clear
+// to the save.
 @Suite("Backup restore failures and threads", .serialized)
 @MainActor
 struct BackupRestoreTransactionTests {
@@ -109,6 +112,51 @@ struct BackupRestoreTransactionTests {
         #expect(importedFirst.count > 10, "types imported before the failure: \(importedFirst.count)")
         #expect(try Restore.backedUpRows(of: target.viewContext) == before)
         #expect(!target.viewContext.hasChanges)
+    }
+
+    @Test("A merge restore failing part-way discards exactly its own changes and keeps the guide's")
+    func failedMergeDiscardsOnlyItsOwnChanges() async throws {
+        let (store, url) = try await Restore.makeBackup(bulk: 0)
+        defer { store.remove() }
+        let studentID = try #require(try await BackupImporter.decodeArchive(at: url).payload.students.first?.id)
+        let target = try CoreDataTestHelpers.makeInMemoryStack()
+        let context = target.viewContext
+        // Saved: a student the backup also holds — a restore would overwrite her.
+        let student = NSEntityDescription.insertNewObject(forEntityName: "Student", into: context)
+        student.setValue(studentID, forKey: "id")
+        student.setValue("Before", forKey: "firstName")
+        try context.save()
+        // Not saved when the restore begins: an edit to her, and a new note.
+        student.setValue("Edited, not saved", forKey: "firstName")
+        let typedID = UUID()
+        let typed = NSEntityDescription.insertNewObject(forEntityName: "Note", into: context)
+        typed.setValue(typedID, forKey: "id")
+        typed.setValue("Typed, not saved", forKey: "body")
+
+        let recorder = Self.failing(at: "import WorkModel")
+        do {
+            _ = try await BackupPipelineRecorder.$current.withValue(recorder) {
+                try await Self.coordinator().importBackup(
+                    viewContext: context, from: url, mode: .merge, progress: { _, _ in }
+                )
+            }
+            Issue.record("The restore should have failed")
+        } catch BackupTransactionManager.TransactionError.importFailed(let underlying, let checkpointURL) {
+            #expect(underlying is Boom)
+            #expect(checkpointURL == nil, "a merge restore makes no checkpoint")
+        }
+        #expect(Self.imported(before: "import WorkModel", in: recorder).count > 10)
+
+        // Nothing is left for the next save to commit, and the store holds the
+        // guide's edits and nothing of the backup's.
+        #expect(!context.hasChanges)
+        context.refreshAllObjects()
+        let rows = try Restore.snapshot(of: context)
+        #expect(rows.keys.sorted() == ["Note", "Student"], "only the guide's records: \(rows.keys.sorted())")
+        let students = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: "Student"))
+        #expect(students.map { $0.value(forKey: "firstName") as? String } == ["Edited, not saved"])
+        let notes = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: "Note"))
+        #expect(notes.map { $0.value(forKey: "id") as? UUID } == [typedID])
     }
 
     // MARK: - Order and threads

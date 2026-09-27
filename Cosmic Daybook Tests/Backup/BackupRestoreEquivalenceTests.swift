@@ -11,10 +11,11 @@ import Testing
 // deduplicated into a second copy and imported, kept verbatim in
 // BackupService+LegacyRestore.swift: the same records, summary and progress in
 // merge mode (into an empty store, a store already holding every record, one
-// holding part of the backup) and in replace mode; for an archive with every
-// type ahead of the types it links to, and one with rows that do not decode,
-// entries written twice and entities this version does not know. Failures,
-// order and threads: BackupRestoreTransactionTests.
+// holding part of the backup) and in replace mode; with the guide's unsaved
+// edits pending, both modes; for an archive with every type ahead of the types
+// it links to, and one with rows that do not decode, entries written twice and
+// entities this version does not know. Failures, order and threads:
+// BackupRestoreTransactionTests.
 @Suite("Backup restore against the one-pass restore", .serialized)
 @MainActor
 struct BackupRestoreEquivalenceTests {
@@ -130,5 +131,31 @@ struct BackupRestoreEquivalenceTests {
         ]
         let order = prefixes.compactMap { prefix in warnings.firstIndex { $0.hasPrefix(prefix) } }
         #expect(order.count == prefixes.count && order == order.sorted(), "archive order: \(warnings)")
+    }
+
+    @Test("The guide's unsaved edits pending when a restore begins: the old records", arguments: [
+        BackupService.RestoreMode.merge, .replace
+    ])
+    func unsavedEditsPending(mode: BackupService.RestoreMode) async throws {
+        let (store, url) = try await Restore.makeBackup(bulk: 0)
+        defer { store.remove() }
+        let studentID = try #require(try await BackupImporter.decodeArchive(at: url).payload.students.first?.id)
+        let (keptID, typedID) = (UUID(), UUID())
+        _ = try await Restore.expectSameRestore(of: url, mode: mode, preparing: { context in
+            // Saved: a student the backup also holds, and a note it lacks.
+            let student = NSEntityDescription.insertNewObject(forEntityName: "Student", into: context)
+            student.setValue(studentID, forKey: "id")
+            student.setValue("Before", forKey: "firstName")
+            let kept = NSEntityDescription.insertNewObject(forEntityName: "Note", into: context)
+            kept.setValue(keptID, forKey: "id")
+            kept.setValue("Saved; the backup lacks it", forKey: "body")
+            try context.save()
+            // Not saved when the restore begins: an edit to each, and a new note.
+            student.setValue("Edited, not saved", forKey: "firstName")
+            kept.setValue("Edited, not saved", forKey: "body")
+            let typed = NSEntityDescription.insertNewObject(forEntityName: "Note", into: context)
+            typed.setValue(typedID, forKey: "id")
+            typed.setValue("Typed, not saved", forKey: "body")
+        }, "\(mode.rawValue) with unsaved edits")
     }
 }

@@ -21,6 +21,21 @@ private enum RestoreClearError: LocalizedError {
     }
 }
 
+/// Error thrown when edits the view context held before a restore began
+/// cannot be saved first (see `saveEditsMadeBeforeRestore`). Nothing has been
+/// restored, and those edits are left unsaved, as they were.
+private enum RestoreStartError: LocalizedError {
+    case unsavedEditsNotSaved(reason: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unsavedEditsNotSaved(let reason):
+            return "The restore didn't start because changes that weren't saved yet "
+                + "couldn't be saved first: \(reason)"
+        }
+    }
+}
+
 // MARK: - Import Progress Steps
 
 /// Named progress milestones for backup restoration, replacing inline magic numbers.
@@ -94,6 +109,12 @@ extension BackupService {
     /// write could save or roll back the restore's pending changes, and
     /// `isRestoring` would swap Settings — with this restore's progress and
     /// summary — out of the window.
+    ///
+    /// Edits the view context already held are saved first, and a failure
+    /// before the restore's own save completes discards everything it left
+    /// unsaved: in that one turn, nothing else can have changed the context,
+    /// so a failed restore leaves neither half a restore for the next save
+    /// anywhere to commit nor any loss of the guide's own edits.
     func importRows(
         from source: any BackupRestoreSource,
         viewContext: NSManagedObjectContext,
@@ -104,10 +125,11 @@ extension BackupService {
         // Each type is deduplicated as `source` hands it over; the line keeps
         // its place so the guide sees the same progress.
         progress(RestoreProgress.deduplication, "Deduplicating records\u{2026}")
+        try saveEditsMadeBeforeRestore(in: viewContext)
 
-        let run = try importEverything(
-            from: source, into: viewContext, mode: mode, appRouter: appRouter, progress: progress
-        )
+        let run = try discardingChangesOnFailure(in: viewContext) {
+            try importEverything(from: source, into: viewContext, mode: mode, appRouter: appRouter, progress: progress)
+        }
 
         // Subscribe to CloudKit export events BEFORE saving — a fast export
         // could otherwise complete between save() and subscription, leaving
@@ -118,11 +140,13 @@ extension BackupService {
         }
         defer { cloudExportWait.cancel() }
 
-        progress(RestoreProgress.saving, "Saving\u{2026}")
-        try viewContext.save()
+        try discardingChangesOnFailure(in: viewContext) {
+            progress(RestoreProgress.saving, "Saving\u{2026}")
+            try viewContext.save()
 
-        progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
-        try repairDenormalizedFields(viewContext: viewContext)
+            progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
+            try repairDenormalizedFields(viewContext: viewContext)
+        }
 
         applyPreferencesDTO(source.preferences)
         AlbumLibrary.shared.reloadAfterRestore()
@@ -146,6 +170,34 @@ extension BackupService {
             entityCounts: envelope.entityCounts,
             warnings: warnings
         )
+    }
+
+    /// Saves edits the view context held before this restore began. The
+    /// restore's own save would commit them anyway, as it always has; saving
+    /// them first is what lets a failure discard exactly the restore's changes
+    /// and none of these. If they can't be saved, the restore doesn't begin
+    /// and they stay unsaved.
+    private func saveEditsMadeBeforeRestore(in viewContext: NSManagedObjectContext) throws {
+        guard viewContext.hasChanges else { return }
+        do {
+            try viewContext.save()
+        } catch {
+            throw RestoreStartError.unsavedEditsNotSaved(reason: error.localizedDescription)
+        }
+    }
+
+    /// `body`, and if it throws, every unsaved change in `viewContext`
+    /// discarded first — by then only the restore's own (see `importRows`).
+    private func discardingChangesOnFailure<T>(
+        in viewContext: NSManagedObjectContext,
+        _ body: () throws -> T
+    ) throws -> T {
+        do {
+            return try body()
+        } catch {
+            viewContext.rollback()
+            throw error
+        }
     }
 
     /// Everything the restore changes before its save: the replace-mode clear,
