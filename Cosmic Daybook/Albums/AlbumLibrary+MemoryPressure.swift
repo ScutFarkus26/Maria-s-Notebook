@@ -32,7 +32,7 @@ extension AlbumLibrary {
     /// `.critical` the page-text and semantic indexes go too, which surfaces as the
     /// normal "still indexing" state until `ensureIndexed()` reloads them from disk.
     func releaseMemory(critical: Bool) {
-        foldedTexts.removeAll()
+        folds.dropAll()
         // The cached query models (the contextual one is large) reload on the
         // next search.
         AlbumSemanticIndex.releaseQueryEmbedders()

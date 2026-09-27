@@ -4,9 +4,9 @@ import Testing
 
 /// The album library no longer folds every page of every album while it
 /// indexes (Energy Fifty #42). The first search that needs an album's folded
-/// text builds it (`folded(for:)`) and keeps it until a trim, and the text is
-/// the one the old index extracted and cached, so searches find what the eager
-/// fold found.
+/// text builds it, off the main actor (`AlbumTextFolds`), and keeps it until a
+/// trim; the text is the one the old index extracted and cached, so searches
+/// find what the eager fold found.
 @Suite("Album page text: folded by the first search", .serialized)
 @MainActor
 struct AlbumLibraryLazyFoldTests {
@@ -75,11 +75,14 @@ struct AlbumLibraryLazyFoldTests {
             .contentModificationDate)
         let old = LegacyAlbumIndex.loadOrBuildIndex(url: url, modified: modified, cacheDir: nil)
         #expect(library.pageTexts[album.id] == old.texts)
-        #expect(library.foldedTexts[album.id] == nil)
+        #expect(library.folds.kept[album.id] == nil)
 
-        let corpus = library.corpus()
+        // The first search folds the album, off the main thread, once.
+        let recorder = AlbumFoldRecorder()
+        let corpus = await AlbumFoldRecorder.$current.withValue(recorder) { await library.corpus() }
+        #expect(recorder.reached == [AlbumFoldRecorder.Step(name: "fold \(album.id)", onMainThread: false)])
         #expect(corpus.albums.map(\.folded) == [old.folded])
-        #expect(library.foldedTexts[album.id] == old.folded)
+        #expect(library.folds.kept[album.id] == old.folded)
         let eager = AlbumSearchCorpus(albums: [AlbumSearchCorpus.AlbumData(
             id: album.id, title: album.title, subject: album.subject, lessons: album.lessons,
             texts: old.texts, folded: old.folded)])
@@ -106,12 +109,12 @@ struct AlbumLibraryLazyFoldTests {
         }
         library.albums = [album]
         await library.buildIndexes(policy: Self.coolDevice)
-        let firstFold = library.corpus().albums.first?.folded
-        #expect(library.foldedTexts[album.id] == firstFold)
+        let firstFold = await library.corpus().albums.first?.folded
+        #expect(library.folds.kept[album.id] == firstFold)
 
         // Nothing changed: the fold stays for the next search.
         await library.buildIndexes(policy: Self.coolDevice)
-        #expect(library.foldedTexts[album.id] == firstFold)
+        #expect(library.folds.kept[album.id] == firstFold)
 
         // A revised PDF (a minute newer, with other text) takes its fold with it.
         _ = try AlbumTestSupport.writeAlbum(named: name, in: dir, pageCount: 6,
@@ -119,10 +122,10 @@ struct AlbumLibraryLazyFoldTests {
         try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(60)],
                                               ofItemAtPath: url.path)
         await library.buildIndexes(policy: Self.coolDevice)
-        #expect(library.foldedTexts[album.id] == nil)
+        #expect(library.folds.kept[album.id] == nil)
         let revised = try #require(library.pageTexts[album.id])
         #expect(revised.joined().contains("Golden Bead Addition"))
-        let corpus = library.corpus()
+        let corpus = await library.corpus()
         #expect(corpus.albums.first?.folded == revised.map { $0.folded() })
         #expect(!Self.search("golden bead", in: corpus).isEmpty)
         #expect(Self.search("eleve", in: corpus).isEmpty)
@@ -136,7 +139,6 @@ struct AlbumLibraryLazyFoldTests {
 private struct SavedLibraryState {
     let albums: [Album]
     let pageTexts: [String: [String]]
-    let foldedTexts: [String: [String]]
     let indexPurged: Bool
     let indexProgress: Double
     let indexedPageCount: Int
@@ -145,7 +147,6 @@ private struct SavedLibraryState {
     init(_ library: AlbumLibrary) {
         albums = library.albums
         pageTexts = library.pageTexts
-        foldedTexts = library.foldedTexts
         indexPurged = library.indexPurged
         indexProgress = library.indexProgress
         indexedPageCount = library.indexedPageCount
@@ -155,7 +156,7 @@ private struct SavedLibraryState {
     func restore(_ library: AlbumLibrary, removingTracesOf album: Album) {
         library.albums = albums
         library.pageTexts = pageTexts
-        library.foldedTexts = foldedTexts
+        library.folds.dropAll()
         library.indexPurged = indexPurged
         library.indexProgress = indexProgress
         library.indexedPageCount = indexedPageCount

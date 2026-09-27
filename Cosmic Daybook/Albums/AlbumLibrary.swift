@@ -174,16 +174,15 @@ final class AlbumLibrary {
     private(set) var needsIdentityRepair = false
     let semantic = AlbumSemanticIndex()
 
-    // The three index caches below are `internal` rather than `private` only so
+    // The index caches below are `internal` rather than `private` only so
     // `AlbumLibrary+MemoryPressure.swift` can release them. Nothing else should
     // touch them — read page text through `text(albumID:pageIndex:)` or `corpus()`.
 
     /// Per-album page text, keyed by album id.
     var pageTexts: [String: [String]] = [:]
-    /// Case- and diacritic-folded copy of `pageTexts`, used for matching. Built per
-    /// album by the first search that needs it (`folded(for:)`), not by the index
-    /// build; purely derived, so trims and memory pressure drop it.
-    var foldedTexts: [String: [String]] = [:]
+    /// The case- and diacritic-folded copy of `pageTexts` that search matches
+    /// against, folded off the main actor by the first search that needs it.
+    let folds = AlbumTextFolds()
     /// Modification date of each album's file at the time it was indexed.
     private var modDates: [String: Date] = [:]
     /// Set when critical memory pressure purged `pageTexts`. The on-disk index
@@ -445,7 +444,7 @@ final class AlbumLibrary {
         guard !indexing else { return }
         indexPurged = false
         pageTexts = [:]
-        foldedTexts = [:]
+        folds.dropAll()
         if let dir = Self.indexCacheDirectory() {
             try? FileManager.default.removeItem(at: dir)
         }
@@ -476,7 +475,7 @@ final class AlbumLibrary {
             }.value
             pageTexts[item.id] = texts
             // Folded on first search; a changed album's fold of its old text goes.
-            if modDates[item.id] != modified { foldedTexts[item.id] = nil }
+            if modDates[item.id] != modified { folds.drop(albumID: item.id) }
             modDates[item.id] = modified
             if let seen = lastSeen[item.id] {
                 if modified.timeIntervalSinceReferenceDate > seen + 1 {
@@ -548,23 +547,15 @@ final class AlbumLibrary {
         return pages[pageIndex]
     }
 
-    /// Folded text for one album, built from `pageTexts` on first use and kept until
-    /// a trim or memory pressure drops it: far cheaper than keeping a second full
-    /// copy of the corpus resident for the life of the app.
-    private func folded(for albumID: String) -> [String] {
-        if let cached = foldedTexts[albumID] { return cached }
-        guard let texts = pageTexts[albumID] else { return [] }
-        let built = texts.map { $0.folded() }
-        foldedTexts[albumID] = built
-        return built
-    }
-
-    func corpus() -> AlbumSearchCorpus {
-        AlbumSearchCorpus(albums: albums.map {
-            AlbumSearchCorpus.AlbumData(id: $0.id, title: $0.title, subject: $0.subject,
-                                   lessons: $0.lessons,
-                                   texts: pageTexts[$0.id] ?? [],
-                                   folded: folded(for: $0.id))
+    /// Every album's page text with its fold, for a search. An album whose fold
+    /// a load, a trim or a change left missing is folded off the main actor
+    /// (`AlbumTextFolds`), so the first search after one no longer stalls it.
+    func corpus() async -> AlbumSearchCorpus {
+        let albums = self.albums
+        let pages = await folds.pages(for: albums.map { (id: $0.id, texts: pageTexts[$0.id] ?? []) })
+        return AlbumSearchCorpus(albums: zip(albums, pages).map { album, pages in
+            AlbumSearchCorpus.AlbumData(id: album.id, title: album.title, subject: album.subject,
+                                        lessons: album.lessons, texts: pages.texts, folded: pages.folded)
         })
     }
 
@@ -599,7 +590,7 @@ final class AlbumLibrary {
         return dir
     }
 
-    /// The album's page text, from the cache or the PDF; `folded(for:)` folds it later.
+    /// The album's page text, from the cache or the PDF; a search folds it later.
     nonisolated static func loadOrBuildIndex(url: URL, modified: Date, cacheDir: URL?) -> [String] {
         let cacheURL = cacheDir?.appendingPathComponent(url.lastPathComponent + ".index.json")
         if let cacheURL,

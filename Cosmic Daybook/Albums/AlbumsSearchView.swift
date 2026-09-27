@@ -211,7 +211,9 @@ struct AlbumsSearchView: View {
         }
         try? await Task.sleep(for: .milliseconds(140))
         guard !Task.isCancelled else { return }
-        let corpus = library.corpus()
+        // Folds any album whose fold isn't kept, off the main actor.
+        let corpus = await library.corpus()
+        guard !Task.isCancelled else { return }
         let notes = AlbumUserDataStore.noteSnapshots(in: context)
         let filter = albumFilter
         var found = await Task.detached(priority: .userInitiated) {
