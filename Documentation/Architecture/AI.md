@@ -192,6 +192,16 @@ Tool results retain source references so an answer can show which notebook
 records support it. Retrieved text is evidence for a proposed answer, not
 authority to make a guide-owned pedagogical decision.
 
+**Meeting and follow-up tools.** `Services/AI/NotebookTools+Meetings.swift` adds
+four more: `recordStudentMeeting`, `addFollowUp`, `resolveFollowUp` and
+`listOpenFollowUps`. They are thin bridges onto the MCP handlers
+(`MCPNotebookTools.recordMeeting` / `addFollowUp` / `resolveFollowUp` /
+`listOpenFollowUps`), so chat and Claude share one save path and one wording.
+Chat has no per-call approval, so the three writers' descriptions limit them to
+an explicit request from the guide, and expected failures come back as replies
+rather than thrown errors. `addFollowUp` drops the MCP duplicate notice's
+"pass force: true" clause, since chat has no `force`.
+
 ---
 
 ## 6. Privacy model
@@ -289,6 +299,7 @@ Services/
     PrivateCloudModelClient.swift     # Private Cloud Compute provider
     TokenBudget.swift                 # token-based input budgeting
     NotebookTools.swift               # on-device search tools for chat
+    NotebookTools+Meetings.swift      # chat bridges onto the MCP meeting/follow-up tools
   CommandBar/                         # command parsing (local and on-device tiers)
 Chat/Services/ChatService.swift       # chat orchestration + escalation
 Planning/AIPlanning/LessonPlanning/   # lesson planning service and state

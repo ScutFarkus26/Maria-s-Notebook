@@ -52,7 +52,7 @@ enum NotebookTools {
             PresentationWorkTool(sourceCollector: sourceCollector),
             MissingPresentationObservationsTool(sourceCollector: sourceCollector),
             SearchTeachingAlbumsTool()
-        ]
+        ] + meetingTools
     }
 }
 

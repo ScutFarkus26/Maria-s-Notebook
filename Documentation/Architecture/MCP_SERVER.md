@@ -408,6 +408,18 @@ after an in-app rename. The sub-area order itself lives in `FilterOrderStore`
 (UserDefaults, device-local), which is why a whole-area listing groups in
 this Mac's map order.
 
+The meeting/follow-up tools also back the on-device chat toolset:
+`Services/AI/NotebookTools+Meetings.swift` defines thin chat bridges
+(`recordStudentMeeting`, `addFollowUp`, `resolveFollowUp`,
+`listOpenFollowUps`) that build the same argument dictionaries and call the
+same `MCPNotebookTools` handlers (`create_meeting_entry`, `add_follow_up`,
+`resolve_follow_up`, `list_open_follow_ups`), so validation, save paths, and
+citation strings cannot drift between the two surfaces. Because chat has no
+per-call approval UI, the chat write tools' descriptions restrict them to
+explicit requests from the guide, and expected failures return as plain
+replies instead of thrown errors. Chat passes no `force`, so a same-day
+duplicate follow-up is reported without the "pass force: true" clause.
+
 The two album tools are the exception to the `[kind id=<uuid>]` convention:
 album pages aren't Core Data records and have no id, so they cite
 `[albumPage album="<file>" page=<n>]`. `get_album_page` takes that same
