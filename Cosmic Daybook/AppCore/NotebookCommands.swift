@@ -55,7 +55,7 @@ struct NotebookCommands: Commands {
 
         // VIEW MENU — standard Show/Hide Sidebar (⌃⌘S) for the NavigationSplitView
         SidebarCommands()
-        NotebookCompanionCommands()
+        QuickCaptureButtonCommands()
 
         CommandMenu("Classroom") {
             Button("My Class") {

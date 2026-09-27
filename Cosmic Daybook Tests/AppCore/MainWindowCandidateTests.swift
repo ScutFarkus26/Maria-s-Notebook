@@ -1,8 +1,8 @@
 import Testing
 @testable import CosmicDaybook
 
-/// Which open main window the Mac's desktop companion brings forward instead
-/// of opening another one.
+/// Which open main window is preferred, and which one answers a request every
+/// main window hears.
 @Suite("Main window choice")
 @MainActor
 struct MainWindowCandidateTests {
@@ -19,13 +19,13 @@ struct MainWindowCandidateTests {
         MainWindowCandidate(isOnScreen: false, isMiniaturized: false, lastUsed: lastUsed)
     }
 
-    @Test("With no main window open, the caller opens one as before")
+    @Test("With no main window open, none is preferred")
     func noOpenWindowOpensANewOne() {
         #expect(MainWindowCandidate.indexToBringForward([]) == nil)
         #expect(MainWindowCandidate.indexToBringForward([closed(3)]) == nil)
     }
 
-    @Test("The one open main window comes forward instead of a second one opening")
+    @Test("The one open main window is preferred")
     func singleOpenWindowIsReused() {
         #expect(MainWindowCandidate.indexToBringForward([onScreen(1)]) == 0)
         #expect(MainWindowCandidate.indexToBringForward([minimized(1)]) == 0)

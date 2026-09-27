@@ -6,8 +6,8 @@ import AppKit
 /// ensures the window is resizable and applies optional min/max content sizes.
 ///
 /// `RootView` attaches it, so it sits in every main window and nowhere else; it
-/// also registers that window with `MainWindowRegistry`, which the desktop
-/// companion uses to bring the main window forward instead of opening another.
+/// also registers that window with `MainWindowRegistry`, which picks the one
+/// main window that answers a request every main window hears.
 /// Attach it only to a main window's root.
 struct EnsureResizableWindow: NSViewRepresentable {
     var minSize: NSSize? = NSSize(width: 900, height: 600)

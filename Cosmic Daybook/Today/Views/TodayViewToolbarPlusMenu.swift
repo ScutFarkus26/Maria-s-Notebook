@@ -1,7 +1,7 @@
 // TodayViewToolbarPlusMenu.swift
 // Toolbar `+` menu for the Today view — quick capture plus the five create
-// actions, in thumb-reach at the top of the screen. On iPhone, and whenever the
-// floating companion is hidden, this is the way to the five actions.
+// actions, in thumb-reach at the top of the screen. On iOS, and whenever the
+// floating quick-capture button is hidden, this is the way to the five actions.
 
 import SwiftUI
 

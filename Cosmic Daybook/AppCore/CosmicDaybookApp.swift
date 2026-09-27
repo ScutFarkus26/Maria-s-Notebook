@@ -159,27 +159,6 @@ struct CosmicDaybookApp: App {
             .frame(minWidth: 760, minHeight: 600)
         }
 
-        Window("Notebook Companion", id: "notebookCompanion") {
-            if bootstrapper.state == .ready,
-               !restoreCoordinator.isRestoring,
-               hasCompletedOnboarding {
-                DesktopNotebookCompanionView()
-                    .activeClassroomEnvironment(classroomWorkspace)
-                    .environment(\.calendar, AppCalendar.shared)
-                    .environment(\.appRouter, appRouter)
-                    .environment(saveCoordinator)
-                    .environment(restoreCoordinator)
-            } else {
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(width: 88, height: 88)
-            }
-        }
-        .windowStyle(.plain)
-        .windowResizability(.contentSize)
-        .defaultPosition(.topTrailing)
-        .defaultSize(width: 88, height: 88)
-
         DetailWindowScene(
             id: "WorkDetailWindow", for: UUID.self, dependencies: detailWindowDependencies,
             defaultSize: CGSize(width: 900, height: 700), placeholder: .text("No work selected")

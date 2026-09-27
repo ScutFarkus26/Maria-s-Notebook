@@ -10,7 +10,6 @@
 // - RootView/RootDetailContent.swift - Detail content routing
 // - RootView/QuickNoteGlassButton.swift, WarningBanners.swift - Overlays
 
-import Combine
 import SwiftUI
 import CoreData
 import OSLog
@@ -31,10 +30,8 @@ struct RootView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.appRouter) private var appRouter
     @Environment(\.dependencies) private var dependencies
-    @Environment(\.calendar) private var calendar
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
     #endif
     #if !os(macOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -44,11 +41,8 @@ struct RootView: View {
     @State private var focusedSearchAction = FocusedSearchAction()
     @State private var quickCaptureActions = QuickCaptureActions()
     @State private var selectedNavItem: NavigationItem = .today
-    @State private var companionViewModel = NotebookCompanionViewModel()
-    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
-    private var isNotebookCompanionVisible = true
-    @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
-    private var isNotebookCompanionDetached = false
+    @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
+    private var isQuickCaptureButtonVisible = true
 
     // Preferences for presentations preloading
     
@@ -123,7 +117,7 @@ struct RootView: View {
         }
         #endif
         .overlay(alignment: .bottomTrailing) {
-            if isNotebookCompanionVisible && !isNotebookCompanionDetached {
+            if isQuickCaptureButtonVisible {
                 QuickNoteGlassButton(
                     isShowingCommandBar: isPresenting(.commandBar),
                     onNewPresentation: { createPresentationDraft() },
@@ -136,21 +130,6 @@ struct RootView: View {
                     },
                     onNewNote: {
                         activeSheet = .quickNote(QuickNoteParams())
-                    },
-                    companionSnapshot: companionViewModel.snapshot,
-                    isAIWorking: appRouter.isAIWorking,
-                    onAskAI: { prompt in
-                        if let prompt {
-                            appRouter.requestAIQuestion(prompt)
-                        } else {
-                            appRouter.navigateTo(.askAI)
-                        }
-                    },
-                    onReviewTodos: {
-                        appRouter.navigateTo(.todos)
-                    },
-                    onRefreshCompanion: {
-                        companionViewModel.reload(calendar: calendar)
                     }
                 )
             }
@@ -217,58 +196,9 @@ struct RootView: View {
             + "work aging — from \(start)? Last year's records stay exactly as they are."
     }
 
-    /// Whether the in-window companion (the glass button) is on screen; it
-    /// is the only reader of `companionViewModel.snapshot`.
-    private var showsInWindowCompanion: Bool {
-        isNotebookCompanionVisible && !isNotebookCompanionDetached
-    }
-
     private var rootLayoutWithObservers: some View {
         rootLayout
         .onAppear(perform: restoreSelectionIfNeeded)
-        .task {
-            companionViewModel.configure(context: viewContext)
-            #if os(macOS)
-            if isNotebookCompanionVisible && isNotebookCompanionDetached {
-                openWindow(id: "notebookCompanion")
-            }
-            #endif
-        }
-        .onChange(of: isNotebookCompanionVisible) { _, isVisible in
-            // The in-window counts only refresh while shown (below), so catch
-            // up the moment they are shown again.
-            if showsInWindowCompanion { companionViewModel.reload(calendar: calendar) }
-            #if os(macOS)
-            if isVisible && isNotebookCompanionDetached {
-                openWindow(id: "notebookCompanion")
-            } else if !isVisible {
-                dismissWindow(id: "notebookCompanion")
-            }
-            #endif
-        }
-        .onChange(of: isNotebookCompanionDetached) { _, _ in
-            if showsInWindowCompanion { companionViewModel.reload(calendar: calendar) }
-        }
-        // Debounce: objectsDidChange fires per change, not per save, so a single
-        // CloudKit merge can post it hundreds of times — and each reload runs the
-        // companion's count queries. Coalesce them (same pattern as StudentsView).
-        // Only changes to the counted entities matter, and only while the
-        // in-window companion is on screen: hidden, nothing reads the counts,
-        // and detached, its own window keeps its own.
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: .NSManagedObjectContextObjectsDidChange,
-                object: viewContext
-            )
-            .filter(NotebookCompanionViewModel.affectsCounts)
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-        ) { _ in
-            guard showsInWindowCompanion else { return }
-            companionViewModel.reload(calendar: calendar)
-        }
-        .onCalendarDayChange {
-            if showsInWindowCompanion { companionViewModel.reload(calendar: calendar) }
-        }
         .onChange(of: selectedNavItem) { _, item in
             persistSelection(item)
         }

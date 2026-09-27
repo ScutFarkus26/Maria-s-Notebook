@@ -37,9 +37,6 @@ extension Scene {
 /// detail window stranded in it — the main window is still there, just in the
 /// space you were pulled out of. With the behaviour set, the window floats
 /// over the main window where you asked for it.
-///
-/// The companion window needs the same treatment; see
-/// `DesktopNotebookCompanionView`.
 struct FullScreenAuxiliaryWindow: NSViewRepresentable {
     func makeNSView(context: Context) -> FullScreenAuxiliaryView {
         FullScreenAuxiliaryView()

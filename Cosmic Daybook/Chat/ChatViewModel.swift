@@ -23,7 +23,6 @@ final class ChatViewModel {
 
     private(set) var session: ChatSession?
     private var chatService: ChatService?
-    @ObservationIgnored private weak var appRouter: AppRouter?
 
     // MARK: - Computed
 
@@ -75,10 +74,8 @@ final class ChatViewModel {
     /// Configure with dependencies. Called from the view's onAppear.
     func configure(
         viewContext: NSManagedObjectContext,
-        mcpClient: MCPClientProtocol,
-        appRouter: AppRouter
+        mcpClient: MCPClientProtocol
     ) {
-        self.appRouter = appRouter
         guard chatService == nil else { return } // Already configured
         let service = ChatService(modelContext: viewContext, mcpClient: mcpClient)
         self.chatService = service
@@ -109,7 +106,6 @@ final class ChatViewModel {
 
         inputText = ""
         isLoading = true
-        appRouter?.isAIWorking = true
         errorMessage = nil
         streamingContent = ""
 
@@ -152,7 +148,6 @@ final class ChatViewModel {
                 self.streamingContent = nil
             }
             self.isLoading = false
-            self.appRouter?.isAIWorking = false
         }
     }
 
@@ -164,7 +159,6 @@ final class ChatViewModel {
         inputText = ""
         streamingContent = nil
         isLoading = false
-        appRouter?.isAIWorking = false
         ChatSession.clearSaved()
     }
 }

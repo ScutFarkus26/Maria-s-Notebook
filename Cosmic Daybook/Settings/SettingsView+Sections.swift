@@ -92,6 +92,11 @@ extension SettingsView {
                 .frame(maxWidth: .infinity)
             })
 
+            SettingsGroup(title: "Quick Capture Button", systemImage: "plus.circle.fill") {
+                QuickCaptureButtonSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+
             // Export/Import Settings
             SettingsGroup(title: "Settings Profile", systemImage: "square.and.arrow.up") {
                 settingsExportSection
@@ -342,11 +347,6 @@ extension SettingsView {
     // 6. AI Features
     var aiFeaturesSection: some View {
         VStack(spacing: 12) {
-            SettingsGroup(title: "Notebook Companion", systemImage: "graduationcap.fill") {
-                NotebookCompanionSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-
             SettingsGroup(title: "Private Cloud Compute", systemImage: "lock.icloud") {
                 PrivateCloudSettingsView()
                     .frame(maxWidth: .infinity)
@@ -633,19 +633,13 @@ extension SettingsView {
     }
 }
 
-private struct NotebookCompanionSettingsView: View {
-    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
+private struct QuickCaptureButtonSettingsView: View {
+    @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
     private var isVisible = true
-    #if os(macOS)
-    @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
-    private var isDetached = false
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
-    #endif
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Toggle("Show Notebook Companion", isOn: visibilityBinding)
+            Toggle("Show Quick Capture Button", isOn: $isVisible)
             Text(helpText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -653,27 +647,11 @@ private struct NotebookCompanionSettingsView: View {
         }
     }
 
-    private var visibilityBinding: Binding<Bool> {
-        Binding(
-            get: { isVisible },
-            set: { newValue in
-                isVisible = newValue
-                #if os(macOS)
-                if newValue && isDetached {
-                    openWindow(id: "notebookCompanion")
-                } else if !newValue {
-                    dismissWindow(id: "notebookCompanion")
-                }
-                #endif
-            }
-        )
-    }
-
     private var helpText: String {
         #if os(macOS)
-        "You can also show or hide him from the View menu."
+        "The floating button opens quick capture. You can also show or hide it from the View menu."
         #else
-        "Turn this back on whenever you want the companion to return."
+        "The floating button opens quick capture. The + menu on Today offers the same actions."
         #endif
     }
 }

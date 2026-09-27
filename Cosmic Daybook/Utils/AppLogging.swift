@@ -47,7 +47,6 @@ nonisolated extension Logger {
     nonisolated static let performance = Logger.app(category: "Performance")
     nonisolated static let energyPolicy = Logger.app(category: "EnergyPolicy")
     nonisolated static let toolbar = Logger.app(category: "Toolbar")
-    nonisolated static let notebookCompanion = Logger.app(category: "NotebookCompanion")
 
     // MARK: - Core Data & store maintenance
     nonisolated static let coreDataStack = Logger.app(category: "CoreDataStack")

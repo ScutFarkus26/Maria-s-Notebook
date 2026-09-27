@@ -17,13 +17,13 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
 
     var subtitle: String {
         switch self {
-        case .general: return "School calendar, display & colors"
+        case .general: return "School calendar, display & quick capture"
         case .dataSync: return "iCloud, Reminders, Calendar"
         case .classroom: return "Sharing, roles & members"
         case .backup: return "Export, restore & auto-backup"
         case .templates: return "Note & meeting templates"
         case .communication: return "Attendance email, parent reports & order requests"
-        case .aiFeatures: return "Apple Intelligence, companion & Siri"
+        case .aiFeatures: return "Apple Intelligence & Siri"
         case .database: return "Record counts & statistics"
         case .advanced: return "Testing & debug tools"
         }
@@ -59,7 +59,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
 
     var searchKeywords: String {
         switch self {
-        case .general: return "general school calendar display colors lesson age work age"
+        case .general: return "general school calendar display colors lesson age work age quick capture button"
         case .dataSync: return "data sync icloud reminders calendar"
         case .classroom: return "classroom sharing invite assistant guide role members"
         case .backup: return "backup restore data management export import"
@@ -81,7 +81,8 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
                 "School Year Rollover", "Carried-Over Year Plans",
                 "Display & Colors", "Lesson Age Indicators", "Warning Days", "Overdue Days",
                 "Fresh Color", "Warning Color", "Overdue Color",
-                "Work Age Indicators"
+                "Work Age Indicators",
+                "Quick Capture Button"
             ]
         case .dataSync:
             return [

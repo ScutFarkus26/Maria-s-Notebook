@@ -132,32 +132,14 @@ struct FindCommands: Commands {
     }
 }
 
-/// A Mac-standard View menu toggle for the optional notebook companion.
-struct NotebookCompanionCommands: Commands {
-    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
+/// A Mac-standard View menu toggle for the floating quick-capture button.
+struct QuickCaptureButtonCommands: Commands {
+    @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible)
     private var isVisible = true
-    @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
-    private var isDetached = false
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some Commands {
         CommandGroup(after: .sidebar) {
-            Toggle("Show Notebook Companion", isOn: visibilityBinding)
+            Toggle("Show Quick Capture Button", isOn: $isVisible)
         }
-    }
-
-    private var visibilityBinding: Binding<Bool> {
-        Binding(
-            get: { isVisible },
-            set: { newValue in
-                isVisible = newValue
-                if newValue && isDetached {
-                    openWindow(id: "notebookCompanion")
-                } else if !newValue {
-                    dismissWindow(id: "notebookCompanion")
-                }
-            }
-        )
     }
 }

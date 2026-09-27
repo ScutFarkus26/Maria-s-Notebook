@@ -5,10 +5,10 @@ import Foundation
 
 /// Decides whether a scene activation owes `onCalendarDayChange`'s action a run.
 ///
-/// The actions refresh day-keyed content: the companion's counts for today, the
-/// school days since a child's last lesson, which date is "today". Activation used
-/// to run them every time, so each unlock, app switch or Control Center pull re-ran
-/// eight counts and a fetch of every presented assignment with nothing changed.
+/// The actions refresh day-keyed content: the school days since a child's last
+/// lesson, which date is "today". Activation used to run them every time, so each
+/// unlock, app switch or Control Center pull re-ran a fetch of every presented
+/// assignment with nothing changed.
 /// What they read besides the store (which their own observers watch) is the day,
 /// the school calendar (which days count) and the counter epoch (where day counts
 /// start); an activation is due only when one of those moved since the view last

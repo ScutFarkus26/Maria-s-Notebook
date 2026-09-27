@@ -754,7 +754,7 @@ The AI has access to your classroom data and can answer questions like:
 
 ## How to Access
 
-Tap **Ask AI** under **More ▸ System** (the System group in the sidebar), or use the floating companion button. You'll see a chat interface where you can type questions and receive responses. The AI reads your actual student, lesson, and work data to give relevant answers.
+Tap **Ask AI** under **More ▸ System** (the System group in the sidebar). You'll see a chat interface where you can type questions and receive responses. The AI reads your actual student, lesson, and work data to give relevant answers.
 
 ---
 

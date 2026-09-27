@@ -22,12 +22,6 @@ struct AppleIntelligenceRoutingTests {
         UserDefaults.standard.set(true, forKey: key)
         #expect(AIClientRouter.automaticPrivateCloudAllowed)
     }
-
-    @Test("Desktop placement actions use clear reversible labels")
-    func companionPlacementLabels() {
-        #expect(NotebookCompanionPanel.PlacementAction.moveToDesktop.title == "Move to Desktop")
-        #expect(NotebookCompanionPanel.PlacementAction.returnToApp.title == "Return to App")
-    }
 }
 
 @Suite("Capture What Happened Proposals")

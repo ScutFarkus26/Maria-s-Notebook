@@ -13,7 +13,7 @@ struct QuickNoteTip: Tip {
     }
 
     var message: Text? {
-        Text("Tap to capture a presentation, work, practice, a note or a todo. Long-press for your notebook companion.")
+        Text("Tap to capture a presentation, work, practice, a note or a todo. Hold, then slide to a create action.")
     }
 
     var image: Image? {

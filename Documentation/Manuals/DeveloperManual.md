@@ -260,12 +260,13 @@ RootView
 
 **File:** `AppCore/RootView/QuickNoteGlassButton.swift`
 
-A floating action button with glass morphism styling. It supports three gestures:
+A floating quick-capture button. Shown unless the guide turns it off (Settings ▸ General, or View ▸ Show Quick Capture Button on the Mac; `UserDefaultsKeys.quickCaptureButtonVisible`).
 
 | Gesture | Action |
 |---------|--------|
-| Double tap | Opens the Command Bar |
-| Long press (400ms) | Expands the Pie Menu |
+| Tap | Opens the Command Bar (quick capture) |
+| Long press (400ms), slide, release | Expands the Pie Menu and runs the segment released on |
+| Right-click (macOS) | Lists the five create actions |
 | Drag | Repositions the button (saved in UserDefaults) |
 
 ### Pie Menu

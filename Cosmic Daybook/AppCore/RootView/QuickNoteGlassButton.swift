@@ -1,59 +1,61 @@
 // QuickNoteGlassButton.swift
-// Floating notebook companion. A tap opens quick capture — the one capture
-// surface; a long press (right-click on macOS) opens the companion panel.
-//
-// Extensions:
-// - QuickNoteGlassButton+Companion.swift (the panel, its context menu, placement)
+// Floating quick-capture button. A tap opens quick capture — the one capture
+// surface; a long press fans out the radial menu of the five create actions
+// (slide onto one and let go); a drag moves the button. On macOS a right-click
+// lists the same five actions.
 
 import SwiftUI
 
 // Isolated component to prevent RootView re-renders during drag.
-// The stored state below is internal, not private, so the +Companion extension
-// in the sibling file can read and clear it.
+// swiftlint:disable:next type_body_length
 struct QuickNoteGlassButton: View {
-    @AppStorage(UserDefaultsKeys.notebookCompanionVisible)
-    var isNotebookCompanionVisible = true
-    #if os(macOS)
-    @Environment(\.openWindow) var openWindow
-    @AppStorage(UserDefaultsKeys.notebookCompanionDetached)
-    var isNotebookCompanionDetached = false
-    #endif
-
     @Binding var isShowingCommandBar: Bool
     var onNewPresentation: () -> Void
     @Binding var isShowingWorkItemSheet: Bool
     var onRecordPractice: () -> Void
     var onNewTodo: () -> Void
     var onNewNote: () -> Void
-    let companionSnapshot: NotebookCompanionSnapshot
-    let isAIWorking: Bool
-    var onAskAI: (String?) -> Void
-    var onReviewTodos: () -> Void
-    var onRefreshCompanion: () -> Void
 
     @State private var offset: CGSize = .zero
     @State private var isPressed: Bool = false
-    @State var isCompanionPresented: Bool = false
-    /// Set when the 400 ms press fires, so the finger lift that follows is not
-    /// also read as a tap (which would open capture behind the panel).
-    @State private var didLongPress: Bool = false
+    @State private var isPieMenuExpanded: Bool = false
+    @State private var highlightedAction: PieMenuAction?
     @State private var dragTranslation: CGSize = .zero
     @State private var longPressTask: Task<Void, Never>?
+    @State private var sparklePhase: Bool = false
 
     @AppStorage(UserDefaultsKeys.quickNoteButtonOffsetX) private var savedOffsetX: Double = 0
     @AppStorage(UserDefaultsKeys.quickNoteButtonOffsetY) private var savedOffsetY: Double = 0
 
+    private let pieMenuRadius: CGFloat = 95
     private let longPressDuration: Duration = .milliseconds(400) // 0.4 seconds
 
     var body: some View {
-        accessibilityContent
+        pointerContent
+        .accessibilityLabel("Quick capture")
+        .accessibilityHint("Opens quick capture")
+        .accessibilityAddTraits(.isButton)
+        // The long-press menu and the drag are unreachable by assistive tech,
+        // so every action is also in the VoiceOver actions rotor.
+        .accessibilityAction(named: "Quick Capture") { isShowingCommandBar = true }
+        .accessibilityAction(named: PieMenuAction.newPresentation.label) { perform(.newPresentation) }
+        .accessibilityAction(named: PieMenuAction.newWorkItem.label) { perform(.newWorkItem) }
+        .accessibilityAction(named: PieMenuAction.recordPractice.label) { perform(.recordPractice) }
+        .accessibilityAction(named: PieMenuAction.newTodo.label) { perform(.newTodo) }
+        .accessibilityAction(named: PieMenuAction.newNote.label) { perform(.newNote) }
     }
 
     private var floatingContent: some View {
         // Main button with fixed size
         visualContent
-            .scaleEffect(isPressed ? 0.92 : 1.0)
+            .scaleEffect(isPressed && !isPieMenuExpanded ? 0.92 : 1.0)
             .adaptiveAnimation(.easeInOut(duration: 0.1), value: isPressed)
+            .overlay {
+                // Pie menu segments overlay (doesn't affect button layout)
+                if isPieMenuExpanded {
+                    pieMenuOverlay
+                }
+            }
         .offset(offset)
         .padding(.trailing, AppTheme.Spacing.large)
         #if os(iOS)
@@ -66,64 +68,136 @@ struct QuickNoteGlassButton: View {
         .onAppear {
             self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
         }
+        .onChange(of: isPieMenuExpanded) { _, expanded in
+            sparklePhase = expanded
+        }
         .onDisappear {
             longPressTask?.cancel()
-        }
-        .popover(isPresented: $isCompanionPresented, arrowEdge: .bottom) {
-            companionPanel
         }
     }
 
     @ViewBuilder
     private var pointerContent: some View {
-        // macOS: a left-click opens quick capture, so the companion actions and
-        // the five create actions live on the standard right-click menu. On iOS
-        // the long press opens the companion instead.
+        // macOS: a standard right-click menu gives pointer users the five
+        // create actions without the press-and-slide.
         #if os(macOS)
         floatingContent
             .contextMenu {
-                companionContextMenu
+                ForEach(PieMenuAction.allCases, id: \.self) { action in
+                    Button {
+                        perform(action)
+                    } label: {
+                        Label(action.label, systemImage: action.icon)
+                    }
+                }
             }
-            .help("Quick capture — right-click for companion actions")
+            .help("Quick capture — hold or right-click for create actions")
         #else
         floatingContent
         #endif
     }
 
-    private var accessibilityContent: some View {
-        pointerContent
-        .accessibilityLabel(companionAccessibilityLabel)
-        .accessibilityHint("Opens quick capture")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction(named: "Open Notebook Companion") { openCompanion() }
-        .accessibilityAction(named: "Quick Capture") { isShowingCommandBar = true }
+    private var pieMenuOverlay: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    AngularGradient(
+                        colors: [
+                            .cyan.opacity(UIConstants.OpacityConstants.muted),
+                            .pink.opacity(UIConstants.OpacityConstants.muted),
+                            .mint.opacity(UIConstants.OpacityConstants.muted),
+                            .cyan.opacity(UIConstants.OpacityConstants.muted)
+                        ],
+                        center: .center
+                    )
+                )
+                .blur(radius: 12)
+                .frame(width: pieMenuRadius * 2 + 26, height: pieMenuRadius * 2 + 26)
+                .scaleEffect(sparklePhase ? 1.04 : 0.96)
+                .opacity(UIConstants.OpacityConstants.barelyTransparent)
+                .adaptiveAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: sparklePhase)
+
+            ForEach(0..<6, id: \.self) { index in
+                Image(systemName: "sparkle")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white.opacity(UIConstants.OpacityConstants.nearSolid))
+                    .offset(orbitOffset(for: index, radius: pieMenuRadius + 20))
+                    .rotationEffect(.degrees(sparklePhase ? 360 : 0))
+                    .opacity(UIConstants.OpacityConstants.heavy)
+                    .adaptiveAnimation(
+                        .linear(duration: 2.6 + Double(index) * 0.2)
+                            .repeatForever(autoreverses: false),
+                        value: sparklePhase
+                    )
+            }
+
+            ForEach(PieMenuAction.allCases, id: \.self) { action in
+                PieMenuSegment(
+                    action: action,
+                    isExpanded: isPieMenuExpanded,
+                    isHighlighted: highlightedAction == action,
+                    radius: pieMenuRadius
+                )
+            }
+        }
+        .background(
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(
+                    width: pieMenuRadius * 2 + AppTheme.Spacing.large,
+                    height: pieMenuRadius * 2 + AppTheme.Spacing.large
+                )
+                .opacity(isPieMenuExpanded ? 1.0 : 0.0)
+        )
     }
 
     private var visualContent: some View {
-        ZStack(alignment: .bottomTrailing) {
-            NotebookCompanionCharacter(
-                state: companionSnapshot.state(isWorking: isAIWorking)
+        Image(systemName: isPieMenuExpanded ? "xmark" : "plus")
+            .font(.system(size: 24, weight: .semibold, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: 56, height: 56)
+            .background(
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: isPieMenuExpanded
+                                ? [
+                                    .pink.opacity(UIConstants.OpacityConstants.almostOpaque),
+                                    .orange.opacity(UIConstants.OpacityConstants.almostOpaque)
+                                ]
+                                : [
+                                    .blue.opacity(UIConstants.OpacityConstants.almostOpaque),
+                                    .teal.opacity(UIConstants.OpacityConstants.nearSolid)
+                                ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             )
-
-            if companionSnapshot.attentionCount > 0 {
-                Text(companionSnapshot.attentionCount > 9 ? "9+" : "\(companionSnapshot.attentionCount)")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(minWidth: 20, minHeight: 20)
-                    .background(Circle().fill(.red))
-                    .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-                    .offset(x: 3, y: 3)
-            }
-        }
-        .frame(width: 62, height: 62)
-        .contentShape(Circle())
+            .overlay(
+                Circle()
+                    .strokeBorder(
+                        Color.white.opacity(UIConstants.OpacityConstants.light),
+                        lineWidth: UIConstants.StrokeWidth.thin
+                    )
+            )
+            .clipShape(Circle())
+            .shadow(
+                color: .black.opacity(UIConstants.OpacityConstants.muted),
+                radius: AppTheme.Spacing.xsmall,
+                x: 0,
+                y: AppTheme.Spacing.xxsmall
+            )
+            .rotationEffect(.degrees(isPieMenuExpanded ? 90 : 0))
+            .contentShape(Circle())
+            .adaptiveAnimation(.spring(response: 0.3, dampingFraction: 0.7), value: isPieMenuExpanded)
     }
 
     private var combinedGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 // Start long press task on first touch
-                if longPressTask == nil && !didLongPress {
+                if longPressTask == nil && !isPieMenuExpanded {
                     isPressed = true
                     startLongPressTask()
                 }
@@ -132,12 +206,15 @@ struct QuickNoteGlassButton: View {
                 let distance = hypot(value.translation.width, value.translation.height)
 
                 // Cancel long press if user drags too far
-                if distance >= 10 {
+                if distance >= 10 && !isPieMenuExpanded {
                     longPressTask?.cancel()
                     longPressTask = nil
                 }
 
-                if distance >= 2 && longPressTask == nil && !didLongPress {
+                // If pie menu is expanded, track which segment is highlighted
+                if isPieMenuExpanded {
+                    updateHighlightedAction(translation: value.translation)
+                } else if distance >= 2 && longPressTask == nil {
                     // Regular drag to reposition (only once the long press is off the table)
                     self.offset = CGSize(
                         width: savedOffsetX + value.translation.width,
@@ -149,19 +226,22 @@ struct QuickNoteGlassButton: View {
                 isPressed = false
                 longPressTask?.cancel()
                 longPressTask = nil
-                dragTranslation = .zero
-
                 let distance = hypot(value.translation.width, value.translation.height)
-                let openedCompanion = didLongPress
-                didLongPress = false
 
-                if openedCompanion || distance < 2 {
-                    self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
-                    // A plain tap is the one capture surface; a long press has
-                    // already opened the companion panel.
-                    if !openedCompanion {
-                        isShowingCommandBar = true
+                if isPieMenuExpanded {
+                    // Handle pie menu selection; letting go off every segment just closes it
+                    if let action = highlightedAction {
+                        perform(action)
                     }
+
+                    adaptiveWithAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        isPieMenuExpanded = false
+                        highlightedAction = nil
+                    }
+                } else if distance < 2 {
+                    // A plain tap is the one capture surface.
+                    self.offset = CGSize(width: savedOffsetX, height: savedOffsetY)
+                    isShowingCommandBar = true
                 } else {
                     // Drag ended - save new position
                     let finalOffset = CGSize(
@@ -175,6 +255,8 @@ struct QuickNoteGlassButton: View {
                         self.offset = finalOffset
                     }
                 }
+
+                dragTranslation = .zero
             }
     }
 
@@ -187,8 +269,9 @@ struct QuickNoteGlassButton: View {
                 let distance = hypot(dragTranslation.width, dragTranslation.height)
                 guard distance < 10 else { return }
 
-                didLongPress = true
-                openCompanion()
+                adaptiveWithAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    isPieMenuExpanded = true
+                }
 
                 // Haptic feedback
                 #if os(iOS)
@@ -201,9 +284,31 @@ struct QuickNoteGlassButton: View {
         }
     }
 
-    /// Runs one of the five create actions. Reachable from the macOS
-    /// right-click menu; on iOS the Today `+` menu and the command bar carry them.
-    func perform(_ action: PieMenuAction) {
+    private func updateHighlightedAction(translation: CGSize) {
+        let distance = hypot(translation.width, translation.height)
+
+        // Only highlight if dragged far enough from center
+        guard distance > 25 else {
+            highlightedAction = nil
+            return
+        }
+
+        let angle = normalizedDegrees(atan2(translation.height, translation.width) * 180 / .pi)
+
+        for action in PieMenuAction.allCases {
+            let start = normalizedDegrees(action.startAngle)
+            let end = normalizedDegrees(action.endAngle)
+            if angleInRange(angle, from: start, to: end) {
+                if highlightedAction != action {
+                    highlightedAction = action
+                }
+                return
+            }
+        }
+    }
+
+    /// Runs one of the five create actions.
+    private func perform(_ action: PieMenuAction) {
         #if os(iOS)
         let impact = UIImpactFeedbackGenerator(style: .light)
         impact.impactOccurred()
@@ -221,5 +326,22 @@ struct QuickNoteGlassButton: View {
         case .newNote:
             onNewNote()
         }
+    }
+
+    private func normalizedDegrees(_ angle: Double) -> Double {
+        angle < 0 ? angle + 360 : angle
+    }
+
+    private func angleInRange(_ angle: Double, from start: Double, to end: Double) -> Bool {
+        if start <= end {
+            return angle >= start && angle < end
+        }
+        return angle >= start || angle < end
+    }
+
+    private func orbitOffset(for index: Int, radius: CGFloat) -> CGSize {
+        let angle = Double(index) * (360.0 / 6.0)
+        let radians = angle * .pi / 180
+        return CGSize(width: cos(radians) * radius, height: sin(radians) * radius)
     }
 }

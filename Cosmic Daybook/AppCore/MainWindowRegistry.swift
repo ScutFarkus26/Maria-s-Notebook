@@ -1,15 +1,14 @@
 #if os(macOS)
 import AppKit
 
-/// The open main windows (the `mainWindow` scene), so the desktop companion can
-/// bring one forward instead of opening another full main window per action,
-/// and so a request every main window hears is answered by just one of them.
+/// The open main windows (the `mainWindow` scene), so a request every main
+/// window hears is answered by just one of them.
 ///
 /// `EnsureResizableWindow` registers each one, and so does
 /// `OpenWindowOnNotificationModifier` (which also counts a window still
 /// loading or onboarding). Only `RootView` attaches the first, and `RootView`
 /// and the modifier are built only by the main `WindowGroup` — detail windows
-/// and the companion never host them — so every window here is a main window.
+/// never host them — so every window here is a main window.
 /// SwiftUI doesn't document the identifiers it gives windows, so they aren't used.
 final class MainWindowRegistry {
     static let shared = MainWindowRegistry()
@@ -37,20 +36,6 @@ final class MainWindowRegistry {
             }
         ]
         entries.append(Entry(window: window, lastUsed: nextUse(), observations: observations))
-    }
-
-    /// Brings the most recently used open main window forward — out of the
-    /// Dock first if it is minimized — and makes it key. False when no main
-    /// window is open, so the caller opens one.
-    func bringMostRecentForward() -> Bool {
-        pruneClosedWindows()
-        guard let index = MainWindowCandidate.indexToBringForward(candidates),
-              let window = entries[index].window else { return false }
-        if window.isMiniaturized {
-            window.deminiaturize(nil)
-        }
-        window.makeKeyAndOrderFront(nil)
-        return true
     }
 
     /// Whether `window` is the main window that answers a request every main
