@@ -150,6 +150,10 @@ struct LessonDetailView: View {
             }
         }
         .frame(minWidth: 440, minHeight: 560)
+        // Handoff: the same lesson on the guide's other devices.
+        .userActivity(Handoff.ActivityType.lesson, element: lesson.id) { id, activity in
+            Handoff.describeLesson(activity, id: id, name: lesson.name)
+        }
         .safeAreaInset(edge: .bottom) {
             bottomBar
         }

@@ -245,6 +245,10 @@ struct StudentDetailView: View {
         .overlay(alignment: .top) {
             StudentDetailToastOverlay(message: vm.toastMessage)
         }
+        // Handoff: the same student on the guide's other devices.
+        .userActivity(Handoff.ActivityType.student, element: student.id) { id, activity in
+            Handoff.describeStudent(activity, id: id, name: StudentFormatter.displayName(for: student))
+        }
         .departurePlansAlert(
             isPresented: departureAlertIsPresented,
             message: departureAlertMessage,

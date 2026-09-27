@@ -120,6 +120,9 @@ struct StudentsView: View {
             refreshChangeTokens()
             ensureInitialManualOrderIfNeeded()
             loadDataOnDemand()
+            // A request made before this tab first appeared (a Handoff from
+            // another device switches to it and asks in one step).
+            handleNavigationDestinationChange(appRouter.navigationDestination)
         }
         .onChange(of: studentsSortOrderRaw) { _, _ in
             reloadDataAsync()

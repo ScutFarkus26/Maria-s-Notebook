@@ -66,6 +66,7 @@ extension CosmicDaybookApp {
                 .environment(restoreCoordinator)
                 .environment(AlbumLibrary.shared)
                 .syncingFromICloudOverlay()
+                .continuesHandoff(router: appRouter)
         }
     }
 

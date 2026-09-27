@@ -87,8 +87,17 @@ struct AlbumDetailView: View {
     private var currentLesson: AlbumLessonRef? { album.lesson(forPage: currentPage) }
     private var albumHighlights: [CDAlbumHighlight] { Array(highlights) }
 
-    var body: some View {
+    /// `content`, offered to the guide's other devices through Handoff at this
+    /// page of this album. Its own property, so `body` stays quick to type-check.
+    private var handedOffContent: some View {
         content
+            .userActivity(Handoff.ActivityType.albumPage, element: currentPage) { page, activity in
+                Handoff.describeAlbumPage(activity, albumID: album.id, title: album.title, pageIndex: page)
+            }
+    }
+
+    var body: some View {
+        handedOffContent
             .navigationTitle(album.title)
             #if os(macOS)
             .navigationSubtitle(currentLesson?.title ?? "")

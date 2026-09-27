@@ -20,6 +20,12 @@
 			<string>Any</string>
 		</dict>
 	</dict>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>DanielSDeBerry.MariasNoteBook.handoff.student</string>
+		<string>DanielSDeBerry.MariasNoteBook.handoff.lesson</string>
+		<string>DanielSDeBerry.MariasNoteBook.handoff.albumPage</string>
+	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
