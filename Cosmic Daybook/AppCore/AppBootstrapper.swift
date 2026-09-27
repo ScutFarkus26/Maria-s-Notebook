@@ -36,12 +36,13 @@ final class AppBootstrapper {
         Self.logger.info("Bootstrap: Starting startup checks...")
 
         // Activate the iCloud ubiquity container in the background so the
-        // "Cosmic Daybook" folder appears in Finder / Files.app at launch.
+        // "Cosmic Daybook" folder appears in Finder / Files.app at launch, and
+        // keep its URL for the managed document folders, which read it from
+        // then on instead of asking on the main thread (it is asked for again
+        // whenever the iCloud identity changes; see UbiquityContainerCache).
         // Apple requires this call off the main thread; it can block briefly
         // while the container is set up for the first time.
-        Task.detached(priority: .utility) {
-            _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
-        }
+        UbiquityContainerCache.shared.startRefreshing()
 
         let earlySetup = LaunchSignposts.begin("EarlySetup")
         performEarlySetup(context: context)
