@@ -119,21 +119,10 @@ final class AppBootstrapper {
     }
 
     private static func runPostLaunchMigrations(coreDataStack: CoreDataStack) async {
-        let backgroundContext = coreDataStack.newBackgroundContext()
-        
         let start = Date()
         let migrations = LaunchSignposts.begin("PostLaunchMigrations")
         defer { LaunchSignposts.end("PostLaunchMigrations", migrations) }
         logger.info("Post-launch migrations started")
-
-        let log = logger
-        await backgroundContext.perform {
-            // 3.7.5. Repair incorrectly scoped notes
-            // CDNote: repairScopeForContextualNotes is async+MainActor, call on main
-            log.info("Post-launch: note scope repair starting")
-        }
-
-        await DataMigrations.repairScopeForContextualNotes(using: coreDataStack.viewContext)
 
         // 3.8. Deduplication (CloudKit sync can create duplicates during merge
         // conflicts) runs later in this same sequence via MigrationRunner, on a
@@ -141,36 +130,17 @@ final class AppBootstrapper {
         // a second full pass over ~35 entity types whose results the view context
         // then held for the rest of the session.
 
-        // 3.81. Migrate classroom records (Students/Lessons/Tracks/…)
-        // out of the .shared-scope shared store and into the .private-scope
-        // private store. Earlier builds wrote them to the wrong store, which
-        // makes container.share(_:to:) fail with NSCocoaErrorDomain 134060
-        // ("objects must be in the correct destination store"). The
-        // canonical NSPersistentCloudKitContainer sharing pattern requires
-        // owner-side shareable data to live in the .private store; .shared
-        // is only for data received from other users via accepted CKShares.
-        // Idempotent + UserDefaults-gated; runs on a background context so
-        // it doesn't block view fetches during launch.
-        await ClassroomStoreMigration.runIfNeeded(coreDataStack: coreDataStack)
+        // The one-time steps that used to run around here (the May classroom
+        // shared→private store move, the PDF folder move, two presentation
+        // backfills, the March note-scope repair) were removed on 2026-09-26
+        // once every device had long since run them.
 
-        // 3.82. Ensure a CKShare exists for the (now-properly-located)
-        // classroom data so subsequent shared-store writes can sync. The
+        // 3.82. Ensure a CKShare exists for the classroom data so subsequent
+        // shared-store writes can sync. The
         // actual container.share(_:to:) call is dispatched off the MainActor
         // and is gated by SharedStoreZoneRepair's circuit breaker so a
         // CloudKit timeout doesn't block launch.
         await ClassroomSharingService.ensureShareExistsOnLaunch(coreDataStack: coreDataStack)
-
-        // 3.85. Backfill per-student CDLessonPresentation rows for assignments that were marked
-        // presented via entry points which historically skipped LifecycleService.recordPresentation.
-        // Runs once per device (UserDefaults-guarded); idempotent.
-        // Gated internally on SharedStoreZoneRepair.hasActiveShare.
-        DataMigrations.backfillLessonPresentationsFromAssignments(using: coreDataStack.viewContext)
-
-        // 3.86. Link pre-fix work items to their lesson assignment. Work created by
-        // the presentation workflow before the presentationID fix carries no link, so
-        // required-practice gates could never see it complete and students stayed
-        // blocked. Runs once per device (UserDefaults-guarded); idempotent.
-        DataMigrations.backfillWorkPresentationLinks(using: coreDataStack.viewContext)
 
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact).
         // They run first in MigrationRunner's background pass — the same place in
@@ -180,8 +150,6 @@ final class AppBootstrapper {
         await MigrationRunner.runIfNeeded(
             coreDataStack: coreDataStack, includeIntegrityRepairs: includeIntegrityRepairs
         )
-
-        await PDFFolderMigrationService.runIfNeeded(coreDataStack: coreDataStack)
 
         // Drop the Claude/OpenAI API keys and model choices the Apple-only AI
         // change left on this device. Once per device; retried if the

@@ -8,50 +8,6 @@ nonisolated extension DataCleanupService {
 
     // MARK: - Note Cleanup
 
-    /// Repair scope for notes that were incorrectly set to .all due to UI bugs.
-    static func repairScopeForContextualNotes(using context: NSManagedObjectContext) async {
-        let flagKey = "Repair.noteScopes.v1"
-        MigrationFlag.runIfNeeded(key: flagKey) {
-            let notes = context.safeFetch(CDFetchRequest(CDNote.self))
-            // Attendance is reached by string FK now, so build the id -> student
-            // map once instead of fetching per note.
-            let attendanceStudentIDs: [String: UUID] = context
-                .safeFetch(CDFetchRequest(CDAttendanceRecord.self))
-                .reduce(into: [:]) { map, record in
-                    guard let id = record.id, let uuid = UUID(uuidString: record.studentID) else { return }
-                    map[id.uuidString] = uuid
-                }
-            var changed = 0
-
-            for note in notes {
-                var targetStudentID: UUID?
-
-                if let recordID = note.attendanceRecordID, let uuid = attendanceStudentIDs[recordID] {
-                    targetStudentID = uuid
-                } else if let rec = note.workCompletionRecord, let uuid = UUID(uuidString: rec.studentID) {
-                    targetStudentID = uuid
-                } else if let meeting = note.studentMeeting, let uuid = UUID(uuidString: meeting.studentID) {
-                    targetStudentID = uuid
-                }
-
-                if let targetID = targetStudentID {
-                    var needsFix = true
-                    if case .student(let currentID) = note.scope {
-                        if currentID == targetID { needsFix = false }
-                    }
-                    if needsFix {
-                        note.scope = .student(targetID)
-                        changed += 1
-                    }
-                }
-            }
-
-            if changed > 0 {
-                context.safeSave()
-            }
-        }
-    }
-
     /// Clean up orphaned note images that are no longer referenced by any Note.
     static func cleanupOrphanedNoteImages(using context: NSManagedObjectContext) {
         do {

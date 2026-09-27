@@ -106,7 +106,6 @@ nonisolated enum UserDefaultsKeys {
     static let notebookCompanionDesktopY = "NotebookCompanion.desktopY"
 
     // MARK: - Lessons
-    static let lessonsSortIndexMigrated = "Lessons.sortIndexMigrated"
     /// The guide's hand-ordered curriculum areas, oldest spelling of the key.
     static let lessonsAreaOrder = "Lessons.AreaOrder"
     /// Which spine the Lessons map is grouped by (a `MapSpine` raw value).
@@ -169,9 +168,7 @@ nonisolated enum UserDefaultsKeys {
     static let workCalendarShowPresentations = "WorkCalendar.showPresentations"
 
     // MARK: - Migrations
-    static let pdfFolderMigrationV1Complete = "Migration.pdfFolder.v1"
     static let retiredAIKeysRemovedV1 = "Migration.retiredAIKeysRemoved.v1"
-    static let classroomStoreMigrationV1Complete = "ClassroomStoreMigration.v1.completed"
 
     // MARK: - Shared Store Sync Repair
     static let classroomIdentityRecordName = "ClassroomIdentity.userRecordName"

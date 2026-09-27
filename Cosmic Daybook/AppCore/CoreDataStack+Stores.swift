@@ -148,9 +148,7 @@ extension CoreDataStack {
         } catch {
             logger.error("Reset Local Cache: failed to delete stores — \(error.localizedDescription)")
         }
-        // Re-run one-shot migrations / share auto-create against the fresh
-        // data so the post-refactor state is consistent.
-        defaults.removeObject(forKey: UserDefaultsKeys.classroomStoreMigrationV1Complete)
+        // Re-run share auto-create and zone repair against the fresh data.
         defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairLastTimeoutAt)
         // The clean watermark belongs to the store file being deleted.
         defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairCleanHistoryToken)

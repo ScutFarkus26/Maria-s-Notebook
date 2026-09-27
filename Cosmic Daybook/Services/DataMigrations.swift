@@ -41,11 +41,6 @@ nonisolated enum DataMigrations {
         DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
     }
 
-    /// Repair scope for notes that were incorrectly set to .all due to UI bugs.
-    static func repairScopeForContextualNotes(using context: NSManagedObjectContext) async {
-        await DataCleanupService.repairScopeForContextualNotes(using: context)
-    }
-
     /// Clean up orphaned note images that are no longer referenced by any CDNote.
     static func cleanupOrphanedNoteImages(using context: NSManagedObjectContext) {
         DataCleanupService.cleanupOrphanedNoteImages(using: context)

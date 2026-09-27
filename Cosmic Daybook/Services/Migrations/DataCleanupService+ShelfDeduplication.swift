@@ -5,9 +5,9 @@
 //
 // Every classroom entity is assigned to *both* store configurations
 // (`CoreDataStack.assignEntitiesToConfigurations`), so an unscoped fetch
-// legitimately spans private + shared — and `ClassroomStoreMigration.clone`
-// copies every attribute **including `id`** when it moves a row from shared to
-// private. Each device minted its own clone and the clones then synced to each
+// legitimately spans private + shared — and the May 2026 classroom-store
+// migration (removed 2026-09-26) copied every attribute **including `id`** when
+// it moved a row from shared to private. Each device minted its own clone and the clones then synced to each
 // other, which is why the guide's three supplies were reading back six times
 // and her two resources six. Students and lessons took exactly the same hit and
 // read clean only because they were already in `deduplicateAllModels`.

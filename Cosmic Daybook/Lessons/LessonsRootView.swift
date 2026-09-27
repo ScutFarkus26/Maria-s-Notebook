@@ -125,7 +125,6 @@ struct LessonsRootView: View {
     @State var lessonsForArea: [CDLesson] = []
 
     // MARK: - Migration
-    @AppStorage(UserDefaultsKeys.lessonsSortIndexMigrated) var sortIndexMigrated: Bool = false
 
     #if os(iOS)
     @State var editMode: EditMode = .inactive
@@ -344,11 +343,6 @@ struct LessonsRootView: View {
     // MARK: - Event Handlers
 
     private func handleInitialLoad() async {
-        if !sortIndexMigrated {
-            _ = LessonOrderMigration.migrateSortIndices(context: viewContext)
-            sortIndexMigrated = true
-        }
-
         if filterState.selectedArea == nil && !selectedAreaRaw.trimmed().isEmpty {
             filterState.selectedArea = selectedAreaRaw
         }
