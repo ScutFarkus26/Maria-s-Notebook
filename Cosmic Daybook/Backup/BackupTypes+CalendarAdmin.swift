@@ -36,16 +36,6 @@ nonisolated public struct CalendarEventDTO: Codable, Sendable {
     // EventKit IDs excluded - device-specific
 }
 
-nonisolated public struct ScheduleDTO: Codable, Sendable {
-    public var id: UUID
-    public var name: String
-    public var notes: String
-    public var colorHex: String
-    public var icon: String
-    public var createdAt: Date
-    public var modifiedAt: Date
-}
-
 nonisolated public struct ScheduleSlotDTO: Codable, Sendable {
     public var id: UUID
     public var scheduleID: String

@@ -49,22 +49,6 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDWorkStep
-
-    static func toDTO(_ step: CDWorkStep) -> WorkStepDTO {
-        WorkStepDTO(
-            id: step.id ?? UUID(),
-            workID: step.work?.id,
-            orderIndex: Int(step.orderIndex),
-            title: step.title,
-            instructions: step.instructions,
-            completedAt: step.completedAt,
-            notes: step.notes,
-            completionOutcomeRaw: step.completionOutcomeRaw,
-            createdAt: step.createdAt ?? Date()
-        )
-    }
-
     // MARK: - CDWorkParticipantEntity
 
     static func toDTO(_ participant: CDWorkParticipantEntity) -> WorkParticipantEntityDTO {
@@ -112,10 +96,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ checkIns: [CDWorkCheckIn]) -> [WorkCheckInDTO] {
         checkIns.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ steps: [CDWorkStep]) -> [WorkStepDTO] {
-        steps.map { toDTO($0) }
     }
 
     static func toDTOs(_ participants: [CDWorkParticipantEntity]) -> [WorkParticipantEntityDTO] {

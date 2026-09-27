@@ -91,36 +91,6 @@ extension BackupEntityImporter {
         }
     }
 
-    // MARK: - Sample Work Steps
-
-    /// Imports sample work steps from DTOs.
-    static func importSampleWorkSteps(
-        _ dtos: [SampleWorkStepDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDSampleWorkStep>,
-        sampleWorkCheck: EntityLookup<CDSampleWork>
-    ) rethrows {
-        for dto in dtos {
-            let step = existingEntity(id: dto.id, existing: existing) ?? CDSampleWorkStep(context: viewContext)
-            step.id = dto.id
-            step.title = dto.title
-            step.orderIndex = Int64(dto.orderIndex)
-            step.instructions = dto.instructions
-            step.createdAt = dto.createdAt
-            if let sampleWorkID = dto.sampleWorkID {
-                do {
-                    if let sw = try sampleWorkCheck(sampleWorkID) {
-                        step.sampleWork = sw
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check sample work for step: \(desc, privacy: .public)")
-                }
-            }
-            viewContext.insert(step)
-        }
-    }
-
     // MARK: - LessonAssignments
 
     /// Imports lesson assignments from DTOs.
@@ -188,38 +158,6 @@ extension BackupEntityImporter {
         }
     }
 
-    // MARK: - CDLesson Attachments
-
-    static func importLessonAttachments(
-        _ dtos: [LessonAttachmentDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDLessonAttachment>,
-        lessonCheck: EntityLookup<CDLesson>
-    ) rethrows {
-        for dto in dtos {
-            let attachment = existingEntity(id: dto.id, existing: existing) ?? CDLessonAttachment(context: viewContext)
-            attachment.id = dto.id
-            attachment.fileName = dto.fileName
-            attachment.fileRelativePath = dto.fileRelativePath
-            attachment.attachedAt = dto.attachedAt
-            attachment.fileType = dto.fileType
-            attachment.fileSizeBytes = dto.fileSizeBytes
-            attachment.scopeRaw = dto.scopeRaw
-            attachment.notes = dto.notes
-            if let lessonID = dto.lessonID {
-                do {
-                    if let lesson = try lessonCheck(lessonID) {
-                        attachment.lesson = lesson
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check lesson for attachment: \(desc, privacy: .public)")
-                }
-            }
-            viewContext.insert(attachment)
-        }
-    }
-
     // MARK: - CDLesson Presentations
 
     static func importLessonPresentations(
@@ -257,34 +195,4 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - CDLessonRecallCheck
-
-    static func importRecallChecks(
-        _ dtos: [LessonRecallCheckDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDLessonRecallCheck>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let rc = current ?? CDLessonRecallCheck(context: viewContext)
-            rc.id = dto.id
-            rc.createdAt = dto.createdAt
-            rc.modifiedAt = dto.modifiedAt
-            rc.studentID = dto.studentID
-            rc.lessonID = dto.lessonID
-            rc.outcomeRaw = dto.outcomeRaw
-            rc.sourceRaw = dto.sourceRaw
-            rc.coveredByLessonID = dto.coveredByLessonID
-            rc.presentationID = dto.presentationID
-            rc.originalMasteredAt = dto.originalMasteredAt
-            rc.checkedAt = dto.checkedAt
-            rc.note = dto.note
-            rc.photoRef = dto.photoRef
-            rc.schoolYearKey = dto.schoolYearKey
-            return rc
-        })
-    }
 }

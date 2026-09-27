@@ -36,16 +36,6 @@ nonisolated public struct TodoItemDTO: Codable, Sendable {
     public var moodRaw: String?
 }
 
-nonisolated public struct TodoSubtaskDTO: Codable, Sendable {
-    public var id: UUID
-    public var todoID: UUID?
-    public var title: String
-    public var isCompleted: Bool
-    public var orderIndex: Int
-    public var createdAt: Date
-    public var completedAt: Date?
-}
-
 nonisolated public struct TodoTemplateDTO: Codable, Sendable {
     public var id: UUID
     public var name: String
@@ -60,29 +50,6 @@ nonisolated public struct TodoTemplateDTO: Codable, Sendable {
 }
 
 // MARK: - CDTrackEntity DTOs
-
-nonisolated public struct TrackDTO: Codable, Sendable {
-    public var id: UUID
-    public var title: String
-    public var createdAt: Date
-}
-
-nonisolated public struct TrackStepDTO: Codable, Sendable {
-    public var id: UUID
-    public var trackID: UUID?
-    public var orderIndex: Int
-    public var lessonTemplateID: UUID?
-    public var createdAt: Date
-}
-
-nonisolated public struct StudentTrackEnrollmentDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var studentID: String
-    public var trackID: String
-    public var startedAt: Date?
-    public var isActive: Bool
-}
 
 nonisolated public struct SequenceTrackDTO: Codable, Sendable {
     public var id: UUID
@@ -162,24 +129,6 @@ nonisolated public struct TodayAgendaOrderDTO: Codable, Sendable {
 
 // MARK: - Going Out DTOs (format v12+)
 
-nonisolated public struct GoingOutDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var modifiedAt: Date
-    public var title: String
-    public var purpose: String
-    public var destination: String
-    public var proposedDate: Date?
-    public var actualDate: Date?
-    public var statusRaw: String
-    public var studentIDs: [String]
-    public var curriculumLinkIDs: String
-    public var permissionStatusRaw: String
-    public var notes: String
-    public var followUpWork: String
-    public var supervisorName: String
-}
-
 nonisolated public struct GoingOutChecklistItemDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
@@ -188,43 +137,6 @@ nonisolated public struct GoingOutChecklistItemDTO: Codable, Sendable {
     public var isCompleted: Bool
     public var sortOrder: Int
     public var assignedToStudentID: String?
-}
-
-// MARK: - Classroom Job DTOs (format v12+)
-
-nonisolated public struct ClassroomJobDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var modifiedAt: Date
-    public var name: String
-    public var jobDescription: String
-    public var icon: String
-    public var colorRaw: String
-    public var sortOrder: Int
-    public var isActive: Bool
-    public var maxStudents: Int
-}
-
-nonisolated public struct JobAssignmentDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var modifiedAt: Date
-    public var jobID: String
-    public var studentID: String
-    public var weekStartDate: Date
-    public var isCompleted: Bool
-}
-
-// MARK: - Calendar CDNote DTO (format v12+)
-
-nonisolated public struct CalendarNoteDTO: Codable, Sendable {
-    public var id: UUID
-    public var year: Int
-    public var month: Int
-    public var day: Int
-    public var text: String
-    public var createdAt: Date
-    public var modifiedAt: Date
 }
 
 // MARK: - Scheduled Meeting DTO (format v12+)
@@ -239,76 +151,4 @@ nonisolated public struct ScheduledMeetingDTO: Codable, Sendable {
     public var isGroupMeeting: Bool?
     /// Format v24+: what the meeting is about.
     public var purpose: String?
-}
-
-// MARK: - Classroom Membership DTO (format v13+)
-
-nonisolated public struct ClassroomMembershipDTO: Codable, Sendable {
-    public var id: UUID
-    public var classroomZoneID: String
-    public var roleRaw: String
-    public var ownerIdentity: String
-    public var joinedAt: Date
-    public var modifiedAt: Date
-}
-
-// MARK: - MeetingWorkReview DTO (format v14+)
-
-nonisolated public struct MeetingWorkReviewDTO: Codable, Sendable {
-    public var id: UUID
-    public var meetingID: String
-    public var workID: String
-    public var noteText: String
-    public var createdAt: Date
-}
-
-// MARK: - StudentFocusItem DTO (format v14+)
-
-nonisolated public struct StudentFocusItemDTO: Codable, Sendable {
-    public var id: UUID
-    public var studentID: String
-    public var text: String
-    public var statusRaw: String
-    public var createdInMeetingID: String
-    public var resolvedInMeetingID: String?
-    public var resolvedAt: Date?
-    public var createdAt: Date
-    public var sortOrder: Int
-}
-
-// MARK: - Guardian DTO (format v20+)
-
-nonisolated public struct GuardianDTO: Codable, Sendable {
-    public var id: UUID
-    public var studentID: String
-    public var name: String
-    public var email: String
-    public var relationshipRaw: String
-    public var receivesReports: Bool
-    public var sortOrder: Int
-    public var notes: String
-    public var createdAt: Date
-    public var modifiedAt: Date?
-}
-
-// MARK: - ParentCommunication DTO (format v20+)
-
-nonisolated public struct ParentCommunicationDTO: Codable, Sendable {
-    public var id: UUID
-    public var studentID: String
-    public var templateName: String
-    public var subject: String
-    public var body: String
-    public var communicationTypeRaw: String
-    public var sentAt: Date?
-    public var createdAt: Date
-    public var modifiedAt: Date?
-    public var notes: String
-    public var monthKey: String?
-    public var statusRaw: String
-    public var recipientsSnapshot: String
-    public var includedItemRefs: String
-    public var aiGenerated: Bool
-    public var includeStudentReflection: Bool
-    public var attachPDF: Bool
 }

@@ -9,43 +9,6 @@ import Foundation
 // loss. Highlight rectangles travel as plain numbers, and ink travels as its
 // PencilKit drawing data.
 
-// MARK: - Bookmarks, notes, visits, positions
-
-nonisolated public struct AlbumBookmarkDTO: Codable, Sendable {
-    public var id: UUID
-    public var albumID: String
-    public var pageIndex: Int
-    public var lessonTitle: String
-    public var createdAt: Date
-    public var modifiedAt: Date
-}
-
-nonisolated public struct AlbumPageNoteDTO: Codable, Sendable {
-    public var id: UUID
-    public var albumID: String
-    public var pageIndex: Int
-    public var lessonTitle: String
-    public var text: String
-    public var createdAt: Date
-    public var modifiedAt: Date
-}
-
-nonisolated public struct AlbumRecentVisitDTO: Codable, Sendable {
-    public var id: UUID
-    public var albumID: String
-    public var pageIndex: Int
-    public var lessonTitle: String
-    public var visitedAt: Date
-    public var modifiedAt: Date
-}
-
-nonisolated public struct AlbumReadingPositionDTO: Codable, Sendable {
-    public var id: UUID
-    public var albumID: String
-    public var pageIndex: Int
-    public var modifiedAt: Date
-}
-
 // MARK: - Highlights and ink
 
 nonisolated public struct AlbumHighlightDTO: Codable, Sendable {

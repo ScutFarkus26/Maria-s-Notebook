@@ -64,33 +64,6 @@ extension BackupEntityImporter {
         )
     }
 
-    // MARK: - Meeting Templates
-
-    static func importMeetingTemplates(
-        _ dtos: [MeetingTemplateDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDMeetingTemplate>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let mt = current ?? CDMeetingTemplate(context: viewContext)
-            mt.id = dto.id
-            mt.createdAt = dto.createdAt
-            mt.name = dto.name
-            mt.reflectionPrompt = dto.reflectionPrompt
-            mt.focusPrompt = dto.focusPrompt
-            mt.requestsPrompt = dto.requestsPrompt
-            mt.guideNotesPrompt = dto.guideNotesPrompt
-            mt.sortOrder = Int64(dto.sortOrder)
-            mt.isActive = dto.isActive
-            mt.isBuiltIn = dto.isBuiltIn
-            return mt
-        })
-    }
-
     // MARK: - Reminders
 
     static func importReminders(

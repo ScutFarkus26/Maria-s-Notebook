@@ -87,28 +87,6 @@ nonisolated public struct SampleWorkDTO: Codable, Sendable {
     public var createdAt: Date
 }
 
-nonisolated public struct SampleWorkStepDTO: Codable, Sendable {
-    public var id: UUID
-    public var sampleWorkID: UUID?
-    public var title: String
-    public var orderIndex: Int
-    public var instructions: String
-    public var createdAt: Date
-}
-
-nonisolated public struct LessonAttachmentDTO: Codable, Sendable {
-    public var id: UUID
-    public var fileName: String
-    public var fileRelativePath: String
-    public var attachedAt: Date
-    public var fileType: String
-    public var fileSizeBytes: Int64
-    public var scopeRaw: String
-    public var notes: String
-    public var lessonID: UUID?
-    // Binary data (fileBookmark, thumbnailData) excluded by design
-}
-
 nonisolated public struct LessonPresentationDTO: Codable, Sendable {
     public var id: UUID
     public var createdAt: Date
@@ -131,23 +109,6 @@ nonisolated public struct LessonPresentationDTO: Codable, Sendable {
     public var followUpEvidenceRaw: String?
     public var followUpNote: String?
     public var followUpSupportRaw: String?
-}
-
-nonisolated public struct LessonRecallCheckDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var modifiedAt: Date?
-    public var studentID: String
-    public var lessonID: String
-    public var outcomeRaw: String
-    public var sourceRaw: String
-    public var coveredByLessonID: String?
-    public var presentationID: String?
-    public var originalMasteredAt: Date?
-    public var checkedAt: Date?
-    public var note: String?
-    public var photoRef: String?
-    public var schoolYearKey: String?
 }
 
 // MARK: - CDLessonAssignment DTO
@@ -282,16 +243,6 @@ nonisolated public struct CommunityTopicDTO: Codable, Sendable {
     public var tags: [String]
 }
 
-nonisolated public struct ProposedSolutionDTO: Codable, Sendable {
-    public var id: UUID
-    public var topicID: UUID?
-    public var title: String
-    public var details: String
-    public var proposedBy: String
-    public var createdAt: Date
-    public var isAdopted: Bool
-}
-
 nonisolated public struct CommunityAttachmentDTO: Codable, Sendable {
     public var id: UUID
     public var topicID: UUID?
@@ -311,18 +262,5 @@ nonisolated public struct NoteTemplateDTO: Codable, Sendable {
     public var categoryRaw: String
     public var tags: [String]?
     public var sortOrder: Int
-    public var isBuiltIn: Bool
-}
-
-nonisolated public struct MeetingTemplateDTO: Codable, Sendable {
-    public var id: UUID
-    public var createdAt: Date
-    public var name: String
-    public var reflectionPrompt: String
-    public var focusPrompt: String
-    public var requestsPrompt: String
-    public var guideNotesPrompt: String
-    public var sortOrder: Int
-    public var isActive: Bool
     public var isBuiltIn: Bool
 }

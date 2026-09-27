@@ -36,29 +36,4 @@ extension BackupEntityImporter {
             })
     }
 
-    // MARK: - CDNoteStudentLink
-
-    static func importNoteStudentLinks(
-        _ dtos: [NoteStudentLinkDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDNoteStudentLink>,
-        noteCheck: EntityLookup<CDNote>
-    ) rethrows {
-        for dto in dtos {
-            let link = existingEntity(id: dto.id, existing: existing) ?? CDNoteStudentLink(context: viewContext)
-            link.id = dto.id
-            link.noteID = dto.noteID
-            link.studentID = dto.studentID
-            // Link to note if exists
-            do {
-                if let noteUUID = UUID(uuidString: dto.noteID),
-                   let note = try noteCheck(noteUUID) {
-                    link.note = note
-                }
-            } catch {
-                Logger.backup.warning("Failed to check note for link: \(error.localizedDescription, privacy: .public)")
-            }
-            viewContext.insert(link)
-        }
-    }
 }

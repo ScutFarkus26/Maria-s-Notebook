@@ -52,36 +52,6 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - Todo Subtasks
-
-    static func importTodoSubtasks(
-        _ dtos: [TodoSubtaskDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDTodoSubtask>,
-        todoCheck: EntityLookup<CDTodoItem>
-    ) rethrows {
-        for dto in dtos {
-            let s = existingEntity(id: dto.id, existing: existing) ?? CDTodoSubtask(context: viewContext)
-            s.id = dto.id
-            s.title = dto.title
-            s.orderIndex = Int64(dto.orderIndex)
-            s.createdAt = dto.createdAt
-            s.isCompleted = dto.isCompleted
-            s.completedAt = dto.completedAt
-            if let todoID = dto.todoID {
-                do {
-                    if let todo = try todoCheck(todoID) {
-                        s.todo = todo
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check todo for subtask: \(desc, privacy: .public)")
-                }
-            }
-            viewContext.insert(s)
-        }
-    }
-
     // MARK: - Todo Templates
 
     static func importTodoTemplates(

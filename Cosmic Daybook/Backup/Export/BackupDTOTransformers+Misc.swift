@@ -54,23 +54,6 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDMeetingTemplate
-
-    static func toDTO(_ t: CDMeetingTemplate) -> MeetingTemplateDTO {
-        MeetingTemplateDTO(
-            id: t.id ?? UUID(),
-            createdAt: t.createdAt ?? Date(),
-            name: t.name,
-            reflectionPrompt: t.reflectionPrompt,
-            focusPrompt: t.focusPrompt,
-            requestsPrompt: t.requestsPrompt,
-            guideNotesPrompt: t.guideNotesPrompt,
-            sortOrder: Int(t.sortOrder),
-            isActive: t.isActive,
-            isBuiltIn: t.isBuiltIn
-        )
-    }
-
     // MARK: - CDReminder
 
     static func toDTO(_ r: CDReminder) -> ReminderDTO {
@@ -97,37 +80,6 @@ extension BackupDTOTransformers {
             location: e.location,
             notes: e.notes,
             isAllDay: e.isAllDay
-        )
-    }
-
-    // MARK: - CDTrackEntity
-
-    static func toDTO(_ t: CDTrackEntity) -> TrackDTO {
-        TrackDTO(id: t.id ?? UUID(), title: t.title, createdAt: t.createdAt ?? Date())
-    }
-
-    // MARK: - CDTrackStep
-
-    static func toDTO(_ s: CDTrackStep) -> TrackStepDTO {
-        TrackStepDTO(
-            id: s.id ?? UUID(),
-            trackID: s.track?.id,
-            orderIndex: Int(s.orderIndex),
-            lessonTemplateID: s.lessonTemplateID,
-            createdAt: s.createdAt ?? Date()
-        )
-    }
-
-    // MARK: - CDStudentTrackEnrollmentEntity
-
-    static func toDTO(_ e: CDStudentTrackEnrollmentEntity) -> StudentTrackEnrollmentDTO {
-        StudentTrackEnrollmentDTO(
-            id: e.id ?? UUID(),
-            createdAt: e.createdAt ?? Date(),
-            studentID: e.studentID,
-            trackID: e.trackID,
-            startedAt: e.startedAt,
-            isActive: e.isActive
         )
     }
 
@@ -188,20 +140,6 @@ extension BackupDTOTransformers {
             relatedProcedureIDs: p.relatedProcedureIDs,
             createdAt: p.createdAt ?? Date(),
             modifiedAt: p.modifiedAt ?? Date()
-        )
-    }
-
-    // MARK: - CDSchedule
-
-    static func toDTO(_ s: CDSchedule) -> ScheduleDTO {
-        ScheduleDTO(
-            id: s.id ?? UUID(),
-            name: s.name,
-            notes: s.notes,
-            colorHex: s.colorHex,
-            icon: s.icon,
-            createdAt: s.createdAt ?? Date(),
-            modifiedAt: s.modifiedAt ?? Date()
         )
     }
 
@@ -329,20 +267,6 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDTodoSubtask
-
-    static func toDTO(_ s: CDTodoSubtask) -> TodoSubtaskDTO {
-        TodoSubtaskDTO(
-            id: s.id ?? UUID(),
-            todoID: s.todo?.id,
-            title: s.title,
-            isCompleted: s.isCompleted,
-            orderIndex: Int(s.orderIndex),
-            createdAt: s.createdAt ?? Date(),
-            completedAt: s.completedAt
-        )
-    }
-
     // MARK: - CDTodoTemplate
 
     static func toDTO(_ t: CDTodoTemplate) -> TodoTemplateDTO {
@@ -382,28 +306,12 @@ extension BackupDTOTransformers {
         templates.map { toDTO($0) }
     }
 
-    static func toDTOs(_ templates: [CDMeetingTemplate]) -> [MeetingTemplateDTO] {
-        templates.map { toDTO($0) }
-    }
-
     static func toDTOs(_ reminders: [CDReminder]) -> [ReminderDTO] {
         reminders.map { toDTO($0) }
     }
 
     static func toDTOs(_ events: [CDCalendarEvent]) -> [CalendarEventDTO] {
         events.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ tracks: [CDTrackEntity]) -> [TrackDTO] {
-        tracks.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ steps: [CDTrackStep]) -> [TrackStepDTO] {
-        steps.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ enrollments: [CDStudentTrackEnrollmentEntity]) -> [StudentTrackEnrollmentDTO] {
-        enrollments.map { toDTO($0) }
     }
 
     static func toDTOs(_ sequenceTracks: [CDSequenceTrack]) -> [SequenceTrackDTO] {
@@ -420,10 +328,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ procedures: [CDProcedure]) -> [ProcedureDTO] {
         procedures.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ schedules: [CDSchedule]) -> [ScheduleDTO] {
-        schedules.map { toDTO($0) }
     }
 
     static func toDTOs(_ slots: [CDScheduleSlot]) -> [ScheduleSlotDTO] {
@@ -444,10 +348,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ items: [CDTodoItem]) -> [TodoItemDTO] {
         items.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ subtasks: [CDTodoSubtask]) -> [TodoSubtaskDTO] {
-        subtasks.map { toDTO($0) }
     }
 
     static func toDTOs(_ templates: [CDTodoTemplate]) -> [TodoTemplateDTO] {
@@ -511,46 +411,6 @@ extension BackupDTOTransformers {
         resources.map { toDTO($0) }
     }
 
-    // MARK: - CDNoteStudentLink
-
-    static func toDTO(_ link: CDNoteStudentLink) -> NoteStudentLinkDTO {
-        NoteStudentLinkDTO(
-            id: link.id ?? UUID(),
-            noteID: link.noteID,
-            studentID: link.studentID
-        )
-    }
-
-    static func toDTOs(_ links: [CDNoteStudentLink]) -> [NoteStudentLinkDTO] {
-        links.map { toDTO($0) }
-    }
-
-    // MARK: - CDGoingOut
-
-    static func toDTO(_ g: CDGoingOut) -> GoingOutDTO {
-        GoingOutDTO(
-            id: g.id ?? UUID(),
-            createdAt: g.createdAt ?? Date(),
-            modifiedAt: g.modifiedAt ?? Date(),
-            title: g.title,
-            purpose: g.purpose,
-            destination: g.destination,
-            proposedDate: g.proposedDate,
-            actualDate: g.actualDate,
-            statusRaw: g.statusRaw,
-            studentIDs: (g.studentIDs as? [String]) ?? [],
-            curriculumLinkIDs: g.curriculumLinkIDs,
-            permissionStatusRaw: g.permissionStatusRaw,
-            notes: g.notes,
-            followUpWork: g.followUpWork,
-            supervisorName: g.supervisorName
-        )
-    }
-
-    static func toDTOs(_ goingOuts: [CDGoingOut]) -> [GoingOutDTO] {
-        goingOuts.map { toDTO($0) }
-    }
-
     // MARK: - CDGoingOutChecklistItem
 
     static func toDTO(_ item: CDGoingOutChecklistItem) -> GoingOutChecklistItemDTO {
@@ -567,63 +427,6 @@ extension BackupDTOTransformers {
 
     static func toDTOs(_ items: [CDGoingOutChecklistItem]) -> [GoingOutChecklistItemDTO] {
         items.map { toDTO($0) }
-    }
-
-    // MARK: - CDClassroomJob
-
-    static func toDTO(_ job: CDClassroomJob) -> ClassroomJobDTO {
-        ClassroomJobDTO(
-            id: job.id ?? UUID(),
-            createdAt: job.createdAt ?? Date(),
-            modifiedAt: job.modifiedAt ?? Date(),
-            name: job.name,
-            jobDescription: job.jobDescription,
-            icon: job.icon,
-            colorRaw: job.colorRaw,
-            sortOrder: Int(job.sortOrder),
-            isActive: job.isActive,
-            maxStudents: Int(job.maxStudents)
-        )
-    }
-
-    static func toDTOs(_ jobs: [CDClassroomJob]) -> [ClassroomJobDTO] {
-        jobs.map { toDTO($0) }
-    }
-
-    // MARK: - CDJobAssignment
-
-    static func toDTO(_ a: CDJobAssignment) -> JobAssignmentDTO {
-        JobAssignmentDTO(
-            id: a.id ?? UUID(),
-            createdAt: a.createdAt ?? Date(),
-            modifiedAt: a.modifiedAt ?? Date(),
-            jobID: a.jobID,
-            studentID: a.studentID,
-            weekStartDate: a.weekStartDate ?? Date(),
-            isCompleted: a.isCompleted
-        )
-    }
-
-    static func toDTOs(_ assignments: [CDJobAssignment]) -> [JobAssignmentDTO] {
-        assignments.map { toDTO($0) }
-    }
-
-    // MARK: - CDCalendarNote
-
-    static func toDTO(_ note: CDCalendarNote) -> CalendarNoteDTO {
-        CalendarNoteDTO(
-            id: note.id ?? UUID(),
-            year: Int(note.year),
-            month: Int(note.month),
-            day: Int(note.day),
-            text: note.text,
-            createdAt: note.createdAt ?? Date(),
-            modifiedAt: note.modifiedAt ?? Date()
-        )
-    }
-
-    static func toDTOs(_ notes: [CDCalendarNote]) -> [CalendarNoteDTO] {
-        notes.map { toDTO($0) }
     }
 
     // MARK: - CDScheduledMeeting
@@ -645,105 +448,4 @@ extension BackupDTOTransformers {
         meetings.map { toDTO($0) }
     }
 
-    // MARK: - CDClassroomMembership
-
-    static func toDTO(_ membership: CDClassroomMembership) -> ClassroomMembershipDTO {
-        ClassroomMembershipDTO(
-            id: membership.id ?? UUID(),
-            classroomZoneID: membership.classroomZoneID,
-            roleRaw: membership.roleRaw,
-            ownerIdentity: membership.ownerIdentity,
-            joinedAt: membership.joinedAt ?? Date(),
-            modifiedAt: membership.modifiedAt ?? Date()
-        )
-    }
-
-    static func toDTOs(_ memberships: [CDClassroomMembership]) -> [ClassroomMembershipDTO] {
-        memberships.map { toDTO($0) }
-    }
-
-    // MARK: - CDMeetingWorkReview (format v14+)
-
-    static func toDTO(_ review: CDMeetingWorkReview) -> MeetingWorkReviewDTO {
-        MeetingWorkReviewDTO(
-            id: review.id ?? UUID(),
-            meetingID: review.meetingID,
-            workID: review.workID,
-            noteText: review.noteText,
-            createdAt: review.createdAt ?? Date()
-        )
-    }
-
-    static func toDTOs(_ reviews: [CDMeetingWorkReview]) -> [MeetingWorkReviewDTO] {
-        reviews.map { toDTO($0) }
-    }
-
-    // MARK: - CDStudentFocusItem (format v14+)
-
-    static func toDTO(_ item: CDStudentFocusItem) -> StudentFocusItemDTO {
-        StudentFocusItemDTO(
-            id: item.id ?? UUID(),
-            studentID: item.studentID,
-            text: item.text,
-            statusRaw: item.statusRaw,
-            createdInMeetingID: item.createdInMeetingID,
-            resolvedInMeetingID: item.resolvedInMeetingID,
-            resolvedAt: item.resolvedAt,
-            createdAt: item.createdAt ?? Date(),
-            sortOrder: Int(item.sortOrder)
-        )
-    }
-
-    static func toDTOs(_ items: [CDStudentFocusItem]) -> [StudentFocusItemDTO] {
-        items.map { toDTO($0) }
-    }
-
-    // MARK: - CDGuardian (format v20+)
-
-    static func toDTO(_ guardian: CDGuardian) -> GuardianDTO {
-        GuardianDTO(
-            id: guardian.id ?? UUID(),
-            studentID: guardian.studentID,
-            name: guardian.name,
-            email: guardian.email,
-            relationshipRaw: guardian.relationshipRaw,
-            receivesReports: guardian.receivesReports,
-            sortOrder: Int(guardian.sortOrder),
-            notes: guardian.notes,
-            createdAt: guardian.createdAt ?? Date(),
-            modifiedAt: guardian.modifiedAt
-        )
-    }
-
-    static func toDTOs(_ guardians: [CDGuardian]) -> [GuardianDTO] {
-        guardians.map { toDTO($0) }
-    }
-
-    // MARK: - CDParentCommunication (format v20+)
-
-    static func toDTO(_ communication: CDParentCommunication) -> ParentCommunicationDTO {
-        ParentCommunicationDTO(
-            id: communication.id ?? UUID(),
-            studentID: communication.studentID,
-            templateName: communication.templateName,
-            subject: communication.subject,
-            body: communication.body,
-            communicationTypeRaw: communication.communicationTypeRaw,
-            sentAt: communication.sentAt,
-            createdAt: communication.createdAt ?? Date(),
-            modifiedAt: communication.modifiedAt,
-            notes: communication.notes,
-            monthKey: communication.monthKey,
-            statusRaw: communication.statusRaw,
-            recipientsSnapshot: communication.recipientsSnapshot,
-            includedItemRefs: communication.includedItemRefs,
-            aiGenerated: communication.aiGenerated,
-            includeStudentReflection: communication.includeStudentReflection,
-            attachPDF: communication.attachPDF
-        )
-    }
-
-    static func toDTOs(_ communications: [CDParentCommunication]) -> [ParentCommunicationDTO] {
-        communications.map { toDTO($0) }
-    }
 }

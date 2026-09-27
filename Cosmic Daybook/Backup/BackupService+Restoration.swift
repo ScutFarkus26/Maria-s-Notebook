@@ -204,11 +204,11 @@ extension BackupService {
     /// say so, rather than letting them look lost.
     private func albumReattachWarning(for payload: BackupPayload) -> String? {
         var albumIDs = Set<String>()
-        payload.albumBookmarks?.forEach { albumIDs.insert($0.albumID) }
-        payload.albumPageNotes?.forEach { albumIDs.insert($0.albumID) }
+        albumIDs.formUnion(payload.albumBookmarks?.compactMap { $0.string("albumID") } ?? [])
+        albumIDs.formUnion(payload.albumPageNotes?.compactMap { $0.string("albumID") } ?? [])
         payload.albumHighlights?.forEach { albumIDs.insert($0.albumID) }
         payload.albumPageInk?.forEach { albumIDs.insert($0.albumID) }
-        payload.albumReadingPositions?.forEach { albumIDs.insert($0.albumID) }
+        albumIDs.formUnion(payload.albumReadingPositions?.compactMap { $0.string("albumID") } ?? [])
         guard !albumIDs.isEmpty, !AlbumLibrary.hasResolvableFolderBookmark() else { return nil }
         let noun = albumIDs.count == 1 ? "album" : "albums"
         return "This backup includes bookmarks, notes, highlights, or drawings for "
@@ -329,11 +329,10 @@ extension BackupService {
             existing: { try index.existing(CDStudentMeeting.self, id: $0) }
         )
 
-        try BackupEntityImporter.importProposedSolutions(
-            payload.proposedSolutions,
-            into: viewContext,
+        BackupEntityImporter.importRows(
+            payload.proposedSolutions, as: CDProposedSolutionEntity.self, into: viewContext,
             existing: { try index.existing(CDProposedSolutionEntity.self, id: $0) },
-            topicCheck: { try index.related(CDCommunityTopicEntity.self, id: $0) }
+            parents: ["topic": { try index.related(CDCommunityTopicEntity.self, id: $0) }]
         )
 
         try BackupEntityImporter.importCommunityAttachments(
@@ -407,11 +406,10 @@ extension BackupService {
         }
 
         if let workSteps = payload.workSteps {
-            try BackupEntityImporter.importWorkSteps(
-                workSteps,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                workSteps, as: CDWorkStep.self, into: viewContext,
                 existing: { try index.existing(CDWorkStep.self, id: $0) },
-                workCheck: { try index.related(CDWorkModel.self, id: $0) }
+                parents: ["work": { try index.related(CDWorkModel.self, id: $0) }]
             )
         }
 
@@ -439,11 +437,10 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let lessonAttachments = payload.lessonAttachments {
-            try BackupEntityImporter.importLessonAttachments(
-                lessonAttachments,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                lessonAttachments, as: CDLessonAttachment.self, into: viewContext,
                 existing: { try index.existing(CDLessonAttachment.self, id: $0) },
-                lessonCheck: { try index.related(CDLesson.self, id: $0) }
+                parents: ["lesson": { try index.related(CDLesson.self, id: $0) }]
             )
         }
 
@@ -456,9 +453,8 @@ extension BackupService {
         }
 
         if let recallChecks = payload.recallChecks {
-            try BackupEntityImporter.importRecallChecks(
-                recallChecks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                recallChecks, as: CDLessonRecallCheck.self, into: viewContext,
                 existing: { try index.existing(CDLessonRecallCheck.self, id: $0) }
             )
         }
@@ -473,11 +469,10 @@ extension BackupService {
         }
 
         if let sampleWorkSteps = payload.sampleWorkSteps {
-            try BackupEntityImporter.importSampleWorkSteps(
-                sampleWorkSteps,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                sampleWorkSteps, as: CDSampleWorkStep.self, into: viewContext,
                 existing: { try index.existing(CDSampleWorkStep.self, id: $0) },
-                sampleWorkCheck: { try index.related(CDSampleWork.self, id: $0) }
+                parents: ["sampleWork": { try index.related(CDSampleWork.self, id: $0) }]
             )
         }
     }
@@ -496,9 +491,8 @@ extension BackupService {
         }
 
         if let meetingTemplates = payload.meetingTemplates {
-            try BackupEntityImporter.importMeetingTemplates(
-                meetingTemplates,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                meetingTemplates, as: CDMeetingTemplate.self, into: viewContext,
                 existing: { try index.existing(CDMeetingTemplate.self, id: $0) }
             )
         }
@@ -526,29 +520,28 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let tracks = payload.tracks {
-            try BackupEntityImporter.importTracks(
-                tracks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                tracks, as: CDTrackEntity.self, into: viewContext,
                 existing: { try index.existing(CDTrackEntity.self, id: $0) }
             )
         }
 
         if let trackSteps = payload.trackSteps {
-            try BackupEntityImporter.importTrackSteps(
-                trackSteps,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                trackSteps, as: CDTrackStep.self, into: viewContext,
                 existing: { try index.existing(CDTrackStep.self, id: $0) },
-                trackCheck: { try index.related(CDTrackEntity.self, id: $0) }
+                parents: ["track": { try index.related(CDTrackEntity.self, id: $0) }]
             )
         }
 
         if let enrollments = payload.studentTrackEnrollments {
-            try BackupEntityImporter.importStudentTrackEnrollments(
-                enrollments,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                enrollments, as: CDStudentTrackEnrollmentEntity.self, into: viewContext,
                 existing: { try index.existing(CDStudentTrackEnrollmentEntity.self, id: $0) },
-                studentCheck: { try index.related(CDStudent.self, id: $0) },
-                trackCheck: { try index.related(CDTrackEntity.self, id: $0) }
+                parents: [
+                    "student": { try index.related(CDStudent.self, id: $0) },
+                    "track": { try index.related(CDTrackEntity.self, id: $0) }
+                ]
             )
         }
 
@@ -597,9 +590,8 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let schedules = payload.schedules {
-            try BackupEntityImporter.importSchedules(
-                schedules,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                schedules, as: CDSchedule.self, into: viewContext,
                 existing: { try index.existing(CDSchedule.self, id: $0) }
             )
         }
@@ -659,11 +651,10 @@ extension BackupService {
         }
 
         if let todoSubtasks = payload.todoSubtasks {
-            try BackupEntityImporter.importTodoSubtasks(
-                todoSubtasks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                todoSubtasks, as: CDTodoSubtask.self, into: viewContext,
                 existing: { try index.existing(CDTodoSubtask.self, id: $0) },
-                todoCheck: { try index.related(CDTodoItem.self, id: $0) }
+                parents: ["todo": { try index.related(CDTodoItem.self, id: $0) }]
             )
         }
 
@@ -706,11 +697,10 @@ extension BackupService {
         }
 
         if let noteStudentLinks = payload.noteStudentLinks {
-            try BackupEntityImporter.importNoteStudentLinks(
-                noteStudentLinks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                noteStudentLinks, as: CDNoteStudentLink.self, into: viewContext,
                 existing: { try index.existing(CDNoteStudentLink.self, id: $0) },
-                noteCheck: { try index.related(CDNote.self, id: $0) }
+                parents: ["note": { try index.related(CDNote.self, id: $0) }]
             )
         }
     }
@@ -721,9 +711,8 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let goingOuts = payload.goingOuts {
-            try BackupEntityImporter.importGoingOuts(
-                goingOuts,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                goingOuts, as: CDGoingOut.self, into: viewContext,
                 existing: { try index.existing(CDGoingOut.self, id: $0) }
             )
         }
@@ -738,26 +727,23 @@ extension BackupService {
         }
 
         if let classroomJobs = payload.classroomJobs {
-            try BackupEntityImporter.importClassroomJobs(
-                classroomJobs,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                classroomJobs, as: CDClassroomJob.self, into: viewContext,
                 existing: { try index.existing(CDClassroomJob.self, id: $0) }
             )
         }
 
         if let jobAssignments = payload.jobAssignments {
-            try BackupEntityImporter.importJobAssignments(
-                jobAssignments,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                jobAssignments, as: CDJobAssignment.self, into: viewContext,
                 existing: { try index.existing(CDJobAssignment.self, id: $0) },
-                jobCheck: { try index.related(CDClassroomJob.self, id: $0) }
+                parents: ["job": { try index.related(CDClassroomJob.self, id: $0) }]
             )
         }
 
         if let calendarNotes = payload.calendarNotes {
-            try BackupEntityImporter.importCalendarNotes(
-                calendarNotes,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                calendarNotes, as: CDCalendarNote.self, into: viewContext,
                 existing: { try index.existing(CDCalendarNote.self, id: $0) }
             )
         }
@@ -772,26 +758,24 @@ extension BackupService {
 
         // v13+ entities
         if let memberships = payload.classroomMemberships {
-            try BackupEntityImporter.importClassroomMemberships(
-                memberships,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                memberships, as: CDClassroomMembership.self, into: viewContext,
                 existing: { try index.existing(CDClassroomMembership.self, id: $0) }
             )
         }
 
         // v14+ entities
         if let meetingWorkReviews = payload.meetingWorkReviews {
-            BackupEntityImporter.importMeetingWorkReviews(
-                meetingWorkReviews,
-                into: viewContext,
-                existing: { try index.existing(CDMeetingWorkReview.self, id: $0) }
+            BackupEntityImporter.importRows(
+                meetingWorkReviews, as: CDMeetingWorkReview.self, into: viewContext,
+                existing: { try index.existing(CDMeetingWorkReview.self, id: $0) },
+                parents: ["meeting": { viewContext.object(CDStudentMeeting.self, id: $0) }]
             )
         }
 
         if let studentFocusItems = payload.studentFocusItems {
-            BackupEntityImporter.importStudentFocusItems(
-                studentFocusItems,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                studentFocusItems, as: CDStudentFocusItem.self, into: viewContext,
                 existing: { try index.existing(CDStudentFocusItem.self, id: $0) }
             )
         }
@@ -806,25 +790,22 @@ extension BackupService {
         index: BackupEntityIndex
     ) throws {
         if let dayPads = payload.dayPads {
-            try BackupEntityImporter.importDayPads(
-                dayPads,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                dayPads, as: CDDayPad.self, into: viewContext,
                 existing: { try index.existing(CDDayPad.self, id: $0) }
             )
         }
 
         if let yearPlanEntries = payload.yearPlanEntries {
-            try BackupEntityImporter.importYearPlanEntries(
-                yearPlanEntries,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                yearPlanEntries, as: CDYearPlanEntry.self, into: viewContext,
                 existing: { try index.existing(CDYearPlanEntry.self, id: $0) }
             )
         }
 
         if let sequenceSettings = payload.lessonSequenceSettings {
-            try BackupEntityImporter.importLessonSequenceSettings(
-                sequenceSettings,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                sequenceSettings, as: CDLessonSequenceSettings.self, into: viewContext,
                 existing: { try index.existing(CDLessonSequenceSettings.self, id: $0) }
             )
         }
@@ -846,19 +827,17 @@ extension BackupService {
         }
 
         if let sessions = payload.bookClubSessions {
-            try BackupEntityImporter.importBookClubSessions(
-                sessions,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                sessions, as: CDBookClubSession.self, into: viewContext,
                 existing: { try index.existing(CDBookClubSession.self, id: $0) }
             )
         }
 
         if let meetings = payload.bookClubMeetings {
-            try BackupEntityImporter.importBookClubMeetings(
-                meetings,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                meetings, as: CDBookClubMeeting.self, into: viewContext,
                 existing: { try index.existing(CDBookClubMeeting.self, id: $0) },
-                sessionCheck: { try index.related(CDBookClubSession.self, id: $0) }
+                parents: ["session": { try index.related(CDBookClubSession.self, id: $0) }]
             )
         }
     }
@@ -870,17 +849,15 @@ extension BackupService {
         index: BackupEntityIndex
     ) {
         if let guardians = payload.guardians {
-            BackupEntityImporter.importGuardians(
-                guardians,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                guardians, as: CDGuardian.self, into: viewContext,
                 existing: { try index.existing(CDGuardian.self, id: $0) }
             )
         }
 
         if let parentCommunications = payload.parentCommunications {
-            BackupEntityImporter.importParentCommunications(
-                parentCommunications,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                parentCommunications, as: CDParentCommunication.self, into: viewContext,
                 existing: { try index.existing(CDParentCommunication.self, id: $0) }
             )
         }
@@ -893,33 +870,29 @@ extension BackupService {
         index: BackupEntityIndex
     ) {
         if let bookmarks = payload.albumBookmarks {
-            BackupEntityImporter.importAlbumBookmarks(
-                bookmarks,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                bookmarks, as: CDAlbumBookmark.self, into: viewContext,
                 existing: { try index.existing(CDAlbumBookmark.self, id: $0) }
             )
         }
 
         if let notes = payload.albumPageNotes {
-            BackupEntityImporter.importAlbumPageNotes(
-                notes,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                notes, as: CDAlbumPageNote.self, into: viewContext,
                 existing: { try index.existing(CDAlbumPageNote.self, id: $0) }
             )
         }
 
         if let visits = payload.albumRecentVisits {
-            BackupEntityImporter.importAlbumRecentVisits(
-                visits,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                visits, as: CDAlbumRecentVisit.self, into: viewContext,
                 existing: { try index.existing(CDAlbumRecentVisit.self, id: $0) }
             )
         }
 
         if let positions = payload.albumReadingPositions {
-            BackupEntityImporter.importAlbumReadingPositions(
-                positions,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                positions, as: CDAlbumReadingPosition.self, into: viewContext,
                 existing: { try index.existing(CDAlbumReadingPosition.self, id: $0) }
             )
         }
@@ -948,9 +921,8 @@ extension BackupService {
         index: BackupEntityIndex
     ) {
         if let orderItems = payload.orderItems {
-            BackupEntityImporter.importOrderItems(
-                orderItems,
-                into: viewContext,
+            BackupEntityImporter.importRows(
+                orderItems, as: CDOrderItem.self, into: viewContext,
                 existing: { try index.existing(CDOrderItem.self, id: $0) }
             )
         }

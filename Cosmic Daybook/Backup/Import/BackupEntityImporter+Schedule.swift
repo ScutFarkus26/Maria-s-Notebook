@@ -58,30 +58,6 @@ extension BackupEntityImporter {
         NotificationCenter.default.post(name: .schoolDayDataDidChange, object: nil)
     }
 
-    // MARK: - Schedules
-
-    static func importSchedules(
-        _ dtos: [ScheduleDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDSchedule>
-    ) rethrows {
-        try importSimpleEntities(
-            dtos, into: viewContext,
-            existing: existing,
-            idExtractor: { $0.id },
-            entityBuilder: { dto, current in
-            let s = current ?? CDSchedule(context: viewContext)
-            s.id = dto.id
-            s.name = dto.name
-            s.notes = dto.notes
-            s.colorHex = dto.colorHex
-            s.icon = dto.icon
-            s.createdAt = dto.createdAt
-            s.modifiedAt = dto.modifiedAt
-            return s
-        })
-    }
-
     // MARK: - CDSchedule Slots
 
     static func importScheduleSlots(

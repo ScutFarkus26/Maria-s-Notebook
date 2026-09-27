@@ -22,35 +22,6 @@ extension BackupDTOTransformers {
         )
     }
 
-    // MARK: - CDSampleWorkStep
-
-    static func toDTO(_ step: CDSampleWorkStep) -> SampleWorkStepDTO {
-        SampleWorkStepDTO(
-            id: step.id ?? UUID(),
-            sampleWorkID: step.sampleWork?.id,
-            title: step.title,
-            orderIndex: Int(step.orderIndex),
-            instructions: step.instructions,
-            createdAt: step.createdAt ?? Date()
-        )
-    }
-
-    // MARK: - CDLessonAttachment
-
-    static func toDTO(_ attachment: CDLessonAttachment) -> LessonAttachmentDTO {
-        LessonAttachmentDTO(
-            id: attachment.id ?? UUID(),
-            fileName: attachment.fileName,
-            fileRelativePath: attachment.fileRelativePath,
-            attachedAt: attachment.attachedAt ?? Date(),
-            fileType: attachment.fileType,
-            fileSizeBytes: attachment.fileSizeBytes,
-            scopeRaw: attachment.scopeRaw,
-            notes: attachment.notes,
-            lessonID: attachment.lesson?.id
-        )
-    }
-
     // MARK: - CDLessonPresentation
 
     static func toDTO(_ lp: CDLessonPresentation) -> LessonPresentationDTO {
@@ -84,40 +55,8 @@ extension BackupDTOTransformers {
         sampleWorks.map { toDTO($0) }
     }
 
-    static func toDTOs(_ sampleWorkSteps: [CDSampleWorkStep]) -> [SampleWorkStepDTO] {
-        sampleWorkSteps.map { toDTO($0) }
-    }
-
-    static func toDTOs(_ attachments: [CDLessonAttachment]) -> [LessonAttachmentDTO] {
-        attachments.map { toDTO($0) }
-    }
-
     static func toDTOs(_ presentations: [CDLessonPresentation]) -> [LessonPresentationDTO] {
         presentations.map { toDTO($0) }
     }
 
-    // MARK: - CDLessonRecallCheck
-
-    static func toDTO(_ rc: CDLessonRecallCheck) -> LessonRecallCheckDTO {
-        LessonRecallCheckDTO(
-            id: rc.id ?? UUID(),
-            createdAt: rc.createdAt ?? Date(),
-            modifiedAt: rc.modifiedAt,
-            studentID: rc.studentID,
-            lessonID: rc.lessonID,
-            outcomeRaw: rc.outcomeRaw,
-            sourceRaw: rc.sourceRaw,
-            coveredByLessonID: rc.coveredByLessonID,
-            presentationID: rc.presentationID,
-            originalMasteredAt: rc.originalMasteredAt,
-            checkedAt: rc.checkedAt,
-            note: rc.note,
-            photoRef: rc.photoRef,
-            schoolYearKey: rc.schoolYearKey
-        )
-    }
-
-    static func toDTOs(_ checks: [CDLessonRecallCheck]) -> [LessonRecallCheckDTO] {
-        checks.map { toDTO($0) }
-    }
 }

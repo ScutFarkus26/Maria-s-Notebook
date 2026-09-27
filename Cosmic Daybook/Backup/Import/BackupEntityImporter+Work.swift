@@ -103,38 +103,6 @@ extension BackupEntityImporter {
         }
     }
 
-    // MARK: - Work Steps
-
-    static func importWorkSteps(
-        _ dtos: [WorkStepDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDWorkStep>,
-        workCheck: EntityLookup<CDWorkModel>
-    ) rethrows {
-        for dto in dtos {
-            let step = existingEntity(id: dto.id, existing: existing) ?? CDWorkStep(context: viewContext)
-            step.id = dto.id
-            step.orderIndex = Int64(dto.orderIndex)
-            step.title = dto.title
-            step.instructions = dto.instructions
-            step.completedAt = dto.completedAt
-            step.notes = dto.notes
-            step.completionOutcomeRaw = dto.completionOutcomeRaw
-            step.createdAt = dto.createdAt
-            if let workID = dto.workID {
-                do {
-                    if let work = try workCheck(workID) {
-                        step.work = work
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check work for step: \(desc, privacy: .public)")
-                }
-            }
-            viewContext.insert(step)
-        }
-    }
-
     // MARK: - Work Participants
 
     static func importWorkParticipants(

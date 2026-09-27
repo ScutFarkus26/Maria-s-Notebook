@@ -85,7 +85,7 @@ extension BackupService {
         payload.communityTopics = fetchAndTransformInBatches(
             CDCommunityTopicEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
         payload.proposedSolutions = fetchAndTransformInBatches(
-            CDProposedSolutionEntity.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
+            CDProposedSolutionEntity.self, using: viewContext) { ProposedSolutionDTO.rows($0) }
         payload.communityAttachments = fetchAndTransformInBatches(
             CDCommunityAttachment.self, using: viewContext) { BackupServiceHelpers.toDTOs($0) }
 
@@ -121,7 +121,7 @@ extension BackupService {
         payload.workCheckIns = fetchAndTransformInBatches(
             CDWorkCheckIn.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.workSteps = fetchAndTransformInBatches(
-            CDWorkStep.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDWorkStep.self, using: viewContext) { WorkStepDTO.rows($0) }
         payload.workParticipants = fetchAndTransformInBatches(
             CDWorkParticipantEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.practiceSessions = fetchAndTransformInBatches(
@@ -129,15 +129,15 @@ extension BackupService {
 
         progress(BackupProgress.progress(for: .collecting, subProgress: 0.50), "Collecting lesson extras\u{2026}")
         payload.lessonAttachments = fetchAndTransformInBatches(
-            CDLessonAttachment.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDLessonAttachment.self, using: viewContext) { LessonAttachmentDTO.rows($0) }
         payload.lessonPresentations = fetchAndTransformInBatches(
             CDLessonPresentation.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.recallChecks = fetchAndTransformInBatches(
-            CDLessonRecallCheck.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDLessonRecallCheck.self, using: viewContext) { LessonRecallCheckDTO.rows($0) }
         payload.sampleWorks = fetchAndTransformInBatches(
             CDSampleWork.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.sampleWorkSteps = fetchAndTransformInBatches(
-            CDSampleWorkStep.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDSampleWorkStep.self, using: viewContext) { SampleWorkStepDTO.rows($0) }
     }
 
     private func collectTemplateAndTrackDTOs(
@@ -149,17 +149,17 @@ extension BackupService {
         payload.noteTemplates = fetchAndTransformInBatches(
             CDNoteTemplate.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.meetingTemplates = fetchAndTransformInBatches(
-            CDMeetingTemplate.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDMeetingTemplate.self, using: viewContext) { MeetingTemplateDTO.rows($0) }
         payload.reminders = fetchAndTransformInBatches(
             CDReminder.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.calendarEvents = fetchAndTransformInBatches(
             CDCalendarEvent.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.tracks = fetchAndTransformInBatches(
-            CDTrackEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTrackEntity.self, using: viewContext) { TrackDTO.rows($0) }
         payload.trackSteps = fetchAndTransformInBatches(
-            CDTrackStep.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTrackStep.self, using: viewContext) { TrackStepDTO.rows($0) }
         payload.studentTrackEnrollments = fetchAndTransformInBatches(
-            CDStudentTrackEnrollmentEntity.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDStudentTrackEnrollmentEntity.self, using: viewContext) { StudentTrackEnrollmentDTO.rows($0) }
         payload.sequenceTracks = fetchAndTransformInBatches(
             CDSequenceTrack.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
     }
@@ -181,7 +181,7 @@ extension BackupService {
         payload.procedures = fetchAndTransformInBatches(
             CDProcedure.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.schedules = fetchAndTransformInBatches(
-            CDSchedule.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDSchedule.self, using: viewContext) { ScheduleDTO.rows($0) }
         payload.scheduleSlots = fetchAndTransformInBatches(
             CDScheduleSlot.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.issues = fetchAndTransformInBatches(
@@ -195,7 +195,7 @@ extension BackupService {
         payload.todoItems = fetchAndTransformInBatches(
             CDTodoItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.todoSubtasks = fetchAndTransformInBatches(
-            CDTodoSubtask.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDTodoSubtask.self, using: viewContext) { TodoSubtaskDTO.rows($0) }
         payload.todoTemplates = fetchAndTransformInBatches(
             CDTodoTemplate.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.todayAgendaOrders = fetchAndTransformInBatches(
@@ -210,27 +210,27 @@ extension BackupService {
         payload.resources = fetchAndTransformInBatches(
             CDResource.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.noteStudentLinks = fetchAndTransformInBatches(
-            CDNoteStudentLink.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDNoteStudentLink.self, using: viewContext) { NoteStudentLinkDTO.rows($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.85),
             "Collecting going-outs, jobs & transitions\u{2026}"
         )
         payload.goingOuts = fetchAndTransformInBatches(
-            CDGoingOut.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDGoingOut.self, using: viewContext) { GoingOutDTO.rows($0) }
         payload.goingOutChecklistItems = fetchAndTransformInBatches(
             CDGoingOutChecklistItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.classroomJobs = fetchAndTransformInBatches(
-            CDClassroomJob.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDClassroomJob.self, using: viewContext) { ClassroomJobDTO.rows($0) }
         payload.jobAssignments = fetchAndTransformInBatches(
-            CDJobAssignment.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDJobAssignment.self, using: viewContext) { JobAssignmentDTO.rows($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.90),
             "Collecting calendar notes & meetings\u{2026}"
         )
         payload.calendarNotes = fetchAndTransformInBatches(
-            CDCalendarNote.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDCalendarNote.self, using: viewContext) { CalendarNoteDTO.rows($0) }
         payload.scheduledMeetings = fetchAndTransformInBatches(
             CDScheduledMeeting.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
 
@@ -239,16 +239,16 @@ extension BackupService {
             "Collecting classroom memberships\u{2026}"
         )
         payload.classroomMemberships = fetchAndTransformInBatches(
-            CDClassroomMembership.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDClassroomMembership.self, using: viewContext) { ClassroomMembershipDTO.rows($0) }
 
         progress(
             BackupProgress.progress(for: .collecting, subProgress: 0.95),
             "Collecting meeting work reviews & focus items\u{2026}"
         )
         payload.meetingWorkReviews = fetchAndTransformInBatches(
-            CDMeetingWorkReview.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDMeetingWorkReview.self, using: viewContext) { MeetingWorkReviewDTO.rows($0) }
         payload.studentFocusItems = fetchAndTransformInBatches(
-            CDStudentFocusItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDStudentFocusItem.self, using: viewContext) { StudentFocusItemDTO.rows($0) }
     }
 
     /// Collects the format v18 entity types: Stories, Book Club, Year Plan,
@@ -263,19 +263,19 @@ extension BackupService {
             "Collecting stories, book club & year plan\u{2026}"
         )
         payload.dayPads = fetchAndTransformInBatches(
-            CDDayPad.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDDayPad.self, using: viewContext) { DayPadDTO.rows($0) }
         payload.yearPlanEntries = fetchAndTransformInBatches(
-            CDYearPlanEntry.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDYearPlanEntry.self, using: viewContext) { YearPlanEntryDTO.rows($0) }
         payload.lessonSequenceSettings = fetchAndTransformInBatches(
-            CDLessonSequenceSettings.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDLessonSequenceSettings.self, using: viewContext) { LessonSequenceSettingsDTO.rows($0) }
         payload.stories = fetchAndTransformInBatches(
             CDStory.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.bookClubPackets = fetchAndTransformInBatches(
             CDBookClubPacket.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.bookClubSessions = fetchAndTransformInBatches(
-            CDBookClubSession.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDBookClubSession.self, using: viewContext) { BookClubSessionDTO.rows($0) }
         payload.bookClubMeetings = fetchAndTransformInBatches(
-            CDBookClubMeeting.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDBookClubMeeting.self, using: viewContext) { BookClubMeetingDTO.rows($0) }
     }
 
     /// Collects the format v20 entity types: Guardians and Parent Communications.
@@ -289,9 +289,9 @@ extension BackupService {
             "Collecting guardians & parent communications\u{2026}"
         )
         payload.guardians = fetchAndTransformInBatches(
-            CDGuardian.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDGuardian.self, using: viewContext) { GuardianDTO.rows($0) }
         payload.parentCommunications = fetchAndTransformInBatches(
-            CDParentCommunication.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDParentCommunication.self, using: viewContext) { ParentCommunicationDTO.rows($0) }
     }
 
     /// Collects the format v21 entity types: teaching-album annotations.
@@ -305,13 +305,13 @@ extension BackupService {
             "Collecting album bookmarks & notes\u{2026}"
         )
         payload.albumBookmarks = fetchAndTransformInBatches(
-            CDAlbumBookmark.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDAlbumBookmark.self, using: viewContext) { AlbumBookmarkDTO.rows($0) }
         payload.albumPageNotes = fetchAndTransformInBatches(
-            CDAlbumPageNote.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDAlbumPageNote.self, using: viewContext) { AlbumPageNoteDTO.rows($0) }
         payload.albumRecentVisits = fetchAndTransformInBatches(
-            CDAlbumRecentVisit.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDAlbumRecentVisit.self, using: viewContext) { AlbumRecentVisitDTO.rows($0) }
         payload.albumReadingPositions = fetchAndTransformInBatches(
-            CDAlbumReadingPosition.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDAlbumReadingPosition.self, using: viewContext) { AlbumReadingPositionDTO.rows($0) }
         payload.albumHighlights = fetchAndTransformInBatches(
             CDAlbumHighlight.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
         payload.albumPageInk = fetchAndTransformInBatches(
@@ -322,6 +322,6 @@ extension BackupService {
     /// BackupService+DataCollection, which is at SwiftLint's file-length limit.
     func collectOrderDTOs(into payload: inout BackupPayload, using viewContext: NSManagedObjectContext) {
         payload.orderItems = fetchAndTransformInBatches(
-            CDOrderItem.self, using: viewContext) { BackupDTOTransformers.toDTOs($0) }
+            CDOrderItem.self, using: viewContext) { OrderItemDTO.rows($0) }
     }
 }

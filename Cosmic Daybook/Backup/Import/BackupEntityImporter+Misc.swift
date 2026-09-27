@@ -168,45 +168,6 @@ extension BackupEntityImporter {
         })
     }
 
-    // MARK: - Proposed Solutions
-
-    /// Imports proposed solutions from DTOs.
-    ///
-    /// - Parameters:
-    ///   - dtos: The proposed solution DTOs to import
-    ///   - viewContext: The model context for database operations
-    ///   - existing: Looks up an already-stored a solution by ID so it is updated in place
-    ///   - topicCheck: Function to look up a community topic by ID
-    static func importProposedSolutions(
-        _ dtos: [ProposedSolutionDTO],
-        into viewContext: NSManagedObjectContext,
-        existing: ExistingLookup<CDProposedSolutionEntity>,
-        topicCheck: EntityLookup<CDCommunityTopicEntity>
-    ) rethrows {
-        for dto in dtos {
-            let solution = existingEntity(id: dto.id, existing: existing) ?? CDProposedSolutionEntity(context: viewContext)
-            solution.id = dto.id
-            solution.title = dto.title
-            solution.details = dto.details
-            solution.proposedBy = dto.proposedBy
-            solution.createdAt = dto.createdAt
-            solution.isAdopted = dto.isAdopted
-
-            if let topicID = dto.topicID {
-                do {
-                    if let topic = try topicCheck(topicID) {
-                        solution.topic = topic
-                    }
-                } catch {
-                    let desc = error.localizedDescription
-                    Logger.backup.warning("Failed to check topic for proposed solution: \(desc, privacy: .public)")
-                }
-            }
-
-            viewContext.insert(solution)
-        }
-    }
-
     // MARK: - Community Attachments
 
     /// Imports community attachments from DTOs.

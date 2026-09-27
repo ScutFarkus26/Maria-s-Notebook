@@ -278,21 +278,6 @@ enum BackupServiceHelpers {
         }
     }
 
-    static func toDTOs(_ proposedSolutions: [CDProposedSolutionEntity]) -> [ProposedSolutionDTO] {
-        proposedSolutions.compactMap { s in
-            guard let sID = s.id else { return nil }
-            return ProposedSolutionDTO(
-                id: sID,
-                topicID: s.topic?.id,
-                title: s.title,
-                details: s.details,
-                proposedBy: s.proposedBy,
-                createdAt: s.createdAt ?? Date(),
-                isAdopted: s.isAdopted
-            )
-        }
-    }
-
     static func toDTOs(_ communityAttachments: [CDCommunityAttachment]) -> [CommunityAttachmentDTO] {
         communityAttachments.compactMap { a in
             guard let aID = a.id else { return nil }

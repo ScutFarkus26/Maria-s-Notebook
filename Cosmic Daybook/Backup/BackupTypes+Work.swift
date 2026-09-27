@@ -77,12 +77,6 @@ nonisolated public struct ResourceDTO: Codable, Sendable {
 
 // MARK: - CDNoteStudentLink DTO
 
-nonisolated public struct NoteStudentLinkDTO: Codable, Sendable {
-    public var id: UUID
-    public var noteID: String
-    public var studentID: String
-}
-
 nonisolated public struct WorkCheckInDTO: Codable, Sendable {
     public var id: UUID
     public var workID: String
@@ -90,18 +84,6 @@ nonisolated public struct WorkCheckInDTO: Codable, Sendable {
     public var statusRaw: String
     public var purpose: String
     public var studentInitiated: Bool?
-}
-
-nonisolated public struct WorkStepDTO: Codable, Sendable {
-    public var id: UUID
-    public var workID: UUID?
-    public var orderIndex: Int
-    public var title: String
-    public var instructions: String
-    public var completedAt: Date?
-    public var notes: String
-    public var completionOutcomeRaw: String?
-    public var createdAt: Date
 }
 
 nonisolated public struct WorkParticipantEntityDTO: Codable, Sendable {

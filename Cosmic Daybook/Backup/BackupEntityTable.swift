@@ -121,7 +121,7 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.33, "Collecting community data\u{2026}")
         ),
         .required(
-            "ProposedSolution", CDProposedSolutionEntity.self, \.proposedSolutions, BackupServiceHelpers.toDTOs
+            "ProposedSolution", CDProposedSolutionEntity.self, \.proposedSolutions, ProposedSolutionDTO.rows
         ),
         .required(
             "CommunityAttachment", CDCommunityAttachment.self, \.communityAttachments, BackupServiceHelpers.toDTOs
@@ -147,21 +147,21 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.42, "Collecting work tracking\u{2026}")
         ),
         .optional("WorkCheckIn", CDWorkCheckIn.self, \.workCheckIns, BackupDTOTransformers.toDTOs),
-        .optional("WorkStep", CDWorkStep.self, \.workSteps, BackupDTOTransformers.toDTOs),
+        .optional("WorkStep", CDWorkStep.self, \.workSteps, WorkStepDTO.rows),
         .optional(
             "WorkParticipantEntity", CDWorkParticipantEntity.self, \.workParticipants, BackupDTOTransformers.toDTOs
         ),
         .optional("PracticeSession", CDPracticeSession.self, \.practiceSessions, BackupDTOTransformers.toDTOs),
         .optional(
-            "LessonAttachment", CDLessonAttachment.self, \.lessonAttachments, BackupDTOTransformers.toDTOs,
+            "LessonAttachment", CDLessonAttachment.self, \.lessonAttachments, LessonAttachmentDTO.rows,
             announcing: .init(0.50, "Collecting lesson extras\u{2026}")
         ),
         .optional(
             "LessonPresentation", CDLessonPresentation.self, \.lessonPresentations, BackupDTOTransformers.toDTOs
         ),
-        .optional("LessonRecallCheck", CDLessonRecallCheck.self, \.recallChecks, BackupDTOTransformers.toDTOs),
+        .optional("LessonRecallCheck", CDLessonRecallCheck.self, \.recallChecks, LessonRecallCheckDTO.rows),
         .optional("SampleWork", CDSampleWork.self, \.sampleWorks, BackupDTOTransformers.toDTOs),
-        .optional("SampleWorkStep", CDSampleWorkStep.self, \.sampleWorkSteps, BackupDTOTransformers.toDTOs)
+        .optional("SampleWorkStep", CDSampleWorkStep.self, \.sampleWorkSteps, SampleWorkStepDTO.rows)
     ]
 
     private static let templateAndTrackEntities: [BackupEntity] = [
@@ -169,14 +169,14 @@ nonisolated enum BackupEntityTable {
             "NoteTemplate", CDNoteTemplate.self, \.noteTemplates, BackupDTOTransformers.toDTOs,
             announcing: .init(0.55, "Collecting templates & tracks\u{2026}")
         ),
-        .optional("MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, BackupDTOTransformers.toDTOs),
+        .optional("MeetingTemplate", CDMeetingTemplate.self, \.meetingTemplates, MeetingTemplateDTO.rows),
         .optional("Reminder", CDReminder.self, \.reminders, BackupDTOTransformers.toDTOs),
         .optional("CalendarEvent", CDCalendarEvent.self, \.calendarEvents, BackupDTOTransformers.toDTOs),
-        .optional("Track", CDTrackEntity.self, \.tracks, BackupDTOTransformers.toDTOs),
-        .optional("TrackStep", CDTrackStep.self, \.trackSteps, BackupDTOTransformers.toDTOs),
+        .optional("Track", CDTrackEntity.self, \.tracks, TrackDTO.rows),
+        .optional("TrackStep", CDTrackStep.self, \.trackSteps, TrackStepDTO.rows),
         .optional(
             "StudentTrackEnrollment", CDStudentTrackEnrollmentEntity.self, \.studentTrackEnrollments,
-            BackupDTOTransformers.toDTOs
+            StudentTrackEnrollmentDTO.rows
         ),
         .optional("SequenceTrack", CDSequenceTrack.self, \.sequenceTracks, BackupDTOTransformers.toDTOs)
     ]
@@ -188,7 +188,7 @@ nonisolated enum BackupEntityTable {
         ),
         .optional("Supply", CDSupply.self, \.supplies, BackupDTOTransformers.toDTOs),
         .optional("Procedure", CDProcedure.self, \.procedures, BackupDTOTransformers.toDTOs),
-        .optional("Schedule", CDSchedule.self, \.schedules, BackupDTOTransformers.toDTOs),
+        .optional("Schedule", CDSchedule.self, \.schedules, ScheduleDTO.rows),
         .optional("ScheduleSlot", CDScheduleSlot.self, \.scheduleSlots, BackupDTOTransformers.toDTOs),
         .optional("Issue", CDIssue.self, \.issues, BackupDTOTransformers.toDTOs),
         .optional("IssueAction", CDIssueAction.self, \.issueActions, BackupDTOTransformers.toDTOs),
@@ -198,7 +198,7 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.75, "Collecting snapshots & todos\u{2026}")
         ),
         .optional("TodoItem", CDTodoItem.self, \.todoItems, BackupDTOTransformers.toDTOs),
-        .optional("TodoSubtask", CDTodoSubtask.self, \.todoSubtasks, BackupDTOTransformers.toDTOs),
+        .optional("TodoSubtask", CDTodoSubtask.self, \.todoSubtasks, TodoSubtaskDTO.rows),
         .optional("TodoTemplate", CDTodoTemplate.self, \.todoTemplates, BackupDTOTransformers.toDTOs),
         .optional("TodayAgendaOrder", CDTodayAgendaOrder.self, \.todayAgendaOrders, BackupDTOTransformers.toDTOs),
         .optional(
@@ -207,68 +207,68 @@ nonisolated enum BackupEntityTable {
             announcing: .init(0.80, "Collecting recommendations & resources\u{2026}")
         ),
         .optional("Resource", CDResource.self, \.resources, BackupDTOTransformers.toDTOs),
-        .optional("NoteStudentLink", CDNoteStudentLink.self, \.noteStudentLinks, BackupDTOTransformers.toDTOs),
+        .optional("NoteStudentLink", CDNoteStudentLink.self, \.noteStudentLinks, NoteStudentLinkDTO.rows),
         .optional(
-            "GoingOut", CDGoingOut.self, \.goingOuts, BackupDTOTransformers.toDTOs,
+            "GoingOut", CDGoingOut.self, \.goingOuts, GoingOutDTO.rows,
             announcing: .init(0.85, "Collecting going-outs, jobs & transitions\u{2026}")
         ),
         .optional(
             "GoingOutChecklistItem", CDGoingOutChecklistItem.self, \.goingOutChecklistItems,
             BackupDTOTransformers.toDTOs
         ),
-        .optional("ClassroomJob", CDClassroomJob.self, \.classroomJobs, BackupDTOTransformers.toDTOs),
-        .optional("JobAssignment", CDJobAssignment.self, \.jobAssignments, BackupDTOTransformers.toDTOs),
+        .optional("ClassroomJob", CDClassroomJob.self, \.classroomJobs, ClassroomJobDTO.rows),
+        .optional("JobAssignment", CDJobAssignment.self, \.jobAssignments, JobAssignmentDTO.rows),
         .optional(
-            "CalendarNote", CDCalendarNote.self, \.calendarNotes, BackupDTOTransformers.toDTOs,
+            "CalendarNote", CDCalendarNote.self, \.calendarNotes, CalendarNoteDTO.rows,
             announcing: .init(0.90, "Collecting calendar notes & meetings\u{2026}")
         ),
         .optional("ScheduledMeeting", CDScheduledMeeting.self, \.scheduledMeetings, BackupDTOTransformers.toDTOs),
         .optional(
-            "ClassroomMembership", CDClassroomMembership.self, \.classroomMemberships, BackupDTOTransformers.toDTOs,
+            "ClassroomMembership", CDClassroomMembership.self, \.classroomMemberships, ClassroomMembershipDTO.rows,
             announcing: .init(0.93, "Collecting classroom memberships\u{2026}")
         ),
         .optional(
-            "MeetingWorkReview", CDMeetingWorkReview.self, \.meetingWorkReviews, BackupDTOTransformers.toDTOs,
+            "MeetingWorkReview", CDMeetingWorkReview.self, \.meetingWorkReviews, MeetingWorkReviewDTO.rows,
             announcing: .init(0.95, "Collecting meeting work reviews & focus items\u{2026}")
         ),
-        .optional("StudentFocusItem", CDStudentFocusItem.self, \.studentFocusItems, BackupDTOTransformers.toDTOs)
+        .optional("StudentFocusItem", CDStudentFocusItem.self, \.studentFocusItems, StudentFocusItemDTO.rows)
     ]
 
     /// Format v18 (stories, book club, year plan, day pads), v20 (guardians,
     /// parent communications), v21 (teaching-album annotations) and v27 (orders).
     private static let laterFormatEntities: [BackupEntity] = [
         .optional(
-            "DayPad", CDDayPad.self, \.dayPads, BackupDTOTransformers.toDTOs,
+            "DayPad", CDDayPad.self, \.dayPads, DayPadDTO.rows,
             announcing: .init(0.97, "Collecting stories, book club & year plan\u{2026}")
         ),
-        .optional("YearPlanEntry", CDYearPlanEntry.self, \.yearPlanEntries, BackupDTOTransformers.toDTOs),
+        .optional("YearPlanEntry", CDYearPlanEntry.self, \.yearPlanEntries, YearPlanEntryDTO.rows),
         .optional(
             "LessonSequenceSettings", CDLessonSequenceSettings.self, \.lessonSequenceSettings,
-            BackupDTOTransformers.toDTOs
+            LessonSequenceSettingsDTO.rows
         ),
         .optional("Story", CDStory.self, \.stories, BackupDTOTransformers.toDTOs),
         .optional("BookClubPacket", CDBookClubPacket.self, \.bookClubPackets, BackupDTOTransformers.toDTOs),
-        .optional("BookClubSession", CDBookClubSession.self, \.bookClubSessions, BackupDTOTransformers.toDTOs),
-        .optional("BookClubMeeting", CDBookClubMeeting.self, \.bookClubMeetings, BackupDTOTransformers.toDTOs),
+        .optional("BookClubSession", CDBookClubSession.self, \.bookClubSessions, BookClubSessionDTO.rows),
+        .optional("BookClubMeeting", CDBookClubMeeting.self, \.bookClubMeetings, BookClubMeetingDTO.rows),
         .optional(
-            "Guardian", CDGuardian.self, \.guardians, BackupDTOTransformers.toDTOs,
+            "Guardian", CDGuardian.self, \.guardians, GuardianDTO.rows,
             announcing: .init(0.98, "Collecting guardians & parent communications\u{2026}")
         ),
         .optional(
-            "ParentCommunication", CDParentCommunication.self, \.parentCommunications, BackupDTOTransformers.toDTOs
+            "ParentCommunication", CDParentCommunication.self, \.parentCommunications, ParentCommunicationDTO.rows
         ),
         .optional(
-            "AlbumBookmark", CDAlbumBookmark.self, \.albumBookmarks, BackupDTOTransformers.toDTOs,
+            "AlbumBookmark", CDAlbumBookmark.self, \.albumBookmarks, AlbumBookmarkDTO.rows,
             announcing: .init(0.99, "Collecting album bookmarks & notes\u{2026}")
         ),
-        .optional("AlbumPageNote", CDAlbumPageNote.self, \.albumPageNotes, BackupDTOTransformers.toDTOs),
-        .optional("AlbumRecentVisit", CDAlbumRecentVisit.self, \.albumRecentVisits, BackupDTOTransformers.toDTOs),
+        .optional("AlbumPageNote", CDAlbumPageNote.self, \.albumPageNotes, AlbumPageNoteDTO.rows),
+        .optional("AlbumRecentVisit", CDAlbumRecentVisit.self, \.albumRecentVisits, AlbumRecentVisitDTO.rows),
         .optional(
-            "AlbumReadingPosition", CDAlbumReadingPosition.self, \.albumReadingPositions, BackupDTOTransformers.toDTOs
+            "AlbumReadingPosition", CDAlbumReadingPosition.self, \.albumReadingPositions, AlbumReadingPositionDTO.rows
         ),
         .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, BackupDTOTransformers.toDTOs),
         .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, BackupDTOTransformers.toDTOs),
-        .optional("OrderItem", CDOrderItem.self, \.orderItems, BackupDTOTransformers.toDTOs)
+        .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows)
     ]
 }
 
@@ -283,7 +283,6 @@ extension NonSchoolDayDTO: BackupRowDTO {}
 extension SchoolDayOverrideDTO: BackupRowDTO {}
 extension StudentMeetingDTO: BackupRowDTO {}
 extension CommunityTopicDTO: BackupRowDTO {}
-extension ProposedSolutionDTO: BackupRowDTO {}
 extension CommunityAttachmentDTO: BackupRowDTO {}
 extension AttendanceRecordDTO: BackupRowDTO {}
 extension WorkCompletionRecordDTO: BackupRowDTO {}
@@ -292,59 +291,29 @@ extension ProjectSessionDTO: BackupRowDTO {}
 extension ProjectRoleDTO: BackupRowDTO {}
 extension WorkModelDTO: BackupRowDTO {}
 extension WorkCheckInDTO: BackupRowDTO {}
-extension WorkStepDTO: BackupRowDTO {}
 extension WorkParticipantEntityDTO: BackupRowDTO {}
 extension PracticeSessionDTO: BackupRowDTO {}
-extension LessonAttachmentDTO: BackupRowDTO {}
 extension LessonPresentationDTO: BackupRowDTO {}
-extension LessonRecallCheckDTO: BackupRowDTO {}
 extension SampleWorkDTO: BackupRowDTO {}
-extension SampleWorkStepDTO: BackupRowDTO {}
 extension NoteTemplateDTO: BackupRowDTO {}
-extension MeetingTemplateDTO: BackupRowDTO {}
 extension ReminderDTO: BackupRowDTO {}
 extension CalendarEventDTO: BackupRowDTO {}
-extension TrackDTO: BackupRowDTO {}
-extension TrackStepDTO: BackupRowDTO {}
-extension StudentTrackEnrollmentDTO: BackupRowDTO {}
 extension SequenceTrackDTO: BackupRowDTO {}
 extension DocumentDTO: BackupRowDTO {}
 extension SupplyDTO: BackupRowDTO {}
 extension ProcedureDTO: BackupRowDTO {}
-extension ScheduleDTO: BackupRowDTO {}
 extension ScheduleSlotDTO: BackupRowDTO {}
 extension IssueDTO: BackupRowDTO {}
 extension IssueActionDTO: BackupRowDTO {}
 extension DevelopmentSnapshotDTO: BackupRowDTO {}
 extension TodoItemDTO: BackupRowDTO {}
-extension TodoSubtaskDTO: BackupRowDTO {}
 extension TodoTemplateDTO: BackupRowDTO {}
 extension TodayAgendaOrderDTO: BackupRowDTO {}
 extension PlanningRecommendationDTO: BackupRowDTO {}
 extension ResourceDTO: BackupRowDTO {}
-extension NoteStudentLinkDTO: BackupRowDTO {}
-extension GoingOutDTO: BackupRowDTO {}
 extension GoingOutChecklistItemDTO: BackupRowDTO {}
-extension ClassroomJobDTO: BackupRowDTO {}
-extension JobAssignmentDTO: BackupRowDTO {}
-extension CalendarNoteDTO: BackupRowDTO {}
 extension ScheduledMeetingDTO: BackupRowDTO {}
-extension ClassroomMembershipDTO: BackupRowDTO {}
-extension MeetingWorkReviewDTO: BackupRowDTO {}
-extension StudentFocusItemDTO: BackupRowDTO {}
-extension DayPadDTO: BackupRowDTO {}
-extension YearPlanEntryDTO: BackupRowDTO {}
-extension LessonSequenceSettingsDTO: BackupRowDTO {}
 extension StoryDTO: BackupRowDTO {}
 extension BookClubPacketDTO: BackupRowDTO {}
-extension BookClubSessionDTO: BackupRowDTO {}
-extension BookClubMeetingDTO: BackupRowDTO {}
-extension GuardianDTO: BackupRowDTO {}
-extension ParentCommunicationDTO: BackupRowDTO {}
-extension AlbumBookmarkDTO: BackupRowDTO {}
-extension AlbumPageNoteDTO: BackupRowDTO {}
-extension AlbumRecentVisitDTO: BackupRowDTO {}
-extension AlbumReadingPositionDTO: BackupRowDTO {}
 extension AlbumHighlightDTO: BackupRowDTO {}
 extension AlbumPageInkDTO: BackupRowDTO {}
-extension OrderItemDTO: BackupRowDTO {}

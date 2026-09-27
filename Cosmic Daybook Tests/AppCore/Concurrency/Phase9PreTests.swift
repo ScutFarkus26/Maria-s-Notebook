@@ -102,11 +102,13 @@ final class Phase9PreTests {
     func classroomMembershipDTOIsSendable() {
         let dto = ClassroomMembershipDTO(
             id: UUID(),
-            classroomZoneID: "zone",
-            roleRaw: "leadGuide",
-            ownerIdentity: "owner",
-            joinedAt: Date(),
-            modifiedAt: Date()
+            values: [
+                "classroomZoneID": .string("zone"),
+                "roleRaw": .string("leadGuide"),
+                "ownerIdentity": .string("owner"),
+                "joinedAt": .date(Date()),
+                "modifiedAt": .date(Date())
+            ]
         )
         let _: any Sendable = dto
     }

@@ -33,11 +33,13 @@ final class Phase7PostTests {
         let now = Date()
         let dto = ClassroomMembershipDTO(
             id: UUID(),
-            classroomZoneID: "zone-abc-123",
-            roleRaw: "leadGuide",
-            ownerIdentity: "owner-identity-xyz",
-            joinedAt: now,
-            modifiedAt: now
+            values: [
+                "classroomZoneID": .string("zone-abc-123"),
+                "roleRaw": .string("leadGuide"),
+                "ownerIdentity": .string("owner-identity-xyz"),
+                "joinedAt": .date(now),
+                "modifiedAt": .date(now)
+            ]
         )
 
         let encoder = JSONEncoder()
@@ -49,9 +51,9 @@ final class Phase7PostTests {
         let decoded = try decoder.decode(ClassroomMembershipDTO.self, from: data)
 
         #expect(decoded.id == dto.id)
-        #expect(decoded.classroomZoneID == dto.classroomZoneID)
-        #expect(decoded.roleRaw == dto.roleRaw)
-        #expect(decoded.ownerIdentity == dto.ownerIdentity)
+        #expect(decoded.values["classroomZoneID"] == dto.values["classroomZoneID"])
+        #expect(decoded.values["roleRaw"] == dto.values["roleRaw"])
+        #expect(decoded.values["ownerIdentity"] == dto.values["ownerIdentity"])
     }
 
     // MARK: - BackupPayload has classroomMemberships field
@@ -162,9 +164,9 @@ final class Phase7PostTests {
 
         #expect(payload.classroomMemberships?.count == 1)
         let membership = try #require(payload.classroomMemberships?.first)
-        #expect(membership.classroomZoneID == "zone-test-123")
-        #expect(membership.roleRaw == "assistant")
-        #expect(membership.ownerIdentity == "owner-test-456")
+        #expect(membership.values["classroomZoneID"] == .string("zone-test-123"))
+        #expect(membership.values["roleRaw"] == .string("assistant"))
+        #expect(membership.values["ownerIdentity"] == .string("owner-test-456"))
         #expect(membership.id == UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000"))
     }
 
