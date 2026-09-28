@@ -87,14 +87,31 @@ struct MobileClassroomAndYearPicker: View {
             }
         } label: {
             if showsContextLabel {
-                HStack(spacing: 6) {
-                    Image(systemName: workspaceStore.selection.systemImage)
-                    Text(workspaceStore.selection.displayName)
-                    Text("•")
-                        .foregroundStyle(.tertiary)
-                    Image(systemName: "calendar")
-                    Text(yearStore.menuButtonLabel)
+                // Widest first; at large text sizes the calendar icon goes,
+                // then the classroom name (its icon stays), so the bar never
+                // wraps.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) {
+                        Image(systemName: workspaceStore.selection.systemImage)
+                        Text(workspaceStore.selection.displayName)
+                        Text("•")
+                            .foregroundStyle(.tertiary)
+                        Image(systemName: "calendar")
+                        Text(yearStore.menuButtonLabel)
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: workspaceStore.selection.systemImage)
+                        Text(workspaceStore.selection.displayName)
+                        Text("•")
+                            .foregroundStyle(.tertiary)
+                        Text(yearStore.menuButtonLabel)
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: workspaceStore.selection.systemImage)
+                        Text(yearStore.menuButtonLabel)
+                    }
                 }
+                .lineLimit(1)
                 .font(.subheadline.weight(.medium))
             } else {
                 Image(systemName: workspaceStore.selection.systemImage)
@@ -137,18 +154,28 @@ struct SampleClassroomBanner: View {
         HStack(spacing: 12) {
             Label("Sample Class", systemImage: "testtube.2")
                 .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .fixedSize()
 
-            Text("Practice data is local and completely separate from My Class.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            // The explanation is the first thing to give way in a narrow
+            // window; the name and the way back always stay on one line.
+            ViewThatFits(in: .horizontal) {
+                Text("Practice data is local and completely separate from My Class.")
+                Text("Separate from My Class.")
+                Color.clear.frame(width: 0, height: 0)
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 0)
 
             Button("Return to My Class") {
                 Task { await workspaceStore.select(.myClass) }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .fixedSize()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

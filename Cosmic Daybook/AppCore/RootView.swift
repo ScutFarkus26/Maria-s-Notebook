@@ -291,15 +291,41 @@ struct RootView: View {
     }
     #endif
 
+    /// On iPhone the context bar shows Sample Class itself, so the full-width
+    /// banner is left out there.
+    private var showsSampleStateInContextBar: Bool {
+        #if os(iOS)
+        usesPhoneChrome
+        #else
+        false
+        #endif
+    }
+
     #if os(iOS)
+    /// One line on iPhone. While Sample Class is showing, the bar itself turns
+    /// blue and carries the way back, so the separate Sample Class banner (which
+    /// wrapped to four lines at phone width) isn't stacked on top of it.
     private var mobileContextBar: some View {
         HStack(spacing: 10) {
             MobileClassroomAndYearPicker(
                 workspaceStore: classroomWorkspace,
                 showsContextLabel: true
             )
+            .layoutPriority(1)
 
             Spacer(minLength: 8)
+
+            if classroomWorkspace.isShowingSampleClass {
+                Button("Exit Sample") {
+                    Task { await classroomWorkspace.select(.myClass) }
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .fixedSize()
+                .accessibilityLabel("Return to My Class")
+                .accessibilityHint("Sample Class practice data is separate from My Class.")
+            }
 
             Button {
                 activeSheet = .search
@@ -315,7 +341,13 @@ struct RootView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(.bar)
+        .background {
+            if classroomWorkspace.isShowingSampleClass {
+                Rectangle().fill(.bar).overlay(Color.blue.opacity(0.12))
+            } else {
+                Rectangle().fill(.bar)
+            }
+        }
     }
     #endif
 
@@ -345,7 +377,7 @@ struct RootView: View {
 
     @ViewBuilder
     private var warningBanners: some View {
-        if classroomWorkspace.isShowingSampleClass {
+        if classroomWorkspace.isShowingSampleClass, !showsSampleStateInContextBar {
             SampleClassroomBanner(workspaceStore: classroomWorkspace)
         }
 
