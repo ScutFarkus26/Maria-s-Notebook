@@ -1,6 +1,6 @@
 # Backup & Restore System
 
-**Last Updated:** 2026-07-09
+**Last Updated:** 2026-09-28
 
 > Authoritative summary lives in `Cosmic Daybook/CLAUDE.md` ("Backup System").
 > This file is the longer-form companion. If they disagree, CLAUDE.md wins.
@@ -75,9 +75,11 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | v25 | Encrypted Apple Archive (`AEA1`) | `Lesson` entries carry `isKeyLesson` (the Three-Year View's milestone flag), and `preferences.json` carries the view's untouched-area thresholds, zoom and granularity. Additive. |
 | v26 | Encrypted Apple Archive (`AEA1`) | `WorkModel.statusRaw` may carry the merged status vocabulary. Entry layout unchanged. |
 | v27 | Encrypted Apple Archive (`AEA1`) | Adds `OrderItem` entries and the `Orders.*` preferences. Additive. |
-| **v28** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** Note photos follow the entity entries as `photos/<filename>` (the photo file's bytes), counted in the manifest's optional `photoCount` and checked by read-back verification (`BackupPhotos`). On by default (`Backup.includesNotePhotos`); never in the pre-restore checkpoint; a photo not on the device is left out. Restore stages them and installs after the records import, never over an existing file. Entity entries are byte-identical to v27; a v27 reader rejects the new paths. |
+| v28 | Encrypted Apple Archive (`AEA1`) | Note photos follow the entity entries as `photos/<filename>` (the photo file's bytes), counted in the manifest's optional `photoCount` and checked by read-back verification (`BackupPhotos`). On by default (`Backup.includesNotePhotos`); never in the pre-restore checkpoint; a photo not on the device is left out. Restore stages them and installs after the records import, never over an existing file. Entity entries are byte-identical to v27; a v27 reader rejects the new paths. |
+| v29 | Encrypted Apple Archive (`AEA1`) | `AttendanceRecord` entries carry `note` (schema 8). Additive. |
+| **v30** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** Schema 9: `AttendanceDayLock` entries (a model-driven row: id, date, lockedAt, lockedByID), the locked attendance days that used to travel only as `Attendance.locked.<date>` preferences. `StudentTrackEnrollment` entries no longer re-link a `student` relationship (it was removed; `studentID` is the link). Entry labels follow schema 9's routing: only the five classroom-share types are `shared/`; the 28 types that left the share are `private/`. |
 
-`BackupReader.supportedFormatVersions = 17...28`.
+`BackupReader.supportedFormatVersions = 17...30`.
 
 ---
 
@@ -117,16 +119,22 @@ silently missing data is worse than a failed one.
 
 ## Restore Flow
 
+**`ClassroomMembership` is carried but never restored** (`BackupEntityRegistry.keptOnRestoreEntityNames`,
+2026-09-28). Its rows pin a CloudKit share zone, and a zone exists only in the environment and notebook
+that made it: restoring the Development backup into the Production notebook must not pin a Development
+zone, and a Replace restore must not make the device forget the share it has. Restore neither clears nor
+writes those rows; the type is still asked for in order (and freed) like every other.
+
 1. `BackupCoordinator.importBackup` → `BackupTransactionManager.executeWithRollback`.
 2. For `.replace`, a safety checkpoint (current-format backup) is written first; if it fails, the restore aborts before deleting anything.
 3. `BackupImporter.restore` → `decodeArchive` (off-main, `@concurrent`) reads and decrypts the archive and decodes each entry as it is read, in archive order, into one `BackupPayload` — the same payload and warnings as decoding after the whole read, with no entry's NDJSON outliving its decode. It fails exactly as the reader does (bad entry path, missing manifest, unsupported version).
 4. The payload is handed whole to a `BackupPayloadSource`, which then holds its only copy, and `BackupService.importRows` (main actor, **one turn from the pre-save to the CloudKit wait** — nothing in it suspends):
    - saves any edits the view context already held (the restore's final save would commit them anyway, as it always has), so that a failure can discard exactly the restore's own changes; if they can't be saved, the restore doesn't start and they stay unsaved,
-   - for `.replace`: context-level delete of every backed-up type (emits CloudKit tombstones — never `NSBatchDeleteRequest`),
+   - for `.replace`: context-level delete of every backed-up type except `ClassroomMembership` (emits CloudKit tombstones — never `NSBatchDeleteRequest`),
    - imports every type in dependency order through `BackupRestoreRun`. When a type's turn comes it is moved out of the payload and deduplicated in place (first row of each id, within the type — the deduplication never worked across types), imported, and freed, so the records never exist twice and shrink as the import goes (the one-pass restore deduplicated into a second full copy and kept both until the end). The restore order is not the archive's: CommunityTopic before LessonAssignment and Note, ProjectRole before ProjectSession. `BackupEntityIndex` is built lazily per type, so a type sees the parents imported before it in this restore. **Merge mode updates in place:** each importer resolves the pre-restore record for the DTO's ID (`ExistingLookup`) and populates it; the backup wins for any ID it holds, records absent from the backup are kept. Replace mode has already cleared the store, so the same path inserts everything,
    - relinks notes to the records they point at, from the ids kept while notes were imported (`BackupNoteLinks`; the notes' rows are freed by then),
    - `save()`, then repairs denormalized fields. If anything from the clear through the repair fails, everything the restore left unsaved is discarded (`viewContext.rollback()`): in that one turn nothing else can have changed the context, so a failed merge restore no longer leaves half a restore for the next save anywhere to commit, and the guide's edits, saved first, are kept,
-   - applies preferences (`BackupPreferencesService`; album folder bookmarks union with the local list, the album fingerprint map merges local-wins),
+   - applies preferences (`BackupPreferencesService`; album folder bookmarks union with the local list, the album fingerprint map merges local-wins), then turns any `Attendance.locked.<date>` preference the backup carried into an `AttendanceDayLock` record (a backup from before v30),
    - reloads the album library if it was already open, and warns when the backup holds album annotations but no album folder resolves on this device.
 
    The one turn is deliberate. Between two types, other main-actor work could run against a half-restored store: the quit-time backup would export it and let the app quit before the save (after replace mode's clear was already saved), a scheduled or background backup would write it, an MCP write could save or roll back the restore's pending changes, and `isRestoring` would swap Settings — with this restore's progress and summary — out of the window. Decoding stays off the main actor, before the turn. On a 44,318-row store (2026-09-27, iOS simulator on an M-series Mac, medians of six) the restore's peak heap fell from 54.4 MB to 28.2 MB with the import turn within the run-to-run spread of the old one (868 → 947 ms in one run, 1,002 → 1,057 ms in another). A version that decoded each type inside the turn peaked at 33.2 MB but nearly doubled the turn (1.88 s); decoding a type across cores was slower than one line at a time. `BackupRestorePeakMemoryTests` (on request) measures the old restore against the app's.

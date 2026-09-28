@@ -39,7 +39,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Scoped reads for a sequence / track / student | `SequenceTrackService+ScopedReads` (`sequenceLessons`, `trackCandidates`, …) | Services |
 | Preceding-lesson lookups in a loop | `BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)` | Services |
 | Entity-scoped reaction to remote changes | `PersistentHistoryProcessor.readHistory(after:author:in:)`, one position per store (the actor posts `.schoolDayDataDidChange` etc.) | `Services/PersistentHistoryProcessor+StoreHistory.swift` |
-| Zone repair gating | `SharedStoreZoneRepair+HistoryGate` (`gateDecision`, clean watermark; since 2026-09-26 a clean history pass advances the watermark too, so each pass reads only what arrived since the last) | Services |
+| Classroom-share attach | `SharedStoreOrphanGuard` attaches only what a view-context save inserted (no table scans; zone repair and its history gate were removed 2026-09-28); `ClassroomShareAttach` does the chunked, off-main `share(_:to:)` | `AppCore/`, `Sharing/` |
 | Launch repairs | `MigrationRunner.runIfNeeded(coreDataStack:includeIntegrityRepairs:)`: every launch repair in one background-context pass (the two whole-table assignment repairs one launch in ten, as before); nothing on the view context | `Services/MigrationRunner.swift` |
 | Delete old per-day rows | `TodayRetentionCleanup.startIfDue(for:)`: background context at `.utility`, once per store per day (`TodayRetentionCleanupGate`), same cutoff and caps as the old main-thread cleanup | `Today/Support/TodayRetentionCleanup.swift` |
 | Launch timing | `LaunchSignposts.begin/end` (category `Launch`) | `Utils/LaunchSignposts.swift` |
@@ -79,13 +79,13 @@ hot paths are, and what has been checked and should not be re-litigated.
 
 Services that already consult `EnergyPolicy`: `AppBootstrapper` (post-launch migrations),
 startup Spotlight/search reindex, `AutoBackupManager`, `AlbumLibrary.buildIndexes`,
-`SharedStoreZoneRepair`, `DeduplicationCoordinator`. A new piece of self-initiated work
+`DeduplicationCoordinator`. A new piece of self-initiated work
 should join that list; user-initiated work (Sync Now, a manual backup, a search) must not.
 
 ## Where the energy goes (by pipeline)
 
 1. **Sync and maintenance pipeline** (runs all school day, screen on or off): remote-change
-   notifications → history processing → dedup → zone repair → Spotlight/search reindex →
+   notifications → history processing → dedup → Spotlight/search reindex →
    auto backup. Fixed in the 2026-09-10 heat audit (history-gated, debounced, background
    context). The 2026-09-17 pass closed the last of the listed leftovers: the post-import
    dedup is now scoped by `DeduplicationScope` to the entities the history processor saw

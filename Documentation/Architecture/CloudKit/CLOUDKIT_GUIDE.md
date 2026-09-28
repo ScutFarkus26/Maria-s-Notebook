@@ -23,9 +23,34 @@ a Core Data app that shares records. SwiftData can't share at all, and
 | `shared.sqlite` | Configuration `Shared`, `databaseScope = .shared`. Only records from shares this device *accepted* (an assistant's view of the classroom). |
 | Public database | Not used. |
 
-**Entity routing** (`CoreDataStack+Model.swift`):
-- The classroom entities (students, attendance, the school calendar, and so on) belong to both configurations.
-- Teacher-only entities belong to Private only.
+**Environments.** The `CLOUDKIT_ENVIRONMENT` build setting (`Development` or
+`Production`) sets both the `com.apple.developer.icloud-container-environment`
+entitlement in both apps and the `CloudKitEnvironment` Info.plist key the app
+reads (`AppCore/CloudKitEnvironment.swift`). Development-signed builds obey it;
+TestFlight and App Store builds are always Production. Each environment is its
+own notebook on a device:
+- Production's store files live in a `Production/` subfolder of the store
+  directory; Development's stay where they always were. Sample Class belongs to
+  neither and stays in the base folder.
+- Keys that describe one store's sync state get the environment in their name
+  (`CloudKitEnvironment.scoped`): history positions, purge and export dates,
+  the first-download gate, the sync event and error logs, the backup change
+  token, the check-in repair flag, the user record name, the classroom attach
+  list. Development keeps the bare key, so a Development build finds its
+  notebook untouched.
+- A schema run (`-InitializeCloudKitSchema`) is refused by a Production build;
+  build with `CLOUDKIT_ENVIRONMENT=Development` for one.
+
+**Entity routing** (`CoreDataStack+Model.swift`, schema 9):
+- The classroom share holds exactly what the Daybook Assistant needs:
+  `Student`, `AttendanceRecord`, `NonSchoolDay`, `SchoolDayOverride` and
+  `AttendanceDayLock` (`sharedEntityNames`, 5 types). They belong to both
+  configurations.
+- Everything else — lessons, tracks, notes, work, `ClassroomMembership` — is
+  Private only (`privateEntityNames`). Until schema 9 the share held 33 types,
+  and the Student ↔ StudentTrackEnrollment relationship dragged a child's
+  tracks, steps and lessons into it; that relationship is gone (enrollments keep
+  `studentID`).
 - New records land in the first store added, which is the private one. The lead guide wants that.
 - The assistant doesn't, so `CDAttendanceStore` assigns her records to the shared store explicitly.
 
@@ -37,31 +62,48 @@ a Core Data app that shares records. SwiftData can't share at all, and
 3. A unified local store.
 4. In-memory.
 
-**Schema initialization:** `initializeCloudKitSchema` runs only in DEBUG with
-`-InitializeCloudKitSchema`. Deploy the development schema to production in the
+**Schema initialization:** `initializeCloudKitSchema` runs only in a DEBUG
+Development build with `-InitializeCloudKitSchema`. Deploy the development schema to production in the
 CloudKit Console before shipping a model change. A monotonic
 `currentSchemaVersion` guard (`CoreDataStack+SchemaVersion.swift`) stops an
 older build from migrating a newer store backwards.
 
 ## 2. Sharing: one classroom, one share
 
-- **Creating the share.** The lead guide's classroom is a Core Data–managed
-  per-zone share (`com.apple.coredata.cloudkit.share.*`), created with
-  `container.share(_:to: nil)` on a background context
-  (`SharedStoreZoneRepair+Sharing.swift`,
-  `ClassroomSharingService+AutoCreate.swift`). Before creating one, the app
-  checks the local shares, the membership row's zone, and the server's zone
-  list, so it never mints a duplicate zone.
+The notebook has exactly two zones: the private default zone, and one
+classroom share holding the five types above.
+
+- **Creating the share — once, on purpose.** Settings → Classroom → **Set Up
+  Classroom Sharing** (`ClassroomSharingService+Setup.swift`). It refuses unless
+  this is the lead guide's device, the first download has finished, and the
+  server holds no share zone (`fetchServerShareZoneNames`). It then creates a
+  Core Data–managed per-zone share (`com.apple.coredata.cloudkit.share.*`)
+  seeded with a student, shares every student, attendance record, school-calendar
+  day and day lock in chunks of 200 (`ClassroomShareAttach`), pins the zone and
+  reports the counts. Run again while the pinned share is the only share zone on
+  the server, it adds whatever of those types is in no share — the way to finish
+  a setup that stopped partway. Nothing else creates a share: the launch-time and
+  orphan-guard auto-create are gone, because they minted zones whenever a store
+  merely *looked* unshared (13 zones in Development by 2026-09-28).
+- **The pin.** The lead guide's `ClassroomMembership.classroomZoneID`, written
+  by setup (`ClassroomRepository.pinClassroom`) and, on an assistant's device,
+  by accepting an invitation — updating the row, not adding one. One accessor,
+  `CDClassroomMembership.current(in:)` (newest `modifiedAt`, then `joinedAt`),
+  feeds the role, the pinned zone and the repository.
 - **Choosing the share.** A store can hold several shares, and
   `fetchShares(in:)` has no order. `CDClassroomMembership.classroomShare(among:in:)`
-  picks the one whose zone the membership row names. Never take `.first`.
+  returns the pinned one and nothing else: no pin, or no share matching it,
+  means "not shared yet". Never take `.first`.
+- **Invite preflight.** Manage Sharing (Mac members sheet and iOS
+  `UICloudSharingController`) goes through `shareForInvitations`, which refuses
+  unless the pinned share exists and holds students, and shows what it holds.
 - **Inviting (Mac).** `ClassroomMembersSheet` is the Mac's own members sheet.
   It looks the person up with `shareParticipants(for:)`, adds them, and saves
   with `persistUpdatedShare(_:in:)`.
   - Adding someone already on the share is refused locally.
   - The server's `participantAlreadyInvited` (iOS/macOS 26) becomes "already invited".
-  - "Remove Everyone" removes participants but keeps the share, because the
-    share is what keeps the lead guide's records syncing.
+  - "Remove Everyone" removes participants but keeps the share: a new one
+    would be a second zone.
 - **Inviting (iOS).** `UICloudSharingController`.
 - **Invite-only.** The share has no public permission. Since iOS/macOS 26 a
   share rejects access requests by default (`allowsAccessRequests == false`),
@@ -73,8 +115,8 @@ older build from migrating a newer store backwards.
   guide. The App ID must have the capability, or signed builds fail
   provisioning. Apple's terms: participant names and addresses are displayed,
   never stored.
-- **Accepting.** `acceptShareInvitations(from:into: sharedStore)`, then an
-  assistant membership row is written.
+- **Accepting.** `acceptShareInvitations(from:into: sharedStore)`, then the
+  accepted zone is pinned on the assistant's membership row.
   - iOS: the scene delegate (`ShareAcceptanceAppDelegate`).
   - macOS: `application(_:userDidAcceptCloudKitShareWith:)`.
   - Invitations that arrive before the service exists wait in `ShareInvitationInbox`.
@@ -82,8 +124,8 @@ older build from migrating a newer store backwards.
 
 **Never move a record that's already in one share into another** with
 `share(_:to:)`. On 2026-09-27 that failed with 134410 → 134421 and killed the
-mirroring delegate for the session. Attaching orphans (records in no share)
-is the only move that works.
+mirroring delegate for the session. `ClassroomShareAttach.unshared` filters
+every attach down to records in no share.
 
 ## 3. The Daybook Assistant
 
@@ -91,9 +133,15 @@ An iOS-only companion (`Daybook Assistant/`, deployment target iOS 18.0). It
 compiles about 40 of the main app's files by path and builds the same
 `CoreDataStack` and `ClassroomSharingService`.
 
-- **What it touches.** It reads students, attendance (with notes) and the
-  school calendar, and writes today's attendance only.
-- **What it skips.** It runs no history processor and no zone repair (`#if !ASSISTANT_APP`).
+- **What it touches.** It reads students, attendance (with notes), the
+  school calendar and locked days, and writes attendance for any day the guide
+  hasn't locked. The header's ‹ › arrows step through school days, the date
+  opens a picker for any day, and Today comes back.
+- **Its new marks go into the classroom share explicitly** after the save that
+  creates them (`CDAttendanceStore.attachNewRecordsToClassroomShare`): the
+  pinned share, or the only share in its shared store. Whether CloudKit accepts
+  that from a participant is checked in the Production move's Assistant test.
+- **What it skips.** It runs no history processor and no orphan guard (`#if !ASSISTANT_APP`).
 - **Which membership rows it reads.** Only assistant rows, so a lead-guide row
   synced from the same Apple Account can't make it file attendance as a guide.
 - **Status line** (`AssistantSyncStatusView`).
@@ -146,8 +194,9 @@ notification, or on `.didSave` for main-queue contexts, as
 
 **Where it shows up:**
 - **Settings → Data & Sync → iCloud**: status, a dead-delegate banner, and Sync Now.
-- **Settings → Classroom**: role, members, the invite sheet, and Repair Sync Errors.
-- **Settings → Classroom → Sync Diagnostics.**
+- **Settings → Classroom**: what the classroom share holds, a read-only count
+  of classroom records outside it, Set Up Classroom Sharing, role, members and
+  the invite sheet.
 - **Settings → Database → Maintenance**: Reset Local Cache and Re-sync from iCloud.
 - **The MCP `sync_status` tool**: the same state as the service.
 
@@ -155,26 +204,28 @@ Two numbers are not what they sound like:
 - **"Sync Now"** only saves the view context.
 - **"Pending changes"** counts local saves since the last event, not records waiting to upload.
 
-## 6. Shared-store zone repair
+## 6. Records join the share when they're created
 
-Records that should be in the classroom share but sit in no share poison the
-mirroring delegate (`NSCocoaErrorDomain 134060`). `SharedStoreZoneRepair`
-finds them in the *private* store and attaches them with `share(_:to:)` in
-chunks of 200.
+`SharedStoreOrphanGuard` watches view-context saves — every place that
+creates a student, attendance record, school-calendar day or day lock saves
+there: the screens, MCP writes, restore, CSV import and
+`SchoolCalendarService`. It takes the classroom types the save *inserted* into
+the lead guide's private store and attaches them to the pinned share. Before
+the pin arrives (a new device still downloading) they wait in a persisted list
+(`UserDefaultsKeys.classroomSharePendingAttach`) and go in once it does; once
+the first download finishes with no pin, the classroom isn't shared yet and
+nothing waits — setup takes everything.
 
-**When it runs:**
-- after launch,
-- when sharing turns on,
-- after each dedup pass,
-- from `SharedStoreOrphanGuard` whenever the view context inserts a classroom entity.
+**Nothing sweeps.** `SharedStoreZoneRepair` looked for records that *looked*
+unshared after every launch, import, dedup and share change. Mid-download a
+zone's rows land before its CKShare, so they read as orphans: on 2026-09-28 a
+post-reset pass moved 4,003 of them into the wrong share. It and the Repair
+Sync Errors button were removed. Settings shows drift read-only; the explicit
+setup action is the only thing that fixes it.
 
-**What stops it:**
-- A 24-hour circuit breaker on 134060.
-- A per-session stop once the mirroring delegate dies.
-- `EnergyPolicy` deferral.
-- `FirstDownloadGate`: nothing runs until the first import after a reset
-  finishes, because mid-download rows arrive before their CKShare and look
-  like orphans.
+**What stops an attach:** `FirstDownloadGate` (nothing until the first
+private-store import after a reset or on a new device), a dead mirroring
+delegate, and CloudKit's share-export timeout. What failed stays in the list.
 
 ## 7. iCloud Drive and key-value storage
 
@@ -202,14 +253,15 @@ turn off while CloudKit keeps working.
    - Open the container.
    - Query the **Private** database's `com.apple.coredata.cloudkit.share.*` zones.
    - Use **Telemetry** / **Logs** for request and error rates.
-   - A new share zone appearing unexpectedly means something created a duplicate share.
+   - The private database should hold exactly two zones: the default zone and one classroom share.
+     A new share zone appearing means something created a duplicate share.
 6. **Apple's references:**
    - [TN3163: Understanding the synchronization of NSPersistentCloudKitContainer](https://developer.apple.com/documentation/technotes/tn3163-understanding-the-synchronization-of-nspersistentcloudkitcontainer)
    - TN3164 (debugging the container)
    - TN3162 (CloudKit throttles)
 
 **Last resort.** Settings → Database → Maintenance → Reset Local Cache. The
-first download afterwards is gated (see §6). Don't repair or seed during it.
+first download afterwards is gated (see §6). Nothing attaches or seeds during it.
 
 ---
 
