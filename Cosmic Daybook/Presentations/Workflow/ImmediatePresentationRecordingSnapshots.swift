@@ -105,7 +105,6 @@ extension ImmediatePresentationRecordingService {
         let isActive: Bool
         let startedAt: Date?
         let trackObjectID: NSManagedObjectID?
-        let studentObjectID: NSManagedObjectID?
 
         init(_ row: CDStudentTrackEnrollmentEntity) {
             self.row = row
@@ -113,7 +112,6 @@ extension ImmediatePresentationRecordingService {
             isActive = row.isActive
             startedAt = row.startedAt
             trackObjectID = row.track?.objectID
-            studentObjectID = row.student?.objectID
         }
     }
 
@@ -122,14 +120,12 @@ extension ImmediatePresentationRecordingService {
         let isActive: Bool
         let startedAt: Date?
         let trackObjectID: NSManagedObjectID?
-        let studentObjectID: NSManagedObjectID?
 
         init(_ state: EnrollmentStateBeforeSave) {
             objectID = state.row.objectID
             isActive = state.isActive
             startedAt = state.startedAt
             trackObjectID = state.trackObjectID
-            studentObjectID = state.studentObjectID
         }
 
         func restore(
@@ -139,7 +135,6 @@ extension ImmediatePresentationRecordingService {
             enrollment.isActive = isActive
             enrollment.startedAt = startedAt
             enrollment.track = trackObjectID.flatMap { context.existing(CDTrackEntity.self, $0) }
-            enrollment.student = studentObjectID.flatMap { context.existing(CDStudent.self, $0) }
         }
     }
 }

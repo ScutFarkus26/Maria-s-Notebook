@@ -108,7 +108,6 @@ struct StudentProgressTabLoadScopeTests {
         enrollment.studentID = studentID
         enrollment.trackID = track.id?.uuidString ?? ""
         enrollment.track = track
-        enrollment.student = student
         enrollment.isActive = true
 
         let mark = CDLessonPresentation(context: context)
@@ -145,7 +144,6 @@ struct StudentProgressTabLoadScopeTests {
             otherEnrollment.studentID = otherID
             otherEnrollment.trackID = otherTrack.id?.uuidString ?? ""
             otherEnrollment.track = otherTrack
-            otherEnrollment.student = other
             otherEnrollment.isActive = true
             let otherMark = CDLessonPresentation(context: context)
             otherMark.studentID = otherID

@@ -82,19 +82,13 @@ enum RecordIndexRowPathFixture {
         row(record.ada, record.second, on: nil, masteredAt: record.april2)
         row(record.ben, record.second, on: record.march11, state: LessonPresentationState.proficient.rawValue)
         row(record.ben, record.third, on: record.march12, state: "bogus")
-        let sharedRows = [
-            row(record.cy, record.first, on: record.march11),
-            row(record.cy, record.first, on: record.march11),
-            row("", record.fourth, on: record.march11)
-        ]
+        // These three once sat in the shared store; since schema 9 a
+        // presentation is private-only, so every row is in the private store.
+        row(record.cy, record.first, on: record.march11)
+        row(record.cy, record.first, on: record.march11)
+        row("", record.fourth, on: record.march11)
         row(record.dee, "", on: record.march12)
         row(record.eve, record.fourth, on: nil)
-
-        let sharedStore = context.persistentStoreCoordinator?.persistentStores
-            .first { $0.configurationName == CoreDataStack.sharedConfiguration }
-        if let sharedStore {
-            for row in sharedRows { context.assign(row, to: sharedStore) }
-        }
     }
 
     private static func seedOddAssignments(_ record: OddRecord, in context: NSManagedObjectContext) {

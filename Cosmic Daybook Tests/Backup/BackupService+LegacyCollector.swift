@@ -323,5 +323,7 @@ extension BackupService {
     func collectOrderDTOs(into payload: inout BackupPayload, using viewContext: NSManagedObjectContext) {
         payload.orderItems = fetchAndTransformInBatches(
             CDOrderItem.self, using: viewContext) { OrderItemDTO.rows($0) }
+        payload.attendanceDayLocks = fetchAndTransformInBatches(
+            CDAttendanceDayLock.self, using: viewContext) { AttendanceDayLockDTO.rows($0) }
     }
 }

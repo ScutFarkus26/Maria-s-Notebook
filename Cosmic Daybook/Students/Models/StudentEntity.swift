@@ -19,8 +19,9 @@ nonisolated public class CDStudent: NSManagedObject {
     @NSManaged public var dateLastPromoted: Date?
     @NSManaged public var modifiedAt: Date?
 
-    // MARK: - Relationships
-    @NSManaged public var trackEnrollments: NSSet?
+    // Schema 9 removed the `trackEnrollments` relationship: it pulled a
+    // child's tracks, steps and lessons into the classroom share. Enrollments
+    // name their student by `StudentTrackEnrollment.studentID`.
 
     // MARK: - Convenience Initializer
     @discardableResult

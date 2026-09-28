@@ -69,7 +69,11 @@ nonisolated public enum BackupWriter {
     /// - v29: `AttendanceRecord` entries carry `note`, the day's attendance
     ///   note, which moved off the private notes onto the shared record.
     ///   Purely additive; entry layout is otherwise unchanged.
-    public static let formatVersion: Int = 29
+    /// - v30: `AttendanceDayLock` entries (schema 9), the locked attendance
+    ///   days that used to travel as `Attendance.locked.<date>` preferences.
+    ///   Enrollments no longer name a `student` relationship (it is gone);
+    ///   `studentID` carries the link as before.
+    public static let formatVersion: Int = 30
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

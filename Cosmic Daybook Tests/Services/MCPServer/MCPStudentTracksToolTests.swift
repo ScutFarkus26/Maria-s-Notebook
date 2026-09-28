@@ -51,7 +51,6 @@ struct MCPStudentTracksToolTests {
         enrollment.studentID = try #require(student.id).uuidString
         enrollment.trackID = try #require(track.id).uuidString
         enrollment.isActive = isActive
-        enrollment.student = student
         if attachRelationship { enrollment.track = track }
         return enrollment
     }

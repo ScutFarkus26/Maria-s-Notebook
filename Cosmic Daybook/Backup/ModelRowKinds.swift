@@ -181,6 +181,14 @@ public enum AlbumReadingPositionBackupRow: ModelRowKind {
     )
 }
 
+public typealias AttendanceDayLockDTO = ModelRow<AttendanceDayLockBackupRow>
+
+/// A locked attendance day (format v30+). Nothing older reads it, so nothing
+/// needs filling.
+public enum AttendanceDayLockBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("AttendanceDayLock")
+}
+
 public typealias OrderItemDTO = ModelRow<OrderItemBackupRow>
 
 public enum OrderItemBackupRow: ModelRowKind {
@@ -294,9 +302,9 @@ public enum StudentTrackEnrollmentBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec(
         "StudentTrackEnrollment",
         filling: ["createdAt"],
-        // Set for CloudKit zone assignment; a missing student or track clears it.
+        // A missing track clears it. The student is `studentID` alone since
+        // schema 9 (no relationship to set).
         parents: [
-            ParentLink(key: "studentID", relationship: "student", missing: .clearWhenNotFound),
             ParentLink(key: "trackID", relationship: "track", missing: .clearWhenNotFound)
         ]
     )

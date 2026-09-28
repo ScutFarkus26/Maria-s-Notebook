@@ -95,12 +95,13 @@ struct PresentationRecordIndexRowPathTests {
             students: record.askedStudents, lessons: record.askedLessons
         )
 
-        // On SQLite both reads spanned the private and the shared store.
+        // Presentations are private-only since schema 9: on SQLite nothing
+        // of theirs is in the shared store.
         if store == .sqlite {
             let shared = context.safeFetch(CDFetchRequest(CDLessonPresentation.self)).filter {
                 $0.objectID.persistentStore?.configurationName == CoreDataStack.sharedConfiguration
             }
-            #expect(shared.count == 3)
+            #expect(shared.isEmpty)
         }
     }
 

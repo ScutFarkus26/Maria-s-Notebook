@@ -12,7 +12,9 @@ nonisolated public class CDStudentTrackEnrollmentEntity: NSManagedObject {
     @NSManaged public var isActive: Bool
 
     // MARK: - Relationships
-    @NSManaged public var student: CDStudent?
+    // No `student` relationship since schema 9 — `studentID` is the link, so a
+    // shared student no longer drags its enrollments (and their tracks) into
+    // the classroom share.
     @NSManaged public var track: CDTrackEntity?
 
     // MARK: - Convenience Init

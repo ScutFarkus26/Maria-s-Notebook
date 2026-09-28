@@ -15,6 +15,10 @@ nonisolated extension DataCleanupService {
         deduplicate(CDStudent.self, using: context, container: container, scope: scope, merge: mergeStudent)
     }
 
+    /// Track enrollments are left alone: they name their student by
+    /// `studentID`, which the surviving copy shares. (Before schema 9 the
+    /// duplicate's enrollments went with it by cascade, taking the child's
+    /// real enrollment rows along.)
     private static func mergeStudent(canonical: CDStudent, duplicate: CDStudent) {
         if canonical.firstName.isEmpty { canonical.firstName = duplicate.firstName }
         if canonical.lastName.isEmpty { canonical.lastName = duplicate.lastName }

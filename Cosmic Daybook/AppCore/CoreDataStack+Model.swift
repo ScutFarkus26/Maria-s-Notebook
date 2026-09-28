@@ -55,10 +55,37 @@ extension CoreDataStack {
 
     // MARK: - Entity Routing
 
-    /// Entities stored in the shared (classroom) store.
-    /// These are owned by the lead guide and shared via CKShare with assistants.
+    /// Entities in the classroom share: exactly what the Daybook Assistant
+    /// needs to take attendance, and nothing else.
+    ///
+    /// Everything in this list lives in both configurations (see
+    /// `assignEntitiesToConfigurations`), so it can sit in the lead guide's
+    /// private store and be shared, or arrive in an assistant's shared store.
+    /// Every record of these types goes into the one classroom share when it is
+    /// created (`SharedStoreOrphanGuard`); nothing sweeps them in later.
+    ///
+    /// It used to hold 33 types, and the Student ↔ StudentTrackEnrollment
+    /// relationship pulled tracks, steps, lessons and other students into any
+    /// share a student joined. Since schema 9 the relationship is gone
+    /// (enrollments name their student by `studentID`) and the list is these
+    /// five. Everything else is the guide's own.
     nonisolated static let sharedEntityNames: Set<String> = [
         "Student",
+        // The assistant writes attendance, so it lives in the share. Its former
+        // Note relationship is a string FK, since a relationship cannot cross
+        // stores.
+        "AttendanceRecord",
+        // The school calendar, so the assistant knows the days off.
+        "NonSchoolDay",
+        "SchoolDayOverride",
+        // The guide's locked days, which the assistant must respect.
+        "AttendanceDayLock"
+    ]
+
+    /// Entities stored in the private (per-teacher) store and never shared.
+    /// Each teacher has their own copy of these records.
+    nonisolated static let privateEntityNames: Set<String> = [
+        // Classroom-level, but the assistant has no use for them (schema 9).
         "Lesson",
         "LessonAttachment",
         "LessonPresentation",
@@ -80,25 +107,18 @@ extension CoreDataStack {
         "MeetingTemplate",
         "TodoTemplate",
         "Resource",
-        "NonSchoolDay",
-        "SchoolDayOverride",
         "GoingOut",
         "GoingOutChecklistItem",
         "CalendarNote",
         "SampleWork",
         "SampleWorkStep",
-        "ClassroomMembership",
         "Story",
         "BookClubPacket",
-        // Moved out of the private store so a shared classroom participant
-        // (the assistant) can write attendance. Its former Note relationship
-        // is now a string FK, since a relationship cannot cross stores.
-        "AttendanceRecord"
-    ]
-
-    /// Entities stored in the private (per-teacher) store.
-    /// Each teacher has their own copy of these records.
-    nonisolated static let privateEntityNames: Set<String> = [
+        // What this device's user is in the classroom. Never shared: a row
+        // that synced into the share would answer `currentRole` on someone
+        // else's device.
+        "ClassroomMembership",
+        // Teacher-private since the start.
         "Note",
         "NoteStudentLink",
         "WorkModel",
@@ -174,9 +194,10 @@ extension CoreDataStack {
 
     /// Assigns entities to Private/Shared configurations in the managed object model.
     ///
-    /// Canonical NSPersistentCloudKitContainer sharing pattern: classroom-level
-    /// entities (Students, Lessons, Tracks, …) live in BOTH configurations so
-    /// they can be routed to either store at runtime.
+    /// Canonical NSPersistentCloudKitContainer sharing pattern: the classroom
+    /// share's entities (`sharedEntityNames`: students, attendance, the school
+    /// calendar and day locks) live in BOTH configurations so they can be
+    /// routed to either store at runtime.
     ///
     /// - On the **lead-guide** device, new classroom records go to the
     ///   `.private`-scope private store (private.sqlite) — Core Data routes new
@@ -190,7 +211,7 @@ extension CoreDataStack {
     ///   `container.acceptShareInvitations(into:)`. The same entity types are
     ///   available there too.
     ///
-    /// Teacher-private entities (Notes, Work, Attendance, etc.) remain
+    /// Everything else (`privateEntityNames`: lessons, notes, work, …) is
     /// exclusive to the Private configuration.
     private static func assignEntitiesToConfigurations(model: NSManagedObjectModel) {
         let allEntities = model.entities

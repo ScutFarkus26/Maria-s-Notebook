@@ -92,7 +92,6 @@ struct StudentTrackDetailLoadScopeTests {
         enrollment.studentID = studentID
         enrollment.trackID = track.id?.uuidString ?? ""
         enrollment.track = track
-        enrollment.student = student
         enrollment.isActive = true
 
         let mark = CDLessonPresentation(context: context)

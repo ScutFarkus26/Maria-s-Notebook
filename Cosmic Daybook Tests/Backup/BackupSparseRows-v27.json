@@ -12,6 +12,9 @@
     "AlbumRecentVisit" : [
       "rejected"
     ],
+    "AttendanceDayLock" : [
+      "restored"
+    ],
     "BookClubMeeting" : [
       "rejected"
     ],
@@ -123,10 +126,6 @@
       "not found: kept",
       "left out: kept"
     ],
-    "StudentTrackEnrollment.student" : [
-      "not found: cleared",
-      "not an id: kept"
-    ],
     "StudentTrackEnrollment.track" : [
       "not found: cleared",
       "not an id: kept"
@@ -160,6 +159,10 @@
     "AlbumRecentVisit" : [
       "{\"albumID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000011\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"visitedAt\":\"<now>\"}",
       "{\"albumID\":\"\",\"id\":\"<new id>\",\"lessonTitle\":\"\",\"modifiedAt\":\"<now>\",\"pageIndex\":0,\"visitedAt\":\"<now>\"}"
+    ],
+    "AttendanceDayLock" : [
+      "{\"id\":\"00000000-0000-4000-8000-00000000001F\"}",
+      "{\"id\":\"<new id>\"}"
     ],
     "BookClubMeeting" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001C\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}",

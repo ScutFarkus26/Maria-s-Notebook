@@ -56,17 +56,20 @@ final class Phase8PreTests {
         )
     }
 
-    @Test("Key shared entities are correctly routed")
+    @Test("The classroom share holds exactly what the assistant needs")
     func sharedEntityRoutingCorrect() {
-        let shared = CoreDataStack.sharedEntityNames
-        #expect(shared.contains("Student"))
-        #expect(shared.contains("Lesson"))
-        #expect(shared.contains("Track"))
-        #expect(shared.contains("Schedule"))
-        #expect(shared.contains("Procedure"))
-        #expect(shared.contains("ClassroomJob"))
-        #expect(shared.contains("GoingOut"))
-        #expect(shared.contains("ClassroomMembership"))
+        // Schema 9: students, attendance, the school calendar and day locks.
+        // Anything added here reaches an assistant's device — keep it that
+        // short on purpose.
+        #expect(CoreDataStack.sharedEntityNames == [
+            "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock"
+        ])
+        let priv = CoreDataStack.privateEntityNames
+        for name in ["Lesson", "Track", "StudentTrackEnrollment", "Schedule", "Procedure", "ClassroomJob", "GoingOut"] {
+            #expect(priv.contains(name), "\(name) is the guide's own since schema 9")
+        }
+        // Who this device's user is must never sync to someone else's device.
+        #expect(priv.contains("ClassroomMembership"))
     }
 
     @Test("Key private entities are correctly routed")

@@ -929,6 +929,13 @@ extension BackupService {
                 existing: { try index.existing(CDOrderItem.self, id: $0) }
             )
         }
+        // v30: locked attendance days, kept in step with the live restore.
+        if let locks = payload.attendanceDayLocks {
+            BackupEntityImporter.importRows(
+                locks, as: CDAttendanceDayLock.self, into: viewContext,
+                existing: { try index.existing(CDAttendanceDayLock.self, id: $0) }
+            )
+        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {

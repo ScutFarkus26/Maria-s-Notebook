@@ -70,7 +70,13 @@ extension CoreDataStack {
     ///   record so the guide and an assistant both read and write it. It used to
     ///   be a private `Note` linked by `attendanceRecordID`, which an assistant
     ///   could never see; `AttendanceNoteMove` carries those onto the record.
-    nonisolated static let currentSchemaVersion = 8
+    /// - `9` — the two-zone classroom share. New `AttendanceDayLock` (shared: a
+    ///   locked day's row, replacing the `Attendance.locked.<date>` iCloud
+    ///   setting so an assistant sees locks too), and the Student ↔
+    ///   StudentTrackEnrollment relationship removed (it pulled tracks, steps
+    ///   and lessons into any share a student joined; `studentID` remains).
+    ///   The Shared configuration shrinks from 33 entity types to 5.
+    nonisolated static let currentSchemaVersion = 9
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"
@@ -167,7 +173,7 @@ extension CoreDataStack {
                 }
             }
 
-            cleanOrphanEntityMetadata(storeURL: url, model: model)
+            cleanOrphanEntityMetadata(storeURL: url, model: model, configuration: description.configuration)
             // A counter below an occupied Z_PK makes the next insert fail
             // outright; raise any that are behind before Core Data reads them.
             raiseStalePrimaryKeyCounters(storeURL: url)

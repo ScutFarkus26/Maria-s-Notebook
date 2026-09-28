@@ -10,7 +10,8 @@ import Testing
 /// `NSPersistentCloudKitContainer` with no CloudKit options, in a temporary
 /// directory of their own. Call `removeFiles()` when done.
 ///
-/// A write saves a Note (private store) or a Procedure (shared store). No
+/// A write saves a Note (private store) or an AttendanceDayLock (shared
+/// store — since schema 9 only the five classroom-share types live there). No
 /// entity notification watches either, so a history pass over them posts
 /// nothing process-wide.
 @MainActor
@@ -23,7 +24,7 @@ struct TwoStoreHistoryFixture {
         var other: Side { self == .privateStore ? .sharedStore : .privateStore }
 
         /// The entity a write on this side saves.
-        var entityName: String { self == .privateStore ? "Note" : "Procedure" }
+        var entityName: String { self == .privateStore ? "Note" : "AttendanceDayLock" }
     }
 
     /// The author of CloudKit's own imports, so a remote change.

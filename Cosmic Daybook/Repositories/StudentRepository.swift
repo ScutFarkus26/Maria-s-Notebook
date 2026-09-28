@@ -93,9 +93,18 @@ struct StudentRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a CDStudent by ID
+    /// Delete a CDStudent by ID, with their track enrollments.
+    ///
+    /// The enrollments used to go by cascade through `Student.trackEnrollments`;
+    /// schema 9 removed that relationship (it pulled tracks and lessons into
+    /// the classroom share), so they are deleted here by `studentID`.
     func deleteStudent(id: UUID) throws {
         guard let student = fetchStudent(id: id) else { return }
+        let enrollments = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
+        enrollments.predicate = NSPredicate(format: "studentID == %@", id.uuidString)
+        for enrollment in context.safeFetch(enrollments) {
+            context.delete(enrollment)
+        }
         context.delete(student)
         try context.save()
     }

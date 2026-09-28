@@ -6,20 +6,6 @@ import OSLog
 struct SequenceTrackService { // swiftlint:disable:this type_body_length
     private static let logger = Logger.lessons
 
-    // MARK: - Shared-store guard
-
-    /// True when the context is backed by a two-store CloudKit configuration
-    /// (i.e. there's a store assigned to `CoreDataStack.sharedConfiguration`)
-    /// AND no CKShare exists yet. Writing shared-store entities in this state
-    /// creates orphan records that poison the CloudKit mirroring delegate
-    /// with NSCocoaErrorDomain 134060. Returns `false` for local-only and
-    /// in-memory test stacks (single unified store, no shared configuration).
-    static func shouldDeferSharedStoreWrites(context: NSManagedObjectContext) -> Bool {
-        let stores = context.persistentStoreCoordinator?.persistentStores ?? []
-        let hasSharedStore = stores.contains { $0.configurationName == CoreDataStack.sharedConfiguration }
-        return hasSharedStore && !SharedStoreZoneRepair.shared.hasActiveShare
-    }
-
     // MARK: - Core Data API (Primary)
 
     /// Check if a sequence is marked as a track (Core Data)
@@ -105,21 +91,6 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
             return existingTrack
         }
 
-        // CDTrackEntity is a shared-store entity. In the two-store CloudKit
-        // configuration, creating it before any CKShare exists produces orphan
-        // records that poison the CloudKit mirroring delegate
-        // (NSCocoaErrorDomain 134060). All call sites already wrap this in
-        // try/catch and treat track creation as best-effort, so throw here
-        // and let them no-op until a share is in place. Local-only / test
-        // stacks have no shared-configured store, so the gate is skipped
-        // there.
-        if shouldDeferSharedStoreWrites(context: context) {
-            throw NSError(
-                domain: "SequenceTrackService", code: 2,
-                userInfo: [NSLocalizedDescriptionKey: "Cannot create track before classroom CKShare exists"]
-            )
-        }
-
         let newTrack = CDTrackEntity(context: context)
         newTrack.title = trackTitle
         newTrack.sequenceTrack = sequenceTrack
@@ -166,16 +137,6 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         sequence: String,
         context: NSManagedObjectContext
     ) throws {
-        // CDTrackStep is a shared-store entity. In the two-store
-        // CloudKit configuration, skip creation until a CKShare exists —
-        // otherwise the new step records become orphans that poison the
-        // CloudKit mirroring delegate (NSCocoaErrorDomain 134060). Steps
-        // get back-filled by the auto-create-share path or the orphan-guard
-        // observer the next time getOrCreateTrack runs after a share is in
-        // place. Local-only / test stacks have no shared-configured store,
-        // so the gate is skipped there.
-        guard !shouldDeferSharedStoreWrites(context: context) else { return }
-
         let matchingLessons = sequenceLessons(area: area, sequence: sequence, context: context)
             .sorted { Int($0.orderInSequence) < Int($1.orderInSequence) }
 
@@ -279,15 +240,6 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
         let enrollmentRequest = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
         enrollmentRequest.predicate = NSPredicate(format: "trackID == %@ AND studentID IN %@", trackID, studentIDs)
         let allEnrollments = context.safeFetch(enrollmentRequest)
-        // Only canonical uuidStrings ever matched `id?.uuidString == studentID`.
-        let studentUUIDs = studentIDs.compactMap { id -> UUID? in
-            guard let uuid = UUID(uuidString: id), uuid.uuidString == id else { return nil }
-            return uuid
-        }
-        let studentRequest = CDFetchRequest(CDStudent.self)
-        studentRequest.predicate = NSPredicate(format: "id IN %@", studentUUIDs)
-        let allStudents = context.safeFetch(studentRequest)
-
         for studentID in studentIDs {
             let existingEnrollment = allEnrollments.first { enrollment in
                 enrollment.studentID == studentID && enrollment.trackID == trackID
@@ -300,11 +252,8 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
                         existing.startedAt = Date()
                     }
                 }
-                // Backfill relationships if missing
+                // Backfill the relationship if missing
                 if existing.track == nil { existing.track = track }
-                if existing.student == nil {
-                    existing.student = allStudents.first { $0.id?.uuidString == studentID }
-                }
             } else {
                 let newEnrollment = CDStudentTrackEnrollmentEntity(context: context)
                 newEnrollment.studentID = studentID
@@ -312,7 +261,6 @@ struct SequenceTrackService { // swiftlint:disable:this type_body_length
                 newEnrollment.startedAt = Date()
                 newEnrollment.isActive = true
                 newEnrollment.track = track
-                newEnrollment.student = allStudents.first { $0.id?.uuidString == studentID }
             }
         }
 

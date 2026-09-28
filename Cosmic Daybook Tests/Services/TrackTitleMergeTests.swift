@@ -37,7 +37,6 @@ struct TrackTitleMergeTests {
         enrollment.studentID = student.id?.uuidString ?? ""
         enrollment.trackID = track.id?.uuidString ?? ""
         enrollment.track = track
-        enrollment.student = student
         enrollment.isActive = active
         enrollment.startedAt = startedAt
         return enrollment

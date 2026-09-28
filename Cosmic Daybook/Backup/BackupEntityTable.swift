@@ -312,7 +312,10 @@ nonisolated enum BackupEntityTable {
         ),
         .optional("AlbumHighlight", CDAlbumHighlight.self, \.albumHighlights, BackupDTOTransformers.toDTOs),
         .optional("AlbumPageInk", CDAlbumPageInk.self, \.albumPageInk, BackupDTOTransformers.toDTOs),
-        .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows)
+        .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows),
+        .optional(
+            "AttendanceDayLock", CDAttendanceDayLock.self, \.attendanceDayLocks, AttendanceDayLockDTO.rows
+        )
     ]
 }
 

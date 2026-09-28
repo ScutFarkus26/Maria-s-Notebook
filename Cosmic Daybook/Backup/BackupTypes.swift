@@ -136,6 +136,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case albumBookmarks, albumPageNotes, albumRecentVisits
         case albumReadingPositions, albumHighlights, albumPageInk
         case orderItems
+        case attendanceDayLocks
         case preferences
     }
 
@@ -275,6 +276,10 @@ nonisolated public struct BackupPayload: Codable, Sendable {
 
     // Orders (format v27+)
     public var orderItems: [OrderItemDTO]?
+
+    // Locked attendance days (format v30+). Older backups carry locks as
+    // `Attendance.locked.<date>` preferences instead; restore converts them.
+    public var attendanceDayLocks: [AttendanceDayLockDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

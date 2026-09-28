@@ -67,10 +67,7 @@ extension BackupRestoreRun {
             BackupEntityImporter.importRows(
                 enrollments, as: CDStudentTrackEnrollmentEntity.self, into: viewContext,
                 existing: { try index.existing(CDStudentTrackEnrollmentEntity.self, id: $0) },
-                parents: [
-                    "student": { try index.related(CDStudent.self, id: $0) },
-                    "track": { try index.related(CDTrackEntity.self, id: $0) }
-                ]
+                parents: ["track": { try index.related(CDTrackEntity.self, id: $0) }]
             )
         }
 

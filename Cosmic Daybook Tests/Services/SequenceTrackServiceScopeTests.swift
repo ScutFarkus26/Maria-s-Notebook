@@ -98,7 +98,6 @@ struct SequenceTrackServiceScopeTests {
         #expect(rows.first?.studentID == seeded.studentID)
         #expect(rows.first?.trackID == trackID)
         #expect(rows.first?.isActive == true)
-        #expect(rows.first?.student?.id?.uuidString == seeded.studentID)
 
         // A second enrolment is a no-op.
         _ = SequenceTrackService.autoEnrollInTrackIfNeeded(

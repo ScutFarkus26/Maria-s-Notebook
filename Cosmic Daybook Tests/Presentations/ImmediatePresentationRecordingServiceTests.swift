@@ -209,7 +209,6 @@ extension ImmediatePresentationRecordingTests {
         existingEnrollment.isActive = false
         existingEnrollment.startedAt = nil
         existingEnrollment.track = track
-        existingEnrollment.student = firstStudent
         try fixture.context.save()
 
         let token = try ImmediatePresentationRecordingService.record(

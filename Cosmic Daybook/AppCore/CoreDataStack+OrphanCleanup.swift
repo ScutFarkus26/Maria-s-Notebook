@@ -22,14 +22,22 @@ extension CoreDataStack {
     ///    succeeds. Leaving Z_PRIMARYKEY entries alone is fine — Core Data removes
     ///    them as part of its own migration.
     ///
+    /// "Removed" is judged against the store's own configuration, not the
+    /// whole model: a split store only ever holds its configuration's
+    /// entities, so an entity that leaves the Shared configuration (schema 9
+    /// took 28 types out of the classroom share) is as gone from
+    /// `shared.sqlite` as one deleted from the model. `configuration: nil`
+    /// (unified and local stores) means every model entity.
+    ///
     /// Safe no-op if the store doesn't exist (first install).
     static func cleanOrphanEntityMetadata(
         storeURL: URL,
-        model: NSManagedObjectModel
+        model: NSManagedObjectModel,
+        configuration: String? = nil
     ) {
         guard FileManager.default.fileExists(atPath: storeURL.path) else { return }
 
-        let modelEntities = Set(model.entities.compactMap(\.name))
+        let modelEntities = Set(entities(of: model, configuration: configuration).compactMap(\.name))
         let storedEntities = readEntitiesFromStoreMetadata(storeURL: storeURL)
         let orphanNames = storedEntities.subtracting(modelEntities)
         guard !orphanNames.isEmpty else { return }
@@ -75,6 +83,14 @@ extension CoreDataStack {
         execute(db: db, "COMMIT")
 
         cleanupLogger.info("Orphan cleanup complete for \(storeURL.lastPathComponent, privacy: .public)")
+    }
+
+    /// The entities a store of `configuration` holds.
+    static func entities(of model: NSManagedObjectModel, configuration: String?) -> [NSEntityDescription] {
+        guard let configuration, let configured = model.entities(forConfigurationName: configuration) else {
+            return model.entities
+        }
+        return configured
     }
 
     /// Reads the set of entity names recorded in the store's `Z_METADATA` plist
@@ -528,12 +544,7 @@ extension CoreDataStack {
         // not built yet, not an incoherent one.
         guard tableExists(db: handle, name: "Z_PRIMARYKEY") else { return [] }
 
-        let entities: [NSEntityDescription]
-        if let configuration, let configured = model.entities(forConfigurationName: configuration) {
-            entities = configured
-        } else {
-            entities = model.entities
-        }
+        let entities = Self.entities(of: model, configuration: configuration)
 
         var findings: [String] = []
         for entity in entities where entity.superentity == nil {

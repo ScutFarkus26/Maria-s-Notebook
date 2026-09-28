@@ -237,4 +237,17 @@ extension BackupRestoreRun {
             )
         }
     }
+
+    /// v30+ entities: locked attendance days.
+    func importV30Entities() throws {
+        let viewContext = context
+        let index = self.index
+
+        if let locks = try rows(\.attendanceDayLocks) {
+            BackupEntityImporter.importRows(
+                locks, as: CDAttendanceDayLock.self, into: viewContext,
+                existing: { try index.existing(CDAttendanceDayLock.self, id: $0) }
+            )
+        }
+    }
 }

@@ -25,7 +25,7 @@ struct BackupSparseRowTests {
         "LessonSequenceSettings", "BookClubSession", "Guardian", "ParentCommunication", "AlbumBookmark",
         "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "OrderItem", "ProposedSolution",
         "WorkStep", "SampleWorkStep", "TrackStep", "TodoSubtask", "LessonAttachment", "NoteStudentLink",
-        "JobAssignment", "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview"
+        "JobAssignment", "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock"
     ]
 
     /// A child's link to its parent: the row key, the relationship, the parent
@@ -54,7 +54,6 @@ struct BackupSparseRowTests {
         ParentCase("NoteStudentLink", "noteID", "note", "Note", true),
         ParentCase("JobAssignment", "jobID", "job", "ClassroomJob", true),
         ParentCase("BookClubMeeting", "sessionID", "session", "BookClubSession", true),
-        ParentCase("StudentTrackEnrollment", "studentID", "student", "Student", true),
         ParentCase("StudentTrackEnrollment", "trackID", "track", "Track", true),
         ParentCase("MeetingWorkReview", "meetingID", "meeting", "StudentMeeting", true)
     ]
