@@ -180,6 +180,11 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Classroom Sharing
     static var classroomIdentityRecordName: String { CloudKitEnvironment.scoped("ClassroomIdentity.userRecordName") }
     static let classroomIdentityDisplayName = "ClassroomIdentity.displayName"
+    /// Set once this device has carried its old `Attendance.locked.<date>`
+    /// settings into `AttendanceDayLock` records (per CloudKit environment).
+    static var attendanceLocksCarriedOver: String {
+        CloudKitEnvironment.scoped("Attendance.locksCarriedOver")
+    }
     /// URIs of classroom records this device created before the classroom
     /// share's pin arrived, waiting to be attached (`SharedStoreOrphanGuard`).
     /// Device-local; never exported.

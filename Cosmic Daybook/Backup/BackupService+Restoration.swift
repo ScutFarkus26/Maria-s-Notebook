@@ -149,6 +149,14 @@ extension BackupService {
         }
 
         applyPreferencesDTO(source.preferences)
+        // A backup from before schema 9 carries its locked days as
+        // `Attendance.locked.<date>` preferences; they become lock records.
+        let restoredLocks = AttendanceDayLocks.legacyLocks(in: source.preferences)
+        if AttendanceDayLocks.migrateLegacyKeys(
+            restoredLocks, role: CDClassroomMembership.currentRole(in: viewContext), in: viewContext
+        ) > 0 {
+            viewContext.safeSave()
+        }
         AlbumLibrary.shared.reloadAfterRestore()
         appRouter.signalAppDataDidRestore()
 

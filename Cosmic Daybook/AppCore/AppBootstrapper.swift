@@ -145,6 +145,10 @@ final class AppBootstrapper {
         // Keychain refuses.
         RetiredAIKeysCleanup.runIfNeeded()
 
+        // Locked attendance days moved from an iCloud setting to shared lock
+        // records (schema 9); carry this device's old ones over, once.
+        AttendanceDayLocks.migrateStoredLegacyKeysIfNeeded(in: coreDataStack.viewContext)
+
         // Save all migration changes in one batch to minimize store coordinator changes
         if coreDataStack.viewContext.hasChanges {
             if coreDataStack.viewContext.safeSave() {

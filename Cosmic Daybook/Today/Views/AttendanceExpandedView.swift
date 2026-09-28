@@ -33,26 +33,24 @@ struct AttendanceExpandedView: View {
     @State var localSortKey: AttendanceViewModel.SortKey = AttendanceViewModel.storedSortKey()
     @State private var activeChipPopover: AttendanceStatus?
 
-    // Persistence for locking
-    private static let lockKeyPrefix = "Attendance.locked."
-    private let syncedStore = SyncedPreferencesStore.shared
-
-    private func lockKey(for date: Date) -> String {
-        let day = AppCalendar.startOfDay(date)
-        return AttendanceExpandedView.lockKeyPrefix + DateFormatters.isoDateLocal.string(from: day)
+    // Locked days are `AttendanceDayLock` records in the classroom share, so
+    // an assistant sees them too (they used to be an iCloud setting only the
+    // guide's own devices read).
+    private func isLocked(for date: Date) -> Bool {
+        AttendanceDayLocks.isLocked(date, in: viewContext)
     }
 
-    private func isLocked(for date: Date) -> Bool {
-        syncedStore.bool(forKey: lockKey(for: date))
+    /// Only the lead guide locks and unlocks days.
+    var canLockDays: Bool {
+        CDClassroomMembership.currentRole(in: viewContext) == .leadGuide
     }
 
     func setLocked(_ locked: Bool, for date: Date) {
-        let key = lockKey(for: date)
-        if locked {
-            syncedStore.set(true, forKey: key)
-        } else {
-            syncedStore.remove(key: key)
-        }
+        let role = CDClassroomMembership.currentRole(in: viewContext)
+        guard AttendanceDayLocks.setLocked(
+            locked, for: date, role: role, lockedByID: ClassroomIdentity.currentUserRecordName, in: viewContext
+        ) else { return }
+        saveCoordinator.save(viewContext, reason: locked ? "Lock attendance day" : "Unlock attendance day")
     }
 
     var filteredStudents: [CDStudent] {

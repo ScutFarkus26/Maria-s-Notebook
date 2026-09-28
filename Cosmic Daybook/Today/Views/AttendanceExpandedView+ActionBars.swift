@@ -36,12 +36,14 @@ extension AttendanceExpandedView {
 
             // Overflow menu
             Menu {
-                // Lock/Unlock
-                Button {
-                    isEditing.toggle()
-                    setLocked(!isEditing, for: date)
-                } label: {
-                    Label(isEditing ? "Lock Day" : "Unlock Day", systemImage: isEditing ? "lock.fill" : "lock.open")
+                // Lock/Unlock (the lead guide's alone)
+                if canLockDays {
+                    Button {
+                        isEditing.toggle()
+                        setLocked(!isEditing, for: date)
+                    } label: {
+                        Label(isEditing ? "Lock Day" : "Unlock Day", systemImage: isEditing ? "lock.fill" : "lock.open")
+                    }
                 }
 
                 // Reset
@@ -111,15 +113,17 @@ extension AttendanceExpandedView {
 
             Spacer()
 
-            // Lock
-            Button {
-                isEditing.toggle()
-                setLocked(!isEditing, for: date)
-            } label: {
-                Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
+            // Lock (the lead guide's alone)
+            if canLockDays {
+                Button {
+                    isEditing.toggle()
+                    setLocked(!isEditing, for: date)
+                } label: {
+                    Label(isEditing ? "Lock" : "Unlock", systemImage: isEditing ? "lock.fill" : "lock.open")
+                }
+                .buttonStyle(.bordered)
+                .help(isEditing ? "Lock this day" : "Unlock this day")
             }
-            .buttonStyle(.bordered)
-            .help(isEditing ? "Lock this day" : "Unlock this day")
 
             // Reset
             Button {

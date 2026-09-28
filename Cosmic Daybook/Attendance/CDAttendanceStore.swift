@@ -8,7 +8,9 @@ import CoreData
 /// - **Attribution**: each change stamps `recordedBy` (the device's `ClassroomRole`)
 ///   and `modifiedAt`, which the dedup comparator uses for last-writer-wins.
 /// - **Permissions**: mutations are gated by `ClassroomPermissions.canWrite` — a
-///   no-op for lead guides, real enforcement for assistants.
+///   no-op for lead guides, real enforcement for assistants — and by the day's
+///   lock (`AttendanceDayLocks`), which holds for everyone until the lead guide
+///   unlocks the day.
 ///
 /// Records are created lazily, one per (student, day), on the first actual mark —
 /// never in bulk on screen-open. Two devices opening the same day used to each
@@ -32,6 +34,16 @@ struct CDAttendanceStore {
 
     private var canWrite: Bool {
         ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: role)
+    }
+
+    /// Whether `date` is locked. A locked day takes no edits from anyone.
+    func isLocked(_ date: Date) -> Bool {
+        AttendanceDayLocks.isLocked(date, in: context)
+    }
+
+    /// This role may write attendance and `date` isn't locked.
+    private func canWrite(on date: Date?) -> Bool {
+        canWrite && !isLocked(date ?? Date())
     }
 
     /// The store a newly created record belongs in.
@@ -85,7 +97,7 @@ struct CDAttendanceStore {
     /// Returns nil when the student has no id or this role cannot write.
     @discardableResult
     func ensureRecord(for student: CDStudent, on date: Date) throws -> CDAttendanceRecord? {
-        guard canWrite else { return nil }
+        guard canWrite(on: date) else { return nil }
         let key = student.id?.uuidString ?? ""
         guard !key.isEmpty else { return nil }
         let day = date.normalizedDay(using: calendar)
@@ -108,7 +120,7 @@ struct CDAttendanceStore {
     /// Update a record's status and return whether it changed.
     @discardableResult
     func updateStatus(_ record: CDAttendanceRecord, to newStatus: AttendanceStatus) -> Bool {
-        guard canWrite else { return false }
+        guard canWrite(on: record.date) else { return false }
         let old = record.status
         record.status = newStatus
         guard old != newStatus else { return false }
@@ -120,7 +132,7 @@ struct CDAttendanceStore {
     /// the shared record, so the guide and an assistant both see it.
     @discardableResult
     func updateNote(_ record: CDAttendanceRecord, to newNote: String?) -> Bool {
-        guard canWrite else { return false }
+        guard canWrite(on: record.date) else { return false }
         let trimmed = newNote?.trimmed()
         let newVal = (trimmed?.isEmpty == true) ? nil : trimmed
         guard record.note != newVal else { return false }
@@ -132,7 +144,7 @@ struct CDAttendanceStore {
     /// Update a record's absence reason and return whether it changed.
     @discardableResult
     func updateAbsenceReason(_ record: CDAttendanceRecord, to newReason: AbsenceReason) -> Bool {
-        guard canWrite else { return false }
+        guard canWrite(on: record.date) else { return false }
         guard record.status == .absent else { return false }
         let old = record.absenceReason
         record.absenceReason = newReason
@@ -146,7 +158,7 @@ struct CDAttendanceStore {
     /// screen-open side effect.
     @discardableResult
     func markAllPresent(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
-        guard canWrite else { return [] }
+        guard canWrite(on: date) else { return [] }
         var records: [CDAttendanceRecord] = []
         for student in students {
             guard let rec = try ensureRecord(for: student, on: date) else { continue }
@@ -166,7 +178,7 @@ struct CDAttendanceStore {
     /// as unmarked. Callers save immediately afterwards.
     @discardableResult
     func resetDay(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
-        guard canWrite else { return [] }
+        guard canWrite(on: date) else { return [] }
         let studentIDs = Set(students.compactMap { $0.id?.uuidString })
         var records: [CDAttendanceRecord] = []
         for rec in try loadRecords(for: date) where studentIDs.contains(rec.studentID) {

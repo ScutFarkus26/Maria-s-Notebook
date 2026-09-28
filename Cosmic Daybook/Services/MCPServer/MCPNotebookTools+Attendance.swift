@@ -275,6 +275,7 @@ extension MCPNotebookTools {
         let status = try attendanceStatus(try requireString(arguments, "status"))
 
         let store = CDAttendanceStore(context: modelContext, calendar: AppCalendar.shared)
+        try refuseLockedDay(day, store: store)
         guard let record = try store.ensureRecord(for: student, on: day) else {
             throw MCPToolError(
                 "Attendance could not be written — this classroom role may not have permission "
@@ -365,6 +366,7 @@ extension MCPNotebookTools {
         _ marks: [AttendanceMark], on day: Date, in modelContext: NSManagedObjectContext
     ) throws -> String {
         let store = CDAttendanceStore(context: modelContext, calendar: AppCalendar.shared)
+        try refuseLockedDay(day, store: store)
         var lines: [String] = []
         do {
             for mark in marks {
