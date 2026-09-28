@@ -128,19 +128,26 @@ extension CoreDataStack {
 
     // MARK: - Store Reset
 
-    /// Deletes both Core Data store files and their WAL/SHM companions.
+    /// Deletes this environment's Core Data store files and their WAL/SHM
+    /// companions.
     nonisolated static func resetStores() throws {
         let fm = FileManager.default
         for url in [privateStoreURL(), sharedStoreURL(), unifiedStoreURL()] {
-            guard fm.fileExists(atPath: url.path) else { continue }
-            try fm.removeItem(at: url)
-            // Also remove WAL and SHM files
-            let walURL = url.appendingPathExtension("wal")
-            let shmURL = url.appendingPathExtension("shm")
-            if fm.fileExists(atPath: walURL.path) { try fm.removeItem(at: walURL) }
-            if fm.fileExists(atPath: shmURL.path) { try fm.removeItem(at: shmURL) }
+            for file in storeFiles(for: url) where fm.fileExists(atPath: file.path) {
+                try fm.removeItem(at: file)
+            }
         }
         logger.info("Core Data stores reset")
+    }
+
+    /// A SQLite store's file and its companions. SQLite names them by
+    /// appending `-wal` and `-shm` to the whole file name (`private.sqlite-wal`);
+    /// until 2026-09-28 the reset looked for `private.sqlite.wal`, never found
+    /// it, and left the old WAL beside the fresh store.
+    nonisolated static func storeFiles(for storeURL: URL) -> [URL] {
+        let directory = storeURL.deletingLastPathComponent()
+        let name = storeURL.lastPathComponent
+        return [storeURL] + ["-wal", "-shm"].map { directory.appendingPathComponent(name + $0) }
     }
 
     /// Performs the "Reset Local Cache" sequence at launch:
@@ -165,11 +172,10 @@ extension CoreDataStack {
         } catch {
             logger.error("Reset Local Cache: failed to delete stores — \(error.localizedDescription)")
         }
-        // Re-run share auto-create and zone repair against the fresh data.
-        defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairLastTimeoutAt)
-        // The clean watermark belongs to the store file being deleted.
-        defaults.removeObject(forKey: UserDefaultsKeys.sharedStoreZoneRepairCleanHistoryToken)
-        // So do the history processor's per-store positions.
+        // Records waiting for the classroom share named rows in the deleted
+        // store; the download brings back whatever was already shared.
+        defaults.removeObject(forKey: UserDefaultsKeys.classroomSharePendingAttach)
+        // The history processor's per-store positions belong to it too.
         defaults.removeObject(forKey: UserDefaultsKeys.persistentHistoryStoreTokens)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)

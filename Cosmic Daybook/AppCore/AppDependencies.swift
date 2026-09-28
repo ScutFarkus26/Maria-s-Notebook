@@ -226,13 +226,6 @@ final class AppDependencies {
         coreDataStack: coreDataStack
     )
 
-    /// Singleton accessor for the observable shared-store zone repair
-    /// service. Surfaces orphan counts and unrecoverable records to the
-    /// UI so the lead guide can see when their data isn't syncing.
-    var sharedStoreZoneRepair: SharedStoreZoneRepair {
-        SharedStoreZoneRepair.shared
-    }
-
     // MARK: - Router & Coordinators
 
     var appRouter: AppRouter {

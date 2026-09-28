@@ -177,13 +177,15 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Migrations
     static let retiredAIKeysRemovedV1 = "Migration.retiredAIKeysRemoved.v1"
 
-    // MARK: - Shared Store Sync Repair
+    // MARK: - Classroom Sharing
     static var classroomIdentityRecordName: String { CloudKitEnvironment.scoped("ClassroomIdentity.userRecordName") }
     static let classroomIdentityDisplayName = "ClassroomIdentity.displayName"
-    static let sharedStoreZoneRepairLastTimeoutAt = "SharedStoreZoneRepair.lastTimeoutAt"
-    /// Persistent-history token recorded by the last zone-repair pass that
-    /// left nothing to attach. Device-local; never exported with preferences.
-    static let sharedStoreZoneRepairCleanHistoryToken = "SharedStoreZoneRepair.cleanHistoryToken"
+    /// URIs of classroom records this device created before the classroom
+    /// share's pin arrived, waiting to be attached (`SharedStoreOrphanGuard`).
+    /// Device-local; never exported.
+    static var classroomSharePendingAttach: String {
+        CloudKitEnvironment.scoped("ClassroomShare.pendingAttach")
+    }
     /// Set while a fresh private store is still receiving its first download
     /// from iCloud (see `FirstDownloadGate`). Device-local; never exported.
     static var firstDownloadPending: String { CloudKitEnvironment.scoped("CloudKit.firstDownloadPending") }

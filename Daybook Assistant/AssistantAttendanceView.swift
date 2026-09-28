@@ -82,7 +82,9 @@ struct AssistantAttendanceView: View {
     }
 
     private func startDay() {
-        let model = AssistantAttendanceViewModel(context: coreDataStack.viewContext)
+        let model = AssistantAttendanceViewModel(
+            context: coreDataStack.viewContext, container: coreDataStack.container
+        )
         model.load()
         viewModel = model
     }

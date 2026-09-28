@@ -121,7 +121,7 @@ struct BackupPreferencesServiceTests {
             UserDefaultsKeys.cloudKitLastErrorDescription,
             UserDefaultsKeys.persistentHistoryLastToken,
             UserDefaultsKeys.persistentHistoryStoreTokens,
-            UserDefaultsKeys.sharedStoreZoneRepairCleanHistoryToken,
+            UserDefaultsKeys.classroomSharePendingAttach,
             UserDefaultsKeys.aiMCPServerEnabled,
             UserDefaultsKeys.classroomIdentityRecordName,
             UserDefaultsKeys.resetLocalCacheOnLaunch

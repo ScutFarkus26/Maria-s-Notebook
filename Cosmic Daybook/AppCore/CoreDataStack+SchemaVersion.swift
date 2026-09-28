@@ -22,7 +22,7 @@ import SQLite3
 // while two newer instances had the same file open. Their next store access
 // failed with `NSCocoaErrorDomain 256` / `NSSQLiteErrorDomain 1`, the CloudKit
 // mirroring delegate died, and one of them aborted inside
-// `container.share(_:to:)` — see `SharedStoreZoneRepair.shareOffMain`.
+// `container.share(_:to:)` — see `ClassroomShareAttach.shareOffMain`.
 //
 // Note the model is versioned by *content*, not by name: both builds shipped a
 // model with the same version name (then "MariasNotebook 2"), because the single

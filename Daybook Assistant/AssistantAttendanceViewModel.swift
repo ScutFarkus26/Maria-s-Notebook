@@ -44,10 +44,15 @@ final class AssistantAttendanceViewModel {
 
     let date: Date
     private let context: NSManagedObjectContext
+    private let container: NSPersistentCloudKitContainer?
     private let store: CDAttendanceStore
+    /// Records created since the last save, to put into the classroom share
+    /// once that save gives them permanent IDs.
+    private var createdSinceSave: [CDAttendanceRecord] = []
 
-    init(context: NSManagedObjectContext, date: Date = Date()) {
+    init(context: NSManagedObjectContext, container: NSPersistentCloudKitContainer?, date: Date = Date()) {
         self.context = context
+        self.container = container
         self.date = date
         // The role is hardcoded rather than read from the membership row: this
         // app is only ever used by an assistant, and ClassroomPermissions is
@@ -94,6 +99,7 @@ final class AssistantAttendanceViewModel {
         guard canMark else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
+            if record.isInserted { createdSinceSave.append(record) }
             _ = store.updateStatus(record, to: record.status.next())
             persist()
         } catch {
@@ -114,6 +120,7 @@ final class AssistantAttendanceViewModel {
         guard canMark else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
+            if record.isInserted { createdSinceSave.append(record) }
             guard store.updateNote(record, to: text) else { return }
             persist()
         } catch {
@@ -140,6 +147,18 @@ final class AssistantAttendanceViewModel {
             return
         }
         errorMessage = nil
+        // A new mark goes into the classroom share explicitly rather than
+        // wherever Core Data would file it.
+        let created = createdSinceSave.map(\.objectID)
+        createdSinceSave = []
+        if let container, !created.isEmpty {
+            let context = self.context
+            Task {
+                await CDAttendanceStore.attachNewRecordsToClassroomShare(
+                    created, container: container, pinContext: context
+                )
+            }
+        }
         load()
     }
 }

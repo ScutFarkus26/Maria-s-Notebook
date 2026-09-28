@@ -20,11 +20,6 @@ final class DeduplicationCoordinator {
 
     var persistentContainer: NSPersistentContainer?
 
-    /// CoreDataStack reference used to run SharedStoreZoneRepair after
-    /// each post-import dedup pass. Weak to avoid retain cycles —
-    /// the stack owns this singleton's lifetime indirectly via AppDependencies.
-    weak var coreDataStack: CoreDataStack?
-
     private var debounceTask: Task<Void, Never>?
     private var isRunning = false
 
@@ -207,13 +202,6 @@ final class DeduplicationCoordinator {
 
     private func finishRun() {
         isRunning = false
-        if let stack = coreDataStack {
-            // `runIfNeeded` honors the 24-hour circuit breaker that exists
-            // to stop repeated full-database zone scans (each of which can
-            // sit on a 10-minute CloudKit lock wait). Every other automatic
-            // call site uses it; this one bypassed it on every import.
-            Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
-        }
     }
 }
 

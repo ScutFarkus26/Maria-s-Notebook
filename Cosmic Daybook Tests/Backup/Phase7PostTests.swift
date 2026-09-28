@@ -9,13 +9,14 @@ final class Phase7PostTests {
 
     // MARK: - Entity Registry Updated
 
-    @Test("BackupEntityRegistry contains exactly 73 entity types")
-    func backupEntityRegistryCountIs73() {
+    @Test("BackupEntityRegistry contains exactly 74 entity types")
+    func backupEntityRegistryCountIs74() {
         // 67th–72nd types are the teaching-album annotations (bookmarks, page
         // notes, recent visits, reading positions, highlights, and Pencil ink;
-        // format v21); the 73rd is Orders (format v27). This count is a change
+        // format v21); the 73rd is Orders (format v27); the 74th is locked
+        // attendance days (format v30). This count is a change
         // detector for accidental registry edits.
-        #expect(BackupEntityRegistry.allTypes.count == 73)
+        #expect(BackupEntityRegistry.allTypes.count == 74)
     }
 
     @Test("ClassroomMembership IS now in BackupEntityRegistry")

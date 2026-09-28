@@ -57,7 +57,6 @@ nonisolated extension Logger {
     nonisolated static let deduplicationCoordinator = Logger.app(category: "DeduplicationCoordinator")
     nonisolated static let historyProcessor = Logger.app(category: "HistoryProcessor")
     nonisolated static let sharedStoreOrphanGuard = Logger.app(category: "SharedStoreOrphanGuard")
-    nonisolated static let sharedStoreZoneRepair = Logger.app(category: "SharedStoreZoneRepair")
 
     // MARK: - CloudKit & sharing
     nonisolated static let cloudKit = Logger.app(category: "CloudKit")

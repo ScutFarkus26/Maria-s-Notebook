@@ -9,13 +9,12 @@ import UIKit
 /// SwiftUI wrapper for UICloudSharingController on iOS.
 ///
 /// Presents the system sharing UI for managing a CKShare.
-/// The caller must provide an existing CKShare (create one via
-/// ClassroomSharingService before presenting this sheet).
+/// The caller must provide the pinned classroom share, checked by
+/// `ClassroomSharingService.shareForInvitations` before presenting this sheet.
 ///
 /// `onShareSaved` fires the moment the controller reports a successful
 /// save — distinct from `onDismiss` so callers can synchronously
-/// refresh share state (and trigger SharedStoreZoneRepair) before any
-/// UI-driven dismissal work runs.
+/// refresh share state before any UI-driven dismissal work runs.
 ///
 /// `onStopSharing` fires when the user ends the share from inside the
 /// controller. NSPersistentCloudKitContainer observes the system sharing

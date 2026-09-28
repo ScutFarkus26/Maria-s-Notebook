@@ -9,9 +9,9 @@ import CloudKit
 /// this app (the share sheet logs "No items to share after sandbox filtering").
 /// The Mac's Settings → Classroom sheet manages members through these instead.
 ///
-/// Sharing stays on throughout: the share is what keeps the lead guide's
-/// records syncing (see `ensureShareExistsOnLaunch`), so "stop sharing" here
-/// means removing everyone else, never deleting the share.
+/// Sharing stays on throughout: the one classroom share is set up once and
+/// pinned (see `setUpClassroomSharing`), so "stop sharing" here means removing
+/// everyone else, never deleting the share — a new one would be a second zone.
 extension ClassroomSharingService {
 
     enum MemberError: LocalizedError {

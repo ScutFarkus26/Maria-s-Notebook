@@ -19,12 +19,9 @@ struct ClassroomRepository: SavingRepository {
 
     func fetchMembership(id: UUID) -> CDClassroomMembership? { fetch(id: id) }
 
-    /// Returns the first classroom membership, representing the current classroom.
+    /// This device's current membership row (see `CDClassroomMembership.current`).
     func fetchCurrentMembership() -> CDClassroomMembership? {
-        let request = CDClassroomMembership.ownRowsRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "joinedAt", ascending: false)]
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request)
+        CDClassroomMembership.current(in: context)
     }
 
     // MARK: - Create
@@ -37,13 +34,10 @@ struct ClassroomRepository: SavingRepository {
     ) -> CDClassroomMembership {
         let membership = CDClassroomMembership(context: context)
         // Pin this to the private store. A membership row states what *this*
-        // device's user is, so it must stay on this device — a row that synced
-        // would answer `currentRole` on someone else's, demoting a guide to
-        // assistant or promoting an assistant past every permission check.
-        //
-        // ClassroomMembership is registered in both configurations, so absent
-        // an assignment Core Data takes the first store, which happens to be
-        // the private one. Correct by luck is not correct: state it.
+        // device's user is, so it must never reach the classroom share — a row
+        // that synced would answer `currentRole` on someone else's device.
+        // ClassroomMembership is private-only since schema 9; the assignment
+        // only matters in the two-store layout, and says so explicitly.
         if let coordinator = context.persistentStoreCoordinator,
            coordinator.persistentStores.count > 1,
            let privateStore = coordinator.persistentStores.first(where: {
@@ -56,6 +50,26 @@ struct ClassroomRepository: SavingRepository {
         membership.ownerIdentity = ownerIdentity
         Self.logger.info("Created ClassroomMembership: role=\(role.rawValue), zone=\(classroomZoneID)")
         return membership
+    }
+
+    /// Writes the pin: the classroom share's zone, on this device's current
+    /// row when it has the same role, or on a new row. Called when the lead
+    /// guide sets up sharing (a re-share included) and when an assistant
+    /// accepts an invitation, so the next reader finds exactly this zone.
+    @discardableResult
+    func pinClassroom(
+        zoneName: String,
+        role: CDClassroomMembership.ClassroomRole,
+        ownerIdentity: String
+    ) -> CDClassroomMembership {
+        if let current = fetchCurrentMembership(), current.role == role {
+            current.classroomZoneID = zoneName
+            current.ownerIdentity = ownerIdentity
+            current.modifiedAt = Date()
+            Self.logger.info("Pinned classroom zone \(zoneName, privacy: .public) (\(role.rawValue, privacy: .public))")
+            return current
+        }
+        return createMembership(classroomZoneID: zoneName, role: role, ownerIdentity: ownerIdentity)
     }
 
     // MARK: - Delete

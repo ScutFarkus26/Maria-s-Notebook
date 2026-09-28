@@ -11,6 +11,8 @@ import AppKit
 /// used.
 struct ClassroomMembersSheet: View {
     let service: ClassroomSharingService
+    /// What the classroom share holds, checked before this sheet opens.
+    let contents: ClassroomShareContents?
     let onDone: () -> Void
 
     @State private var address = ""
@@ -36,6 +38,12 @@ struct ClassroomMembersSheet: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if let contents {
+                    Label("They'll see \(contents.summary).", systemImage: "person.2")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             addForm

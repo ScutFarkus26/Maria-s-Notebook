@@ -104,24 +104,12 @@ final class ClassroomSharingService {
 
     // MARK: - Internal State Setters
 
-    /// Updates observable share state directly. Used by the +AutoCreate
-    /// extension after `container.share(_:to:)` succeeds so we don't have to
-    /// round-trip through a re-fetch (which can throw and leave `currentShare`
-    /// nil even though the share was actually created — causing the sharing
-    /// sheet to present empty).
+    /// Updates observable share state directly. Used by Set Up Classroom
+    /// Sharing after `container.share(_:to:)` succeeds, so a re-fetch (which
+    /// can throw while the new zone settles) can't leave `currentShare` nil.
     func updateShareState(_ share: CKShare?) {
-        let wasSharing = isSharing
         currentShare = share
         isSharing = share != nil
-
-        // Attaching orphaned records to the share zone is the owner's job. The
-        // assistant's device owns no share — everything it sees arrives through
-        // one it accepted — so the companion app leaves this out entirely.
-        #if !ASSISTANT_APP
-        if !wasSharing, isSharing, let stack = coreDataStack {
-            Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
-        }
-        #endif
     }
 
     // MARK: - Share Lifecycle
@@ -138,14 +126,7 @@ final class ClassroomSharingService {
     ///
     /// Avoiding the iterate-all-stores approach prevents legacy shares left
     /// in the wrong store (from the pre-migration era) from being surfaced
-    /// to the UI.
-    ///
-    /// When `isSharing` transitions from `false → true` (e.g. the lead guide
-    /// just finished the sharing flow), this also kicks off a
-    /// `SharedStoreZoneRepair.runIfNeeded` pass so any records that were
-    /// created before the share existed get attached to the new zone. We use
-    /// `runIfNeeded` (not `run`) so the circuit breaker can block the call
-    /// when CloudKit is unhealthy.
+    /// to the UI. Only the pinned share counts: with no pin this is nil.
     func fetchExistingShare() throws -> CKShare? {
         var found: CKShare?
         if let store = classroomShareStore {
@@ -170,12 +151,12 @@ final class ClassroomSharingService {
         currentShare = found
         if isSharing != (found != nil) { isSharing = found != nil }
 
-        // Attaching orphaned records to the share zone is the owner's job. The
-        // assistant's device owns no share — everything it sees arrives through
-        // one it accepted — so the companion app leaves this out entirely.
+        // The pinned share just became readable here (a new device's import):
+        // anything this device created while waiting for it can go in now.
+        // The assistant's device owns no share, so the companion leaves this out.
         #if !ASSISTANT_APP
-        if !wasSharing, isSharing, let stack = coreDataStack {
-            Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
+        if !wasSharing, isSharing {
+            SharedStoreOrphanGuard.shared.flushPendingIfPossible()
         }
         #endif
     }
@@ -233,10 +214,11 @@ final class ClassroomSharingService {
         Self.logger.info("Accepting CloudKit share invitation...")
         try await container.acceptShareInvitations(from: [metadata], into: store)
 
-        // Create local membership record as assistant
+        // Pin the accepted zone on this device's membership row — updating the
+        // row an earlier acceptance wrote rather than adding one per invitation.
         let repo = ClassroomRepository(context: context)
-        repo.createMembership(
-            classroomZoneID: metadata.share.recordID.zoneID.zoneName,
+        repo.pinClassroom(
+            zoneName: metadata.share.recordID.zoneID.zoneName,
             role: .assistant,
             ownerIdentity: metadata.ownerIdentity.userRecordID?.recordName ?? "unknown"
         )

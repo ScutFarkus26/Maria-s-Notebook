@@ -165,29 +165,6 @@ struct EnergyPolicyTests {
         #expect(policy.shouldDeferMaintenance)
     }
 
-    // MARK: - Zone repair
-
-    @Test("A zone repair turned away by a hot device is retried once it cools")
-    func zoneRepairRetriesWhenCool() async throws {
-        let stack = try CoreDataTestHelpers.makeInMemoryStack()
-        let policy = Self.policy(.critical)
-        let repair = SharedStoreZoneRepair.shared
-        let alreadyWaiting = repair.hasDeferredRetry
-
-        await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack, policy: policy)
-        // Not dropped: a retry is parked on the policy (unless the circuit
-        // breaker was open on this machine, when nothing auto-runs at all).
-        guard !SharedStoreZoneRepair.isCircuitBreakerOpen, !alreadyWaiting else { return }
-        #expect(repair.hasDeferredRetry)
-        // The parked task reaches the policy on its first turn.
-        #expect(await waitUntil { policy.waitingTaskCount == 1 })
-        #expect(repair.hasDeferredRetry)
-
-        policy.simulate(.init(thermalState: .nominal, isLowPowerModeEnabled: false))
-        #expect(await waitUntil { !repair.hasDeferredRetry })
-        #expect(policy.waitingTaskCount == 0)
-    }
-
     // MARK: - Scheduled backup
 
     @Test("A hot device defers the scheduled backup by one interval")

@@ -86,14 +86,9 @@ final class AppBootstrapper {
 
         // 5.5. Initialize post-sync deduplication coordinator
         DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
-        DeduplicationCoordinator.shared.coreDataStack = coreDataStack
 
-        // 5.6. Start the shared-store orphan guard so any save that
-        // inserts a shared-store entity either triggers auto-create of
-        // the classroom CKShare (if none exists) or attaches the new
-        // record to the existing share. Without this, runtime writes
-        // would poison NSCloudKitMirroringDelegate (NSCocoaErrorDomain
-        // 134060) between bootstrap and the next share-saved event.
+        // 5.6. Start the orphan guard, which puts each classroom record this
+        // device creates into the classroom share as it is saved.
         SharedStoreOrphanGuard.shared.start(coreDataStack: coreDataStack)
 
         // 6. Run heavy migrations and dedup in the background to avoid UI stalls
@@ -136,13 +131,6 @@ final class AppBootstrapper {
         // backfills, the March note-scope repair) were removed on 2026-09-26
         // once every device had long since run them.
 
-        // 3.82. Ensure a CKShare exists for the classroom data so subsequent
-        // shared-store writes can sync. The
-        // actual container.share(_:to:) call is dispatched off the MainActor
-        // and is gated by SharedStoreZoneRepair's circuit breaker so a
-        // CloudKit timeout doesn't block launch.
-        await ClassroomSharingService.ensureShareExistsOnLaunch(coreDataStack: coreDataStack)
-
         // 3.9. Data Integrity Repairs (Run on ~10% of launches to reduce startup impact).
         // They run first in MigrationRunner's background pass — the same place in
         // this sequence as before, but no longer on the view context.
@@ -164,12 +152,10 @@ final class AppBootstrapper {
             }
         }
 
-        // Shared-store zone repair runs LAST so it sees the final state
-        // of the shared store, including any records written by the
-        // migrations above. A record in the shared store without a
-        // CKShare zone poisons the CloudKit mirroring delegate
-        // (NSCocoaErrorDomain 134060) for the rest of the session.
-        await SharedStoreZoneRepair.runIfNeeded(coreDataStack: coreDataStack)
+        // Classroom records this device created before the classroom share's
+        // pin arrived (a new device) go in now, if the share is here. Nothing
+        // else is swept in: see SharedStoreOrphanGuard.
+        SharedStoreOrphanGuard.shared.flushPendingIfPossible()
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 

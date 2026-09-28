@@ -5,8 +5,11 @@ import OSLog
 
 /// Settings view for managing classroom sharing.
 ///
-/// Shows the current role, participant list, and actions for
-/// sharing (lead guide) or leaving (assistant) a classroom.
+/// Shows the current role, what the classroom share holds, the participant
+/// list, and actions for setting up sharing and inviting (lead guide) or
+/// leaving (assistant). The classroom has one share, set up once on purpose
+/// with Set Up Classroom Sharing; nothing here creates or repairs a share on
+/// its own.
 struct ClassroomSharingView: View {
     @Environment(\.dependencies) private var dependencies
     @Environment(\.scenePhase) private var scenePhase
@@ -15,21 +18,29 @@ struct ClassroomSharingView: View {
     @State private var showingSharingSheet = false
     @State private var showingLeaveConfirmation = false
     @State private var showingStopSharingConfirmation = false
-    @State private var showingUnrecoverableSheet = false
+    @State private var showingSetupConfirmation = false
     @State private var errorMessage: String?
+    @State private var resultMessage: String?
     @State private var isPreparingShare = false
+    @State private var isSettingUp = false
+    @State private var contents: ClassroomShareContents?
 
     private var service: ClassroomSharingService? { sharingService }
-    private var zoneRepair: SharedStoreZoneRepair { dependencies.sharedStoreZoneRepair }
 
     var body: some View {
         VStack(spacing: 12) {
-            syncStatusBanner
-            moveProgressCard
+            shareStatusCard
             roleGroup
             membersGroup
             actionsGroup
 
+            if let resultMessage {
+                Text(resultMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+            }
             if let error = errorMessage ?? service?.shareError {
                 Text(error)
                     .font(.caption)
@@ -44,106 +55,64 @@ struct ClassroomSharingView: View {
             try? svc.refreshParticipants()
             // Live participant updates only while this screen is on screen.
             svc.startObservingParticipants()
-            await refreshMoveCounts()
+            await refreshContents()
         }
         .onDisappear {
             sharingService?.stopObservingParticipants()
         }
-        // Recount while this screen is open. The repair pass only updates its
-        // own figures when it runs, so without this the card would sit on a
-        // stale number through a multi-minute move. The store's history token
-        // is what a recount keys on, and every advance of it (a save in this
-        // process or an import) reaches `CloudKitSyncStatusService` as a
-        // debounced remote-change pass — so that counter, the end of a repair
-        // and the scene coming back are the moments to look, not a 5 s timer.
-        // The call stays nearly free: it returns as soon as the token matches
-        // the last one seen, and only fetches when history shows a shared
-        // entity was inserted.
-        .onChange(of: dependencies.cloudKitSyncStatusService.remoteChangeHandlingCount) { _, _ in
-            Task { await refreshMoveCounts() }
-        }
-        .onChange(of: zoneRepair.repairInProgress) { _, running in
-            if !running { Task { await refreshMoveCounts() } }
-        }
+        // What the share holds is read when the screen appears, when the scene
+        // comes back, and after setup — not on every remote change: it reads
+        // every classroom record's object ID and asks CloudKit about them.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await refreshMoveCounts() } }
-        }
-        .sheet(isPresented: $showingUnrecoverableSheet) {
-            unrecoverableOrphansSheet
+            if phase == .active { Task { await refreshContents() } }
         }
     }
 
-    // MARK: - Move Progress
+    // MARK: - What the share holds
 
-    /// Skipped while the scene is inactive (a Settings window left open behind
-    /// the main window); the scene-phase change catches up on return.
-    private func refreshMoveCounts() async {
-        guard scenePhase == .active else { return }
-        await zoneRepair.refreshCountsIfNeeded(coreDataStack: dependencies.coreDataStack)
+    private func refreshContents() async {
+        guard scenePhase == .active, service?.currentRole == .leadGuide else { return }
+        contents = await ClassroomSharingService.shareContents(coreDataStack: dependencies.coreDataStack)
     }
 
-    /// Plain-language progress for the one-off move of records into the shared
-    /// area. `lastRunAt` is what separates "nothing left" from "not yet
-    /// checked" — the count alone reads as zero in both cases.
+    /// Plain-language state of the classroom share for the lead guide. The
+    /// "not in the share" count is read-only: it shows drift, it never fixes it.
     @ViewBuilder
-    private var moveProgressCard: some View {
+    private var shareStatusCard: some View {
         if service?.currentRole == .leadGuide {
-            let waiting = zoneRepair.orphanCount
-            let checked = zoneRepair.lastRunAt != nil
-            if zoneRepair.repairInProgress {
-                bannerCard(
-                    icon: "arrow.triangle.2.circlepath",
-                    tint: .blue,
-                    title: waiting > 0
-                        ? "Moving records — \(waiting) to go"
-                        : "Moving records…",
-                    body: "Keep the app open and on Wi-Fi. This runs in the background and only has to happen once on this device."
-                )
-            } else if waiting > 0 {
-                bannerCard(
-                    icon: "clock.fill",
-                    tint: .orange,
-                    title: "\(waiting) record(s) still to move",
-                    body: "\(PlatformVerb.tap) Repair Sync Errors below to continue, then leave the app open for a few minutes."
-                )
-            } else if checked {
-                bannerCard(
-                    icon: "checkmark.circle.fill",
-                    tint: .green,
-                    title: "All records moved",
-                    body: "This device is finished. Attendance is in the shared area and ready for an assistant."
-                )
-            } else {
-                bannerCard(
-                    icon: "questionmark.circle.fill",
-                    tint: .secondary,
-                    title: "Not checked yet on this device",
-                    body: "\(PlatformVerb.tap) Repair Sync Errors below to check whether anything still has to move."
-                )
-            }
-        }
-    }
-
-    // MARK: - Sync Status Banner
-
-    @ViewBuilder
-    private var syncStatusBanner: some View {
-        if service?.currentRole == .leadGuide {
-            if service?.isSharing == false, zoneRepair.orphanCount > 0 {
-                bannerCard(
-                    icon: "exclamationmark.triangle.fill",
-                    tint: .orange,
-                    title: "\(zoneRepair.orphanCount) record(s) waiting to sync",
-                    body: "Until you share your classroom, this data stays on this device only. " +
-                        "\(PlatformVerb.tap) Share Classroom below to enable CloudKit sync."
-                )
-            } else if service?.isSharing == true, !zoneRepair.lastUnrecoverableOrphans.isEmpty {
-                bannerCard(
-                    icon: "exclamationmark.octagon.fill",
-                    tint: .red,
-                    title: "\(zoneRepair.lastUnrecoverableOrphans.count) record(s) failed to sync",
-                    body: "These records couldn't be attached to your classroom share. \(PlatformVerb.tap) Repair Sync below to retry."
-                )
+            if service?.isSharing != true {
+                if FirstDownloadGate.isPending() {
+                    bannerCard(
+                        icon: "icloud.and.arrow.down",
+                        tint: .secondary,
+                        title: "Still downloading from iCloud",
+                        body: "Classroom sharing can be set up once the notebook has finished downloading."
+                    )
+                } else {
+                    bannerCard(
+                        icon: "person.2.slash",
+                        tint: .secondary,
+                        title: "Not shared yet",
+                        body: "Set up classroom sharing once, on this Mac, to give an assistant your class " +
+                            "list, attendance and school calendar."
+                    )
+                }
+            } else if let contents {
+                if contents.outside > 0 {
+                    bannerCard(
+                        icon: "exclamationmark.triangle.fill",
+                        tint: .orange,
+                        title: "\(contents.outside) classroom record(s) aren't in the classroom share",
+                        body: "Your assistant can't see them. The share holds \(contents.summary)."
+                    )
+                } else {
+                    bannerCard(
+                        icon: "checkmark.circle.fill",
+                        tint: .green,
+                        title: "Classroom shared",
+                        body: "The share holds \(contents.summary)."
+                    )
+                }
             }
         }
     }
@@ -170,51 +139,6 @@ struct ClassroomSharingView: View {
             lineWidth: 1,
             style: .continuous
         )
-    }
-
-    // MARK: - Unrecoverable Orphans Sheet
-
-    private var unrecoverableOrphansSheet: some View {
-        NavigationStack {
-            List {
-                Section {
-                    ForEach(zoneRepair.orphansByEntity.sorted(by: { $0.key < $1.key }), id: \.key) { entity, count in
-                        HStack {
-                            Text(entity)
-                            Spacer()
-                            Text("\(count)")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("Orphans by entity")
-                } footer: {
-                    Text(
-                        "Last checked: " +
-                        (zoneRepair.lastRunAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "never")
-                    )
-                }
-
-                if !zoneRepair.lastUnrecoverableOrphans.isEmpty {
-                    Section("Unrecoverable record IDs") {
-                        ForEach(zoneRepair.lastUnrecoverableOrphans, id: \.self) { id in
-                            Text(id.uriRepresentation().lastPathComponent)
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Sync Diagnostics")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { showingUnrecoverableSheet = false }
-                }
-            }
-        }
     }
 
     // MARK: - Role Display
@@ -392,147 +316,173 @@ struct ClassroomSharingView: View {
         }
     }
 
+    @ViewBuilder
     private var leadGuideActions: some View {
         VStack(spacing: 8) {
-            Button {
-                Task { await prepareAndPresentSharingSheet() }
-            } label: {
-                HStack(spacing: 8) {
-                    if isPreparingShare {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                    Label(
-                        service?.isSharing == true ? "Manage Sharing" : "Share Classroom",
-                        systemImage: "square.and.arrow.up"
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .disabled(isPreparingShare)
-            .sheet(isPresented: $showingSharingSheet) {
-                #if os(macOS)
-                if let svc = service {
-                    ClassroomMembersSheet(service: svc) {
-                        showingSharingSheet = false
-                        try? svc.refreshParticipants()
-                    }
-                }
-                #else
-                if let svc = service, let share = svc.currentShare {
-                    CloudSharingSheet(
-                        share: share,
-                        container: CloudKitConfigurationService.container,
-                        onShareSaved: {
-                            // Force a synchronous refresh so the
-                            // false→true transition fires and triggers
-                            // SharedStoreZoneRepair without waiting for
-                            // Core Data to surface the new share.
-                            _ = try? svc.fetchExistingShare()
-                        },
-                        onStopSharing: {
-                            // Owner ended the share inside the sheet —
-                            // resync published share state immediately
-                            // instead of reporting the dead share until
-                            // the next launch.
-                            svc.handleSharingStopped()
-                        },
-                        onDismiss: {
-                            showingSharingSheet = false
-                            try? svc.refreshParticipants()
-                        }
-                    )
-                }
-                #endif
-            }
-
             if service?.isSharing == true {
-                repairSyncButton
-
-                Button(role: .destructive) {
-                    showingStopSharingConfirmation = true
-                } label: {
-                    Label("Stop Sharing", systemImage: "xmark.circle")
-                        .frame(maxWidth: .infinity)
+                manageSharingButton
+                if (contents?.outside ?? 0) > 0 {
+                    setUpButton(title: "Add Them to the Share", prominent: false)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .confirmationDialog(
-                    "Stop Sharing?",
-                    isPresented: $showingStopSharingConfirmation,
-                    titleVisibility: .visible
-                ) {
-                    Button("Stop Sharing", role: .destructive) {
-                        #if os(macOS)
-                        // The Mac has no system sharing UI to end the share
-                        // in, and the share itself has to stay (it's what
-                        // keeps this notebook syncing) — so remove everyone.
-                        Task {
-                            do {
-                                try await service?.removeAllMembers()
-                            } catch {
-                                errorMessage = AppErrorMessages.userMessage(for: error, context: "stopping sharing")
-                            }
-                        }
-                        #else
-                        // Stopping sharing is handled by the CloudSharingController
-                        showingSharingSheet = true
-                        #endif
-                    }
-                } message: {
-                    Text("Assistants will lose access to classroom data.")
-                }
+                stopSharingButton
+            } else {
+                setUpButton(title: "Set Up Classroom Sharing", prominent: true)
             }
+        }
+        .confirmationDialog(
+            "Set up classroom sharing?",
+            isPresented: $showingSetupConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Set Up") { Task { await setUpSharing() } }
+        } message: {
+            Text(
+                "Your students, attendance, school calendar and locked days go into one classroom share. " +
+                "Lessons, notes, work and everything else stay yours alone. Keep the app open until it finishes."
+            )
         }
     }
 
     @ViewBuilder
-    private var repairSyncButton: some View {
-        Button {
-            Task {
-                // Repair waits for a first download to finish (FirstDownloadGate).
-                guard !FirstDownloadGate.isPending() else {
-                    dependencies.toastService.showInfo("Still downloading from iCloud — try again once it finishes")
-                    return
-                }
-                // Manual variant — resets the circuit breaker so user-driven
-                // retries always get a fresh attempt even after a recent
-                // auto-skip.
-                await zoneRepair.runManual(coreDataStack: dependencies.coreDataStack)
-                if zoneRepair.orphanCount == 0, zoneRepair.lastUnrecoverableOrphans.isEmpty {
-                    dependencies.toastService.showSuccess("Sync repair complete")
-                } else if !zoneRepair.lastUnrecoverableOrphans.isEmpty {
-                    showingUnrecoverableSheet = true
-                } else {
-                    dependencies.toastService.showInfo("No sync errors detected")
-                }
-            }
+    private func setUpButton(title: String, prominent: Bool) -> some View {
+        let button = Button {
+            showingSetupConfirmation = true
         } label: {
-            HStack {
-                Label("Repair Sync Errors", systemImage: "arrow.triangle.2.circlepath")
-                if zoneRepair.orphanCount > 0 {
-                    Spacer()
-                    Text("\(zoneRepair.orphanCount)")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.tint.opacity(0.18))
-                        .clipShape(Capsule())
+            HStack(spacing: 8) {
+                if isSettingUp {
+                    ProgressView().controlSize(.small)
                 }
+                Label(title, systemImage: "person.2.badge.plus")
+                    .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .disabled(isSettingUp || FirstDownloadGate.isPending())
+        if prominent {
+            button.buttonStyle(.borderedProminent).controlSize(.regular)
+        } else {
+            button.buttonStyle(.bordered).controlSize(.small)
+        }
+    }
+
+    private var manageSharingButton: some View {
+        Button {
+            Task { await prepareAndPresentSharingSheet() }
+        } label: {
+            HStack(spacing: 8) {
+                if isPreparingShare {
+                    ProgressView().controlSize(.small)
+                }
+                Label("Manage Sharing", systemImage: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.regular)
+        .disabled(isPreparingShare)
+        .sheet(isPresented: $showingSharingSheet) {
+            sharingSheet
+        }
+    }
+
+    @ViewBuilder
+    private var sharingSheet: some View {
+        #if os(macOS)
+        if let svc = service {
+            ClassroomMembersSheet(service: svc, contents: contents) {
+                showingSharingSheet = false
+                try? svc.refreshParticipants()
+            }
+        }
+        #else
+        if let svc = service, let share = svc.currentShare {
+            CloudSharingSheet(
+                share: share,
+                container: CloudKitConfigurationService.container,
+                onShareSaved: {
+                    // Resync right away rather than waiting for Core Data to
+                    // surface the saved share.
+                    _ = try? svc.fetchExistingShare()
+                },
+                onStopSharing: {
+                    // Owner ended the share inside the sheet — resync
+                    // published share state immediately instead of reporting
+                    // the dead share until the next launch.
+                    svc.handleSharingStopped()
+                },
+                onDismiss: {
+                    showingSharingSheet = false
+                    try? svc.refreshParticipants()
+                }
+            )
+        }
+        #endif
+    }
+
+    private var stopSharingButton: some View {
+        Button(role: .destructive) {
+            showingStopSharingConfirmation = true
+        } label: {
+            Label("Stop Sharing", systemImage: "xmark.circle")
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .disabled(zoneRepair.repairInProgress)
-        .overlay(alignment: .trailing) {
-            if zoneRepair.repairInProgress {
-                ProgressView()
-                    .controlSize(.small)
-                    .padding(.trailing, 8)
+        .confirmationDialog(
+            "Stop Sharing?",
+            isPresented: $showingStopSharingConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Stop Sharing", role: .destructive) {
+                #if os(macOS)
+                // The Mac has no system sharing UI to end the share in, and
+                // the share itself has to stay (a new one would be a second
+                // zone) — so remove everyone.
+                Task {
+                    do {
+                        try await service?.removeAllMembers()
+                    } catch {
+                        errorMessage = AppErrorMessages.userMessage(for: error, context: "stopping sharing")
+                    }
+                }
+                #else
+                // Stopping sharing is handled by the CloudSharingController
+                showingSharingSheet = true
+                #endif
             }
+        } message: {
+            Text("Assistants will lose access to classroom data.")
+        }
+    }
+
+    private func setUpSharing() async {
+        guard let svc = service else { return }
+        isSettingUp = true
+        defer { isSettingUp = false }
+        errorMessage = nil
+        resultMessage = nil
+        do {
+            let report = try await svc.setUpClassroomSharing(coreDataStack: dependencies.coreDataStack)
+            contents = report.contents
+            try? svc.refreshParticipants()
+            var message = report.created ? "Classroom share created. " : ""
+            message += "\(report.attached) record(s) added."
+            if let contents = report.contents { message += " The share holds \(contents.summary)." }
+            if report.failed > 0 {
+                message += " \(report.failed) couldn't be added"
+                message += report.stoppedBecause.map { " (\($0))" } ?? ""
+                message += "; try again later."
+            }
+            resultMessage = message
+        } catch {
+            let ns = error as NSError
+            Logger.classroomSharing.error("""
+                Set Up Classroom Sharing failed — \
+                domain=\(ns.domain, privacy: .public) \
+                code=\(ns.code, privacy: .public) \
+                description=\(ns.localizedDescription, privacy: .public)
+                """)
+            errorMessage = AppErrorMessages.userMessage(for: error, context: "setting up classroom sharing")
+            await refreshContents()
         }
     }
 
@@ -541,13 +491,14 @@ struct ClassroomSharingView: View {
         isPreparingShare = true
         defer { isPreparingShare = false }
         do {
-            _ = try await svc.prepareShareForPresentation(coreDataStack: dependencies.coreDataStack)
+            let (_, shareContents) = try await svc.shareForInvitations(coreDataStack: dependencies.coreDataStack)
+            contents = shareContents
             errorMessage = nil
             showingSharingSheet = true
         } catch {
             let ns = error as NSError
             Logger.classroomSharing.error("""
-                Share Classroom failed — \
+                Manage Sharing refused — \
                 domain=\(ns.domain, privacy: .public) \
                 code=\(ns.code, privacy: .public) \
                 description=\(ns.localizedDescription, privacy: .public)
