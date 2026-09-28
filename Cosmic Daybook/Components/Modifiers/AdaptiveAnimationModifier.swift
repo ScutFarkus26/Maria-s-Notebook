@@ -45,3 +45,44 @@ func adaptiveWithAnimation<Result>(_ animation: Animation? = .default, _ body: (
     #endif
     return try withAnimation(animation, body)
 }
+
+extension View {
+    /// Spins the view one turn a second while `active` (not at all under Reduce Motion).
+    ///
+    /// Use this instead of a `repeatForever` animation keyed on a flag. Once such an
+    /// animation starts, turning the flag off does not end it: SwiftUI keeps redrawing
+    /// every frame for as long as the view is on screen, even though nothing visibly
+    /// moves. Here the spinning view is a separate branch, so it goes away, animation
+    /// and all, when `active` turns false.
+    func spinning(while active: Bool) -> some View {
+        modifier(SpinWhileActiveModifier(active: active))
+    }
+}
+
+private struct SpinWhileActiveModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        if active && !reduceMotion {
+            content.modifier(ContinuousSpinModifier())
+        } else {
+            content
+        }
+    }
+}
+
+private struct ContinuousSpinModifier: ViewModifier {
+    @State private var angle: Double = 0
+
+    func body(content: Content) -> some View {
+        content
+            .rotationEffect(.degrees(angle))
+            .onAppear {
+                withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
+                    angle = 360
+                }
+            }
+    }
+}

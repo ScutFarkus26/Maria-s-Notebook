@@ -58,13 +58,7 @@ struct CloudKitStatusSettingsView: View {
                         }
                     } label: {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                            .rotationEffect(.degrees(syncService.isSyncing ? 360 : 0))
-                            .adaptiveAnimation(
-                                syncService.isSyncing
-                                    ? .linear(duration: 1).repeatForever(autoreverses: false)
-                                    : .default,
-                                value: syncService.isSyncing
-                            )
+                            .spinning(while: syncService.isSyncing)
                     }
                     .buttonStyle(.bordered)
                     .disabled(syncService.isSyncing)
@@ -317,8 +311,6 @@ private struct DetailRow: View {
 struct SyncStatusIndicator: View {
     let health: CloudKitHealthCheck.SyncHealth
 
-    @State private var isAnimating = false
-
     var body: some View {
         ZStack {
             Circle()
@@ -328,23 +320,7 @@ struct SyncStatusIndicator: View {
             Image(systemName: health.icon)
                 .font(.system(size: 14))
                 .foregroundStyle(health.color)
-                .rotationEffect(.degrees(health == .syncing && isAnimating ? 360 : 0))
-                .adaptiveAnimation(
-                    health == .syncing
-                        ? .linear(duration: 1).repeatForever(autoreverses: false)
-                        : .default,
-                    value: isAnimating
-                )
-        }
-        .onChange(of: health) { _, newHealth in
-            if newHealth == .syncing {
-                isAnimating = true
-            }
-        }
-        .onAppear {
-            if health == .syncing {
-                isAnimating = true
-            }
+                .spinning(while: health == .syncing)
         }
     }
 }
