@@ -13,19 +13,62 @@ extension CloudKitSyncStatusService {
             return
         }
 
-        // Observe remote changes (incoming CloudKit sync)
-        remoteChangeObserver = NotificationCenter.default.addObserver(
-            forName: .NSPersistentStoreRemoteChange,
-            object: monitoredCoordinator,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        let center = NotificationCenter.default
+
+        // Remote changes (incoming CloudKit sync), store changes and CloudKit
+        // events arrive as iOS 27 typed messages. Each stream is read by one
+        // main-actor task, so a started/finished event pair is handled in the
+        // order CloudKit posted it. The buffer is generous because a dropped
+        // "finished" event would leave the syncing indicator on. The streams
+        // are made here, not inside the tasks, so nothing posted before a
+        // task first runs is missed.
+        let remoteChanges = center.messages(of: monitoredCoordinator, for: .remoteChange, bufferSize: 256)
+        let storeChanges = center.messages(of: monitoredCoordinator, for: .storesDidChangeAsync, bufferSize: 256)
+        let cloudKitEvents = center.messages(
+            of: NSPersistentCloudKitContainer.self, for: .eventChanged, bufferSize: 256
+        )
+
+        messageObservationTasks.append(Task { [weak self] in
+            for await _ in remoteChanges {
                 self?.scheduleRemoteChangeHandling()
             }
-        }
+        })
 
-        // Observe local saves (outgoing sync trigger)
-        saveObserver = NotificationCenter.default.addObserver(
+        // Store coordinator changes (CloudKit delegate teardowns): stores
+        // added or removed during migrations or configuration changes.
+        messageObservationTasks.append(Task { [weak self] in
+            for await _ in storeChanges {
+                guard let self else { return }
+                // Cancel any pending task to prevent accumulation
+                self.pendingStoreChangeTask?.cancel()
+                self.pendingStoreChangeTask = Task { [weak self] in
+                    self?.handleStoreCoordinatorChange()
+                }
+            }
+        })
+
+        // CloudKit sync events (setup, import, export): the exact event type
+        // and whether it succeeded, which is more precise than inferring sync
+        // state from saves and remote changes alone.
+        messageObservationTasks.append(Task { [weak self] in
+            for await message in cloudKitEvents {
+                let event = message.event
+                self?.handleCloudKitEvent(
+                    type: event.type, isFinished: event.endDate != nil,
+                    succeeded: event.succeeded,
+                    error: event.error,
+                    startDate: event.startDate,
+                    storeIdentifier: event.storeIdentifier
+                )
+            }
+        })
+
+        // Local saves (outgoing sync trigger) stay on the classic notification:
+        // this watches every context on the coordinator, and on the iOS/macOS
+        // 27.0 SDK the object-ID save messages arrive twice per save (and the
+        // async variant never for main-queue contexts), while `DidSaveMessage`
+        // covers main-queue contexts only.
+        saveObserver = center.addObserver(
             forName: .NSManagedObjectContextDidSave,
             object: nil,
             queue: nil
@@ -46,54 +89,6 @@ extension CloudKitSyncStatusService {
                 }
             }
         }
-
-        // Observe store coordinator changes (CloudKit delegate teardowns)
-        // This notification fires when stores are added/removed from the coordinator
-        // which can happen during migrations or configuration changes
-        storeCoordinatorChangeObserver = NotificationCenter.default.addObserver(
-            forName: .NSPersistentStoreCoordinatorStoresDidChange,
-            object: monitoredCoordinator,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                // Cancel any pending task to prevent accumulation
-                self.pendingStoreChangeTask?.cancel()
-                self.pendingStoreChangeTask = Task { [weak self] in
-                    self?.handleStoreCoordinatorChange()
-                }
-            }
-        }
-
-        // Observe CloudKit sync events (setup, import, export) for precise status tracking.
-        // This is Apple's recommended notification (iOS 14+/macOS 11+) for monitoring
-        // NSPersistentCloudKitContainer sync operations. It provides the exact event type
-        // and whether it succeeded or failed, which is more precise than inferring sync
-        // state from NSManagedObjectContextDidSave + NSPersistentStoreRemoteChange alone.
-        cloudKitEventObserver = NotificationCenter.default.addObserver(
-            forName: NSPersistentCloudKitContainer.eventChangedNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            // Extract event data before crossing isolation boundary (Notification is not Sendable)
-            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                    as? NSPersistentCloudKitContainer.Event else { return }
-            let type = event.type
-            let isFinished = event.endDate != nil
-            let succeeded = event.succeeded
-            let eventError = event.error
-            let startDate = event.startDate
-            let storeIdentifier = event.storeIdentifier
-            Task { @MainActor [weak self] in
-                self?.handleCloudKitEvent(
-                    type: type, isFinished: isFinished,
-                    succeeded: succeeded,
-                    error: eventError,
-                    startDate: startDate,
-                    storeIdentifier: storeIdentifier
-                )
-            }
-        }
     }
 
     /// Removes all notification observers and cancels pending tasks.
@@ -107,22 +102,12 @@ extension CloudKitSyncStatusService {
         pendingStoreChangeTask?.cancel()
         pendingStoreChangeTask = nil
 
-        if let observer = remoteChangeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        messageObservationTasks.forEach { $0.cancel() }
+        messageObservationTasks = []
         if let observer = saveObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        if let observer = storeCoordinatorChangeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = cloudKitEventObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        remoteChangeObserver = nil
         saveObserver = nil
-        storeCoordinatorChangeObserver = nil
-        cloudKitEventObserver = nil
     }
 
     func stopObserving() {

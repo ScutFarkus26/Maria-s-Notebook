@@ -84,6 +84,9 @@ enum AppErrorMessages {
             return "The shared classroom data isn't available yet. Ask the lead guide to re-share."
         case 15: // CKError.permissionFailure
             return "You don't have permission for this action. Check with the lead guide."
+        case 37: // CKError.participantAlreadyInvited (iOS/macOS 26)
+            return "An invitation is already waiting to be accepted. Open the classroom link " +
+                "to accept it, then try again."
         default:
             return "An iCloud issue prevented \(activity). Your changes are saved locally and will sync later."
         }

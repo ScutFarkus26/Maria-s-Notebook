@@ -17,6 +17,18 @@
 	<array>
 		<string>iCloud.$(CFBundleIdentifier)</string>
 	</array>
+	<!--
+	  iOS/macOS 26 withholds the share owner's name and contact details
+	  (CKUserIdentity fields come back nil) unless this is present. An
+	  assistant running the full app sees the lead guide's row in Settings →
+	  Classroom Members; without it that row reads "Name not shared".
+	  Apple's terms: show it to share participants only, never store it —
+	  nothing here persists nameComponents or lookupInfo.
+	-->
+	<key>com.apple.developer.icloud-extended-share-access</key>
+	<array>
+		<string>InProcessShareOwnerParticipantInfo</string>
+	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
 		<string>CloudDocuments</string>

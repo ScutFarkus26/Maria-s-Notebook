@@ -30,7 +30,7 @@ final class SharedStoreOrphanGuard {
     private static let logger = Logger.sharedStoreOrphanGuard
 
     private weak var coreDataStack: CoreDataStack?
-    private var observerTask: Task<Void, Never>?
+    private var saveObservation: NotificationCenter.ObservationToken?
     private var debounceTask: Task<Void, Never>?
 
     private init() {}
@@ -38,40 +38,23 @@ final class SharedStoreOrphanGuard {
     /// Begins observing view-context saves. Idempotent — calling more
     /// than once is a no-op.
     func start(coreDataStack: CoreDataStack) {
-        guard observerTask == nil else { return }
+        guard saveObservation == nil else { return }
         self.coreDataStack = coreDataStack
 
-        observerTask = Task { [weak self] in
-            guard let context = self?.coreDataStack?.viewContext else { return }
-            // Extract Sendable data from each notification before it
-            // reaches this main-actor loop — Notification and
-            // NSManagedObject are not Sendable. We only need the set of
-            // inserted entity names to decide whether to act.
-            let saves = NotificationCenter.default
-                .notifications(named: .NSManagedObjectContextDidSave, object: context)
-                .map { Self.insertedEntityNames(in: $0) }
-            for await names in saves where !names.isEmpty {
-                self?.handleSave(insertedEntityNames: names)
-            }
+        // The view context saves on the main queue, which is what the typed
+        // `DidSaveMessage` requires; it arrives once per save, on the main
+        // actor, with the saved objects in hand.
+        saveObservation = NotificationCenter.default.addObserver(
+            of: coreDataStack.viewContext, for: .didSave
+        ) { [weak self] message in
+            let names = Set(message.inserted.compactMap { $0.objectID.entity.name })
+            guard !names.isEmpty else { return }
+            self?.handleSave(insertedEntityNames: names)
         }
         Self.logger.debug("SharedStoreOrphanGuard observing view-context saves")
     }
 
     // MARK: - Save handling
-
-    /// Entity names of the objects a did-save notification reports as
-    /// inserted — read off object IDs so the sequence's transform is safe on
-    /// any thread.
-    private nonisolated static func insertedEntityNames(in notification: Notification) -> Set<String> {
-        let inserted = (notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>) ?? []
-        var names: Set<String> = []
-        for object in inserted {
-            if let name = object.objectID.entity.name {
-                names.insert(name)
-            }
-        }
-        return names
-    }
 
     private func handleSave(insertedEntityNames: Set<String>) {
         guard let coreDataStack else { return }

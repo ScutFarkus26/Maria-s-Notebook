@@ -147,21 +147,25 @@ final class ClassroomSharingService {
     /// `runIfNeeded` (not `run`) so the circuit breaker can block the call
     /// when CloudKit is unhealthy.
     func fetchExistingShare() throws -> CKShare? {
-        let stores = container.persistentStoreCoordinator.persistentStores
-        let preferredConfig: String
-        switch currentRole {
-        case .leadGuide:
-            preferredConfig = CoreDataStack.privateConfiguration
-        case .assistant:
-            preferredConfig = CoreDataStack.sharedConfiguration
-        }
-        let preferredStore = stores.first { $0.configurationName == preferredConfig }
-
         var found: CKShare?
-        if let store = preferredStore {
+        if let store = classroomShareStore {
             found = CDClassroomMembership.classroomShare(among: try container.fetchShares(in: store), in: context)
         }
+        publishShare(found)
+        return found
+    }
 
+    /// The store this device's classroom share lives in: the private store for
+    /// the lead guide who owns it, the shared store for an assistant who
+    /// accepted it.
+    private var classroomShareStore: NSPersistentStore? {
+        let wanted = currentRole == .leadGuide
+            ? CoreDataStack.privateConfiguration
+            : CoreDataStack.sharedConfiguration
+        return container.persistentStoreCoordinator.persistentStores.first { $0.configurationName == wanted }
+    }
+
+    private func publishShare(_ found: CKShare?) {
         let wasSharing = isSharing
         currentShare = found
         if isSharing != (found != nil) { isSharing = found != nil }
@@ -174,13 +178,40 @@ final class ClassroomSharingService {
             Task { await SharedStoreZoneRepair.runIfNeeded(coreDataStack: stack) }
         }
         #endif
-
-        return found
     }
 
     /// Refreshes participant list from the current CKShare.
     func refreshParticipants() throws {
-        let share = try fetchExistingShare()
+        publishParticipants(of: try fetchExistingShare())
+    }
+
+    /// `refreshParticipants` with the share fetch off the main actor. It runs
+    /// on every CloudKit remote change while a members screen is open, and
+    /// `fetchShares(in:)` is a synchronous read of the store's CloudKit
+    /// metadata that would otherwise stall the UI mid-sync.
+    private func refreshParticipantsOffMain() async throws {
+        guard let storeID = classroomShareStore?.identifier else {
+            publishShare(nil)
+            publishParticipants(of: nil)
+            return
+        }
+        let shares = try await Self.fetchShares(in: container, storeIdentifier: storeID)
+        guard !Task.isCancelled else { return }
+        let found = CDClassroomMembership.classroomShare(among: shares, in: context)
+        publishShare(found)
+        publishParticipants(of: found)
+    }
+
+    @concurrent
+    private nonisolated static func fetchShares(
+        in container: NSPersistentCloudKitContainer, storeIdentifier: String
+    ) async throws -> [CKShare] {
+        let stores = container.persistentStoreCoordinator.persistentStores
+        guard let store = stores.first(where: { $0.identifier == storeIdentifier }) else { return [] }
+        return try container.fetchShares(in: store)
+    }
+
+    private func publishParticipants(of share: CKShare?) {
         participants = share?.participants.map { $0 } ?? []
         let recordName = share?.currentUserParticipant?.userIdentity.userRecordID?.recordName
         if currentUserRecordName != recordName { currentUserRecordName = recordName }
@@ -300,7 +331,7 @@ final class ClassroomSharingService {
                 return
             }
             guard let self else { return }
-            try? self.refreshParticipants()
+            try? await self.refreshParticipantsOffMain()
         }
     }
 

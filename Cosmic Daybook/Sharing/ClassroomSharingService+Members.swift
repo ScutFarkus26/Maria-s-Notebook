@@ -18,6 +18,8 @@ extension ClassroomSharingService {
         case noShare
         case emptyAddress
         case noAccount(String)
+        case alreadyInvited(String)
+        case alreadyMember(String)
 
         var errorDescription: String? {
             switch self {
@@ -27,6 +29,11 @@ extension ClassroomSharingService {
                 return "Enter an email address or phone number."
             case .noAccount(let address):
                 return "No Apple Account was found for \(address)."
+            case .alreadyInvited(let address):
+                return "\(address) is already invited. Send them the classroom link; "
+                    + "they'll be in once they open it and accept."
+            case .alreadyMember(let address):
+                return "\(address) is already in your classroom."
             }
         }
     }
@@ -46,9 +53,23 @@ extension ClassroomSharingService {
         guard let participant = try results.values.first?.get() else {
             throw MemberError.noAccount(address)
         }
+        // Adding the same Apple Account twice is a silent no-op on the share,
+        // so say so instead of reporting a success that changed nothing.
+        if let existing = share.participants.first(where: { isSamePerson($0, participant) }),
+           existing.acceptanceStatus != .removed {
+            throw existing.acceptanceStatus == .accepted
+                ? MemberError.alreadyMember(address)
+                : MemberError.alreadyInvited(address)
+        }
         participant.permission = permission
         share.addParticipant(participant)
-        try await save(share)
+        do {
+            try await save(share)
+        } catch let error where Self.isAlreadyInvited(error) {
+            // iOS/macOS 26: the server refuses a second invitation while the
+            // first is still waiting to be accepted.
+            throw MemberError.alreadyInvited(address)
+        }
     }
 
     func removeMember(_ participant: CKShare.Participant) async throws {
@@ -61,6 +82,29 @@ extension ClassroomSharingService {
     }
 
     // MARK: - Private
+
+    private func isSamePerson(_ lhs: CKShare.Participant, _ rhs: CKShare.Participant) -> Bool {
+        if let left = lhs.userIdentity.userRecordID, let right = rhs.userIdentity.userRecordID {
+            return left == right
+        }
+        return lhs.participantID == rhs.participantID
+    }
+
+    /// `CKError.participantAlreadyInvited`, found directly, inside a partial
+    /// failure, or under the Core Data error `persistUpdatedShare` wraps it in.
+    nonisolated static func isAlreadyInvited(_ error: any Error) -> Bool {
+        if let ckError = error as? CKError {
+            if ckError.code == .participantAlreadyInvited { return true }
+            if let partials = ckError.partialErrorsByItemID?.values,
+               partials.contains(where: isAlreadyInvited) {
+                return true
+            }
+        }
+        if let underlying = (error as NSError).userInfo[NSUnderlyingErrorKey] as? any Error {
+            return isAlreadyInvited(underlying)
+        }
+        return false
+    }
 
     private func removeMembers(where matches: (CKShare.Participant) -> Bool) async throws {
         guard let share = try fetchExistingShare() else { throw MemberError.noShare }
@@ -80,6 +124,6 @@ extension ClassroomSharingService {
     }
 
     private var cloudKitContainer: CKContainer {
-        CloudKitConfigurationService.getContainerID().map(CKContainer.init(identifier:)) ?? .default()
+        CloudKitConfigurationService.container
     }
 }

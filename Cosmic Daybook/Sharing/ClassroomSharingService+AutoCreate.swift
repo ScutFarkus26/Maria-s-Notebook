@@ -22,10 +22,7 @@ extension ClassroomSharingService {
     /// *unknown* and refuse to create a share rather than risk minting a
     /// duplicate zone.
     private static func fetchServerShareZoneNames() async throws -> Set<String> {
-        guard let containerID = CloudKitConfigurationService.getContainerID() else {
-            return []
-        }
-        let database = CKContainer(identifier: containerID).privateCloudDatabase
+        let database = CloudKitConfigurationService.container.privateCloudDatabase
         let zones = try await database.allRecordZones()
         return Set(zones.map(\.zoneID.zoneName).filter { $0.hasPrefix(shareZoneNamePrefix) })
     }

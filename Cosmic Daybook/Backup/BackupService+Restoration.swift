@@ -331,16 +331,14 @@ extension BackupService {
         // Skip the wait when there's no CloudKit-mirrored store (in-memory tests, local-only fallback).
         guard isCloudKitMirrored(viewContext: viewContext) else { return .completed }
 
-        let stream = NotificationCenter.default.notifications(
-            named: NSPersistentCloudKitContainer.eventChangedNotification
+        let events = NotificationCenter.default.messages(
+            of: NSPersistentCloudKitContainer.self, for: .eventChanged, bufferSize: 256
         )
 
         return await withTaskGroup(of: CloudExportWaitResult.self) { group in
             group.addTask {
-                for await notification in stream {
-                    guard let event = notification.userInfo?[
-                        NSPersistentCloudKitContainer.eventNotificationUserInfoKey
-                    ] as? NSPersistentCloudKitContainer.Event else { continue }
+                for await message in events {
+                    let event = message.event
                     guard event.type == .export, event.endDate != nil else { continue }
                     if event.succeeded {
                         return .completed

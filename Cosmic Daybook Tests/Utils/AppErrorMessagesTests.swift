@@ -37,6 +37,13 @@ struct AppErrorMessagesTests {
             == "Your iCloud storage is full. Free up space so your data can continue syncing.")
     }
 
+    @Test("A pending invitation says to accept it first")
+    func cloudKitParticipantAlreadyInvited() {
+        let error = NSError(domain: "CKErrorDomain", code: 37)
+        #expect(AppErrorMessages.userMessage(for: error, context: "joining the classroom")
+            == "An invitation is already waiting to be accepted. Open the classroom link to accept it, then try again.")
+    }
+
     @Test("A Core Data read error and a save error read differently")
     func coreDataCodes() {
         let readError = NSError(domain: NSCocoaErrorDomain, code: 260)

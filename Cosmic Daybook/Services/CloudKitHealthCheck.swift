@@ -239,14 +239,8 @@ final class CloudKitHealthCheck {
     /// Returns nil on error (status unknown — keep the current value rather
     /// than flapping the UI on a transient failure).
     private static func fetchAccountStatus() async -> CKAccountStatus? {
-        let ckContainer: CKContainer
-        if let containerID = CloudKitConfigurationService.getContainerID() {
-            ckContainer = CKContainer(identifier: containerID)
-        } else {
-            ckContainer = CKContainer.default()
-        }
         do {
-            return try await ckContainer.accountStatus()
+            return try await CloudKitConfigurationService.container.accountStatus()
         } catch {
             Logger.cloudKitHealthCheck
                 .warning("accountStatus failed: \(error.localizedDescription)")

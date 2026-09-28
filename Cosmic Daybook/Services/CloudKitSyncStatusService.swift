@@ -89,10 +89,10 @@ final class CloudKitSyncStatusService {
 
     // MARK: - Internal State (accessed by extensions)
 
-    var remoteChangeObserver: NSObjectProtocol?
+    /// One task per typed message stream (remote change, store change,
+    /// CloudKit event); cancelling it ends the stream.
+    var messageObservationTasks: [Task<Void, Never>] = []
     var saveObserver: NSObjectProtocol?
-    var storeCoordinatorChangeObserver: NSObjectProtocol?
-    var cloudKitEventObserver: NSObjectProtocol?
     var syncStartTime: Date?
     private(set) var coreDataStack: CoreDataStack?
     var monitoredPersistentStoreCoordinator: NSPersistentStoreCoordinator? {

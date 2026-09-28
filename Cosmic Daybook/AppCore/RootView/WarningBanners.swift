@@ -127,13 +127,7 @@ struct CloudKitSyncWarningBanner: View {
     var body: some View {
         bannerContent
             .task {
-                let ckContainer: CKContainer
-                if let containerID = CloudKitConfigurationService.getContainerID() {
-                    ckContainer = CKContainer(identifier: containerID)
-                } else {
-                    ckContainer = CKContainer.default()
-                }
-                if let status = try? await ckContainer.accountStatus() {
+                if let status = try? await CloudKitConfigurationService.container.accountStatus() {
                     isiCloudSignedIn = status == .available
                 }
             }

@@ -424,7 +424,7 @@ struct ClassroomSharingView: View {
                 if let svc = service, let share = svc.currentShare {
                     CloudSharingSheet(
                         share: share,
-                        container: CKContainer.default(),
+                        container: CloudKitConfigurationService.container,
                         onShareSaved: {
                             // Force a synchronous refresh so the
                             // false→true transition fires and triggers

@@ -18,8 +18,17 @@ enum CloudKitConfigurationService {
     ///
     /// The spelling is historical: the app has been renamed (Cosmic Daybook)
     /// but CloudKit containers cannot be, and this one holds the live data.
+    static let containerID = "iCloud.DanielSDeBerry.MariasNoteBook"
+
     static func getContainerID() -> String? {
-        "iCloud.DanielSDeBerry.MariasNoteBook"
+        containerID
+    }
+
+    /// The container itself. Use this rather than `CKContainer.default()`,
+    /// which resolves from the bundle identifier and so names a different,
+    /// empty container in the assistant app.
+    static var container: CKContainer {
+        CKContainer(identifier: containerID)
     }
 
     // MARK: - Status
