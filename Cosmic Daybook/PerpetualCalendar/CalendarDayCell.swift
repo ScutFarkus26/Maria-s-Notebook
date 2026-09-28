@@ -19,13 +19,16 @@ struct CalendarDayMetrics {
     /// Padding around the whole cell.
     var cellVerticalPadding: CGFloat
 
-    /// The planning calendar's tighter cells, which also carry event and todo rows.
+    /// The planning calendar's cells, which also carry event and todo rows.
+    /// The day-number row is a fixed 22pt frame, so a plain day stands
+    /// `22 + 2 * dayRowVerticalPadding + 2 * cellVerticalPadding` = 34pt tall
+    /// and a Saturday, with its parsha label, 52pt.
     static let planning = CalendarDayMetrics(
-        rowSpacing: 1,
-        horizontalPadding: 8,
-        parshaTopPadding: 1,
-        dayRowVerticalPadding: 0,
-        cellVerticalPadding: 1
+        rowSpacing: 2,
+        horizontalPadding: 12,
+        parshaTopPadding: 3,
+        dayRowVerticalPadding: 4,
+        cellVerticalPadding: 2
     )
 }
 

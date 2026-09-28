@@ -76,7 +76,7 @@ struct PlanningCalendarView: View {
     var body: some View {
         CalendarGridView(
             title: "Calendar",
-            columnWidth: 180,
+            columnWidth: 200,
             yearRange: yearRange,
             nonSchoolCells: nonSchoolCells,
             headerTrailing: { headerMenu },
