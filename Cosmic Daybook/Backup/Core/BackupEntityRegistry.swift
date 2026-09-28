@@ -22,6 +22,16 @@ struct BackupEntityRegistry {
     /// added to backup coverage in format v18).
     static let notYetBackedUpEntityNames: Set<String> = []
 
+    /// Types a backup carries but a restore neither clears nor writes.
+    ///
+    /// `ClassroomMembership` rows say where *this device* stands in a CloudKit
+    /// classroom share, pinned by zone name — and a zone exists only in the
+    /// CloudKit environment and notebook that made it. Restored into the fresh
+    /// Production notebook, a Development row would pin a share that isn't
+    /// there; cleared by a Replace restore, the device would forget the share
+    /// it really has. So restore leaves the device's own rows as they are.
+    static let keptOnRestoreEntityNames: Set<String> = ["ClassroomMembership"]
+
     /// Entity type names for progress reporting and error messages
     static func entityName(for type: NSManagedObject.Type) -> String {
         String(describing: type)

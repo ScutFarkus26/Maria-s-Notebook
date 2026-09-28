@@ -729,6 +729,12 @@ final class BackupFieldCoverageTests {
                 Issue.record("\(spec.entityName): seeding produced no instance")
                 continue
             }
+            // Carried by the backup, left alone by restore (this device's pin).
+            if BackupEntityRegistry.keptOnRestoreEntityNames.contains(spec.entityName) {
+                let kept = try FieldCoverage.restoredObject(for: entry.object, entityName: spec.entityName, in: dctx)
+                #expect(kept == nil, "\(spec.entityName) must not be restored")
+                continue
+            }
             guard let restored = try FieldCoverage.restoredObject(
                 for: entry.object, entityName: spec.entityName, in: dctx
             ) else {

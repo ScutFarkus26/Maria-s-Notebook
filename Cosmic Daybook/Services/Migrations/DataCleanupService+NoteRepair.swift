@@ -17,17 +17,26 @@ nonisolated extension DataCleanupService {
     /// orphaned, and deleting it there would delete it on all devices. Photos in
     /// iCloud are removed only with their note (`CDNote.prepareForDeletion`) or
     /// by the editor that wrote them.
-    static func cleanupOrphanedNoteImages(using context: NSManagedObjectContext) {
+    ///
+    /// **Never judged by a store that isn't all there.** A store still
+    /// downloading (`FirstDownloadGate`) or holding no notes at all — a Reset
+    /// Local Cache, a new device, the empty Production notebook before its
+    /// restore — references none of the photos, so every one of them would
+    /// read as orphaned and be deleted. It waits for a store that is.
+    static func cleanupOrphanedNoteImages(
+        using context: NSManagedObjectContext,
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) {
+        guard !firstDownloadPending else { return }
         do {
-            let photosDir = try PhotoStorageService.localPhotosDirectory()
-            let fm = FileManager.default
-
-            let files = try fm.contentsOfDirectory(at: photosDir, includingPropertiesForKeys: nil)
-            let imageFilenames = Set(files.map(\.lastPathComponent))
-
             let notesFetch = CDFetchRequest(CDNote.self)
             let notes = context.safeFetch(notesFetch)
+            guard !notes.isEmpty else { return }
             let referencedPaths = Set(notes.compactMap(\.imagePath))
+
+            let photosDir = try PhotoStorageService.localPhotosDirectory()
+            let files = try FileManager.default.contentsOfDirectory(at: photosDir, includingPropertiesForKeys: nil)
+            let imageFilenames = Set(files.map(\.lastPathComponent))
 
             let orphanedFiles = imageFilenames.subtracting(referencedPaths)
 

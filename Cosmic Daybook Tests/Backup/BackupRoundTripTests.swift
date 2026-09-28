@@ -6,7 +6,7 @@ import Testing
 // MARK: - Shared Helpers
 
 @MainActor
-private enum BackupTestUtil {
+enum BackupTestUtil {
     /// Produces a fresh temp file URL with the correct extension. Caller is responsible for removing it.
     static func tempBackupURL() -> URL {
         FileManager.default.temporaryDirectory
@@ -66,8 +66,10 @@ private enum BackupTestUtil {
             "Lesson": 2,
             "Note": 3,
             "WorkModel": 1,
-            "AttendanceRecord": 1,
-            "ClassroomMembership": 1
+            "AttendanceRecord": 1
+            // ClassroomMembership is seeded (so the backup carries it) but a
+            // restore leaves this device's rows alone: see
+            // `BackupEntityRegistry.keptOnRestoreEntityNames`.
         ]
     }
 
@@ -125,6 +127,11 @@ final class BackupRoundTripTests {
         let destStack = try CoreDataTestHelpers.makeInMemoryStack()
         try await BackupTestUtil.importCurrentBackup(from: url, into: destStack.viewContext, mode: .merge)
 
+        #expect(info.entityCounts["ClassroomMembership"] == 1, "the backup still carries membership rows")
+        #expect(
+            try BackupTestUtil.count(entityName: "ClassroomMembership", in: destStack.viewContext) == 0,
+            "a restore never writes another device's (or environment's) classroom pin"
+        )
         for (entityName, expectedCount) in expected {
             let actual = try BackupTestUtil.count(entityName: entityName, in: destStack.viewContext)
             #expect(

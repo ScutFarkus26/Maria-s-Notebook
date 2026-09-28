@@ -30,7 +30,8 @@ struct BackupRestoreEquivalenceTests {
         defer { store.remove() }
         let restored = try await Restore.expectSameRestore(of: url, mode: .merge, "empty store")
         let rows = try Restore.snapshot(of: restored.viewContext)
-        #expect(Set(BackupEntityTable.names).isSubset(of: rows.keys), "every backed-up type restored")
+        let restorable = Set(BackupEntityTable.names).subtracting(BackupEntityRegistry.keptOnRestoreEntityNames)
+        #expect(restorable.isSubset(of: rows.keys), "every restorable backed-up type restored")
         #expect(rows["Note"]?.count == 1_206)
     }
 

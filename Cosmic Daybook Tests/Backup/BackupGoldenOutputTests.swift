@@ -38,7 +38,12 @@ struct BackupGoldenOutputTests {
         let golden = try #require(try Self.loadGolden(), "Missing \(Self.goldenName).json in the test bundle")
         let restored = try await Self.restore(golden)
         let reexported = try Self.export(restored.viewContext)
-        Self.expectSame(reexported, golden, context: "restore then export")
+        // Types a restore leaves alone (this device's classroom pin) come back
+        // out only if the store already had them — the fresh one doesn't.
+        let restorable = golden.filter { key, _ in
+            !BackupEntityRegistry.keptOnRestoreEntityNames.contains(String(key.split(separator: "/").last ?? ""))
+        }
+        Self.expectSame(reexported, restorable, context: "restore then export")
     }
 
     // MARK: - Helpers

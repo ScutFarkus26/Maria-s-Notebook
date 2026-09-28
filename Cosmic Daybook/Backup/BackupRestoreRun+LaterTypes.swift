@@ -64,13 +64,10 @@ extension BackupRestoreRun {
         let viewContext = context
         let index = self.index
 
-        // v13+ entities
-        if let memberships = try rows(\.classroomMemberships) {
-            BackupEntityImporter.importRows(
-                memberships, as: CDClassroomMembership.self, into: viewContext,
-                existing: { try index.existing(CDClassroomMembership.self, id: $0) }
-            )
-        }
+        // v13+ entities: ClassroomMembership rows are carried but never
+        // restored (`BackupEntityRegistry.keptOnRestoreEntityNames`). Taking
+        // them still frees them in type order like every other type.
+        _ = try rows(\.classroomMemberships)
 
         // v14+ entities
         if let meetingWorkReviews = try rows(\.meetingWorkReviews) {

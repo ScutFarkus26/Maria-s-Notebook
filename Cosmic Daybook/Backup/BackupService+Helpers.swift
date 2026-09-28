@@ -56,6 +56,8 @@ extension BackupService {
             // deleting them in replace mode would permanently destroy data the
             // backup never captured.
             guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(entityName) else { continue }
+            // Nor one the restore leaves alone on purpose (this device's pin).
+            guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(entityName) else { continue }
 
             do {
                 try deletePagedForEntity(

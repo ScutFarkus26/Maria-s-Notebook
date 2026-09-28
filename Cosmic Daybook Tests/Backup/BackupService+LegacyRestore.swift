@@ -759,13 +759,8 @@ extension BackupService {
             )
         }
 
-        // v13+ entities
-        if let memberships = payload.classroomMemberships {
-            BackupEntityImporter.importRows(
-                memberships, as: CDClassroomMembership.self, into: viewContext,
-                existing: { try index.existing(CDClassroomMembership.self, id: $0) }
-            )
-        }
+        // v13+ entities: ClassroomMembership is carried but no longer
+        // restored (2026-09-28), kept in step with the live restore.
 
         // v14+ entities
         if let meetingWorkReviews = payload.meetingWorkReviews {
