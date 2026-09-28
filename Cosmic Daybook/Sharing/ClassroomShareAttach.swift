@@ -82,6 +82,13 @@ nonisolated enum ClassroomShareAttach {
     /// Attaches `ids` to `share` in chunks, retrying a failed chunk one record
     /// at a time so one bad record doesn't cost the rest. Stops early — with
     /// the remainder in `failed` — when the delegate dies or CloudKit times out.
+    ///
+    /// Each call is handed the latest copy of the share (`current`), never the
+    /// one passed in: every `container.share(_:to:)` saves the share record,
+    /// so after the first chunk the caller's copy carries an old change tag.
+    /// Core Data then retries the export forever on "Server Record Changed"
+    /// (oplock) and the call never returns — the 2026-09-28 Production setup
+    /// hung that way after 400 of 3,226 records.
     static func attach(
         _ ids: [NSManagedObjectID],
         to share: CKShare,
@@ -93,7 +100,7 @@ nonisolated enum ClassroomShareAttach {
             let end = min(start + chunkSize, ids.count)
             let chunk = Array(ids[start..<end])
             do {
-                try await shareOffMain(chunk, to: share, container: container)
+                try await shareOffMain(chunk, to: await current(share, container: container), container: container)
                 outcome.attached += chunk.count
             } catch {
                 let ns = error as NSError
@@ -106,7 +113,7 @@ nonisolated enum ClassroomShareAttach {
                 }
                 for (index, id) in chunk.enumerated() {
                     do {
-                        try await shareOffMain([id], to: share, container: container)
+                        try await shareOffMain([id], to: await current(share, container: container), container: container)
                         outcome.attached += 1
                     } catch {
                         let single = error as NSError
@@ -125,6 +132,22 @@ nonisolated enum ClassroomShareAttach {
             start = end
         }
         return outcome
+    }
+
+    /// The latest copy of `share`: the server's when it answers, since the
+    /// server's change tag is the one a save is checked against; otherwise the
+    /// store's; `share` itself when neither has it. The guide owns the share
+    /// (private database); an assistant sees it in the shared database.
+    static func current(_ share: CKShare, container: NSPersistentCloudKitContainer) async -> CKShare {
+        let cloud = await CloudKitConfigurationService.container
+        let database = share.recordID.zoneID.ownerName == CKCurrentUserDefaultName
+            ? cloud.privateCloudDatabase
+            : cloud.sharedCloudDatabase
+        if let fresh = try? await database.record(for: share.recordID) as? CKShare {
+            return fresh
+        }
+        let stored = (try? container.fetchShares(in: nil)) ?? []
+        return stored.first { $0.recordID == share.recordID } ?? share
     }
 
     /// Why a failure should end the whole pass: every later call would fail
