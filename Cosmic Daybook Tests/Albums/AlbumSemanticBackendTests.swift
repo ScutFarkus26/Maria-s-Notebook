@@ -47,8 +47,11 @@ struct AlbumSemanticBackendTests {
         func build(_ backend: String) -> AlbumSemanticIndex.VectorSet? {
             AlbumSemanticIndex.loadOrBuildVectors(for: album, backend: backend, cacheDir: dir)
         }
+        // Straight from the file system: URL.resourceValues caches on the URL
+        // until a run-loop pass, which an async test never gets, so it would
+        // keep answering with the first date it read.
         func written() throws -> Date? {
-            try file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
         }
 
         let built = try #require(build("sentence"))
@@ -62,7 +65,10 @@ struct AlbumSemanticBackendTests {
         // the album is rebuilt with it, or left out where it can't load.
         let other = build("contextual")
         #expect(other?.titleBackend != "sentence")
-        if other != nil { #expect(try written() != sentenceWrite) }
+        if other != nil {
+            #expect(try written() != sentenceWrite)
+            #expect(AlbumVectorCacheFile.read(from: file)?.titleBackend == "contextual")
+        }
     }
 
     private func makeCacheDir() throws -> URL {
