@@ -45,12 +45,24 @@ Don't ask questions before starting — Danny's standing instructions:
    the lock (the script prints who holds it). On a build failure the script prints its
    log path — read the tail and report the actual compiler error. If the Mac build
    fails, still go on to the devices, and vice versa.
-4. **A device that failed** (locked, asleep, out of range): tell Danny to unlock it and
+4. **Show the timers.** Right after starting the Mac step, show Danny a countdown
+   widget: call `mcp__visualize__read_me` (module `interactive`) silently, then
+   `mcp__visualize__show_widget` with `assets/timer-widget.html` (next to this file),
+   placeholders filled in:
+   - `__MAC_S__ __IPHONE_S__ __IPAD_S__` ← the three numbers
+     `scripts/estimate.sh` prints (median of past build logs; lock waits skipped).
+   - `__START_MS__` ← when the first unfinished step started, in epoch ms (`date +%s`
+     × 1000 when you launch it).
+   - `__MAC_DONE__ __IPHONE_DONE__` ← `false` / `true`.
+   When a step finishes, show it again with that step `true` and `__START_MS__` = now,
+   so the next countdown starts from the real time. The widget has no live feed —
+   it only counts down estimates; your messages say what actually happened.
+5. **A device that failed** (locked, asleep, out of range): tell Danny to unlock it and
    rerun that device's line with `--archive`; nothing needs rebuilding.
-5. **Prune archives.** Last, run `Scripts/prune_release_archives.sh`: keeps the newest
+6. **Prune archives.** Last, run `Scripts/prune_release_archives.sh`: keeps the newest
    three Mac and three iOS roll-out archives and moves older ones to the Trash (other
    archives untouched).
-6. **Report** in a short table: Mac / iPhone / iPad, ✓/✗, `main <sha>`, and the profile
+7. **Report** in a short table: Mac / iPhone / iPad, ✓/✗, `main <sha>`, and the profile
    expiry the scripts print. Then update the `release-builds-on-devices` memory with the
    date and sha installed.
 

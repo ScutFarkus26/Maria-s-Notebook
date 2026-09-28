@@ -1,0 +1,59 @@
+<h2 class="sr-only">Estimated countdown timers for the Mac, iPhone and iPad roll-out steps, run one after another.</h2>
+<div style="padding: 0.5rem 0;">
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1rem;">
+    <div style="background: var(--surface-1); border-radius: var(--radius); padding: 1rem;">
+      <div style="font-size: 13px; color: var(--text-secondary);">Everything done in</div>
+      <div id="total" style="font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums;">--:--</div>
+    </div>
+    <div style="background: var(--surface-1); border-radius: var(--radius); padding: 1rem;">
+      <div style="font-size: 13px; color: var(--text-secondary);">Estimated finish</div>
+      <div id="finish" style="font-size: 24px; font-weight: 500;">--</div>
+    </div>
+  </div>
+  <div id="rows"></div>
+  <div style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">Estimates come from past builds. This panel doesn't get live updates — Claude reports the real progress.</div>
+</div>
+<script>
+const startMs = __START_MS__;
+const steps = [
+  { name: "Mac", icon: "ti-device-laptop", detail: "Build and install, then reopen", dur: __MAC_S__, done: __MAC_DONE__ },
+  { name: "iPhone", icon: "ti-device-mobile", detail: "Build for iOS and install", dur: __IPHONE_S__, done: __IPHONE_DONE__ },
+  { name: "iPad", icon: "ti-device-ipad", detail: "Install the same build", dur: __IPAD_S__, done: false }
+];
+let t = startMs;
+steps.forEach(s => { s.start = t; s.end = t + s.dur * 1000; if (!s.done) t = s.end; else { s.start = s.end = 0; } });
+const rows = document.getElementById('rows');
+rows.innerHTML = steps.map((s, i) => `
+  <div style="border: 0.5px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; background: var(--surface-2);">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <i class="ti ${s.icon}" style="font-size:20px; color: var(--text-secondary);" aria-hidden="true"></i>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:15px; font-weight:500;">${s.name}</div>
+        <div style="font-size:13px; color: var(--text-secondary);">${s.detail}</div>
+      </div>
+      <div style="text-align:right;">
+        <div id="c${i}" style="font-size:18px; font-weight:500; font-variant-numeric: tabular-nums;">--:--</div>
+        <div id="s${i}" style="font-size:12px; color: var(--text-muted);"></div>
+      </div>
+    </div>
+    <div style="height:4px; background: var(--surface-1); border-radius: 2px; margin-top: 10px; overflow:hidden;">
+      <div id="b${i}" style="height:4px; width:0%; background: var(--fill-accent); border-radius: 2px;"></div>
+    </div>
+  </div>`).join('');
+const fmt = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const last = steps[steps.length - 1];
+document.getElementById('finish').textContent = new Date(last.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+function tick() {
+  const now = Date.now();
+  steps.forEach((s, i) => {
+    const c = document.getElementById('c' + i), st = document.getElementById('s' + i), b = document.getElementById('b' + i);
+    if (s.done) { c.innerHTML = '<i class="ti ti-check" aria-label="done"></i>'; st.textContent = 'done'; b.style.width = '100%'; b.style.background = 'var(--fill-success)'; return; }
+    if (now < s.start) { c.textContent = fmt(s.dur * 1000); st.textContent = 'starts in ' + fmt(s.start - now); b.style.width = '0%'; }
+    else if (now < s.end) { c.textContent = fmt(s.end - now); st.textContent = 'estimated left'; b.style.width = Math.round((now - s.start) / (s.dur * 10)) + '%'; }
+    else { c.textContent = '+' + fmt(now - s.end); st.textContent = 'past estimate — may still be running'; b.style.width = '100%'; b.style.background = 'var(--fill-warning)'; }
+  });
+  const left = last.end - now;
+  document.getElementById('total').textContent = left > 0 ? fmt(left) : 'any moment';
+}
+tick(); setInterval(tick, 1000);
+</script>
