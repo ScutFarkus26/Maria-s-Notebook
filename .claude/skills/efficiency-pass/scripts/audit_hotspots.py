@@ -124,8 +124,9 @@ RULES: list[Rule] = [
         "repeatForever animation",
         "A repeating animation forces the render server to redraw at frame rate for as long as the view is "
         "on screen, including when the window is behind another one on the Mac.",
-        "Is it gated on visibility / reduceMotion / a finite state? (The 2026-09-10 audit verified the "
-        "existing ones are gated; re-check only new ones.)",
+        "Does the repeating view leave the hierarchy when the state ends? Keying it on a flag is not enough: "
+        "once started, a repeatForever keeps redrawing after the flag turns off (2026-09-28: the Settings sync "
+        "spinners held the idle Mac at ~17% CPU). Use `.spinning(while:)`, an `if` branch, or `.symbolEffect`.",
         re.compile(r"repeatForever"),
     ),
     Rule(

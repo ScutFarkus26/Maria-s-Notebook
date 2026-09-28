@@ -74,6 +74,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | An album's outline, lessons and page count without keeping its PDF open | `AlbumContents` (read once); `Album.document` opens on demand and `releaseDocument()` closes it (called by `releaseMemory` at both levels) | `Albums/AlbumContents.swift`, `Albums/AlbumLibrary.swift` |
 | Album search text, vectors and saves | `AlbumTextFolds` (fold off-main, once per album, on first search), `AlbumPageTextReader` (reopens the PDF every 50 pages), `AlbumVectorCacheFile` (raw Float32 cache), `AlbumSaveDebouncer` (per-key debounce: ink by page, position by album; flush on disappear/background) | `Albums/` |
 | Release something after a quiet period (resettable, injected clock) | `IdleCountdown` (used for the album query model: released 5 min after the last search) | `Albums/IdleCountdown.swift` |
+| A spinner that stops (sync icons and the like) | `.spinning(while:)`: one turn a second while the flag is on, nothing under Reduce Motion; the spinning view is its own branch, so the animation ends with it. Never a `repeatForever` keyed on a flag, which keeps redrawing after the flag turns off | `Components/Modifiers/AdaptiveAnimationModifier.swift` |
 | Mac maintenance on a schedule | `ScheduledBackupActivity` (`NSBackgroundActivityScheduler`, 10% tolerance, `.utility`, honours `shouldDefer`); timing in `ScheduledBackupTiming` | `Backup/Core/` |
 
 Services that already consult `EnergyPolicy`: `AppBootstrapper` (post-launch migrations),
@@ -146,7 +147,8 @@ The twelve rules added that day flag these on main 20e21cbd; each is a real cand
 
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
-All `repeatForever` animations are gated or bounded; RootView / StudentsView / WorksAgenda
+All `repeatForever` animations are gated or bounded (wrong for the two Settings sync spinners: keyed
+on a flag, they kept redrawing after every sync until 2026-09-28, ~17% CPU on the idle Mac); RootView / StudentsView / WorksAgenda
 observers are debounced; EventKit syncs are throttled to 10 min; backups are change-gated;
 image caches are bounded; `NWPathMonitor` is a single shared instance with a cancelling holder.
 

@@ -47,6 +47,8 @@ CASES = [
     ("heavy_loop_without_pool", "3035fa87", "Albums/AlbumLibrary.swift|0..<doc.pageCount", True),
     ("heavy_loop_without_pool", "3035fa87", "Albums/AlbumSemanticIndex.swift", True),
     ("offset_paging", "196babd3", "Backup/BackupService+DataCollection.swift", True),
+    # Fixed after AFTER (2026-09-28), so it is not checked there.
+    ("repeat_forever_animation", "cfcf9043", "Settings/CloudKitStatusSettingsView.swift", None),
 ]
 
 
