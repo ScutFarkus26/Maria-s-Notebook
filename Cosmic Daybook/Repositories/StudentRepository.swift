@@ -93,19 +93,26 @@ struct StudentRepository: SavingRepository {
 
     // MARK: - Delete
 
-    /// Delete a CDStudent by ID, with their track enrollments.
-    ///
-    /// The enrollments used to go by cascade through `Student.trackEnrollments`;
-    /// schema 9 removed that relationship (it pulled tracks and lessons into
-    /// the classroom share), so they are deleted here by `studentID`.
-    func deleteStudent(id: UUID) throws {
-        guard let student = fetchStudent(id: id) else { return }
-        let enrollments = CDFetchRequest(CDStudentTrackEnrollmentEntity.self)
-        enrollments.predicate = NSPredicate(format: "studentID == %@", id.uuidString)
-        for enrollment in context.safeFetch(enrollments) {
-            context.delete(enrollment)
+    /// Deletes a student and everything that is hers alone, and takes her off
+    /// every record she shares (`StudentDeletion`). The deletion is saved on
+    /// its own: edits already pending are saved first, so a failed save can
+    /// discard exactly the deletion's changes (`WorkDeletionService` runs
+    /// transactions of its own inside it, which an outer undo group can't
+    /// roll back). Her documents' files are removed only once it has saved.
+    @discardableResult
+    func deleteStudent(id: UUID) throws -> StudentDeletionReport {
+        guard fetchStudent(id: id) != nil else { return StudentDeletionReport() }
+        if context.hasChanges { try context.save() }
+        let report = StudentDeletion.deleteEverything(for: id, in: context)
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
         }
-        context.delete(student)
-        try context.save()
+        for url in report.documentFiles {
+            try? StudentDocumentFileStorage.deleteIfManaged(url)
+        }
+        return report
     }
 }

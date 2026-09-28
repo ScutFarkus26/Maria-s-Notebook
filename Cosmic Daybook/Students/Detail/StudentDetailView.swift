@@ -281,7 +281,11 @@ struct StudentDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This action cannot be undone.")
+            Text(
+                "Their attendance, presentations, meetings, work, notes about only them and every "
+                    + "other record of theirs are deleted too. Records shared with other children "
+                    + "stay for them. This can't be undone."
+            )
         }
         .sheet(item: $vm.selectedLessonForGive) { lesson in
             lessonGiveSheet(for: lesson)
