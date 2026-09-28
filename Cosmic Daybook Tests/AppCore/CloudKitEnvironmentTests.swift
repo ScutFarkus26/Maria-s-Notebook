@@ -20,11 +20,11 @@ struct CloudKitEnvironmentTests {
         #expect(CloudKitEnvironment.resolve("production") == .development)
     }
 
-    @Test("The test host is a Development build")
-    func testHostIsDevelopment() {
-        #expect(CloudKitEnvironment.current == .development)
-        #expect(Bundle.main.object(forInfoDictionaryKey: CloudKitEnvironment.infoPlistKey) as? String == "Development")
-        #expect(CloudKitEnvironment.allowsSchemaInitialization)
+    @Test("The project builds for Production, which refuses schema runs")
+    func testHostIsProduction() {
+        #expect(CloudKitEnvironment.current == .production)
+        #expect(Bundle.main.object(forInfoDictionaryKey: CloudKitEnvironment.infoPlistKey) as? String == "Production")
+        #expect(!CloudKitEnvironment.allowsSchemaInitialization)
     }
 
     @Test("Development keeps bare keys; Production suffixes them")
@@ -37,16 +37,24 @@ struct CloudKitEnvironmentTests {
         )
     }
 
-    @Test("Per-store sync keys keep their Development names")
-    func developmentKeyNamesUnchanged() {
-        #expect(UserDefaultsKeys.persistentHistoryStoreTokens == "PersistentHistory.storeTokens")
-        #expect(UserDefaultsKeys.firstDownloadPending == "CloudKit.firstDownloadPending")
-        #expect(UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate == "CloudKitSync.lastSuccessfulExportStartDate")
-        #expect(UserDefaultsKeys.persistentHistoryLastPurgeDate == "PersistentHistory.lastPurgeDate")
-        #expect(UserDefaultsKeys.cloudKitLastSuccessfulSyncDate == "CloudKitSync.lastSuccessfulSyncDate")
-        #expect(UserDefaultsKeys.checkInLinkRepairHasRun == "DataMigrations.checkInLinkRepair.hasRun")
-        #expect(UserDefaultsKeys.classroomIdentityRecordName == "ClassroomIdentity.userRecordName")
-        #expect(UserDefaultsKeys.cloudKitErrorLog == "cloudKitErrorLog")
+    @Test("Per-store sync keys are the Development names plus a Production suffix")
+    func perStoreKeyNames() {
+        // The bare strings are the Development notebook's keys, which must never
+        // change; this Production build reads and writes the suffixed copies.
+        let keys: [(String, String)] = [
+            (UserDefaultsKeys.persistentHistoryStoreTokens, "PersistentHistory.storeTokens"),
+            (UserDefaultsKeys.firstDownloadPending, "CloudKit.firstDownloadPending"),
+            (UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate, "CloudKitSync.lastSuccessfulExportStartDate"),
+            (UserDefaultsKeys.persistentHistoryLastPurgeDate, "PersistentHistory.lastPurgeDate"),
+            (UserDefaultsKeys.cloudKitLastSuccessfulSyncDate, "CloudKitSync.lastSuccessfulSyncDate"),
+            (UserDefaultsKeys.checkInLinkRepairHasRun, "DataMigrations.checkInLinkRepair.hasRun"),
+            (UserDefaultsKeys.classroomIdentityRecordName, "ClassroomIdentity.userRecordName"),
+            (UserDefaultsKeys.cloudKitErrorLog, "cloudKitErrorLog"),
+        ]
+        for (key, developmentName) in keys {
+            #expect(key == "\(developmentName).Production")
+            #expect(CloudKitEnvironment.development.scoped(developmentName) == developmentName)
+        }
     }
 
     @Test("Production's notebook lives in its own folder; Development's and Sample Class stay put")
@@ -57,7 +65,7 @@ struct CloudKitEnvironmentTests {
         #expect(production == base.appendingPathComponent("Production", isDirectory: true))
         #expect(production.standardizedFileURL != base.standardizedFileURL)
         #expect(CoreDataStack.privateStoreURL().deletingLastPathComponent().standardizedFileURL
-            == base.standardizedFileURL)
+            == production.standardizedFileURL)
         #expect(CoreDataStack.sampleClassroomStoreURL().deletingLastPathComponent().standardizedFileURL
             == base.standardizedFileURL)
     }

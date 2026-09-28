@@ -18,9 +18,9 @@
 #   ~/Library/Developer/Xcode/DerivedData/CosmicDaybook-ReleaseInstall for the
 #   next run.
 # - Signs it the way the Debug builds are signed (Apple Development, automatic):
-#   the same bundle id, sandbox container and CloudKit Development environment, so
-#   it opens the same notebook. Distribution signing would move it to the
-#   Production environment. The development profile expires; the script prints
+#   the same bundle id and sandbox container, and the CloudKit environment the
+#   project's CLOUDKIT_ENVIRONMENT setting names (Production since 2026-09-28), so
+#   it opens the same notebook. The development profile expires; the script prints
 #   the date, and any run before it renews it.
 # - Refuses to replace the installed copy while it is running (it may be an
 #   MCP-only copy with no window, launched by the bridge), unless --quit: then it
