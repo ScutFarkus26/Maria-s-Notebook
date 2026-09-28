@@ -75,10 +75,7 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
-        NotificationCenter.default.post(
-            name: .didAcceptCloudKitShare,
-            object: metadata
-        )
+        ShareInvitationInbox.deliver(metadata)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

@@ -62,6 +62,7 @@ final class AppServicesLauncher {
     private let dependencies: AppDependencies
     private let bootstrapper: AppBootstrapper
     private var gate = AppServicesStartGate()
+    private var invitationObserver: (any NSObjectProtocol)?
 
     init(coreDataStack: CoreDataStack, dependencies: AppDependencies, bootstrapper: AppBootstrapper) {
         self.coreDataStack = coreDataStack
@@ -130,6 +131,7 @@ final class AppServicesLauncher {
         dependencies.autoBackupManager.startScheduledBackups(viewContext: coreDataStack.viewContext)
 
         scheduleSpotlightPass()
+        collectShareInvitations()
 
         #if os(macOS)
         // Start the MCP server for Claude Desktop if the teacher enabled it.
@@ -138,6 +140,21 @@ final class AppServicesLauncher {
         MCPAppServices.register(dependencies)
         MCPServerService.shared.applySettings()
         #endif
+    }
+
+    /// The sharing service is built on first use, normally by Settings →
+    /// Classroom, so an accepted invitation could otherwise wait unanswered in
+    /// `ShareInvitationInbox`. Building the service is what collects it — the
+    /// one already waiting at launch, and any that arrives later.
+    private func collectShareInvitations() {
+        if ShareInvitationInbox.hasPending { _ = dependencies.classroomSharingService }
+        invitationObserver = NotificationCenter.default.addObserver(
+            forName: .didAcceptCloudKitShare,
+            object: nil,
+            queue: .main
+        ) { [dependencies] _ in
+            MainActor.assumeIsolated { _ = dependencies.classroomSharingService }
+        }
     }
 
     /// Index students + lessons into Spotlight (searchable + Siri-referenceable);

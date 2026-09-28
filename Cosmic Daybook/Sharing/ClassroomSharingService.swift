@@ -56,6 +56,9 @@ final class ClassroomSharingService {
         )
 
         loadCurrentMembership()
+
+        // The invitation may have arrived before this service existed.
+        acceptPendingInvitation()
     }
 
     /// Refreshes participants on every CloudKit remote change while a screen
@@ -211,6 +214,7 @@ final class ClassroomSharingService {
         loadCurrentMembership()
         try refreshParticipants()
         Self.logger.info("Share accepted successfully")
+        NotificationCenter.default.post(name: .didJoinClassroom, object: nil)
     }
 
     /// Resynchronizes published share state after the owner ends sharing from
@@ -301,7 +305,14 @@ final class ClassroomSharingService {
     }
 
     @objc private func handleShareAcceptance(_ notification: Notification) {
-        guard let metadata = notification.object as? CKShare.Metadata else { return }
+        acceptPendingInvitation()
+    }
+
+    /// Takes the invitation waiting in `ShareInvitationInbox`, if any, and
+    /// joins its classroom. A service with no shared store (the Sample Class)
+    /// leaves the invitation for the real notebook's service.
+    private func acceptPendingInvitation() {
+        guard sharedStore != nil, let metadata = ShareInvitationInbox.take() else { return }
         Task {
             do {
                 try await acceptShare(metadata: metadata)
@@ -318,5 +329,35 @@ final class ClassroomSharingService {
 // MARK: - Notification Name
 
 extension Notification.Name {
+    /// Posted by `ShareInvitationInbox` when an invitation is waiting.
     static let didAcceptCloudKitShare = Notification.Name("didAcceptCloudKitShare")
+    /// Posted once an accepted invitation has been joined and the membership
+    /// row written.
+    static let didJoinClassroom = Notification.Name("didJoinClassroom")
+}
+
+// MARK: - Invitation Inbox
+
+/// Holds an accepted share invitation until a `ClassroomSharingService` can
+/// act on it.
+///
+/// The system can hand the invitation over before any service exists: tapping
+/// the link can be what launches the app, and the notebook only builds its
+/// service when something asks for it. A bare notification posted then would
+/// reach nobody, so the invitation waits here, and whichever comes second — the
+/// invitation or the service — picks it up. `take()` hands it out once.
+enum ShareInvitationInbox {
+    private static var pending: CKShare.Metadata?
+
+    static var hasPending: Bool { pending != nil }
+
+    static func deliver(_ metadata: CKShare.Metadata) {
+        pending = metadata
+        NotificationCenter.default.post(name: .didAcceptCloudKitShare, object: nil)
+    }
+
+    static func take() -> CKShare.Metadata? {
+        defer { pending = nil }
+        return pending
+    }
 }
