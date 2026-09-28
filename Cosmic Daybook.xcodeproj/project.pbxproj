@@ -18,6 +18,7 @@
 		DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4C4B2353AC01D418062C7F /* UIConstants.swift */; };
 		DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */; };
 		DA3F9E61C2B84D07A5E10F02 /* PersistentHistoryProcessor+StoreHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3F9E61C2B84D07A5E10F01 /* PersistentHistoryProcessor+StoreHistory.swift */; };
+		DAF1D0A7E5C94B2E8A6D3F02 /* FirstDownloadGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF1D0A7E5C94B2E8A6D3F01 /* FirstDownloadGate.swift */; };
 		DA4C2D30AB518AA8019C93A7 /* PersistentHistoryProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA450B3C5269250827AE0269 /* PersistentHistoryProcessor.swift */; };
 		DA51602210037380301B0B85 /* AppErrorMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9BCA099D416538E15471B5 /* AppErrorMessages.swift */; };
 		DA58A879F09CBF23DFB1BB96 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7737014313A0622D0B7569 /* CoreDataStack.swift */; };
@@ -76,6 +77,7 @@
 		DA3123BE8062390EA6E15E23 /* StudentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentModel.swift; path = "Cosmic Daybook/Students/Models/StudentModel.swift"; sourceTree = SOURCE_ROOT; };
 		DA38A007151ABE87CC01A5B6 /* Daybook Assistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Daybook Assistant.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA3F9E61C2B84D07A5E10F01 /* PersistentHistoryProcessor+StoreHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PersistentHistoryProcessor+StoreHistory.swift"; path = "Cosmic Daybook/Services/PersistentHistoryProcessor+StoreHistory.swift"; sourceTree = SOURCE_ROOT; };
+		DAF1D0A7E5C94B2E8A6D3F01 /* FirstDownloadGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FirstDownloadGate.swift; path = "Cosmic Daybook/Services/FirstDownloadGate.swift"; sourceTree = SOURCE_ROOT; };
 		DA450B3C5269250827AE0269 /* PersistentHistoryProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PersistentHistoryProcessor.swift; path = "Cosmic Daybook/Services/PersistentHistoryProcessor.swift"; sourceTree = SOURCE_ROOT; };
 		DA4C4B2353AC01D418062C7F /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UIConstants.swift; path = "Cosmic Daybook/AppCore/Constants/UIConstants.swift"; sourceTree = SOURCE_ROOT; };
 		DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+OrphanCleanup.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+OrphanCleanup.swift"; sourceTree = SOURCE_ROOT; };
@@ -226,6 +228,7 @@
 				DA934AAA7DFBEFE58E0E3A8F /* UserDefaultsKeys.swift */,
 				DA450B3C5269250827AE0269 /* PersistentHistoryProcessor.swift */,
 				DA3F9E61C2B84D07A5E10F01 /* PersistentHistoryProcessor+StoreHistory.swift */,
+				DAF1D0A7E5C94B2E8A6D3F01 /* FirstDownloadGate.swift */,
 				DA18960A04AB0CB34A2B3C3D /* NSManagedObjectContext+SafeFetch.swift */,
 				DA7D1211DB9154823C354663 /* AppLogging.swift */,
 				DA5A11C0A3F4B2E9C7D60002 /* LaunchSignposts.swift */,
@@ -425,6 +428,7 @@
 				DA8CB0588F0C63B3307597D3 /* UserDefaultsKeys.swift in Sources */,
 				DA4C2D30AB518AA8019C93A7 /* PersistentHistoryProcessor.swift in Sources */,
 				DA3F9E61C2B84D07A5E10F02 /* PersistentHistoryProcessor+StoreHistory.swift in Sources */,
+				DAF1D0A7E5C94B2E8A6D3F02 /* FirstDownloadGate.swift in Sources */,
 				DAB35AFA34D0F1C960DA212B /* NSManagedObjectContext+SafeFetch.swift in Sources */,
 				DA9C18F171ECE5CF4EAA8F71 /* AppLogging.swift in Sources */,
 				DA5A11C0A3F4B2E9C7D60001 /* LaunchSignposts.swift in Sources */,
