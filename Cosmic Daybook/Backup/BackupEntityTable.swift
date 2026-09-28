@@ -279,7 +279,8 @@ nonisolated enum BackupEntityTable {
     ]
 
     /// Format v18 (stories, book club, year plan, day pads), v20 (guardians,
-    /// parent communications), v21 (teaching-album annotations) and v27 (orders).
+    /// parent communications), v21 (teaching-album annotations), v27 (orders),
+    /// v30 (attendance day locks) and v31 (supply transactions).
     private static let laterFormatEntities: [BackupEntity] = [
         .optional(
             "DayPad", CDDayPad.self, \.dayPads, DayPadDTO.rows,
@@ -315,6 +316,9 @@ nonisolated enum BackupEntityTable {
         .optional("OrderItem", CDOrderItem.self, \.orderItems, OrderItemDTO.rows),
         .optional(
             "AttendanceDayLock", CDAttendanceDayLock.self, \.attendanceDayLocks, AttendanceDayLockDTO.rows
+        ),
+        .optional(
+            "SupplyTransaction", CDSupplyTransaction.self, \.supplyTransactions, SupplyTransactionDTO.rows
         )
     ]
 }

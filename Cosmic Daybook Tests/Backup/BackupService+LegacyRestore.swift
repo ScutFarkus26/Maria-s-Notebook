@@ -931,6 +931,14 @@ extension BackupService {
                 existing: { try index.existing(CDAttendanceDayLock.self, id: $0) }
             )
         }
+        // v31: supply transactions, kept in step with the live restore.
+        if let transactions = payload.supplyTransactions {
+            BackupEntityImporter.importRows(
+                transactions, as: CDSupplyTransaction.self, into: viewContext,
+                existing: { try index.existing(CDSupplyTransaction.self, id: $0) },
+                parents: ["supply": { try index.related(CDSupply.self, id: $0) }]
+            )
+        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {

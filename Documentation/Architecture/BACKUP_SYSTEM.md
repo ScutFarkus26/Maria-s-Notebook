@@ -77,9 +77,10 @@ now come from the AppleArchive/AEA layer plus a post-write structural check.
 | v27 | Encrypted Apple Archive (`AEA1`) | Adds `OrderItem` entries and the `Orders.*` preferences. Additive. |
 | v28 | Encrypted Apple Archive (`AEA1`) | Note photos follow the entity entries as `photos/<filename>` (the photo file's bytes), counted in the manifest's optional `photoCount` and checked by read-back verification (`BackupPhotos`). On by default (`Backup.includesNotePhotos`); never in the pre-restore checkpoint; a photo not on the device is left out. Restore stages them and installs after the records import, never over an existing file. Entity entries are byte-identical to v27; a v27 reader rejects the new paths. |
 | v29 | Encrypted Apple Archive (`AEA1`) | `AttendanceRecord` entries carry `note` (schema 8). Additive. |
-| **v30** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** Schema 9: `AttendanceDayLock` entries (a model-driven row: id, date, lockedAt, lockedByID), the locked attendance days that used to travel only as `Attendance.locked.<date>` preferences. `StudentTrackEnrollment` entries no longer re-link a `student` relationship (it was removed; `studentID` is the link). Entry labels follow schema 9's routing: only the five classroom-share types are `shared/`; the 28 types that left the share are `private/`. |
+| v30 | Encrypted Apple Archive (`AEA1`) | Schema 9: `AttendanceDayLock` entries (a model-driven row: id, date, lockedAt, lockedByID), the locked attendance days that used to travel only as `Attendance.locked.<date>` preferences. `StudentTrackEnrollment` entries no longer re-link a `student` relationship (it was removed; `studentID` is the link). Entry labels follow schema 9's routing: only the five classroom-share types are `shared/`; the 28 types that left the share are `private/`. |
+| **v31** | **Encrypted Apple Archive (`AEA1`)** | **Current write format.** Adds `SupplyTransaction` entries (a model-driven row: id, supplyID, date, quantityChange, reason), each supply's stock history; restore re-links `supply` from `supplyID`. Earlier formats left the type out, so restoring one keeps supply quantities but no history. Additive. |
 
-`BackupReader.supportedFormatVersions = 17...30`.
+`BackupReader.supportedFormatVersions = 17...31`.
 
 ---
 

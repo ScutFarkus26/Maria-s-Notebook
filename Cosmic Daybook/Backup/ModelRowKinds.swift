@@ -189,6 +189,18 @@ public enum AttendanceDayLockBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec("AttendanceDayLock")
 }
 
+public typealias SupplyTransactionDTO = ModelRow<SupplyTransactionBackupRow>
+
+/// One change to a supply's stock (format v31+). `supplyID` is an attribute,
+/// so the row carries it as is; the restore re-links `supply` from it. No
+/// date is made up for a transaction without one.
+public enum SupplyTransactionBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec(
+        "SupplyTransaction",
+        parents: [ParentLink(key: "supplyID", relationship: "supply")]
+    )
+}
+
 public typealias OrderItemDTO = ModelRow<OrderItemBackupRow>
 
 public enum OrderItemBackupRow: ModelRowKind {

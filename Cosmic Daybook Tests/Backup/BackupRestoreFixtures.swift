@@ -122,7 +122,7 @@ enum BackupRestoreFixtures {
         "DayPad", "YearPlanEntry", "LessonSequenceSettings", "Story",
         "BookClubPacket", "BookClubSession", "BookClubMeeting", "Guardian", "ParentCommunication",
         "AlbumBookmark", "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "AlbumHighlight",
-        "AlbumPageInk", "OrderItem", "AttendanceDayLock"
+        "AlbumPageInk", "OrderItem", "AttendanceDayLock", "SupplyTransaction"
     ]
 
     /// Restores `url` into two fresh stores prepared alike, the old way and

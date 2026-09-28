@@ -25,7 +25,8 @@ struct BackupSparseRowTests {
         "LessonSequenceSettings", "BookClubSession", "Guardian", "ParentCommunication", "AlbumBookmark",
         "AlbumPageNote", "AlbumRecentVisit", "AlbumReadingPosition", "OrderItem", "ProposedSolution",
         "WorkStep", "SampleWorkStep", "TrackStep", "TodoSubtask", "LessonAttachment", "NoteStudentLink",
-        "JobAssignment", "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock"
+        "JobAssignment", "BookClubMeeting", "StudentTrackEnrollment", "MeetingWorkReview", "AttendanceDayLock",
+        "SupplyTransaction"
     ]
 
     /// A child's link to its parent: the row key, the relationship, the parent
@@ -55,7 +56,8 @@ struct BackupSparseRowTests {
         ParentCase("JobAssignment", "jobID", "job", "ClassroomJob", true),
         ParentCase("BookClubMeeting", "sessionID", "session", "BookClubSession", true),
         ParentCase("StudentTrackEnrollment", "trackID", "track", "Track", true),
-        ParentCase("MeetingWorkReview", "meetingID", "meeting", "StudentMeeting", true)
+        ParentCase("MeetingWorkReview", "meetingID", "meeting", "StudentMeeting", true),
+        ParentCase("SupplyTransaction", "supplyID", "supply", "Supply", true)
     ]
 
     @Test("Sparse records, id-only rows and missing parents behave as the hand-written backup did")

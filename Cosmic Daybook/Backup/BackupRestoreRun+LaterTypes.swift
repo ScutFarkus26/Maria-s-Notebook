@@ -247,4 +247,18 @@ extension BackupRestoreRun {
             )
         }
     }
+
+    /// v31+ entities: supply transactions, after the supplies they belong to.
+    func importV31Entities() throws {
+        let viewContext = context
+        let index = self.index
+
+        if let transactions = try rows(\.supplyTransactions) {
+            BackupEntityImporter.importRows(
+                transactions, as: CDSupplyTransaction.self, into: viewContext,
+                existing: { try index.existing(CDSupplyTransaction.self, id: $0) },
+                parents: ["supply": { try index.related(CDSupply.self, id: $0) }]
+            )
+        }
+    }
 }

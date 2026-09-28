@@ -201,7 +201,8 @@ enum LegacyBackupPreviewAnalyzer {
             "Guardian": payload.guardians?.count ?? 0,
             "ParentCommunication": payload.parentCommunications?.count ?? 0,
             "OrderItem": payload.orderItems?.count ?? 0,
-            "AttendanceDayLock": payload.attendanceDayLocks?.count ?? 0
+            "AttendanceDayLock": payload.attendanceDayLocks?.count ?? 0,
+            "SupplyTransaction": payload.supplyTransactions?.count ?? 0
         ]
     }
 

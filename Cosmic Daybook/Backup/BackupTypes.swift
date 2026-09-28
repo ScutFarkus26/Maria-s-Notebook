@@ -137,6 +137,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case albumReadingPositions, albumHighlights, albumPageInk
         case orderItems
         case attendanceDayLocks
+        case supplyTransactions
         case preferences
     }
 
@@ -280,6 +281,10 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     // Locked attendance days (format v30+). Older backups carry locks as
     // `Attendance.locked.<date>` preferences instead; restore converts them.
     public var attendanceDayLocks: [AttendanceDayLockDTO]?
+
+    // Supply stock changes (format v31+). Older backups left them out, so a
+    // restore from one keeps each supply's quantity but none of its history.
+    public var supplyTransactions: [SupplyTransactionDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

@@ -73,7 +73,9 @@ nonisolated public enum BackupWriter {
     ///   days that used to travel as `Attendance.locked.<date>` preferences.
     ///   Enrollments no longer name a `student` relationship (it is gone);
     ///   `studentID` carries the link as before.
-    public static let formatVersion: Int = 30
+    /// - v31: `SupplyTransaction` entries, each supply's stock history. Purely
+    ///   additive; a v30 reader would skip them silently, hence the version.
+    public static let formatVersion: Int = 31
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

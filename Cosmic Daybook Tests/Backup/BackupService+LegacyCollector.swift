@@ -325,5 +325,7 @@ extension BackupService {
             CDOrderItem.self, using: viewContext) { OrderItemDTO.rows($0) }
         payload.attendanceDayLocks = fetchAndTransformInBatches(
             CDAttendanceDayLock.self, using: viewContext) { AttendanceDayLockDTO.rows($0) }
+        payload.supplyTransactions = fetchAndTransformInBatches(
+            CDSupplyTransaction.self, using: viewContext) { SupplyTransactionDTO.rows($0) }
     }
 }

@@ -896,4 +896,67 @@ final class Backup2RoundTripTests {
             "Session -> meetings inverse was not populated"
         )
     }
+
+    @Test("v31: supply transactions survive a Replace restore and re-link to their supply")
+    func v31SupplyTransactionsRoundTrip() async throws {
+        let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = sourceStack.viewContext
+
+        let supply = CDSupply(context: ctx)
+        supply.id = UUID()
+        supply.name = "Air Dry Clay"
+        supply.currentQuantity = 1
+        let supplyID = try #require(supply.id)
+
+        let stocked = CDSupplyTransaction(context: ctx)
+        stocked.id = UUID()
+        stocked.supplyID = supplyID.uuidString
+        stocked.date = Date(timeIntervalSinceReferenceDate: 796_060_000)
+        stocked.quantityChange = 1
+        stocked.reason = "Initial stock"
+        stocked.supply = supply
+
+        // A transaction with no date keeps none: the backup makes nothing up.
+        let used = CDSupplyTransaction(context: ctx)
+        used.id = UUID()
+        used.supplyID = supplyID.uuidString
+        used.quantityChange = -2
+        used.reason = "Used"
+        used.supply = supply
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: ctx, to: url)
+
+        let destStack = try CoreDataTestHelpers.makeInMemoryStack()
+        let dctx = destStack.viewContext
+        try await BackupTestUtil.importCurrentBackup(from: url, into: dctx, mode: .replace)
+
+        let restoredSupply = try #require(
+            try BackupTestUtil.fetchByID(CDSupply.self, supplyID, entityName: "Supply", in: dctx)
+        )
+        let restoredStocked = try #require(
+            try BackupTestUtil.fetchByID(
+                CDSupplyTransaction.self, stocked.id, entityName: "SupplyTransaction", in: dctx
+            )
+        )
+        #expect(restoredStocked.supplyID == supplyID.uuidString)
+        #expect(restoredStocked.date == stocked.date)
+        #expect(restoredStocked.quantityChange == 1)
+        #expect(restoredStocked.reason == "Initial stock")
+        #expect(restoredStocked.supply?.id == supplyID, "Transaction -> supply relationship was not restored")
+
+        let restoredUsed = try #require(
+            try BackupTestUtil.fetchByID(
+                CDSupplyTransaction.self, used.id, entityName: "SupplyTransaction", in: dctx
+            )
+        )
+        #expect(restoredUsed.date == nil)
+        #expect(restoredUsed.quantityChange == -2)
+        #expect(restoredUsed.supply?.id == supplyID)
+
+        let history = restoredSupply.mutableSetValue(forKey: "transactions")
+        #expect(history.count == 2, "Supply -> transactions inverse was not populated")
+    }
 }

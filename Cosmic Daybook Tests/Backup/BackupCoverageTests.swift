@@ -24,8 +24,6 @@ final class BackupCoverageTests {
     /// - `ProjectAssignmentTemplate`, `ProjectTemplateWeek`,
     ///   `ProjectWeekRoleAssignment`: deprecated project-template entities
     ///   (see the "deprecated" note in BackupService+Restoration importProjectEntities).
-    /// - `SupplyTransaction`: entity definition with no DTO and no creation
-    ///   site anywhere in the app — dormant schema only.
     ///
     /// If a NEW entity appears here, that's the signal to either back it up or
     /// consciously add it with a rationale. Removing one (by adding real backup
@@ -33,8 +31,7 @@ final class BackupCoverageTests {
     private static let routedButIntentionallyNotBackedUp: Set<String> = [
         "ProjectAssignmentTemplate",
         "ProjectTemplateWeek",
-        "ProjectWeekRoleAssignment",
-        "SupplyTransaction"
+        "ProjectWeekRoleAssignment"
     ]
 
     /// Model entities routed to NEITHER store. Every other coverage test here

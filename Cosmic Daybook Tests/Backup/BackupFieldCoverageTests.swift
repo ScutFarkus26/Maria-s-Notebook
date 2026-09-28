@@ -701,7 +701,8 @@ final class BackupFieldCoverageTests {
         // unlike thumbnails it is user-authored and cannot be regenerated.
         FieldSpec("AlbumPageInk"),
         FieldSpec("OrderItem"),
-        FieldSpec("AttendanceDayLock")
+        FieldSpec("AttendanceDayLock"),
+        FieldSpec("SupplyTransaction")
     ]
 
     /// Inserts this suite's fixture — one instance of every backed-up entity,

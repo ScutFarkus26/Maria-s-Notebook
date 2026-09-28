@@ -81,6 +81,9 @@
     "StudentTrackEnrollment" : [
       "rejected"
     ],
+    "SupplyTransaction" : [
+      "rejected"
+    ],
     "TodoSubtask" : [
       "rejected"
     ],
@@ -128,6 +131,10 @@
     ],
     "StudentTrackEnrollment.track" : [
       "not found: cleared",
+      "not an id: kept"
+    ],
+    "SupplyTransaction.supply" : [
+      "not found: kept",
       "not an id: kept"
     ],
     "TodoSubtask.todo" : [
@@ -250,6 +257,10 @@
     "StudentTrackEnrollment" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001D\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}",
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}"
+    ],
+    "SupplyTransaction" : [
+      "{\"id\":\"00000000-0000-4000-8000-000000000020\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
+      "{\"id\":\"<new id>\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}"
     ],
     "TodoSubtask" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000018\",\"isCompleted\":false,\"orderIndex\":0,\"title\":\"\"}",
