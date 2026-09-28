@@ -413,6 +413,14 @@ struct ClassroomSharingView: View {
             .controlSize(.regular)
             .disabled(isPreparingShare)
             .sheet(isPresented: $showingSharingSheet) {
+                #if os(macOS)
+                if let svc = service {
+                    ClassroomMembersSheet(service: svc) {
+                        showingSharingSheet = false
+                        try? svc.refreshParticipants()
+                    }
+                }
+                #else
                 if let svc = service, let share = svc.currentShare {
                     CloudSharingSheet(
                         share: share,
@@ -437,6 +445,7 @@ struct ClassroomSharingView: View {
                         }
                     )
                 }
+                #endif
             }
 
             if service?.isSharing == true {
@@ -456,8 +465,21 @@ struct ClassroomSharingView: View {
                     titleVisibility: .visible
                 ) {
                     Button("Stop Sharing", role: .destructive) {
+                        #if os(macOS)
+                        // The Mac has no system sharing UI to end the share
+                        // in, and the share itself has to stay (it's what
+                        // keeps this notebook syncing) — so remove everyone.
+                        Task {
+                            do {
+                                try await service?.removeAllMembers()
+                            } catch {
+                                errorMessage = AppErrorMessages.userMessage(for: error, context: "stopping sharing")
+                            }
+                        }
+                        #else
                         // Stopping sharing is handled by the CloudSharingController
                         showingSharingSheet = true
+                        #endif
                     }
                 } message: {
                     Text("Assistants will lose access to classroom data.")
