@@ -60,7 +60,7 @@ nonisolated extension DataCleanupService {
     ///    A synced record outranks a local-only copy.
     /// 3. Object URI, reached only when neither record has been exported yet — such
     ///    copies exist on this device alone, so a local ordering cannot diverge.
-    private static func precedesAsCanonical(
+    static func precedesAsCanonical(
         _ lhs: NSManagedObject,
         _ rhs: NSManagedObject,
         container: NSPersistentCloudKitContainer?
@@ -244,6 +244,29 @@ nonisolated extension DataCleanupService {
         return results.filter { $0.value > 0 }
     }
 
+    /// One Apple item mirrored twice, and templates seeded twice — rows the
+    /// id-based pass can't see (see +SameSourceMerges).
+    private static func sameSourceDuplicates(
+        in context: NSManagedObjectContext,
+        container c: NSPersistentCloudKitContainer?,
+        scope s: DeduplicationScope
+    ) -> [String: Int] {
+        var results: [String: Int] = [:]
+        if s.includes(CDReminder.self) {
+            results["Reminder (same EventKit item)"] = mergeSameEventKitReminders(using: context, container: c)
+        }
+        if s.includes(CDCalendarEvent.self) {
+            results["CalendarEvent (same EventKit occurrence)"] = mergeSameEventKitEvents(using: context, container: c)
+        }
+        if s.includes(CDNoteTemplate.self) {
+            results["NoteTemplate (identical)"] = mergeIdenticalNoteTemplates(using: context, container: c)
+        }
+        if s.includes(CDMeetingTemplate.self) {
+            results["MeetingTemplate (identical)"] = mergeIdenticalMeetingTemplates(using: context, container: c)
+        }
+        return results
+    }
+
     /// Students, lessons, presentations, work, projects and tracks.
     private static func curriculumDuplicates(
         in context: NSManagedObjectContext,
@@ -326,6 +349,7 @@ nonisolated extension DataCleanupService {
         )
         results["MeetingTemplate"] = deduplicate(CDMeetingTemplate.self, using: context, container: c, scope: s)
         results["CalendarEvent"] = deduplicate(CDCalendarEvent.self, using: context, container: c, scope: s)
+        results.merge(sameSourceDuplicates(in: context, container: c, scope: s)) { $1 }
         results["NonSchoolDay"] = deduplicate(CDNonSchoolDay.self, using: context, container: c, scope: s)
         results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context, container: c, scope: s)
 

@@ -492,6 +492,11 @@ struct ClassroomSharingView: View {
     private var repairSyncButton: some View {
         Button {
             Task {
+                // Repair waits for a first download to finish (FirstDownloadGate).
+                guard !FirstDownloadGate.isPending() else {
+                    dependencies.toastService.showInfo("Still downloading from iCloud — try again once it finishes")
+                    return
+                }
                 // Manual variant — resets the circuit breaker so user-driven
                 // retries always get a fresh attempt even after a recent
                 // auto-skip.

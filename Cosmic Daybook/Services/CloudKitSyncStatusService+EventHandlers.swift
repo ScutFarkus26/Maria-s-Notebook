@@ -223,7 +223,8 @@ extension CloudKitSyncStatusService {
         isFinished: Bool,
         succeeded: Bool,
         error: (any Error)?,
-        startDate: Date
+        startDate: Date,
+        storeIdentifier: String? = nil
     ) {
         // Events fire twice: once when started (isFinished == false) and once when finished
         guard isFinished else {
@@ -259,7 +260,9 @@ extension CloudKitSyncStatusService {
         }
 
         if succeeded {
-            handleSuccessfulCloudKitEvent(type: type, typeDescription: typeDescription, startDate: startDate)
+            handleSuccessfulCloudKitEvent(
+                type: type, typeDescription: typeDescription, startDate: startDate, storeIdentifier: storeIdentifier
+            )
         } else {
             handleFailedCloudKitEvent(type: type, typeDescription: typeDescription, error: error)
         }
@@ -272,7 +275,8 @@ extension CloudKitSyncStatusService {
     private func handleSuccessfulCloudKitEvent(
         type: NSPersistentCloudKitContainer.EventType,
         typeDescription: String,
-        startDate: Date
+        startDate: Date,
+        storeIdentifier: String?
     ) {
         Self.logger.debug("CloudKit \(typeDescription) succeeded")
         SyncEventLogger.shared.log("cloudkit", status: "success", message: "\(typeDescription) completed")
@@ -283,6 +287,7 @@ extension CloudKitSyncStatusService {
             // Arms the dedup cycle; the history processor's report decides what,
             // if anything, it sweeps (see the coordinator).
             DeduplicationCoordinator.shared.requestDeduplicationAfterImport()
+            finishFirstDownloadIfNeeded(importedStoreIdentifier: storeIdentifier)
         }
 
         if type == .export {

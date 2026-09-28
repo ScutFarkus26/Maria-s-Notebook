@@ -3,10 +3,20 @@ import CoreData
 import OSLog
 
 /// Seeds default Note and Meeting templates on first launch or after restore.
+///
+/// Waits while the store is still receiving its first download from iCloud:
+/// the notebook's own built-ins are on their way down, and seeding the empty
+/// store beside them is what left a second set after every reset. The seed
+/// runs once the download finishes (`FirstDownloadGate`), and only if none
+/// arrived.
 enum BuiltInTemplateSeeder {
     private static let logger = Logger.templateSeeder
 
     static func seedIfNeeded(context: NSManagedObjectContext) {
+        guard !FirstDownloadGate.isPending() else {
+            logger.info("Built-in templates wait for the first download from iCloud")
+            return
+        }
         seedNoteTemplatesIfNeeded(context: context)
         seedMeetingTemplatesIfNeeded(context: context)
     }

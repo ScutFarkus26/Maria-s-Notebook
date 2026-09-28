@@ -94,7 +94,7 @@ final class CloudKitSyncStatusService {
     var storeCoordinatorChangeObserver: NSObjectProtocol?
     var cloudKitEventObserver: NSObjectProtocol?
     var syncStartTime: Date?
-    private var coreDataStack: CoreDataStack?
+    private(set) var coreDataStack: CoreDataStack?
     var monitoredPersistentStoreCoordinator: NSPersistentStoreCoordinator? {
         coreDataStack?.container.persistentStoreCoordinator
     }

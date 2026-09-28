@@ -83,12 +83,14 @@ extension CloudKitSyncStatusService {
             let succeeded = event.succeeded
             let eventError = event.error
             let startDate = event.startDate
+            let storeIdentifier = event.storeIdentifier
             Task { @MainActor [weak self] in
                 self?.handleCloudKitEvent(
                     type: type, isFinished: isFinished,
                     succeeded: succeeded,
                     error: eventError,
-                    startDate: startDate
+                    startDate: startDate,
+                    storeIdentifier: storeIdentifier
                 )
             }
         }

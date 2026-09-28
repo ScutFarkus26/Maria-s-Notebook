@@ -175,6 +175,9 @@ nonisolated enum UserDefaultsKeys {
     /// Persistent-history token recorded by the last zone-repair pass that
     /// left nothing to attach. Device-local; never exported with preferences.
     static let sharedStoreZoneRepairCleanHistoryToken = "SharedStoreZoneRepair.cleanHistoryToken"
+    /// Set while a fresh private store is still receiving its first download
+    /// from iCloud (see `FirstDownloadGate`). Device-local; never exported.
+    static let firstDownloadPending = "CloudKit.firstDownloadPending"
 
     /// One-shot flag the user sets via Settings → Database → "Reset Local
     /// Cache". On the next launch, `CoreDataStack.init` checks this flag,

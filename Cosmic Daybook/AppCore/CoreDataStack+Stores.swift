@@ -158,4 +158,35 @@ extension CoreDataStack {
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
     }
+
+    /// Runs before the app's on-disk stores load (never for in-memory or
+    /// Sample Class stores).
+    ///
+    /// Honors a deferred "Reset Local Cache" request from Settings → Database:
+    /// the stores are deleted BEFORE the container is created so the next
+    /// loadPersistentStores reconstitutes from CloudKit, and migration /
+    /// sharing completion flags are cleared so post-launch bootstrap re-runs
+    /// against the fresh data.
+    ///
+    /// Then a missing private store file means this launch downloads
+    /// everything from iCloud (a reset, or a new device), so zone repair and
+    /// template seeding wait for that first import (`FirstDownloadGate`). With
+    /// CloudKit off no import will come, so nothing waits.
+    static func prepareOnDiskStores(enableCloudKit: Bool) {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch) {
+            let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
+            let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
+            let resetMsg = "Consuming pending local cache reset before store load. " +
+                "source=\(source), armedAt=\(armedAt)"
+            logger.warning("\(resetMsg, privacy: .public)")
+            performLocalCacheReset()
+        }
+
+        if !enableCloudKit {
+            FirstDownloadGate.open()
+        } else if !FileManager.default.fileExists(atPath: privateStoreURL().path) {
+            FirstDownloadGate.arm()
+        }
+    }
 }

@@ -76,6 +76,9 @@ final class SharedStoreOrphanGuard {
     private func handleSave(insertedEntityNames: Set<String>) {
         guard let coreDataStack else { return }
         guard coreDataStack.isCloudKitActive else { return }
+        // Neither repair nor auto-create may act on a store still receiving
+        // its first download; the gate's opening runs the repair itself.
+        guard !FirstDownloadGate.isPending() else { return }
 
         let touchedSharedStore = !insertedEntityNames.isDisjoint(with: CoreDataStack.sharedEntityNames)
         guard touchedSharedStore else { return }

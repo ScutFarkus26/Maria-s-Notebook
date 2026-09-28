@@ -90,21 +90,11 @@ final class CoreDataStack {
         defer { LaunchSignposts.end("CoreDataStack.init", initInterval) }
         Self.logger.info("Initializing CoreDataStack (CloudKit: \(enableCloudKit), inMemory: \(inMemory))...")
 
-        // Honor a deferred "Reset Local Cache" request from Settings →
-        // Database. We delete the on-disk stores BEFORE the container is
-        // created so the next loadPersistentStores reconstitutes from
-        // CloudKit. Migration / sharing completion flags are also cleared so
-        // post-launch bootstrap re-runs against the fresh data.
-        if !inMemory,
-           localStoreURL == nil,
-           UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch) {
-            let defaults = UserDefaults.standard
-            let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
-            let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
-            let resetMsg = "Consuming pending local cache reset before store load. " +
-                "source=\(source), armedAt=\(armedAt)"
-            Self.logger.warning("\(resetMsg, privacy: .public)")
-            Self.performLocalCacheReset()
+        // Honor a deferred "Reset Local Cache" request, then note whether this
+        // launch downloads everything from iCloud — both before the container
+        // is created (see `prepareOnDiskStores`).
+        if !inMemory, localStoreURL == nil {
+            Self.prepareOnDiskStores(enableCloudKit: enableCloudKit)
         }
 
         // One model instance per process — see `sharedModel()`. Sample Class

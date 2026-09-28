@@ -139,7 +139,8 @@ final class SharedStoreZoneRepair {
     func refreshCountsIfNeeded(coreDataStack: CoreDataStack) async {
         guard coreDataStack.isCloudKitActive,
               let store = coreDataStack.privatePersistentStore,
-              !repairInProgress else { return }
+              !repairInProgress,
+              !FirstDownloadGate.isPending() else { return }
         let container = coreDataStack.container
         let token = Self.currentHistoryToken(for: store, in: container)
         if let token, let seen = lastObservedToken, token == seen { return }
@@ -255,16 +256,8 @@ final class SharedStoreZoneRepair {
         guard let store = coreDataStack.privatePersistentStore else { return }
         guard !repairInProgress else { return }
 
-        // Once NSPersistentCloudKitContainer's mirroring delegate has died,
-        // every `container.share(_:to:)` call fails — and it reports that
-        // failure by *raising* an Objective-C exception from inside its own
-        // fault-firing, which no Swift `catch` can trap (see `shareOffMain`).
-        // There is no recovery short of a relaunch with clean local state, so
-        // stop before we reach the uncatchable call.
-        guard !CloudKitSyncStatusService.shared.mirroringDelegateFailed else {
-            let deadMsg = "SharedStoreZoneRepair: CloudKit mirroring delegate failed this session, " +
-                "skipping repair — relaunch (or Settings → Database → Reset Local Cache) is required"
-            Self.logger.warning("\(deadMsg, privacy: .public)")
+        if let reason = Self.reasonToHoldOff() {
+            Self.logger.warning("SharedStoreZoneRepair: skipping repair — \(reason, privacy: .public)")
             return
         }
 
@@ -328,6 +321,28 @@ final class SharedStoreZoneRepair {
         } else {
             reportOrphansWithoutShare(count: report.orphanIDs.count)
         }
+    }
+
+    /// Why no pass may run right now, or `nil` when one may. Applies to the
+    /// manual button too.
+    private static func reasonToHoldOff() -> String? {
+        // Mid-download, rows whose zone's CKShare hasn't arrived yet look like
+        // orphans, and attaching them moves them into the classroom share
+        // (see FirstDownloadGate).
+        if FirstDownloadGate.isPending() {
+            return "the first download from iCloud is still running"
+        }
+        // Once NSPersistentCloudKitContainer's mirroring delegate has died,
+        // every `container.share(_:to:)` call fails — and it reports that
+        // failure by *raising* an Objective-C exception from inside its own
+        // fault-firing, which no Swift `catch` can trap (see `shareOffMain`).
+        // There is no recovery short of a relaunch with clean local state, so
+        // stop before we reach the uncatchable call.
+        if CloudKitSyncStatusService.shared.mirroringDelegateFailed {
+            return "CloudKit mirroring delegate failed this session; relaunch " +
+                "(or Settings → Database → Reset Local Cache) is required"
+        }
+        return nil
     }
 
     /// Attaches `orphanIDs` to `share`, then refreshes the observable orphan
