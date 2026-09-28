@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import CloudKit
 
 @objc(ClassroomMembership)
 nonisolated public class CDClassroomMembership: NSManagedObject {
@@ -46,6 +47,27 @@ nonisolated extension CDClassroomMembership {
         request.sortDescriptors = [NSSortDescriptor(key: "joinedAt", ascending: true)]
         request.fetchLimit = 1
         return context.safeFetchFirst(request)?.role ?? .leadGuide
+    }
+
+    /// The classroom's share among the shares a store holds.
+    ///
+    /// A notebook that minted more than one share over time holds several, and
+    /// `fetchShares(in:)` returns them in no particular order. Taking `.first`
+    /// sent invitations to an empty zone while the students and attendance sat
+    /// in another, and zone repair filed new records into whichever zone came
+    /// first — which is how one classroom ended up spread over five. The
+    /// classroom is the zone this device's membership row names; only when no
+    /// share matches it does this fall back to `.first`.
+    static func classroomShare(among shares: [CKShare], in context: NSManagedObjectContext) -> CKShare? {
+        guard shares.count > 1 else { return shares.first }
+        let request = ownRowsRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "joinedAt", ascending: true)]
+        request.fetchLimit = 1
+        if let zone = context.safeFetchFirst(request)?.classroomZoneID,
+           let share = shares.first(where: { $0.recordID.zoneID.zoneName == zone }) {
+            return share
+        }
+        return shares.first
     }
 
     /// The membership rows this app may read as "who I am".

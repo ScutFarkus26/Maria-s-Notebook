@@ -159,7 +159,7 @@ final class ClassroomSharingService {
 
         var found: CKShare?
         if let store = preferredStore {
-            found = try container.fetchShares(in: store).first
+            found = CDClassroomMembership.classroomShare(among: try container.fetchShares(in: store), in: context)
         }
 
         let wasSharing = isSharing

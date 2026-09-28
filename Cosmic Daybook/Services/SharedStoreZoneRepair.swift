@@ -311,7 +311,8 @@ final class SharedStoreZoneRepair {
 
         let existingShare: CKShare?
         do {
-            existingShare = try container.fetchShares(in: store).first
+            let shares = try container.fetchShares(in: store)
+            existingShare = CDClassroomMembership.classroomShare(among: shares, in: container.viewContext)
         } catch {
             Self.logger.error("Cannot inspect shares in shared store: \(error.localizedDescription, privacy: .public)")
             return
