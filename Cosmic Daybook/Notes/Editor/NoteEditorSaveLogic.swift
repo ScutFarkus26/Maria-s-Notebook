@@ -97,9 +97,6 @@ extension UnifiedNoteEditor {
         case .presentation(let pres):
             note.lessonAssignment = pres
 
-        case .attendance(let record):
-            note.attendanceRecordID = record.id?.uuidString
-
         case .workCheckIn(let checkIn):
             note.workCheckIn = checkIn
 

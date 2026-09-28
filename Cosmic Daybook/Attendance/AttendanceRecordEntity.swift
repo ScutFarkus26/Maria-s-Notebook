@@ -21,6 +21,10 @@ nonisolated public class CDAttendanceRecord: NSManagedObject {
     /// CloudKit withholds your own name from you, so it cannot be looked up.
     @NSManaged public var recordedByName: String?
     @NSManaged public var modifiedAt: Date?
+    /// The day's attendance note ("dentist, back by 11"). It lives on the
+    /// record, not in the private notes, so the guide and an assistant share
+    /// it; write it through `CDAttendanceStore.updateNote`.
+    @NSManaged public var note: String?
 
     // MARK: - Convenience Initializer
     @discardableResult
@@ -62,22 +66,3 @@ nonisolated extension CDAttendanceRecord {
         set { studentID = newValue?.uuidString ?? "" }
     }
 }
-
-// MARK: - Cross-Store Notes
-
-// Excluded from the assistant's companion app — see CDAttendanceStore.
-#if !ASSISTANT_APP
-
-nonisolated extension CDAttendanceRecord {
-    /// Cross-store inverse: fetches Notes whose attendanceRecordID matches this
-    /// record. Attendance is shared and Note is private, so the old to-many
-    /// relationship could not survive the move.
-    var unifiedNotes: [CDNote] {
-        guard let id, let ctx = managedObjectContext else { return [] }
-        let req = CDFetchRequest(CDNote.self)
-        req.predicate = NSPredicate(format: "attendanceRecordID == %@", id.uuidString)
-        return (try? ctx.fetch(req)) ?? []
-    }
-}
-
-#endif

@@ -153,7 +153,8 @@ enum BackupServiceHelpers {
                 recordedBy: a.recordedBy,
                 recordedByID: a.recordedByID,
                 recordedByName: a.recordedByName,
-                modifiedAt: a.modifiedAt
+                modifiedAt: a.modifiedAt,
+                note: a.note
             )
         }
     }

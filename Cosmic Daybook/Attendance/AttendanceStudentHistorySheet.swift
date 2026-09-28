@@ -41,7 +41,7 @@ struct AttendanceStudentHistorySheet: View {
     private var notesEntries: [AttendanceHistoryNoteEntry] {
         records.compactMap { record in
             guard let date = record.date else { return nil }
-            let text = record.latestUnifiedNoteText
+            let text = record.note ?? ""
             guard !text.isEmpty else { return nil }
             return AttendanceHistoryNoteEntry(
                 date: AppCalendar.startOfDay(date),

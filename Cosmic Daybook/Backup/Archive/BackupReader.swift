@@ -61,8 +61,9 @@ nonisolated public enum BackupReader {
     /// Year Plan/Day Pad entries; v17/v18 files still read (plain compressed
     /// container, new entries simply absent). v28 adds `photos/<filename>`
     /// entries (`BackupPhotos`), which a v27 reader would reject as an
-    /// unexpected path — hence the version.
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...28
+    /// unexpected path — hence the version. v29 adds `note` to attendance
+    /// entries.
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...29
 
     // MARK: - Public API
 

@@ -20,7 +20,6 @@ struct AttendanceCard: View {
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showingNoteEditor = false
-    @State private var noteToEdit: CDNote?
 
     private var status: AttendanceStatus { record?.status ?? .unmarked }
     private var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
@@ -55,16 +54,10 @@ struct AttendanceCard: View {
         }
     }
 
-    // Helper to resolve the most relevant note content from unified notes
-    private var resolvedNote: (text: String, object: CDNote?) {
-        guard let record else { return ("", nil) }
-        let note = CDNote.latestNote(in: record.unifiedNotes)
-        return (note?.body ?? "", note)
-    }
+    /// The day's note, shared with the assistant.
+    private var noteText: String { record?.note ?? "" }
 
-    private var hasNote: Bool {
-        return !resolvedNote.text.isEmpty
-    }
+    private var hasNote: Bool { !noteText.isEmpty }
 
     // Original layout: note icon next to name (macOS and iOS regular)
     @ViewBuilder
@@ -86,7 +79,6 @@ struct AttendanceCard: View {
             // Small note icon at far right (only when no note exists and editing)
             if !hasNote && isEditing {
                 Button {
-                    noteToEdit = nil
                     showingNoteEditor = true
                 } label: {
                     Image(systemName: "square.and.pencil")
@@ -115,17 +107,14 @@ struct AttendanceCard: View {
 
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
-            let noteContent = resolvedNote
-
             if isEditing {
                 Button {
-                    noteToEdit = noteContent.object
                     showingNoteEditor = true
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "note.text")
                             .foregroundStyle(.secondary)
-                        Text(noteContent.text)
+                        Text(noteText)
                             .font(AppTheme.ScaledFont.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -138,7 +127,7 @@ struct AttendanceCard: View {
                 HStack(spacing: 6) {
                     Image(systemName: "note.text")
                         .foregroundStyle(.secondary)
-                    Text(noteContent.text)
+                    Text(noteText)
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -236,10 +225,8 @@ struct AttendanceCard: View {
     private var compactTrailingNote: some View {
         // Trailing: note indicator or add-note button
         if hasNote {
-            let noteContent = resolvedNote
             if isEditing {
                 Button {
-                    noteToEdit = noteContent.object
                     showingNoteEditor = true
                 } label: {
                     Image(systemName: "note.text")
@@ -254,7 +241,6 @@ struct AttendanceCard: View {
             }
         } else if isEditing {
             Button {
-                noteToEdit = nil
                 showingNoteEditor = true
             } label: {
                 Image(systemName: "square.and.pencil")
@@ -324,19 +310,12 @@ struct AttendanceCard: View {
         .accessibilityValue(hasNote ? "Has note" : "No note")
         .accessibilityHint(isEditing ? "Changes the attendance status" : "")
         .sheet(isPresented: $showingNoteEditor) {
-            if let record {
-                UnifiedNoteEditor(
-                    context: .attendance(record),
-                    initialNote: noteToEdit,
-                    onSave: { _ in
-                        // CDNote is automatically saved via relationship
-                        showingNoteEditor = false
-                    },
-                    onCancel: {
-                        showingNoteEditor = false
-                    }
-                )
-            }
+            AttendanceNoteSheet(
+                studentName: student.shortName,
+                initialText: noteText,
+                sharedWith: "Anyone you share your classroom with sees this note.",
+                onSave: onEditNote
+            )
         }
     }
 
@@ -344,7 +323,6 @@ struct AttendanceCard: View {
     private var cardContextMenu: some View {
         if isEditing {
             Button {
-                noteToEdit = resolvedNote.object
                 showingNoteEditor = true
             } label: {
                 Label("Note…", systemImage: "square.and.pencil")

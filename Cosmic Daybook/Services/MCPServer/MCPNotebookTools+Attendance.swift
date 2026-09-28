@@ -165,7 +165,7 @@ extension MCPNotebookTools {
                 let reason = record.status == .absent && record.absenceReason != .none
                     ? " (\(record.absenceReason.displayName.lowercased()))"
                     : ""
-                let note = nonEmpty(record.latestUnifiedNoteText).map { " — \($0)" } ?? ""
+                let note = nonEmpty(record.note).map { " — \($0)" } ?? ""
                 return "- \(dayString(record.date)) \(record.status.displayName.lowercased())\(reason)\(note)"
             })
         }

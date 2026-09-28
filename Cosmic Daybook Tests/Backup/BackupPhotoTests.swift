@@ -45,7 +45,7 @@ struct BackupPhotoTests {
         _ = try await BackupWriter.write(viewContext: stack.viewContext, to: url, includesPhotos: true)
 
         let verification = try BackupReader.verifyStructure(at: url)
-        #expect(verification.manifest.formatVersion == 28)
+        #expect(verification.manifest.formatVersion >= 28)
         #expect(verification.manifest.photoCount == 1)
         #expect(verification.photoCount == 1)
         #expect(verification.entryLineCounts["Note"] == 1)

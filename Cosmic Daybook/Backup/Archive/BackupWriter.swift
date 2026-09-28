@@ -66,7 +66,10 @@ nonisolated public enum BackupWriter {
     ///   entity entries, counted in the manifest's `photoCount`
     ///   (`BackupPhotos`). Entity entries are unchanged; a v27 reader rejects
     ///   the new paths, hence the version.
-    public static let formatVersion: Int = 28
+    /// - v29: `AttendanceRecord` entries carry `note`, the day's attendance
+    ///   note, which moved off the private notes onto the shared record.
+    ///   Purely additive; entry layout is otherwise unchanged.
+    public static let formatVersion: Int = 29
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

@@ -66,7 +66,11 @@ extension CoreDataStack {
     ///   sub-step. Additive Boolean, default NO.
     /// - `7` — `OrderItem`: a link the guide asks the office to order, followed
     ///   through asked for / confirmed / received. New private-store entity.
-    nonisolated static let currentSchemaVersion = 7
+    /// - `8` — `AttendanceRecord.note`: the day's attendance note, on the shared
+    ///   record so the guide and an assistant both read and write it. It used to
+    ///   be a private `Note` linked by `attendanceRecordID`, which an assistant
+    ///   could never see; `AttendanceNoteMove` carries those onto the record.
+    nonisolated static let currentSchemaVersion = 8
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

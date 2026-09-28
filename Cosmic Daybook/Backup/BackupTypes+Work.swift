@@ -135,6 +135,8 @@ nonisolated public struct AttendanceRecordDTO: Codable, Sendable {
     public var recordedByID: String?
     public var recordedByName: String?
     public var modifiedAt: Date?
+    /// The day's shared attendance note (v29+; absent in older backups).
+    public var note: String?
 
     public init(
         id: UUID,
@@ -145,7 +147,8 @@ nonisolated public struct AttendanceRecordDTO: Codable, Sendable {
         recordedBy: String? = nil,
         recordedByID: String? = nil,
         recordedByName: String? = nil,
-        modifiedAt: Date? = nil
+        modifiedAt: Date? = nil,
+        note: String? = nil
     ) {
         self.id = id
         self.studentID = studentID
@@ -156,5 +159,6 @@ nonisolated public struct AttendanceRecordDTO: Codable, Sendable {
         self.recordedByID = recordedByID
         self.recordedByName = recordedByName
         self.modifiedAt = modifiedAt
+        self.note = note
     }
 }

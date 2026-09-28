@@ -171,6 +171,10 @@ final class AppBootstrapper {
         // (NSCocoaErrorDomain 134060) for the rest of the session.
         await SharedStoreZoneRepair.runIfNeeded(coreDataStack: coreDataStack)
 
+        // Then the records the assistant's app reads join the classroom's zone
+        // if an earlier share left them in another.
+        await ClassroomZoneAlignment.runIfNeeded(coreDataStack: coreDataStack)
+
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 
         // 4. Bring the full-text search index up to date after data is clean.

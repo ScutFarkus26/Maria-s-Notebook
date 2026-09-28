@@ -85,11 +85,19 @@ nonisolated extension DataCleanupService {
                     canonical.absenceReason = duplicate.absenceReason
                 }
 
-                // Re-point notes before deletion. Nothing cascades now that the
-                // link is a string FK, so notes would simply dangle on a
-                // deleted record's id if they weren't moved to the survivor.
-                for note in duplicate.unifiedNotes {
-                    note.attendanceRecordID = canonical.id?.uuidString
+                // Keep the duplicate's note: two devices can each have written
+                // one on their own copy of the day.
+                canonical.note = AttendanceNoteMove.merged(canonical.note, duplicate.note)
+
+                // Re-point any private note still linked by id (an older build
+                // on another device can write one until it updates) so
+                // `AttendanceNoteMove` finds it on the survivor.
+                if let duplicateID = duplicate.id?.uuidString {
+                    let linked = CDFetchRequest(CDNote.self)
+                    linked.predicate = NSPredicate(format: "attendanceRecordID == %@", duplicateID)
+                    for note in context.safeFetch(linked) {
+                        note.attendanceRecordID = canonical.id?.uuidString
+                    }
                 }
 
                 context.delete(duplicate)

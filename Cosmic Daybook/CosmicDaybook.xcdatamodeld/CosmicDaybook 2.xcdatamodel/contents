@@ -725,6 +725,7 @@
         <attribute name="recordedByID" optional="YES" attributeType="String"/>
         <attribute name="recordedByName" optional="YES" attributeType="String"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="note" optional="YES" attributeType="String"/>
         <fetchIndex name="byDate">
             <fetchIndexElement property="date" type="Binary" order="ascending"/>
         </fetchIndex>

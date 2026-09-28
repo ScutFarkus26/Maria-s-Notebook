@@ -25,10 +25,22 @@ final class AssistantAttendanceViewModel {
         var id: UUID { student.id ?? UUID() }
         var status: AttendanceStatus { record?.status ?? .unmarked }
         var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
+        /// The day's note, shared with the guide.
+        var note: String { record?.note ?? "" }
+    }
+
+    /// Why there is no school on `date`, when there isn't.
+    enum DayOff: Equatable {
+        case weekend
+        /// A day off in the guide's school calendar, with its reason if given.
+        case holiday(String?)
     }
 
     private(set) var rows: [Row] = []
     private(set) var errorMessage: String?
+    /// Set on weekends and on the guide's days off, which follow the notebook's
+    /// school calendar (`SchoolDayChecker`): no marks are taken then.
+    private(set) var dayOff: DayOff?
 
     let date: Date
     private let context: NSManagedObjectContext
@@ -48,6 +60,8 @@ final class AssistantAttendanceViewModel {
     }
 
     func load() {
+        dayOff = Self.dayOff(on: date, in: context)
+
         let request = CDFetchRequest(CDStudent.self)
         request.sortDescriptors = [
             NSSortDescriptor(key: "firstName", ascending: true),
@@ -92,6 +106,32 @@ final class AssistantAttendanceViewModel {
         guard canMark, let record = row.record else { return }
         _ = store.updateAbsenceReason(record, to: reason)
         persist()
+    }
+
+    /// Writes the day's note for a student, creating the record if there is
+    /// none yet. Empty text removes the note.
+    func setNote(_ text: String?, for row: Row) {
+        guard canMark else { return }
+        do {
+            guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
+            guard store.updateNote(record, to: text) else { return }
+            persist()
+        } catch {
+            Self.logger.error("Saving a note failed: \(error.localizedDescription, privacy: .public)")
+            errorMessage = "Couldn't save that note."
+        }
+    }
+
+    private static func dayOff(on date: Date, in context: NSManagedObjectContext) -> DayOff? {
+        guard SchoolDayChecker.isNonSchoolDay(date, using: context) else { return nil }
+        let request = CDFetchRequest(CDNonSchoolDay.self)
+        request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(date) as NSDate)
+        request.fetchLimit = 1
+        if let holiday = context.safeFetchFirst(request) {
+            let reason = holiday.reason?.trimmed() ?? ""
+            return .holiday(reason.isEmpty ? nil : reason)
+        }
+        return .weekend
     }
 
     private func persist() {

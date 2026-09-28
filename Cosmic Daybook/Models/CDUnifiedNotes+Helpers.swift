@@ -56,27 +56,6 @@ nonisolated extension CDNote {
 
 // MARK: - setLegacyNoteText on CD entities
 
-nonisolated extension CDAttendanceRecord {
-    var latestUnifiedNoteText: String {
-        CDNote.latestBody(in: unifiedNotes)
-    }
-
-    @discardableResult
-    func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
-        let studentUUID = UUID(uuidString: studentID)
-        let scope: NoteScope = studentUUID.map { .student($0) } ?? .all
-        return CDNote.upsertLegacyFieldNote(
-            text: text,
-            tags: [TagHelper.tagFromNoteCategory("attendance")],
-            scope: scope,
-            existingNotes: NSSet(array: unifiedNotes),
-            context: context
-        ) { note in
-            note.attendanceRecordID = self.id?.uuidString
-        }
-    }
-}
-
 nonisolated extension CDProjectSession {
     var latestUnifiedNoteText: String {
         let allNotes = (noteItems?.allObjects as? [CDNote]) ?? []

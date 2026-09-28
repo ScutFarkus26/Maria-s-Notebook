@@ -37,6 +37,8 @@ enum MigrationRunner {
             // written on a presentation (see +CheckInAndNoteRepairs).
             DataMigrations.repairWorkCheckInLinks(using: context)
             DataMigrations.repairPresentationNoteScopes(using: context)
+            // Attendance notes kept as private Notes join their shared record.
+            AttendanceNoteMove.run(using: context)
             // Rows still carrying the retired completion outcome (see +WorkStatusMerge).
             DataMigrations.mergeWorkCompletionOutcomes(using: context)
             if context.hasChanges {

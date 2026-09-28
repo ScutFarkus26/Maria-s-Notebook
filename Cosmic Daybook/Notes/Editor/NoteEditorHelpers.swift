@@ -25,7 +25,6 @@ extension UnifiedNoteEditor {
         case .lesson: return "Lesson Note"
         case .work: return "Work Note"
         case .presentation: return "Presentation Note"
-        case .attendance: return "Attendance Note"
         case .workCheckIn: return "Check-In Note"
         case .workCompletion: return "Completion Note"
         case .studentMeeting: return "Meeting Note"
@@ -39,7 +38,7 @@ extension UnifiedNoteEditor {
 
     var shouldShowStudentSelection: Bool {
         switch context {
-        case .attendance, .workCompletion, .studentMeeting:
+        case .workCompletion, .studentMeeting:
             return false
         case .presentation(let pres):
             // Planned presentations: notes are for the presentation, not specific students
@@ -51,10 +50,6 @@ extension UnifiedNoteEditor {
 
     var preSelectedStudents: Set<UUID> {
         switch context {
-        case .attendance(let record):
-            if let studentID = UUID(uuidString: record.studentID) {
-                return [studentID]
-            }
         case .workCompletion(let record):
             if let studentID = UUID(uuidString: record.studentID) {
                 return [studentID]
@@ -119,10 +114,6 @@ extension UnifiedNoteEditor {
                 selectedStudentIDs = Set(ids)
             case .all:
                 break
-            }
-        } else {
-            if case .attendance = context {
-                tags = [TagHelper.tagFromNoteCategory("attendance")]
             }
         }
     }

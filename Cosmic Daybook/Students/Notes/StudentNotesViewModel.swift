@@ -244,40 +244,26 @@ extension StudentNotesViewModel {
         }
     }
 
-    /// 5) Attendance-related notes.
+    /// 5) Attendance notes: the day's note on each of this student's records.
+    /// Shown read-only here — they are edited on the attendance screen, and
+    /// the timeline's actions look items up as private notes.
     func fetchAttendanceNotes(
         noteSort: [NSSortDescriptor], studentIDString: String) -> [UnifiedNoteItem] {
         let recordFetch = CDFetchRequest(CDAttendanceRecord.self)
-        recordFetch.predicate = NSPredicate(format: "studentID == %@", studentIDString)
-        let records: [CDAttendanceRecord] = viewContext.safeFetch(recordFetch)
-        guard !records.isEmpty else { return [] }
-
-        let recordsByID = Dictionary(
-            records.compactMap { record in record.id.map { ($0.uuidString, record) } },
-            uniquingKeysWith: { first, _ in first }
+        recordFetch.predicate = NSPredicate(
+            format: "studentID == %@ AND note != nil AND note != %@", studentIDString, ""
         )
-
-        let attNoteFetch = CDFetchRequest(CDNote.self)
-        attNoteFetch.predicate = NSPredicate(
-            format: "attendanceRecordID IN %@", Array(recordsByID.keys)
-        )
-        attNoteFetch.sortDescriptors = noteSort
-        let attNotes: [CDNote] = viewContext.safeFetch(attNoteFetch)
-
-        return attNotes.compactMap { note in
-            guard let noteID = note.id,
-                  let recordID = note.attendanceRecordID,
-                  let record = recordsByID[recordID] else { return nil }
-            guard let studentID = student.id, note.scope.applies(to: studentID) else { return nil }
-
+        recordFetch.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        return viewContext.safeFetch(recordFetch).compactMap { record in
+            guard let id = record.id, let note = record.note else { return nil }
             return UnifiedNoteItem(
-                id: noteID, date: note.updatedAt ?? Date(), body: note.body,
+                id: id, date: record.date ?? record.modifiedAt ?? Date(), body: note,
                 source: .attendance, contextText: "Attendance Note",
-                color: record.status.color, associatedID: record.id,
-                tags: note.tagsArray, includeInReport: note.includeInReport,
-                needsFollowUp: note.needsFollowUp, imagePath: note.imagePath,
-                reportedBy: note.reportedBy, reporterName: note.reporterName,
-                isPinned: note.isPinned
+                color: record.status.color, associatedID: id,
+                tags: [], includeInReport: false,
+                needsFollowUp: false, imagePath: nil,
+                reportedBy: nil, reporterName: nil,
+                isPinned: false
             )
         }
     }

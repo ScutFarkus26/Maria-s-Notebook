@@ -116,24 +116,18 @@ struct CDAttendanceStore {
         return true
     }
 
-    // Note handling is compiled out of the assistant's companion app: its
-    // attendance notes stay private to the lead guide, and CDNote's
-    // relationships would pull most of the object model into a build that has
-    // no use for it.
-    #if !ASSISTANT_APP
-
-    /// Update a record's note and return whether it changed.
+    /// Update a record's note and return whether it changed. The note is on
+    /// the shared record, so the guide and an assistant both see it.
     @discardableResult
     func updateNote(_ record: CDAttendanceRecord, to newNote: String?) -> Bool {
         guard canWrite else { return false }
         let trimmed = newNote?.trimmed()
         let newVal = (trimmed?.isEmpty == true) ? nil : trimmed
-        guard record.setLegacyNoteText(newVal, in: context) else { return false }
+        guard record.note != newVal else { return false }
+        record.note = newVal
         stamp(record)
         return true
     }
-
-    #endif
 
     /// Update a record's absence reason and return whether it changed.
     @discardableResult
@@ -176,10 +170,10 @@ struct CDAttendanceStore {
         let studentIDs = Set(students.compactMap { $0.id?.uuidString })
         var records: [CDAttendanceRecord] = []
         for rec in try loadRecords(for: date) where studentIDs.contains(rec.studentID) {
-            let clearedNote = rec.setLegacyNoteText(nil, in: context)
-            if rec.status != .unmarked || rec.absenceReason != .none || clearedNote {
+            if rec.status != .unmarked || rec.absenceReason != .none || rec.note != nil {
                 rec.status = .unmarked
                 rec.absenceReason = .none
+                rec.note = nil
                 stamp(rec)
             }
             records.append(rec)

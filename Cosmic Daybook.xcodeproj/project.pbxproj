@@ -11,6 +11,10 @@
 		DA1CECBB03D8A407B1467D98 /* SharingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABF8694226D7807EB46BC77 /* SharingPreferences.swift */; };
 		DA252003A84AA445F1A97E95 /* ClassroomRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */; };
 		DA273C50CFBB1468B5E697F9 /* AttendanceDeduplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */; };
+		DAE83A3102417A909C03DD3A /* SchoolDayChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1C34F891F5B082744719A9 /* SchoolDayChecker.swift */; };
+		DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */; };
+		DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */; };
+		DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */; };
 		DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4C4B2353AC01D418062C7F /* UIConstants.swift */; };
 		DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */; };
 		DA3F9E61C2B84D07A5E10F02 /* PersistentHistoryProcessor+StoreHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3F9E61C2B84D07A5E10F01 /* PersistentHistoryProcessor+StoreHistory.swift */; };
@@ -100,6 +104,10 @@
 		DAF33D02953B353B5F308309 /* DocumentEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DocumentEntity.swift; path = "Cosmic Daybook/Models/DocumentEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DAF840824AAC3D22283214A2 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "String+Extensions.swift"; path = "Cosmic Daybook/Utils/String+Extensions.swift"; sourceTree = SOURCE_ROOT; };
 		DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceDeduplication.swift; path = "Cosmic Daybook/Attendance/AttendanceDeduplication.swift"; sourceTree = SOURCE_ROOT; };
+		DA1C34F891F5B082744719A9 /* SchoolDayChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchoolDayChecker.swift; path = "Cosmic Daybook/Work/Support/SchoolDayChecker.swift"; sourceTree = SOURCE_ROOT; };
+		DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NonSchoolDayEntity.swift; path = "Cosmic Daybook/Models/NonSchoolDayEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchoolDayOverrideEntity.swift; path = "Cosmic Daybook/Models/SchoolDayOverrideEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceNoteSheet.swift; path = "Cosmic Daybook/Attendance/AttendanceNoteSheet.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -225,6 +233,10 @@
 				DA28F51BB683F0DDC5138A7E /* AttendanceModels.swift */,
 				DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */,
 				DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */,
+				DA1C34F891F5B082744719A9 /* SchoolDayChecker.swift */,
+				DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */,
+				DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */,
+				DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */,
 				DA20E7D5C359FCF5C7158BD8 /* CDAttendanceStore.swift */,
 				DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */,
 				DAA256BA27C74AEF2E0888A8 /* ClassroomMembershipEntity.swift */,
@@ -420,6 +432,10 @@
 				DA601CA3998CD10B1685C417 /* AttendanceModels.swift in Sources */,
 				DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */,
 				DA273C50CFBB1468B5E697F9 /* AttendanceDeduplication.swift in Sources */,
+				DAE83A3102417A909C03DD3A /* SchoolDayChecker.swift in Sources */,
+				DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */,
+				DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */,
+				DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */,
 				DA85F54020C188A55AC2044D /* CDAttendanceStore.swift in Sources */,
 				DA1C2BA2B4668F28BBD1641B /* StudentEntity.swift in Sources */,
 				DA7F870A08077490BED3589E /* ClassroomMembershipEntity.swift in Sources */,

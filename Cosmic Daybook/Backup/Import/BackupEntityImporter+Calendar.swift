@@ -59,6 +59,7 @@ extension BackupEntityImporter {
                 record.recordedByID = dto.recordedByID
                 record.recordedByName = dto.recordedByName
                 record.modifiedAt = dto.modifiedAt
+                record.note = dto.note
                 return record
             }
         )

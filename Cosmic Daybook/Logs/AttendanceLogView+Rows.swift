@@ -50,8 +50,8 @@ extension AttendanceLogView {
 
             Spacer()
 
-            // CDNote indicator
-            if !record.latestUnifiedNoteText.isEmpty {
+            // Note indicator
+            if record.note?.isEmpty == false {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
             }
