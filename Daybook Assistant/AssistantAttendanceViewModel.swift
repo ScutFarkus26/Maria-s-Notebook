@@ -3,8 +3,9 @@ import CoreData
 import OSLog
 import Observation
 
-/// Today's roster paired with whatever attendance record exists for each
-/// student, if any.
+/// One day's roster paired with whatever attendance record exists for each
+/// student, if any. The day starts as today and moves with the arrows or the
+/// date picker, past or future.
 ///
 /// Rows are *virtual* until marked: a student with no record yet shows as
 /// unmarked without anything being inserted. Inserting a roster-wide set of
@@ -41,8 +42,11 @@ final class AssistantAttendanceViewModel {
     /// Set on weekends and on the guide's days off, which follow the notebook's
     /// school calendar (`SchoolDayChecker`): no marks are taken then.
     private(set) var dayOff: DayOff?
+    /// Set when the guide has locked this day: its rows are read-only.
+    private(set) var isLocked = false
 
-    let date: Date
+    /// The day on screen (start of day).
+    private(set) var date: Date
     private let context: NSManagedObjectContext
     private let container: NSPersistentCloudKitContainer?
     private let store: CDAttendanceStore
@@ -53,19 +57,26 @@ final class AssistantAttendanceViewModel {
     init(context: NSManagedObjectContext, container: NSPersistentCloudKitContainer?, date: Date = Date()) {
         self.context = context
         self.container = container
-        self.date = date
+        self.date = Calendar.current.startOfDay(for: date)
         // The role is hardcoded rather than read from the membership row: this
         // app is only ever used by an assistant, and ClassroomPermissions is
         // what stops a mis-set membership from writing beyond attendance.
         self.store = CDAttendanceStore(context: context, role: .assistant)
     }
 
+    /// Whether this day's marks can be changed: the role may write
+    /// attendance, and the guide hasn't locked the day.
     var canMark: Bool {
-        ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: .assistant)
+        ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: .assistant) && !isLocked
     }
 
-    func load() {
+    var isToday: Bool { Calendar.current.isDateInToday(date) }
+
+    /// Shows `newDate` (any day, school or not), or reloads the current one.
+    func load(_ newDate: Date? = nil) {
+        if let newDate { date = Calendar.current.startOfDay(for: newDate) }
         dayOff = Self.dayOff(on: date, in: context)
+        isLocked = store.isLocked(date)
 
         let request = CDFetchRequest(CDStudent.self)
         request.sortDescriptors = [
@@ -126,6 +137,16 @@ final class AssistantAttendanceViewModel {
         } catch {
             Self.logger.error("Saving a note failed: \(error.localizedDescription, privacy: .public)")
             errorMessage = "Couldn't save that note."
+        }
+    }
+
+    // MARK: - Moving between days
+
+    /// Moves to the next (`forward`) or previous school day, skipping weekends
+    /// and the guide's days off. Stays put if none is found within a year.
+    func step(forward: Bool) {
+        if let next = SchoolDayChecker.schoolDay(from: date, forward: forward, using: context) {
+            load(next)
         }
     }
 
