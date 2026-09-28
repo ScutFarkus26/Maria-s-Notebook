@@ -5,6 +5,15 @@
 	<key>aps-environment</key>
 	<string>development</string>
 	<!--
+	  CloudKit environment, from the CLOUDKIT_ENVIRONMENT build setting
+	  (Development until the notebook moves to Production). Honoured by
+	  development-signed builds; TestFlight and App Store builds always use
+	  Production whatever this says. The same setting names the store folder
+	  (CoreDataStack.storeDirectory), so each environment keeps its own files.
+	-->
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>$(CLOUDKIT_ENVIRONMENT)</string>
+	<!--
 	  The container is spelled out, NOT derived from the bundle identifier the
 	  way the main app's entitlements do it. This app's bundle id ends in
 	  ".Assistant", so the derived form would resolve to a brand new, empty

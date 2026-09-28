@@ -3,6 +3,11 @@ import Foundation
 /// Centralized UserDefaults keys to prevent typos and improve maintainability.
 /// All keys should be defined here and referenced via this enum.
 nonisolated enum UserDefaultsKeys {
+    // Keys written through `CloudKitEnvironment.scoped` describe one CloudKit
+    // environment's notebook — its history positions, first download, sync
+    // log, user record name — so the Development and Production copies on one
+    // device never read each other's. Development keeps the bare key.
+
     // MARK: - App Core
     static let useInMemoryStoreOnce = "UseInMemoryStoreOnce"
     static let ephemeralSessionFlag = "SwiftDataEphemeralSession"
@@ -11,17 +16,21 @@ nonisolated enum UserDefaultsKeys {
     static let enableCloudKitSync = "EnableCloudKitSync"
     static let cloudKitActive = "CloudKitActive"
     static let cloudKitLastErrorDescription = "CloudKitLastErrorDescription"
-    static let cloudKitLastSuccessfulSyncDate = "CloudKitSync.lastSuccessfulSyncDate"
+    static var cloudKitLastSuccessfulSyncDate: String {
+        CloudKitEnvironment.scoped("CloudKitSync.lastSuccessfulSyncDate")
+    }
     static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
-    static let cloudKitErrorLog = "cloudKitErrorLog"
+    static var cloudKitErrorLog: String { CloudKitEnvironment.scoped("cloudKitErrorLog") }
     /// Legacy — the history processor's single token for both stores, which
     /// only ever held a position in one of them. Removed on launch.
     static let persistentHistoryLastToken = "PersistentHistory.lastToken"
     /// The history processor's position in each store: archived
     /// `NSPersistentHistoryToken` data keyed by `NSPersistentStore.identifier`.
-    static let persistentHistoryStoreTokens = "PersistentHistory.storeTokens"
-    static let persistentHistoryLastPurgeDate = "PersistentHistory.lastPurgeDate"
-    static let cloudKitLastSuccessfulExportStartDate = "CloudKitSync.lastSuccessfulExportStartDate"
+    static var persistentHistoryStoreTokens: String { CloudKitEnvironment.scoped("PersistentHistory.storeTokens") }
+    static var persistentHistoryLastPurgeDate: String { CloudKitEnvironment.scoped("PersistentHistory.lastPurgeDate") }
+    static var cloudKitLastSuccessfulExportStartDate: String {
+        CloudKitEnvironment.scoped("CloudKitSync.lastSuccessfulExportStartDate")
+    }
 
     // MARK: - Planning
     static let planningRootViewMode = "PlanningRootView.mode"
@@ -169,7 +178,7 @@ nonisolated enum UserDefaultsKeys {
     static let retiredAIKeysRemovedV1 = "Migration.retiredAIKeysRemoved.v1"
 
     // MARK: - Shared Store Sync Repair
-    static let classroomIdentityRecordName = "ClassroomIdentity.userRecordName"
+    static var classroomIdentityRecordName: String { CloudKitEnvironment.scoped("ClassroomIdentity.userRecordName") }
     static let classroomIdentityDisplayName = "ClassroomIdentity.displayName"
     static let sharedStoreZoneRepairLastTimeoutAt = "SharedStoreZoneRepair.lastTimeoutAt"
     /// Persistent-history token recorded by the last zone-repair pass that
@@ -177,7 +186,7 @@ nonisolated enum UserDefaultsKeys {
     static let sharedStoreZoneRepairCleanHistoryToken = "SharedStoreZoneRepair.cleanHistoryToken"
     /// Set while a fresh private store is still receiving its first download
     /// from iCloud (see `FirstDownloadGate`). Device-local; never exported.
-    static let firstDownloadPending = "CloudKit.firstDownloadPending"
+    static var firstDownloadPending: String { CloudKitEnvironment.scoped("CloudKit.firstDownloadPending") }
 
     /// One-shot flag the user sets via Settings → Database → "Reset Local
     /// Cache". On the next launch, `CoreDataStack.init` checks this flag,
@@ -190,7 +199,7 @@ nonisolated enum UserDefaultsKeys {
     /// Set after the first launch-time check-in link repair on this device.
     /// Orphaned check-ins are only deleted from the second run on, so a fresh
     /// install still importing its work rows from CloudKit deletes nothing.
-    static let checkInLinkRepairHasRun = "DataMigrations.checkInLinkRepair.hasRun"
+    static var checkInLinkRepairHasRun: String { CloudKitEnvironment.scoped("DataMigrations.checkInLinkRepair.hasRun") }
     static let resetLocalCacheArmedAt = "AppCore.resetLocalCacheArmedAt"
     static let resetLocalCacheArmedSource = "AppCore.resetLocalCacheArmedSource"
 

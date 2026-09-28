@@ -17,6 +17,15 @@
 	<string>Cosmic Daybook</string>
 	<key>CKSharingSupported</key>
 	<true/>
+	<!--
+	  Which CloudKit environment this build syncs with: the CLOUDKIT_ENVIRONMENT
+	  build setting, which also sets the icloud-container-environment
+	  entitlement. Read at runtime by CloudKitEnvironment (store folder and
+	  per-environment sync keys). Keep the two in step by never editing either
+	  by hand.
+	-->
+	<key>CloudKitEnvironment</key>
+	<string>$(CLOUDKIT_ENVIRONMENT)</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>We need full access to your calendars to show today's events in your Today view.</string>
 	<key>NSCalendarsUsageDescription</key>

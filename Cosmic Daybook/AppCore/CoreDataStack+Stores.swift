@@ -5,8 +5,9 @@ import OSLog
 extension CoreDataStack {
     // MARK: - Store URLs
 
-    /// Directory for Core Data store files.
-    nonisolated static func storeDirectory() -> URL {
+    /// The app's folder for Core Data store files. Development's CloudKit
+    /// stores and Sample Class live directly in it.
+    nonisolated static func baseStoreDirectory() -> URL {
         let fm = FileManager.default
         let appSupport: URL
         do {
@@ -21,9 +22,24 @@ extension CoreDataStack {
             return fm.temporaryDirectory
         }
         let bundleID = Bundle.main.bundleIdentifier ?? "CosmicDaybook"
-        let dir = appSupport.appendingPathComponent(bundleID, isDirectory: true)
+        return makeDirectory(appSupport.appendingPathComponent(bundleID, isDirectory: true))
+    }
+
+    /// Directory for this build's CloudKit notebook: the base folder for
+    /// Development, `Production/` inside it for Production. Each environment is
+    /// a separate notebook, so neither ever opens the other's files — going
+    /// back to a Development build finds its store exactly as it was left.
+    nonisolated static func storeDirectory(
+        environment: CloudKitEnvironment = .current
+    ) -> URL {
+        let base = baseStoreDirectory()
+        guard let subfolder = environment.storeSubdirectory else { return base }
+        return makeDirectory(base.appendingPathComponent(subfolder, isDirectory: true))
+    }
+
+    private nonisolated static func makeDirectory(_ dir: URL) -> URL {
         do {
-            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         } catch {
             logger.warning("Failed to create store directory: \(error)")
         }
@@ -45,9 +61,10 @@ extension CoreDataStack {
 
     /// Local-only store used by Sample Class. Keeping it in a separate SQLite
     /// file makes the sample classroom a hard persistence boundary rather than
-    /// a filter over the guide's real records.
+    /// a filter over the guide's real records. It never syncs, so it belongs to
+    /// neither CloudKit environment and stays in the base folder.
     nonisolated static func sampleClassroomStoreURL() -> URL {
-        storeDirectory().appendingPathComponent("sample-classroom.sqlite")
+        baseStoreDirectory().appendingPathComponent("sample-classroom.sqlite")
     }
     // MARK: - Store Accessors
 

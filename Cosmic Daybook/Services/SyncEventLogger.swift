@@ -71,7 +71,7 @@ final class SyncEventLogger {
 
     init(
         defaults: UserDefaults = .standard,
-        storageKey: String = "SyncHistory.events",
+        storageKey: String = CloudKitEnvironment.scoped("SyncHistory.events"),
         coalesceWindow: TimeInterval = 30,
         saveDelay: Duration = .seconds(1)
     ) {

@@ -20,7 +20,9 @@ import OSLog
 
 final class BackupChangeTracker {
     private static let logger = Logger.backup
-    private static let tokenDefaultsKey = "AutoBackup.lastHistoryToken"
+    /// Per CloudKit environment: a token from the other notebook names a
+    /// different store.
+    private static let tokenDefaultsKey = CloudKitEnvironment.scoped("AutoBackup.lastHistoryToken")
 
     /// True when at least one persistent-history transaction exists after the
     /// recorded token — or when that can't be determined.

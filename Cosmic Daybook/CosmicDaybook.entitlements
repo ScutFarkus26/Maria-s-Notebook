@@ -7,6 +7,15 @@
 	<key>com.apple.developer.aps-environment</key>
 	<string>development</string>
 	<!--
+	  CloudKit environment, from the CLOUDKIT_ENVIRONMENT build setting
+	  (Development until the notebook moves to Production). Honoured by
+	  development-signed builds; TestFlight and App Store builds always use
+	  Production whatever this says. The same setting names the store folder
+	  (CoreDataStack.storeDirectory), so each environment keeps its own files.
+	-->
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>$(CLOUDKIT_ENVIRONMENT)</string>
+	<!--
 	  The app is Cosmic Daybook, but its bundle identifier is still
 	  DanielSDeBerry.MariasNoteBook, so every derived id below resolves to the
 	  historical iCloud.DanielSDeBerry.MariasNoteBook container. CloudKit

@@ -211,19 +211,8 @@ final class CoreDataStack {
         configureViewContext()
 
         #if DEBUG
-        // Mirror Core Data model changes into the CloudKit development schema.
-        // Kept out of the normal launch path per Apple's workflow ("Sharing Core
-        // Data objects between iCloud users"): run the app once with the
-        // -InitializeCloudKitSchema launch argument after a model change, verify
-        // in CloudKit Console, then deploy the schema to production.
-        if enableCloudKit, !inMemory,
-           ProcessInfo.processInfo.arguments.contains("-InitializeCloudKitSchema") {
-            do {
-                try container.initializeCloudKitSchema(options: [])
-                Self.logger.info("CloudKit schema initialized from Core Data model")
-            } catch {
-                Self.logger.error("CloudKit schema initialization failed: \(error.localizedDescription)")
-            }
+        if enableCloudKit, !inMemory {
+            initializeCloudKitSchemaIfRequested()
         }
         #endif
 
@@ -260,6 +249,34 @@ final class CoreDataStack {
         let elapsed = String(format: "%.3f", Date().timeIntervalSince(start))
         Self.logger.info("CoreDataStack initialized in \(elapsed)s")
     }
+
+    #if DEBUG
+    /// Mirrors Core Data model changes into the CloudKit development schema.
+    /// Kept out of the normal launch path per Apple's workflow ("Sharing Core
+    /// Data objects between iCloud users"): run the app once with the
+    /// -InitializeCloudKitSchema launch argument after a model change, verify
+    /// in CloudKit Console, then deploy the schema to production.
+    ///
+    /// Apple allows schema setup only in Development, so a schema run is a
+    /// Development build whatever the project's setting: build it with
+    /// `CLOUDKIT_ENVIRONMENT=Development` (which also opens the Development
+    /// notebook's own store files). A Production build refuses the argument.
+    private func initializeCloudKitSchemaIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("-InitializeCloudKitSchema") else { return }
+        guard CloudKitEnvironment.allowsSchemaInitialization else {
+            let refusal = "-InitializeCloudKitSchema ignored: this build syncs with Production. " +
+                "Rebuild with CLOUDKIT_ENVIRONMENT=Development for a schema run."
+            Self.logger.error("\(refusal, privacy: .public)")
+            return
+        }
+        do {
+            try container.initializeCloudKitSchema(options: [])
+            Self.logger.info("CloudKit schema initialized from Core Data model")
+        } catch {
+            Self.logger.error("CloudKit schema initialization failed: \(error.localizedDescription)")
+        }
+    }
+    #endif
 
     deinit {
         // The production stack lives for the whole process, but launch-time
