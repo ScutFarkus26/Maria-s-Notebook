@@ -21,7 +21,7 @@ struct ClassroomRepository: SavingRepository {
 
     /// Returns the first classroom membership, representing the current classroom.
     func fetchCurrentMembership() -> CDClassroomMembership? {
-        let request = CDFetchRequest(CDClassroomMembership.self)
+        let request = CDClassroomMembership.ownRowsRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "joinedAt", ascending: false)]
         request.fetchLimit = 1
         return context.safeFetchFirst(request)

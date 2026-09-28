@@ -59,25 +59,22 @@ final class AssistantBootstrapper {
     /// attendance list.
     func refreshMembership() {
         guard let context = coreDataStack?.viewContext else { return }
-        let request = CDFetchRequest(CDClassroomMembership.self)
+        let request = CDClassroomMembership.ownRowsRequest()
         request.fetchLimit = 1
         let hasMembership = context.safeFetchFirst(request) != nil
         phase = hasMembership ? .ready : .needsClassroom
     }
 
+    /// ClassroomSharingService does the accepting and posts once the
+    /// membership row is written, however long CloudKit took.
     private func observeAcceptance() {
         guard acceptanceObserver == nil else { return }
         acceptanceObserver = NotificationCenter.default.addObserver(
-            forName: .didAcceptCloudKitShare,
+            forName: .didJoinClassroom,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            // ClassroomSharingService does the accepting; wait a beat for it to
-            // write the membership row before re-reading.
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(2))
-                self?.refreshMembership()
-            }
+            MainActor.assumeIsolated { self?.refreshMembership() }
         }
     }
 }
