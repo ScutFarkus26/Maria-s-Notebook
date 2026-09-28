@@ -5,6 +5,8 @@
 # then the installed copy keeps the code it was built from.
 #
 #   Scripts/install_release.sh
+#   Scripts/install_release.sh --quit       # quit a running installed copy instead of refusing
+#   Scripts/install_release.sh --relaunch   # open the new copy once it is installed
 #
 # - Builds main's last commit, never a working tree: a detached worktree of main
 #   at .claude/worktrees/release-install, removed afterwards, so uncommitted edits
@@ -21,8 +23,10 @@
 #   Production environment. The development profile expires; the script prints
 #   the date, and any run before it renews it.
 # - Refuses to replace the installed copy while it is running (it may be an
-#   MCP-only copy with no window, launched by the bridge). The replaced copy goes
-#   to the Trash as a zip.
+#   MCP-only copy with no window, launched by the bridge), unless --quit: then it
+#   quits that copy right before the swap — a normal Quit, then SIGTERM after 15 s,
+#   then SIGKILL after 10 more. The
+#   replaced copy goes to the Trash as a zip.
 # - Last, drops the LaunchServices registrations of the bundle id whose app is
 #   gone from disk or in the Trash (every worktree build that has since been
 #   removed leaves one), so Spotlight and Shortcuts have fewer stale copies to
@@ -46,14 +50,28 @@ worktree=$repo/.claude/worktrees/release-install
 derived=$HOME/Library/Developer/Xcode/DerivedData/CosmicDaybook-ReleaseInstall
 lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
+force_quit=0 relaunch=0
+for arg; do
+  case $arg in
+    --quit) force_quit=1 ;;
+    --relaunch) relaunch=1 ;;
+    *) die "usage: $me [--quit] [--relaunch]" ;;
+  esac
+done
+
 # Stops here while the installed copy runs: replacing a running app's files can
 # crash it, and it holds the notebook open. Matches the executable path exactly
 # (`comm`), never a command line, which would find this awk itself.
+installed_pids() {
+  ps -axo pid=,comm= | awk -v exe="$dest/Contents/MacOS/Cosmic Daybook" \
+    '{ pid = $1; sub(/^ *[0-9]+ +/, ""); if ($0 == exe) print pid }'
+}
+
 refuse_if_running() {
   local pids
-  pids=$(ps -axo pid=,comm= | awk -v exe="$dest/Contents/MacOS/Cosmic Daybook" \
-    '{ pid = $1; sub(/^ *[0-9]+ +/, ""); if ($0 == exe) print pid }')
+  pids=$(installed_pids)
   [[ -z $pids ]] && return 0
+  (( force_quit )) && return 0
   print -u2 "$me: $dest is running (pid ${pids//$'\n'/, }). It may be an MCP-only copy with no window."
   print -u2 "  Quit it (right-click its Dock icon ▸ Quit), then run this again."
   exit 1
@@ -95,6 +113,24 @@ expiry=$(security cms -D -i $app/Contents/embedded.provisionprofile 2>/dev/null 
 
 # The bridge may have launched the installed copy while this was building.
 refuse_if_running
+if (( force_quit )) && [[ -n $(installed_pids) ]]; then
+  pids=(${(f)"$(installed_pids)"})
+  print "Quitting the installed copy (pid ${(j:, :)pids})"
+  # A normal Quit first (the app saves and closes its windows), by pid so an
+  # Xcode build with the same bundle id is left alone; then SIGTERM, then SIGKILL.
+  for pid in $pids; do
+    osascript -l JavaScript -e "ObjC.import('AppKit'); \
+      $.NSRunningApplication.runningApplicationWithProcessIdentifier($pid).terminate" >/dev/null 2>&1
+  done
+  for _ in {1..30}; do [[ -z $(installed_pids) ]] && break; sleep 0.5; done
+  if [[ -n $(installed_pids) ]]; then
+    print "  still running after 15 s; terminating it"
+    kill -TERM ${(f)"$(installed_pids)"} 2>/dev/null
+    for _ in {1..20}; do [[ -z $(installed_pids) ]] && break; sleep 0.5; done
+  fi
+  [[ -n $(installed_pids) ]] && kill -KILL ${(f)"$(installed_pids)"} 2>/dev/null && sleep 1
+  [[ -z $(installed_pids) ]] || die "cannot quit the installed copy"
+fi
 staged="/Applications/.$app_name.installing"
 rm -rf $staged
 ditto $app $staged || die "cannot copy the new app into /Applications"
@@ -124,6 +160,7 @@ $lsregister -dump 2>/dev/null \
       $lsregister -u $registered 2>/dev/null && (( ++pruned ))
     done
 
+(( relaunch )) && open $dest && print "Reopened $dest"
 print "Installed $dest"
 print "  main $sha, $(uname -m), development profile valid until ${expiry:-unknown}"
 print "  archive with dSYM: $archive"
