@@ -222,8 +222,7 @@ final class AppDependencies {
 
     @ObservationIgnored lazy var classroomSharingService = ClassroomSharingService(
         container: coreDataStack.container,
-        context: viewContext,
-        coreDataStack: coreDataStack
+        context: viewContext
     )
 
     // MARK: - Router & Coordinators

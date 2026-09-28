@@ -76,6 +76,22 @@ struct ClassroomShareSelectionTests {
         #expect(CDClassroomMembership.pinnedZoneName(in: ctx) == "newer")
     }
 
+    @Test("In the notebook a lead-guide row outranks a newer assistant row")
+    func leadGuideRowWins() throws {
+        let ctx = try CoreDataTestHelpers.makeSplitStoreContext()
+        let repo = ClassroomRepository(context: ctx)
+        let guide = repo.createMembership(classroomZoneID: "classroom", role: .leadGuide, ownerIdentity: "me")
+        guide.modifiedAt = Date(timeIntervalSinceNow: -3_600)
+        // The guide tried the Daybook Assistant on their own Apple Account;
+        // its row syncs into the notebook's private store.
+        let assistant = repo.createMembership(classroomZoneID: "classroom", role: .assistant, ownerIdentity: "me")
+        assistant.modifiedAt = Date()
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        #expect(CDClassroomMembership.currentRole(in: ctx) == .leadGuide)
+        #expect(CDClassroomMembership.current(in: ctx)?.objectID == guide.objectID)
+    }
+
     @Test("A notebook with no membership is its own lead guide")
     func noMembershipIsLeadGuide() throws {
         let ctx = try CoreDataTestHelpers.makeSplitStoreContext()

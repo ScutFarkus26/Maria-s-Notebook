@@ -8,6 +8,15 @@ import OSLog
 
 extension AttendanceDayLocks {
 
+    /// The backup format that first carries `AttendanceDayLock` entries.
+    static let firstFormatWithLockRecords = 30
+
+    /// The old setting for `date`, which unlocking clears so that no later
+    /// carry-over (another device's, a restore's) locks the day again.
+    static func legacyKey(for date: Date) -> String {
+        legacyKeyPrefix + DateFormatters.isoDateLocal.string(from: AppCalendar.startOfDay(date))
+    }
+
     // MARK: - The old key-value locks
 
     /// The days the old `Attendance.locked.<date>` settings lock.
@@ -63,5 +72,20 @@ extension AttendanceDayLocks {
         let values = Dictionary(uniqueKeysWithValues: keys.map { ($0, store.bool(forKey: $0) as Any) })
         migrateLegacyKeys(values, role: CDClassroomMembership.currentRole(in: context), in: context)
         defaults.set(true, forKey: flag)
+    }
+
+    /// After a restore: a backup from before v30 carries its locked days only
+    /// as `Attendance.locked.<date>` preferences, and they become lock records
+    /// (saved here). A v30+ backup carries the records themselves, and its old
+    /// keys may name days unlocked since — they must not lock them again.
+    @MainActor
+    static func carryOverRestoredLocks(
+        _ preferences: PreferencesDTO, formatVersion: Int, into context: NSManagedObjectContext
+    ) {
+        guard formatVersion < firstFormatWithLockRecords else { return }
+        let role = CDClassroomMembership.currentRole(in: context)
+        if migrateLegacyKeys(legacyLocks(in: preferences), role: role, in: context) > 0 {
+            context.safeSave()
+        }
     }
 }

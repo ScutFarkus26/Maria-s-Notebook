@@ -47,14 +47,31 @@ nonisolated extension CDClassroomMembership {
     /// the most recently pinned: newest `modifiedAt`, then newest `joinedAt`.
     /// Before 2026-09-28 the role and the share were read from the oldest row
     /// while the repository read the newest, so they could disagree.
+    ///
+    /// In the notebook a lead-guide row wins over assistant rows: the rows sync
+    /// across every app on the Apple Account, so a guide who tries the Daybook
+    /// Assistant on their own account must not be demoted to assistant here.
     static func current(in context: NSManagedObjectContext) -> CDClassroomMembership? {
-        let request = ownRowsRequest()
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "modifiedAt", ascending: false),
-            NSSortDescriptor(key: "joinedAt", ascending: false)
-        ]
-        request.fetchLimit = 1
-        return context.safeFetchFirst(request)
+        func newest(_ predicate: NSPredicate?) -> CDClassroomMembership? {
+            let request = ownRowsRequest()
+            if let predicate {
+                request.predicate = request.predicate.map {
+                    NSCompoundPredicate(andPredicateWithSubpredicates: [$0, predicate])
+                } ?? predicate
+            }
+            request.sortDescriptors = [
+                NSSortDescriptor(key: "modifiedAt", ascending: false),
+                NSSortDescriptor(key: "joinedAt", ascending: false)
+            ]
+            request.fetchLimit = 1
+            return context.safeFetchFirst(request)
+        }
+        #if !ASSISTANT_APP
+        if let guide = newest(NSPredicate(format: "roleRaw == %@", ClassroomRole.leadGuide.rawValue)) {
+            return guide
+        }
+        #endif
+        return newest(nil)
     }
 
     /// The device's role, read from the current membership row. A notebook

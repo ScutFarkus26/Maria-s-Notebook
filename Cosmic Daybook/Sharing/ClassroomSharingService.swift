@@ -13,7 +13,6 @@ final class ClassroomSharingService {
 
     let container: NSPersistentCloudKitContainer
     private let context: NSManagedObjectContext
-    private let coreDataStack: CoreDataStack?
 
     // MARK: - Observable State
 
@@ -41,12 +40,10 @@ final class ClassroomSharingService {
 
     init(
         container: NSPersistentCloudKitContainer,
-        context: NSManagedObjectContext,
-        coreDataStack: CoreDataStack? = nil
+        context: NSManagedObjectContext
     ) {
         self.container = container
         self.context = context
-        self.coreDataStack = coreDataStack
 
         NotificationCenter.default.addObserver(
             self,

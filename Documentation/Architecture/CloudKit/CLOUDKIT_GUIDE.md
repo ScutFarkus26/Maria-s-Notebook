@@ -211,10 +211,12 @@ creates a student, attendance record, school-calendar day or day lock saves
 there: the screens, MCP writes, restore, CSV import and
 `SchoolCalendarService`. It takes the classroom types the save *inserted* into
 the lead guide's private store and attaches them to the pinned share. Before
-the pin arrives (a new device still downloading) they wait in a persisted list
-(`UserDefaultsKeys.classroomSharePendingAttach`) and go in once it does; once
-the first download finishes with no pin, the classroom isn't shared yet and
-nothing waits — setup takes everything.
+the pin arrives (a new device still downloading, or the iPad before the Mac's
+setup reaches it) they wait in a persisted list
+(`UserDefaultsKeys.classroomSharePendingAttach`, capped at 2,000) and go in on
+the next remote change, launch or first-download finish that finds the pin.
+Setup on this device shares everything, so it clears what it found in the list,
+and it makes a second pass for records created while it ran.
 
 **Nothing sweeps.** `SharedStoreZoneRepair` looked for records that *looked*
 unshared after every launch, import, dedup and share change. Mid-download a

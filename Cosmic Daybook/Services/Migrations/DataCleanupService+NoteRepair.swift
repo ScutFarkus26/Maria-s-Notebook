@@ -23,11 +23,17 @@ nonisolated extension DataCleanupService {
     /// Local Cache, a new device, the empty Production notebook before its
     /// restore — references none of the photos, so every one of them would
     /// read as orphaned and be deleted. It waits for a store that is.
+    ///
+    /// **Development only.** The local folder is one per device, not one per
+    /// CloudKit environment, so the Production notebook can't judge photos the
+    /// Development notebook (kept as the fallback) still needs. Photos taken
+    /// since 2026-09-27 go to iCloud anyway; the local folder is legacy.
     static func cleanupOrphanedNoteImages(
         using context: NSManagedObjectContext,
-        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+        firstDownloadPending: Bool = FirstDownloadGate.isPending(),
+        environment: CloudKitEnvironment = .current
     ) {
-        guard !firstDownloadPending else { return }
+        guard environment == .development, !firstDownloadPending else { return }
         do {
             let notesFetch = CDFetchRequest(CDNote.self)
             let notes = context.safeFetch(notesFetch)

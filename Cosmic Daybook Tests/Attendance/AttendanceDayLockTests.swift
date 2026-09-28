@@ -88,6 +88,24 @@ struct AttendanceDayLockTests {
         #expect(!AttendanceDayLocks.isLocked(try day("2026-09-16"), in: ctx))
     }
 
+    @Test("Only a pre-v30 backup's old lock settings become locks on restore")
+    func restoreCarriesOldLocksOnlyFromOldBackups() throws {
+        let ctx = try CoreDataTestHelpers.makeContext()
+        let prefs = PreferencesDTO(values: ["Attendance.locked.2026-09-14": .bool(true)])
+        // A v30 backup carries lock records; its old key may name a day
+        // unlocked since, which must stay unlocked.
+        AttendanceDayLocks.carryOverRestoredLocks(prefs, formatVersion: 30, into: ctx)
+        #expect(!AttendanceDayLocks.isLocked(try day("2026-09-14"), in: ctx))
+        AttendanceDayLocks.carryOverRestoredLocks(prefs, formatVersion: 29, into: ctx)
+        #expect(AttendanceDayLocks.isLocked(try day("2026-09-14"), in: ctx))
+    }
+
+    @Test("Unlocking names the old setting it clears")
+    func legacyKeyForDay() throws {
+        #expect(AttendanceDayLocks.legacyKey(for: try day("2026-09-14").addingTimeInterval(3_600))
+            == "Attendance.locked.2026-09-14")
+    }
+
     @Test("A restored backup's lock preferences are read as old locks")
     func restoredPreferencesCarryLocks() {
         let prefs = PreferencesDTO(values: [

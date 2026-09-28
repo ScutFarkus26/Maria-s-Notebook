@@ -42,6 +42,9 @@ extension ClassroomSharingService {
     func setUpClassroomSharing(coreDataStack: CoreDataStack) async throws -> ClassroomShareSetupReport {
         let (store, pinned) = try await setupPreflight(coreDataStack: coreDataStack)
         let viewContext = coreDataStack.viewContext
+        // What this device was holding for the share. Everything of these
+        // types is shared below, so these go; anything added meanwhile stays.
+        let waitingAtStart = SharedStoreOrphanGuard.shared.pendingURIs
 
         let byEntity = await Self.classroomRecordIDs(in: store, container: container)
         let all = ClassroomShareSetupReport.orderedEntityNames.flatMap { byEntity[$0] ?? [] }
@@ -59,12 +62,26 @@ extension ClassroomSharingService {
         }
 
         Self.setupLogger.notice("Classroom setup: attaching \(waiting.count, privacy: .public) record(s)")
-        let outcome = await ClassroomShareAttach.attach(waiting, to: share, container: container)
+        var outcome = await ClassroomShareAttach.attach(waiting, to: share, container: container)
+        // Records created while that ran — before the pin was saved the guard
+        // had no share to put them in — get a second pass.
+        if outcome.stoppedBecause == nil {
+            let latest = await Self.classroomRecordIDs(in: store, container: container)
+            let again = ClassroomShareSetupReport.orderedEntityNames.flatMap { latest[$0] ?? [] }
+            let stragglers = try await ClassroomShareAttach.unshared(again, container: container)
+                .filter { !Set(outcome.failed).contains($0) }
+            if !stragglers.isEmpty {
+                let second = await ClassroomShareAttach.attach(stragglers, to: share, container: container)
+                outcome.attached += second.attached
+                outcome.failed += second.failed
+                outcome.stoppedBecause = second.stoppedBecause
+                outcome.mirroringDelegateDied = second.mirroringDelegateDied
+            }
+        }
         if outcome.mirroringDelegateDied {
             CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
         }
-        // Everything this device created before the share existed is covered.
-        SharedStoreOrphanGuard.shared.clearPending()
+        SharedStoreOrphanGuard.shared.removePending(waitingAtStart)
 
         let contents = await Self.shareContents(coreDataStack: coreDataStack)
         let report = ClassroomShareSetupReport(

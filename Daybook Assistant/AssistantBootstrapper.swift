@@ -41,8 +41,7 @@ final class AssistantBootstrapper {
 
             let service = ClassroomSharingService(
                 container: stack.container,
-                context: stack.viewContext,
-                coreDataStack: stack
+                context: stack.viewContext
             )
             sharingService = service
 

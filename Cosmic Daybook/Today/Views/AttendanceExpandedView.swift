@@ -50,6 +50,9 @@ struct AttendanceExpandedView: View {
         guard AttendanceDayLocks.setLocked(
             locked, for: date, role: role, lockedByID: ClassroomIdentity.currentUserRecordName, in: viewContext
         ) else { return }
+        // An old-style lock for the day would lock it again on the next
+        // carry-over; unlocking clears it.
+        if !locked { SyncedPreferencesStore.shared.remove(key: AttendanceDayLocks.legacyKey(for: date)) }
         saveCoordinator.save(viewContext, reason: locked ? "Lock attendance day" : "Unlock attendance day")
     }
 

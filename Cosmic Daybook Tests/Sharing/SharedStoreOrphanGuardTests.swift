@@ -36,16 +36,6 @@ struct SharedStoreOrphanGuardTests {
         #expect(SharedStoreOrphanGuard.classroomInserts([student], privateStore: nil).isEmpty)
     }
 
-    @Test("Tracked only for the lead guide, and only when a share is pinned or may still arrive")
-    func tracksOnlyWhenAShareIsOrMayBePinned() {
-        #expect(SharedStoreOrphanGuard.shouldTrack(role: .leadGuide, pinKnown: true, firstDownloadPending: false))
-        #expect(SharedStoreOrphanGuard.shouldTrack(role: .leadGuide, pinKnown: false, firstDownloadPending: true))
-        // Fully downloaded with no pin: not shared yet; setup takes everything.
-        #expect(!SharedStoreOrphanGuard.shouldTrack(role: .leadGuide, pinKnown: false, firstDownloadPending: false))
-        // An assistant's records go to the shared store and attach themselves.
-        #expect(!SharedStoreOrphanGuard.shouldTrack(role: .assistant, pinKnown: true, firstDownloadPending: false))
-    }
-
     @Test("The waiting list persists, skips repeats, and clears")
     func waitingListPersists() throws {
         let defaults = try #require(UserDefaults(suiteName: "orphan-guard-\(UUID().uuidString)"))
@@ -59,6 +49,12 @@ struct SharedStoreOrphanGuardTests {
         #expect(guardian.pendingURIs == [student.objectID.uriRepresentation().absoluteString])
         // A second instance on the same defaults (a relaunch) sees it too.
         #expect(SharedStoreOrphanGuard(defaults: defaults).pendingURIs.count == 1)
+        let later = CDStudent(context: ctx)
+        #expect(CoreDataTestHelpers.save(ctx))
+        guardian.enqueue([later.objectID])
+        // Setup forgets what it found and keeps what arrived during it.
+        guardian.removePending([student.objectID.uriRepresentation().absoluteString])
+        #expect(guardian.pendingURIs == [later.objectID.uriRepresentation().absoluteString])
         guardian.clearPending()
         #expect(guardian.pendingURIs.isEmpty)
     }

@@ -5,6 +5,10 @@ import Testing
 
 /// Two things that hurt a notebook starting from nothing — the empty
 /// Production notebook before its restore, a Reset Local Cache, a new device.
+///
+/// Only the cases where the cleanup must do nothing are tested here: a run
+/// that does clean would delete every unreferenced photo in the test host's
+/// folder, including ones other suites are using at the same moment.
 @Suite("Fresh-store safety", .serialized)
 @MainActor
 struct FreshStoreSafetyTests {
@@ -45,17 +49,19 @@ struct FreshStoreSafetyTests {
         #expect(try exists(name))
     }
 
-    @Test("A complete store still clears photos no note references")
-    func completeStoreClearsOrphans() throws {
+    @Test("The Production notebook never judges the shared local photo folder")
+    func productionKeepsPhotos() throws {
         let name = try strayPhoto()
         defer { try? PhotoStorageService.deleteLocalImage(filename: name) }
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let note = CDNote(context: context)
-        note.body = "A note with no photo"
+        note.body = "A complete Production notebook"
         #expect(CoreDataTestHelpers.save(context))
 
-        DataCleanupService.cleanupOrphanedNoteImages(using: context, firstDownloadPending: false)
-        #expect(try !exists(name))
+        DataCleanupService.cleanupOrphanedNoteImages(
+            using: context, firstDownloadPending: false, environment: .production
+        )
+        #expect(try exists(name), "the Development notebook, kept as the fallback, may still need it")
     }
 
     @Test("Reset Local Cache names SQLite's own WAL and SHM files")

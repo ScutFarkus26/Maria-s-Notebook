@@ -19,23 +19,26 @@ import OSLog
 /// pass moved 4,003 of them into the wrong share, which is how the classroom
 /// split across zones.
 ///
-/// Before the pin is known — a new device still downloading, where the
-/// membership row hasn't arrived — the new records wait in a small persisted
-/// list and are attached once it shows up. Once the first download has
-/// finished with no pin, the classroom simply isn't shared yet: nothing waits,
-/// because Set Up Classroom Sharing shares everything.
+/// Before the pin is known — a new device still downloading, or the guide's
+/// iPad in the minutes before the Mac's setup reaches it — the new records
+/// wait in a small persisted list and are attached once it shows up (a remote
+/// change, the end of the first download, or launch sets off the attempt).
+/// Set Up Classroom Sharing on this device takes everything anyway, so it
+/// clears the list; the list is capped, oldest first, for a notebook that is
+/// never shared.
 final class SharedStoreOrphanGuard {
 
     static let shared = SharedStoreOrphanGuard()
 
     private static let logger = Logger.sharedStoreOrphanGuard
 
-    /// Most records kept waiting for a pin. A restore into a notebook whose
-    /// pin hasn't arrived could otherwise queue a whole classroom.
-    static let maxPending = 20_000
+    /// Most records kept waiting for a pin. A notebook that is never shared
+    /// would otherwise grow the list forever; the oldest go first.
+    static let maxPending = 2_000
 
     private weak var coreDataStack: CoreDataStack?
     private var saveObservation: NotificationCenter.ObservationToken?
+    private var remoteChangeTask: Task<Void, Never>?
     private var flushTask: Task<Void, Never>?
     private var flushing = false
     private var flushAgain = false
@@ -61,6 +64,18 @@ final class SharedStoreOrphanGuard {
             guard !ids.isEmpty else { return }
             self.handleInserts(ids, in: stack)
         }
+        // The pin (a membership row) and the share arrive by import. While
+        // anything is waiting, each remote change is a chance they're here.
+        let coordinator = coreDataStack.container.persistentStoreCoordinator
+        remoteChangeTask = Task { [weak self] in
+            let changes = NotificationCenter.default
+                .notifications(named: .NSPersistentStoreRemoteChange, object: coordinator)
+                .map { _ in () }
+            for await _ in changes {
+                guard let self, !self.pendingURIs.isEmpty else { continue }
+                self.flushPendingIfPossible()
+            }
+        }
         Self.logger.debug("SharedStoreOrphanGuard observing view-context saves")
     }
 
@@ -83,25 +98,10 @@ final class SharedStoreOrphanGuard {
     private func handleInserts(_ ids: [NSManagedObjectID], in stack: CoreDataStack) {
         guard stack.isCloudKitActive else { return }
         let context = stack.viewContext
-        guard Self.shouldTrack(
-            role: CDClassroomMembership.currentRole(in: context),
-            pinKnown: CDClassroomMembership.pinnedZoneName(in: context) != nil,
-            firstDownloadPending: FirstDownloadGate.isPending()
-        ) else { return }
+        // An assistant's records go to the shared store and attach themselves.
+        guard CDClassroomMembership.currentRole(in: context) == .leadGuide else { return }
         enqueue(ids)
         flushPendingIfPossible()
-    }
-
-    /// Whether this device's new classroom records are the guard's to attach:
-    /// the lead guide's, with the share pinned or possibly still on its way
-    /// down. No pin once the notebook has fully downloaded means not shared
-    /// yet — setup will take everything, these included.
-    static func shouldTrack(
-        role: CDClassroomMembership.ClassroomRole,
-        pinKnown: Bool,
-        firstDownloadPending: Bool
-    ) -> Bool {
-        role == .leadGuide && (pinKnown || firstDownloadPending)
     }
 
     // MARK: - Waiting list
@@ -125,10 +125,17 @@ final class SharedStoreOrphanGuard {
         defaults.set(pending, forKey: Self.pendingKey)
     }
 
-    /// Forgets the waiting list. Set Up Classroom Sharing calls this: it has
-    /// just shared everything the list could hold.
+    /// Forgets the waiting list.
     func clearPending() {
         defaults.removeObject(forKey: Self.pendingKey)
+    }
+
+    /// Forgets `uris` and keeps anything added since. Set Up Classroom
+    /// Sharing calls this with the list as it found it: those it has shared.
+    func removePending(_ uris: [String]) {
+        let done = Set(uris)
+        let remaining = pendingURIs.filter { !done.contains($0) }
+        if remaining.isEmpty { clearPending() } else { defaults.set(remaining, forKey: Self.pendingKey) }
     }
 
     // MARK: - Attaching
@@ -161,13 +168,9 @@ final class SharedStoreOrphanGuard {
         guard !FirstDownloadGate.isPending(),
               !CloudKitSyncStatusService.shared.mirroringDelegateFailed else { return }
         let context = stack.viewContext
-        guard CDClassroomMembership.pinnedZoneName(in: context) != nil else {
-            // Downloaded, and still no pin: the classroom isn't shared.
-            let count = taken.count
-            Self.logger.notice("No classroom share after the first download; \(count, privacy: .public) left to setup")
-            clearPending()
-            return
-        }
+        // No pin yet: not shared, or the setup hasn't reached this device.
+        // Keep waiting; setup here, or the pin's arrival, settles it.
+        guard CDClassroomMembership.pinnedZoneName(in: context) != nil else { return }
         let container = stack.container
         let share: CKShare?
         do {

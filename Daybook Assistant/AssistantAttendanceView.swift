@@ -62,12 +62,9 @@ struct AssistantAttendanceView: View {
             if ClassroomIdentity.displayName == nil { showingNameSheet = true }
             if viewModel == nil { startDay() }
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { oldPhase, phase in
             guard let viewModel else { return }
-            switch phase {
-            case .background, .inactive:
-                followsToday = viewModel.isToday
-            case .active:
+            if phase == .active {
                 // Left open overnight on today, the screen moves on to the new
                 // today; left on another day, it stays there.
                 if followsToday, !viewModel.isToday {
@@ -75,8 +72,10 @@ struct AssistantAttendanceView: View {
                 } else {
                     viewModel.load()
                 }
-            @unknown default:
-                break
+            } else if oldPhase == .active {
+                // Noted on the way out only: coming back passes through
+                // .inactive after midnight, when "today" has already moved.
+                followsToday = viewModel.isToday
             }
         }
     }
