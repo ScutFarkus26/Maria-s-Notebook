@@ -47,6 +47,13 @@ struct AttendanceMacView: View {
         .onChange(of: visibleMonth) { _, _ in
             reloadMonthCounts()
         }
+        // Keeps the heatmap and insights current when another device marks.
+        .onPresentationDataChangeWhenVisible(
+            of: ["AttendanceRecord"], in: viewContext, catchUpOnAppear: false
+        ) {
+            reloadMonthCounts()
+            bumpReloadToken()
+        }
         .sheet(item: Binding(
             get: { historySheetStudentID.map { StudentIDBox(id: $0) } },
             set: { historySheetStudentID = $0?.id }

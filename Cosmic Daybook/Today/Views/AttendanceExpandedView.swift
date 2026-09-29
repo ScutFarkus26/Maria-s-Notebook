@@ -208,6 +208,13 @@ struct AttendanceExpandedView: View {
         .onChange(of: allStudentIDs) { _, _ in
             loadData()
         }
+        // A mark or lock made on another device arrives as an iCloud import;
+        // the roll is a one-off fetch, so redraw it while it is on screen.
+        .onPresentationDataChangeWhenVisible(
+            of: ["AttendanceRecord", "AttendanceDayLock"], in: viewContext, catchUpOnAppear: false
+        ) {
+            loadData()
+        }
         .onChange(of: localSortKey) { _, newValue in
             Task {
                 viewModel.setSortKey(newValue)
