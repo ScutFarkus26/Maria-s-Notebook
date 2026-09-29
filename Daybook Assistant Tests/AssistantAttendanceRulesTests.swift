@@ -206,4 +206,23 @@ struct AssistantAttendanceRulesTests {
         model.load(try AssistantTestSupport.day("2026-10-06"))
         #expect(model.dayOff == nil)
     }
+
+    @Test("The short tally counts late and left early as here")
+    func shortTally() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let names = [("Ari", "Cedar"), ("Maya", "Stone"), ("Noah", "Linden"), ("Leah", "Hart"), ("Eli", "Moss")]
+        for (first, last) in names {
+            AssistantTestSupport.student(first, last, in: context)
+        }
+        let model = AssistantTestSupport.viewModel(stack)
+        let row = { (name: String) in try #require(model.rows.first { $0.student.firstName == name }) }
+        model.setStatus(.present, for: try row("Ari"))
+        model.setStatus(.tardy, for: try row("Maya"))
+        model.setStatus(.leftEarly, for: try row("Noah"))
+        model.markAbsent(reason: .none, for: try row("Leah"))
+
+        #expect(Model.tally(model.rows) == "1 here · 1 late · 1 absent · 1 left early · 1 not marked")
+        #expect(Model.shortTally(model.rows) == "3 here · 1 absent · 1 not marked")
+    }
 }

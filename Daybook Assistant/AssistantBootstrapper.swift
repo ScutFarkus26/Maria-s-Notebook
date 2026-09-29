@@ -37,6 +37,16 @@ final class AssistantBootstrapper {
     private var acceptanceObserver: (any NSObjectProtocol)?
     private var accountObserver: Task<Void, Never>?
     private var nameObserver: (any NSObjectProtocol)?
+    private var remoteChangeObserver: Task<Void, Never>?
+    /// Set when the first account check after building the stack found no
+    /// usable iCloud account. `NSPersistentCloudKitContainer` fails its setup
+    /// then, and although it later imports once the account appears, sharing
+    /// stays broken for the life of the container: every new mark fails to
+    /// attach to the classroom and sits at "Not sent yet" until the app is
+    /// relaunched. So the stack is rebuilt when the account arrives.
+    private var stackNeedsAccount = false
+    /// Whether the account has been checked since the stack was built.
+    private var accountCheckedSinceBuild = false
 
     /// True inside a hosted `Daybook Assistant Tests` run, the same check as
     /// the notebook's `AppBootstrapping.isRunningUnitTests`.
@@ -61,26 +71,50 @@ final class AssistantBootstrapper {
 
         do {
             // Shared with Siri, which may have opened it already.
-            let stack = try AssistantStack.shared()
-            coreDataStack = stack
-
-            let service = ClassroomSharingService(
-                container: stack.container,
-                context: stack.viewContext
-            )
-            sharingService = service
-
+            install(try AssistantStack.shared())
             restoreName()
             observeAcceptance()
+            observeRemoteChanges()
             observeAccountChanges()
-            refreshMembership()
-            if case .ready = phase {
-                // Only joining fills in the share otherwise: the guide's name
-                // on the Classroom screen, and "you" on her own marks.
-                Task { await service.refreshShareInBackground() }
-            }
         } catch {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
+            phase = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Takes a newly built stack: its sharing service, and the phase its
+    /// membership row gives.
+    private func install(_ stack: CoreDataStack) {
+        coreDataStack = stack
+        let service = ClassroomSharingService(
+            container: stack.container,
+            context: stack.viewContext
+        )
+        sharingService = service
+        accountCheckedSinceBuild = false
+        stackNeedsAccount = false
+
+        refreshMembership()
+        if case .ready = phase {
+            // Only joining fills in the share otherwise: the guide's name
+            // on the Classroom screen, and "you" on her own marks.
+            Task { await service.refreshShareInBackground() }
+        }
+    }
+
+    /// Builds the stack again now that iCloud is signed in (see
+    /// `stackNeedsAccount`). The screens let go of the old one first, so
+    /// nothing reads its objects once its stores are gone.
+    private func rebuildStackForAccount() async {
+        Self.logger.info("iCloud account arrived after launch; rebuilding the Core Data stack")
+        phase = .starting
+        sharingService = nil
+        coreDataStack = nil
+        try? await Task.sleep(for: .milliseconds(300))
+        do {
+            install(try AssistantStack.rebuild())
+        } catch {
+            Self.logger.error("Assistant rebuild failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(error.localizedDescription)
         }
     }
@@ -116,6 +150,14 @@ final class AssistantBootstrapper {
         } catch {
             // Unknown isn't a problem worth showing; keep what we had.
             Self.logger.error("iCloud account status failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        guard coreDataStack != nil else { return }
+        if !accountCheckedSinceBuild {
+            accountCheckedSinceBuild = true
+            stackNeedsAccount = accountStatus != .available
+        } else if stackNeedsAccount, accountStatus == .available {
+            await rebuildStackForAccount()
         }
     }
 
@@ -145,6 +187,23 @@ final class AssistantBootstrapper {
             MainActor.assumeIsolated { _ = AssistantNameStore.restoreIfNeeded() }
         }
         NSUbiquitousKeyValueStore.default.synchronize()
+    }
+
+    /// A membership row can also arrive by sync rather than by accepting a
+    /// link here: on a new iPhone, or after signing in, for an Apple Account
+    /// that joined before. Nothing posts `.didJoinClassroom` then, so until
+    /// this device has a classroom every import re-reads the row.
+    private func observeRemoteChanges() {
+        guard remoteChangeObserver == nil else { return }
+        remoteChangeObserver = Task { [weak self] in
+            let changes = NotificationCenter.default
+                .notifications(named: .NSPersistentStoreRemoteChange)
+                .map { _ in () }
+            for await _ in changes {
+                guard let self else { return }
+                if case .needsClassroom = phase { refreshMembership() }
+            }
+        }
     }
 
     /// ClassroomSharingService does the accepting and posts once the

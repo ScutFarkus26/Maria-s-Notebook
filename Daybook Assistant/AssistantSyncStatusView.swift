@@ -58,6 +58,7 @@ struct AssistantSyncStatusView: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
         // `hasChanges` can only move when the context's objects change (an
         // edit, a rollback, a reset) or it saves, so read it then instead of
         // polling every 3 s.

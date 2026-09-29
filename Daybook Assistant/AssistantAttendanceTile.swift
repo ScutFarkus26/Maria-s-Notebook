@@ -5,14 +5,18 @@ import SwiftUI
 /// one isn't marked yet, a dashed one is absent, and a small corner glyph says
 /// late or left early. Tap to mark (what a tap means depends on the phase and
 /// the day); long-press for every status, Absent with its reason, and a note.
+/// A child with a note shows it, in full, above that menu.
 ///
-/// Phones show one line: the shortest name that still tells children apart
-/// ("Ari", but "Etty G" and "Etty R": this classroom has two Ettys and two
-/// Sarahs), with nothing beside it, so even "Hadassah" keeps its full size and
-/// a class of 22 fits three across on one SE screen. The time, an absence
-/// reason and who made the mark move to the long-press menu's header. Wider
-/// screens keep full names with that detail on a second line. At
-/// accessibility text sizes the grid goes to two columns and a name may wrap.
+/// Phones show the shortest name that still tells children apart ("Ari", but
+/// "Etty G" and "Etty R": this classroom has two Ettys and two Sarahs). On an
+/// SE that is one line with nothing beside it, so even "Hadassah" keeps its
+/// full size and a class of 22 fits three across on one screen; the time, an
+/// absence reason and who made the mark move to the long-press menu's header.
+/// A taller phone grows its tiles to fill the screen (`fittedPhoneHeight`),
+/// and once they are `roomyHeight` tall the name gets bigger and the time or
+/// reason comes back on a second line. Wider screens keep full names with that
+/// detail line. At accessibility text sizes the grid goes to two columns and a
+/// name may wrap.
 struct AssistantAttendanceTile: View {
     let row: AssistantAttendanceViewModel.Row
     /// What a tap would set, or nil when a tap does nothing here.
@@ -23,6 +27,9 @@ struct AssistantAttendanceTile: View {
     let menuStatuses: [AttendanceStatus]
     let canMark: Bool
     let usesShortName: Bool
+    /// A phone tile's height, from `fittedPhoneHeight`; unused on wider
+    /// screens.
+    let height: CGFloat
     let onTap: () -> Void
     /// Who made the mark ("you", "Rivka", "your guide"), for the menu header.
     let markedBy: String?
@@ -31,9 +38,24 @@ struct AssistantAttendanceTile: View {
     let onMarkAbsent: (AbsenceReason) -> Void
     let onNote: () -> Void
 
-    /// A phone tile's height: 8 rows of 22 children fit between the SE's
-    /// top bar and the bottom bar on iOS 26 with the status bar hidden.
+    /// A phone tile's height on an SE, and the least on any phone: 8 rows of
+    /// 22 children fit between the SE's top bar and the bottom bar on iOS 26
+    /// with the status bar hidden.
     static let phoneHeight: CGFloat = 52
+    /// The most a phone tile grows to, so a small class doesn't get slabs.
+    static let tallestPhoneHeight: CGFloat = 84
+    /// Tall enough for a bigger name and the detail line under it.
+    static let roomyHeight: CGFloat = 70
+
+    /// The phone tile height that fills `visibleHeight` with the class, in
+    /// whole points, between `phoneHeight` (a longer class scrolls) and
+    /// `tallestPhoneHeight`.
+    static func fittedPhoneHeight(visibleHeight: CGFloat, columns: Int, count: Int, spacing: CGFloat) -> CGFloat {
+        guard columns > 0, count > 0 else { return phoneHeight }
+        let rows = (count + columns - 1) / columns
+        let fitted = ((visibleHeight - spacing * CGFloat(rows - 1)) / CGFloat(rows)).rounded(.down)
+        return min(max(fitted, phoneHeight), tallestPhoneHeight)
+    }
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// Set by a tap that does nothing here (a present child during Late, any
@@ -46,11 +68,16 @@ struct AssistantAttendanceTile: View {
 
     private var isLargeText: Bool { dynamicTypeSize.isAccessibilitySize }
 
+    /// A phone tile with room for a bigger name and the detail line.
+    private var isRoomy: Bool { usesShortName && !isLargeText && height >= Self.roomyHeight }
+
+    /// One-line phone tiles: no detail line, so the hint and a note glyph
+    /// take the name's line and a corner instead.
+    private var isOneLine: Bool { usesShortName && !isRoomy }
+
     var body: some View {
-        card
-            .contentShape(shape)
+        cardWithMenu
             .onTapGesture(perform: tap)
-            .contextMenu { menu }
             .animation(.smooth(duration: 0.25), value: row.status)
             .animation(.smooth(duration: 0.2), value: showsHoldHint)
             .sensoryFeedback(.selection, trigger: markTaps)
@@ -69,10 +96,11 @@ struct AssistantAttendanceTile: View {
             ))
     }
 
-    /// The name (and, on wider screens, the detail line) on the mark's shape.
+    /// The name (and, on wider screens and roomy phone tiles, the detail
+    /// line) on the mark's shape.
     private var card: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if usesShortName && showsHoldHint {
+        VStack(alignment: .leading, spacing: isRoomy ? 2 : 4) {
+            if isOneLine && showsHoldHint {
                 Text(tapHint)
                     .font(.footnote.weight(.medium))
                     .lineLimit(1)
@@ -81,20 +109,22 @@ struct AssistantAttendanceTile: View {
                 // A short name stays on one line, shrinking rather than
                 // wrapping: one taller tile makes its whole row taller.
                 Text(usesShortName ? row.shortName : row.name)
-                    .font(.body.weight(.medium))
+                    .font(isRoomy ? .title3.weight(.medium) : .body.weight(.medium))
                     .lineLimit(usesShortName && !isLargeText ? 1 : 2)
                     .minimumScaleFactor(usesShortName ? 0.7 : 0.85)
                     .multilineTextAlignment(.leading)
             }
 
-            if !usesShortName {
+            // A roomy phone tile has a fixed height, so it needn't hold an
+            // empty line to match its row: the name alone sits centered.
+            if !isOneLine && !(isRoomy && !hasDetail) {
                 detailLine
             }
         }
         .foregroundStyle(nameStyle)
         .frame(
             maxWidth: .infinity,
-            minHeight: usesShortName ? Self.phoneHeight : 42,
+            minHeight: usesShortName ? height : 42,
             alignment: usesShortName ? .leading : .topLeading
         )
         .padding(.horizontal, usesShortName ? 12 : 14)
@@ -103,6 +133,37 @@ struct AssistantAttendanceTile: View {
         .overlay { border }
         .overlay(alignment: .topTrailing) { cornerGlyph }
         .overlay(alignment: .bottomTrailing) { phoneNoteGlyph }
+    }
+
+    /// The long-press menu, with the note on top when there is one.
+    @ViewBuilder
+    private var cardWithMenu: some View {
+        if row.note.isEmpty {
+            card
+                .contentShape(shape)
+                .contextMenu { menu }
+        } else {
+            card
+                .contentShape(shape)
+                .contextMenu { menu } preview: { notePreview }
+        }
+    }
+
+    /// The child's full name and the note, readable at a glance where the
+    /// tile only shows that one exists.
+    private var notePreview: some View {
+        // Each line takes its full wrapped height: the preview otherwise
+        // gets the tile's height and shows one line of the note.
+        VStack(alignment: .leading, spacing: 6) {
+            Text(row.name)
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(row.note)
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(width: 300, alignment: .leading)
     }
 
     private func tap() {
@@ -118,31 +179,40 @@ struct AssistantAttendanceTile: View {
 
     // MARK: - Pieces
 
-    private var shape: RoundedRectangle {
+    var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
     }
 
-    /// Wider screens only: when the child arrived ("8:02 → 1:15" for Left
-    /// Early), or for an absent child the reason, then a glyph for a note. An
-    /// unmarked child with no note shows an empty line, so every tile in a row
-    /// keeps the same height.
+    /// Wider screens and roomy phone tiles: when the child arrived ("8:02 →
+    /// 1:15" for Left Early), or for an absent child the reason, then a glyph
+    /// for a note. A roomy tile starts it with the mark's glyph. On wider
+    /// screens an unmarked child with no note shows an empty line, so every
+    /// tile in a row keeps the same height.
     private var detailLine: some View {
         HStack(spacing: 5) {
             if showsHoldHint {
                 Text(tapHint)
             } else {
+                // A roomy phone tile leads with the mark's glyph, which the
+                // one-line SE tile has no room for.
+                if isRoomy, let glyph = Self.tileGlyph(for: row.status) {
+                    Image(systemName: glyph)
+                        .fontWeight(.semibold)
+                }
                 switch row.status {
                 case .absent where row.absenceReason != .none:
                     Text(row.absenceReason.displayName)
                 case .absent:
                     Text("Absent")
                 case .unmarked:
-                    Text(" ")
+                    // Holds a wider screen's row height; a roomy tile only
+                    // gets here with a note, whose glyph starts the line.
+                    if !isRoomy { Text(" ") }
                 case .leftEarly:
                     Text(leftEarlyTimes ?? "Left early")
                         .monospacedDigit()
                 default:
-                    Text(row.markedAt.map(Self.clock) ?? " ")
+                    Text(row.markedAt.map(Self.clock) ?? (isRoomy ? row.status.displayName : " "))
                         .monospacedDigit()
                 }
                 if !row.note.isEmpty {
@@ -156,6 +226,12 @@ struct AssistantAttendanceTile: View {
         .minimumScaleFactor(0.8)
     }
 
+    /// Whether the detail line has anything to say: on a roomy tile, any
+    /// mark does (its glyph, at least).
+    private var hasDetail: Bool {
+        showsHoldHint || !row.note.isEmpty || row.status != .unmarked
+    }
+
     /// "8:02 → 1:15", "left 1:15", or nil when neither time is known.
     private var leftEarlyTimes: String? {
         switch (row.markedAt, row.leftAt) {
@@ -166,10 +242,10 @@ struct AssistantAttendanceTile: View {
     }
 
     /// Late or left early, in the corner's padding so it takes no room from
-    /// the name.
+    /// the name. A roomy tile has the glyph on its detail line instead.
     @ViewBuilder
     private var cornerGlyph: some View {
-        if let glyph = Self.cornerGlyph(for: row.status) {
+        if !isRoomy, let glyph = Self.cornerGlyph(for: row.status) {
             Image(systemName: glyph)
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(nameStyle)
@@ -178,10 +254,11 @@ struct AssistantAttendanceTile: View {
         }
     }
 
-    /// Phones have no detail line, so a note shows in the other corner.
+    /// One-line tiles have no detail line, so a note shows in the other
+    /// corner.
     @ViewBuilder
     private var phoneNoteGlyph: some View {
-        if usesShortName && !row.note.isEmpty {
+        if isOneLine && !row.note.isEmpty {
             Image(systemName: "text.alignleft")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(nameStyle.opacity(0.7))
@@ -189,8 +266,11 @@ struct AssistantAttendanceTile: View {
                 .accessibilityHidden(true)
         }
     }
+}
 
-    // MARK: - Menu
+// MARK: - Menu and accessibility
+
+extension AssistantAttendanceTile {
 
     /// The header carries what the phone tile has no room for ("Present at
     /// 8:02 · by you", "Absent, Sick · by your guide"). Then Present, Tardy and
@@ -288,106 +368,5 @@ struct AssistantAttendanceTile: View {
         case .unmarked: return "Double tap to clear the mark"
         default: return "\(tapHint). Touch and hold to change the mark"
         }
-    }
-}
-
-// MARK: - Style and times
-
-extension AssistantAttendanceTile {
-
-    // MARK: - Style
-
-    /// Present, late and left early all mean the child came in.
-    private var isHere: Bool {
-        switch row.status {
-        case .present, .tardy, .leftEarly: return true
-        case .absent, .unmarked: return false
-        }
-    }
-
-    private static func cornerGlyph(for status: AttendanceStatus) -> String? {
-        switch status {
-        case .tardy: return "clock"
-        case .leftEarly: return "arrow.right"
-        case .present, .absent, .unmarked: return nil
-        }
-    }
-
-    /// A status's glyph in the long-press menu.
-    static func glyph(_ status: AttendanceStatus) -> String {
-        switch status {
-        case .unmarked: return "circle.dashed"
-        // Not a checkmark: that marks the current choice in the menu.
-        case .present: return "figure.walk.arrival"
-        case .absent: return "xmark"
-        case .tardy: return "clock"
-        case .leftEarly: return "arrow.right"
-        }
-    }
-
-    /// Black on the solid green in both appearances: system green is light
-    /// enough in each that black reads better than white.
-    private var nameStyle: Color {
-        switch row.status {
-        case .present, .tardy, .leftEarly: return .black
-        // Dimmed, but readable: during Late these are the tiles she taps
-        // when a child comes in.
-        case .absent: return Color(.secondaryLabel)
-        case .unmarked: return .primary
-        }
-    }
-
-    private var fill: Color {
-        if isHere { return .green }
-        if row.status == .absent { return .clear }
-        return Color(.secondarySystemGroupedBackground)
-    }
-
-    @ViewBuilder
-    private var border: some View {
-        if row.status == .absent {
-            shape.strokeBorder(Color(.tertiaryLabel), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-        } else if !isHere {
-            shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-        }
-    }
-
-    // MARK: - Times
-
-    /// "8:02", not "8:02 AM": it's always the school day, and the header and
-    /// the detail line need the width for an arrival and a departure.
-    static func clock(_ date: Date) -> String {
-        clockFormatter.string(from: date)
-    }
-
-    /// The locale's own hour-and-minute pattern ("h:mm a", "HH:mm") without
-    /// its AM/PM marker. (`hour(.defaultDigits(amPM: .omitted))` pads the
-    /// hour to "08:02" on iOS 26.)
-    private static let clockFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        let pattern = DateFormatter.dateFormat(fromTemplate: "jmm", options: 0, locale: .current) ?? "h:mm"
-        formatter.dateFormat = pattern.replacingOccurrences(of: "a", with: "").trimmingCharacters(in: .whitespaces)
-        return formatter
-    }()
-}
-
-/// One VoiceOver element per tile: its label, the note as its value, a tap
-/// that marks, and a Note action.
-private struct TileAccessibility: ViewModifier {
-    let label: String
-    let note: String
-    let hint: String
-    let onTap: () -> Void
-    let onNote: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(label)
-            .accessibilityValue(note)
-            .accessibilityHint(hint)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { onTap() }
-            .accessibilityAction(named: "Note", onNote)
     }
 }

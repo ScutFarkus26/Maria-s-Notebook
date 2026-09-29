@@ -155,6 +155,19 @@ extension AssistantAttendanceViewModel {
         return text.joined(separator: " · ")
     }
 
+    /// The tally when the full one won't fit beside the arrival button:
+    /// late and left early count as here ("3 here · 1 absent · 18 not
+    /// marked"), since the tiles already say which.
+    static func shortTally(_ rows: [Row]) -> String {
+        let here = rows.filter { [.present, .tardy, .leftEarly].contains($0.status) }.count
+        let absent = rows.filter { $0.status == .absent }.count
+        let unmarked = rows.filter { $0.status == .unmarked }.count
+        let parts = [(here, "here"), (absent, "absent"), (unmarked, "not marked")]
+            .filter { $0.0 > 0 }
+            .map { "\($0.0) \($0.1)" }
+        return parts.joined(separator: " · ")
+    }
+
     /// Why there's no attendance on a day off, in words.
     static func dayOffText(_ dayOff: DayOff, isToday: Bool) -> String {
         switch dayOff {

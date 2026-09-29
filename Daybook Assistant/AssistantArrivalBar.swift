@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The bar under the grid: the count (or the Undo for closing arrival), the
-/// arrival control, and the iCloud line.
+/// arrival control, and the iCloud line. The lines are centered; while the
+/// arrival control shows, the count moves to the left beside it.
 ///
 /// Closing arrival marks everyone still unmarked absent, so it's a button
 /// that asks first, naming exactly who, not a switch. On 2026-09-29 a tap
@@ -27,18 +28,25 @@ struct AssistantArrivalBar: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(spacing: 6) {
             if viewModel.dayOff == nil, !viewModel.rows.isEmpty {
                 rowLayout {
-                    countOrUndo
-                    if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
-                    arrivalControl
+                    if showsArrivalControl {
+                        // The button takes its width first; the count gets
+                        // what's left, so it knows when to shorten.
+                        countOrUndo
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        arrivalControl
+                            .fixedSize()
+                    } else {
+                        countOrUndo
+                    }
                 }
                 .frame(minHeight: 32)
             }
             AssistantSyncStatusView(coreDataStack: coreDataStack)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 6)
@@ -67,27 +75,46 @@ struct AssistantArrivalBar: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(.tint)
                 }
+                .minimumScaleFactor(0.8)
                 .transition(.opacity)
             } else {
-                Text(AssistantAttendanceViewModel.tally(viewModel.rows))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.smooth, value: AssistantAttendanceViewModel.tally(viewModel.rows))
-                    .transition(.opacity)
+                // The full tally, or beside the arrival button when that
+                // won't fit, the short one.
+                ViewThatFits(in: .horizontal) {
+                    tallyText(AssistantAttendanceViewModel.tally(viewModel.rows))
+                        .fixedSize()
+                    tallyText(AssistantAttendanceViewModel.shortTally(viewModel.rows))
+                        .minimumScaleFactor(0.8)
+                }
+                .transition(.opacity)
             }
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
         .lineLimit(1)
-        .minimumScaleFactor(0.8)
         .animation(.smooth(duration: 0.3), value: undo?.id)
+    }
+
+    private func tallyText(_ text: String) -> some View {
+        Text(text)
+            .monospacedDigit()
+            .contentTransition(.numericText())
+            .animation(.smooth, value: text)
     }
 
     /// Close Arrival while anyone's unmarked; "Late" once closed. Nothing
     /// ahead of the day (there's no arrival yet) or on a locked day.
+    private var showsArrivalControl: Bool {
+        guard viewModel.canMark, !viewModel.isFuture else { return false }
+        switch viewModel.phase {
+        case .arrival: return !unmarkedNames.isEmpty
+        case .late: return true
+        }
+    }
+
     @ViewBuilder
     private var arrivalControl: some View {
-        if viewModel.canMark, !viewModel.isFuture {
+        if showsArrivalControl {
             switch viewModel.phase {
             case .arrival:
                 if !unmarkedNames.isEmpty {

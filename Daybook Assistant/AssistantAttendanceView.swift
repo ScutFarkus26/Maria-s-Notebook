@@ -11,8 +11,10 @@ import CoreData
 /// (`AssistantArrivalBar`), in thumb reach. On a phone, three columns of
 /// one-line tiles fit a class of 22 on an SE: on a phone with a home button
 /// the status bar steps aside and the top bar shows its own clock, which gives
-/// the grid those 20 points. Anything longer scrolls, with a fade above the
-/// bar, and closing arrival asks first either way.
+/// the grid those 20 points. A taller phone (a Pro Max, say) grows the tiles
+/// to fill its screen instead of leaving the space under the grid empty.
+/// Anything longer scrolls, with a fade above the bar, and closing arrival
+/// asks first either way.
 ///
 /// It opens on today. The ‹ › arrows, or a sideways swipe on the grid, step
 /// through school days (skipping weekends and the guide's days off), tapping
@@ -39,7 +41,15 @@ struct AssistantAttendanceView: View {
     /// home button (the SE), 0 once its status bar is hidden, 44 or more
     /// beside a notch or Dynamic Island, 24 on an iPad.
     @State private var topInset: CGFloat = 0
+    /// The grid's room inside the scroll view, between the bars and inside
+    /// its padding, for sizing phone tiles to the screen.
+    @State private var gridSpace: CGSize = .zero
+    /// The locked-day and error lines above the grid, while shown.
+    @State private var noticesHeight: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private static let phoneColumnWidth: CGFloat = 105
+    private var gridSpacing: CGFloat { usesShortNames ? 8 : 10 }
 
     /// Phones: three columns of short names. Wider screens have room for
     /// full names.
@@ -55,7 +65,22 @@ struct AssistantAttendanceView: View {
         if dynamicTypeSize.isAccessibilitySize {
             return Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
         }
-        return [GridItem(.adaptive(minimum: usesShortNames ? 105 : 150), spacing: usesShortNames ? 8 : 10)]
+        return [GridItem(.adaptive(minimum: usesShortNames ? Self.phoneColumnWidth : 150), spacing: gridSpacing)]
+    }
+
+    /// The SE keeps its fixed tiles; any other phone fills the room it has.
+    private func phoneTileHeight(_ viewModel: AssistantAttendanceViewModel) -> CGFloat {
+        guard usesShortNames, !hidesStatusBar, !dynamicTypeSize.isAccessibilitySize else {
+            return AssistantAttendanceTile.phoneHeight
+        }
+        let columns = max(1, Int((gridSpace.width + gridSpacing) / (Self.phoneColumnWidth + gridSpacing)))
+        let notices = AssistantDayNotices.shows(for: viewModel) ? noticesHeight + 12 : 0
+        return AssistantAttendanceTile.fittedPhoneHeight(
+            visibleHeight: gridSpace.height - notices,
+            columns: columns,
+            count: viewModel.rows.count,
+            spacing: gridSpacing
+        )
     }
 
     var body: some View {
@@ -179,12 +204,14 @@ struct AssistantAttendanceView: View {
                 Button("Check Again") { viewModel.load() }
             }
         } else {
+            let tileHeight = phoneTileHeight(viewModel)
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    notices(viewModel)
-                    LazyVGrid(columns: gridColumns, spacing: usesShortNames ? 8 : 10) {
+                    AssistantDayNotices(viewModel: viewModel)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { noticesHeight = $0 }
+                    LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
                         ForEach(viewModel.rows) { row in
-                            tile(row, viewModel: viewModel)
+                            tile(row, viewModel: viewModel, height: tileHeight)
                         }
                     }
                 }
@@ -194,6 +221,11 @@ struct AssistantAttendanceView: View {
                 .id(viewModel.date)
                 .transition(.push(from: stepEdge))
             }
+            .onGeometryChange(for: CGSize.self) { proxy in
+                // The scroll view already sits between the bars; less the
+                // grid's padding: 16 each side, 8 above, 12 below.
+                CGSize(width: proxy.size.width - 32, height: proxy.size.height - 20)
+            } action: { gridSpace = $0 }
             .background(Color(.systemGroupedBackground))
             .refreshable { viewModel.load() }
             .simultaneousGesture(daySwipe(viewModel))
@@ -201,7 +233,11 @@ struct AssistantAttendanceView: View {
     }
 
     /// A new mark retires the Undo for the last switch to Late.
-    private func tile(_ row: AssistantAttendanceViewModel.Row, viewModel: AssistantAttendanceViewModel) -> some View {
+    private func tile(
+        _ row: AssistantAttendanceViewModel.Row,
+        viewModel: AssistantAttendanceViewModel,
+        height: CGFloat
+    ) -> some View {
         AssistantAttendanceTile(
             row: row,
             tapTarget: viewModel.statusAfterTap(for: row),
@@ -209,6 +245,7 @@ struct AssistantAttendanceView: View {
             menuStatuses: viewModel.menuStatuses,
             canMark: viewModel.canMark,
             usesShortName: usesShortNames,
+            height: height,
             onTap: {
                 lateUndo = nil
                 viewModel.tap(row)
@@ -235,7 +272,7 @@ struct AssistantAttendanceView: View {
 
 }
 
-// MARK: - Toolbar, stepping and notices
+// MARK: - Toolbar and stepping
 
 extension AssistantAttendanceView {
 
@@ -348,27 +385,5 @@ extension AssistantAttendanceView {
                 guard abs(dx) > 80, abs(dx) > abs(dy) * 2 else { return }
                 step(viewModel, forward: dx < 0)
             }
-    }
-
-    // MARK: - Notices
-
-    /// A locked day or a failed save, above the grid; nothing otherwise.
-    @ViewBuilder
-    private func notices(_ viewModel: AssistantAttendanceViewModel) -> some View {
-        if viewModel.isLocked || viewModel.errorMessage != nil {
-            VStack(alignment: .leading, spacing: 6) {
-                if viewModel.isLocked {
-                    Label("Your guide has locked this day.", systemImage: "lock.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 }
