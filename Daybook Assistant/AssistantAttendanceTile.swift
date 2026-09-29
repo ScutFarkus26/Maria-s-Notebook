@@ -267,7 +267,7 @@ struct AssistantAttendanceTile: View {
                     Text(leftEarlyTimes ?? "Left early")
                         .monospacedDigit()
                 default:
-                    Text(row.markedAt.map(Self.clock) ?? (isRoomy ? row.status.displayName : " "))
+                    Text(row.markedAt.map(AssistantClock.string) ?? (isRoomy ? row.status.displayName : " "))
                         .monospacedDigit()
                 }
                 if !row.note.isEmpty {
@@ -290,8 +290,8 @@ struct AssistantAttendanceTile: View {
     /// "8:02 → 1:15", "left 1:15", or nil when neither time is known.
     private var leftEarlyTimes: String? {
         switch (row.markedAt, row.leftAt) {
-        case let (arrived?, left?): return "\(Self.clock(arrived)) → \(Self.clock(left))"
-        case let (nil, left?): return "left \(Self.clock(left))"
+        case let (arrived?, left?): return "\(AssistantClock.string(arrived)) → \(AssistantClock.string(left))"
+        case let (nil, left?): return "left \(AssistantClock.string(left))"
         default: return nil
         }
     }

@@ -70,43 +70,4 @@ extension AssistantAttendanceTile {
             shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
         }
     }
-
-    // MARK: - Times
-
-    /// "8:02", not "8:02 AM": it's always the school day, and the header and
-    /// the detail line need the width for an arrival and a departure.
-    static func clock(_ date: Date) -> String {
-        clockFormatter.string(from: date)
-    }
-
-    /// The locale's own hour-and-minute pattern ("h:mm a", "HH:mm") without
-    /// its AM/PM marker. (`hour(.defaultDigits(amPM: .omitted))` pads the
-    /// hour to "08:02" on iOS 26.)
-    private static let clockFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        let pattern = DateFormatter.dateFormat(fromTemplate: "jmm", options: 0, locale: .current) ?? "h:mm"
-        formatter.dateFormat = pattern.replacingOccurrences(of: "a", with: "").trimmingCharacters(in: .whitespaces)
-        return formatter
-    }()
-}
-
-/// One VoiceOver element per tile: its label, the note as its value, a tap
-/// that marks, and a Note action.
-struct TileAccessibility: ViewModifier {
-    let label: String
-    let note: String
-    let hint: String
-    let onTap: () -> Void
-    let onNote: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(label)
-            .accessibilityValue(note)
-            .accessibilityHint(hint)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { onTap() }
-            .accessibilityAction(named: "Note", onNote)
-    }
 }

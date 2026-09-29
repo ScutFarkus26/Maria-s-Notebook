@@ -38,6 +38,13 @@
 	<array>
 		<string>CloudKit</string>
 	</array>
+	<!--
+	  The notebook's key-value store. It syncs per Apple Account, so on an
+	  assistant's own account it holds only what this app writes: her name
+	  (AssistantNameStore), so a new iPhone knows it. SharingPreferences reads
+	  the same keys the notebook uses, and finds its defaults here. Changing
+	  the identifier after the first TestFlight build would lose saved names.
+	-->
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)DanielSDeBerry.MariasNoteBook</string>
 </dict>

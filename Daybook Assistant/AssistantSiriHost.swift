@@ -11,9 +11,7 @@ enum SiriHost {
 
     /// Until an invitation is accepted there is no class to mark.
     static func checkReady(in context: NSManagedObjectContext) throws {
-        #if DEBUG
         if AssistantSampleClass.isRequested { return }
-        #endif
         let request = CDClassroomMembership.ownRowsRequest()
         request.fetchLimit = 1
         guard context.safeFetchFirst(request) != nil else {
@@ -38,7 +36,7 @@ enum SiriHost {
     /// only where two share one. Here and late answer on a locked phone,
     /// where a full name tells anyone nearby more than was said.
     static func displayNames(for students: [CDStudent]) -> [NSManagedObjectID: String] {
-        AssistantAttendanceViewModel.gridNames(for: students)
+        AssistantDayRoll.gridNames(for: students)
     }
 
     /// Hardcoded, as in the grid: this app is only ever used by an assistant.
@@ -47,18 +45,17 @@ enum SiriHost {
     /// Once arrival has closed on this phone, a child who arrives is tardy,
     /// exactly as a tap during Late marks them.
     static func statusForHere(on day: Date) -> AttendanceStatus {
-        AssistantAttendanceViewModel.LatePhaseMemory.isLate(on: day) ? .tardy : .present
+        AssistantLatePhase.isLate(on: day) ? .tardy : .present
     }
 
     static func arrivalReopened(on day: Date) {
-        AssistantAttendanceViewModel.LatePhaseMemory.setLate(false, on: day)
+        AssistantLatePhase.setLate(false, on: day)
     }
 
     /// New marks go into the classroom share explicitly, as the grid's do.
     static func didSave(created: [NSManagedObjectID], in stack: CoreDataStack) async {
         guard !created.isEmpty else { return }
-        await CDAttendanceStore.attachNewRecordsToClassroomShare(
-            created, container: stack.container, pinContext: stack.viewContext
-        )
+        AssistantShareAttacher.shared.attach(created, container: stack.container, context: stack.viewContext)
+        await AssistantShareAttacher.shared.waitUntilIdle()
     }
 }

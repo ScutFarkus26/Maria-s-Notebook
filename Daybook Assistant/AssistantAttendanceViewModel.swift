@@ -50,7 +50,7 @@ final class AssistantAttendanceViewModel {
         let recordedBy: String?
         let recordedByID: String?
         let recordedByName: String?
-        /// The name on the three-column phone grid: see `gridNames(for:)`.
+        /// The name on the three-column phone grid: see `AssistantDayRoll.gridNames(for:)`.
         let shortName: String
         /// A birthday or half-birthday on the row's day, for the cake.
         let birthday: AssistantBirthday?
@@ -207,11 +207,11 @@ final class AssistantAttendanceViewModel {
             if day != date { lastLateBatch = [] }
             date = day
         }
-        phase = LatePhaseMemory.isLate(on: date, defaults: defaults) ? .late : .arrival
+        phase = AssistantLatePhase.isLate(on: date, defaults: defaults) ? .late : .arrival
         dayOff = Self.dayOff(on: date, in: context)
         loadGeneration &+= 1
         isLocked = store.isLocked(date)
-        canMark = ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: .assistant) && !isLocked
+        canMark = store.canWrite(on: date)
 
         let records: [CDAttendanceRecord]
         do {
@@ -237,7 +237,7 @@ final class AssistantAttendanceViewModel {
             uniquingKeysWith: { first, _ in first }
         )
 
-        let gridNames = Self.gridNames(for: students)
+        let gridNames = AssistantDayRoll.gridNames(for: students)
         rows = students.map { student in
             Row(
                 student: student,
@@ -274,7 +274,7 @@ final class AssistantAttendanceViewModel {
     func beginLate() -> Int {
         guard canMark, !isFuture, phase == .arrival else { return 0 }
         phase = .late
-        LatePhaseMemory.setLate(true, on: date, defaults: defaults)
+        AssistantLatePhase.setLate(true, on: date, defaults: defaults)
         do {
             let changed = try store.markUnmarkedAbsent(for: date, students: rows.map(\.student))
             createdSinceSave.append(contentsOf: changed.filter(\.isInserted))
@@ -296,7 +296,7 @@ final class AssistantAttendanceViewModel {
         // can't be put back, so reopening arrival would only mislead.
         guard canMark else { return }
         phase = .arrival
-        LatePhaseMemory.setLate(false, on: date, defaults: defaults)
+        AssistantLatePhase.setLate(false, on: date, defaults: defaults)
         let batch = lastLateBatch
         lastLateBatch = []
         guard undo, !batch.isEmpty else { return }

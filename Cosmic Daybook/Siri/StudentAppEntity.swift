@@ -73,27 +73,6 @@ struct StudentEntity: AppEntity, IndexedEntity {
     static let defaultQuery = StudentEntityQuery()
 }
 
-// MARK: - Conversion from Core Data
-
-extension StudentEntity {
-    /// Builds an entity snapshot from a managed student. Must be called on the
-    /// main actor because it reads `CDStudent` properties off the view context.
-    @MainActor
-    init?(student: CDStudent) {
-        guard let id = student.id else { return nil }
-        self.init(
-            id: id,
-            firstName: student.firstName,
-            lastName: student.lastName,
-            nickname: student.nickname
-        )
-    }
-
-    var matcherCandidate: StudentNameMatcher.Candidate {
-        StudentNameMatcher.Candidate(id: id, firstName: firstName, lastName: lastName, nickname: nickname)
-    }
-}
-
 // MARK: - Query
 
 /// Resolves students for Siri/Shortcuts: by id, by typed/spoken name, and as

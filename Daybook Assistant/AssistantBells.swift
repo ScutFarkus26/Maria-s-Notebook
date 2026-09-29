@@ -17,7 +17,7 @@ final class AssistantBells {
 
     static var isOn: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
 
-    enum Chime: Equatable {
+    enum Chime: Hashable {
         /// The `count`th child here (from 1), which picks the note.
         case here(count: Int)
         case away
@@ -160,5 +160,3 @@ final class AssistantBells {
         return buffer
     }
 }
-
-extension AssistantBells.Chime: Hashable {}

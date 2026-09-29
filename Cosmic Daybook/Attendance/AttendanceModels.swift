@@ -3,6 +3,10 @@ import SwiftUI
 
 // MARK: - Attendance Status
 
+/// Stored by raw value and read on every device, some of them on older
+/// builds (a TestFlight phone can't be made to update with the Mac). An
+/// unknown value reads as `.unmarked`, so a new case must never be a mark an
+/// older build could overwrite: `markUnmarkedAbsent` skips unknown values.
 enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
     case unmarked
     case present

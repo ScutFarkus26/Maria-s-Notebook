@@ -155,9 +155,7 @@ struct AssistantClassroomSheet: View {
         if reminderOn { await ArrivalReminder.requestPermissionIfNeeded() }
         let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         notificationsDenied = status == .denied
-        #if DEBUG
         if AssistantSampleClass.isRequested { return }
-        #endif
         if let context = bootstrapper.coreDataStack?.viewContext {
             await ArrivalReminder.reschedule(in: context)
         }

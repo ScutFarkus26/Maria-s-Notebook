@@ -334,16 +334,6 @@ public final class SchoolCalendarService {
     }
 }
 
-// MARK: - Change Notification
-
-extension Notification.Name {
-    /// Posted when school-day data (explicit non-school days or weekend
-    /// overrides) changes — via a local edit or a CloudKit sync. Observers
-    /// invalidate any cached school-day calculations. See
-    /// `AppDependencies.invalidateSchoolDayCaches()`.
-    static let schoolDayDataDidChange = Notification.Name("schoolDayDataDidChange")
-}
-
 /// Monotonic version stamp, bumped whenever school-day data changes.
 /// `SchoolCalendarService` compares it lazily on each lookup so a stale cache
 /// is dropped even if the change notification has not been delivered yet, and

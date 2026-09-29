@@ -11,7 +11,7 @@ import Testing
 @MainActor
 struct AssistantSiriTests {
 
-    private typealias Late = AssistantAttendanceViewModel.LatePhaseMemory
+    private typealias Late = AssistantLatePhase
 
     private let stack: CoreDataStack
     private let monday: Date

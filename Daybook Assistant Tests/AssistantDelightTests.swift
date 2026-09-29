@@ -188,7 +188,7 @@ struct AssistantDelightTests {
         model.tap(model.rows[1])
         let eight = try #require(Calendar.current.date(bySettingHour: 8, minute: 14, second: 0, of: Date()))
 
-        let here = "Everyone's here · \(AssistantAttendanceTile.clock(eight))"
+        let here = "Everyone's here · \(AssistantClock.string(eight))"
         #expect(Model.completionText(model.rows, at: eight) == here)
         #expect(Model.completionText(model.rows, at: nil) == "Everyone's here")
 

@@ -180,9 +180,7 @@ struct AssistantAttendanceView: View {
 
     /// The sample class marks under no one's name, so it doesn't ask.
     private var asksForName: Bool {
-        #if DEBUG
         if AssistantSampleClass.isRequested { return false }
-        #endif
         return ClassroomIdentity.displayName == nil
     }
 

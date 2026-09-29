@@ -50,33 +50,25 @@ struct AssistantMenuTests {
     }
 
     @Test("Marked by: you, another assistant, the guide (by name when known)")
-    func markedByLines() throws {
-        let eight = Calendar.current.date(bySettingHour: 8, minute: 2, second: 0, of: Date())!
+    func markerNames() throws {
         let assistant = "assistant"
         let guide = "leadGuide"
+        func who(
+            _ row: Model.Row, mine: String? = "me", myName: String? = "Rivka", guideName: String? = nil
+        ) -> String? {
+            Model.markerName(for: row, myRecordName: mine, myName: myName, guideName: guideName)
+        }
 
-        let mine = try row(by: assistant, id: "me", name: "Rivka", at: eight)
-        #expect(Model.markedByLine(for: mine, myRecordName: "me", myName: "Rivka", guideName: nil)
-            == "Marked by you at \(AssistantAttendanceTile.clock(eight))")
-
-        let theirs = try row(by: assistant, id: "other", name: "Chana")
-        #expect(Model.markedByLine(for: theirs, myRecordName: "me", myName: "Rivka", guideName: nil)
-            == "Marked by Chana")
-
+        #expect(who(try row(by: assistant, id: "me", name: "Rivka")) == "you")
+        #expect(who(try row(by: assistant, id: "other", name: "Chana")) == "Chana")
         // Without her record name, the typed name decides.
-        let byName = try row(by: assistant, name: "Rivka")
-        #expect(Model.markedByLine(for: byName, myRecordName: nil, myName: "Rivka", guideName: nil)
-            == "Marked by you")
+        #expect(who(try row(by: assistant, name: "Rivka"), mine: nil) == "you")
 
         let guideMark = try row(by: guide)
-        #expect(Model.markedByLine(for: guideMark, myRecordName: "me", myName: "Rivka", guideName: nil)
-            == "Marked by your guide")
-        #expect(Model.markedByLine(for: guideMark, myRecordName: "me", myName: "Rivka", guideName: "Danny")
-            == "Marked by Danny")
+        #expect(who(guideMark) == "your guide")
+        #expect(who(guideMark, guideName: "Danny") == "Danny")
 
-        let unmarked = try row(.unmarked, by: assistant, id: "me")
-        #expect(Model.markedByLine(for: unmarked, myRecordName: "me", myName: nil, guideName: nil) == nil)
-        let unattributed = try row(by: nil)
-        #expect(Model.markedByLine(for: unattributed, myRecordName: "me", myName: nil, guideName: nil) == nil)
+        #expect(who(try row(.unmarked, by: assistant, id: "me"), myName: nil) == nil)
+        #expect(who(try row(by: nil), myName: nil) == nil)
     }
 }

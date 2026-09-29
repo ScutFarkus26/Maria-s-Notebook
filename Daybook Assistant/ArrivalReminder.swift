@@ -63,9 +63,7 @@ enum ArrivalReminder {
     /// notifications the first time a class is on screen, then rebuilds the
     /// reminders. The sample class schedules nothing.
     static func update(hasClass: Bool, in context: NSManagedObjectContext) async {
-        #if DEBUG
         if AssistantSampleClass.isRequested { return }
-        #endif
         guard hasClass else { return }
         await requestPermissionIfNeeded()
         await reschedule(in: context)
@@ -164,11 +162,6 @@ final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
             NotificationCenter.default.post(name: .assistantShowToday, object: nil)
         }
     }
-}
-
-extension Notification.Name {
-    /// A reminder was tapped: the attendance screen moves to today.
-    static let assistantShowToday = Notification.Name("Assistant.showToday")
 }
 
 /// Keeps the arrival reminders in step with the roll: rebuilt on every full

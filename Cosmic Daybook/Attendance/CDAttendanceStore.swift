@@ -41,8 +41,9 @@ struct CDAttendanceStore {
         AttendanceDayLocks.isLocked(date, in: context)
     }
 
-    /// This role may write attendance and `date` isn't locked.
-    private func canWrite(on date: Date?) -> Bool {
+    /// This role may write attendance and `date` isn't locked. Screens ask
+    /// this rather than repeating the rule.
+    func canWrite(on date: Date?) -> Bool {
         canWrite && !isLocked(date ?? Date())
     }
 
@@ -229,7 +230,10 @@ struct CDAttendanceStore {
         guard canWrite(on: date) else { return [] }
         let now = Date()
         var changed: [CDAttendanceRecord] = []
-        for rec in try ensureRecords(for: students, on: date) where rec.status == .unmarked {
+        // A status this build doesn't know (a newer build's) reads as
+        // unmarked but isn't: leave it rather than overwrite it with absent.
+        for rec in try ensureRecords(for: students, on: date)
+        where rec.status == .unmarked && (rec.statusRaw.isEmpty || AttendanceStatus(rawValue: rec.statusRaw) != nil) {
             mark(rec, as: .absent, at: now)
             changed.append(rec)
         }

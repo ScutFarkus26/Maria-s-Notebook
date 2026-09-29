@@ -26,17 +26,20 @@ extension CDAttendanceStore {
 
     /// Puts `ids` — attendance records (or day locks) this device just saved
     /// into the shared store — into the classroom share. Records already in a
-    /// share are left alone.
+    /// share are left alone. Returns the ones to try again later: those that
+    /// failed, and all of them when there is no share to put them in yet or
+    /// it couldn't be read.
+    @discardableResult
     static func attachNewRecordsToClassroomShare(
         _ ids: [NSManagedObjectID],
         container: NSPersistentCloudKitContainer,
         pinContext: NSManagedObjectContext
-    ) async {
+    ) async -> [NSManagedObjectID] {
         let sharedStore = container.persistentStoreCoordinator.persistentStores.first {
             $0.configurationName == CoreDataStack.sharedConfiguration
         }
         let permanent = ids.filter { !$0.isTemporaryID && $0.persistentStore === sharedStore }
-        guard let sharedStore, let sharedStoreID = sharedStore.identifier, !permanent.isEmpty else { return }
+        guard let sharedStore, let sharedStoreID = sharedStore.identifier, !permanent.isEmpty else { return [] }
 
         // Read off the main actor: this runs right after the save that created
         // the records, while CloudKit's export of that save may hold the store.
@@ -50,24 +53,26 @@ extension CDAttendanceStore {
             )
         } catch {
             shareLogger.error("Couldn't read the classroom share: \(error.localizedDescription, privacy: .public)")
-            return
+            return permanent
         }
         guard let share else {
             shareLogger.error("No classroom share to put \(permanent.count, privacy: .public) new record(s) into")
-            return
+            return permanent
         }
         do {
             let waiting = try await ClassroomShareAttach.unshared(permanent, container: container)
             guard !waiting.isEmpty else {
                 shareLogger.info("New record(s) already in the classroom share")
-                return
+                return []
             }
             let outcome = await ClassroomShareAttach.attach(waiting, to: share, container: container)
             let summary = "attached \(outcome.attached), failed \(outcome.failed.count)" +
                 (outcome.stoppedBecause.map { ", stopped: \($0)" } ?? "")
             shareLogger.notice("Assistant records to classroom share: \(summary, privacy: .public)")
+            return outcome.failed
         } catch {
             shareLogger.error("Couldn't check the new records' share: \(error.localizedDescription, privacy: .public)")
+            return permanent
         }
     }
 }

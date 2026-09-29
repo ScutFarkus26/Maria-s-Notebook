@@ -54,7 +54,6 @@ final class AssistantBootstrapper {
     func start() async {
         guard case .starting = phase else { return }
 
-        #if DEBUG
         if AssistantSampleClass.isRequested {
             do {
                 coreDataStack = try AssistantStack.shared()
@@ -64,7 +63,6 @@ final class AssistantBootstrapper {
             }
             return
         }
-        #endif
 
         do {
             // Shared with Siri, which may have opened it already.
@@ -141,10 +139,15 @@ final class AssistantBootstrapper {
         phase = hasMembership ? .ready : .needsClassroom
         guard let service = sharingService else { return }
         service.loadCurrentMembership()
-        if hasMembership, !wasReady, service.currentShare == nil {
+        guard hasMembership, !wasReady else { return }
+        if service.currentShare == nil {
             // Only joining fills in the share otherwise: the guide's name
             // on the Classroom screen, and "you" on her own marks.
             Task { await service.refreshShareInBackground() }
+        }
+        // Marks an earlier session couldn't put into the share try again.
+        if let stack = coreDataStack {
+            AssistantShareAttacher.shared.flush(container: stack.container, context: stack.viewContext)
         }
     }
 

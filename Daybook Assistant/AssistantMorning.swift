@@ -1,8 +1,9 @@
 import SwiftUI
 
 // The small warm touches around the grid: the greeting to the assistant, the
-// sky behind today's grid, the line when everyone's marked, and the picture on
-// a day off. Pure, so the tests call them directly.
+// sky behind today's grid, and the picture on a day off (the line when
+// everyone's marked is with the grid's rules). Pure, so the tests call them
+// directly.
 
 /// "Good morning, Rivka": to the assistant, by the first word of the name she
 /// gave (`ClassroomIdentity.displayName`), or without a name when she hasn't.
@@ -125,28 +126,4 @@ struct AssistantDayOffArt: Equatable {
             return "A day off on your guide's school calendar. No attendance is taken."
         }
     }
-}
-
-extension AssistantAttendanceViewModel {
-
-    /// The line in the bar once everyone's marked: "Everyone's here · 8:14"
-    /// (the time only today), or "All marked · 20 here, 2 home".
-    static func completionText(_ rows: [Row], at time: Date?) -> String {
-        let here = rows.count { [.present, .tardy, .leftEarly].contains($0.status) }
-        let home = rows.count { $0.status == .absent }
-        guard home > 0 else {
-            return time.map { "Everyone's here · \(AssistantAttendanceTile.clock($0))" } ?? "Everyone's here"
-        }
-        return "All marked · \(here) here, \(home) home"
-    }
-}
-
-extension Color {
-    /// Late's color: amber, dark enough to read as text on the light bar and
-    /// the system orange in dark mode.
-    static let lateAmber = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? .systemOrange
-            : UIColor(red: 0.74, green: 0.40, blue: 0.0, alpha: 1)
-    })
 }

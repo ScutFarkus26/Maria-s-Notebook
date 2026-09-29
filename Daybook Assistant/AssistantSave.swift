@@ -19,11 +19,7 @@ enum AssistantSave {
         // Read after the save, which is what turns temporary IDs permanent.
         let ids = created.map(\.objectID)
         if let container, !ids.isEmpty {
-            Task {
-                await CDAttendanceStore.attachNewRecordsToClassroomShare(
-                    ids, container: container, pinContext: context
-                )
-            }
+            AssistantShareAttacher.shared.attach(ids, container: container, context: context)
         }
         return true
     }

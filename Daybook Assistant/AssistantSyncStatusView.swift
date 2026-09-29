@@ -152,13 +152,7 @@ struct AssistantSyncStatusView: View {
 
     /// The sample class lives in memory with no iCloud behind it, so "sent"
     /// would be untrue.
-    private var isSampleClass: Bool {
-        #if DEBUG
-        AssistantSampleClass.isRequested
-        #else
-        false
-        #endif
-    }
+    private var isSampleClass: Bool { AssistantSampleClass.isRequested }
 
     private func refreshUnsavedChanges() {
         let pending = coreDataStack.viewContext.hasChanges

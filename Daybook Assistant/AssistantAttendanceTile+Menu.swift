@@ -88,12 +88,12 @@ extension AssistantAttendanceTile {
             text += ", \(row.absenceReason.displayName)"
         case .leftEarly:
             if let arrived = row.markedAt, let left = row.leftAt {
-                text += " \(Self.clock(arrived)) → \(Self.clock(left))"
+                text += " \(AssistantClock.string(arrived)) → \(AssistantClock.string(left))"
             } else if let left = row.leftAt {
-                text += " at \(Self.clock(left))"
+                text += " at \(AssistantClock.string(left))"
             }
         case .present, .tardy:
-            if let markedAt = row.markedAt { text += " at \(Self.clock(markedAt))" }
+            if let markedAt = row.markedAt { text += " at \(AssistantClock.string(markedAt))" }
         default:
             break
         }

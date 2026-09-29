@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import CoreData
 
@@ -7,10 +6,17 @@ import CoreData
 /// opens an in-memory store (no iCloud, nothing on disk) and fills it with a
 /// made-up roster. Debug builds only.
 enum AssistantSampleClass {
+    /// Always false in Release, so callers need no `#if` of their own (a
+    /// Release-only branch is one no Debug build compiles).
     static var isRequested: Bool {
+        #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-AssistantSampleClass")
+        #else
+        false
+        #endif
     }
 
+    #if DEBUG
     static func makeStack() throws -> CoreDataStack {
         let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
         let context = stack.viewContext
@@ -29,7 +35,7 @@ enum AssistantSampleClass {
         }
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
-        AssistantAttendanceViewModel.LatePhaseMemory.forget()
+        AssistantLatePhase.forget()
         return stack
     }
 
@@ -43,5 +49,5 @@ enum AssistantSampleClass {
         ("Asher", "Quinn"), ("Gideon", "Hale"), ("Micah", "Frost"), ("Noa", "Winter"),
         ("Shira", "Lowe"), ("Talia", "Brook")
     ]
+    #endif
 }
-#endif
