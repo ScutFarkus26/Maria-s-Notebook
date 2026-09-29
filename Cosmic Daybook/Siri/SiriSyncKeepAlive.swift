@@ -21,10 +21,10 @@ import UIKit
 enum SiriSyncKeepAlive {
     /// Runs `work` under a background-task assertion on iOS, so a suspended
     /// app finishes it; elsewhere it simply runs.
-    static func run(_ work: @escaping @MainActor () async -> Void) {
+    static func run(named name: String = "Siri attendance sync", _ work: @escaping @MainActor () async -> Void) {
         #if canImport(UIKit)
         let token = BackgroundTaskToken()
-        token.id = UIApplication.shared.beginBackgroundTask(withName: "Siri attendance sync") {
+        token.id = UIApplication.shared.beginBackgroundTask(withName: name) {
             token.end()
         }
         Task {
@@ -50,7 +50,8 @@ enum SiriSyncKeepAlive {
 }
 
 /// Waits for the next CloudKit export to finish, or a time limit. Created
-/// before the save it follows, so an export that finishes quickly is caught.
+/// before the save it follows, so an export that finishes quickly is caught;
+/// an export that started earlier doesn't hold that save, so it doesn't count.
 @MainActor
 final class SiriExportWatch {
     private var observer: (any NSObjectProtocol)?
@@ -58,6 +59,7 @@ final class SiriExportWatch {
     private var continuation: CheckedContinuation<Void, Never>?
 
     init() {
+        let created = Date()
         observer = NotificationCenter.default.addObserver(
             forName: NSPersistentCloudKitContainer.eventChangedNotification,
             object: nil,
@@ -65,8 +67,8 @@ final class SiriExportWatch {
         ) { [weak self] note in
             let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                 as? NSPersistentCloudKitContainer.Event
-            let exportEnded = event?.type == .export && event?.endDate != nil
-            guard exportEnded else { return }
+            guard let event, event.type == .export, event.endDate != nil,
+                  event.startDate >= created else { return }
             MainActor.assumeIsolated { self?.stop() }
         }
     }

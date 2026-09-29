@@ -118,6 +118,10 @@ final class AppServicesLauncher {
         // internally — we just need to ensure the app is registered.
         #if os(iOS)
         UIApplication.shared.registerForRemoteNotifications()
+        // A mark tapped just before the iPad or iPhone locks still goes out.
+        if coreDataStack.isCloudKitActive {
+            UnsentChangesKeepAlive.install(for: coreDataStack)
+        }
         #elseif os(macOS)
         NSApplication.shared.registerForRemoteNotifications()
         #endif

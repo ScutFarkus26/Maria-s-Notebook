@@ -124,6 +124,15 @@ extension TodayView {
             .surface(UIConstants.CornerRadius.control, fill: Color.primary.opacity(UIConstants.OpacityConstants.hint))
         }
         .buttonStyle(.plain)
+        // Marks arriving from the Daybook Assistant or another device. The
+        // counts and names come from the view model, which only a reload
+        // refreshes; the grid is collapsed by default, so without this an
+        // imported mark changed nothing on Today until a revisit.
+        .onPresentationDataChangeWhenVisible(
+            of: ["AttendanceRecord", "AttendanceDayLock"], in: viewContext, catchUpOnAppear: false
+        ) {
+            viewModel.scheduleReload()
+        }
     }
 
     // MARK: - Attendance Student Scroll

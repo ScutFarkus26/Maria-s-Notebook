@@ -65,6 +65,7 @@
 		DAA73AAA5FBE7705094FC509 /* SiriAttendance.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5FBE201CD152E6575AFC81 /* SiriAttendance.swift */; };
 		DA2F3573DEFA159D6E48AA3B /* SiriAttendanceChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA17C1B5E40131E8B26F205 /* SiriAttendanceChange.swift */; };
 		DA6FE4EE519E46DEDE79CF12 /* SiriSyncKeepAlive.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD261BC2C97729CE19450D0 /* SiriSyncKeepAlive.swift */; };
+		DB7E2A1C3F5B4D6E8A9C0B12 /* UnsentChangesKeepAlive.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB7E2A1C3F5B4D6E8A9C0B11 /* UnsentChangesKeepAlive.swift */; };
 		DA5C5CCA4E75ACBED92597FB /* AttendanceIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9364C079370B59BC25F592 /* AttendanceIntents.swift */; };
 		DABC801FA1D6BE8CBB96B9D7 /* Notification.Name+SiriAttendance.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */; };
 /* End PBXBuildFile section */
@@ -150,6 +151,7 @@
 		DA5FBE201CD152E6575AFC81 /* SiriAttendance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiriAttendance.swift; path = "Cosmic Daybook/Siri/SiriAttendance.swift"; sourceTree = SOURCE_ROOT; };
 		DAA17C1B5E40131E8B26F205 /* SiriAttendanceChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiriAttendanceChange.swift; path = "Cosmic Daybook/Siri/SiriAttendanceChange.swift"; sourceTree = SOURCE_ROOT; };
 		DAD261BC2C97729CE19450D0 /* SiriSyncKeepAlive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiriSyncKeepAlive.swift; path = "Cosmic Daybook/Siri/SiriSyncKeepAlive.swift"; sourceTree = SOURCE_ROOT; };
+		DB7E2A1C3F5B4D6E8A9C0B11 /* UnsentChangesKeepAlive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnsentChangesKeepAlive.swift; path = "Cosmic Daybook/Services/UnsentChangesKeepAlive.swift"; sourceTree = SOURCE_ROOT; };
 		DA9364C079370B59BC25F592 /* AttendanceIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceIntents.swift; path = "Cosmic Daybook/Siri/AttendanceIntents.swift"; sourceTree = SOURCE_ROOT; };
 		DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Notification.Name+SiriAttendance.swift"; path = "Cosmic Daybook/Siri/Notification.Name+SiriAttendance.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -330,6 +332,7 @@
 				DA5FBE201CD152E6575AFC81 /* SiriAttendance.swift */,
 				DAA17C1B5E40131E8B26F205 /* SiriAttendanceChange.swift */,
 				DAD261BC2C97729CE19450D0 /* SiriSyncKeepAlive.swift */,
+				DB7E2A1C3F5B4D6E8A9C0B11 /* UnsentChangesKeepAlive.swift */,
 				DA9364C079370B59BC25F592 /* AttendanceIntents.swift */,
 				DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */,
 			);
@@ -581,6 +584,7 @@
 				DAA73AAA5FBE7705094FC509 /* SiriAttendance.swift in Sources */,
 				DA2F3573DEFA159D6E48AA3B /* SiriAttendanceChange.swift in Sources */,
 				DA6FE4EE519E46DEDE79CF12 /* SiriSyncKeepAlive.swift in Sources */,
+				DB7E2A1C3F5B4D6E8A9C0B12 /* UnsentChangesKeepAlive.swift in Sources */,
 				DA5C5CCA4E75ACBED92597FB /* AttendanceIntents.swift in Sources */,
 				DABC801FA1D6BE8CBB96B9D7 /* Notification.Name+SiriAttendance.swift in Sources */,
 			);

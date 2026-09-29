@@ -22,6 +22,14 @@ enum AssistantStack {
         made = try CoreDataStack()
         #endif
         stack = made
+        if !AssistantSampleClass.isRequested {
+            // A mark tapped just before the phone locks still goes out.
+            UnsentChangesKeepAlive.install(
+                for: made,
+                isBusy: { AssistantShareAttacher.shared.isRunning },
+                waitForWork: { await AssistantShareAttacher.shared.waitUntilIdle() }
+            )
+        }
         return made
     }
 
