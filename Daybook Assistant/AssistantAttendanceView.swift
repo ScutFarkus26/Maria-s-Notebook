@@ -1,7 +1,11 @@
 import SwiftUI
 import CoreData
 
-/// The whole app, once you've joined: one day's class, one row each.
+/// The whole app, once you've joined: one day's class, one tile each.
+///
+/// Two pills set what a tap means. **Arrival** marks a child present;
+/// **Late** marks everyone still unmarked absent, after which a tap marks
+/// tardy. Every mark carries its time.
 ///
 /// It opens on today. The ‹ › arrows step through school days (skipping
 /// weekends and the guide's days off), tapping the date opens a picker for any
@@ -14,6 +18,9 @@ struct AssistantAttendanceView: View {
     @State private var showingNameSheet = false
     @State private var showingDatePicker = false
     @State private var noteRow: AssistantAttendanceViewModel.Row?
+    /// The "Marked 3 absent · Undo" bar after switching to Late.
+    @State private var lateUndo: LateUndo?
+    @Namespace private var phaseNamespace
     /// Whether the screen was on today when the app last left the foreground:
     /// only then does coming back move it on to the new today.
     @State private var followsToday = true
@@ -31,11 +38,19 @@ struct AssistantAttendanceView: View {
             .navigationTitle("Attendance")
             .toolbarTitleDisplayMode(.inline)
             .toolbar { toolbar }
-            .safeAreaInset(edge: .bottom) {
-                AssistantSyncStatusView(coreDataStack: coreDataStack)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(.bar)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 0) {
+                    if let lateUndo {
+                        undoBar(lateUndo)
+                            .padding(.bottom, 10)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    AssistantSyncStatusView(coreDataStack: coreDataStack)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(.bar)
+                }
+                .animation(.smooth(duration: 0.3), value: lateUndo?.id)
             }
         }
         .sheet(isPresented: $showingNameSheet) {
@@ -59,13 +74,17 @@ struct AssistantAttendanceView: View {
         .task {
             // Ask once, on the first run after joining, rather than letting a
             // term's marks accumulate under no name at all.
-            if ClassroomIdentity.displayName == nil { showingNameSheet = true }
+            if asksForName { showingNameSheet = true }
             if viewModel == nil { startDay() }
             // The class, the guide's marks and locked days all arrive by
             // import; without this the screen shows them only when reloaded.
             if let viewModel, let storeID = coreDataStack.sharedPersistentStore?.identifier {
                 await viewModel.followRemoteImports(into: storeID)
             }
+        }
+        .onChange(of: viewModel?.date) {
+            // Undo belongs to the day it was offered on.
+            lateUndo = nil
         }
         .onChange(of: noteRow?.id) { _, editing in
             viewModel?.pauseRemoteReloads(editing != nil)
@@ -86,6 +105,14 @@ struct AssistantAttendanceView: View {
                 followsToday = viewModel.isToday
             }
         }
+    }
+
+    /// The sample class marks under no one's name, so it doesn't ask.
+    private var asksForName: Bool {
+        #if DEBUG
+        if AssistantSampleClass.isRequested { return false }
+        #endif
+        return ClassroomIdentity.displayName == nil
     }
 
     // MARK: - Toolbar
@@ -182,36 +209,154 @@ struct AssistantAttendanceView: View {
                 Button("Check Again") { viewModel.load() }
             }
         } else {
-            List {
-                if viewModel.isLocked {
-                    Label("Your guide has locked this day. Marks and notes can't be changed.", systemImage: "lock.fill")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header(viewModel)
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 150), spacing: 10)],
+                        spacing: 10
+                    ) {
+                        ForEach(viewModel.rows) { row in
+                            AssistantAttendanceTile(
+                                row: row,
+                                phase: viewModel.phase,
+                                canMark: viewModel.canMark,
+                                onTap: { viewModel.tap(row) },
+                                onSetStatus: { viewModel.setStatus($0, for: row) },
+                                onReason: { viewModel.setAbsenceReason($0, for: row) },
+                                onNote: { noteRow = row }
+                            )
+                        }
+                    }
                 }
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
+            }
+            .background(Color(.systemGroupedBackground))
+            .refreshable { viewModel.load() }
+        }
+    }
 
-                Section {
-                    ForEach(viewModel.rows) { row in
-                        AssistantAttendanceRow(
-                            row: row,
-                            canMark: viewModel.canMark,
-                            onCycle: { viewModel.cycleStatus(for: row) },
-                            onReason: { viewModel.setAbsenceReason($0, for: row) },
-                            onNote: { noteRow = row }
-                        )
-                    }
-                } footer: {
-                    if viewModel.canMark {
-                        Text("Tap a student to change their mark. Swipe left to add a note.")
-                    }
+    // MARK: - Header
+
+    private func header(_ viewModel: AssistantAttendanceViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if viewModel.canMark {
+                phasePills(viewModel)
+            }
+            Text(tally(viewModel.rows))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.smooth, value: tally(viewModel.rows))
+
+            if viewModel.isLocked {
+                Label("Your guide has locked this day.", systemImage: "lock.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Arrival · Late, as one quiet capsule; the chosen half slides.
+    private func phasePills(_ viewModel: AssistantAttendanceViewModel) -> some View {
+        HStack(spacing: 2) {
+            phasePill("Arrival", phase: .arrival, viewModel: viewModel)
+            phasePill("Late", phase: .late, viewModel: viewModel)
+        }
+        .padding(3)
+        .background(Color(.tertiarySystemFill), in: Capsule())
+        .sensoryFeedback(.impact(weight: .light), trigger: viewModel.phase)
+    }
+
+    private func phasePill(
+        _ title: String,
+        phase: AssistantAttendanceViewModel.Phase,
+        viewModel: AssistantAttendanceViewModel
+    ) -> some View {
+        let selected = viewModel.phase == phase
+        return Button {
+            guard !selected else { return }
+            withAnimation(.smooth(duration: 0.3)) {
+                switch phase {
+                case .late:
+                    let count = viewModel.beginLate()
+                    lateUndo = count > 0 ? LateUndo(count: count) : nil
+                case .arrival:
+                    viewModel.returnToArrival()
+                    lateUndo = nil
                 }
             }
-            .listStyle(.insetGrouped)
-            .refreshable { viewModel.load() }
+        } label: {
+            Text(title)
+                .font(.subheadline.weight(selected ? .semibold : .regular))
+                .foregroundStyle(selected ? .primary : .secondary)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 7)
+                .background {
+                    if selected {
+                        Capsule()
+                            .fill(Color(.systemBackground))
+                            .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
+                            .matchedGeometryEffect(id: "phase", in: phaseNamespace)
+                    }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityHint(phase == .late ? "Marks everyone not yet here absent" : "")
+    }
+
+    /// "18 here · 2 absent · 1 late", leaving out what's zero.
+    private func tally(_ rows: [AssistantAttendanceViewModel.Row]) -> String {
+        let counts = Dictionary(grouping: rows, by: \.status).mapValues(\.count)
+        let parts: [(AttendanceStatus, String)] = [
+            (.present, "here"), (.tardy, "late"), (.absent, "absent"),
+            (.leftEarly, "left early"), (.unmarked, "not marked")
+        ]
+        let text = parts.compactMap { status, word in
+            counts[status].map { "\($0) \(word)" }
+        }
+        return text.joined(separator: " · ")
+    }
+
+    // MARK: - Undo
+
+    private struct LateUndo: Equatable {
+        let id = UUID()
+        let count: Int
+    }
+
+    private func undoBar(_ undo: LateUndo) -> some View {
+        HStack(spacing: 14) {
+            Text("Marked \(undo.count) absent")
+                .font(.subheadline)
+            Button("Undo") {
+                withAnimation(.smooth(duration: 0.3)) {
+                    viewModel?.returnToArrival(undo: true)
+                    lateUndo = nil
+                }
+            }
+            .font(.subheadline.weight(.semibold))
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.06)))
+        .task(id: undo.id) {
+            try? await Task.sleep(for: .seconds(5))
+            if lateUndo?.id == undo.id {
+                withAnimation(.smooth(duration: 0.3)) { lateUndo = nil }
+            }
         }
     }
 

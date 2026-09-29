@@ -7,6 +7,10 @@ import Observation
 /// student, if any. The day starts as today and moves with the arrows or the
 /// date picker, past or future.
 ///
+/// A morning runs in two phases. During **Arrival** a tap marks a child
+/// present; switching to **Late** marks everyone still unmarked absent, and a
+/// tap then turns an absent child tardy. Tapping again undoes the last tap.
+///
 /// Rows are *virtual* until marked: a student with no record yet shows as
 /// unmarked without anything being inserted. Inserting a roster-wide set of
 /// blank records on screen-open is what produced duplicate floods when two
@@ -20,14 +24,35 @@ final class AssistantAttendanceViewModel {
         category: "attendance"
     )
 
+    /// The record's values are copied in when the day loads, not read through
+    /// it: a tile handed the same record object after its status changed would
+    /// look unchanged to SwiftUI and keep its old colour.
     struct Row: Identifiable {
         let student: CDStudent
-        var record: CDAttendanceRecord?
-        var id: UUID { student.id ?? UUID() }
-        var status: AttendanceStatus { record?.status ?? .unmarked }
-        var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
+        let id: UUID
+        let status: AttendanceStatus
+        let absenceReason: AbsenceReason
         /// The day's note, shared with the guide.
-        var note: String { record?.note ?? "" }
+        let note: String
+        /// When the current mark was made; nil while unmarked.
+        let markedAt: Date?
+
+        init(student: CDStudent, record: CDAttendanceRecord?) {
+            self.student = student
+            self.id = student.id ?? UUID()
+            self.status = record?.status ?? .unmarked
+            self.absenceReason = record?.absenceReason ?? .none
+            self.note = record?.note ?? ""
+            self.markedAt = record?.markedAt
+        }
+    }
+
+    /// Which part of the morning the taps are for.
+    enum Phase: Equatable {
+        /// Children are arriving: a tap marks present.
+        case arrival
+        /// Arrival has closed: the rest are absent, and a tap marks tardy.
+        case late
     }
 
     /// Why there is no school on `date`, when there isn't.
@@ -44,6 +69,11 @@ final class AssistantAttendanceViewModel {
     private(set) var dayOff: DayOff?
     /// Set when the guide has locked this day: its rows are read-only.
     private(set) var isLocked = false
+    /// This device's phase for the day on screen. Local, not shared: another
+    /// device sees the marks Late made, not the switch.
+    private(set) var phase: Phase = .arrival
+    /// The records the last switch to Late marked absent, for its Undo.
+    @ObservationIgnored private var lastLateBatch: [NSManagedObjectID] = []
 
     /// The day on screen (start of day).
     private(set) var date: Date
@@ -89,7 +119,12 @@ final class AssistantAttendanceViewModel {
 
     /// Shows `newDate` (any day, school or not), or reloads the current one.
     func load(_ newDate: Date? = nil) {
-        if let newDate { date = Calendar.current.startOfDay(for: newDate) }
+        if let newDate {
+            let day = Calendar.current.startOfDay(for: newDate)
+            if day != date { lastLateBatch = [] }
+            date = day
+        }
+        phase = LatePhaseMemory.isLate(on: date) ? .late : .arrival
         dayOff = Self.dayOff(on: date, in: context)
         isLocked = store.isLocked(date)
 
@@ -119,14 +154,33 @@ final class AssistantAttendanceViewModel {
         }
     }
 
-    /// Advances one student through present → absent → tardy → left early and
-    /// back to unmarked, creating the record on the first mark.
-    func cycleStatus(for row: Row) {
+    /// What a tap on `row` does in the current phase. During Arrival a tap
+    /// marks present and a second tap unmarks; during Late a tap turns absent
+    /// (or unmarked) into tardy and a second tap turns it back. A present
+    /// child is left alone during Late: the long-press menu changes that.
+    static func statusAfterTap(from status: AttendanceStatus, in phase: Phase) -> AttendanceStatus? {
+        switch (phase, status) {
+        case (.arrival, .present): return .unmarked
+        case (.arrival, _): return .present
+        case (.late, .tardy): return .absent
+        case (.late, .absent), (.late, .unmarked): return .tardy
+        case (.late, _): return nil
+        }
+    }
+
+    func tap(_ row: Row) {
+        guard let next = Self.statusAfterTap(from: row.status, in: phase) else { return }
+        setStatus(next, for: row)
+    }
+
+    /// Sets any status directly (the long-press menu), creating the record on
+    /// the first mark.
+    func setStatus(_ status: AttendanceStatus, for row: Row) {
         guard canMark else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
             if record.isInserted { createdSinceSave.append(record) }
-            _ = store.updateStatus(record, to: record.status.next())
+            _ = store.updateStatus(record, to: status)
             persist()
         } catch {
             Self.logger.error("Marking failed: \(error.localizedDescription, privacy: .public)")
@@ -134,8 +188,45 @@ final class AssistantAttendanceViewModel {
         }
     }
 
+    /// Closes arrival: every child still unmarked is marked absent. Returns
+    /// how many it marked, for the Undo bar.
+    @discardableResult
+    func beginLate() -> Int {
+        guard canMark, phase == .arrival else { return 0 }
+        phase = .late
+        LatePhaseMemory.setLate(true, on: date)
+        do {
+            let changed = try store.markUnmarkedAbsent(for: date, students: rows.map(\.student))
+            createdSinceSave.append(contentsOf: changed.filter(\.isInserted))
+            persist()
+            lastLateBatch = changed.map(\.objectID)
+            return changed.count
+        } catch {
+            Self.logger.error("Closing arrival failed: \(error.localizedDescription, privacy: .public)")
+            errorMessage = "Couldn't mark the rest absent."
+            return 0
+        }
+    }
+
+    /// Back to Arrival. Marks stay as they are unless `undo` is set, when the
+    /// children the last switch to Late marked absent (and still are) go back
+    /// to unmarked.
+    func returnToArrival(undo: Bool = false) {
+        phase = .arrival
+        LatePhaseMemory.setLate(false, on: date)
+        let batch = lastLateBatch
+        lastLateBatch = []
+        guard undo, canMark, !batch.isEmpty else { return }
+        for id in batch {
+            guard let record = try? context.existingObject(with: id) as? CDAttendanceRecord,
+                  record.status == .absent else { continue }
+            store.updateStatus(record, to: .unmarked)
+        }
+        persist()
+    }
+
     func setAbsenceReason(_ reason: AbsenceReason, for row: Row) {
-        guard canMark, let record = row.record else { return }
+        guard canMark, let record = try? store.ensureRecord(for: row.student, on: date) else { return }
         _ = store.updateAbsenceReason(record, to: reason)
         persist()
     }
@@ -175,6 +266,30 @@ final class AssistantAttendanceViewModel {
             return .holiday(reason.isEmpty ? nil : reason)
         }
         return .weekend
+    }
+
+    /// Remembers, on this device, which day was switched to Late, so the phase
+    /// survives a relaunch mid-morning. One day at a time: switching another
+    /// day forgets the last.
+    enum LatePhaseMemory {
+        private static let key = "Assistant.latePhaseDay"
+
+        static func isLate(on day: Date) -> Bool {
+            guard let stored = UserDefaults.standard.object(forKey: key) as? Date else { return false }
+            return Calendar.current.isDate(stored, inSameDayAs: day)
+        }
+
+        static func setLate(_ late: Bool, on day: Date) {
+            if late {
+                UserDefaults.standard.set(day, forKey: key)
+            } else if isLate(on: day) {
+                forget()
+            }
+        }
+
+        static func forget() {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
     }
 
     private func persist() {

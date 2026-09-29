@@ -35,6 +35,18 @@ final class AssistantBootstrapper {
     func start() async {
         guard case .starting = phase else { return }
 
+        #if DEBUG
+        if AssistantSampleClass.isRequested {
+            do {
+                coreDataStack = try AssistantSampleClass.makeStack()
+                phase = .ready
+            } catch {
+                phase = .failed(error.localizedDescription)
+            }
+            return
+        }
+        #endif
+
         do {
             let stack = try CoreDataStack()
             coreDataStack = stack
