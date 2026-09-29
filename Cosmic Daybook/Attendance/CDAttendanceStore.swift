@@ -77,11 +77,30 @@ struct CDAttendanceStore {
         record.modifiedAt = Date()
     }
 
-    /// Sets the status and dates it: `markedAt` is when this status was set,
-    /// and unmarked has none.
+    /// Sets the status and dates it. `markedAt` is when the status was set,
+    /// except that Left Early keeps the arrival time from a present or tardy
+    /// mark and puts the time the child left in `leftAt`. Unmarked has
+    /// neither.
+    ///
+    /// Only a mark made on the day it's for gets a time: correcting Monday
+    /// on Wednesday would otherwise record Wednesday's clock as Monday's
+    /// arrival, and a vacation marked ahead has no time of day at all.
     private func mark(_ record: CDAttendanceRecord, as status: AttendanceStatus, at now: Date) {
+        let previous = record.status
         record.status = status
-        record.markedAt = status == .unmarked ? nil : now
+        let isToday = record.date.map { calendar.isDate($0, inSameDayAs: now) } ?? false
+        let time = isToday ? now : nil
+        switch status {
+        case .unmarked:
+            record.markedAt = nil
+            record.leftAt = nil
+        case .leftEarly:
+            if previous != .present && previous != .tardy { record.markedAt = nil }
+            record.leftAt = time
+        case .present, .absent, .tardy:
+            record.markedAt = time
+            record.leftAt = nil
+        }
         stamp(record)
     }
 
@@ -113,11 +132,39 @@ struct CDAttendanceStore {
         if let winner = existing.deduplicatedPerStudentDay().first {
             return winner
         }
+        return makeRecord(studentKey: key, day: day)
+    }
+
+    /// `ensureRecord` for a whole class at once: the day's records are
+    /// fetched once instead of once per child (and the lock checked once, by
+    /// the caller, instead of per child). Pending inserts are part of the
+    /// fetch, and a child named twice gets the same record twice, as
+    /// `ensureRecord` would give. Existing duplicates collapse to the winner.
+    private func ensureRecords(for students: [CDStudent], on date: Date) throws -> [CDAttendanceRecord] {
+        let day = date.normalizedDay(using: calendar)
+        var byStudent: [String: CDAttendanceRecord] = [:]
+        for record in try fetchRecords(for: day).deduplicatedPerStudentDay() {
+            byStudent[record.studentID] = record
+        }
+        var records: [CDAttendanceRecord] = []
+        for student in students {
+            let key = student.id?.uuidString ?? ""
+            guard !key.isEmpty else { continue }
+            let record = byStudent[key] ?? makeRecord(studentKey: key, day: day)
+            byStudent[key] = record
+            records.append(record)
+        }
+        return records
+    }
+
+    /// A new, unmarked record for (student, day), in the store this role's
+    /// records belong in.
+    private func makeRecord(studentKey: String, day: Date) -> CDAttendanceRecord {
         let rec = CDAttendanceRecord(context: context)
         if let store = destinationStore {
             context.assign(rec, to: store)
         }
-        rec.studentID = key
+        rec.studentID = studentKey
         rec.date = day
         rec.status = .unmarked
         rec.absenceReason = .none
@@ -166,13 +213,9 @@ struct CDAttendanceStore {
     func markAllPresent(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
         guard canWrite(on: date) else { return [] }
         let now = Date()
-        var records: [CDAttendanceRecord] = []
-        for student in students {
-            guard let rec = try ensureRecord(for: student, on: date) else { continue }
-            if rec.status != .present {
-                mark(rec, as: .present, at: now)
-            }
-            records.append(rec)
+        let records = try ensureRecords(for: students, on: date)
+        for rec in records where rec.status != .present {
+            mark(rec, as: .present, at: now)
         }
         return records
     }
@@ -186,9 +229,7 @@ struct CDAttendanceStore {
         guard canWrite(on: date) else { return [] }
         let now = Date()
         var changed: [CDAttendanceRecord] = []
-        for student in students {
-            guard let rec = try ensureRecord(for: student, on: date),
-                  rec.status == .unmarked else { continue }
+        for rec in try ensureRecords(for: students, on: date) where rec.status == .unmarked {
             mark(rec, as: .absent, at: now)
             changed.append(rec)
         }

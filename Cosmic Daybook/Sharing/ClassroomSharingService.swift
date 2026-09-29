@@ -21,6 +21,9 @@ final class ClassroomSharingService {
     private(set) var isSharing: Bool = false
     private(set) var shareError: String?
     private(set) var currentShare: CKShare?
+    /// True while an opened invitation is being joined, which can take a
+    /// while; the Daybook Assistant shows "Joining your classroom…".
+    private(set) var isJoining = false
 
     /// Record name of whoever is using this device, so the members list can
     /// mark its own row. CloudKit withholds your own name components, which
@@ -163,6 +166,16 @@ final class ClassroomSharingService {
         publishParticipants(of: try fetchExistingShare())
     }
 
+    /// Reads the pinned share and its participants off the main actor. The
+    /// Daybook Assistant calls it at launch: otherwise only joining sets them.
+    func refreshShareInBackground() async {
+        do {
+            try await refreshParticipantsOffMain()
+        } catch {
+            Self.logger.error("Reading the classroom share failed: \(error.localizedDescription)")
+        }
+    }
+
     /// `refreshParticipants` with the share fetch off the main actor. It runs
     /// on every CloudKit remote change while a members screen is open, and
     /// `fetchShares(in:)` is a synchronous read of the store's CloudKit
@@ -213,7 +226,15 @@ final class ClassroomSharingService {
         _ = repo.save(reason: "Accept classroom share")
 
         loadCurrentMembership()
-        try refreshParticipants()
+        shareError = nil
+        // The join is done once the membership row is saved. Reading the
+        // participants back is a nicety: failing it used to throw from here,
+        // so a good join never posted `.didJoinClassroom` and read as a failure.
+        do {
+            try refreshParticipants()
+        } catch {
+            Self.logger.error("Joined, but reading the participants failed: \(error.localizedDescription)")
+        }
         Self.logger.info("Share accepted successfully")
         NotificationCenter.default.post(name: .didJoinClassroom, object: nil)
     }
@@ -247,7 +268,10 @@ final class ClassroomSharingService {
             return
         }
 
-        if let store = sharedStore, let share = currentShare {
+        // After a relaunch nothing has fetched the share yet; without this the
+        // purge was skipped and only the membership row went.
+        let share = try currentShare ?? fetchExistingShare()
+        if let store = sharedStore, let share {
             let zoneID = share.recordID.zoneID
             Self.logger.info("Purging shared zone: \(zoneID.zoneName)")
             try await container.purgeObjectsAndRecordsInZone(with: zoneID, in: store)
@@ -314,7 +338,10 @@ final class ClassroomSharingService {
     /// leaves the invitation for the real notebook's service.
     private func acceptPendingInvitation() {
         guard sharedStore != nil, let metadata = ShareInvitationInbox.take() else { return }
+        isJoining = true
+        shareError = nil
         Task {
+            defer { isJoining = false }
             do {
                 try await acceptShare(metadata: metadata)
             } catch {

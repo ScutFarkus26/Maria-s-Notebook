@@ -80,15 +80,23 @@ struct SiriAttendance {
 
     /// Sets `student`'s mark for today and returns what it was before.
     @discardableResult
-    func mark(_ student: CDStudent, as status: AttendanceStatus) async throws -> AttendanceStatus {
+    /// `reason` applies to Absent only; nil leaves the reason as it is. A new
+    /// reason on a child already absent is a change of its own.
+    func mark(
+        _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason? = nil
+    ) async throws -> AttendanceStatus {
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
         guard let record = try store.ensureRecord(for: student, on: today) else {
             throw SiriAttendanceError.cannotMark
         }
         let previous = record.status
-        guard previous != status else { return previous }
         let created = record.isInserted ? [record] : []
-        guard store.updateStatus(record, to: status) else { throw SiriAttendanceError.cannotMark }
+        let statusChanges = previous != status
+        if statusChanges {
+            guard store.updateStatus(record, to: status) else { throw SiriAttendanceError.cannotMark }
+        }
+        let reasonChanges = status == .absent && reason.map { store.updateAbsenceReason(record, to: $0) } == true
+        guard statusChanges || reasonChanges else { return previous }
         try await commit(
             [Pending(record: record, from: previous, to: status)],
             created: created,

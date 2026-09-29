@@ -332,16 +332,12 @@ struct AttendanceCard: View {
             if status == .absent, let onSetAbsenceReason = onSetAbsenceReason {
                 Divider()
 
-                Button {
-                    onSetAbsenceReason(.sick)
-                } label: {
-                    Label("Mark as Sick", systemImage: "cross.case.fill")
-                }
-
-                Button {
-                    onSetAbsenceReason(.vacation)
-                } label: {
-                    Label("Mark as Vacation", systemImage: "beach.umbrella.fill")
+                ForEach(AbsenceReason.given, id: \.self) { reason in
+                    Button {
+                        onSetAbsenceReason(reason)
+                    } label: {
+                        Label("Mark as \(reason.displayName)", systemImage: reason.icon)
+                    }
                 }
 
                 if absenceReason != .none {

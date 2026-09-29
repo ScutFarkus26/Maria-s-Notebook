@@ -14,6 +14,7 @@
 		DAE83A3102417A909C03DD3A /* SchoolDayChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1C34F891F5B082744719A9 /* SchoolDayChecker.swift */; };
 		DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */; };
 		DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */; };
+		DB2A0C5E7F20A4B3C9D82E01 /* AttendanceRoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */; };
 		DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */; };
 		DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4C4B2353AC01D418062C7F /* UIConstants.swift */; };
 		DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */; };
@@ -74,6 +75,13 @@
 			remoteGlobalIDString = 5141E7F42ED77B0F004F918F;
 			remoteInfo = "Cosmic Daybook";
 		};
+		DB1A0C5E7F20A4B3C9D81E01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5141E7ED2ED77B0F004F918F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DA0E8A3AD980EC179856012B;
+			remoteInfo = "Daybook Assistant";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -130,7 +138,9 @@
 		DA1C34F891F5B082744719A9 /* SchoolDayChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchoolDayChecker.swift; path = "Cosmic Daybook/Work/Support/SchoolDayChecker.swift"; sourceTree = SOURCE_ROOT; };
 		DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NonSchoolDayEntity.swift; path = "Cosmic Daybook/Models/NonSchoolDayEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchoolDayOverrideEntity.swift; path = "Cosmic Daybook/Models/SchoolDayOverrideEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceRoster.swift; path = "Cosmic Daybook/Attendance/AttendanceRoster.swift"; sourceTree = SOURCE_ROOT; };
 		DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceNoteSheet.swift; path = "Cosmic Daybook/Attendance/AttendanceNoteSheet.swift"; sourceTree = SOURCE_ROOT; };
+		DB1A0C5E7F20A4B3C9D81E03 /* Daybook Assistant Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Daybook Assistant Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA78AF6D99DF99878361E70F /* StudentAppEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentAppEntity.swift; path = "Cosmic Daybook/Siri/StudentAppEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DAC6247F39133E9D1FE5D657 /* StudentNameMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentNameMatcher.swift; path = "Cosmic Daybook/Siri/StudentNameMatcher.swift"; sourceTree = SOURCE_ROOT; };
 		DA5FBE201CD152E6575AFC81 /* SiriAttendance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiriAttendance.swift; path = "Cosmic Daybook/Siri/SiriAttendance.swift"; sourceTree = SOURCE_ROOT; };
@@ -184,6 +194,11 @@
 			path = "Daybook Assistant";
 			sourceTree = "<group>";
 		};
+		DB1A0C5E7F20A4B3C9D81E04 /* Daybook Assistant Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Daybook Assistant Tests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -208,6 +223,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DB1A0C5E7F20A4B3C9D81E05 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -217,6 +239,7 @@
 				5141E7F72ED77B0F004F918F /* Cosmic Daybook */,
 				51F924362F1C440000E480A1 /* Cosmic Daybook Tests */,
 				DA98962CA057DBE5A307FD94 /* Daybook Assistant */,
+				DB1A0C5E7F20A4B3C9D81E04 /* Daybook Assistant Tests */,
 				DAA51B995684AEC2DD04AF00 /* Shared with Cosmic Daybook */,
 				5193CB042F0B155C0017A069 /* Frameworks */,
 				5141E7F62ED77B0F004F918F /* Products */,
@@ -229,6 +252,7 @@
 				5141E7F52ED77B0F004F918F /* Cosmic Daybook.app */,
 				51F9242D2F1C43F900E480A1 /* Cosmic Daybook Tests.xctest */,
 				DA38A007151ABE87CC01A5B6 /* Daybook Assistant.app */,
+				DB1A0C5E7F20A4B3C9D81E03 /* Daybook Assistant Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -275,6 +299,7 @@
 				DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */,
 				DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */,
 				DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */,
+				DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */,
 				DA20E7D5C359FCF5C7158BD8 /* CDAttendanceStore.swift */,
 				DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */,
 				DAA256BA27C74AEF2E0888A8 /* ClassroomMembershipEntity.swift */,
@@ -375,6 +400,29 @@
 			productReference = DA38A007151ABE87CC01A5B6 /* Daybook Assistant.app */;
 			productType = "com.apple.product-type.application";
 		};
+		DB1A0C5E7F20A4B3C9D81E08 /* Daybook Assistant Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DB1A0C5E7F20A4B3C9D81E09 /* Build configuration list for PBXNativeTarget "Daybook Assistant Tests" */;
+			buildPhases = (
+				DB1A0C5E7F20A4B3C9D81E07 /* Sources */,
+				DB1A0C5E7F20A4B3C9D81E05 /* Frameworks */,
+				DB1A0C5E7F20A4B3C9D81E06 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DB1A0C5E7F20A4B3C9D81E02 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DB1A0C5E7F20A4B3C9D81E04 /* Daybook Assistant Tests */,
+			);
+			name = "Daybook Assistant Tests";
+			packageProductDependencies = (
+			);
+			productName = "Daybook Assistant Tests";
+			productReference = DB1A0C5E7F20A4B3C9D81E03 /* Daybook Assistant Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -391,6 +439,9 @@
 					51F9242C2F1C43F900E480A1 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 5141E7F42ED77B0F004F918F;
+					};
+					DB1A0C5E7F20A4B3C9D81E08 = {
+						TestTargetID = DA0E8A3AD980EC179856012B;
 					};
 				};
 			};
@@ -411,6 +462,7 @@
 				5141E7F42ED77B0F004F918F /* Cosmic Daybook */,
 				51F9242C2F1C43F900E480A1 /* Cosmic Daybook Tests */,
 				DA0E8A3AD980EC179856012B /* Daybook Assistant */,
+				DB1A0C5E7F20A4B3C9D81E08 /* Daybook Assistant Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -431,6 +483,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		DA0189424A5A60FED329FA86 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DB1A0C5E7F20A4B3C9D81E06 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -489,6 +548,7 @@
 				DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */,
 				DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */,
 				DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */,
+				DB2A0C5E7F20A4B3C9D82E01 /* AttendanceRoster.swift in Sources */,
 				DA85F54020C188A55AC2044D /* CDAttendanceStore.swift in Sources */,
 				DA1C2BA2B4668F28BBD1641B /* StudentEntity.swift in Sources */,
 				DA7F870A08077490BED3589E /* ClassroomMembershipEntity.swift in Sources */,
@@ -518,6 +578,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DB1A0C5E7F20A4B3C9D81E07 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -525,6 +592,11 @@
 			isa = PBXTargetDependency;
 			target = 5141E7F42ED77B0F004F918F /* Cosmic Daybook */;
 			targetProxy = 51F924312F1C43F900E480A1 /* PBXContainerItemProxy */;
+		};
+		DB1A0C5E7F20A4B3C9D81E02 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DA0E8A3AD980EC179856012B /* Daybook Assistant */;
+			targetProxy = DB1A0C5E7F20A4B3C9D81E01 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -967,6 +1039,60 @@
 			};
 			name = Debug;
 		};
+		DB1A0C5E7F20A4B3C9D81E0A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook.Assistant.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG ASSISTANT_APP $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Daybook Assistant.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Daybook Assistant";
+			};
+			name = Debug;
+		};
+		DB1A0C5E7F20A4B3C9D81E0B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ES2X5ZSG9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = DanielSDeBerry.MariasNoteBook.Assistant.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "ASSISTANT_APP $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Daybook Assistant.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Daybook Assistant";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1002,6 +1128,15 @@
 			buildConfigurations = (
 				DAFDB2317501480E31760A6B /* Debug */,
 				DA5C5BC97B103C5B3939F2E4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DB1A0C5E7F20A4B3C9D81E09 /* Build configuration list for PBXNativeTarget "Daybook Assistant Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DB1A0C5E7F20A4B3C9D81E0A /* Debug */,
+				DB1A0C5E7F20A4B3C9D81E0B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -29,7 +29,7 @@ final class CoreDataSchemaVersionTests {
     /// Bump `CoreDataStack.currentSchemaVersion`, add a line to its version
     /// history, and paste the digest from the failure message here — in that
     /// order. Updating only this constant defeats the guard.
-    static let expectedModelDigest = "94ae6b29e283c6e54b49f665164aedea7cfad857f25e396b06add0ed66319fab"
+    static let expectedModelDigest = "8a3647efb79e78a6a45a599f10fe8b161807ae8fa99b3a306537596d604b2c22"
 
     // MARK: - Version Tracking
 

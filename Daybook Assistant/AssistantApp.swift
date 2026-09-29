@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 /// Entry point for the assistant's companion app.
 ///
@@ -12,11 +13,20 @@ struct AssistantApp: App {
 
     @State private var bootstrapper = AssistantBootstrapper()
 
+    init() {
+        UNUserNotificationCenter.current().delegate = ArrivalReminderTaps.shared
+    }
+
     var body: some Scene {
         WindowGroup {
             AssistantRootView()
                 .environment(bootstrapper)
-                .task { await bootstrapper.start() }
+                .task {
+                    // A hosted test run must not open the simulator's real
+                    // (Production) store: the tests build their own.
+                    guard !AssistantBootstrapper.isRunningUnitTests else { return }
+                    await bootstrapper.start()
+                }
         }
     }
 }

@@ -61,6 +61,7 @@ extension BackupEntityImporter {
                 record.modifiedAt = dto.modifiedAt
                 record.note = dto.note
                 record.markedAt = dto.markedAt
+                record.leftAt = dto.leftAt
                 return record
             }
         )

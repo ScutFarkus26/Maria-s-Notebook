@@ -61,6 +61,15 @@ final class DataQueryService {
         return excludeTest ? TestStudentsFilter.filterVisible(result) : result
     }
 
+    /// `day`'s attendance roll (`AttendanceRoster`): the children enrolled that
+    /// day by their dates, plus anyone with a record that day. Test students
+    /// are left out.
+    func fetchAttendanceRoll(on day: Date) -> [CDStudent] {
+        let everyone = fetchAllStudents(excludeTest: true, excludeWithdrawn: false)
+        let ids = AttendanceRoster.recordStudentIDs(on: day, in: context)
+        return AttendanceRoster.students(on: day, from: everyone, recordStudentIDs: ids)
+    }
+
     /// Fetch students by ID set.
     func fetchStudents(ids: Set<UUID>) -> [CDStudent] {
         guard !ids.isEmpty else { return [] }

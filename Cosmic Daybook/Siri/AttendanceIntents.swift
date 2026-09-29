@@ -106,8 +106,13 @@ struct MarkAbsentIntent: AppIntent {
     @Parameter(title: "Student")
     var student: StudentEntity
 
+    @Parameter(title: "Reason")
+    var reason: SiriAbsenceReason?
+
     static var parameterSummary: some ParameterSummary {
-        Summary("Mark \(\.$student) absent today")
+        Summary("Mark \(\.$student) absent today") {
+            \.$reason
+        }
     }
 
     @MainActor
@@ -121,7 +126,12 @@ struct MarkAbsentIntent: AppIntent {
             try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
         }
 
-        let previous = try await session.mark(child, as: .absent)
+        let previous = try await session.mark(child, as: .absent, reason: reason?.reason)
+        if let reason, previous == .absent {
+            return .result(dialog: IntentDialog(
+                full: "\(name) is marked absent: \(reason.reason.displayName.lowercased()).", supporting: "Absent"
+            ))
+        }
         if previous == .absent {
             return .result(dialog: IntentDialog(
                 full: "\(name) was already marked absent.", supporting: "Already absent"
@@ -146,4 +156,19 @@ struct UndoAttendanceIntent: AppIntent {
         let summary = try await SiriAttendance().undoLast()
         return .result(dialog: IntentDialog(full: "Undid \(summary).", supporting: "Undone"))
     }
+}
+
+/// Why a child is away, as Siri and Shortcuts offer it.
+enum SiriAbsenceReason: String, AppEnum {
+    case sick, vacation, appointment, family, other
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation {
+        TypeDisplayRepresentation(name: "Absence Reason")
+    }
+
+    static let caseDisplayRepresentations: [SiriAbsenceReason: DisplayRepresentation] = [
+        .sick: "Sick", .vacation: "Vacation", .appointment: "Appointment", .family: "Family", .other: "Other"
+    ]
+
+    var reason: AbsenceReason { AbsenceReason(rawValue: rawValue) ?? .other }
 }

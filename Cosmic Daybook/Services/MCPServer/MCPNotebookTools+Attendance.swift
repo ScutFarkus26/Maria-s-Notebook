@@ -45,8 +45,7 @@ extension MCPNotebookTools {
     private static func describeAttendance(
         on day: Date, in modelContext: NSManagedObjectContext
     ) -> String {
-        let roster: [CDStudent] = DataQueryService(context: modelContext)
-            .fetchAllStudents(excludeTest: true, excludeWithdrawn: true)
+        let roster: [CDStudent] = DataQueryService(context: modelContext).fetchAttendanceRoll(on: day)
         guard !roster.isEmpty else { return "No students are enrolled." }
 
         let grouped: [AttendanceStatus: [String]] = namesByStatus(roster, on: day, in: modelContext)
@@ -232,7 +231,7 @@ extension MCPNotebookTools {
             ],
             "absence_reason": [
                 "type": "string",
-                "enum": ["sick", "vacation", "none"],
+                "enum": .array(AbsenceReason.allCases.map { .string($0.rawValue) }),
                 "description": "Only meaningful when the status is absent; single student only"
             ],
             "note": [
@@ -257,7 +256,7 @@ extension MCPNotebookTools {
                     + "their own call."
             )
         }
-        let marks = try resolveAttendanceMarks(arguments, in: modelContext)
+        let marks = try resolveAttendanceMarks(arguments, on: day, in: modelContext)
         guard !marks.isEmpty else {
             throw MCPToolError(
                 "No students to mark — pass student_name, students, or mark_all_present."
@@ -332,7 +331,7 @@ extension MCPNotebookTools {
     }
 
     private static func resolveAttendanceMarks(
-        _ arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+        _ arguments: [String: JSONValue], on day: Date, in modelContext: NSManagedObjectContext
     ) throws -> [AttendanceMark] {
         var marks: [AttendanceMark] = []
         var named: Set<UUID> = []
@@ -350,8 +349,7 @@ extension MCPNotebookTools {
             marks.append(AttendanceMark(student: student, status: status))
         }
         guard arguments["mark_all_present"]?.boolValue == true else { return marks }
-        let roster: [CDStudent] = DataQueryService(context: modelContext)
-            .fetchAllStudents(excludeTest: true, excludeWithdrawn: true)
+        let roster: [CDStudent] = DataQueryService(context: modelContext).fetchAttendanceRoll(on: day)
         for student in roster {
             guard let id = student.id, !named.contains(id) else { continue }
             marks.append(AttendanceMark(student: student, status: .present))

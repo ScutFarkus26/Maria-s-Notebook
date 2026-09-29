@@ -84,6 +84,7 @@ nonisolated extension DataCleanupService {
                     canonical.status = duplicate.status
                     canonical.absenceReason = duplicate.absenceReason
                     canonical.markedAt = duplicate.markedAt
+                    canonical.leftAt = duplicate.leftAt
                 }
 
                 // Keep the duplicate's note: two devices can each have written

@@ -11,6 +11,9 @@ final class AttendanceViewModel {
     var recordsByStudentID: [String: CDAttendanceRecord] = [:]
     /// Size of the loaded roster; students without a record count as unmarked.
     private(set) var rosterCount = 0
+    /// Student ids of every record on the loaded day, for `AttendanceRoster`:
+    /// a child with a record that day belongs on its roll.
+    private(set) var dayRecordStudentIDs: Set<String> = []
     /// Bumped by every `load`. An import that changes a record already on
     /// screen hands back the same objects, so `recordsByStudentID` compares
     /// equal and Observation skips the redraw; the grid reads this instead.
@@ -65,6 +68,7 @@ final class AttendanceViewModel {
             // Load existing records only — a student without one renders as
             // unmarked, and the first mark creates the record (`ensureRecord`).
             let records = try store.loadRecords(for: target)
+            dayRecordStudentIDs = Set(records.map(\.studentID))
             // CloudKit compatibility: Convert UUIDs to Strings for comparison
             let allowed = Set(students.compactMap { $0.id?.uuidString })
             let filtered = records.filter { allowed.contains($0.studentID) }

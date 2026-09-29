@@ -37,6 +37,11 @@ struct StudentDetailView: View {
     @State private var draftBirthday = Date()
     @State private var draftLevel: CDStudent.Level = .lower
     @State private var draftStartDate = Date()
+    /// The picker's stand-in when the child has no start date: saved only if
+    /// the guide changes it. Committing it unchanged used to give every
+    /// edited child a start date of the edit day, which later hid them from
+    /// earlier days' attendance.
+    @State private var placeholderStartDate: Date?
     // Not private: StudentDetailView+Departure reads it to decide whether this
     // edit is a departure, as it does with pendingDeparturePlans.
     @State var draftEnrollmentStatus: CDStudent.EnrollmentStatus = .enrolled
@@ -151,7 +156,7 @@ struct StudentDetailView: View {
             birthday: draftBirthday,
             nickname: nick.isEmpty ? "" : nick,
             level: draftLevel,
-            dateStarted: draftStartDate,
+            dateStarted: draftStartDate == placeholderStartDate ? nil : draftStartDate,
             enrollmentStatus: draftEnrollmentStatus,
             dateWithdrawn: .some(draftDateWithdrawn)
         )
@@ -169,6 +174,7 @@ struct StudentDetailView: View {
         draftBirthday = student.birthday ?? Date()
         draftLevel = student.level
         draftStartDate = student.dateStarted ?? Date()
+        placeholderStartDate = student.dateStarted == nil ? draftStartDate : nil
         draftEnrollmentStatus = student.enrollmentStatus
         draftDateWithdrawn = student.dateWithdrawn
         isEditing = true

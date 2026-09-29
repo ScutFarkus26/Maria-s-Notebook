@@ -77,7 +77,9 @@ nonisolated public enum BackupWriter {
     ///   additive; a v30 reader would skip them silently, hence the version.
     /// - v32: `AttendanceRecord` entries carry `markedAt`, when the current
     ///   status was set (schema 10). Purely additive.
-    public static let formatVersion: Int = 32
+    /// - v33: `AttendanceRecord` entries carry `leftAt`, when a Left Early
+    ///   child went home (schema 11). Purely additive.
+    public static let formatVersion: Int = 33
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

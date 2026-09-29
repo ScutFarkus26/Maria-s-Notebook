@@ -19,9 +19,17 @@ struct AttendanceExpandedView: View {
     @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(\.dependencies) private var dependencies
 
-    // The workspace's live roster; the store drops CloudKit's duplicate-ID rows.
-    private var allStudents: [CDStudent] { dependencies.roster.enrolled }
-    private var allStudentIDs: [UUID] { allStudents.compactMap(\.id) }
+    // The day's roll from the workspace's live roster (the store drops
+    // CloudKit's duplicate-ID rows): enrolled that day by their dates, or
+    // holding a record that day, so looking back shows who was here then.
+    private var allStudents: [CDStudent] {
+        AttendanceRoster.students(
+            on: date, from: dependencies.roster.all, recordStudentIDs: viewModel.dayRecordStudentIDs
+        )
+    }
+    /// Reload when the class itself changes. (Not the day's roll, which the
+    /// load decides: watching that would load every day twice.)
+    private var rosterIDs: [UUID] { dependencies.roster.all.compactMap(\.id) }
 
     @State var viewModel = AttendanceViewModel()
 
@@ -206,7 +214,7 @@ struct AttendanceExpandedView: View {
         .onChange(of: date) { _, _ in
             loadData()
         }
-        .onChange(of: allStudentIDs) { _, _ in
+        .onChange(of: rosterIDs) { _, _ in
             loadData()
         }
         // A mark or lock made on another device arrives as an iCloud import;
@@ -254,7 +262,11 @@ struct AttendanceExpandedView: View {
     }
 
     private func loadData() {
-        viewModel.load(for: date, students: viewModel.visibleStudents(from: allStudents), modelContext: viewContext)
+        // Every candidate, not just the day's roll: the roll depends on which
+        // records the day holds, and those come from this load.
+        viewModel.load(
+            for: date, students: viewModel.visibleStudents(from: dependencies.roster.all), modelContext: viewContext
+        )
         isEditing = !isLocked(for: date)
         localSortKey = viewModel.sortKey
     }

@@ -21,10 +21,16 @@ nonisolated public class CDAttendanceRecord: NSManagedObject {
     /// CloudKit withholds your own name from you, so it cannot be looked up.
     @NSManaged public var recordedByName: String?
     @NSManaged public var modifiedAt: Date?
-    /// When the current status was set: "arrived 8:12". Unlike `modifiedAt`,
-    /// a note edit leaves it alone. Nil while unmarked, and on records marked
-    /// before it existed. Written by `CDAttendanceStore` with the status.
+    /// When the current status was set: "arrived 8:12". For Left Early it is
+    /// the arrival, kept from the present or tardy mark before it. Unlike
+    /// `modifiedAt`, a note edit leaves it alone. Nil while unmarked, on
+    /// records marked before it existed, and on marks made on any day but the
+    /// one they're for. Written by `CDAttendanceStore` with the status.
     @NSManaged public var markedAt: Date?
+    /// When a child marked Left Early went home: "8:02 → 1:15". `markedAt`
+    /// keeps the arrival. Nil for every other status, and for marks made on
+    /// any day but the one they're for. Written by `CDAttendanceStore`.
+    @NSManaged public var leftAt: Date?
     /// The day's attendance note ("dentist, back by 11"). It lives on the
     /// record, not in the private notes, so the guide and an assistant share
     /// it; write it through `CDAttendanceStore.updateNote`.

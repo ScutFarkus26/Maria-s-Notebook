@@ -72,6 +72,25 @@ struct SiriAttendanceTests {
         #expect(SiriAttendanceChange.last() == nil)
     }
 
+    @Test("Absent takes a reason, and a new reason on a child already absent is a change")
+    func absentWithReason() async throws {
+        let maya = makeStudent("Maya")
+        let siri = session()
+        try await siri.mark(maya, as: .absent, reason: .appointment)
+        let record = try #require(context.safeFetch(CDFetchRequest(CDAttendanceRecord.self)).first)
+        #expect(record.absenceReason == .appointment)
+
+        SiriAttendanceChange.forget()
+        let previous = try await siri.mark(maya, as: .absent, reason: .sick)
+        #expect(previous == .absent)
+        #expect(record.absenceReason == .sick)
+        #expect(SiriAttendanceChange.last() != nil)
+
+        SiriAttendanceChange.forget()
+        try await siri.mark(maya, as: .absent, reason: .sick)
+        #expect(SiriAttendanceChange.last() == nil)
+    }
+
     @Test("Reading a child's status creates no record")
     func statusReadsOnly() throws {
         let maya = makeStudent("Maya")

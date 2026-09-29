@@ -43,8 +43,16 @@ final class AssistantAttendanceViewModel {
         let absenceReason: AbsenceReason
         /// The day's note, shared with the guide.
         let note: String
-        /// When the current mark was made; nil while unmarked.
+        /// When the current mark was made (for Left Early, the arrival); nil
+        /// while unmarked and for marks made on another day.
         let markedAt: Date?
+        /// When a Left Early child went home.
+        let leftAt: Date?
+        /// Who made the mark: role raw value, CloudKit user, and typed name
+        /// (assistants only; the guide's marks carry none).
+        let recordedBy: String?
+        let recordedByID: String?
+        let recordedByName: String?
         /// The name on the three-column phone grid: see `gridNames(for:)`.
         let shortName: String
 
@@ -57,6 +65,10 @@ final class AssistantAttendanceViewModel {
             self.absenceReason = record?.absenceReason ?? .none
             self.note = record?.note ?? ""
             self.markedAt = record?.markedAt
+            self.leftAt = record?.leftAt
+            self.recordedBy = record?.recordedBy
+            self.recordedByID = record?.recordedByID
+            self.recordedByName = record?.recordedByName
         }
     }
 
@@ -76,7 +88,17 @@ final class AssistantAttendanceViewModel {
     }
 
     private(set) var rows: [Row] = []
-    private(set) var errorMessage: String?
+    /// Bumped by every full load (a day change, an import), for work that
+    /// follows the roll as a whole: rescheduling the arrival reminder.
+    private(set) var loadGeneration = 0
+
+    var unmarkedCount: Int { rows.count { $0.status == .unmarked } }
+    /// The last failed save or bulk mark, else the last failed load. A save
+    /// failure outlasts a successful reload (the change is still unsaved);
+    /// a load failure clears on the next load that works.
+    var errorMessage: String? { saveError ?? loadError }
+    private var saveError: String?
+    private var loadError: String?
     /// Set on weekends and on the guide's days off, which follow the notebook's
     /// school calendar (`SchoolDayChecker`): no marks are taken then.
     private(set) var dayOff: DayOff?
@@ -100,9 +122,18 @@ final class AssistantAttendanceViewModel {
     /// first download) arrive from iCloud.
     @ObservationIgnored private var importReloader: RemoteImportReloader?
 
-    init(context: NSManagedObjectContext, container: NSPersistentCloudKitContainer?, date: Date = Date()) {
+    /// Where the Late phase is remembered; tests pass their own suite.
+    private let defaults: UserDefaults
+
+    init(
+        context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer?,
+        date: Date = Date(),
+        defaults: UserDefaults = .standard
+    ) {
         self.context = context
         self.container = container
+        self.defaults = defaults
         self.date = Calendar.current.startOfDay(for: date)
         // The role is hardcoded rather than read from the membership row: this
         // app is only ever used by an assistant, and ClassroomPermissions is
@@ -123,13 +154,32 @@ final class AssistantAttendanceViewModel {
     }
 
     /// Whether this day's marks can be changed: the role may write
-    /// attendance, and the guide hasn't locked the day.
-    var canMark: Bool {
-        ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: .assistant) && !isLocked
-    }
+    /// attendance, and the guide hasn't locked the day. Worked out once per
+    /// load; every tile reads it on every redraw.
+    private(set) var canMark = false
 
     var isToday: Bool { Calendar.current.isDateInToday(date) }
 
+    /// A day after today: only absences (a known vacation, an appointment)
+    /// and notes can be marked ahead.
+    var isFuture: Bool { date > Calendar.current.startOfDay(for: Date()) }
+
+    /// The statuses the long-press menu offers on the day on screen.
+    var menuStatuses: [AttendanceStatus] {
+        [.present, .absent, .tardy, .leftEarly, .unmarked].filter { Self.allows($0, on: date) }
+    }
+
+    /// What a tap on `row` does today, or nil when it does nothing: a present
+    /// child during Late, and every tap on a day ahead.
+    func statusAfterTap(for row: Row) -> AttendanceStatus? {
+        guard !isFuture else { return nil }
+        return Self.statusAfterTap(from: row.status, in: phase)
+    }
+
+    /// A readable name for the day on screen, for messages.
+    private var dayPhrase: String {
+        isToday ? "today" : date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+    }
     /// Shows `newDate` (any day, school or not), or reloads the current one.
     func load(_ newDate: Date? = nil) {
         if let newDate {
@@ -137,26 +187,36 @@ final class AssistantAttendanceViewModel {
             if day != date { lastLateBatch = [] }
             date = day
         }
-        phase = LatePhaseMemory.isLate(on: date) ? .late : .arrival
+        phase = LatePhaseMemory.isLate(on: date, defaults: defaults) ? .late : .arrival
         dayOff = Self.dayOff(on: date, in: context)
+        loadGeneration &+= 1
         isLocked = store.isLocked(date)
-
-        let request = CDFetchRequest(CDStudent.self)
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "firstName", ascending: true),
-            NSSortDescriptor(key: "lastName", ascending: true)
-        ]
-        let students = context.safeFetch(request).filter(\.isEnrolled)
-        AssistantSiriVocabulary.refresh(for: students)
+        canMark = ClassroomPermissions.canWrite(entityName: "AttendanceRecord", role: .assistant) && !isLocked
 
         let records: [CDAttendanceRecord]
         do {
             records = try store.loadRecords(for: date).deduplicatedPerStudentDay()
+            loadError = nil
         } catch {
             Self.logger.error("Loading attendance failed: \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't load today's attendance."
+            loadError = "Couldn't load the attendance for \(dayPhrase). Pull down to try again."
             records = []
         }
+
+        // The day's roll, not today's: a child who has since left still shows
+        // on the days she was here, and anyone with a record that day shows
+        // whatever their dates say (`AttendanceRoster`).
+        let request = CDFetchRequest(CDStudent.self)
+        request.predicate = AttendanceRoster.predicate(
+            on: date, recordStudentIDs: Set(records.map(\.studentID))
+        )
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "firstName", ascending: true),
+            NSSortDescriptor(key: "lastName", ascending: true)
+        ]
+        let students = context.safeFetch(request)
+        // Siri marks today only, so its names follow today's roll.
+        if isToday { AssistantSiriVocabulary.refresh(for: students) }
 
         let byStudent = Dictionary(
             records.map { ($0.studentID, $0) },
@@ -173,60 +233,23 @@ final class AssistantAttendanceViewModel {
         }
     }
 
-    /// The fewest letters that still tell each child apart: the first name
-    /// alone ("Ari"), the last initial only where a first name is shared
-    /// ("Etty G", "Etty R"), and the full name where the initials clash too.
-    /// Kept to this screen on purpose; everywhere else the notebook's short
-    /// form is always "Maya S".
-    static func gridNames(for students: [CDStudent]) -> [NSManagedObjectID: String] {
-        func key(_ name: String) -> String { name.trimmed().lowercased() }
-        let firstNameCounts = Dictionary(grouping: students) { key($0.firstName) }.mapValues(\.count)
-        let shortNameCounts = Dictionary(grouping: students) { key($0.shortName) }.mapValues(\.count)
-        var names: [NSManagedObjectID: String] = [:]
-        for student in students {
-            let first = student.firstName.trimmed()
-            if !first.isEmpty, firstNameCounts[key(first)] == 1 {
-                names[student.objectID] = first
-            } else if shortNameCounts[key(student.shortName)] == 1 {
-                names[student.objectID] = student.shortName
-            } else {
-                names[student.objectID] = student.fullName
-            }
-        }
-        return names
-    }
-
-    /// What a tap on `row` does in the current phase. During Arrival a tap
-    /// marks present and a second tap unmarks; during Late a tap turns absent
-    /// (or unmarked) into tardy and a second tap turns it back. A present
-    /// child is left alone during Late: the long-press menu changes that.
-    static func statusAfterTap(from status: AttendanceStatus, in phase: Phase) -> AttendanceStatus? {
-        switch (phase, status) {
-        case (.arrival, .present): return .unmarked
-        case (.arrival, _): return .present
-        case (.late, .tardy): return .absent
-        case (.late, .absent), (.late, .unmarked): return .tardy
-        case (.late, _): return nil
-        }
-    }
-
     func tap(_ row: Row) {
-        guard let next = Self.statusAfterTap(from: row.status, in: phase) else { return }
+        guard let next = statusAfterTap(for: row) else { return }
         setStatus(next, for: row)
     }
 
     /// Sets any status directly (the long-press menu), creating the record on
     /// the first mark.
     func setStatus(_ status: AttendanceStatus, for row: Row) {
-        guard canMark else { return }
+        guard canMark, Self.allows(status, on: date) else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
             if record.isInserted { createdSinceSave.append(record) }
             _ = store.updateStatus(record, to: status)
-            persist()
+            persist(updating: [record])
         } catch {
             Self.logger.error("Marking failed: \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't save that mark."
+            saveError = "Couldn't save that mark. Try again."
         }
     }
 
@@ -234,18 +257,18 @@ final class AssistantAttendanceViewModel {
     /// how many it marked, for the Undo bar.
     @discardableResult
     func beginLate() -> Int {
-        guard canMark, phase == .arrival else { return 0 }
+        guard canMark, !isFuture, phase == .arrival else { return 0 }
         phase = .late
-        LatePhaseMemory.setLate(true, on: date)
+        LatePhaseMemory.setLate(true, on: date, defaults: defaults)
         do {
             let changed = try store.markUnmarkedAbsent(for: date, students: rows.map(\.student))
             createdSinceSave.append(contentsOf: changed.filter(\.isInserted))
-            persist()
+            persist(updating: changed)
             lastLateBatch = changed.map(\.objectID)
             return changed.count
         } catch {
             Self.logger.error("Closing arrival failed: \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't mark the rest absent."
+            saveError = "Couldn't mark the rest absent. Try again."
             return 0
         }
     }
@@ -255,22 +278,34 @@ final class AssistantAttendanceViewModel {
     /// to unmarked.
     func returnToArrival(undo: Bool = false) {
         phase = .arrival
-        LatePhaseMemory.setLate(false, on: date)
+        LatePhaseMemory.setLate(false, on: date, defaults: defaults)
         let batch = lastLateBatch
         lastLateBatch = []
         guard undo, canMark, !batch.isEmpty else { return }
+        var reverted: [CDAttendanceRecord] = []
         for id in batch {
             guard let record = try? context.existingObject(with: id) as? CDAttendanceRecord,
                   record.status == .absent else { continue }
             store.updateStatus(record, to: .unmarked)
+            reverted.append(record)
         }
-        persist()
+        persist(updating: reverted)
     }
 
-    func setAbsenceReason(_ reason: AbsenceReason, for row: Row) {
-        guard canMark, let record = try? store.ensureRecord(for: row.student, on: date) else { return }
-        _ = store.updateAbsenceReason(record, to: reason)
-        persist()
+    /// Absent with a reason (or none), in one save: the menu's Absent
+    /// choices. Allowed on days ahead, for a known vacation or appointment.
+    func markAbsent(reason: AbsenceReason, for row: Row) {
+        guard canMark, Self.allows(.absent, on: date) else { return }
+        do {
+            guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
+            if record.isInserted { createdSinceSave.append(record) }
+            store.updateStatus(record, to: .absent)
+            store.updateAbsenceReason(record, to: reason)
+            persist(updating: [record])
+        } catch {
+            Self.logger.error("Marking absent failed: \(error.localizedDescription, privacy: .public)")
+            saveError = "Couldn't save that mark. Try again."
+        }
     }
 
     /// Writes the day's note for a student, creating the record if there is
@@ -281,10 +316,10 @@ final class AssistantAttendanceViewModel {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
             if record.isInserted { createdSinceSave.append(record) }
             guard store.updateNote(record, to: text) else { return }
-            persist()
+            persist(updating: [record])
         } catch {
             Self.logger.error("Saving a note failed: \(error.localizedDescription, privacy: .public)")
-            errorMessage = "Couldn't save that note."
+            saveError = "Couldn't save that note. Try again."
         }
     }
 
@@ -298,60 +333,31 @@ final class AssistantAttendanceViewModel {
         }
     }
 
-    private static func dayOff(on date: Date, in context: NSManagedObjectContext) -> DayOff? {
-        guard SchoolDayChecker.isNonSchoolDay(date, using: context) else { return nil }
-        let request = CDFetchRequest(CDNonSchoolDay.self)
-        request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(date) as NSDate)
-        request.fetchLimit = 1
-        if let holiday = context.safeFetchFirst(request) {
-            let reason = holiday.reason?.trimmed() ?? ""
-            return .holiday(reason.isEmpty ? nil : reason)
-        }
-        return .weekend
-    }
-
-    /// Remembers, on this device, which day was switched to Late, so the phase
-    /// survives a relaunch mid-morning. One day at a time: switching another
-    /// day forgets the last.
-    enum LatePhaseMemory {
-        private static let key = "Assistant.latePhaseDay"
-
-        static func isLate(on day: Date) -> Bool {
-            guard let stored = UserDefaults.standard.object(forKey: key) as? Date else { return false }
-            return Calendar.current.isDate(stored, inSameDayAs: day)
-        }
-
-        static func setLate(_ late: Bool, on day: Date) {
-            if late {
-                UserDefaults.standard.set(day, forKey: key)
-            } else if isLate(on: day) {
-                forget()
-            }
-        }
-
-        static func forget() {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-    }
-
-    private func persist() {
-        guard context.safeSave() else {
-            errorMessage = "Couldn't save. Your marks will retry when you're back online."
+    /// Saves, puts new records into the classroom share, and redraws the
+    /// rows for `records`. Only those rows: the rest of the day hasn't
+    /// changed, and a full `load()` (every student, every record, the
+    /// calendar and the lock) after each tap was most of a tap's cost.
+    private func persist(updating records: [CDAttendanceRecord]) {
+        // A failed save here is this phone's own store refusing the change,
+        // not the network: iCloud sending is the sync line's business, and it
+        // retries by itself. The change stays pending, so the next mark's
+        // save tries it again.
+        guard AssistantSave.save(context, container: container, created: createdSinceSave) else {
+            saveError = "Couldn't save that change. Try again."
             return
         }
-        errorMessage = nil
-        // A new mark goes into the classroom share explicitly rather than
-        // wherever Core Data would file it.
-        let created = createdSinceSave.map(\.objectID)
+        saveError = nil
         createdSinceSave = []
-        if let container, !created.isEmpty {
-            let context = self.context
-            Task {
-                await CDAttendanceStore.attachNewRecordsToClassroomShare(
-                    created, container: container, pinContext: context
-                )
-            }
+        updateRows(for: records)
+    }
+
+    /// Rebuilds the rows whose student's record is among `records`.
+    private func updateRows(for records: [CDAttendanceRecord]) {
+        guard !records.isEmpty else { return }
+        let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
+        rows = rows.map { row in
+            guard let key = row.student.id?.uuidString, let record = byStudent[key] else { return row }
+            return Row(student: row.student, record: record, shortName: row.shortName)
         }
-        load()
     }
 }

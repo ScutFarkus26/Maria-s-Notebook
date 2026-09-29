@@ -44,16 +44,29 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
 
 // MARK: - Absence Reason
 
+/// Why a child is absent. Stored by raw value on the shared record; a build
+/// that doesn't know a reason reads it as `.none` (and can write that back),
+/// so every device takes a new reason in the same roll-out.
 enum AbsenceReason: String, Codable, CaseIterable, Sendable {
     case none
     case sick
     case vacation
+    case appointment
+    case family
+    /// Anything else; the day's note says what.
+    case other
+
+    /// Every reason a guide can give, without `.none`.
+    static let given: [AbsenceReason] = allCases.filter { $0 != .none }
 
     var displayName: String {
         switch self {
         case .none: return ""
         case .sick: return "Sick"
         case .vacation: return "Vacation"
+        case .appointment: return "Appointment"
+        case .family: return "Family"
+        case .other: return "Other"
         }
     }
 
@@ -62,6 +75,9 @@ enum AbsenceReason: String, Codable, CaseIterable, Sendable {
         case .none: return "circle" // Placeholder - shouldn't be displayed when .none, but prevents SF Symbol error
         case .sick: return "cross.case.fill"
         case .vacation: return "beach.umbrella.fill"
+        case .appointment: return "calendar.badge.clock"
+        case .family: return "figure.2.and.child.holdinghands"
+        case .other: return "ellipsis.circle.fill"
         }
     }
 }

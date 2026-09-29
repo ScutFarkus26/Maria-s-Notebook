@@ -79,7 +79,10 @@ extension CoreDataStack {
     /// - `10` — `AttendanceRecord.markedAt`: when the current status was set,
     ///   so a tardy reads "8:40" even after a later note edit moves
     ///   `modifiedAt`. Additive optional Date on the shared entity.
-    nonisolated static let currentSchemaVersion = 10
+    /// - `11` — `AttendanceRecord.leftAt`: when a Left Early child went home,
+    ///   so leaving early no longer overwrites the arrival in `markedAt`.
+    ///   Additive optional Date on the shared entity.
+    nonisolated static let currentSchemaVersion = 11
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

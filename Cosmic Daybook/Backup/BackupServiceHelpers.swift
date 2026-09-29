@@ -155,7 +155,8 @@ enum BackupServiceHelpers {
                 recordedByName: a.recordedByName,
                 modifiedAt: a.modifiedAt,
                 note: a.note,
-                markedAt: a.markedAt
+                markedAt: a.markedAt,
+                leftAt: a.leftAt
             )
         }
     }

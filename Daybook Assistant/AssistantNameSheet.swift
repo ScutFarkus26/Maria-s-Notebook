@@ -6,7 +6,13 @@ import SwiftUI
 /// joined his classroom, but it withholds your own name from you — so her
 /// device cannot look up who she is, and with two assistants "assistant" stops
 /// being an answer.
+///
+/// On the first run after joining it can't be swiped away: a term's marks
+/// under no name at all is what asking up front is for.
 struct AssistantNameSheet: View {
+    /// First run: no Cancel, and no dismissing without a name.
+    var isRequired = false
+
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ClassroomIdentity.displayName ?? ""
 
@@ -19,23 +25,35 @@ struct AssistantNameSheet: View {
                     TextField("Your name", text: $name)
                         .textContentType(.name)
                         .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .onSubmit(save)
                 } header: {
                     Text("Who's marking?")
                 } footer: {
-                    Text("Your guide sees this beside the attendance you take, so he can tell your marks from anyone else's. First name is plenty.")
+                    Text("Shown beside the attendance you take, so your guide can tell your marks "
+                        + "from anyone else's. First name is plenty.")
                 }
             }
             .navigationTitle("Your Name")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        ClassroomIdentity.displayName = trimmed
-                        dismiss()
+                if !isRequired {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
                     }
-                    .disabled(trimmed.isEmpty)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .disabled(trimmed.isEmpty)
                 }
             }
         }
+        .interactiveDismissDisabled(isRequired)
+    }
+
+    private func save() {
+        guard !trimmed.isEmpty else { return }
+        AssistantNameStore.save(trimmed)
+        dismiss()
     }
 }

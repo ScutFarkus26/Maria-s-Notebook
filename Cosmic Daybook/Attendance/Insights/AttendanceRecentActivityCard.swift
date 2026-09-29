@@ -111,11 +111,7 @@ struct AttendanceRecentActivityCard: View {
     }
 
     private func reasonLabel(_ reason: AbsenceReason) -> String? {
-        switch reason {
-        case .sick: return "sick"
-        case .vacation: return "vacation"
-        case .none: return nil
-        }
+        reason == .none ? nil : reason.displayName.lowercased()
     }
 
     // Both of these run once per row. `DateFormatter` construction is expensive,

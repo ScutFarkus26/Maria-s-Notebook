@@ -135,6 +135,24 @@ struct MCPWorkAndAttendanceToolsTests {
         #expect(day.contains("Absent (1): Nina Barr"))
     }
 
+    @Test("mark_attendance takes the newer absence reasons")
+    func markAttendanceTakesNewReasons() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedClassroomMembership(in: context, role: .leadGuide)
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Tova", lastName: "Stern")
+        CoreDataTestHelpers.save(context)
+
+        let receipt = try await tool(named: "mark_attendance", in: tools).handler([
+            "student_name": .string("Tova"),
+            "status": .string("absent"),
+            "date": .string("2026-09-14"),
+            "absence_reason": .string("appointment")
+        ])
+        #expect(receipt.contains("appointment"))
+        let record = try #require(context.safeFetch(CDFetchRequest(CDAttendanceRecord.self)).first)
+        #expect(record.absenceReason == .appointment)
+    }
+
     @Test("mark_attendance refuses an absence reason on a present mark")
     func markAttendanceRefusesReasonWhenPresent() async throws {
         let (tools, context) = try makeTools()

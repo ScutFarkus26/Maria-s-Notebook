@@ -6,9 +6,9 @@
 	<string>development</string>
 	<!--
 	  CloudKit environment, from the CLOUDKIT_ENVIRONMENT build setting
-	  (Development until the notebook moves to Production). Honoured by
-	  development-signed builds; TestFlight and App Store builds always use
-	  Production whatever this says. The same setting names the store folder
+	  (Production for Debug and Release since the notebook's move on
+	  2026-09-28). Honoured by development-signed builds; TestFlight and App
+	  Store builds always use Production whatever this says. The same setting names the store folder
 	  (CoreDataStack.storeDirectory), so each environment keeps its own files.
 	-->
 	<key>com.apple.developer.icloud-container-environment</key>
@@ -23,6 +23,16 @@
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
 		<string>iCloud.DanielSDeBerry.MariasNoteBook</string>
+	</array>
+	<!--
+	  iOS 26+ withholds the share owner's name unless this is present; with it
+	  the Classroom screen and "Marked by" show the guide's name instead of
+	  "Your guide". The Assistant's App ID needs the capability too, or signed
+	  builds fail provisioning. Apple's terms: display it, never store it.
+	-->
+	<key>com.apple.developer.icloud-extended-share-access</key>
+	<array>
+		<string>InProcessShareOwnerParticipantInfo</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>

@@ -13,11 +13,16 @@ import CoreData
 /// began after the save finishes successfully.
 struct AssistantSyncStatusView: View {
     let coreDataStack: CoreDataStack
+    @Environment(AssistantBootstrapper.self) private var bootstrapper
 
     /// Kept across launches: marks saved just before the app was closed are
     /// still unsent until the next launch's export says otherwise.
     @AppStorage("Assistant.lastSharedSave") private var lastSharedSave: Double = 0
     @AppStorage("Assistant.lastSharedExportStart") private var lastSharedExportStart: Double = 0
+    /// When the last successful import into the shared store ended: the
+    /// guide's changes (and the class) as of then. Pull-to-refresh only
+    /// re-reads this iPhone, so this is how she knows how fresh it is.
+    @AppStorage("Assistant.lastSharedImportEnd") private var lastSharedImportEnd: Double = 0
     @State private var hasUnsavedChanges = false
     @State private var lastExportFailed = false
 
@@ -73,6 +78,7 @@ struct AssistantSyncStatusView: View {
             }
         }
         .task { await observeSharedExports() }
+        .task { await observeSharedImports() }
     }
 
     @ViewBuilder
@@ -81,11 +87,18 @@ struct AssistantSyncStatusView: View {
             if isSampleClass {
                 Image(systemName: "icloud.slash")
                 Text("Sample class. Nothing goes to iCloud.")
+            } else if let problem = bootstrapper.accountStatus?.assistantProblem {
+                // Marks stay on this iPhone until iCloud is back; saying
+                // "sending" would be untrue.
+                Image(systemName: "icloud.slash")
+                Text(problem)
+                    .foregroundStyle(.orange)
             } else {
                 switch status {
                 case .sent:
                     Image(systemName: "checkmark.icloud")
-                    Text("All marks sent to iCloud")
+                    Text(lastSharedImportEnd > 0 ? "All marks sent" : "All marks sent to iCloud")
+                    classUpdated
                 case .sending:
                     Image(systemName: "arrow.triangle.2.circlepath")
                     Text("Sending to iCloud…")
@@ -95,6 +108,23 @@ struct AssistantSyncStatusView: View {
                 }
             }
         }
+    }
+
+    /// "· class updated 2 min ago", redrawn each minute only while on screen.
+    @ViewBuilder
+    private var classUpdated: some View {
+        if lastSharedImportEnd > 0 {
+            let date = Date(timeIntervalSince1970: lastSharedImportEnd)
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                Text("· class updated \(Self.relative(date, now: context.date))")
+            }
+        }
+    }
+
+    /// "just now" for the first minute, then "2 min. ago", "1 hr. ago".
+    static func relative(_ date: Date, now: Date) -> String {
+        guard now.timeIntervalSince(date) >= 60 else { return "just now" }
+        return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
     }
 
     /// The sample class lives in memory with no iCloud behind it, so "sent"
@@ -136,6 +166,26 @@ struct AssistantSyncStatusView: View {
                 lastSharedExportStart = max(lastSharedExportStart, export.startDate.timeIntervalSince1970)
             }
         }
+    }
+
+    private func observeSharedImports() async {
+        guard let storeID = coreDataStack.sharedPersistentStore?.identifier else { return }
+        let imports = NotificationCenter.default
+            .notifications(named: NSPersistentCloudKitContainer.eventChangedNotification)
+            .compactMap { Self.finishedImportEnd(in: $0, storeID: storeID) }
+        for await end in imports {
+            lastSharedImportEnd = max(lastSharedImportEnd, end.timeIntervalSince1970)
+        }
+    }
+
+    /// When a successful import into the shared store ended, if `note` says one did.
+    private nonisolated static func finishedImportEnd(in note: Notification, storeID: String) -> Date? {
+        guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                as? NSPersistentCloudKitContainer.Event,
+              event.type == .import, event.succeeded,
+              event.storeIdentifier == storeID
+        else { return nil }
+        return event.endDate
     }
 
     private struct FinishedExport: Sendable {
