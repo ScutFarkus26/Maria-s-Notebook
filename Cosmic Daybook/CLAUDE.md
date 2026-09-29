@@ -191,6 +191,13 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 - Classroom share (5 types, schema 9): Student, AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock
 - Everything else is the guide's own (73 types): lessons, tracks, notes, work, todos, projects, meetings, ClassroomMembership, …
 
+## Siri (App Intents)
+
+- **Attendance by voice in both apps (2026-09-29):** "Mark Maya here / late / absent", "Undo attendance" (`Siri/AttendanceIntents.swift`), plus the Assistant's "Close arrival" and "Who's not here yet" (`Daybook Assistant/AssistantAttendanceIntents.swift`). Every mark goes through `SiriAttendance` → `CDAttendanceStore`, the grid's path. Here and late run on a locked phone (`.alwaysAllowed`); absent, close arrival and who's-missing need the phone unlocked. In the Assistant, "here" after arrival has closed marks tardy (`LatePhaseMemory`), but never downgrades a child already present.
+- **Shared by path, one seam:** the student entity, `StudentNameMatcher`, `SiriAttendance`, the undo memory, `SiriSyncKeepAlive` and the attendance intents compile into both apps. They reach the app only through `SiriHost`, which each target defines with the same shape (`Siri/SiriHost.swift`, `Daybook Assistant/AssistantSiriHost.swift`). The Assistant builds its one stack in `AssistantStack` so a Siri launch with no window never opens a second container. Shared files target iOS 18: no iOS 26+ App Intents API in them without an availability check.
+- **Apple's limit is 10 App Shortcuts per app, and the notebook is at 10.** The four "Open Today/Students/Lessons/Attendance" intents became one `OpenSectionIntent`; the old ones stay (`isDiscoverable = false`) so saved shortcuts keep running. Adding an App Shortcut means merging another.
+- **Names reach Siri only through `updateAppShortcutParameters()`**: the notebook calls it on each launch's Spotlight pass, the Assistant whenever its roster changes (`AssistantSiriVocabulary`). Phrases must include the app name; for a bare "Mark Maya here" the user makes a personal Shortcut with that name.
+
 ## Code Conventions
 
 - Use `@Observable @MainActor` for ViewModels (NOT `ObservableObject`)

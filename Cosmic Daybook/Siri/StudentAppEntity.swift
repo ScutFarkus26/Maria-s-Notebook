@@ -6,6 +6,9 @@
 //  and Apple Intelligence refer to a student by name (e.g. "log an observation
 //  about Maria"). It is a lightweight, Sendable value snapshot of `CDStudent`.
 //
+//  Shared with Daybook Assistant, which compiles this file by path: it reaches
+//  the store only through `SiriHost`, which each app defines for itself.
+//
 
 import AppIntents
 import CoreData
@@ -31,17 +34,23 @@ struct StudentEntity: AppEntity, IndexedEntity {
         TypeDisplayRepresentation(name: "Student")
     }
 
+    /// The other names a child answers to, so "Mark Maya here" finds Maya
+    /// Stone. Two children sharing a first name both carry it, and Siri asks
+    /// which one was meant.
+    private var spokenNames: [LocalizedStringResource] {
+        var names = [firstName]
+        if let nickname, !nickname.isEmpty { names.append(nickname) }
+        if let initial = lastName.first, !firstName.isEmpty { names.append("\(firstName) \(initial)") }
+        return names.filter { !$0.isEmpty }.map { LocalizedStringResource(stringLiteral: $0) }
+    }
+
     var displayRepresentation: DisplayRepresentation {
-        if let nickname, !nickname.isEmpty {
-            return DisplayRepresentation(
-                title: "\(fullName)",
-                subtitle: "\(nickname)",
-                image: .init(systemName: "person.crop.circle")
-            )
-        }
+        let subtitle: LocalizedStringResource? = nickname.flatMap { $0.isEmpty ? nil : "\($0)" }
         return DisplayRepresentation(
             title: "\(fullName)",
-            image: .init(systemName: "person.crop.circle")
+            subtitle: subtitle,
+            image: .init(systemName: "person.crop.circle"),
+            synonyms: spokenNames
         )
     }
 
@@ -76,6 +85,10 @@ extension StudentEntity {
             nickname: student.nickname
         )
     }
+
+    var matcherCandidate: StudentNameMatcher.Candidate {
+        StudentNameMatcher.Candidate(id: id, firstName: firstName, lastName: lastName, nickname: nickname)
+    }
 }
 
 // MARK: - Query
@@ -85,33 +98,37 @@ extension StudentEntity {
 struct StudentEntityQuery: EntityStringQuery {
     @MainActor
     func entities(for identifiers: [UUID]) async throws -> [StudentEntity] {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = try SiriHost.stack().viewContext
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", identifiers)
         return context.safeFetch(request).compactMap { StudentEntity(student: $0) }
     }
 
+    /// The class first; only when no current child matches does it look at
+    /// former students, so "Open Leah" still finds a child who has left while
+    /// "Mark Leah here" never picks her over a current Leah.
     @MainActor
     func entities(matching string: String) async throws -> [StudentEntity] {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = try SiriHost.stack().viewContext
+        let current = SiriHost.roster(in: context).compactMap { StudentEntity(student: $0) }
+        let found = Self.matches(for: string, in: current)
+        if !found.isEmpty { return found }
+
         let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(
-            format: "firstName CONTAINS[cd] %@ OR lastName CONTAINS[cd] %@ OR nickname CONTAINS[cd] %@",
-            string, string, string
-        )
         request.sortDescriptors = CDStudent.sortByName
-        return context.safeFetch(request).compactMap { StudentEntity(student: $0) }
+        let everyone = context.safeFetch(request).compactMap { StudentEntity(student: $0) }
+        return Self.matches(for: string, in: everyone)
     }
 
+    /// The names Siri learns for App Shortcut phrases: the current class.
     @MainActor
     func suggestedEntities() async throws -> [StudentEntity] {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(
-            format: "enrollmentStatusRaw == %@",
-            CDStudent.EnrollmentStatus.enrolled.rawValue
-        )
-        request.sortDescriptors = CDStudent.sortByName
-        return context.safeFetch(request).compactMap { StudentEntity(student: $0) }
+        let context = try SiriHost.stack().viewContext
+        return SiriHost.roster(in: context).compactMap { StudentEntity(student: $0) }
+    }
+
+    private static func matches(for string: String, in students: [StudentEntity]) -> [StudentEntity] {
+        let ids = Set(StudentNameMatcher.matches(for: string, in: students.map(\.matcherCandidate)).map(\.id))
+        return students.filter { ids.contains($0.id) }
     }
 }

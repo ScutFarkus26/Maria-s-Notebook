@@ -90,6 +90,10 @@ struct AssistantAttendanceView: View {
                 await viewModel.followRemoteImports(into: storeID)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .attendanceChangedBySiri)) { _ in
+            // A mark made with Siri while the screen was open.
+            viewModel?.load()
+        }
         .onChange(of: viewModel?.date) {
             // Undo belongs to the day it was offered on.
             lateUndo = nil

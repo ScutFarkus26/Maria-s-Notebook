@@ -8,6 +8,8 @@ import SwiftUI
 
 struct OpenTodayIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Today"
+    /// Superseded by `OpenSectionIntent`; kept so saved shortcuts still run.
+    static let isDiscoverable = false
     static let description = IntentDescription(
         "Open the Today view in Cosmic Daybook.",
         categoryName: "Navigation"
@@ -25,6 +27,8 @@ struct OpenTodayIntent: AppIntent {
 
 struct OpenStudentsIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Students"
+    /// Superseded by `OpenSectionIntent`; kept so saved shortcuts still run.
+    static let isDiscoverable = false
     static let description = IntentDescription(
         "Open the Students view in Cosmic Daybook.",
         categoryName: "Navigation"
@@ -42,6 +46,8 @@ struct OpenStudentsIntent: AppIntent {
 
 struct OpenLessonsIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Lessons"
+    /// Superseded by `OpenSectionIntent`; kept so saved shortcuts still run.
+    static let isDiscoverable = false
     static let description = IntentDescription(
         "Open the Lessons view in Cosmic Daybook.",
         categoryName: "Navigation"
@@ -59,6 +65,8 @@ struct OpenLessonsIntent: AppIntent {
 
 struct OpenAttendanceIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Attendance"
+    /// Superseded by `OpenSectionIntent`; kept so saved shortcuts still run.
+    static let isDiscoverable = false
     static let description = IntentDescription(
         "Open the Attendance view in Cosmic Daybook.",
         categoryName: "Navigation"
@@ -89,6 +97,49 @@ struct NewLessonIntent: AppIntent {
     }
 }
 
+// MARK: - Open a Section
+
+/// The notebook's main screens, as Siri names them.
+enum NotebookSection: String, AppEnum {
+    case today, students, lessons, attendance
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation { "Section" }
+
+    static var caseDisplayRepresentations: [NotebookSection: DisplayRepresentation] {
+        [
+            .today: "Today",
+            .students: "Students",
+            .lessons: "Lessons",
+            .attendance: DisplayRepresentation(title: "Attendance", synonyms: ["Attendance", "the roll"])
+        ]
+    }
+}
+
+/// One App Shortcut for the four screens, which used to take four of the ten
+/// an app may have: the attendance commands needed the room.
+struct OpenSectionIntent: AppIntent {
+    static let title: LocalizedStringResource = "Open Section"
+    static let description = IntentDescription(
+        "Open Today, Students, Lessons or Attendance in Cosmic Daybook.",
+        categoryName: "Navigation"
+    )
+    static let supportedModes: IntentModes = .foreground
+
+    @Parameter(title: "Section")
+    var section: NotebookSection
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        switch section {
+        case .today: AppRouter.shared.navigateTo(.today)
+        case .students: AppRouter.shared.navigateTo(.students)
+        case .lessons: AppRouter.shared.navigateTo(.lessons)
+        case .attendance: AppRouter.shared.navigateTo(.attendance)
+        }
+        return .result()
+    }
+}
+
 // MARK: - App Shortcuts Provider
 
 /// Exposes the app's intents to Siri and the Shortcuts app without user setup.
@@ -96,41 +147,55 @@ struct CosmicDaybookAppShortcuts: AppShortcutsProvider {
     @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: OpenTodayIntent(),
+            intent: MarkHereIntent(),
             phrases: [
-                "Open Today in \(.applicationName)",
-                "Show me Today in \(.applicationName)",
-                "What's on Today in \(.applicationName)"
+                "Mark a student here in \(.applicationName)",
+                "Mark \(\.$student) here in \(.applicationName)",
+                "Mark \(\.$student) present in \(.applicationName)",
+                "\(\.$student) is here in \(.applicationName)"
             ],
-            shortTitle: "Open Today",
-            systemImageName: "sun.max"
+            shortTitle: "Mark Here",
+            systemImageName: "person.fill.checkmark"
         )
         AppShortcut(
-            intent: OpenStudentsIntent(),
+            intent: MarkLateIntent(),
             phrases: [
-                "Open Students in \(.applicationName)",
-                "Show me Students in \(.applicationName)"
+                "Mark a student late in \(.applicationName)",
+                "Mark \(\.$student) late in \(.applicationName)",
+                "Mark \(\.$student) tardy in \(.applicationName)",
+                "\(\.$student) is late in \(.applicationName)"
             ],
-            shortTitle: "Open Students",
-            systemImageName: "person.2"
+            shortTitle: "Mark Late",
+            systemImageName: "clock.badge.exclamationmark"
         )
         AppShortcut(
-            intent: OpenLessonsIntent(),
+            intent: MarkAbsentIntent(),
             phrases: [
-                "Open Lessons in \(.applicationName)",
-                "Show me Lessons in \(.applicationName)"
+                "Mark a student absent in \(.applicationName)",
+                "Mark \(\.$student) absent in \(.applicationName)",
+                "\(\.$student) is absent in \(.applicationName)"
             ],
-            shortTitle: "Open Lessons",
-            systemImageName: "book"
+            shortTitle: "Mark Absent",
+            systemImageName: "person.fill.xmark"
         )
         AppShortcut(
-            intent: OpenAttendanceIntent(),
+            intent: UndoAttendanceIntent(),
             phrases: [
-                "Open Attendance in \(.applicationName)",
-                "Take attendance in \(.applicationName)"
+                "Undo attendance in \(.applicationName)",
+                "Undo the last attendance mark in \(.applicationName)"
             ],
-            shortTitle: "Open Attendance",
-            systemImageName: "checkmark.circle"
+            shortTitle: "Undo Attendance",
+            systemImageName: "arrow.uturn.backward"
+        )
+        AppShortcut(
+            intent: OpenSectionIntent(),
+            phrases: [
+                "Open \(\.$section) in \(.applicationName)",
+                "Show me \(\.$section) in \(.applicationName)",
+                "Go to \(\.$section) in \(.applicationName)"
+            ],
+            shortTitle: "Open Section",
+            systemImageName: "sidebar.left"
         )
         AppShortcut(
             intent: NewLessonIntent(),
@@ -171,15 +236,6 @@ struct CosmicDaybookAppShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Mark Presented",
             systemImageName: "checkmark.seal"
-        )
-        AppShortcut(
-            intent: MarkAbsentIntent(),
-            phrases: [
-                "Mark a student absent in \(.applicationName)",
-                "Mark \(\.$student) absent in \(.applicationName)"
-            ],
-            shortTitle: "Mark Absent",
-            systemImageName: "person.fill.xmark"
         )
         AppShortcut(
             intent: OpenLessonIntent(),

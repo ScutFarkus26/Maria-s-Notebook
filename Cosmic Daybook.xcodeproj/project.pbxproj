@@ -57,6 +57,13 @@
 		DAE6A1DD965DBE18B12197DB /* CosmicDaybook.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = DA50D6010603DBA9AFE62598 /* CosmicDaybook.xcdatamodeld */; };
 		DAE9C4D27B1F4A6E9D3B5C02 /* Notification.Name+PresentationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE9C4D27B1F4A6E9D3B5C01 /* Notification.Name+PresentationData.swift */; };
 		DAFD1BD1FBEBC51F5948EA8A /* SaveCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA11A2430630D5E6426CD0F8 /* SaveCoordinator.swift */; };
+		DACDEB38C1C9905FDA03A163 /* StudentAppEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA78AF6D99DF99878361E70F /* StudentAppEntity.swift */; };
+		DA9C678588829A0627574B2C /* StudentNameMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC6247F39133E9D1FE5D657 /* StudentNameMatcher.swift */; };
+		DAA73AAA5FBE7705094FC509 /* SiriAttendance.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5FBE201CD152E6575AFC81 /* SiriAttendance.swift */; };
+		DA2F3573DEFA159D6E48AA3B /* SiriAttendanceChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA17C1B5E40131E8B26F205 /* SiriAttendanceChange.swift */; };
+		DA6FE4EE519E46DEDE79CF12 /* SiriSyncKeepAlive.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD261BC2C97729CE19450D0 /* SiriSyncKeepAlive.swift */; };
+		DA5C5CCA4E75ACBED92597FB /* AttendanceIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9364C079370B59BC25F592 /* AttendanceIntents.swift */; };
+		DABC801FA1D6BE8CBB96B9D7 /* Notification.Name+SiriAttendance.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -124,6 +131,13 @@
 		DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NonSchoolDayEntity.swift; path = "Cosmic Daybook/Models/NonSchoolDayEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchoolDayOverrideEntity.swift; path = "Cosmic Daybook/Models/SchoolDayOverrideEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceNoteSheet.swift; path = "Cosmic Daybook/Attendance/AttendanceNoteSheet.swift"; sourceTree = SOURCE_ROOT; };
+		DA78AF6D99DF99878361E70F /* StudentAppEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentAppEntity.swift; path = "Cosmic Daybook/Siri/StudentAppEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DAC6247F39133E9D1FE5D657 /* StudentNameMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentNameMatcher.swift; path = "Cosmic Daybook/Siri/StudentNameMatcher.swift"; sourceTree = SOURCE_ROOT; };
+		DA5FBE201CD152E6575AFC81 /* SiriAttendance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiriAttendance.swift; path = "Cosmic Daybook/Siri/SiriAttendance.swift"; sourceTree = SOURCE_ROOT; };
+		DAA17C1B5E40131E8B26F205 /* SiriAttendanceChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiriAttendanceChange.swift; path = "Cosmic Daybook/Siri/SiriAttendanceChange.swift"; sourceTree = SOURCE_ROOT; };
+		DAD261BC2C97729CE19450D0 /* SiriSyncKeepAlive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiriSyncKeepAlive.swift; path = "Cosmic Daybook/Siri/SiriSyncKeepAlive.swift"; sourceTree = SOURCE_ROOT; };
+		DA9364C079370B59BC25F592 /* AttendanceIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceIntents.swift; path = "Cosmic Daybook/Siri/AttendanceIntents.swift"; sourceTree = SOURCE_ROOT; };
+		DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Notification.Name+SiriAttendance.swift"; path = "Cosmic Daybook/Siri/Notification.Name+SiriAttendance.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -280,6 +294,13 @@
 				DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */,
 				DA50D6010603DBA9AFE62598 /* CosmicDaybook.xcdatamodeld */,
 				DAE9C4D27B1F4A6E9D3B5C01 /* Notification.Name+PresentationData.swift */,
+				DA78AF6D99DF99878361E70F /* StudentAppEntity.swift */,
+				DAC6247F39133E9D1FE5D657 /* StudentNameMatcher.swift */,
+				DA5FBE201CD152E6575AFC81 /* SiriAttendance.swift */,
+				DAA17C1B5E40131E8B26F205 /* SiriAttendanceChange.swift */,
+				DAD261BC2C97729CE19450D0 /* SiriSyncKeepAlive.swift */,
+				DA9364C079370B59BC25F592 /* AttendanceIntents.swift */,
+				DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */,
 			);
 			name = "Shared with Cosmic Daybook";
 			sourceTree = "<group>";
@@ -487,6 +508,13 @@
 				DA77FCCADCA5FB5356650C93 /* ClassroomIdentity.swift in Sources */,
 				DAE6A1DD965DBE18B12197DB /* CosmicDaybook.xcdatamodeld in Sources */,
 				DAE9C4D27B1F4A6E9D3B5C02 /* Notification.Name+PresentationData.swift in Sources */,
+				DACDEB38C1C9905FDA03A163 /* StudentAppEntity.swift in Sources */,
+				DA9C678588829A0627574B2C /* StudentNameMatcher.swift in Sources */,
+				DAA73AAA5FBE7705094FC509 /* SiriAttendance.swift in Sources */,
+				DA2F3573DEFA159D6E48AA3B /* SiriAttendanceChange.swift in Sources */,
+				DA6FE4EE519E46DEDE79CF12 /* SiriSyncKeepAlive.swift in Sources */,
+				DA5C5CCA4E75ACBED92597FB /* AttendanceIntents.swift in Sources */,
+				DABC801FA1D6BE8CBB96B9D7 /* Notification.Name+SiriAttendance.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

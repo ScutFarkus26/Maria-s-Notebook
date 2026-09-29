@@ -601,6 +601,8 @@ extension SettingsView {
             VStack(alignment: .leading, spacing: 6) {
                 Label("\"Log an observation about [student]\"", systemImage: "mic")
                 Label("\"Mark [lesson] as presented to [student]\"", systemImage: "mic")
+                Label("\"Mark [student] here\"", systemImage: "mic")
+                Label("\"Mark [student] late\"", systemImage: "mic")
                 Label("\"Mark [student] absent\"", systemImage: "mic")
             }
             .font(.callout)
@@ -608,7 +610,7 @@ extension SettingsView {
             #else
             SiriTipView(intent: LogObservationIntent())
             SiriTipView(intent: MarkLessonPresentedIntent())
-            SiriTipView(intent: MarkAbsentIntent())
+            SiriTipView(intent: MarkHereIntent())
             #endif
         }
         .frame(maxWidth: .infinity)

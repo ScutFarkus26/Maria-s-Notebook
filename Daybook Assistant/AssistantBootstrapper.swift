@@ -38,7 +38,7 @@ final class AssistantBootstrapper {
         #if DEBUG
         if AssistantSampleClass.isRequested {
             do {
-                coreDataStack = try AssistantSampleClass.makeStack()
+                coreDataStack = try AssistantStack.shared()
                 phase = .ready
             } catch {
                 phase = .failed(error.localizedDescription)
@@ -48,7 +48,8 @@ final class AssistantBootstrapper {
         #endif
 
         do {
-            let stack = try CoreDataStack()
+            // Shared with Siri, which may have opened it already.
+            let stack = try AssistantStack.shared()
             coreDataStack = stack
 
             let service = ClassroomSharingService(

@@ -147,6 +147,7 @@ final class AssistantAttendanceViewModel {
             NSSortDescriptor(key: "lastName", ascending: true)
         ]
         let students = context.safeFetch(request).filter(\.isEnrolled)
+        AssistantSiriVocabulary.refresh(for: students)
 
         let records: [CDAttendanceRecord]
         do {

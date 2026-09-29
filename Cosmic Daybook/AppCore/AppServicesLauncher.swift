@@ -12,6 +12,7 @@
 //  when an MCP-only launch has no window at all.
 //
 
+import AppIntents
 import OSLog
 import SwiftUI
 #if os(macOS)
@@ -163,6 +164,10 @@ final class AppServicesLauncher {
     private func scheduleSpotlightPass() {
         Task(priority: .utility) {
             try? await Task.sleep(for: Self.spotlightDelay)
+            // Teach Siri the class's names for phrases like "Mark Maya here".
+            // Not change-gated: the system reads the names back from
+            // `suggestedEntities()` itself, and a new install must learn them.
+            CosmicDaybookAppShortcuts.updateAppShortcutParameters()
             // A hot device or Low Power Mode skips it for this launch; the pass
             // is change-gated, so the next launch indexes everything anyway.
             if EnergyPolicy.shared.shouldDeferMaintenance {
