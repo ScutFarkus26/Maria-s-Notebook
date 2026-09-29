@@ -8,7 +8,7 @@ Repo copy of the build board (https://claude.ai/artifact/VZpfwHWT7cGz1vkn3xNzNm)
 - [x] 3. Mac on Production
 - [x] 4. Assistant test
 - [x] 5. iPhone + iPad
-- [ ] 6. Tidy up (active)
+- [x] 6. Tidy up
 
 ## 5. iPhone + iPad (done 2026-09-28)
 
@@ -33,8 +33,8 @@ Repo copy of the build board (https://claude.ai/artifact/VZpfwHWT7cGz1vkn3xNzNm)
 ## 6. Tidy up
 
 ### Tidy up
-- [ ] Move store copies with children's data to the Trash
-- [ ] Update memory and docs for the Production move
+- [x] Move store copies with children's data to the Trash
+- [x] Update memory and docs for the Production move
 
 ### After step 6
 - [ ] Ship attendance parity + roll redraw fix together

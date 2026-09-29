@@ -41,6 +41,35 @@ own notebook on a device:
 - A schema run (`-InitializeCloudKitSchema`) is refused by a Production build;
   build with `CLOUDKIT_ENVIRONMENT=Development` for one.
 
+**Where things stand (2026-09-28).** The notebook moved to Production that day,
+in seven steps (Mac first, the Assistant tested in a simulator, then the iPhone
+and iPad together):
+- The Mac, iPhone and iPad run Production. Before the switch, the 14 old zones
+  in Production's private database (about 11,800 records from TestFlight-era
+  builds) were deleted, and the notebook came across by restoring the 16:53
+  backup in Replace mode.
+- Production's private database holds exactly two zones: the default zone
+  (9,023 records) and the classroom share `DB5879EF-D0F4-467E-A1EA-E51092B48BD7`
+  (3,224 records: 38 students, 3,107 attendance records, 40 days off, 39 day
+  locks). Checked on copies of the iPhone's and iPad's stores.
+- Development is frozen at the backup, on every device, as the way back:
+  installing a Development build opens that notebook untouched. Nothing writes
+  to it any more.
+- The plan's three open questions were answered: the Assistant's explicit share
+  assignment works (see §3); iCloud pushes reach development-signed Production
+  builds (an iPhone mark reached the iPad); and restore dropped only the one
+  supply transaction, which backups now carry (v31).
+- **Any new CloudKit field must be deployed to Production before any device
+  runs the build that writes it.** Production can't create fields on the fly,
+  so those records would fail to upload. That covers the Assistant too, whose
+  attendance lives in the share.
+- To check what a device holds, copy its store over USB:
+  `xcrun devicectl device copy from --device <udid> --domain-type
+  appDataContainer --domain-identifier DanielSDeBerry.MariasNoteBook --source
+  "Library/Application Support/DanielSDeBerry.MariasNoteBook/Production/private.sqlite"`
+  (plus `-wal`/`-shm`). This works on the development-signed Release builds.
+  The copies hold children's data, so move them to the Trash when done.
+
 **Entity routing** (`CoreDataStack+Model.swift`, schema 9):
 - The classroom share holds exactly what the Daybook Assistant needs:
   `Student`, `AttendanceRecord`, `NonSchoolDay`, `SchoolDayOverride` and
@@ -139,8 +168,9 @@ compiles about 40 of the main app's files by path and builds the same
   opens a picker for any day, and Today comes back.
 - **Its new marks go into the classroom share explicitly** after the save that
   creates them (`CDAttendanceStore.attachNewRecordsToClassroomShare`): the
-  pinned share, or the only share in its shared store. Whether CloudKit accepts
-  that from a participant is checked in the Production move's Assistant test.
+  pinned share, or the only share in its shared store. CloudKit accepts that
+  from a participant: in the Production move's Assistant test (2026-09-28) a
+  note logged `AttendanceShare: attached 1, failed 0` and reached the Mac.
 - **What it skips.** It runs no history processor and no orphan guard (`#if !ASSISTANT_APP`).
 - **Which membership rows it reads.** Only assistant rows, so a lead-guide row
   synced from the same Apple Account can't make it file attendance as a guide.
