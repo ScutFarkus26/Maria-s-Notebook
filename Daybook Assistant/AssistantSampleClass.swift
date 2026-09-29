@@ -25,12 +25,15 @@ enum AssistantSampleClass {
         return stack
     }
 
-    /// Two Ettys and two Sarahs, like the real class, so full names matter.
+    /// 22 children, the real class's size, with two Ettys and two Sarahs so
+    /// short names have to tell them apart.
     private static let names: [(String, String)] = [
         ("Ari", "Cedar"), ("Maya", "Stone"), ("Noah", "Linden"), ("Leah", "Hart"),
         ("Ezra", "Bloom"), ("Tamar", "Reed"), ("Miriam", "Vale"), ("Eli", "Brooks"),
         ("Rina", "Ash"), ("Etty", "Rosen"), ("Etty", "Goldman"), ("Sarah", "Klein"),
-        ("Sarah", "Adler"), ("Yael", "Morrow"), ("Dina", "Fairweather"), ("Levi", "Park")
+        ("Sarah", "Adler"), ("Yael", "Morrow"), ("Dina", "Fairweather"), ("Levi", "Park"),
+        ("Asher", "Quinn"), ("Gideon", "Hale"), ("Micah", "Frost"), ("Noa", "Winter"),
+        ("Shira", "Lowe"), ("Talia", "Brook")
     ]
 }
 #endif

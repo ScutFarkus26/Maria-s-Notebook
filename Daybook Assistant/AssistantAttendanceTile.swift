@@ -1,29 +1,39 @@
 import SwiftUI
 
-/// One child's tile in the attendance grid: full name, a soft wash of the
-/// mark's colour, and the time it was made. Tap to mark (what a tap means
-/// depends on the phase); long-press for every status, a reason and a note.
+/// One child's tile in the attendance grid: name, a soft wash of the mark's
+/// colour with its glyph (so the mark never rests on colour alone), and the
+/// time the child arrived. Tap to mark (what a tap means depends on the
+/// phase); long-press for every status, a reason and a note.
 ///
-/// Full names throughout, deliberately. This classroom has two Ettys and two
-/// Sarahs, and a first name alone would be a coin flip.
+/// Phones show the shortest name that still tells children apart ("Ari", but
+/// "Etty G" and "Etty R": this classroom has two Ettys and two Sarahs) so a
+/// class of 22 fits three across on one screen.
 struct AssistantAttendanceTile: View {
     let row: AssistantAttendanceViewModel.Row
     let phase: AssistantAttendanceViewModel.Phase
     let canMark: Bool
+    let usesShortName: Bool
     let onTap: () -> Void
     let onSetStatus: (AttendanceStatus) -> Void
     let onReason: (AbsenceReason) -> Void
     let onNote: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    /// Set by a tap that does nothing in this phase (a present child during
+    /// Late), so the tile can say why instead of ignoring it.
+    @State private var showsHoldHint = false
+    @State private var holdHintTaps = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(row.student.fullName)
+            // A short name stays on one line, shrinking rather than wrapping:
+            // one taller tile makes its whole row taller and pushes the last
+            // row off the screen.
+            Text(usesShortName ? row.shortName : row.student.fullName)
                 .font(.body.weight(.medium))
                 .foregroundStyle(.primary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
+                .lineLimit(usesShortName ? 1 : 2)
+                .minimumScaleFactor(usesShortName ? 0.7 : 0.85)
                 .multilineTextAlignment(.leading)
 
             detailLine
@@ -34,10 +44,17 @@ struct AssistantAttendanceTile: View {
         .background(fill, in: shape)
         .overlay(shape.strokeBorder(stroke, lineWidth: 1))
         .contentShape(shape)
-        .onTapGesture { if canMark { onTap() } }
+        .onTapGesture(perform: tap)
         .contextMenu { menu }
         .animation(.smooth(duration: 0.25), value: row.status)
+        .animation(.smooth(duration: 0.2), value: showsHoldHint)
         .sensoryFeedback(.selection, trigger: row.status)
+        .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.5), trigger: holdHintTaps)
+        .task(id: holdHintTaps) {
+            guard showsHoldHint, (try? await Task.sleep(for: .seconds(2.5))) != nil else { return }
+            showsHoldHint = false
+        }
+        .onChange(of: row.status) { showsHoldHint = false }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
         .accessibilityValue(row.note)
@@ -47,33 +64,61 @@ struct AssistantAttendanceTile: View {
         .accessibilityAction(named: "Note", onNote)
     }
 
+    private func tap() {
+        guard canMark else { return }
+        if AssistantAttendanceViewModel.statusAfterTap(from: row.status, in: phase) == nil {
+            showsHoldHint = true
+            holdHintTaps += 1
+        } else {
+            onTap()
+        }
+    }
+
     // MARK: - Pieces
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
     }
 
-    /// The mark's time, then small glyphs for a reason and a note. An
-    /// unmarked child with neither shows an empty line, so every tile in a
-    /// row keeps the same height.
+    /// The mark's glyph, then when the child arrived, or for an absent child
+    /// the reason (the time would only say when Late was switched on), then a
+    /// glyph for a note. An unmarked child with no note shows an empty line,
+    /// so every tile in a row keeps the same height.
     private var detailLine: some View {
-        HStack(spacing: 6) {
-            if let markedAt = row.markedAt {
-                Text(markedAt, format: .dateTime.hour().minute())
-                    .monospacedDigit()
-                    .foregroundStyle(hue ?? .secondary)
+        HStack(spacing: 5) {
+            if let glyph, let hue, !showsHoldHint {
+                Image(systemName: glyph)
+                    .fontWeight(.bold)
+                    .foregroundStyle(hue)
+            }
+            if showsHoldHint {
+                Text("Hold to change")
             } else {
-                Text(" ")
-            }
-            if row.status == .absent, row.absenceReason != .none {
-                Image(systemName: row.absenceReason.icon)
-            }
-            if !row.note.isEmpty {
-                Image(systemName: "text.alignleft")
+                switch row.status {
+                case .absent where row.absenceReason != .none:
+                    Label(row.absenceReason.displayName, systemImage: row.absenceReason.icon)
+                        .labelStyle(.titleAndIcon)
+                        .imageScale(.small)
+                case .absent:
+                    Text("Absent")
+                case .unmarked:
+                    Text(" ")
+                default:
+                    if let markedAt = row.markedAt {
+                        Text(markedAt, format: .dateTime.hour().minute())
+                            .monospacedDigit()
+                    } else {
+                        Text(" ")
+                    }
+                }
+                if !row.note.isEmpty {
+                    Image(systemName: "text.alignleft")
+                }
             }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
 
     @ViewBuilder
@@ -106,6 +151,17 @@ struct AssistantAttendanceTile: View {
     private static let menuStatuses: [AttendanceStatus] = [.present, .absent, .tardy, .leftEarly, .unmarked]
 
     // MARK: - Colour
+
+    /// The status's shape, beside its hue, or nil while unmarked.
+    private var glyph: String? {
+        switch row.status {
+        case .unmarked: return nil
+        case .present: return "checkmark"
+        case .absent: return "xmark"
+        case .tardy: return "clock"
+        case .leftEarly: return "arrow.right"
+        }
+    }
 
     /// The status's hue, or nil while unmarked.
     private var hue: Color? {
@@ -147,7 +203,7 @@ struct AssistantAttendanceTile: View {
         case .tardy: return "Double tap to mark tardy"
         case .absent: return "Double tap to mark absent again"
         case .unmarked: return "Double tap to clear the mark"
-        default: return "Touch and hold for more"
+        default: return "Touch and hold to change the mark"
         }
     }
 }

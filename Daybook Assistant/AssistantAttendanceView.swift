@@ -7,6 +7,10 @@ import CoreData
 /// **Late** marks everyone still unmarked absent, after which a tap marks
 /// tardy. Every mark carries its time.
 ///
+/// The pills, the count and the iCloud line sit in the bottom bar, in thumb
+/// reach and out of the grid's way: on a phone, three columns of short names
+/// fit a class of up to 24 on one screen without scrolling.
+///
 /// It opens on today. The ‹ › arrows step through school days (skipping
 /// weekends and the guide's days off), tapping the date opens a picker for any
 /// day, past or future, and Today comes back. A day the guide has locked shows
@@ -18,13 +22,20 @@ struct AssistantAttendanceView: View {
     @State private var showingNameSheet = false
     @State private var showingDatePicker = false
     @State private var noteRow: AssistantAttendanceViewModel.Row?
-    /// The "Marked 3 absent · Undo" bar after switching to Late.
+    /// The "Marked 3 absent · Undo" line after switching to Late. It stays
+    /// until the next mark, a phase or day change, or the app leaving the
+    /// foreground.
     @State private var lateUndo: LateUndo?
     @Namespace private var phaseNamespace
     /// Whether the screen was on today when the app last left the foreground:
     /// only then does coming back move it on to the new today.
     @State private var followsToday = true
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// Phones: three columns of short names. Wider screens have room for
+    /// full names.
+    private var usesShortNames: Bool { horizontalSizeClass == .compact }
 
     var body: some View {
         NavigationStack {
@@ -39,18 +50,7 @@ struct AssistantAttendanceView: View {
             .toolbarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: 0) {
-                    if let lateUndo {
-                        undoBar(lateUndo)
-                            .padding(.bottom, 10)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                    AssistantSyncStatusView(coreDataStack: coreDataStack)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                        .background(.bar)
-                }
-                .animation(.smooth(duration: 0.3), value: lateUndo?.id)
+                bottomBar
             }
         }
         .sheet(isPresented: $showingNameSheet) {
@@ -90,6 +90,7 @@ struct AssistantAttendanceView: View {
             viewModel?.pauseRemoteReloads(editing != nil)
         }
         .onChange(of: scenePhase) { oldPhase, phase in
+            if phase != .active { lateUndo = nil }
             guard let viewModel else { return }
             if phase == .active {
                 // Left open overnight on today, the screen moves on to the new
@@ -210,67 +211,112 @@ struct AssistantAttendanceView: View {
             }
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header(viewModel)
+                VStack(alignment: .leading, spacing: 12) {
+                    notices(viewModel)
                     LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 150), spacing: 10)],
+                        columns: [GridItem(.adaptive(minimum: usesShortNames ? 105 : 150), spacing: 10)],
                         spacing: 10
                     ) {
                         ForEach(viewModel.rows) { row in
-                            AssistantAttendanceTile(
-                                row: row,
-                                phase: viewModel.phase,
-                                canMark: viewModel.canMark,
-                                onTap: { viewModel.tap(row) },
-                                onSetStatus: { viewModel.setStatus($0, for: row) },
-                                onReason: { viewModel.setAbsenceReason($0, for: row) },
-                                onNote: { noteRow = row }
-                            )
+                            tile(row, viewModel: viewModel)
                         }
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
-                .padding(.bottom, 24)
+                .padding(.bottom, 12)
             }
             .background(Color(.systemGroupedBackground))
             .refreshable { viewModel.load() }
         }
     }
 
-    // MARK: - Header
-
-    private func header(_ viewModel: AssistantAttendanceViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if viewModel.canMark {
-                phasePills(viewModel)
-            }
-            Text(tally(viewModel.rows))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .contentTransition(.numericText())
-                .animation(.smooth, value: tally(viewModel.rows))
-
-            if viewModel.isLocked {
-                Label("Your guide has locked this day.", systemImage: "lock.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    /// A new mark retires the Undo for the last switch to Late.
+    private func tile(_ row: AssistantAttendanceViewModel.Row, viewModel: AssistantAttendanceViewModel) -> some View {
+        AssistantAttendanceTile(
+            row: row,
+            phase: viewModel.phase,
+            canMark: viewModel.canMark,
+            usesShortName: usesShortNames,
+            onTap: {
+                lateUndo = nil
+                viewModel.tap(row)
+            },
+            onSetStatus: {
+                lateUndo = nil
+                viewModel.setStatus($0, for: row)
+            },
+            onReason: { viewModel.setAbsenceReason($0, for: row) },
+            onNote: { noteRow = row }
+        )
     }
 
-    /// Arrival · Late, as one quiet capsule; the chosen half slides.
+    // MARK: - Notices
+
+    /// A locked day or a failed save, above the grid; nothing otherwise.
+    @ViewBuilder
+    private func notices(_ viewModel: AssistantAttendanceViewModel) -> some View {
+        if viewModel.isLocked || viewModel.errorMessage != nil {
+            VStack(alignment: .leading, spacing: 6) {
+                if viewModel.isLocked {
+                    Label("Your guide has locked this day.", systemImage: "lock.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    // MARK: - Bottom bar
+
+    /// Phase pills, then the count (or the Undo for the last switch to Late,
+    /// in the count's place so nothing above it moves), then the iCloud line.
+    private var bottomBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let viewModel, viewModel.dayOff == nil, !viewModel.rows.isEmpty {
+                if viewModel.canMark {
+                    phasePills(viewModel)
+                }
+                Group {
+                    if let lateUndo {
+                        undoLine(lateUndo)
+                            .transition(.opacity)
+                    } else {
+                        Text(tally(viewModel.rows))
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                            .animation(.smooth, value: tally(viewModel.rows))
+                            .transition(.opacity)
+                    }
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(minHeight: 22)
+                .animation(.smooth(duration: 0.3), value: lateUndo?.id)
+            }
+            AssistantSyncStatusView(coreDataStack: coreDataStack)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .background(.bar)
+    }
+
+    /// Arrival · Late, as one quiet capsule; the chosen half slides. Before
+    /// Late is switched on, its pill says what switching will do.
     private func phasePills(_ viewModel: AssistantAttendanceViewModel) -> some View {
-        HStack(spacing: 2) {
+        let unmarked = viewModel.rows.count { $0.status == .unmarked }
+        let lateTitle = viewModel.phase == .arrival && unmarked > 0 ? "Late · \(unmarked) absent" : "Late"
+        return HStack(spacing: 2) {
             phasePill("Arrival", phase: .arrival, viewModel: viewModel)
-            phasePill("Late", phase: .late, viewModel: viewModel)
+            phasePill(lateTitle, phase: .late, viewModel: viewModel)
         }
         .padding(3)
         .background(Color(.tertiarySystemFill), in: Capsule())
@@ -336,27 +382,17 @@ struct AssistantAttendanceView: View {
         let count: Int
     }
 
-    private func undoBar(_ undo: LateUndo) -> some View {
-        HStack(spacing: 14) {
+    private func undoLine(_ undo: LateUndo) -> some View {
+        HStack(spacing: 12) {
             Text("Marked \(undo.count) absent")
-                .font(.subheadline)
             Button("Undo") {
                 withAnimation(.smooth(duration: 0.3)) {
                     viewModel?.returnToArrival(undo: true)
                     lateUndo = nil
                 }
             }
-            .font(.subheadline.weight(.semibold))
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 10)
-        .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.06)))
-        .task(id: undo.id) {
-            try? await Task.sleep(for: .seconds(5))
-            if lateUndo?.id == undo.id {
-                withAnimation(.smooth(duration: 0.3)) { lateUndo = nil }
-            }
+            .fontWeight(.semibold)
+            .foregroundStyle(.tint)
         }
     }
 
