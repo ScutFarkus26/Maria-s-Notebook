@@ -47,6 +47,11 @@ Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic
 # Run it after merging to main.
 Scripts/install_release.sh
 
+# Archive the Daybook Assistant (iPhone-only, portrait) for TestFlight: the checkout's last commit, with a
+# timestamp build number (YYYYMMDDHHMM) passed as CURRENT_PROJECT_VERSION; the project itself keeps 1.
+# Refuses uncommitted edits to tracked files. Upload from Xcode's Organizer. Run it outside the sandbox.
+Scripts/archive_assistant_testflight.sh
+
 # Clean-build timing baseline (compare against Documentation/Implementation/perf-baselines/).
 # Caching off, or a "clean" build of an already-built tree is a cache replay, not a compile; BUILD_NICE=0
 # so the number is not a low-priority one.
