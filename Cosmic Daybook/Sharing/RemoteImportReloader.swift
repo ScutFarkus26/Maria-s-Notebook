@@ -20,13 +20,14 @@ final class RemoteImportReloader {
     private let delay: Duration
     private let reload: @MainActor () -> Void
     private var pending: Task<Void, Never>?
-    private var heldWhilePaused = false
+    /// A reload came due while paused and waits for the pause to lift.
+    private(set) var hasHeldReload = false
 
     /// While true, a due reload waits; setting it back to false runs it.
     var isPaused = false {
         didSet {
-            guard !isPaused, heldWhilePaused else { return }
-            heldWhilePaused = false
+            guard !isPaused, hasHeldReload else { return }
+            hasHeldReload = false
             reload()
         }
     }
@@ -65,7 +66,7 @@ final class RemoteImportReloader {
 
     private func fire() {
         if isPaused {
-            heldWhilePaused = true
+            hasHeldReload = true
         } else {
             reload()
         }

@@ -44,11 +44,15 @@ struct RemoteImportReloaderTests {
 
         reloader.isPaused = true
         reloader.importFinished()
-        try? await Task.sleep(for: .milliseconds(200))
+        // Wait for the reload to come due rather than for a fixed time: on a
+        // loaded simulator a 30 ms sleep can take longer than any fixed wait.
+        await waitFor { reloader.hasHeldReload }
+        #expect(reloader.hasHeldReload)
         #expect(counter.reloads == 0)
 
         reloader.isPaused = false
         #expect(counter.reloads == 1)
+        #expect(!reloader.hasHeldReload)
         reloader.isPaused = true
         reloader.isPaused = false
         #expect(counter.reloads == 1)
