@@ -24,12 +24,16 @@ extension TodayView {
         twoColumnLayout
         #else
         List {
-            TipView(pullToRefreshTip)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
+            // Sample Class never syncs, and the tip promises an iCloud sync.
+            if !isSampleClassroom {
+                TipView(pullToRefreshTip)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+            }
             phoneSections
         }
         .listStyle(.insetGrouped)
+        .quickCaptureButtonClearance()
         .refreshable {
             viewModel.reload()
             reloadDerivedCounts(force: true)

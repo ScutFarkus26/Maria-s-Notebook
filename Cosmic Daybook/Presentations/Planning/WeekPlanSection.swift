@@ -146,49 +146,14 @@ struct WeekPlanSection: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 10) {
-                Button("Today") { startDate = AppCalendar.startOfDay(Date()) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                Button {
-                    moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays)
-                } label: { Image(systemName: "chevron.left") }
-                    .buttonStyle(.plain)
-                    .help("Earlier days")
-
-                Text(dateRangeLabel)
-                    .font(.subheadline.weight(.medium))
-                    .frame(minWidth: 180)
-                    .multilineTextAlignment(.center)
-
-                Button {
-                    moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays)
-                } label: { Image(systemName: "chevron.right") }
-                    .buttonStyle(.plain)
-                    .help("Later days")
-
-                Spacer()
-
-                Picker("Show", selection: visibleKindsBinding) {
-                    ForEach(CalendarKindFilter.allCases) { kind in
-                        Text(kind.title).tag(kind)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-
-                bulkActionsMenu
-            }
-            .padding(.horizontal, 12)
-
-            HStack(spacing: 14) {
-                Spacer()
-                legend
-            }
-            .padding(.horizontal, 12)
-        }
+        WeekPlanHeader(
+            dateRangeLabel: dateRangeLabel,
+            visibleKinds: visibleKindsBinding,
+            onToday: { startDate = AppCalendar.startOfDay(Date()) },
+            onEarlier: { moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) },
+            onLater: { moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) },
+            actions: { bulkActionsMenu }
+        )
     }
 
     private var bulkActionsMenu: some View {
@@ -230,24 +195,6 @@ struct WeekPlanSection: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will move every scheduled, ungiven presentation back to On Deck.")
-        }
-    }
-
-    private var legend: some View {
-        HStack(spacing: 14) {
-            legendSwatch(color: .red, label: "Absent")
-            legendSwatch(color: AppColors.attention, label: "Twice in the same half")
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-    }
-
-    private func legendSwatch(color: Color, label: String) -> some View {
-        HStack(spacing: 5) {
-            Capsule()
-                .stroke(color, lineWidth: 1)
-                .frame(width: 18, height: 11)
-            Text(label)
         }
     }
 

@@ -20,14 +20,24 @@ final class CommandBarViewModel {
     // MARK: - Recent Commands
 
     private static let recentCommandsKey = "commandBarRecentCommands"
+    private static let sampleRecentCommandsKey = "commandBarRecentCommands.sampleClass"
     private static let maxRecent = 10
+
+    /// Sample Class keeps its own history: the guide's real captures name her
+    /// real children, who aren't in the sample, and practice captures made in
+    /// the sample shouldn't turn up in her class.
+    var isSampleClassroom = false
+
+    private var recentCommandsKey: String {
+        isSampleClassroom ? Self.sampleRecentCommandsKey : Self.recentCommandsKey
+    }
 
     var recentCommands: [String] {
         get {
-            (UserDefaults.standard.array(forKey: Self.recentCommandsKey) as? [String]) ?? []
+            (UserDefaults.standard.array(forKey: recentCommandsKey) as? [String]) ?? []
         }
         set {
-            UserDefaults.standard.set(Array(newValue.prefix(Self.maxRecent)), forKey: Self.recentCommandsKey)
+            UserDefaults.standard.set(Array(newValue.prefix(Self.maxRecent)), forKey: recentCommandsKey)
         }
     }
 

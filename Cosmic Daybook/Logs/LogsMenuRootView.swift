@@ -38,6 +38,20 @@ struct LogsMenuRootView: View {
     /// last mode the guide chose.
     private let initialMode: Mode?
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// A phone has no room for the 280-point log list beside the log, so the
+    /// list becomes a menu in the header and the log gets the full width.
+    private var isCompact: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
     init(initialMode: Mode? = nil) {
         self.initialMode = initialMode
     }
@@ -63,20 +77,24 @@ struct LogsMenuRootView: View {
     var body: some View {
         VStack(spacing: 0) {
             #if os(iOS)
-            ViewHeader(title: "Logs")
-            Divider()
-            #endif
-            HStack(spacing: 0) {
-                // MARK: Sidebar
-                logsSidebar
-                    .frame(width: 280)
-
-                Divider()
-
-                // MARK: Content Area
+            if isCompact {
+                // Each log titles itself, so the switcher sits in the toolbar
+                // rather than under a second "Logs" title.
                 logsContent
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            modePicker
+                        }
+                    }
+            } else {
+                ViewHeader(title: "Logs")
+                Divider()
+                sidebarAndContent
             }
+            #else
+            sidebarAndContent
+            #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Logs")
@@ -86,6 +104,36 @@ struct LogsMenuRootView: View {
             }
         }
     }
+
+    private var sidebarAndContent: some View {
+        HStack(spacing: 0) {
+            // MARK: Sidebar
+            logsSidebar
+                .frame(width: 280)
+
+            Divider()
+
+            // MARK: Content Area
+            logsContent
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    #if os(iOS)
+    private var modePicker: some View {
+        Menu {
+            Picker("Log", selection: Binding(get: { mode }, set: { mode = $0 })) {
+                ForEach(Mode.allCases) { logMode in
+                    Label(logMode.rawValue, systemImage: logMode.icon)
+                        .tag(logMode)
+                }
+            }
+        } label: {
+            Label("Logs", systemImage: "list.bullet")
+        }
+        .accessibilityLabel("Choose log")
+    }
+    #endif
 
     // MARK: - Sidebar
 

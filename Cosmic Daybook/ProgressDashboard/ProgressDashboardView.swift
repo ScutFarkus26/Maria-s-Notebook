@@ -97,6 +97,7 @@ struct ProgressDashboardView: View {
                 .padding(.bottom, 24)
             }
         }
+        .quickCaptureButtonClearance()
     }
 
     // MARK: - Filter Pills

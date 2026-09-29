@@ -145,6 +145,7 @@ extension StudentsView {
             enrolledSection
             withdrawnSection
         }
+        .quickCaptureButtonClearance()
     }
 
     @ViewBuilder

@@ -7,6 +7,9 @@ struct MeetingsWorkflowView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.calendar) private var calendar
     @Environment(\.dependencies) private var dependencies
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     // MARK: - Queries
 
@@ -215,46 +218,35 @@ struct MeetingsWorkflowView: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 0) {
-            MeetingsQueueSidebar(
-                studentsNeedingMeeting: filteredStudentsNeedingMeetingPresent,
-                studentsAbsentToday: filteredStudentsAbsentToday,
-                studentsCompleted: filteredStudentsCompleted,
-                selectedStudentID: $selectedStudentID,
-                searchText: $searchText,
-                showCompletedThisWeek: $showCompletedThisWeek,
-                daysSinceThreshold: $daysSinceThreshold,
-                selectedAgeRanges: $selectedAgeRanges,
-                lastMeetingFor: lastMeetingFor,
-                onMove: moveStudent,
-                onRequeue: requeueStudent,
-                scheduledMeetingDates: scheduledMeetingDates,
-                onScheduleMeeting: handleScheduleMeeting,
-                onPickMeetingDate: { student in
-                    studentForMeetingDatePicker = student
-                }
-            )
-            .frame(width: 250)
-
-            Divider()
-
-            if let student = selectedStudent {
-                MeetingSessionView(
-                    student: student,
-                    allWorkModels: Array(allWorkModels),
-                    allLessonAssignments: Array(allLessonAssignments),
-                    lessons: dependencies.lessonCatalog.all,
-                    meetings: meetingsFor(student),
-                    meetingTemplates: Array(meetingTemplates),
-                    workOverdueDays: workOverdueDays,
-                    onComplete: {
-                        moveToNextStudent()
+        Group {
+            if isCompact {
+                // A phone has no room for the queue beside the meeting: the
+                // queue fills the screen and a child's meeting pushes over it.
+                queueSidebar
+                    .navigationDestination(item: $selectedStudentID) { studentID in
+                        if let student = students.first(where: { $0.id == studentID }) {
+                            sessionView(for: student)
+                                .navigationTitle(student.fullName)
+                        }
                     }
-                )
-                .frame(maxWidth: .infinity)
             } else {
-                emptyState
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 0) {
+                    queueSidebar
+                        .frame(width: 250)
+
+                    Divider()
+
+                    if let student = selectedStudent {
+                        sessionView(for: student)
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        MeetingsEmptyState(
+                            canStart: !filteredStudentsNeedingMeetingPresent.isEmpty,
+                            onStart: { selectedStudentID = filteredStudentsNeedingMeetingPresent.first?.id }
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                }
             }
         }
         .navigationTitle("Meetings")
@@ -276,34 +268,48 @@ struct MeetingsWorkflowView: View {
         }
     }
 
-    // MARK: - Empty State
+    private var isCompact: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "person.2.circle")
-                .font(.system(size: 64))
-                .foregroundStyle(.tertiary)
-
-            Text("Select a Student")
-                .font(.title2.weight(.medium))
-
-            Text("Choose a student from the queue to start their weekly meeting.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 300)
-
-            if !filteredStudentsNeedingMeetingPresent.isEmpty {
-                Button {
-                    selectedStudentID = filteredStudentsNeedingMeetingPresent.first?.id
-                } label: {
-                    Label("Start First Meeting", systemImage: "play.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+    private var queueSidebar: some View {
+        MeetingsQueueSidebar(
+            studentsNeedingMeeting: filteredStudentsNeedingMeetingPresent,
+            studentsAbsentToday: filteredStudentsAbsentToday,
+            studentsCompleted: filteredStudentsCompleted,
+            selectedStudentID: $selectedStudentID,
+            searchText: $searchText,
+            showCompletedThisWeek: $showCompletedThisWeek,
+            daysSinceThreshold: $daysSinceThreshold,
+            selectedAgeRanges: $selectedAgeRanges,
+            lastMeetingFor: lastMeetingFor,
+            onMove: moveStudent,
+            onRequeue: requeueStudent,
+            scheduledMeetingDates: scheduledMeetingDates,
+            onScheduleMeeting: handleScheduleMeeting,
+            onPickMeetingDate: { student in
+                studentForMeetingDatePicker = student
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        )
+    }
+
+    private func sessionView(for student: CDStudent) -> some View {
+        MeetingSessionView(
+            student: student,
+            allWorkModels: Array(allWorkModels),
+            allLessonAssignments: Array(allLessonAssignments),
+            lessons: dependencies.lessonCatalog.all,
+            meetings: meetingsFor(student),
+            meetingTemplates: Array(meetingTemplates),
+            workOverdueDays: workOverdueDays,
+            onComplete: {
+                moveToNextStudent()
+            }
+        )
     }
 
     // MARK: - Actions

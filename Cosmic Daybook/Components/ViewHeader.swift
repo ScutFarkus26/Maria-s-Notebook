@@ -16,21 +16,81 @@ struct ViewHeader<TrailingContent: View>: View {
     }
 
     var body: some View {
-        HStack {
-            Text(title)
-                .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+        #if os(iOS)
+        if horizontalSizeClass == .compact {
+            compactHeader
+        } else {
+            regularHeader
+        }
+        #else
+        regularHeader
+        #endif
+    }
 
-            Spacer()
+    private var regularHeader: some View {
+        // Title and controls share a line when they fit at their natural
+        // widths; when they don't, squeezing them hyphenated the title
+        // ("Proce-dures") and stood button labels on end, so the controls drop
+        // to their own row, which scrolls if it is still too wide.
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                titleText
+                Spacer()
+                trailingContent()
+                    .fixedSize(horizontal: true, vertical: false)
+            }
 
-            trailingContent()
+            VStack(alignment: .leading, spacing: 8) {
+                titleText
+                controlsRow
+            }
         }
         .padding()
         .backgroundPlatform()
         // Hide the parent navigation bar since ViewHeader provides its own title.
-        // On iPhone compact, keep the nav bar visible for back navigation.
         #if os(iOS)
-        .toolbar(horizontalSizeClass == .compact ? .automatic : .hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    #if os(iOS)
+    /// On a phone the page sits in a navigation stack whose bar keeps the back
+    /// button, so the title goes to that bar and only the controls stay here —
+    /// drawing it here too showed every title twice.
+    @ViewBuilder
+    private var compactHeader: some View {
+        if TrailingContent.self == EmptyView.self {
+            Color.clear
+                .frame(height: 0)
+                .navigationTitle(title)
+        } else {
+            controlsRow
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .backgroundPlatform()
+                .navigationTitle(title)
+        }
+    }
+    #endif
+
+    private var controlsRow: some View {
+        ScrollView(.horizontal) {
+            HStack {
+                trailingContent()
+            }
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

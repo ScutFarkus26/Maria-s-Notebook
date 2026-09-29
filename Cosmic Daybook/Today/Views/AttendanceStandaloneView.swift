@@ -71,6 +71,7 @@ struct AttendanceStandaloneView: View {
                 onToast: { message in toast(message) }
             )
             .padding(.horizontal, AppTheme.Spacing.compact)
+            .quickCaptureButtonClearance()
             .navigationTitle("Attendance")
             #if os(iOS)
             .toolbar { toolbarContent }

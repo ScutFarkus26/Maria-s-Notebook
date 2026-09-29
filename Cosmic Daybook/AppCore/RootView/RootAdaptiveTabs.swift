@@ -41,12 +41,40 @@ struct RootAdaptiveTabs: View {
             .environment(\.horizontalSizeClass, horizontalSizeClass)
     }
 
+    /// True where the secondary tabs live behind "More" rather than in a sidebar.
+    private static var usesMoreList: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone || usesBottomTabBar
+    }
+
+    /// Pages whose root view already holds its own `NavigationStack` (or, for
+    /// Students and Albums, a split view that collapses to one); a second one
+    /// around them would nest stacks.
+    static let pagesWithOwnStack: Set<RootView.NavigationItem> = [
+        .today, .students, .attendance, .teachingAlbums,
+        .settings, .askAI, .thisWeeksParsha, .parshaCalendar, .smallSequencePlanner
+    ]
+
+    /// A page on a phone-sized layout. Neither the tab bar nor the More list
+    /// gives a page a navigation stack, so its title never showed and a row
+    /// inside it had nowhere to push; each page without one gets its own.
+    @ViewBuilder
+    private func phonePage(_ item: RootView.NavigationItem) -> some View {
+        if (Self.usesMoreList || horizontalSizeClass == .compact)
+            && !Self.pagesWithOwnStack.contains(item.canonical) {
+            NavigationStack {
+                page(item)
+            }
+        } else {
+            page(item)
+        }
+    }
+
     /// Top-level tabs (visible in the tab bar on iPhone).
     @TabContentBuilder<RootView.NavigationItem>
     private var primaryTabs: some TabContent<RootView.NavigationItem> {
         ForEach(RootView.NavigationGroup.primaryTabs) { item in
             Tab(item.displayName, systemImage: item.icon, value: item) {
-                page(item)
+                phonePage(item)
             }
         }
     }
@@ -59,11 +87,12 @@ struct RootAdaptiveTabs: View {
             TabSection(group.title) {
                 ForEach(group.secondaryItems) { item in
                     Tab(item.displayName, systemImage: item.icon, value: item) {
-                        page(item)
+                        phonePage(item)
                     }
                 }
             }
         }
     }
 }
+
 #endif

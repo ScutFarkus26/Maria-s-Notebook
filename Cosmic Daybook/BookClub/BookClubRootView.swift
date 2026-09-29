@@ -50,5 +50,6 @@ struct BookClubRootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .navigationTitle("Book Club")
     }
 }

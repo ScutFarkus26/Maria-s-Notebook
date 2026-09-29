@@ -19,8 +19,10 @@ extension TodayView {
         )
         // Today re-renders on every reload (an attendance tap, a todo
         // toggle); the section's own fetches already refresh it when a
-        // source changes, so a parent pass with the same day is skipped.
-        .equatable()
+        // source changes, so a parent pass with the same day is skipped —
+        // through the view's own `Equatable` conformance, not `.equatable()`,
+        // whose wrapper is a List row of its own and drew a blank card when
+        // nothing was being watched.
     }
 }
 

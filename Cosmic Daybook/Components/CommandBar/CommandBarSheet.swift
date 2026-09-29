@@ -39,6 +39,7 @@ struct CommandBarSheet: View {
     // MARK: - State
 
     @State private var viewModel = CommandBarViewModel()
+    @Environment(\.isSampleClassroom) private var isSampleClassroom
     @State private var saveErrorMessage: String?
     @FocusState private var isTextFieldFocused: Bool
 
@@ -72,6 +73,7 @@ struct CommandBarSheet: View {
         .presentationDragIndicator(.visible)
         #endif
         .onAppear {
+            viewModel.isSampleClassroom = isSampleClassroom
             isTextFieldFocused = true
         }
         .onChange(of: viewModel.speechService.transcript) { _, newValue in

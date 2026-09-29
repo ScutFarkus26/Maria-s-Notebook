@@ -108,10 +108,11 @@ struct CurriculumLegend: View {
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
+        .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "Legend: empty not presented, outline presented, half dot chosen, filled repeated, "
-                + "ringed mastered; ring colour is the latest recall outcome"
+                + "ringed mastered; ring color is the latest recall outcome"
         )
     }
 }

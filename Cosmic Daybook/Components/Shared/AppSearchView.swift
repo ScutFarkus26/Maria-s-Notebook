@@ -6,6 +6,7 @@ struct AppSearchView: View {
     @State private var searchText = ""
     @State private var results: [SearchResult] = []
     @State private var selectedTypes: Set<SearchableEntityType>?
+    @FocusState private var isSearchFieldFocused: Bool
 
     private let searchIndex = SearchIndexService.shared
 
@@ -59,6 +60,10 @@ struct AppSearchView: View {
                 .foregroundStyle(.secondary)
             TextField("Search…", text: $searchText)
                 .textFieldStyle(.plain)
+                .focused($isSearchFieldFocused)
+                // The sheet exists to type into; opening it and then having to
+                // tap the field was one tap too many.
+                .onAppear { isSearchFieldFocused = true }
                 .onChange(of: searchText) { _, query in
                     performSearch(query: query)
                 }

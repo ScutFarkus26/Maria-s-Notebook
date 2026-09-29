@@ -19,6 +19,17 @@ struct StudentRecordHeader: View {
     let onDelete: () -> Void
 
     var body: some View {
+        // Full button labels where they fit. On a phone they wrapped
+        // ("Add Observa-tion"), so there the buttons show their icons.
+        ViewThatFits(in: .horizontal) {
+            headerRow(iconOnly: false)
+            headerRow(iconOnly: true)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+    }
+
+    private func headerRow(iconOnly: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(student.shortName)
@@ -27,6 +38,7 @@ struct StudentRecordHeader: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .lineLimit(1)
 
             Spacer()
 
@@ -60,8 +72,7 @@ struct StudentRecordHeader: View {
                 Label("Student Actions", systemImage: "ellipsis.circle")
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 18)
+        .when(iconOnly) { $0.labelStyle(.iconOnly) }
     }
 }
 

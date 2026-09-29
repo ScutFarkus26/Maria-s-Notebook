@@ -22,6 +22,7 @@ extension ObservationsView {
             }
         }
         .listStyle(.inset)
+        .quickCaptureButtonClearance()
     }
 
     // MARK: - Observation Row

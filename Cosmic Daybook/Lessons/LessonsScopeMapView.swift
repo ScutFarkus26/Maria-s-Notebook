@@ -153,7 +153,11 @@ struct LessonsScopeMapView: View {
         return hold.sequenced(before: drag)
             .onChanged { value in
                 switch value {
-                case .first(true):
+                // Not `.first(true)`: that is the hold *starting*, at touch-down.
+                // Lifting there picked a row up the moment a scroll began, and
+                // when the scroll then failed the hold the gesture never ended,
+                // so the row stayed lifted with its "Drag … into place" banner.
+                case .second(true, nil):
                     beginMove(rowID: rowID, name: row.data.key.displayName)
                 case .second(true, let dragValue?):
                     if pickedUpRowID != rowID {

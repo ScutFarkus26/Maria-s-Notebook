@@ -14,6 +14,20 @@ struct ProgressDashboardCategoryRow: View {
     let onTap: () -> Void
 
     @State private var isPinned: Bool = false
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// A phone can't spare the 180-point label column: beside it the pills got
+    /// about 50 points, one clipped lesson name. There the label sits above
+    /// the pills, which get the row's full width.
+    private var stacksLabelAbovePills: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
 
     private let labelColumnWidth: CGFloat = 180
     private let collapsedHeight: CGFloat = 38
@@ -21,28 +35,12 @@ struct ProgressDashboardCategoryRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(alignment: isPinned ? .top : .center, spacing: 12) {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(areaColor.opacity(0.85))
-                    .frame(width: barWidth, height: isPinned ? 14 : (collapsedHeight - 12))
-                    .padding(.top, isPinned ? 9 : 0)
-
-                Text(sequence.sequence)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .frame(width: labelColumnWidth, alignment: .leading)
-                    .padding(.top, isPinned ? 5 : 0)
-
-                pillsContainer
-
-                Spacer(minLength: 8)
-
-                progressBadge
-                    .padding(.top, isPinned ? 5 : 0)
-
-                pinToggleButton
-                    .padding(.top, isPinned ? 5 : 0)
+            Group {
+                if stacksLabelAbovePills {
+                    stackedLayout
+                } else {
+                    sideBySideLayout
+                }
             }
             .padding(.horizontal, 8)
             .frame(minHeight: collapsedHeight)
@@ -58,6 +56,55 @@ struct ProgressDashboardCategoryRow: View {
         }
         .buttonStyle(.plain)
         .help("\(sequence.area) — \(sequence.sequence) · \(sequence.presentedCount)/\(sequence.totalCount) presented")
+    }
+
+    private var stackedLayout: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(areaColor.opacity(0.85))
+                    .frame(width: barWidth, height: 14)
+
+                Text(sequence.sequence)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                progressBadge
+                pinToggleButton
+            }
+
+            pillsContainer
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var sideBySideLayout: some View {
+        HStack(alignment: isPinned ? .top : .center, spacing: 12) {
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(areaColor.opacity(0.85))
+                .frame(width: barWidth, height: isPinned ? 14 : (collapsedHeight - 12))
+                .padding(.top, isPinned ? 9 : 0)
+
+            Text(sequence.sequence)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .frame(width: labelColumnWidth, alignment: .leading)
+                .padding(.top, isPinned ? 5 : 0)
+
+            pillsContainer
+
+            Spacer(minLength: 8)
+
+            progressBadge
+                .padding(.top, isPinned ? 5 : 0)
+
+            pinToggleButton
+                .padding(.top, isPinned ? 5 : 0)
+        }
     }
 
     /// "X / Y" presented count, color-coded.

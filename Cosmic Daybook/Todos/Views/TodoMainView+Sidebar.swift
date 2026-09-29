@@ -177,6 +177,7 @@ extension TodoMainView {
             selectedTag = nil
             selectedFolder = nil
             selectedFilter = filter
+            showSelectedListIfCompact()
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: filter.icon)
@@ -250,6 +251,7 @@ extension TodoMainView {
                     selectedFolder = sequenceName
                     selectedTag = nil
                     selectedFilter = nil
+                    showSelectedListIfCompact()
                 }
             }
         }
@@ -282,6 +284,7 @@ extension TodoMainView {
             selectedFilter = nil
             selectedFolder = nil
             selectedTag = tag
+            showSelectedListIfCompact()
         } label: {
             HStack(spacing: 10) {
                 Circle()

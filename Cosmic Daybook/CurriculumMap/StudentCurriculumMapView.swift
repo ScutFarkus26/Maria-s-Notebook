@@ -81,8 +81,14 @@ struct StudentCurriculumMapView: View {
                 .help("Rows, expansion, and the untouched threshold")
             }
             HStack(spacing: 12) {
-                CurriculumLegend()
-                Spacer()
+                // The legend keeps its labels at full width (`fixedSize`), so on
+                // a phone it scrolls rather than pushing the row off screen.
+                ScrollView(.horizontal) {
+                    CurriculumLegend()
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                Spacer(minLength: 0)
                 if model.untouchedAreaCount > 0 {
                     Label(
                         "\(model.untouchedAreaCount) untouched area\(model.untouchedAreaCount == 1 ? "" : "s")",

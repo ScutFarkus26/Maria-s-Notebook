@@ -28,8 +28,20 @@ struct ThreadRow: View {
     var onReorderSections: (() -> Void)?
 
     @State private var isPinned: Bool = false
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
-    private let labelColumnWidth: CGFloat = 180
+    /// 180 points beside the pills on a wide screen. On a phone that left the
+    /// pills one clipped lesson name ("Parts of the L…"), so the label column
+    /// narrows there; a long sub-area name truncates instead.
+    private var labelColumnWidth: CGFloat {
+        #if os(iOS)
+        horizontalSizeClass == .compact ? 104 : 180
+        #else
+        180
+        #endif
+    }
     private let collapsedHeight: CGFloat = 38
     private let barWidth: CGFloat = 3
 

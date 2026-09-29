@@ -16,6 +16,9 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
     @State private var scrollProxy: ScrollViewProxy?
     @State private var suppressYearScroll = false
     @State private var programmaticScrollInFlight = false
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
 
     init(
         title: String,
@@ -60,7 +63,7 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
                         return
                     }
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(MonthID(year: newYear, month: 1), anchor: .leading)
+                        proxy.scrollTo(MonthID(year: newYear, month: 1), anchor: .topLeading)
                     }
                 }
             }
@@ -69,52 +72,70 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
 
     // MARK: - Header
 
+    @ViewBuilder
     private var header: some View {
-        HStack {
-            Text(title)
-                .font(.system(.largeTitle, design: .rounded).weight(.heavy))
-
-            Spacer()
-
-            headerTrailing()
-
-            HStack(spacing: 8) {
-                Button {
-                    displayYear -= 1
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-
-                Text(String(displayYear))
-                    .font(.body.weight(.medium))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-
-                Button {
-                    displayYear += 1
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-
-                Button("Today") {
-                    scrollToToday()
-                }
-                .font(.subheadline.weight(.medium))
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
-                .padding(.leading, 4)
+        if isCompact {
+            // On a phone the page sits in a navigation stack whose bar holds
+            // the way back, so the title goes to that bar and the bar stays.
+            HStack {
+                Spacer()
+                headerControls
             }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .navigationTitle(title)
+        } else {
+            HStack {
+                Text(title)
+                    .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+
+                Spacer()
+
+                headerControls
+            }
+            .padding()
+            #if os(iOS)
+            .toolbar(.hidden, for: .navigationBar)
+            #endif
         }
-        .padding()
-        #if os(iOS)
-        .toolbar(.hidden, for: .navigationBar)
-        #endif
+    }
+
+    @ViewBuilder
+    private var headerControls: some View {
+        headerTrailing()
+
+        HStack(spacing: 8) {
+            Button {
+                displayYear -= 1
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+
+            Text(String(displayYear))
+                .font(.body.weight(.medium))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+
+            Button {
+                displayYear += 1
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+
+            Button("Today") {
+                scrollToToday()
+            }
+            .font(.subheadline.weight(.medium))
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
+            .padding(.leading, 4)
+        }
     }
 
     // MARK: - Grid
@@ -186,7 +207,7 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
         programmaticScrollInFlight = true
         suppressYearScroll = true
         displayYear = AppCalendar.shared.component(.year, from: Date())
-        proxy.scrollTo(target, anchor: .leading)
+        proxy.scrollTo(target, anchor: .topLeading)
         Task {
             try? await Task.sleep(for: .milliseconds(500))
             programmaticScrollInFlight = false
@@ -200,7 +221,7 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
         suppressYearScroll = true
         displayYear = AppCalendar.shared.component(.year, from: Date())
         withAnimation(.easeInOut(duration: 0.3)) {
-            proxy.scrollTo(target, anchor: .leading)
+            proxy.scrollTo(target, anchor: .topLeading)
         }
         Task {
             try? await Task.sleep(for: .milliseconds(500))
@@ -208,15 +229,29 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
         }
     }
 
+    /// The column scrolled to the leading edge: two months back, so a wide
+    /// window shows the recent past beside today. A phone shows only two
+    /// columns, and two months back left today off screen, so it starts on
+    /// this month. (The anchors are `.topLeading`: `.leading` also centered
+    /// the grid vertically, which scrolled the month names off the top.)
     private func todayOffsetTarget() -> MonthID {
         let cal = AppCalendar.shared
         let now = Date()
         let y = cal.component(.year, from: now)
         let m = cal.component(.month, from: now)
-        if m > 2 {
-            return MonthID(year: y, month: m - 2)
+        let monthsBack = isCompact ? 0 : 2
+        if m > monthsBack {
+            return MonthID(year: y, month: m - monthsBack)
         } else {
-            return MonthID(year: y - 1, month: m + 10)
+            return MonthID(year: y - 1, month: m + 12 - monthsBack)
         }
+    }
+
+    private var isCompact: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
     }
 }

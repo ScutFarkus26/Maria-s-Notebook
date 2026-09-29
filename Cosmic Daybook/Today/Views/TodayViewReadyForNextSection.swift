@@ -17,10 +17,12 @@ import CoreData
 
 extension TodayView {
     var readyForNextListSection: some View {
+        // Today's parent passes are skipped when the queue is the same value:
+        // SwiftUI compares a view that holds non-trivial state with its own
+        // `Equatable` conformance (below). Not `.equatable()` — inside a List
+        // the `EquatableView` wrapper is a row of its own, so an empty queue
+        // left a blank card on Today.
         ReadyForNextSectionView(items: viewModel.readyForNext)
-            // Skip Today's parent passes when the queue is the same value;
-            // the catalog and roster reads below still invalidate it.
-            .equatable()
     }
 }
 

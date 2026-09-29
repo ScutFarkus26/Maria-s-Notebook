@@ -64,7 +64,9 @@ struct BookClubPacketsListView: View {
             isLibraryEmpty: packets.isEmpty,
             emptyTitle: "No book club packets yet",
             filteredTitle: "No packets match your filters",
-            hint: "Drag a PDF here, or use Add Packet, to import a book club packet.",
+            hint: PlatformIdiom.isPhone
+                ? "Use Add Packet to import a book club packet."
+                : "Drag a PDF here, or use Add Packet, to import a book club packet.",
             clearFilters: { viewModel.clearAll() },
             footer: { EmptyView() }
         )

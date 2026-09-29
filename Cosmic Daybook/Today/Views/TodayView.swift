@@ -61,6 +61,7 @@ struct TodayView: View {
 
     #if os(iOS)
     let pullToRefreshTip = PullToRefreshTip()
+    @Environment(\.isSampleClassroom) var isSampleClassroom
     #endif
 
     // MARK: - Meeting State

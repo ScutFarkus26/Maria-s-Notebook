@@ -374,7 +374,7 @@ extension TodoMainView {
                     .foregroundStyle(.secondary)
 
                 if selectedTag == nil && selectedFolder == nil && (selectedFilter == .inbox || selectedFilter == .all) {
-                    Text("Press \(Image(systemName: "command")) N to add a new task")
+                    Self.newTaskHint
                         .font(.system(size: 14))
                         .foregroundStyle(.tertiary)
                 }

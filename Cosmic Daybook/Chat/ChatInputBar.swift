@@ -9,6 +9,19 @@ struct ChatInputBar: View {
 
     @State private var sendButtonScale: CGFloat = 1.0
     @State private var sendButtonRotation: Double = 0
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// Room on the trailing side for the floating quick-capture button, which
+    /// on a phone sits level with this bar and covered the send button.
+    private var trailingClearance: CGFloat {
+        #if os(iOS)
+        horizontalSizeClass == .compact ? 64 : 0
+        #else
+        0
+        #endif
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,6 +90,7 @@ struct ChatInputBar: View {
                 )
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.trailing, trailingClearance)
             .padding(.vertical, AppTheme.Spacing.compact)
         }
     }

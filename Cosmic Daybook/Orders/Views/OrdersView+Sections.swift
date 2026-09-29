@@ -16,9 +16,11 @@ extension OrdersView {
                     .font(.title2)
                     .foregroundStyle(isDropTargeted ? Color.accentColor : .secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Drag a link here")
+                    Text(PlatformIdiom.isPhone ? "Add a link" : "Drag a link here")
                         .font(.headline)
-                    Text("From Safari or any browser — or paste one below.")
+                    Text(PlatformIdiom.isPhone
+                         ? "Copy a page's link in Safari, then paste it below."
+                         : "From Safari or any browser — or paste one below.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -176,7 +178,8 @@ extension OrdersView {
                 .foregroundStyle(.secondary)
             Text("Nothing to Order")
                 .font(.title2.weight(.semibold))
-            Text("Drop a link to something your classroom needs. When you're ready, "
+            Text((PlatformIdiom.isPhone ? "Add" : "Drop")
+                 + " a link to something your classroom needs. When you're ready, "
                  + "Draft Request writes the office one email asking for all of it.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

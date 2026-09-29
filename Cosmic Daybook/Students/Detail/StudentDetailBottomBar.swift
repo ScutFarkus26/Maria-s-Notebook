@@ -15,7 +15,22 @@ struct StudentDetailBottomBar: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     let onDone: () -> Void
-    
+
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+
+    /// On a phone the floating quick-capture button sits in the bottom-trailing
+    /// corner, right over trailing-aligned buttons, so they line up on the
+    /// leading side there instead.
+    private var alignsLeading: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
     var body: some View {
         // Hide the bar if we're not editing and not on overview
         // (only "Done" would show, which is redundant on iPad/Mac)
@@ -23,11 +38,16 @@ struct StudentDetailBottomBar: View {
             VStack(spacing: 0) {
                 Divider()
                 HStack {
-                    Spacer()
+                    if !alignsLeading {
+                        Spacer()
+                    }
                     if isEditing {
                         editingButtons
                     } else {
                         viewingButtons
+                    }
+                    if alignsLeading {
+                        Spacer()
                     }
                 }
                 .padding(.horizontal, 20)

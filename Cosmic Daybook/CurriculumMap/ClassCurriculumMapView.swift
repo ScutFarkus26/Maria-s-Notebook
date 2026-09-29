@@ -63,62 +63,99 @@ struct ClassCurriculumMapView: View {
     // MARK: - Controls
 
     private var controls: some View {
+        // Each row keeps one line where it fits. On a phone the legend's labels
+        // were squeezed to nothing beside the child count (a tall blank band),
+        // and an area's extra controls ran off the screen, so both rows fall
+        // back to a stacked form there.
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Menu {
-                    Button("All areas") { area = nil }
-                    Divider()
-                    ForEach(model.areas, id: \.self) { name in
-                        Button(name) { area = name }
-                    }
-                } label: {
-                    Label(area ?? "All areas", systemImage: "square.grid.2x2")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    scopeMenus
+                    Spacer()
+                    rowControls
                 }
-                if area != nil, !model.sequences.isEmpty {
-                    Menu {
-                        Button("All sequences") { sequence = nil }
-                        Divider()
-                        ForEach(model.sequences, id: \.self) { name in
-                            Button(name.isEmpty ? "Other" : name) { sequence = name }
-                        }
-                    } label: {
-                        Label(
-                            sequence.map { $0.isEmpty ? "Other" : $0 } ?? "All sequences",
-                            systemImage: "list.bullet.indent"
-                        )
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        scopeMenus
                     }
-                }
-                Spacer()
-                if area != nil {
-                    Picker("Rows", selection: $granularityRaw) {
-                        Text(CurriculumGranularity.keyLessons.label).tag(CurriculumGranularity.keyLessons.rawValue)
-                        Text(CurriculumGranularity.allLessons.label).tag(CurriculumGranularity.allLessons.rawValue)
+                    HStack(spacing: 12) {
+                        rowControls
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(maxWidth: 220)
-                }
-                Menu {
-                    Button("Any state") { stateFilter = nil }
-                    Divider()
-                    ForEach(CurriculumCellState.allCases, id: \.rawValue) { state in
-                        Button(state.label) { stateFilter = state }
-                    }
-                } label: {
-                    Label(stateFilter.map { "Rows with a child \($0.label.lowercased())" } ?? "Any state",
-                          systemImage: "line.3.horizontal.decrease.circle")
                 }
             }
-            HStack {
-                CurriculumLegend()
-                Spacer()
-                Text("\(model.columns.count) children, oldest cohort first")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    CurriculumLegend()
+                    Spacer()
+                    childCount
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    ScrollView(.horizontal) {
+                        CurriculumLegend()
+                    }
+                    .scrollIndicators(.hidden)
+                    childCount
+                }
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var scopeMenus: some View {
+        Menu {
+            Button("All areas") { area = nil }
+            Divider()
+            ForEach(model.areas, id: \.self) { name in
+                Button(name) { area = name }
+            }
+        } label: {
+            Label(area ?? "All areas", systemImage: "square.grid.2x2")
+        }
+        if area != nil, !model.sequences.isEmpty {
+            Menu {
+                Button("All sequences") { sequence = nil }
+                Divider()
+                ForEach(model.sequences, id: \.self) { name in
+                    Button(name.isEmpty ? "Other" : name) { sequence = name }
+                }
+            } label: {
+                Label(
+                    sequence.map { $0.isEmpty ? "Other" : $0 } ?? "All sequences",
+                    systemImage: "list.bullet.indent"
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var rowControls: some View {
+        if area != nil {
+            Picker("Rows", selection: $granularityRaw) {
+                Text(CurriculumGranularity.keyLessons.label).tag(CurriculumGranularity.keyLessons.rawValue)
+                Text(CurriculumGranularity.allLessons.label).tag(CurriculumGranularity.allLessons.rawValue)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 220)
+        }
+        Menu {
+            Button("Any state") { stateFilter = nil }
+            Divider()
+            ForEach(CurriculumCellState.allCases, id: \.rawValue) { state in
+                Button(state.label) { stateFilter = state }
+            }
+        } label: {
+            Label(stateFilter.map { "Rows with a child \($0.label.lowercased())" } ?? "Any state",
+                  systemImage: "line.3.horizontal.decrease.circle")
+        }
+    }
+
+    private var childCount: some View {
+        Text("\(model.columns.count) children, oldest cohort first")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     // MARK: - Content

@@ -42,7 +42,9 @@ struct StoriesRootView: View {
             isLibraryEmpty: stories.isEmpty,
             emptyTitle: "No stories yet",
             filteredTitle: "No stories match your filters",
-            hint: "Drag a PDF here, or use Add PDF, to import a story.",
+            hint: PlatformIdiom.isPhone
+                ? "Use Add PDF to import a story."
+                : "Drag a PDF here, or use Add PDF, to import a story.",
             clearFilters: { filterState.clearAll() },
             footer: {
                 if !StoryAnalyzer.isAIEnabled {

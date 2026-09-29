@@ -60,6 +60,7 @@ struct ParentReportsQueueView: View {
                 )
             }
         }
+        .quickCaptureButtonClearance()
         .navigationTitle("Parent Reports")
         .sheet(item: $selectedStudent) { student in
             ParentReportDraftEditorView(student: student, month: month) {
