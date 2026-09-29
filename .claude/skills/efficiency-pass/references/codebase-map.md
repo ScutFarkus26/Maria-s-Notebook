@@ -40,6 +40,7 @@ hot paths are, and what has been checked and should not be re-litigated.
 | Preceding-lesson lookups in a loop | `BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)` | Services |
 | Entity-scoped reaction to remote changes | `PersistentHistoryProcessor.readHistory(after:author:in:)`, one position per store (the actor posts `.schoolDayDataDidChange` etc.) | `Services/PersistentHistoryProcessor+StoreHistory.swift` |
 | Classroom-share attach | `SharedStoreOrphanGuard` attaches only what a view-context save inserted (no table scans; zone repair and its history gate were removed 2026-09-28); `ClassroomShareAttach` does the chunked, off-main `share(_:to:)` | `AppCore/`, `Sharing/` |
+| A store's CKShares without blocking the main thread (`fetchShares(in:)` waits while sync holds the store) | `ClassroomShareAttach.shares(inStoreWithIdentifier:container:)` (`@concurrent`); `classroomShare(inStoreWithIdentifier:…)` adds the pinned-share choice on the caller's actor | `Sharing/ClassroomShareAttach.swift` |
 | Launch repairs | `MigrationRunner.runIfNeeded(coreDataStack:includeIntegrityRepairs:)`: every launch repair in one background-context pass (the two whole-table assignment repairs one launch in ten, as before); nothing on the view context | `Services/MigrationRunner.swift` |
 | Delete old per-day rows | `TodayRetentionCleanup.startIfDue(for:)`: background context at `.utility`, once per store per day (`TodayRetentionCleanupGate`), same cutoff and caps as the old main-thread cleanup | `Today/Support/TodayRetentionCleanup.swift` |
 | Launch timing | `LaunchSignposts.begin/end` (category `Launch`) | `Utils/LaunchSignposts.swift` |
@@ -145,6 +146,23 @@ The twelve rules added that day flag these on main 20e21cbd; each is a real cand
 - `open_window_call`: the Keyboard Shortcuts `WindowGroup` (pressing ⌘/ twice opens a second
   window; a `Window` scene would not).
 
+## Daybook Assistant (2026-09-29 pass)
+
+`perf-baselines/2026-09-29-assistant-grid-redraws.md`. A trip away from the app and back cost 110
+tile body passes (22 tiles × 5) on the SE simulator with nothing changed; now 0. Fixed: `Row` is
+`Equatable` (no-change reloads, including most import reloads, no longer announce `rows`),
+`AssistantReloadOnReturn` owns the scene phase, and the share lookup after a first mark runs off
+the main actor. Measure it again the same way: Sample
+Class (`-AssistantSampleClass`), a temporary counter in the tile's `body`, `simctl launch
+--console-pty`, and trips via `simctl launch com.apple.Preferences` / the Assistant.
+
+Left alone: `markUnmarkedAbsent` fetches once per child (22 ms for 16 on the simulator, once a
+morning, shared with the notebook's Mark All Present); the import reloader still reloads in the
+background (fetches only now); the Assistant mirrors its private store to its own CloudKit database
+(a second mirroring delegate for a membership row; whether it needs to sync is Danny's call);
+`SharedStoreOrphanGuard.flush` in the notebook still calls the synchronous
+`ClassroomShareAttach.classroomShare(in:)` on the main actor (the async form is there now).
+
 ## Verified OK on 2026-09-10 (do not re-audit unless the code changed)
 
 All `repeatForever` animations are gated or bounded (wrong for the two Settings sync spinners: keyed
@@ -231,6 +249,14 @@ image caches are bounded; `NWPathMonitor` is a single shared instance with a can
   (five failures that each test file alone never showed).
 - Off the main thread, `.background` QoS work waited up to 50 s while builds loaded the Mac
   (2026-09-26). Use `.utility` for work a test or the guide waits on.
+- The `@Observable` macro (Swift 6.2+) skips notifying when an `Equatable` property is set to an
+  equal value, and notifies on every set otherwise. A model that rebuilds an array of rows on each
+  reload redraws its screen every time unless the row type is `Equatable`, and then every value a
+  row's view shows must be copied into the row (a name read through a managed object would go stale).
+- `@Environment(\.scenePhase)` read in a large view's `body` re-evaluates it four times per trip
+  to the background and back; keep it in a small `ViewModifier` that owns the `onChange`. A row that
+  reads `colorScheme` in `body` redraws for each of iOS's light and dark app-switcher snapshots; a
+  `ShapeStyle` whose `resolve(in:)` reads it draws the same without a body pass.
 - `PersistentHistoryProcessor` keeps one history token for the two-store container, and from
   then on reads only that token's store. If the newest transaction when its cursor was empty
   came from the shared store, it stops seeing private-store imports (no post-import dedup, no

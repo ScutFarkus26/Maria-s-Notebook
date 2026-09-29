@@ -43,7 +43,7 @@ struct AssistantAttendanceTile: View {
                 // A short name stays on one line, shrinking rather than
                 // wrapping: one taller tile makes its whole row taller and
                 // pushes the last row off the screen.
-                Text(usesShortName ? row.shortName : row.student.fullName)
+                Text(usesShortName ? row.shortName : row.name)
                     .font(.body.weight(.medium))
                     .lineLimit(usesShortName ? 1 : 2)
                     .minimumScaleFactor(usesShortName ? 0.7 : 0.85)
@@ -79,7 +79,7 @@ struct AssistantAttendanceTile: View {
         }
         .onChange(of: row.status) { showsHoldHint = false }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(row.student.fullName), \(markSummary ?? row.status.displayName)")
+        .accessibilityLabel("\(row.name), \(markSummary ?? row.status.displayName)")
         .accessibilityValue(row.note)
         .accessibilityHint(canMark ? tapHint : "")
         .accessibilityAddTraits(.isButton)

@@ -27,9 +27,18 @@ final class AssistantAttendanceViewModel {
     /// The record's values are copied in when the day loads, not read through
     /// it: a tile handed the same record object after its status changed would
     /// look unchanged to SwiftUI and keep its old color.
-    struct Row: Identifiable {
+    ///
+    /// Equatable so that a reload which finds nothing new (most imports touch
+    /// other days or other entities, and every return to the app reloads)
+    /// leaves `rows` unannounced and the grid undrawn: `@Observable` skips
+    /// notifying for an Equatable value set to an equal one. Everything a tile
+    /// shows is a copied value here, the names included, so equal rows draw
+    /// identically.
+    struct Row: Identifiable, Equatable {
         let student: CDStudent
         let id: UUID
+        /// The student's full name when the day loaded.
+        let name: String
         let status: AttendanceStatus
         let absenceReason: AbsenceReason
         /// The day's note, shared with the guide.
@@ -43,6 +52,7 @@ final class AssistantAttendanceViewModel {
             self.student = student
             self.shortName = shortName
             self.id = student.id ?? UUID()
+            self.name = student.fullName
             self.status = record?.status ?? .unmarked
             self.absenceReason = record?.absenceReason ?? .none
             self.note = record?.note ?? ""

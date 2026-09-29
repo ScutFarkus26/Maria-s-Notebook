@@ -36,12 +36,17 @@ extension CDAttendanceStore {
             $0.configurationName == CoreDataStack.sharedConfiguration
         }
         let permanent = ids.filter { !$0.isTemporaryID && $0.persistentStore === sharedStore }
-        guard let sharedStore, !permanent.isEmpty else { return }
+        guard let sharedStore, let sharedStoreID = sharedStore.identifier, !permanent.isEmpty else { return }
 
+        // Read off the main actor: this runs right after the save that created
+        // the records, while CloudKit's export of that save may hold the store.
         let share: CKShare?
         do {
-            share = try ClassroomShareAttach.classroomShare(
-                in: sharedStore, container: container, pinContext: pinContext, onlyShareFallback: true
+            share = try await ClassroomShareAttach.classroomShare(
+                inStoreWithIdentifier: sharedStoreID,
+                container: container,
+                pinContext: pinContext,
+                onlyShareFallback: true
             )
         } catch {
             shareLogger.error("Couldn't read the classroom share: \(error.localizedDescription, privacy: .public)")

@@ -55,6 +55,40 @@ nonisolated enum ClassroomShareAttach {
         onlyShareFallback: Bool = false
     ) throws -> CKShare? {
         let shares = try container.fetchShares(in: store)
+        return choose(among: shares, pinContext: pinContext, onlyShareFallback: onlyShareFallback)
+    }
+
+    /// The same answer with the shares read off the caller's actor, for a
+    /// caller on the main actor. `pinContext` is read on the caller's actor.
+    static func classroomShare(
+        inStoreWithIdentifier storeIdentifier: String,
+        container: NSPersistentCloudKitContainer,
+        pinContext: NSManagedObjectContext,
+        onlyShareFallback: Bool = false
+    ) async throws -> CKShare? {
+        let shares = try await shares(inStoreWithIdentifier: storeIdentifier, container: container)
+        return choose(among: shares, pinContext: pinContext, onlyShareFallback: onlyShareFallback)
+    }
+
+    /// `container.fetchShares(in:)` for the store with `storeIdentifier`, off
+    /// the caller's actor: it is a synchronous read of the store's CloudKit
+    /// metadata, which waits while an export or import holds the store, and so
+    /// stalls the UI mid-sync when run on the main thread.
+    @concurrent
+    static func shares(
+        inStoreWithIdentifier storeIdentifier: String,
+        container: NSPersistentCloudKitContainer
+    ) async throws -> [CKShare] {
+        let stores = container.persistentStoreCoordinator.persistentStores
+        guard let store = stores.first(where: { $0.identifier == storeIdentifier }) else { return [] }
+        return try container.fetchShares(in: store)
+    }
+
+    private static func choose(
+        among shares: [CKShare],
+        pinContext: NSManagedObjectContext,
+        onlyShareFallback: Bool
+    ) -> CKShare? {
         if let pinned = CDClassroomMembership.classroomShare(among: shares, in: pinContext) {
             return pinned
         }

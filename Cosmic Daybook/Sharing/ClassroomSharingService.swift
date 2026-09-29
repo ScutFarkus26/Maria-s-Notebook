@@ -173,20 +173,11 @@ final class ClassroomSharingService {
             publishParticipants(of: nil)
             return
         }
-        let shares = try await Self.fetchShares(in: container, storeIdentifier: storeID)
+        let shares = try await ClassroomShareAttach.shares(inStoreWithIdentifier: storeID, container: container)
         guard !Task.isCancelled else { return }
         let found = CDClassroomMembership.classroomShare(among: shares, in: context)
         publishShare(found)
         publishParticipants(of: found)
-    }
-
-    @concurrent
-    private nonisolated static func fetchShares(
-        in container: NSPersistentCloudKitContainer, storeIdentifier: String
-    ) async throws -> [CKShare] {
-        let stores = container.persistentStoreCoordinator.persistentStores
-        guard let store = stores.first(where: { $0.identifier == storeIdentifier }) else { return [] }
-        return try container.fetchShares(in: store)
     }
 
     private func publishParticipants(of share: CKShare?) {

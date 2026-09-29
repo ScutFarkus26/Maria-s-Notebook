@@ -29,10 +29,6 @@ struct AssistantAttendanceView: View {
     /// foreground.
     @State private var lateUndo: LateUndo?
     @Namespace private var phaseNamespace
-    /// Whether the screen was on today when the app last left the foreground:
-    /// only then does coming back move it on to the new today.
-    @State private var followsToday = true
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     /// The top safe area outside the navigation bar: 20 on a phone with a
     /// home button (the SE), 0 once its status bar is hidden, 44 or more
@@ -77,7 +73,7 @@ struct AssistantAttendanceView: View {
         }
         .sheet(item: $noteRow) { row in
             AttendanceNoteSheet(
-                studentName: row.student.fullName,
+                studentName: row.name,
                 initialText: row.note,
                 sharedWith: "Your guide sees this note too.",
                 onSave: { viewModel?.setNote($0, for: row) }
@@ -101,23 +97,10 @@ struct AssistantAttendanceView: View {
         .onChange(of: noteRow?.id) { _, editing in
             viewModel?.pauseRemoteReloads(editing != nil)
         }
-        .onChange(of: scenePhase) { oldPhase, phase in
-            if phase != .active { lateUndo = nil }
-            guard let viewModel else { return }
-            if phase == .active {
-                // Left open overnight on today, the screen moves on to the new
-                // today; left on another day, it stays there.
-                if followsToday, !viewModel.isToday {
-                    viewModel.load(Date())
-                } else {
-                    viewModel.load()
-                }
-            } else if oldPhase == .active {
-                // Noted on the way out only: coming back passes through
-                // .inactive after midnight, when "today" has already moved.
-                followsToday = viewModel.isToday
-            }
-        }
+        .modifier(AssistantReloadOnReturn(viewModel: viewModel) {
+            // The undo line goes when the app leaves the foreground.
+            if lateUndo != nil { lateUndo = nil }
+        })
     }
 
     /// The sample class marks under no one's name, so it doesn't ask.
