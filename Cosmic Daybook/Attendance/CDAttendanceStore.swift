@@ -77,6 +77,14 @@ struct CDAttendanceStore {
         record.modifiedAt = Date()
     }
 
+    /// Sets the status and dates it: `markedAt` is when this status was set,
+    /// and unmarked has none.
+    private func mark(_ record: CDAttendanceRecord, as status: AttendanceStatus, at now: Date) {
+        record.status = status
+        record.markedAt = status == .unmarked ? nil : now
+        stamp(record)
+    }
+
     // Fetch all records for a normalized date.
     private func fetchRecords(for normalizedDate: Date) throws -> [CDAttendanceRecord] {
         let request = CDFetchRequest(CDAttendanceRecord.self)
@@ -121,10 +129,8 @@ struct CDAttendanceStore {
     @discardableResult
     func updateStatus(_ record: CDAttendanceRecord, to newStatus: AttendanceStatus) -> Bool {
         guard canWrite(on: record.date) else { return false }
-        let old = record.status
-        record.status = newStatus
-        guard old != newStatus else { return false }
-        stamp(record)
+        guard record.status != newStatus else { return false }
+        mark(record, as: newStatus, at: Date())
         return true
     }
 
@@ -159,16 +165,34 @@ struct CDAttendanceStore {
     @discardableResult
     func markAllPresent(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
         guard canWrite(on: date) else { return [] }
+        let now = Date()
         var records: [CDAttendanceRecord] = []
         for student in students {
             guard let rec = try ensureRecord(for: student, on: date) else { continue }
             if rec.status != .present {
-                rec.status = .present
-                stamp(rec)
+                mark(rec, as: .present, at: now)
             }
             records.append(rec)
         }
         return records
+    }
+
+    /// Marks every student still unmarked on `date` absent, creating records
+    /// for those without one: the moment the morning's arrival window closes.
+    /// Anyone already marked keeps their mark. Returns only the records it
+    /// changed, so the caller can undo exactly those. Callers save afterwards.
+    @discardableResult
+    func markUnmarkedAbsent(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
+        guard canWrite(on: date) else { return [] }
+        let now = Date()
+        var changed: [CDAttendanceRecord] = []
+        for student in students {
+            guard let rec = try ensureRecord(for: student, on: date),
+                  rec.status == .unmarked else { continue }
+            mark(rec, as: .absent, at: now)
+            changed.append(rec)
+        }
+        return changed
     }
 
     #if !ASSISTANT_APP
@@ -183,10 +207,9 @@ struct CDAttendanceStore {
         var records: [CDAttendanceRecord] = []
         for rec in try loadRecords(for: date) where studentIDs.contains(rec.studentID) {
             if rec.status != .unmarked || rec.absenceReason != .none || rec.note != nil {
-                rec.status = .unmarked
                 rec.absenceReason = .none
                 rec.note = nil
-                stamp(rec)
+                mark(rec, as: .unmarked, at: Date())
             }
             records.append(rec)
         }

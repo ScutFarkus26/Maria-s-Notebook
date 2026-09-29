@@ -21,6 +21,10 @@ nonisolated public class CDAttendanceRecord: NSManagedObject {
     /// CloudKit withholds your own name from you, so it cannot be looked up.
     @NSManaged public var recordedByName: String?
     @NSManaged public var modifiedAt: Date?
+    /// When the current status was set: "arrived 8:12". Unlike `modifiedAt`,
+    /// a note edit leaves it alone. Nil while unmarked, and on records marked
+    /// before it existed. Written by `CDAttendanceStore` with the status.
+    @NSManaged public var markedAt: Date?
     /// The day's attendance note ("dentist, back by 11"). It lives on the
     /// record, not in the private notes, so the guide and an assistant share
     /// it; write it through `CDAttendanceStore.updateNote`.

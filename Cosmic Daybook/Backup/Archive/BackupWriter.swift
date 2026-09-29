@@ -75,7 +75,9 @@ nonisolated public enum BackupWriter {
     ///   `studentID` carries the link as before.
     /// - v31: `SupplyTransaction` entries, each supply's stock history. Purely
     ///   additive; a v30 reader would skip them silently, hence the version.
-    public static let formatVersion: Int = 31
+    /// - v32: `AttendanceRecord` entries carry `markedAt`, when the current
+    ///   status was set (schema 10). Purely additive.
+    public static let formatVersion: Int = 32
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

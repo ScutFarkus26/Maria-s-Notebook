@@ -62,8 +62,9 @@ nonisolated public enum BackupReader {
     /// container, new entries simply absent). v28 adds `photos/<filename>`
     /// entries (`BackupPhotos`), which a v27 reader would reject as an
     /// unexpected path — hence the version. v29 adds `note` to attendance
-    /// entries; v30 attendance day locks; v31 supply transactions.
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...31
+    /// entries; v30 attendance day locks; v31 supply transactions; v32 `markedAt`
+    /// on attendance entries.
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...32
 
     // MARK: - Public API
 

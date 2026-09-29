@@ -76,7 +76,10 @@ extension CoreDataStack {
     ///   StudentTrackEnrollment relationship removed (it pulled tracks, steps
     ///   and lessons into any share a student joined; `studentID` remains).
     ///   The Shared configuration shrinks from 33 entity types to 5.
-    nonisolated static let currentSchemaVersion = 9
+    /// - `10` — `AttendanceRecord.markedAt`: when the current status was set,
+    ///   so a tardy reads "8:40" even after a later note edit moves
+    ///   `modifiedAt`. Additive optional Date on the shared entity.
+    nonisolated static let currentSchemaVersion = 10
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"
