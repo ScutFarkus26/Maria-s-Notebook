@@ -38,9 +38,15 @@
 	<string>We need full access to your reminders to sync reminders from a specific list to your Today view.</string>
 	<key>NSRemindersUsageDescription</key>
 	<string>We need access to your reminders to sync reminders from a specific list to your Today view.</string>
+	<!--
+	  The container id is spelled out: Xcode expands $(...) in plist values
+	  but not in dictionary keys, so iCloud.$(CFBundleIdentifier) shipped
+	  literally and iCloud Drive never showed the Cosmic Daybook folder.
+	  iCloud Drive re-reads this only when CFBundleVersion goes up.
+	-->
 	<key>NSUbiquitousContainers</key>
 	<dict>
-		<key>iCloud.$(CFBundleIdentifier)</key>
+		<key>iCloud.DanielSDeBerry.MariasNoteBook</key>
 		<dict>
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>
