@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 import Testing
 @testable import CosmicDaybook
 
@@ -32,9 +33,35 @@ struct AppErrorMessagesTests {
 
     @Test("A full iCloud account is called out by name")
     func cloudKitQuotaExceeded() {
-        let error = NSError(domain: "CKErrorDomain", code: 9)
+        let error = CKError(.quotaExceeded) as NSError
         #expect(AppErrorMessages.userMessage(for: error)
             == "Your iCloud storage is full. Free up space so your data can continue syncing.")
+    }
+
+    @Test("CloudKit codes read as what they are: signed out, offline, a gone zone")
+    func cloudKitCodesMatchTheirNames() {
+        #expect(AppErrorMessages.userMessage(for: CKError(.notAuthenticated) as NSError)
+            == "No iCloud account found. Sign in to iCloud in Settings to sync your data.")
+        #expect(AppErrorMessages.userMessage(for: CKError(.networkFailure) as NSError, context: "joining")
+            == "Couldn't reach iCloud while joining. Your changes are saved locally.")
+        #expect(AppErrorMessages.userMessage(for: CKError(.zoneNotFound) as NSError)
+            == "The shared classroom data isn't available yet. Ask the lead guide to re-share.")
+        #expect(AppErrorMessages.userMessage(for: CKError(.permissionFailure) as NSError)
+            == "You don't have permission for this action. Check with the lead guide.")
+        #expect(AppErrorMessages.userMessage(for: CKError(.serviceUnavailable) as NSError).hasPrefix(
+            "iCloud is temporarily unavailable."))
+    }
+
+    @Test("A failed join never claims anything was saved")
+    func joinMessages() {
+        #expect(AppErrorMessages.joinMessage(for: CKError(.networkUnavailable))
+            == "This device couldn't reach iCloud to join the classroom.")
+        #expect(AppErrorMessages.joinMessage(for: CKError(.zoneNotFound))
+            == "That invitation's classroom isn't available any longer.")
+        #expect(AppErrorMessages.joinMessage(for: PlainError.boom) == "The classroom couldn't be joined.")
+        for code in [CKError.Code.internalError, .notAuthenticated, .permissionFailure, .quotaExceeded] {
+            #expect(!AppErrorMessages.joinMessage(for: CKError(code)).contains("saved locally"))
+        }
     }
 
     @Test("A pending invitation says to accept it first")

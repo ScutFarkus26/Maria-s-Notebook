@@ -69,26 +69,50 @@ enum AppErrorMessages {
     // MARK: CloudKit errors
 
     /// Codes are `CKError.Code` raw values; CloudKit is not imported here.
+    /// Until 2026-09-29 most of them were off (9, "not signed in", read as a
+    /// full iCloud account; 6, "service unavailable", as not signed in).
     private static func cloudKitMessage(code: Int, activity: String) -> String {
         switch code {
-        case 1: // CKError.internalError
+        case 1, 6, 7: // internalError, serviceUnavailable, requestRateLimited
             return "iCloud is temporarily unavailable. Your changes are saved locally and " +
                 "will sync when iCloud recovers."
-        case 6: // CKError.notAuthenticated
+        case 9: // notAuthenticated
             return "No iCloud account found. Sign in to iCloud in Settings to sync your data."
-        case 9: // CKError.quotaExceeded
+        case 25: // quotaExceeded
             return "Your iCloud storage is full. Free up space so your data can continue syncing."
-        case 3, 7: // CKError.networkUnavailable, networkFailure
+        case 3, 4: // networkUnavailable, networkFailure
             return "Couldn't reach iCloud while \(activity). Your changes are saved locally."
-        case 11: // CKError.zoneNotFound
+        case 26, 28: // zoneNotFound, userDeletedZone
             return "The shared classroom data isn't available yet. Ask the lead guide to re-share."
-        case 15: // CKError.permissionFailure
+        case 10: // permissionFailure
             return "You don't have permission for this action. Check with the lead guide."
-        case 37: // CKError.participantAlreadyInvited (iOS/macOS 26)
+        case 37: // participantAlreadyInvited (iOS/macOS 26)
             return "An invitation is already waiting to be accepted. Open the classroom link " +
                 "to accept it, then try again."
         default:
             return "An iCloud issue prevented \(activity). Your changes are saved locally and will sync later."
+        }
+    }
+
+    /// Why joining a classroom from an invitation failed. Unlike
+    /// `userMessage` it never says "saved locally": a failed join saves
+    /// nothing and nothing retries it. Each message is one sentence, and the
+    /// screen showing it adds the fix (a fresh invitation).
+    static func joinMessage(for error: Error) -> String {
+        let nsError = error as NSError
+        switch (nsError.domain, nsError.code) {
+        case (NSURLErrorDomain, _), ("CKErrorDomain", 3), ("CKErrorDomain", 4):
+            return "This device couldn't reach iCloud to join the classroom."
+        case ("CKErrorDomain", 9):
+            return "This device isn't signed in to iCloud."
+        case ("CKErrorDomain", 1), ("CKErrorDomain", 6), ("CKErrorDomain", 7):
+            return "iCloud was busy and the join didn't finish."
+        case ("CKErrorDomain", 11), ("CKErrorDomain", 26), ("CKErrorDomain", 28):
+            return "That invitation's classroom isn't available any longer."
+        case ("CKErrorDomain", 10):
+            return "That invitation isn't for this Apple Account."
+        default:
+            return "The classroom couldn't be joined."
         }
     }
 

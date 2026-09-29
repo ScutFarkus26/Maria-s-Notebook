@@ -23,7 +23,7 @@ final class AssistantBootstrapper {
         case starting
         case needsClassroom
         case ready
-        case failed(String)
+        case failed(AssistantStartupProblem)
     }
 
     private(set) var phase: Phase = .starting
@@ -63,7 +63,7 @@ final class AssistantBootstrapper {
                 coreDataStack = try AssistantStack.shared()
                 phase = .ready
             } catch {
-                phase = .failed(error.localizedDescription)
+                phase = .failed(AssistantStartupProblem(error))
             }
             return
         }
@@ -78,7 +78,7 @@ final class AssistantBootstrapper {
             observeAccountChanges()
         } catch {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
-            phase = .failed(error.localizedDescription)
+            phase = .failed(AssistantStartupProblem(error))
         }
     }
 
@@ -110,8 +110,21 @@ final class AssistantBootstrapper {
             install(try AssistantStack.rebuild())
         } catch {
             Self.logger.error("Assistant rebuild failed: \(error.localizedDescription, privacy: .public)")
-            phase = .failed(error.localizedDescription)
+            phase = .failed(AssistantStartupProblem(error))
         }
+    }
+
+    /// The "Can't start" screen's way out: delete this iPhone's copies of the
+    /// class and download them again. Both stores are copies of iCloud, so
+    /// only marks this iPhone hadn't sent yet are lost (the screen says so
+    /// first). Safe to delete here: a failed start leaves no stack holding
+    /// the files (`AssistantStack.shared()` keeps only one that loaded).
+    func rebuildFromICloud() async {
+        guard case .failed = phase else { return }
+        Self.logger.warning("Rebuilding the class from iCloud after a failed start")
+        phase = .starting
+        CoreDataStack.performLocalCacheReset()
+        await start()
     }
 
     /// Re-reads the membership row. Acceptance writes one, and the roster only

@@ -41,12 +41,8 @@ struct AssistantRootView: View {
                 AssistantOnboardingView()
             }
 
-        case .failed(let message):
-            ContentUnavailableView {
-                Label("Can't start", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            }
+        case .failed(let problem):
+            AssistantStartupProblemView(problem: problem)
         }
     }
 }

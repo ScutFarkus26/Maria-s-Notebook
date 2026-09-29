@@ -107,8 +107,8 @@ struct AssistantClassroomSheet: View {
             Text("A soft bell as you mark each child, climbing as the class fills, and a little tune when "
                 + "everyone's marked. The ringer switch silences them.")
         }
-        .onChange(of: bellsOn) { _, on in
-            if on { AssistantBells.shared.play(.here(count: 1)) }
+        .onChange(of: bellsOn) { _, isOn in
+            if isOn { AssistantBells.shared.play(.here(count: 1)) }
         }
     }
 
@@ -199,7 +199,9 @@ struct AssistantClassroomSheet: View {
             try await bootstrapper.leaveClassroom()
             dismiss()
         } catch {
-            leaveError = "Couldn't leave: \(error.localizedDescription)"
+            // CloudKit's own text reads as jargon; the purge only fails on
+            // reaching iCloud, and the class stays until it succeeds.
+            leaveError = "Couldn't leave the classroom. Check that this iPhone is online, then try again."
         }
         isLeaving = false
     }
