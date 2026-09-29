@@ -76,6 +76,47 @@ struct AssistantAttendanceRulesTests {
         #expect(!Model.LatePhaseMemory.isLate(on: monday, defaults: defaults))
     }
 
+    @Test("Switching another day to Late keeps this day's Late")
+    func latePhaseMemoryKeepsEachDay() throws {
+        let defaults = AssistantTestSupport.makeDefaults()
+        let monday = try AssistantTestSupport.day("2026-09-28")
+        let tuesday = try AssistantTestSupport.day("2026-09-29")
+
+        Model.LatePhaseMemory.setLate(true, on: tuesday, defaults: defaults)
+        Model.LatePhaseMemory.setLate(true, on: monday, defaults: defaults)
+        #expect(Model.LatePhaseMemory.isLate(on: tuesday, defaults: defaults))
+        #expect(Model.LatePhaseMemory.isLate(on: monday, defaults: defaults))
+
+        Model.LatePhaseMemory.setLate(false, on: monday, defaults: defaults)
+        #expect(Model.LatePhaseMemory.isLate(on: tuesday, defaults: defaults))
+        #expect(!Model.LatePhaseMemory.isLate(on: monday, defaults: defaults))
+    }
+
+    @Test("Only the most recent days are kept")
+    func latePhaseMemoryIsBounded() throws {
+        let defaults = AssistantTestSupport.makeDefaults()
+        let first = try AssistantTestSupport.day("2026-08-01")
+        let limit = Model.LatePhaseMemory.dayLimit
+        let days = (0...limit).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: first) }
+        for day in days { Model.LatePhaseMemory.setLate(true, on: day, defaults: defaults) }
+
+        #expect(!Model.LatePhaseMemory.isLate(on: first, defaults: defaults))
+        #expect(days.dropFirst().allSatisfy { Model.LatePhaseMemory.isLate(on: $0, defaults: defaults) })
+    }
+
+    @Test("A day remembered before each day kept its own is still Late")
+    func latePhaseMemoryReadsSingleDayKey() throws {
+        let defaults = AssistantTestSupport.makeDefaults()
+        let monday = try AssistantTestSupport.day("2026-09-28")
+        let tuesday = try AssistantTestSupport.day("2026-09-29")
+        defaults.set(tuesday, forKey: "Assistant.latePhaseDay")
+
+        #expect(Model.LatePhaseMemory.isLate(on: tuesday, defaults: defaults))
+        Model.LatePhaseMemory.setLate(true, on: monday, defaults: defaults)
+        #expect(Model.LatePhaseMemory.isLate(on: tuesday, defaults: defaults))
+        #expect(Model.LatePhaseMemory.isLate(on: monday, defaults: defaults))
+    }
+
     // MARK: - Closing arrival
 
     @Test("Closing arrival marks only the unmarked absent, and Undo clears exactly those")
@@ -118,6 +159,26 @@ struct AssistantAttendanceRulesTests {
 
         let relaunched = AssistantTestSupport.viewModel(stack, defaults: defaults)
         #expect(relaunched.phase == .late)
+    }
+
+    @Test("Late survives a trip to another day, so a child tapped in after is tardy")
+    func lateSurvivesAnotherDay() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        AssistantTestSupport.student("Ari", "Cedar", in: stack.viewContext)
+        let today = Calendar.current.startOfDay(for: Date())
+        let model = AssistantTestSupport.viewModel(stack, on: today)
+        model.beginLate()
+
+        // A look back at an earlier day, closing and reopening arrival there.
+        model.load(try AssistantTestSupport.day("2026-09-21"))
+        model.beginLate()
+        model.returnToArrival(undo: true)
+
+        model.load(today)
+        #expect(model.phase == .late)
+        let ari = try #require(model.rows.first)
+        model.tap(ari)
+        #expect(model.rows.first?.status == .tardy)
     }
 
     // MARK: - Days off
