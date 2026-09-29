@@ -26,7 +26,7 @@ final class AssistantAttendanceViewModel {
 
     /// The record's values are copied in when the day loads, not read through
     /// it: a tile handed the same record object after its status changed would
-    /// look unchanged to SwiftUI and keep its old colour.
+    /// look unchanged to SwiftUI and keep its old color.
     struct Row: Identifiable {
         let student: CDStudent
         let id: UUID

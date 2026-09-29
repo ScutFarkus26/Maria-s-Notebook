@@ -8,8 +8,10 @@ import CoreData
 /// tardy. Every mark carries its time.
 ///
 /// The pills, the count and the iCloud line sit in the bottom bar, in thumb
-/// reach and out of the grid's way: on a phone, three columns of short names
-/// fit a class of up to 24 on one screen without scrolling.
+/// reach and out of the grid's way: on a phone, three columns of one-line
+/// tiles fit a class of 22 on an SE without scrolling. On a phone with a home
+/// button the status bar steps aside and the top bar shows its own clock,
+/// which gives the grid those 20 points.
 ///
 /// It opens on today. The ‹ › arrows step through school days (skipping
 /// weekends and the guide's days off), tapping the date opens a picker for any
@@ -32,10 +34,18 @@ struct AssistantAttendanceView: View {
     @State private var followsToday = true
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    /// The top safe area outside the navigation bar: 20 on a phone with a
+    /// home button (the SE), 0 once its status bar is hidden, 44 or more
+    /// beside a notch or Dynamic Island, 24 on an iPad.
+    @State private var topInset: CGFloat = 0
 
     /// Phones: three columns of short names. Wider screens have room for
     /// full names.
     private var usesShortNames: Bool { horizontalSizeClass == .compact }
+
+    /// Only a home-button phone: beside a notch the status bar has its own
+    /// strip that the grid couldn't use anyway.
+    private var hidesStatusBar: Bool { usesShortNames && topInset <= 20 }
 
     var body: some View {
         NavigationStack {
@@ -53,6 +63,8 @@ struct AssistantAttendanceView: View {
                 bottomBar
             }
         }
+        .statusBarHidden(hidesStatusBar)
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
         .sheet(isPresented: $showingNameSheet) {
             AssistantNameSheet()
         }
@@ -130,6 +142,16 @@ struct AssistantAttendanceView: View {
                 dayHeader(viewModel)
             }
         }
+        // Stands in for the hidden status bar's clock, on today only: another
+        // day adds a Today button, and the bar has no room for both.
+        if hidesStatusBar, viewModel?.isToday ?? true {
+            if #available(iOS 26.0, *) {
+                // Plain text, not a glass button beside the name button.
+                clockItem.sharedBackgroundVisibility(.hidden)
+            } else {
+                clockItem
+            }
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
                 showingNameSheet = true
@@ -138,6 +160,19 @@ struct AssistantAttendanceView: View {
                     .labelStyle(.iconOnly)
             }
             .accessibilityLabel("Your name")
+        }
+    }
+
+    private var clockItem: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            TimelineView(.everyMinute) { context in
+                // As the status bar shows it ("8:24 AM"): omitting AM/PM
+                // makes the formatter pad the hour ("08:24").
+                Text(context.date.formatted(date: .omitted, time: .shortened))
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .fixedSize() // iOS 27's toolbar otherwise truncates it to "1:43…".
+            }
         }
     }
 
@@ -153,20 +188,23 @@ struct AssistantAttendanceView: View {
             Button {
                 showingDatePicker = true
             } label: {
-                VStack(spacing: 1) {
-                    HStack(spacing: 4) {
-                        if viewModel.isLocked {
-                            Image(systemName: "lock.fill")
-                                .font(.caption2)
-                                .accessibilityLabel("Locked")
-                        }
-                        Text(viewModel.isToday ? "Today" : "Attendance")
+                // One line: "Today  Tue, Sep 29", or just the date on
+                // another day.
+                HStack(spacing: 5) {
+                    if viewModel.isLocked {
+                        Image(systemName: "lock.fill")
+                            .font(.caption2)
+                            .accessibilityLabel("Locked")
+                    }
+                    if viewModel.isToday {
+                        Text("Today")
                             .font(.headline)
                     }
-                    Text(viewModel.date.formatted(.dateTime.weekday(.wide).month().day()))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    Text(viewModel.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                        .font(viewModel.isToday ? .subheadline : .headline)
+                        .foregroundStyle(viewModel.isToday ? .secondary : .primary)
                 }
+                .lineLimit(1)
                 .foregroundStyle(.primary)
             }
             .accessibilityLabel(viewModel.date.formatted(date: .complete, time: .omitted))
@@ -215,7 +253,7 @@ struct AssistantAttendanceView: View {
                     notices(viewModel)
                     LazyVGrid(
                         columns: [GridItem(.adaptive(minimum: usesShortNames ? 105 : 150), spacing: 10)],
-                        spacing: 10
+                        spacing: usesShortNames ? 8 : 10
                     ) {
                         ForEach(viewModel.rows) { row in
                             tile(row, viewModel: viewModel)
