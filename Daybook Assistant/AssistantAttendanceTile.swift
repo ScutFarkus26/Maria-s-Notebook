@@ -5,7 +5,10 @@ import SwiftUI
 /// one isn't marked yet, a dashed one is absent, and a small corner glyph says
 /// late or left early. Tap to mark (what a tap means depends on the phase and
 /// the day); long-press for every status, Absent with its reason, and a note.
-/// A child with a note shows it, in full, above that menu.
+/// A child with a note shows it, in full, above that menu. On a child's
+/// birthday (or a summer child's half-birthday) the tile gets a party-colored
+/// edge and a cake, and sparkles when they're marked in; a mark's motion is in
+/// `TileTapMotion`.
 ///
 /// Phones show the shortest name that still tells children apart ("Ari", but
 /// "Etty G" and "Etty R": this classroom has two Ettys and two Sarahs). On an
@@ -37,6 +40,10 @@ struct AssistantAttendanceTile: View {
     /// Absent with a reason (`.none` for no reason), in one step.
     let onMarkAbsent: (AbsenceReason) -> Void
     let onNote: () -> Void
+    /// Bumped when everyone's marked, for the ripple across the grid.
+    var rippleTrigger = 0
+    /// How long after the ripple starts this tile's turn comes.
+    var rippleDelay: Double = 0
 
     /// A phone tile's height on an SE, and the least on any phone: 8 rows of
     /// 22 children fit between the SE's top bar and the bottom bar on iOS 26
@@ -65,6 +72,14 @@ struct AssistantAttendanceTile: View {
     /// Bumped by her own taps and menu picks, so the tick answers her touch
     /// and never a mark arriving from another device or a change of day.
     @State private var markTaps = 0
+    /// Where her finger landed, for the green to spread from; nil for a
+    /// menu pick, which spreads from the middle.
+    @State private var tapOrigin: CGPoint?
+    /// Which way her last mark went, for its motion.
+    @State private var tapKind = TileTapMotion.Kind.here
+    /// Bumped when a birthday child is marked in.
+    @State private var sparkleTaps = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isLargeText: Bool { dynamicTypeSize.isAccessibilitySize }
 
@@ -77,7 +92,24 @@ struct AssistantAttendanceTile: View {
 
     var body: some View {
         cardWithMenu
-            .onTapGesture(perform: tap)
+            .onTapGesture(coordinateSpace: .local, perform: tap)
+            .keyframeAnimator(initialValue: TileRipple(), trigger: rippleTrigger) { content, ripple in
+                content
+                    .overlay { shape.fill(.white).opacity(ripple.glow).allowsHitTesting(false) }
+                    .scaleEffect(ripple.scale)
+            } keyframes: { _ in
+                TileRipple.keyframes(delay: rippleDelay, reduceMotion: reduceMotion)
+            }
+            // Outside the menu's shape, which would clip them to the tile.
+            .overlay {
+                Color.clear.keyframeAnimator(initialValue: CGFloat(0), trigger: sparkleTaps) { _, progress in
+                    BirthdaySparkles(progress: progress)
+                } keyframes: { _ in
+                    BirthdaySparkles.keyframes()
+                }
+            }
+            // A birthday child's sparkles draw over the tiles around them.
+            .zIndex(row.birthday == nil ? 0 : 1)
             .animation(.smooth(duration: 0.25), value: row.status)
             .animation(.smooth(duration: 0.2), value: showsHoldHint)
             .sensoryFeedback(.selection, trigger: markTaps)
@@ -88,7 +120,7 @@ struct AssistantAttendanceTile: View {
             }
             .onChange(of: row.status) { showsHoldHint = false }
             .modifier(TileAccessibility(
-                label: "\(row.name), \(markSummary ?? row.status.displayName)",
+                label: accessibilityName,
                 note: row.note,
                 hint: canMark ? voiceOverHint : "",
                 onTap: { if canMark { onTap() } },
@@ -129,10 +161,18 @@ struct AssistantAttendanceTile: View {
         )
         .padding(.horizontal, usesShortName ? 12 : 14)
         .padding(.vertical, usesShortName ? 0 : 12)
-        .background(fill, in: shape)
-        .overlay { border }
-        .overlay(alignment: .topTrailing) { cornerGlyph }
-        .overlay(alignment: .bottomTrailing) { phoneNoteGlyph }
+        .keyframeAnimator(initialValue: TileTapMotion(), trigger: markTaps) { content, motion in
+            content
+                .background {
+                    TileFill(shape: shape, base: baseFill, isHere: isHere, origin: tapOrigin, spread: motion.spread)
+                }
+                .overlay { border }
+                .overlay(alignment: .topTrailing) { cornerGlyph }
+                .overlay(alignment: .bottomTrailing) { phoneNoteGlyph }
+                .scaleEffect(motion.scale)
+        } keyframes: { _ in
+            TileTapMotion.keyframes(for: tapKind, reduceMotion: reduceMotion)
+        }
     }
 
     /// The long-press menu, with the note on top when there is one.
@@ -166,15 +206,24 @@ struct AssistantAttendanceTile: View {
         .frame(width: 300, alignment: .leading)
     }
 
-    private func tap() {
+    private func tap(at location: CGPoint) {
         guard canMark else { return }
-        if tapTarget == nil {
+        if let tapTarget {
+            marked(tapTarget, at: location)
+            onTap()
+        } else {
             showsHoldHint = true
             holdHintTaps += 1
-        } else {
-            markTaps += 1
-            onTap()
         }
+    }
+
+    /// Starts her mark's motion and tick: from her finger for a tap, from
+    /// the middle for a menu pick.
+    func marked(_ status: AttendanceStatus, at location: CGPoint? = nil) {
+        tapOrigin = location
+        tapKind = TileTapMotion.Kind(status)
+        markTaps += 1
+        if row.birthday != nil, tapKind == .here, !reduceMotion { sparkleTaps += 1 }
     }
 
     // MARK: - Pieces
@@ -243,6 +292,8 @@ struct AssistantAttendanceTile: View {
 
     /// Late or left early, in the corner's padding so it takes no room from
     /// the name. A roomy tile has the glyph on its detail line instead.
+    /// A birthday's cake takes the corner when late or left early doesn't
+    /// (a late birthday child still has the party-colored edge).
     @ViewBuilder
     private var cornerGlyph: some View {
         if !isRoomy, let glyph = Self.cornerGlyph(for: row.status) {
@@ -250,6 +301,12 @@ struct AssistantAttendanceTile: View {
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(nameStyle)
                 .padding(6)
+                .accessibilityHidden(true)
+        } else if let birthday = row.birthday {
+            Image(systemName: birthday.symbol)
+                .font((isRoomy ? Font.footnote : .caption2).weight(.bold))
+                .foregroundStyle(isHere ? nameStyle : .pink)
+                .padding(isRoomy ? 8 : 6)
                 .accessibilityHidden(true)
         }
     }
@@ -264,109 +321,6 @@ struct AssistantAttendanceTile: View {
                 .foregroundStyle(nameStyle.opacity(0.7))
                 .padding(6)
                 .accessibilityHidden(true)
-        }
-    }
-}
-
-// MARK: - Menu and accessibility
-
-extension AssistantAttendanceTile {
-
-    /// The header carries what the phone tile has no room for ("Present at
-    /// 8:02 · by you", "Absent, Sick · by your guide"). Then Present, Tardy and
-    /// Left Early; Absent with its reasons in one step; clearing; the note.
-    /// The current choice wears a checkmark in place of its glyph. Ahead of
-    /// the day only Absent and clearing are offered.
-    @ViewBuilder
-    private var menu: some View {
-        if canMark {
-            Section {
-                ForEach(menuStatuses.filter { $0 != .absent && $0 != .unmarked }, id: \.self) { status in
-                    Button {
-                        markTaps += 1
-                        onSetStatus(status)
-                    } label: {
-                        Label(status.displayName, systemImage: status == row.status ? "checkmark" : Self.glyph(status))
-                    }
-                }
-                if menuStatuses.contains(.absent) {
-                    absentMenu
-                }
-            } header: {
-                if let menuHeader { Text(menuHeader) }
-            }
-            if row.status != .unmarked, menuStatuses.contains(.unmarked) {
-                Button("Clear Mark", systemImage: "circle.dashed") {
-                    markTaps += 1
-                    onSetStatus(.unmarked)
-                }
-            }
-            Button(row.note.isEmpty ? "Add Note" : "Edit Note", systemImage: "text.alignleft", action: onNote)
-        }
-    }
-
-    private var menuHeader: String? {
-        guard let markSummary else { return nil }
-        return markedBy.map { "\(markSummary) · by \($0)" } ?? markSummary
-    }
-
-    /// Absent, then why. "Other…" goes on to the note, which says what.
-    private var absentMenu: some View {
-        Menu {
-            absentChoice(.none, title: "No Reason", systemImage: "xmark")
-            ForEach(AbsenceReason.given, id: \.self) { reason in
-                absentChoice(
-                    reason,
-                    title: reason == .other ? "Other…" : reason.displayName,
-                    systemImage: reason.icon
-                )
-            }
-        } label: {
-            Label("Absent", systemImage: row.status == .absent ? "checkmark" : "xmark")
-        }
-    }
-
-    private func absentChoice(_ reason: AbsenceReason, title: String, systemImage: String) -> some View {
-        let isCurrent = row.status == .absent && row.absenceReason == reason
-        return Button {
-            markTaps += 1
-            onMarkAbsent(reason)
-        } label: {
-            Label(title, systemImage: isCurrent ? "checkmark" : systemImage)
-        }
-    }
-
-    // MARK: - Accessibility
-
-    /// "Present at 8:04", "Left Early 8:02 → 1:15", "Absent, Sick", or nil
-    /// while unmarked. Marks made on another day carry no time.
-    private var markSummary: String? {
-        guard row.status != .unmarked else { return nil }
-        var text = row.status.displayName
-        switch row.status {
-        case .absent where row.absenceReason != .none:
-            text += ", \(row.absenceReason.displayName)"
-        case .leftEarly:
-            if let arrived = row.markedAt, let left = row.leftAt {
-                text += " \(Self.clock(arrived)) → \(Self.clock(left))"
-            } else if let left = row.leftAt {
-                text += " at \(Self.clock(left))"
-            }
-        case .present, .tardy:
-            if let markedAt = row.markedAt { text += " at \(Self.clock(markedAt))" }
-        default:
-            break
-        }
-        return text
-    }
-
-    private var voiceOverHint: String {
-        switch tapTarget {
-        case .present: return "Double tap to mark present"
-        case .tardy: return "Double tap to mark tardy"
-        case .absent: return "Double tap to mark absent again"
-        case .unmarked: return "Double tap to clear the mark"
-        default: return "\(tapHint). Touch and hold to change the mark"
         }
     }
 }

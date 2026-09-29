@@ -4,7 +4,8 @@ import CoreData
 import UserNotifications
 
 /// The Assistant's one settings screen, behind the person button: whose
-/// classroom this is and since when, her name, and the way out.
+/// classroom this is and since when, her name, the arrival reminder, the
+/// bells, and the way out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -22,6 +23,7 @@ struct AssistantClassroomSheet: View {
     @AppStorage(ArrivalReminder.enabledKey) private var reminderOn = true
     @AppStorage(ArrivalReminder.timeKey) private var reminderMinutes = ArrivalReminder.defaultMinutes
     @State private var notificationsDenied = false
+    @AppStorage(AssistantBells.enabledKey) private var bellsOn = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +31,7 @@ struct AssistantClassroomSheet: View {
                 classroomSection
                 nameSection
                 reminderSection
+                bellsSection
                 if bootstrapper.sharingService != nil {
                     leaveSection
                 }
@@ -94,6 +97,18 @@ struct AssistantClassroomSheet: View {
             .foregroundStyle(.primary)
         } footer: {
             Text("Shown beside the attendance you take.")
+        }
+    }
+
+    private var bellsSection: some View {
+        Section {
+            Toggle("Bells", isOn: $bellsOn)
+        } footer: {
+            Text("A soft bell as you mark each child, climbing as the class fills, and a little tune when "
+                + "everyone's marked. The ringer switch silences them.")
+        }
+        .onChange(of: bellsOn) { _, on in
+            if on { AssistantBells.shared.play(.here(count: 1)) }
         }
     }
 

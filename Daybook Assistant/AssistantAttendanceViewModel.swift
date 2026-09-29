@@ -55,10 +55,13 @@ final class AssistantAttendanceViewModel {
         let recordedByName: String?
         /// The name on the three-column phone grid: see `gridNames(for:)`.
         let shortName: String
+        /// A birthday or half-birthday on the row's day, for the cake.
+        let birthday: AssistantBirthday?
 
-        init(student: CDStudent, record: CDAttendanceRecord?, shortName: String) {
+        init(student: CDStudent, record: CDAttendanceRecord?, shortName: String, day: Date) {
             self.student = student
             self.shortName = shortName
+            self.birthday = AssistantBirthday.on(day, birthday: student.birthday)
             self.id = student.id ?? UUID()
             self.name = student.fullName
             self.status = record?.status ?? .unmarked
@@ -93,6 +96,10 @@ final class AssistantAttendanceViewModel {
     private(set) var loadGeneration = 0
 
     var unmarkedCount: Int { rows.count { $0.status == .unmarked } }
+    /// Bumped when her own mark (or closing arrival) leaves no one unmarked
+    /// on a day that has arrived: the grid's ripple and the bar's "Everyone's
+    /// here". Never by an import or a change of day.
+    private(set) var completions = 0
     /// The last failed save or bulk mark, else the last failed load. A save
     /// failure outlasts a successful reload (the change is still unsaved);
     /// a load failure clears on the next load that works.
@@ -228,7 +235,8 @@ final class AssistantAttendanceViewModel {
             Row(
                 student: student,
                 record: byStudent[student.id?.uuidString ?? ""],
-                shortName: gridNames[student.objectID] ?? student.shortName
+                shortName: gridNames[student.objectID] ?? student.shortName,
+                day: date
             )
         }
     }
@@ -348,7 +356,9 @@ final class AssistantAttendanceViewModel {
         }
         saveError = nil
         createdSinceSave = []
+        let wasOpen = unmarkedCount > 0
         updateRows(for: records)
+        if wasOpen, unmarkedCount == 0, !rows.isEmpty, !isFuture { completions += 1 }
     }
 
     /// Rebuilds the rows whose student's record is among `records`.
@@ -357,7 +367,7 @@ final class AssistantAttendanceViewModel {
         let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
         rows = rows.map { row in
             guard let key = row.student.id?.uuidString, let record = byStudent[key] else { return row }
-            return Row(student: row.student, record: record, shortName: row.shortName)
+            return Row(student: row.student, record: record, shortName: row.shortName, day: date)
         }
     }
 }

@@ -168,17 +168,4 @@ extension AssistantAttendanceViewModel {
         return parts.joined(separator: " · ")
     }
 
-    /// Why there's no attendance on a day off, in words.
-    static func dayOffText(_ dayOff: DayOff, isToday: Bool) -> String {
-        switch dayOff {
-        case .weekend:
-            return isToday
-                ? "It's the weekend. Attendance opens again on the next school day."
-                : "That's a weekend. Use the arrows to move between school days."
-        case .holiday(let reason?):
-            return "\(reason). No attendance is taken on this day."
-        case .holiday(nil):
-            return "This is a day off on your guide's school calendar."
-        }
-    }
 }

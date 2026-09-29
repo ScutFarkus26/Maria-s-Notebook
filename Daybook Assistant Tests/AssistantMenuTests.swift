@@ -46,7 +46,7 @@ struct AssistantMenuTests {
         record.recordedByID = id
         record.recordedByName = name
         record.markedAt = time
-        return Model.Row(student: student, record: record, shortName: "Ari")
+        return Model.Row(student: student, record: record, shortName: "Ari", day: Date())
     }
 
     @Test("Marked by: you, another assistant, the guide (by name when known)")

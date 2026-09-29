@@ -14,10 +14,18 @@ enum AssistantSampleClass {
     static func makeStack() throws -> CoreDataStack {
         let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
         let context = stack.viewContext
-        for (first, last) in names {
+        let calendar = Calendar.current
+        for (index, (first, last)) in names.enumerated() {
             let student = CDStudent(context: context)
             student.firstName = first
             student.lastName = last
+            // Nine-to-twelve-year-olds born through the year, and Maya's
+            // birthday today, so the cake shows.
+            let age = 9 + index % 4
+            student.birthday = index == 1
+                ? calendar.date(byAdding: .year, value: -age, to: Date())
+                : calendar.date(from: DateComponents(year: calendar.component(.year, from: Date()) - age,
+                                                     month: 1 + (index * 5) % 12, day: 1 + (index * 7) % 28))
         }
         _ = context.safeSave()
         // A fresh class starts the morning fresh.

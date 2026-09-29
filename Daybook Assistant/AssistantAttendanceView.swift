@@ -21,21 +21,30 @@ import CoreData
 /// the date opens a picker for any day, past or future, and Today comes back.
 /// A day the guide has locked shows a lock and read-only rows;
 /// `CDAttendanceStore` refuses edits to it anyway.
+///
+/// The small pleasures: today's grid sits under the color of the sky at this
+/// hour, and turns faintly amber once arrival closes; a mark bounces and its
+/// green spreads from her finger; a birthday child has a cake and sparkles;
+/// when everyone's marked a ripple runs across the grid; and if she turns
+/// them on, soft bells climb the scale as the class fills. None of it moves a
+/// tile or waits to be dismissed.
 struct AssistantAttendanceView: View {
     let coreDataStack: CoreDataStack
     @Environment(AssistantBootstrapper.self) private var bootstrapper
 
-    @State private var viewModel: AssistantAttendanceViewModel?
+    @State var viewModel: AssistantAttendanceViewModel?
     @State private var showingNameSheet = false
-    @State private var showingClassroom = false
-    @State private var showingDatePicker = false
+    @State var showingClassroom = false
+    @State var showingDatePicker = false
     @State private var noteRow: AssistantAttendanceViewModel.Row?
     /// The "Marked 3 absent · Undo" line after closing arrival. It stays
     /// until the next mark, a phase or day change, or the app leaving the
     /// foreground.
     @State private var lateUndo: ArrivalUndo?
     /// Which way the last step through days went, so the grid slides that way.
-    @State private var stepEdge: Edge = .trailing
+    @State var stepEdge: Edge = .trailing
+    /// Bumped when everyone's marked, for the ripple across the grid.
+    @State private var ripples = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     /// The top safe area outside the navigation bar: 20 on a phone with a
     /// home button (the SE), 0 once its status bar is hidden, 44 or more
@@ -57,7 +66,7 @@ struct AssistantAttendanceView: View {
 
     /// Only a home-button phone: beside a notch the status bar has its own
     /// strip that the grid couldn't use anyway.
-    private var hidesStatusBar: Bool { usesShortNames && topInset <= 20 }
+    var hidesStatusBar: Bool { usesShortNames && topInset <= 20 }
 
     /// Three (or more) adaptive columns; two at accessibility text sizes,
     /// where three would cut the time off every tile.
@@ -99,13 +108,10 @@ struct AssistantAttendanceView: View {
                 VStack(spacing: 0) {
                     // Tiles scrolled under the bar fade out rather than sit
                     // half-visible against it.
-                    LinearGradient(
-                        colors: [Color(.systemGroupedBackground).opacity(0), Color(.systemGroupedBackground)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 14)
-                    .allowsHitTesting(false)
+                    AssistantBackdrop.base(isLate: viewModel.map(showsLate) ?? false)
+                        .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
+                        .frame(height: 14)
+                        .allowsHitTesting(false)
                     if let viewModel {
                         AssistantArrivalBar(viewModel: viewModel, coreDataStack: coreDataStack, undo: $lateUndo)
                     }
@@ -113,6 +119,11 @@ struct AssistantAttendanceView: View {
             }
         }
         .statusBarHidden(hidesStatusBar)
+        .sensoryFeedback(.success, trigger: viewModel?.completions)
+        .onChange(of: viewModel?.completions) {
+            ripples += 1
+            AssistantBells.shared.play(.everyoneMarked)
+        }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
         .sheet(isPresented: $showingNameSheet) {
             AssistantNameSheet(isRequired: true)
@@ -188,13 +199,8 @@ struct AssistantAttendanceView: View {
     @ViewBuilder
     private func content(_ viewModel: AssistantAttendanceViewModel) -> some View {
         if let dayOff = viewModel.dayOff {
-            ContentUnavailableView {
-                Label("No School", systemImage: "sun.max")
-            } description: {
-                Text(AssistantAttendanceViewModel.dayOffText(dayOff, isToday: viewModel.isToday))
-            } actions: {
-                Button("Check Again") { viewModel.load() }
-            }
+            AssistantDayOffView(dayOff: dayOff, isToday: viewModel.isToday) { viewModel.load() }
+                .background { AssistantBackdrop(isToday: viewModel.isToday, isLate: false) }
         } else if viewModel.rows.isEmpty {
             ContentUnavailableView {
                 Label("No students yet", systemImage: "person.3")
@@ -210,8 +216,8 @@ struct AssistantAttendanceView: View {
                     AssistantDayNotices(viewModel: viewModel)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { noticesHeight = $0 }
                     LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
-                        ForEach(viewModel.rows) { row in
-                            tile(row, viewModel: viewModel, height: tileHeight)
+                        ForEach(Array(viewModel.rows.enumerated()), id: \.element.id) { index, row in
+                            tile(row, viewModel: viewModel, height: tileHeight, index: index)
                         }
                     }
                 }
@@ -226,7 +232,7 @@ struct AssistantAttendanceView: View {
                 // grid's padding: 16 each side, 8 above, 12 below.
                 CGSize(width: proxy.size.width - 32, height: proxy.size.height - 20)
             } action: { gridSpace = $0 }
-            .background(Color(.systemGroupedBackground))
+            .background { AssistantBackdrop(isToday: viewModel.isToday, isLate: showsLate(viewModel)) }
             .refreshable { viewModel.load() }
             .simultaneousGesture(daySwipe(viewModel))
         }
@@ -236,7 +242,8 @@ struct AssistantAttendanceView: View {
     private func tile(
         _ row: AssistantAttendanceViewModel.Row,
         viewModel: AssistantAttendanceViewModel,
-        height: CGFloat
+        height: CGFloat,
+        index: Int
     ) -> some View {
         AssistantAttendanceTile(
             row: row,
@@ -249,6 +256,7 @@ struct AssistantAttendanceView: View {
             onTap: {
                 lateUndo = nil
                 viewModel.tap(row)
+                ring(for: row, in: viewModel)
             },
             markedBy: AssistantAttendanceViewModel.markerName(
                 for: row,
@@ -259,131 +267,48 @@ struct AssistantAttendanceView: View {
             onSetStatus: {
                 lateUndo = nil
                 viewModel.setStatus($0, for: row)
+                ring(for: row, in: viewModel)
             },
             onMarkAbsent: { reason in
                 lateUndo = nil
                 viewModel.markAbsent(reason: reason, for: row)
+                ring(for: row, in: viewModel)
                 // "Other" is only as good as the note that says what.
                 if reason == .other { noteRow = row }
             },
-            onNote: { noteRow = row }
+            onNote: { noteRow = row },
+            rippleTrigger: ripples,
+            rippleDelay: rippleDelay(at: index)
         )
     }
 
-}
+    /// Late tints the grid only on a day that has arrived.
+    private func showsLate(_ viewModel: AssistantAttendanceViewModel) -> Bool {
+        viewModel.phase == .late && !viewModel.isFuture
+    }
 
-// MARK: - Toolbar and stepping
+    /// The ripple runs row by row, and left to right within a row.
+    private func rippleDelay(at index: Int) -> Double {
+        let columnWidth = usesShortNames ? Self.phoneColumnWidth : 150
+        let columns = dynamicTypeSize.isAccessibilitySize
+            ? 2
+            : max(1, Int((gridSpace.width + gridSpacing) / (columnWidth + gridSpacing)))
+        return Double(index / columns) * 0.07 + Double(index % columns) * 0.035
+    }
 
-extension AssistantAttendanceView {
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            if let viewModel, !viewModel.isToday {
-                Button("Today") { viewModel.load(Date()) }
-            }
-        }
-        ToolbarItem(placement: .principal) {
-            if let viewModel {
-                dayHeader(viewModel)
-            }
-        }
-        // Stands in for the hidden status bar's clock, on today only: another
-        // day adds a Today button, and the bar has no room for both.
-        if hidesStatusBar, viewModel?.isToday ?? true {
-            if #available(iOS 26.0, *) {
-                // Plain text, not a glass button beside the classroom button.
-                clockItem.sharedBackgroundVisibility(.hidden)
-            } else {
-                clockItem
-            }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                showingClassroom = true
-            } label: {
-                Label("Classroom", systemImage: "person.crop.circle")
-                    .labelStyle(.iconOnly)
-            }
-            .accessibilityHint("Your guide, your name, and leaving the classroom")
+    /// Her mark's bell, if she has them on: the next note up for a child
+    /// here, a low one for an absence, nothing for clearing.
+    private func ring(for row: AssistantAttendanceViewModel.Row, in viewModel: AssistantAttendanceViewModel) {
+        guard AssistantBells.isOn, let marked = viewModel.rows.first(where: { $0.id == row.id }) else { return }
+        switch TileTapMotion.Kind(marked.status) {
+        case .here:
+            let here = viewModel.rows.count { [.present, .tardy, .leftEarly].contains($0.status) }
+            AssistantBells.shared.play(.here(count: here))
+        case .away:
+            AssistantBells.shared.play(.away)
+        case .cleared:
+            break
         }
     }
 
-    private var clockItem: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            TimelineView(.everyMinute) { context in
-                // As the status bar shows it ("8:24 AM"): omitting AM/PM
-                // makes the formatter pad the hour ("08:24").
-                Text(context.date.formatted(date: .omitted, time: .shortened))
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                    .fixedSize() // iOS 27's toolbar otherwise truncates it to "1:43…".
-            }
-        }
-    }
-
-    private func dayHeader(_ viewModel: AssistantAttendanceViewModel) -> some View {
-        HStack(spacing: 4) {
-            Button {
-                step(viewModel, forward: false)
-            } label: {
-                Image(systemName: "chevron.left")
-            }
-            .accessibilityLabel("Previous school day")
-
-            Button {
-                showingDatePicker = true
-            } label: {
-                // One line: "Today  Tue, Sep 29", or just the date on
-                // another day.
-                HStack(spacing: 5) {
-                    if viewModel.isLocked {
-                        Image(systemName: "lock.fill")
-                            .font(.caption2)
-                            .accessibilityLabel("Locked")
-                    }
-                    if viewModel.isToday {
-                        Text("Today")
-                            .font(.headline)
-                    }
-                    Text(viewModel.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                        .font(viewModel.isToday ? .subheadline : .headline)
-                        .foregroundStyle(viewModel.isToday ? .secondary : .primary)
-                }
-                .lineLimit(1)
-                .foregroundStyle(.primary)
-            }
-            .accessibilityLabel(viewModel.date.formatted(date: .complete, time: .omitted))
-            .accessibilityHint("Choose another day")
-
-            Button {
-                step(viewModel, forward: true)
-            } label: {
-                Image(systemName: "chevron.right")
-            }
-            .accessibilityLabel("Next school day")
-        }
-    }
-
-    /// A step through school days, the grid sliding in from that side.
-    private func step(_ viewModel: AssistantAttendanceViewModel, forward: Bool) {
-        stepEdge = forward ? .trailing : .leading
-        withAnimation(.smooth(duration: 0.3)) {
-            viewModel.step(forward: forward)
-        }
-    }
-
-    /// A clearly sideways swipe steps a day; anything more vertical is left
-    /// to scrolling, and a long press to the tile's menu.
-    private func daySwipe(_ viewModel: AssistantAttendanceViewModel) -> some Gesture {
-        DragGesture(minimumDistance: 30)
-            .onEnded { value in
-                let dx = value.translation.width
-                let dy = value.translation.height
-                guard abs(dx) > 80, abs(dx) > abs(dy) * 2 else { return }
-                step(viewModel, forward: dx < 0)
-            }
-    }
 }

@@ -8,8 +8,13 @@ import SwiftUI
 /// that asks first, naming exactly who, not a switch. On 2026-09-29 a tap
 /// aimed at a half-hidden bottom tile landed on the old Late pill and marked
 /// nineteen children absent at once. The question doubles as a last look at
-/// who's missing. After closing, a "Late" capsule says what a tap now does,
-/// and its menu reopens arrival.
+/// who's missing. After closing, an amber "Late" capsule says what a tap now
+/// does, and its menu reopens arrival.
+///
+/// Its top edge fills green as children come in (gray for the absent), so
+/// how close the class is shows without reading. Before the first mark of
+/// the day the count's place greets her; when everyone's marked it says so
+/// for a few seconds.
 struct AssistantArrivalBar: View {
     let viewModel: AssistantAttendanceViewModel
     let coreDataStack: CoreDataStack
@@ -17,6 +22,8 @@ struct AssistantArrivalBar: View {
     @Binding var undo: ArrivalUndo?
 
     @State private var confirmingClose = false
+    /// "Everyone's here · 8:14", for a few seconds after the last mark.
+    @State private var finishedLine: String?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Side by side normally; stacked at accessibility sizes, where the count
@@ -51,7 +58,18 @@ struct AssistantArrivalBar: View {
         .padding(.top, 10)
         .padding(.bottom, 6)
         .background(.bar)
+        .overlay(alignment: .top) { fillLine }
         .sensoryFeedback(.impact(weight: .light), trigger: viewModel.phase)
+        .onChange(of: viewModel.completions) {
+            finishedLine = AssistantAttendanceViewModel.completionText(
+                viewModel.rows, at: viewModel.isToday ? Date() : nil
+            )
+        }
+        .task(id: finishedLine) {
+            guard finishedLine != nil, (try? await Task.sleep(for: .seconds(5))) != nil else { return }
+            finishedLine = nil
+        }
+        .onChange(of: viewModel.date) { finishedLine = nil }
         .confirmationDialog(closeTitle, isPresented: $confirmingClose, titleVisibility: .visible) {
             Button("Mark \(unmarkedNames.count) Absent", role: .destructive, action: closeArrival)
         } message: {
@@ -77,6 +95,18 @@ struct AssistantArrivalBar: View {
                 }
                 .minimumScaleFactor(0.8)
                 .transition(.opacity)
+            } else if let finishedLine, viewModel.unmarkedCount == 0 {
+                Label(finishedLine, systemImage: "sparkles")
+                    .foregroundStyle(.primary)
+                    .fontWeight(.medium)
+                    .minimumScaleFactor(0.8)
+                    .transition(.opacity)
+            } else if showsGreeting {
+                ViewThatFits(in: .horizontal) {
+                    greetingText(ClassroomIdentity.displayName)
+                    greetingText(nil)
+                }
+                .transition(.opacity)
             } else {
                 // The full tally, or beside the arrival button when that
                 // won't fit, the short one.
@@ -93,6 +123,44 @@ struct AssistantArrivalBar: View {
         .foregroundStyle(.secondary)
         .lineLimit(1)
         .animation(.smooth(duration: 0.3), value: undo?.id)
+        .animation(.smooth(duration: 0.3), value: finishedLine)
+        .animation(.smooth(duration: 0.3), value: showsGreeting)
+    }
+
+    /// Today, before anyone's marked.
+    private var showsGreeting: Bool {
+        viewModel.isToday && viewModel.dayOff == nil && viewModel.rows.allSatisfy { $0.status == .unmarked }
+    }
+
+    private func greetingText(_ name: String?) -> some View {
+        Text(AssistantGreeting.text(at: Date(), name: name))
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.primary)
+            .fixedSize()
+    }
+
+    /// The class filling up along the bar's top edge: green for here, gray
+    /// for absent, nothing yet for the rest.
+    @ViewBuilder
+    private var fillLine: some View {
+        let rows = viewModel.rows
+        if viewModel.dayOff == nil, !rows.isEmpty {
+            let here = rows.count { [.present, .tardy, .leftEarly].contains($0.status) }
+            let away = rows.count { $0.status == .absent }
+            GeometryReader { proxy in
+                let unit = proxy.size.width / CGFloat(rows.count)
+                HStack(spacing: 0) {
+                    Rectangle().fill(Color.green).frame(width: unit * CGFloat(here))
+                    Rectangle().fill(Color(.tertiaryLabel)).frame(width: unit * CGFloat(away))
+                    Spacer(minLength: 0)
+                }
+            }
+            .frame(height: 3)
+            .animation(.smooth(duration: 0.35), value: here)
+            .animation(.smooth(duration: 0.35), value: away)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
     }
 
     private func tallyText(_ text: String) -> some View {
@@ -137,8 +205,8 @@ struct AssistantArrivalBar: View {
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.14), in: Capsule())
-                        .foregroundStyle(.blue)
+                        .background(Color.lateAmber.opacity(0.16), in: Capsule())
+                        .foregroundStyle(Color.lateAmber)
                 }
                 .accessibilityLabel("Arrival closed: a tap marks late")
                 .accessibilityHint("Opens Reopen Arrival")
