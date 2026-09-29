@@ -37,4 +37,33 @@ struct AssistantRosterTests {
         model.load()
         #expect(model.rows.map(\.student.firstName) == ["Ari", "Noa"])
     }
+
+    @Test("Siri's close arrival and who's-missing use the grid's roll, not every enrolled child")
+    func siriUsesTheGridsRoll() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let today = Calendar.current.startOfDay(for: Date())
+        let ari = AssistantTestSupport.student("Ari", "Cedar", in: context)
+        let leah = AssistantTestSupport.student("Leah", "Hart", in: context)
+        leah.enrollmentStatus = .transferred
+        leah.dateWithdrawn = today
+        let noa = AssistantTestSupport.student("Noa", "Winter", in: context)
+        noa.dateStarted = try #require(Calendar.current.date(byAdding: .day, value: 7, to: today))
+        _ = context.safeSave()
+
+        let session = SiriAttendance(stack: stack, role: .assistant, today: today)
+        var day = try AssistantDayRoll.today(in: session)
+        let grid = AssistantTestSupport.viewModel(stack, on: today)
+        #expect(day.roll.map(\.objectID) == grid.rows.map(\.student.objectID))
+        #expect(day.roll.map(\.firstName) == ["Ari", "Leah"])
+        #expect(day.unmarked.map(\.firstName) == ["Ari", "Leah"])
+
+        // Closing arrival over that roll marks the two on the grid, never Noa.
+        let changed = try session.store.markUnmarkedAbsent(for: today, students: day.roll)
+        #expect(Set(changed.map(\.studentID)) == Set([ari, leah].compactMap { $0.id?.uuidString }))
+        _ = context.safeSave()
+        day = try AssistantDayRoll.today(in: session)
+        #expect(day.unmarked.isEmpty)
+        #expect(!day.roll.contains(noa))
+    }
 }

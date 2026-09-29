@@ -29,26 +29,38 @@ struct CloseArrivalIntent: AppIntent {
             return .result(dialog: "Today isn't a school day, so there's no arrival to close.")
         }
 
-        let roster = SiriHost.roster(in: session.context)
-        let waiting = try unmarked(in: roster, session: session).count
+        let (roll, unmarked) = try AssistantDayRoll.today(in: session)
+        let waiting = unmarked.count
         if waiting > 0 {
             try await requestConfirmation(
                 dialog: "Mark the \(waiting) \(waiting == 1 ? "child" : "children") not yet marked absent?"
             )
         }
 
-        let changed = try session.store.markUnmarkedAbsent(for: session.today, students: roster)
+        let changed = try session.store.markUnmarkedAbsent(for: session.today, students: roll)
+        // Late before the commit, whose notification reloads an open grid.
         late.setLate(true, on: session.today)
         if changed.isEmpty {
+            // Still remembered, so "Undo" reopens arrival rather than putting
+            // back an earlier Siri mark.
+            SiriAttendanceChange(day: session.today, marks: [], summary: "closing arrival", closedArrival: true)
+                .remember()
             NotificationCenter.default.post(name: .attendanceChangedBySiri, object: nil)
             return .result(dialog: "Arrival is closed. Everyone was already marked.")
         }
-        try await session.commit(
-            changed.map { SiriAttendance.Pending(record: $0, from: .unmarked, to: .absent) },
-            created: changed.filter(\.isInserted),
-            summary: "closing arrival",
-            closedArrival: true
-        )
+        do {
+            try await session.commit(
+                changed.map { SiriAttendance.Pending(record: $0, from: .unmarked, to: .absent) },
+                created: changed.filter(\.isInserted),
+                summary: "closing arrival",
+                closedArrival: true
+            )
+        } catch {
+            // Nothing was saved (the commit put the marks back), so arrival
+            // stays open and asking again tries again.
+            late.setLate(false, on: session.today)
+            throw error
+        }
         let count = changed.count
         return .result(dialog: IntentDialog(
             full: "Arrival is closed. \(count) \(count == 1 ? "child is" : "children are") marked absent.",
@@ -72,12 +84,14 @@ struct WhoIsMissingIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let session = try SiriAttendance()
-        let roster = SiriHost.roster(in: session.context)
-        let missing = try unmarked(in: roster, session: session)
+        guard session.isSchoolDay else {
+            return .result(dialog: "Today isn't a school day.")
+        }
+        let (roll, missing) = try AssistantDayRoll.today(in: session)
         guard !missing.isEmpty else {
             return .result(dialog: "Everyone is marked.")
         }
-        let names = AssistantAttendanceViewModel.gridNames(for: roster)
+        let names = AssistantAttendanceViewModel.gridNames(for: roll)
         let list = missing.map { names[$0.objectID] ?? $0.firstName }
             .formatted(.list(type: .and))
         let count = missing.count
@@ -86,18 +100,4 @@ struct WhoIsMissingIntent: AppIntent {
             supporting: "\(count) not marked"
         ))
     }
-}
-
-// MARK: - Shared
-
-/// The children on `roster` with no mark today.
-@MainActor
-private func unmarked(in roster: [CDStudent], session: SiriAttendance) throws -> [CDStudent] {
-    let marked = Set(
-        try session.store.loadRecords(for: session.today)
-            .deduplicatedPerStudentDay()
-            .filter { $0.status != .unmarked }
-            .map(\.studentID)
-    )
-    return roster.filter { !marked.contains($0.id?.uuidString ?? "") }
 }

@@ -124,6 +124,7 @@ struct SiriAttendance {
         let exportWatch = SiriExportWatch()
         guard context.safeSave() else {
             exportWatch.stop()
+            discard(marks, created: created)
             throw SiriAttendanceError.saveFailed
         }
         // After the save: a new record's ID is only permanent from here.
@@ -146,13 +147,27 @@ struct SiriAttendance {
         Self.logger.notice("Siri marked attendance: \(marks.count, privacy: .public) record(s)")
     }
 
+    /// A failed save leaves the marks in the context, where the next save (a
+    /// grid tap's) would send them on quietly: not remembered for Undo, and
+    /// never attached to the classroom share. Put them back instead.
+    private func discard(_ marks: [Pending], created: [CDAttendanceRecord]) {
+        let createdIDs = Set(created.map(\.objectID))
+        for record in created { context.delete(record) }
+        for mark in marks where !createdIDs.contains(mark.record.objectID) {
+            context.refresh(mark.record, mergeChanges: false)
+        }
+    }
+
     /// Puts back the last change Siri made today, where nothing has changed
     /// those marks since. Returns what was undone.
+    ///
+    /// The change is forgotten only once the undo is saved, so a failed save
+    /// can be retried. A Close Arrival that found everyone marked has no marks
+    /// to put back, and undoing it just reopens arrival.
     func undoLast() async throws -> String {
         guard let change = SiriAttendanceChange.last(), Calendar.current.isDate(change.day, inSameDayAs: today) else {
             throw SiriAttendanceError.nothingToUndo
         }
-        SiriAttendanceChange.forget()
         guard let coordinator = context.persistentStoreCoordinator else { throw SiriAttendanceError.saveFailed }
 
         var reverted: [Pending] = []
@@ -163,17 +178,24 @@ struct SiriAttendance {
                   store.updateStatus(record, to: mark.from) else { continue }
             reverted.append(Pending(record: record, from: mark.to, to: mark.from))
         }
-        if change.closedArrival {
-            SiriHost.arrivalReopened(on: today)
-        }
-        guard !reverted.isEmpty else {
-            if change.closedArrival { NotificationCenter.default.post(name: .attendanceChangedBySiri, object: nil) }
+        if reverted.isEmpty, !change.marks.isEmpty {
+            SiriAttendanceChange.forget()
+            if change.closedArrival { reopenArrival() }
             throw SiriAttendanceError.changedSince(change.summary)
         }
-        try await commit(reverted, created: [], summary: "undo of \(change.summary)")
+        if !reverted.isEmpty {
+            try await commit(reverted, created: [], summary: "undo of \(change.summary)")
+        }
+        if change.closedArrival { reopenArrival() }
         // An undo is not itself undoable: "Undo that" twice shouldn't flip back.
         SiriAttendanceChange.forget()
         return change.summary
+    }
+
+    /// Back to arrival, and an open grid shows it.
+    private func reopenArrival() {
+        SiriHost.arrivalReopened(on: today)
+        NotificationCenter.default.post(name: .attendanceChangedBySiri, object: nil)
     }
 }
 

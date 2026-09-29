@@ -124,6 +124,57 @@ struct SiriAttendanceTests {
         #expect(try siri.status(of: maya) == .absent)
     }
 
+    /// An invalid record on a far-off day: every save fails until it goes.
+    private func breakSaves() throws -> CDAttendanceRecord {
+        let broken = CDAttendanceRecord(context: context)
+        broken.date = try CoreDataTestHelpers.day("2020-01-06")
+        broken.setValue(nil, forKey: "studentID")
+        return broken
+    }
+
+    @Test("A mark whose save fails is put back, not left for the next save")
+    func failedSaveDiscardsTheMark() async throws {
+        let maya = makeStudent("Maya")
+        let siri = session()
+        let broken = try breakSaves()
+
+        await #expect { try await siri.mark(maya, as: .present) } throws: { Self.siriError($0) == "saveFailed" }
+        context.delete(broken)
+        context.processPendingChanges()
+        #expect(context.insertedObjects.isEmpty)
+        #expect(context.updatedObjects.isEmpty)
+        #expect(try siri.status(of: maya) == .unmarked)
+        #expect(SiriAttendanceChange.last() == nil)
+    }
+
+    @Test("An undo whose save fails keeps the change, so it can be tried again")
+    func failedUndoCanBeRetried() async throws {
+        let maya = makeStudent("Maya")
+        let siri = session()
+        try await siri.mark(maya, as: .present)
+        let broken = try breakSaves()
+
+        await #expect { try await siri.undoLast() } throws: { Self.siriError($0) == "saveFailed" }
+        context.delete(broken)
+        #expect(try siri.status(of: maya) == .present)
+
+        #expect(try await siri.undoLast() == "Maya Stone present")
+        #expect(try siri.status(of: maya) == .unmarked)
+    }
+
+    @Test("Undoing a Close Arrival that marked no one succeeds, once")
+    func undoEmptyCloseArrival() async throws {
+        let maya = makeStudent("Maya")
+        let siri = session()
+        try await siri.mark(maya, as: .present)
+        SiriAttendanceChange(day: siri.today, marks: [], summary: "closing arrival", closedArrival: true).remember()
+
+        #expect(try await siri.undoLast() == "closing arrival")
+        // The earlier mark is not what Undo reached for.
+        #expect(try siri.status(of: maya) == .present)
+        await #expect { try await siri.undoLast() } throws: { Self.siriError($0) == "nothingToUndo" }
+    }
+
     @Test("A locked day takes no marks")
     func lockedDay() async throws {
         let maya = makeStudent("Maya")

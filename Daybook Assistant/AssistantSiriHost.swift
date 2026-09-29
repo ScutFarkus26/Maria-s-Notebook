@@ -21,7 +21,9 @@ enum SiriHost {
         }
     }
 
-    /// The children on the roll, in the grid's order.
+    /// Every enrolled child, for matching a spoken name (`StudentEntityQuery`).
+    /// Commands that act on the whole class use the day's roll instead
+    /// (`AssistantDayRoll`), which leaves out a child who hasn't started yet.
     static func roster(in context: NSManagedObjectContext) -> [CDStudent] {
         let request = CDFetchRequest(CDStudent.self)
         request.sortDescriptors = [

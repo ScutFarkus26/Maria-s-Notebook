@@ -263,6 +263,10 @@ final class ClassroomSharingService {
     /// Leaves the current shared classroom (assistant only).
     /// Purges local shared data and removes the membership record.
     func leaveClassroom() async throws {
+        // Read the row again: on a new iPhone it can arrive by sync after this
+        // service was built, and the role cached then would make leaving a
+        // silent no-op.
+        loadCurrentMembership()
         guard currentRole == .assistant else {
             Self.logger.warning("Only assistants can leave a classroom")
             return
@@ -305,7 +309,10 @@ final class ClassroomSharingService {
         }
     }
 
-    private func loadCurrentMembership() {
+    /// Re-reads the role from the current membership row. The Daybook
+    /// Assistant calls it when a row arrives by sync rather than by accepting
+    /// an invitation here.
+    func loadCurrentMembership() {
         let repo = ClassroomRepository(context: context)
         if let membership = repo.fetchCurrentMembership() {
             currentRole = membership.role

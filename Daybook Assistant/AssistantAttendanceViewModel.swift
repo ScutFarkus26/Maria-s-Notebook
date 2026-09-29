@@ -213,15 +213,9 @@ final class AssistantAttendanceViewModel {
         // The day's roll, not today's: a child who has since left still shows
         // on the days she was here, and anyone with a record that day shows
         // whatever their dates say (`AttendanceRoster`).
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = AttendanceRoster.predicate(
-            on: date, recordStudentIDs: Set(records.map(\.studentID))
+        let students = AssistantDayRoll.students(
+            on: date, recordStudentIDs: Set(records.map(\.studentID)), in: context
         )
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "firstName", ascending: true),
-            NSSortDescriptor(key: "lastName", ascending: true)
-        ]
-        let students = context.safeFetch(request)
         // Siri marks today only, so its names follow today's roll.
         if isToday { AssistantSiriVocabulary.refresh(for: students) }
 

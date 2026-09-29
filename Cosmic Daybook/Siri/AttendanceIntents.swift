@@ -10,6 +10,8 @@
 //  Shared with Daybook Assistant, which compiles this file by path. Here and
 //  late work on a locked phone, so a guide greeting children at the door can
 //  mark them hands-free; absent needs the phone unlocked and a confirmation.
+//  Undo needs the phone unlocked too: it can put back an absent mark or the
+//  Assistant's Close Arrival, which both needed unlocking to make.
 //
 
 import AppIntents
@@ -149,7 +151,7 @@ struct UndoAttendanceIntent: AppIntent {
         "Put back the last attendance change made with Siri today.",
         categoryName: "Attendance"
     )
-    static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {

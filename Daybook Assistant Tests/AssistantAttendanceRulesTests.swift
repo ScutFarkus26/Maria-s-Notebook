@@ -225,4 +225,25 @@ struct AssistantAttendanceRulesTests {
         #expect(Model.tally(model.rows) == "1 here · 1 late · 1 absent · 1 left early · 1 not marked")
         #expect(Model.shortTally(model.rows) == "3 here · 1 absent · 1 not marked")
     }
+
+    // MARK: - Siri
+
+    /// Uses the standard defaults Siri itself reads, on a day far from today,
+    /// and clears both afterwards.
+    @Test("Undoing a Siri Close Arrival that found everyone marked reopens arrival")
+    func undoEmptyCloseArrivalReopens() async throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let day = try AssistantTestSupport.day("2031-01-06")
+        defer {
+            Model.LatePhaseMemory.setLate(false, on: day)
+            SiriAttendanceChange.forget()
+        }
+        Model.LatePhaseMemory.setLate(true, on: day)
+        SiriAttendanceChange(day: day, marks: [], summary: "closing arrival", closedArrival: true).remember()
+
+        let siri = SiriAttendance(stack: stack, role: .assistant, today: day)
+        #expect(try await siri.undoLast() == "closing arrival")
+        #expect(!Model.LatePhaseMemory.isLate(on: day))
+        #expect(SiriAttendanceChange.last() == nil)
+    }
 }

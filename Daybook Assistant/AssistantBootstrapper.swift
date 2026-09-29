@@ -95,11 +95,6 @@ final class AssistantBootstrapper {
         stackNeedsAccount = false
 
         refreshMembership()
-        if case .ready = phase {
-            // Only joining fills in the share otherwise: the guide's name
-            // on the Classroom screen, and "you" on her own marks.
-            Task { await service.refreshShareInBackground() }
-        }
     }
 
     /// Builds the stack again now that iCloud is signed in (see
@@ -122,12 +117,25 @@ final class AssistantBootstrapper {
     /// Re-reads the membership row. Acceptance writes one, and the roster only
     /// starts arriving afterwards, so this is what flips onboarding to the
     /// attendance list.
+    ///
+    /// The sharing service reads the row again too. A row that arrives by sync
+    /// after the service was built would otherwise leave it on `.leadGuide`:
+    /// Leave Classroom did nothing, and the share was looked for in the
+    /// private store, so the guide's name never showed.
     func refreshMembership() {
         guard let context = coreDataStack?.viewContext else { return }
         let request = CDClassroomMembership.ownRowsRequest()
         request.fetchLimit = 1
         let hasMembership = context.safeFetchFirst(request) != nil
+        let wasReady = if case .ready = phase { true } else { false }
         phase = hasMembership ? .ready : .needsClassroom
+        guard let service = sharingService else { return }
+        service.loadCurrentMembership()
+        if hasMembership, !wasReady, service.currentShare == nil {
+            // Only joining fills in the share otherwise: the guide's name
+            // on the Classroom screen, and "you" on her own marks.
+            Task { await service.refreshShareInBackground() }
+        }
     }
 
     /// Leaves the classroom: the class comes off this iPhone and the screen
