@@ -139,7 +139,7 @@ extension SearchIndexService {
         return try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
     }
 
-    private nonisolated static func unarchiveToken(_ data: Data) -> NSPersistentHistoryToken? {
+    nonisolated static func unarchiveToken(_ data: Data) -> NSPersistentHistoryToken? {
         try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSPersistentHistoryToken.self, from: data)
     }
 
@@ -225,7 +225,7 @@ extension SearchIndexService {
     nonisolated static func buildContents(from entries: [SearchIndexSnapshot.Entry]) -> SearchIndexContents {
         var contents = SearchIndexContents()
         for entry in entries {
-            contents.add(entry.result, text: entry.text)
+            contents.add(entry.result, text: entry.text, objectURI: entry.objectURI)
         }
         return contents
     }
@@ -242,42 +242,19 @@ extension SearchIndexService {
             return .fallback(reason: "snapshot history token is unreadable")
         }
 
-        let request = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
-        request.resultType = .transactionsAndChanges
-        let transactions: [NSPersistentHistoryTransaction]
+        let changes: SearchableHistoryChanges
         do {
-            let result = try context.execute(request) as? NSPersistentHistoryResult
-            transactions = (result?.result as? [NSPersistentHistoryTransaction]) ?? []
+            changes = try fetchSearchableChanges(after: token, context: context)
         } catch {
             // Includes NSPersistentHistoryTokenExpiredError once old history is purged.
             return .fallback(reason: "history since snapshot is unavailable (\(error.localizedDescription))")
         }
-        guard !transactions.isEmpty else { return .unchanged(sawTransactions: false) }
-
-        // Net effect per object, in transaction order: a later delete wins over
-        // an earlier insert/update and vice versa.
-        var deleted = Set<String>()
-        var touched: [String: NSManagedObjectID] = [:]
-        for transaction in transactions {
-            for change in transaction.changes ?? [] {
-                let objectID = change.changedObjectID
-                guard searchableClassNames.contains(objectID.entity.managedObjectClassName) else { continue }
-                let uri = objectID.uriRepresentation().absoluteString
-                switch change.changeType {
-                case .delete:
-                    touched.removeValue(forKey: uri)
-                    deleted.insert(uri)
-                case .insert, .update:
-                    deleted.remove(uri)
-                    touched[uri] = objectID
-                @unknown default:
-                    continue
-                }
-            }
-        }
+        guard changes.sawTransactions else { return .unchanged(sawTransactions: false) }
+        let deleted = changes.deleted
+        let touched = changes.touched
         guard !deleted.isEmpty || !touched.isEmpty else { return .unchanged(sawTransactions: true) }
-        guard deleted.count + touched.count <= changeLimit else {
-            return .fallback(reason: "\(deleted.count + touched.count) searchable changes exceed the incremental limit")
+        guard changes.count <= changeLimit else {
+            return .fallback(reason: "\(changes.count) searchable changes exceed the incremental limit")
         }
 
         var byURI = Dictionary(entries.map { ($0.objectURI, $0) }, uniquingKeysWith: { _, latest in latest })
@@ -293,6 +270,53 @@ extension SearchIndexService {
             }
         }
         return .patched(Array(byURI.values))
+    }
+
+    /// Net searchable changes in a stretch of persistent history.
+    nonisolated struct SearchableHistoryChanges {
+        /// URIs of objects whose last change was a delete.
+        var deleted = Set<String>()
+        /// Objects whose last change was an insert or update, by URI.
+        var touched: [String: NSManagedObjectID] = [:]
+        /// History held transactions at all (searchable or not).
+        var sawTransactions = false
+
+        var count: Int { deleted.count + touched.count }
+        var isEmpty: Bool { deleted.isEmpty && touched.isEmpty }
+    }
+
+    /// Reads the history after `token` and folds it into the net effect per
+    /// searchable object, in transaction order: a later delete wins over an
+    /// earlier insert/update and vice versa. Shared by the launch replay over
+    /// the snapshot and the in-session catch-up. Inside `context.perform`.
+    nonisolated static func fetchSearchableChanges(
+        after token: NSPersistentHistoryToken,
+        context: NSManagedObjectContext
+    ) throws -> SearchableHistoryChanges {
+        let request = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
+        request.resultType = .transactionsAndChanges
+        let result = try context.execute(request) as? NSPersistentHistoryResult
+        let transactions = (result?.result as? [NSPersistentHistoryTransaction]) ?? []
+
+        var changes = SearchableHistoryChanges(sawTransactions: !transactions.isEmpty)
+        for transaction in transactions {
+            for change in transaction.changes ?? [] {
+                let objectID = change.changedObjectID
+                guard searchableClassNames.contains(objectID.entity.managedObjectClassName) else { continue }
+                let uri = objectID.uriRepresentation().absoluteString
+                switch change.changeType {
+                case .delete:
+                    changes.touched.removeValue(forKey: uri)
+                    changes.deleted.insert(uri)
+                case .insert, .update:
+                    changes.deleted.remove(uri)
+                    changes.touched[uri] = objectID
+                @unknown default:
+                    continue
+                }
+            }
+        }
+        return changes
     }
 
     // MARK: Collection (inside `context.perform`, or on a caller-owned context)

@@ -51,10 +51,36 @@ nonisolated struct SearchIndexContents: Sendable {
     /// a set of matching ids back into results.
     var resultsById: [UUID: SearchResult] = [:]
 
-    mutating func add(_ result: SearchResult, text: String) {
+    /// `NSManagedObjectID.uriRepresentation()` of each indexed object -> its
+    /// result id. Persistent history names a deleted object only by its object
+    /// ID, so this is how an in-session delete finds the result to drop.
+    var idsByURI: [String: UUID] = [:]
+
+    mutating func add(_ result: SearchResult, text: String, objectURI: String? = nil) {
         resultsById[result.id] = result
+        if let objectURI { idsByURI[objectURI] = result.id }
         for token in SearchIndexService.tokenize(text) {
             index[token, default: []].insert(result.id)
+        }
+    }
+
+    /// Drops `ids` from every bucket and from `resultsById`, and forgets
+    /// `objectURIs`. One pass over the vocabulary however many ids go, since
+    /// the index keeps no per-result token list to walk instead.
+    mutating func remove(ids: Set<UUID>, objectURIs: some Sequence<String>) {
+        for uri in objectURIs {
+            idsByURI.removeValue(forKey: uri)
+        }
+        guard !ids.isEmpty else { return }
+        for id in ids {
+            resultsById.removeValue(forKey: id)
+        }
+        let affected = index.compactMap { token, bucket in bucket.isDisjoint(with: ids) ? nil : token }
+        for token in affected {
+            index[token]?.subtract(ids)
+            if index[token]?.isEmpty == true {
+                index.removeValue(forKey: token)
+            }
         }
     }
 }
@@ -63,8 +89,10 @@ nonisolated struct SearchIndexContents: Sendable {
 ///
 /// Built from an on-disk snapshot plus persistent history at launch (see
 /// `SearchIndexService+Snapshot.swift`), or from a full Core Data pass when no
-/// usable snapshot exists. Search runs on the main actor; every fetch, decode,
-/// and tokenization pass runs off it.
+/// usable snapshot exists, then kept current during the session by replaying
+/// the history recorded since (see `SearchIndexService+CatchUp.swift`).
+/// Search runs on the main actor; every fetch, decode, and tokenization pass
+/// runs off it.
 @Observable
 final class SearchIndexService {
     static let shared = SearchIndexService()
@@ -84,6 +112,7 @@ final class SearchIndexService {
     // pre-2026-09-22 linear scan against the same index.
     private(set) var index: [String: Set<UUID>] = [:]
     private(set) var resultsById: [UUID: SearchResult] = [:]
+    @ObservationIgnored var idsByURI: [String: UUID] = [:]
 
     /// The index's tokens in `String` order, so a prefix query is a binary
     /// search instead of a `hasPrefix` test against every token in the corpus
@@ -105,14 +134,38 @@ final class SearchIndexService {
 
     /// Container used for the last build, so a purged index can rebuild itself
     /// without every caller having to thread a container through.
-    private weak var indexingContainer: NSPersistentContainer?
+    weak var indexingContainer: NSPersistentContainer?
+
+    // MARK: In-session catch-up state (see `SearchIndexService+CatchUp.swift`)
+
+    /// Archived history token the index is current to; `nil` until a refresh
+    /// has run, and after a purge.
+    @ObservationIgnored var indexedHistoryToken: Data?
+
+    /// Bumped whenever the contents are replaced wholesale (refresh, purge), so
+    /// a catch-up computed against the old contents is discarded, not applied.
+    @ObservationIgnored var contentsGeneration = 0
+
+    /// How long a burst of store changes is coalesced before the index replays it.
+    let catchUpDelay: Duration
+
+    @ObservationIgnored var catchUpTask: Task<Void, Never>?
+    @ObservationIgnored var scheduledCatchUp: Task<Void, Never>?
+    @ObservationIgnored var followTask: Task<Void, Never>?
+    @ObservationIgnored weak var followedCoordinator: NSPersistentStoreCoordinator?
+
+    /// Diagnostics: how many in-session history replays have run. The token
+    /// gate keeps this still when nothing was written.
+    @ObservationIgnored var catchUpPasses = 0
 
     init(
         snapshotDirectory: URL? = SearchIndexSnapshotStore.defaultDirectory,
-        incrementalChangeLimit: Int = 2_000
+        incrementalChangeLimit: Int = 2_000,
+        catchUpDelay: Duration = .seconds(2)
     ) {
         self.snapshotDirectory = snapshotDirectory
         self.incrementalChangeLimit = incrementalChangeLimit
+        self.catchUpDelay = catchUpDelay
     }
 
     // MARK: - Memory Pressure
@@ -127,15 +180,25 @@ final class SearchIndexService {
         let freedTokens = index.count
         index.removeAll()
         resultsById.removeAll()
+        idsByURI.removeAll()
         sortedTokens = nil
         isReady = false
+        indexedHistoryToken = nil
+        contentsGeneration += 1
         Self.logger.info("Search index purged under memory pressure (\(freedTokens) tokens released)")
     }
 
-    /// Refreshes the index if it has never been built or was purged. No-op once ready.
+    /// Refreshes the index if it has never been built or was purged; once
+    /// ready, replays whatever was written since it was last brought current,
+    /// so a search right after a save or delete sees it. The replay is gated
+    /// on the history token, so with nothing new it costs one token read.
     func ensureReady() async {
-        guard !isReady, let container = indexingContainer else { return }
-        await refresh(container: container)
+        guard let container = indexingContainer else { return }
+        if isReady {
+            await catchUp()
+        } else {
+            await refresh(container: container)
+        }
     }
 
     // MARK: - Building
@@ -146,26 +209,41 @@ final class SearchIndexService {
     /// tokenization all run off the main actor; only the final assignment lands here.
     func refresh(container: NSPersistentContainer) async {
         indexingContainer = container
+        follow(container)
+        let currentToken = Self.archivedCurrentHistoryToken(of: container)
         let outcome = await Self.refreshContents(
             context: container.newBackgroundContext(),
             identity: Self.storeIdentity(of: container),
-            currentToken: Self.archivedCurrentHistoryToken(of: container),
+            currentToken: currentToken,
             snapshotDirectory: snapshotDirectory,
             changeLimit: incrementalChangeLimit
         )
         apply(outcome)
+        // Everything up to `currentToken` is in the contents now (it was read
+        // before the fetches), so the in-session replay starts there.
+        indexedHistoryToken = currentToken
     }
 
     private func apply(_ outcome: SearchIndexRefreshOutcome) {
-        index = outcome.contents.index
-        resultsById = outcome.contents.resultsById
-        sortedTokens = nil
+        setContents(outcome.contents)
+        contentsGeneration += 1
         isReady = true
         lastRefreshSource = outcome.source
         let count = resultsById.count
         let tokens = index.count
         let source = outcome.source.rawValue
         Self.logger.info("Search index ready (\(source, privacy: .public)): \(count) entities, \(tokens) tokens")
+    }
+
+    func setContents(_ contents: SearchIndexContents) {
+        index = contents.index
+        resultsById = contents.resultsById
+        idsByURI = contents.idsByURI
+        sortedTokens = nil
+    }
+
+    var contents: SearchIndexContents {
+        SearchIndexContents(index: index, resultsById: resultsById, idsByURI: idsByURI)
     }
 
     // MARK: - Incremental Updates
