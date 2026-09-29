@@ -61,6 +61,14 @@ struct AssistantAttendanceView: View {
             // term's marks accumulate under no name at all.
             if ClassroomIdentity.displayName == nil { showingNameSheet = true }
             if viewModel == nil { startDay() }
+            // The class, the guide's marks and locked days all arrive by
+            // import; without this the screen shows them only when reloaded.
+            if let viewModel, let storeID = coreDataStack.sharedPersistentStore?.identifier {
+                await viewModel.followRemoteImports(into: storeID)
+            }
+        }
+        .onChange(of: noteRow?.id) { _, editing in
+            viewModel?.pauseRemoteReloads(editing != nil)
         }
         .onChange(of: scenePhase) { oldPhase, phase in
             guard let viewModel else { return }

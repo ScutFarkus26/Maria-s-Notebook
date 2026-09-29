@@ -53,6 +53,9 @@ final class AssistantAttendanceViewModel {
     /// Records created since the last save, to put into the classroom share
     /// once that save gives them permanent IDs.
     private var createdSinceSave: [CDAttendanceRecord] = []
+    /// Reloads the day when the guide's changes (or the whole class, on the
+    /// first download) arrive from iCloud.
+    @ObservationIgnored private var importReloader: RemoteImportReloader?
 
     init(context: NSManagedObjectContext, container: NSPersistentCloudKitContainer?, date: Date = Date()) {
         self.context = context
@@ -62,6 +65,18 @@ final class AssistantAttendanceViewModel {
         // app is only ever used by an assistant, and ClassroomPermissions is
         // what stops a mis-set membership from writing beyond attendance.
         self.store = CDAttendanceStore(context: context, role: .assistant)
+        self.importReloader = RemoteImportReloader { [weak self] in self?.load() }
+    }
+
+    /// Reloads the day whenever an import into the classroom's store finishes,
+    /// until the calling task is cancelled.
+    func followRemoteImports(into storeIdentifier: String) async {
+        await importReloader?.observeImports(into: storeIdentifier)
+    }
+
+    /// Holds remote reloads while a sheet is editing one of the rows.
+    func pauseRemoteReloads(_ paused: Bool) {
+        importReloader?.isPaused = paused
     }
 
     /// Whether this day's marks can be changed: the role may write
