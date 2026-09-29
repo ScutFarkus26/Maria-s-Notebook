@@ -29,14 +29,14 @@ extension RootSidebar {
         List(selection: $selection) {
             ForEach(RootView.NavigationGroup.all) { group in
                 SidebarGroupSection(group: group) {
-                    ForEach(group.items) { item in
+                    ForEach(group.macSidebarItems) { item in
                         sidebarRow(item)
                     }
                 }
             }
         }
         .listStyle(.sidebar)
-        // A selection that arrives from outside the sidebar — ⌘7 Stories, a
+        // A selection that arrives from outside the sidebar — ⌘6 Notes, a
         // restored Community, an album deep link — must not vanish into a
         // collapsed group.
         .onChange(of: selection, initial: true) { _, item in

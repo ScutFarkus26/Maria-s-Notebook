@@ -151,13 +151,9 @@ struct CloudKitSyncWarningBanner: View {
                     .lineLimit(2)
             }
             Spacer()
-            Button {
-                appRouter.navigateTo(.settings)
-            } label: {
-                Label("Settings", systemImage: "gear")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            settingsButton
+                .buttonStyle(.bordered)
+                .controlSize(.small)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -171,5 +167,22 @@ struct CloudKitSyncWarningBanner: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title). \(message)")
         .accessibilityHint("Contains settings button")
+    }
+
+    /// The Mac keeps Settings in its own window (it has no sidebar row), so
+    /// the button opens that; elsewhere Settings is a destination.
+    @ViewBuilder
+    private var settingsButton: some View {
+        #if os(macOS)
+        SettingsLink {
+            Label("Settings", systemImage: "gear")
+        }
+        #else
+        Button {
+            appRouter.navigateTo(.settings)
+        } label: {
+            Label("Settings", systemImage: "gear")
+        }
+        #endif
     }
 }

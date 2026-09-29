@@ -75,25 +75,27 @@ struct NotebookCommands: Commands {
         // 4. GO MENU (Navigation)
         // Dedicated menu for navigating between app sections
         CommandMenu("Go") {
+            // Same order as the sidebar, most-used first. Each destination
+            // in a collapsed group opens that group when chosen here.
             Button("Today") { appRouter.navigateTo(.today) }
                 .keyboardShortcut("1", modifiers: .command)
 
-            Button("Lessons & Work") { appRouter.navigateToLessonsAndWork(.attention, preferredKind: .work) }
+            Button("Attendance") { appRouter.navigateTo(.attendance) }
                 .keyboardShortcut("2", modifiers: .command)
 
             Button("Students") { appRouter.navigateTo(.students) }
                 .keyboardShortcut("3", modifiers: .command)
 
-            Button("Lessons") { appRouter.navigateTo(.lessons) }
+            Button("Lessons & Work") { appRouter.navigateToLessonsAndWork(.attention, preferredKind: .work) }
                 .keyboardShortcut("4", modifiers: .command)
 
-            Button("Logs") { appRouter.navigateTo(.logs) }
+            Button("Lessons") { appRouter.navigateTo(.lessons) }
                 .keyboardShortcut("5", modifiers: .command)
 
-            Button("Attendance") { appRouter.navigateTo(.attendance) }
+            Button("Notes") { appRouter.navigateTo(.notes) }
                 .keyboardShortcut("6", modifiers: .command)
 
-            Button("Stories") { appRouter.navigateTo(.stories) }
+            Button("Todos") { appRouter.navigateTo(.todos) }
                 .keyboardShortcut("7", modifiers: .command)
         }
 

@@ -54,14 +54,21 @@ struct NavigationGroupTests {
 
     // MARK: - Group shape
 
-    @Test("Groups keep the brief's order and only Library starts collapsed")
+    @Test("Groups keep their order and only Classroom and Library start collapsed")
     func groupOrderAndDefaults() {
         #expect(
             NavigationGroup.all.map(\.id)
-                == [.today, .children, .lessonsAndWork, .planning, .records, .library, .system]
+                == [.today, .children, .lessonsAndWork, .planning, .records, .classroom, .library, .system]
         )
-        #expect(NavigationGroup.all.filter { !$0.isExpandedByDefault }.map(\.id) == [.library])
+        #expect(NavigationGroup.all.filter { !$0.isExpandedByDefault }.map(\.id) == [.classroom, .library])
         #expect(NavigationGroup.primaryTabs == [.today, .students, .attendance, .planningAgenda])
+    }
+
+    @Test("The Mac sidebar leaves out only Settings, which has its own window")
+    func macSidebarHidesOnlySettings() {
+        let shown = NavigationGroup.all.flatMap(\.macSidebarItems)
+        #expect(Set(shown) == destinations.subtracting([.settings]))
+        #expect(NavigationGroup.containing(.settings)?.id == .system)
     }
 
     // MARK: - Raw values are frozen

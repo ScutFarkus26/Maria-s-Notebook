@@ -9,20 +9,21 @@ extension RootView {
     /// Sidebar / More-list groups in display order. The raw value is the
     /// suffix of the group's persisted expansion key.
     nonisolated enum NavigationGroupID: String, CaseIterable {
-        case today, children, lessonsAndWork, planning, records, library, system
+        case today, children, lessonsAndWork, planning, records, classroom, library, system
     }
 
     nonisolated struct NavigationGroup: Identifiable, Hashable {
         let id: NavigationGroupID
         let title: String
         let items: [NavigationItem]
-        /// Library is the only group that starts collapsed: it holds the
-        /// reference material the guide reaches for a few times a term.
+        /// Classroom and Library start collapsed: the room's running
+        /// (supplies, orders, schedules) and the reference material are both
+        /// reached a few times a term, not daily.
         let isExpandedByDefault: Bool
 
         static let all: [NavigationGroup] = [
             .init(id: .today, title: "Today",
-                  items: [.today, .todos, .orders],
+                  items: [.today, .todos],
                   isExpandedByDefault: true),
             .init(id: .children, title: "Children",
                   items: [.students, .attendance, .meetings, .parentReports, .progressDashboard],
@@ -31,20 +32,32 @@ extension RootView {
                   items: [.planningAgenda, .lessons],
                   isExpandedByDefault: true),
             .init(id: .planning, title: "Planning",
-                  items: [.planningChecklist, .curriculumMap, .planningCalendar, .smallSequencePlanner],
+                  items: [.planningChecklist, .curriculumMap, .planningCalendar, .thisWeeksParsha,
+                          .smallSequencePlanner],
                   isExpandedByDefault: true),
             .init(id: .records, title: "Records",
                   items: [.logs, .notes],
                   isExpandedByDefault: true),
+            .init(id: .classroom, title: "Classroom",
+                  items: [.supplies, .orders, .community, .schedules, .goingOut, .lessonRecall,
+                          .planningProjects],
+                  isExpandedByDefault: false),
             .init(id: .library, title: "Library",
-                  items: [.teachingAlbums, .stories, .bookClub, .procedures, .resourceLibrary, .supplies,
-                          .goingOut, .community, .schedules, .thisWeeksParsha, .parshaCalendar,
-                          .lessonRecall, .planningProjects],
+                  items: [.teachingAlbums, .stories, .bookClub, .resourceLibrary, .procedures,
+                          .parshaCalendar],
                   isExpandedByDefault: false),
             .init(id: .system, title: "System",
                   items: [.askAI, .settings],
                   isExpandedByDefault: true)
         ]
+
+        /// Rows the macOS sidebar leaves out: Settings is its own window
+        /// there (⌘,), so a sidebar row would be a second way to the same
+        /// panes. The destination still renders if something routes to it.
+        static let hiddenInMacSidebar: Set<NavigationItem> = [.settings]
+
+        /// This group's rows as the macOS sidebar shows them.
+        var macSidebarItems: [NavigationItem] { items.filter { !Self.hiddenInMacSidebar.contains($0) } }
 
         /// iPhone tab bar order; the `TabView` adds "More" itself.
         static let primaryTabs: [NavigationItem] = [.today, .students, .attendance, .planningAgenda]

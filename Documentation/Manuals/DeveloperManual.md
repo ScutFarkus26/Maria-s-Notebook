@@ -212,9 +212,9 @@ Navigation happens by setting `appRouter.selectedNavItem = .students`.
 
 ### Navigation groups
 
-`RootView.NavigationGroup` (`AppCore/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Groups in order: Today, Children, Lessons & Work, Planning, Records, Library (the only group collapsed by default), System. `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, and the group order.
+`RootView.NavigationGroup` (`AppCore/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Groups in order: Today, Children, Lessons & Work, Planning, Records, Classroom, Library (those two collapsed by default), System. `hiddenInMacSidebar` drops Settings from the macOS sidebar only — the Mac reaches it through its Settings window (⌘,) — and `macSidebarItems` is what that sidebar lists. `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, and the group order.
 
-The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.sidebarGroupExpanded(groupID)` and auto-expands the group holding a selection that arrives from outside the sidebar (⌘7 Stories, an album deep link, a restored selection), so nothing lands invisibly inside a collapsed Library.
+The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.sidebarGroupExpanded(groupID)` and auto-expands the group holding a selection that arrives from outside the sidebar (a Go-menu shortcut, an album deep link, a restored selection), so nothing lands invisibly inside a collapsed Classroom or Library.
 
 ### Special Routing
 

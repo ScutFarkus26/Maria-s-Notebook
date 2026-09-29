@@ -36,12 +36,13 @@ The groups under **More** (and in the sidebar) are:
 | Today | Today, Todos |
 | Children | Students, Attendance, Meetings, Parent Reports, Progress Dashboard |
 | Lessons & Work | Lessons & Work, Lessons (your full lesson library) |
-| Planning | Checklist, Three-Year View, Calendar, Group Planner |
+| Planning | Checklist, Three-Year View, Calendar, This Week’s Parsha, Group Planner |
 | Records | Logs, Notes (your observations) |
-| Library | Albums, Stories, Book Club, Procedures, Resources, Supplies, Going Out, Community, Schedules, This Week’s Parsha, Parsha Calendar, Lesson Recall, Projects |
-| System | Ask AI, Settings |
+| Classroom | Supplies, Orders, Community, Schedules, Going Out, Lesson Recall, Projects |
+| Library | Albums, Stories, Book Club, Resources, Procedures, Parsha Calendar |
+| System | Ask AI, Settings (on the Mac, Settings lives in the app menu instead — ⌘,) |
 
-On the Mac, click a group's heading to collapse or expand it; the app remembers your choice. **Library** starts collapsed because it holds reference material you reach for a few times a term. Choosing something inside a collapsed group — with a keyboard shortcut, say — opens the group for you.
+On the Mac, click a group's heading to collapse or expand it; the app remembers your choice. **Classroom** and **Library** start collapsed because you reach for them a few times a term. Choosing something inside a collapsed group — with a keyboard shortcut, say — opens the group for you.
 
 ## Switching Between My Class and Sample Class
 
@@ -899,6 +900,7 @@ Create a manual backup at least once a week, or enable auto-backup in Settings. 
 
 | Shortcut | What it does |
 |----------|-------------|
+| Cmd+1 … Cmd+7 | Go to Today, Attendance, Students, Lessons & Work, Lessons, Notes, Todos |
 | Cmd+N | New item (context-dependent) |
 | Cmd+S | Save |
 | Cmd+, | Open Settings |
