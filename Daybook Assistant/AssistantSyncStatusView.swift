@@ -78,18 +78,33 @@ struct AssistantSyncStatusView: View {
     @ViewBuilder
     private var statusLine: some View {
         HStack(spacing: 6) {
-            switch status {
-            case .sent:
-                Image(systemName: "checkmark.icloud")
-                Text("All marks sent to iCloud")
-            case .sending:
-                Image(systemName: "arrow.triangle.2.circlepath")
-                Text("Sending to iCloud…")
-            case .waitingForNetwork:
+            if isSampleClass {
                 Image(systemName: "icloud.slash")
-                Text("Not sent yet. They'll go when you're back online.")
+                Text("Sample class. Nothing goes to iCloud.")
+            } else {
+                switch status {
+                case .sent:
+                    Image(systemName: "checkmark.icloud")
+                    Text("All marks sent to iCloud")
+                case .sending:
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                    Text("Sending to iCloud…")
+                case .waitingForNetwork:
+                    Image(systemName: "icloud.slash")
+                    Text("Not sent yet. They'll go when you're back online.")
+                }
             }
         }
+    }
+
+    /// The sample class lives in memory with no iCloud behind it, so "sent"
+    /// would be untrue.
+    private var isSampleClass: Bool {
+        #if DEBUG
+        AssistantSampleClass.isRequested
+        #else
+        false
+        #endif
     }
 
     private func refreshUnsavedChanges() {
