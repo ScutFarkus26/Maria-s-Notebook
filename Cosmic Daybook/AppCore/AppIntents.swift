@@ -182,7 +182,7 @@ struct CosmicDaybookAppShortcuts: AppShortcutsProvider {
             intent: UndoAttendanceIntent(),
             phrases: [
                 "Undo attendance in \(.applicationName)",
-                "Undo my last Siri attendance mark in \(.applicationName)"
+                "Undo my last attendance mark in \(.applicationName)"
             ],
             shortTitle: "Undo Attendance",
             systemImageName: "arrow.uturn.backward"

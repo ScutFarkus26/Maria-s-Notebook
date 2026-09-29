@@ -140,9 +140,10 @@ struct MarkAbsentIntent: AppIntent {
 // MARK: - Undo
 
 struct UndoAttendanceIntent: AppIntent {
-    static let title: LocalizedStringResource = "Undo Last Siri Attendance Mark"
+    // App Store Connect rejects an intent title, description or phrase that contains "Siri" (90626).
+    static let title: LocalizedStringResource = "Undo Last Attendance Mark"
     static let description = IntentDescription(
-        "Put back the last attendance change made with Siri today.",
+        "Put back the last attendance change made by voice or a shortcut today.",
         categoryName: "Attendance"
     )
     static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
