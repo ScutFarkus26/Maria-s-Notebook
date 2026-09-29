@@ -11,6 +11,10 @@ final class AttendanceViewModel {
     var recordsByStudentID: [String: CDAttendanceRecord] = [:]
     /// Size of the loaded roster; students without a record count as unmarked.
     private(set) var rosterCount = 0
+    /// Bumped by every `load`. An import that changes a record already on
+    /// screen hands back the same objects, so `recordsByStudentID` compares
+    /// equal and Observation skips the redraw; the grid reads this instead.
+    private(set) var loadGeneration = 0
 
     enum SortKey: String, CaseIterable { case firstName, lastName }
 
@@ -70,6 +74,7 @@ final class AttendanceViewModel {
                 recordsByStudentID[record.studentID] = record
             }
             self.recordsByStudentID = recordsByStudentID
+            loadGeneration &+= 1
         } catch {
             Self.logger.warning("Failed to load records: \(error)")
         }

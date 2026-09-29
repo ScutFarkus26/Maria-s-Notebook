@@ -4,6 +4,9 @@ import CoreData
 struct AttendanceGrid: View {
     let students: [CDStudent]
     let recordsByStudentID: [String: CDAttendanceRecord]
+    /// Changes on every reload, so cards redraw when an import changed a
+    /// record object in place (`AttendanceViewModel.loadGeneration`).
+    let loadGeneration: Int
     /// When false (e.g. the day is locked), cards render read-only and taps no longer cycle status.
     let isEditing: Bool
     let onCycleStatus: (CDStudent) -> Void

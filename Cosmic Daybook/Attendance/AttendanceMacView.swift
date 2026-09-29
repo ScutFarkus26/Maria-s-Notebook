@@ -51,7 +51,6 @@ struct AttendanceMacView: View {
         .onPresentationDataChangeWhenVisible(
             of: ["AttendanceRecord"], in: viewContext, catchUpOnAppear: false
         ) {
-            reloadMonthCounts()
             bumpReloadToken()
         }
         .sheet(item: Binding(

@@ -75,6 +75,7 @@ struct AttendanceExpandedView: View {
         AttendanceGrid(
             students: filteredStudents,
             recordsByStudentID: viewModel.recordsByStudentID,
+            loadGeneration: viewModel.loadGeneration,
             isEditing: isEditing,
             onCycleStatus: { student in
                 viewModel.cycleStatus(for: student, modelContext: viewContext)
