@@ -24,10 +24,7 @@ final class AssistantBells {
         case everyoneMarked
     }
 
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "DaybookAssistant",
-        category: "bells"
-    )
+    private static let logger = Logger.app(category: "bells")
 
     /// C major pentatonic from C5, two octaves.
     static let scale: [Double] = [

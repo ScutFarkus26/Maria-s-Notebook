@@ -5,7 +5,7 @@ import UserNotifications
 import OSLog
 
 /// "Arrival closes": a notification on school mornings at the time she sets
-/// (8:15 unless changed), reminding her to switch to Late so anyone not here
+/// (8:15 unless changed), reminding her to close arrival so anyone not here
 /// is marked absent. It never marks anyone itself.
 ///
 /// Local notifications can't check the roll when they fire, so this keeps
@@ -25,10 +25,7 @@ enum ArrivalReminder {
     static let daysAhead = 10
     private static let idPrefix = "arrival-"
 
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "DaybookAssistant",
-        category: "reminder"
-    )
+    private static let logger = Logger.app(category: "reminder")
 
     static func isEnabled(_ defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: enabledKey) as? Bool ?? true
@@ -83,12 +80,20 @@ enum ArrivalReminder {
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
     }
 
-    /// Replaces this app's pending reminders with the ones that should be
-    /// there now.
-    static func reschedule(in context: NSManagedObjectContext, now: Date = Date()) async {
+    /// Removes every pending arrival reminder: before rescheduling, and when
+    /// she leaves the classroom (they would otherwise go on firing for up to
+    /// `daysAhead` school days, and a tap on one opened onboarding).
+    static func cancelAll() async {
         let center = UNUserNotificationCenter.current()
         let ours = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(idPrefix) }
         center.removePendingNotificationRequests(withIdentifiers: ours)
+    }
+
+    /// Replaces this app's pending reminders with the ones that should be
+    /// there now.
+    static func reschedule(in context: NSManagedObjectContext, now: Date = Date()) async {
+        await cancelAll()
+        let center = UNUserNotificationCenter.current()
 
         guard isEnabled() else { return }
         let status = await center.notificationSettings().authorizationStatus
@@ -108,11 +113,15 @@ enum ArrivalReminder {
         for date in dates {
             let content = UNMutableNotificationContent()
             content.title = "Arrival closes"
-            content.body = "Switch to Late to mark anyone not here absent."
+            content.body = "Close arrival to mark anyone not here yet absent."
             content.sound = .default
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             let id = idPrefix + AppCalendar.dayID(date)
+            // A newer reschedule has started (the roll changed): it decides
+            // now, and adding after its removal would bring back a reminder
+            // it meant to drop.
+            guard !Task.isCancelled else { return }
             do {
                 try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
             } catch {
@@ -126,9 +135,9 @@ enum ArrivalReminder {
     static func isRollComplete(on day: Date, in context: NSManagedObjectContext) -> Bool {
         let records = (try? CDAttendanceStore(context: context, role: .assistant).loadRecords(for: day)) ?? []
         let winners = records.deduplicatedPerStudentDay()
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = AttendanceRoster.predicate(on: day, recordStudentIDs: Set(winners.map(\.studentID)))
-        let roll = context.safeFetch(request).compactMap { $0.id?.uuidString }
+        let roll = AssistantDayRoll.students(
+            on: day, recordStudentIDs: Set(winners.map(\.studentID)), in: context
+        ).compactMap { $0.id?.uuidString }
         guard !roll.isEmpty else { return false }
         let marked = Set(winners.filter { $0.status != .unmarked }.map(\.studentID))
         return roll.allSatisfy(marked.contains)

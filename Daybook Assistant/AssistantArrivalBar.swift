@@ -81,7 +81,7 @@ struct AssistantArrivalBar: View {
 
     private var countOrUndo: some View {
         Group {
-            if let undo {
+            if let undo, viewModel.canMark {
                 HStack(spacing: 12) {
                     Text("Marked \(undo.count) absent")
                     Button("Undo") {
@@ -172,13 +172,7 @@ struct AssistantArrivalBar: View {
 
     /// Close Arrival while anyone's unmarked; "Late" once closed. Nothing
     /// ahead of the day (there's no arrival yet) or on a locked day.
-    private var showsArrivalControl: Bool {
-        guard viewModel.canMark, !viewModel.isFuture else { return false }
-        switch viewModel.phase {
-        case .arrival: return !unmarkedNames.isEmpty
-        case .late: return true
-        }
-    }
+    private var showsArrivalControl: Bool { viewModel.showsArrivalControl }
 
     @ViewBuilder
     private var arrivalControl: some View {
@@ -216,9 +210,7 @@ struct AssistantArrivalBar: View {
 
     // MARK: - Closing
 
-    private var unmarkedNames: [String] {
-        viewModel.rows.filter { $0.status == .unmarked }.map(\.shortName)
-    }
+    private var unmarkedNames: [String] { viewModel.unmarkedNames }
 
     private var closeTitle: String {
         unmarkedNames.count == 1 ? "Mark 1 child absent?" : "Mark \(unmarkedNames.count) children absent?"

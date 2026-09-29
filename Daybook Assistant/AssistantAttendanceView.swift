@@ -238,7 +238,7 @@ struct AssistantAttendanceView: View {
         }
     }
 
-    /// A new mark retires the Undo for the last switch to Late.
+    /// A new mark retires the Undo for the last Close Arrival.
     private func tile(
         _ row: AssistantAttendanceViewModel.Row,
         viewModel: AssistantAttendanceViewModel,

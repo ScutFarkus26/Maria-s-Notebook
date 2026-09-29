@@ -30,14 +30,20 @@ enum AssistantStack {
     /// that set up without an account can't share records for the rest of
     /// its life. The stores are removed first so two containers never mirror
     /// the same files.
+    /// If a store won't come off, the old stack stays (half open, but the
+    /// only one) and this throws: a second container on files the first
+    /// still holds would fight it over sync. Reopening the app starts clean.
     static func rebuild() throws -> CoreDataStack {
         if let old = stack {
             let coordinator = old.container.persistentStoreCoordinator
             for store in coordinator.persistentStores {
-                try? coordinator.remove(store)
+                try coordinator.remove(store)
             }
             stack = nil
         }
         return try shared()
     }
+
+    /// Whether a stack is open: nothing may delete the store files then.
+    static var isOpen: Bool { stack != nil }
 }

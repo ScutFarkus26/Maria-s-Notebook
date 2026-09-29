@@ -19,10 +19,7 @@ import Observation
 @Observable
 final class AssistantAttendanceViewModel {
 
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "DaybookAssistant",
-        category: "attendance"
-    )
+    private static let logger = Logger.app(category: "attendance")
 
     /// The record's values are copied in when the day loads, not read through
     /// it: a tile handed the same record object after its status changed would
@@ -114,7 +111,7 @@ final class AssistantAttendanceViewModel {
     /// This device's phase for the day on screen. Local, not shared: another
     /// device sees the marks Late made, not the switch.
     private(set) var phase: Phase = .arrival
-    /// The records the last switch to Late marked absent, for its Undo.
+    /// The records the last Close Arrival marked absent, for its Undo.
     @ObservationIgnored private var lastLateBatch: [NSManagedObjectID] = []
 
     /// The day on screen (start of day).
@@ -170,6 +167,22 @@ final class AssistantAttendanceViewModel {
     /// A day after today: only absences (a known vacation, an appointment)
     /// and notes can be marked ahead.
     var isFuture: Bool { date > Calendar.current.startOfDay(for: Date()) }
+
+    /// The children still unmarked, by the names on their tiles: Close
+    /// Arrival's list.
+    var unmarkedNames: [String] {
+        rows.filter { $0.status == .unmarked }.map(\.shortName)
+    }
+
+    /// Whether the bar offers Close Arrival (someone still unmarked) or shows
+    /// Late. Never on a locked day or a day ahead.
+    var showsArrivalControl: Bool {
+        guard canMark, !isFuture else { return false }
+        switch phase {
+        case .arrival: return !unmarkedNames.isEmpty
+        case .late: return true
+        }
+    }
 
     /// The statuses the long-press menu offers on the day on screen.
     var menuStatuses: [AttendanceStatus] {
@@ -276,14 +289,17 @@ final class AssistantAttendanceViewModel {
     }
 
     /// Back to Arrival. Marks stay as they are unless `undo` is set, when the
-    /// children the last switch to Late marked absent (and still are) go back
+    /// children the last Close Arrival marked absent (and still are) go back
     /// to unmarked.
     func returnToArrival(undo: Bool = false) {
+        // A day locked since arrival closed stays as it was: its absences
+        // can't be put back, so reopening arrival would only mislead.
+        guard canMark else { return }
         phase = .arrival
         LatePhaseMemory.setLate(false, on: date, defaults: defaults)
         let batch = lastLateBatch
         lastLateBatch = []
-        guard undo, canMark, !batch.isEmpty else { return }
+        guard undo, !batch.isEmpty else { return }
         var reverted: [CDAttendanceRecord] = []
         for id in batch {
             guard let record = try? context.existingObject(with: id) as? CDAttendanceRecord,
@@ -316,8 +332,14 @@ final class AssistantAttendanceViewModel {
         guard canMark else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
-            if record.isInserted { createdSinceSave.append(record) }
-            guard store.updateNote(record, to: text) else { return }
+            let isNew = record.isInserted
+            guard store.updateNote(record, to: text) else {
+                // Saving an empty note on an unmarked child isn't a mark:
+                // leave no blank record waiting for the next save.
+                if isNew { context.delete(record) }
+                return
+            }
+            if isNew { createdSinceSave.append(record) }
             persist(updating: [record])
         } catch {
             Self.logger.error("Saving a note failed: \(error.localizedDescription, privacy: .public)")

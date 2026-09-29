@@ -93,7 +93,9 @@ struct AssistantAttendanceTile: View {
     var body: some View {
         cardWithMenu
             .onTapGesture(coordinateSpace: .local, perform: tap)
-            .keyframeAnimator(initialValue: TileRipple(), trigger: rippleTrigger) { content, ripple in
+            // The animator's closures run off the main actor: they take
+            // copies of what they draw, never the view's own properties.
+            .keyframeAnimator(initialValue: TileRipple(), trigger: rippleTrigger) { [shape] content, ripple in
                 content
                     .overlay { shape.fill(.white).opacity(ripple.glow).allowsHitTesting(false) }
                     .scaleEffect(ripple.scale)
@@ -161,14 +163,18 @@ struct AssistantAttendanceTile: View {
         )
         .padding(.horizontal, usesShortName ? 12 : 14)
         .padding(.vertical, usesShortName ? 0 : 12)
-        .keyframeAnimator(initialValue: TileTapMotion(), trigger: markTaps) { content, motion in
+        .overlay { border }
+        .overlay(alignment: .topTrailing) { cornerGlyph }
+        .overlay(alignment: .bottomTrailing) { phoneNoteGlyph }
+        // The fill goes behind the name and the border, as before; only it
+        // and the scale follow the motion.
+        .keyframeAnimator(
+            initialValue: TileTapMotion(), trigger: markTaps
+        ) { [shape, baseFill, isHere, tapOrigin] content, motion in
             content
                 .background {
                     TileFill(shape: shape, base: baseFill, isHere: isHere, origin: tapOrigin, spread: motion.spread)
                 }
-                .overlay { border }
-                .overlay(alignment: .topTrailing) { cornerGlyph }
-                .overlay(alignment: .bottomTrailing) { phoneNoteGlyph }
                 .scaleEffect(motion.scale)
         } keyframes: { _ in
             TileTapMotion.keyframes(for: tapKind, reduceMotion: reduceMotion)

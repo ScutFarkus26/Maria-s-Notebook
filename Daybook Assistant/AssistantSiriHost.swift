@@ -25,12 +25,20 @@ enum SiriHost {
     /// Commands that act on the whole class use the day's roll instead
     /// (`AssistantDayRoll`), which leaves out a child who hasn't started yet.
     static func roster(in context: NSManagedObjectContext) -> [CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "firstName", ascending: true),
-            NSSortDescriptor(key: "lastName", ascending: true)
-        ]
+        let request = AssistantDayRoll.classroomStudents(in: context)
+        request.sortDescriptors = CDStudent.sortByName
         return context.safeFetch(request).filter(\.isEnrolled)
+    }
+
+    /// Nothing the Assistant does is about a child who has left, and on a
+    /// locked phone the answer would tell anyone nearby that she has.
+    static let findsFormerStudents = false
+
+    /// Siri names children as the grid does: first names, with an initial
+    /// only where two share one. Here and late answer on a locked phone,
+    /// where a full name tells anyone nearby more than was said.
+    static func displayNames(for students: [CDStudent]) -> [NSManagedObjectID: String] {
+        AssistantAttendanceViewModel.gridNames(for: students)
     }
 
     /// Hardcoded, as in the grid: this app is only ever used by an assistant.

@@ -129,7 +129,7 @@ struct AssistantClassroomSheet: View {
                     }
                 }
             } else {
-                Text("On school days, a reminder to switch to Late, unless everyone's already marked.")
+                Text("On school days, a reminder to close arrival, unless everyone's already marked.")
             }
         }
         .task(id: "\(reminderOn)|\(reminderMinutes)") {

@@ -24,6 +24,9 @@ struct StudentEntity: AppEntity, IndexedEntity {
     let firstName: String
     let lastName: String
     let nickname: String?
+    /// The name Siri shows for this child, when the app names children
+    /// differently from `fullName` (`SiriHost.displayNames`).
+    var displayName: String?
 
     /// Human-readable full name, falling back gracefully when a part is blank.
     var fullName: String {
@@ -47,7 +50,7 @@ struct StudentEntity: AppEntity, IndexedEntity {
     var displayRepresentation: DisplayRepresentation {
         let subtitle: LocalizedStringResource? = nickname.flatMap { $0.isEmpty ? nil : "\($0)" }
         return DisplayRepresentation(
-            title: "\(fullName)",
+            title: "\(displayName ?? fullName)",
             subtitle: subtitle,
             image: .init(systemName: "person.crop.circle"),
             synonyms: spokenNames
@@ -110,9 +113,9 @@ struct StudentEntityQuery: EntityStringQuery {
     @MainActor
     func entities(matching string: String) async throws -> [StudentEntity] {
         let context = try SiriHost.stack().viewContext
-        let current = SiriHost.roster(in: context).compactMap { StudentEntity(student: $0) }
+        let current = Self.entities(SiriHost.roster(in: context))
         let found = Self.matches(for: string, in: current)
-        if !found.isEmpty { return found }
+        if !found.isEmpty || !SiriHost.findsFormerStudents { return found }
 
         let request = CDFetchRequest(CDStudent.self)
         request.sortDescriptors = CDStudent.sortByName
@@ -124,7 +127,18 @@ struct StudentEntityQuery: EntityStringQuery {
     @MainActor
     func suggestedEntities() async throws -> [StudentEntity] {
         let context = try SiriHost.stack().viewContext
-        return SiriHost.roster(in: context).compactMap { StudentEntity(student: $0) }
+        return Self.entities(SiriHost.roster(in: context))
+    }
+
+    /// The class as entities, each titled as the app names it.
+    @MainActor
+    private static func entities(_ students: [CDStudent]) -> [StudentEntity] {
+        let names = SiriHost.displayNames(for: students)
+        return students.compactMap { student in
+            var entity = StudentEntity(student: student)
+            entity?.displayName = names[student.objectID]
+            return entity
+        }
     }
 
     private static func matches(for string: String, in students: [StudentEntity]) -> [StudentEntity] {

@@ -16,22 +16,44 @@ struct AssistantSyncStatusView: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
 
     /// Kept across launches: marks saved just before the app was closed are
-    /// still unsent until the next launch's export says otherwise.
-    @AppStorage("Assistant.lastSharedSave") private var lastSharedSave: Double = 0
-    @AppStorage("Assistant.lastSharedExportStart") private var lastSharedExportStart: Double = 0
+    /// still unsent until the next launch's export says otherwise. These
+    /// describe one store's sync, so like every such key they are per CloudKit
+    /// environment: a Development build on the same iPhone keeps its own.
+    @AppStorage(Self.lastSharedSaveKey) private var lastSharedSave: Double = 0
+    @AppStorage(Self.lastSharedExportStartKey) private var lastSharedExportStart: Double = 0
     /// When the last successful import into the shared store ended: the
     /// guide's changes (and the class) as of then. Pull-to-refresh only
     /// re-reads this iPhone, so this is how she knows how fresh it is.
-    @AppStorage("Assistant.lastSharedImportEnd") private var lastSharedImportEnd: Double = 0
+    @AppStorage(Self.lastSharedImportEndKey) private var lastSharedImportEnd: Double = 0
     @State private var hasUnsavedChanges = false
     @State private var lastExportFailed = false
 
-    private enum Status {
+    static var lastSharedSaveKey: String { CloudKitEnvironment.scoped("Assistant.lastSharedSave") }
+    static var lastSharedExportStartKey: String { CloudKitEnvironment.scoped("Assistant.lastSharedExportStart") }
+    static var lastSharedImportEndKey: String { CloudKitEnvironment.scoped("Assistant.lastSharedImportEnd") }
+
+    enum Status: Equatable {
         case sent, sending, waitingForNetwork
     }
 
     private var status: Status {
-        if hasUnsavedChanges || lastSharedSave > lastSharedExportStart {
+        Self.status(
+            hasUnsavedChanges: hasUnsavedChanges,
+            lastSave: lastSharedSave,
+            lastExportStart: lastSharedExportStart,
+            lastExportFailed: lastExportFailed
+        )
+    }
+
+    /// Sent once an export that began after the last save has finished; until
+    /// then sending, or waiting for the network when the last export failed.
+    static func status(
+        hasUnsavedChanges: Bool,
+        lastSave: Double,
+        lastExportStart: Double,
+        lastExportFailed: Bool
+    ) -> Status {
+        if hasUnsavedChanges || lastSave > lastExportStart {
             return lastExportFailed ? .waitingForNetwork : .sending
         }
         return .sent

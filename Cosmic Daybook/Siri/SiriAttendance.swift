@@ -69,6 +69,12 @@ struct SiriAttendance {
         )
     }
 
+    /// How Siri names `student` in its answers: in full in the notebook, as
+    /// the grid does in the Assistant (`SiriHost.displayNames`).
+    func spokenName(for student: CDStudent) -> String {
+        SiriHost.displayNames(for: SiriHost.roster(in: context))[student.objectID] ?? student.fullName
+    }
+
     /// `student`'s mark today, without creating a record to read it.
     func status(of student: CDStudent) throws -> AttendanceStatus {
         let key = student.id?.uuidString ?? ""
@@ -100,9 +106,20 @@ struct SiriAttendance {
         try await commit(
             [Pending(record: record, from: previous, to: status)],
             created: created,
-            summary: "\(student.fullName) \(status.displayName.lowercased())"
+            summary: "\(spokenName(for: student)) \(status.displayName.lowercased())"
         )
         return previous
+    }
+
+    /// "Here": present, or tardy once arrival has closed in the Assistant
+    /// (`SiriHost.statusForHere`), but never a downgrade: a child already
+    /// present stays present, as a tap on the grid leaves her.
+    func markHere(_ student: CDStudent) async throws -> (previous: AttendanceStatus, now: AttendanceStatus) {
+        var status = SiriHost.statusForHere(on: today)
+        if status == .tardy, try self.status(of: student) == .present {
+            status = .present
+        }
+        return (try await mark(student, as: status), status)
     }
 
     /// A mark made in the context and not yet saved.
@@ -216,7 +233,7 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
         case .studentNotFound(let name):
             return "I couldn't find \(name) in your class."
         case .notEnrolled(let name):
-            return "\(name) isn't in the class any more, so I didn't mark attendance."
+            return "\(name) isn't in the class anymore, so I didn't mark attendance."
         case .dayLocked:
             return "Today's attendance is locked, so I can't change it."
         case .cannotMark:

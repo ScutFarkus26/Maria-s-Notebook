@@ -48,7 +48,7 @@ struct AssistantRosterTests {
         leah.enrollmentStatus = .transferred
         leah.dateWithdrawn = today
         let noa = AssistantTestSupport.student("Noa", "Winter", in: context)
-        noa.dateStarted = try #require(Calendar.current.date(byAdding: .day, value: 7, to: today))
+        noa.dateStarted = Calendar.current.date(byAdding: .day, value: 7, to: today)
         _ = context.safeSave()
 
         let session = SiriAttendance(stack: stack, role: .assistant, today: today)

@@ -36,7 +36,10 @@ struct AssistantRootView: View {
 
         case .ready:
             if let stack = bootstrapper.coreDataStack {
+                // A rebuilt stack is a new screen: its view model must not
+                // keep reading the old stack's context.
                 AssistantAttendanceView(coreDataStack: stack)
+                    .id(ObjectIdentifier(stack))
             } else {
                 AssistantOnboardingView()
             }

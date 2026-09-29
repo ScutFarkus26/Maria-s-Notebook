@@ -11,8 +11,19 @@ import Foundation
 /// back except marks this iPhone hasn't sent yet.
 struct AssistantStartupProblem: Equatable {
     let message: String
+    /// False when a store is still open (a rebuild after the iCloud account
+    /// arrived that couldn't close the old one): deleting files under it
+    /// would do harm, and reopening the app is the fix.
+    let canRebuild: Bool
 
-    init(_ error: Error) {
+    /// `storesOpen`: whether a stack still holds the store files
+    /// (`AssistantStack.isOpen`).
+    init(_ error: Error, storesOpen: Bool = false) {
+        canRebuild = !storesOpen
+        guard canRebuild else {
+            message = "Daybook Assistant needs to restart. Quit it and open it again."
+            return
+        }
         switch error {
         case CoreDataStackError.storeFromNewerBuild:
             // A TestFlight tester can install an earlier build over a later

@@ -37,16 +37,10 @@ struct MarkHereIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let session = try SiriAttendance()
         let child = try session.student(for: student)
-        try await SiriAttendance.confirmIfNoSchool(session, marking: child.fullName, for: self)
+        let name = session.spokenName(for: child)
+        try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
 
-        let name = child.fullName
-        var status = SiriHost.statusForHere(on: session.today)
-        // After arrival closes, a child already marked present stays present,
-        // as a tap on the grid leaves them.
-        if status == .tardy, try session.status(of: child) == .present {
-            status = .present
-        }
-        let previous = try await session.mark(child, as: status)
+        let (previous, status) = try await session.markHere(child)
         if previous == status {
             return .result(dialog: IntentDialog(
                 full: "\(name) was already marked \(status.displayName.lowercased()).",
@@ -84,10 +78,10 @@ struct MarkLateIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let session = try SiriAttendance()
         let child = try session.student(for: student)
-        try await SiriAttendance.confirmIfNoSchool(session, marking: child.fullName, for: self)
+        let name = session.spokenName(for: child)
+        try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
 
         let previous = try await session.mark(child, as: .tardy)
-        let name = child.fullName
         if previous == .tardy {
             return .result(dialog: IntentDialog(full: "\(name) was already marked tardy.", supporting: "Already tardy"))
         }
@@ -121,7 +115,7 @@ struct MarkAbsentIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let session = try SiriAttendance()
         let child = try session.student(for: student)
-        let name = child.fullName
+        let name = session.spokenName(for: child)
         if session.isSchoolDay {
             try await requestConfirmation(dialog: "Mark \(name) absent today?")
         } else {
@@ -146,7 +140,7 @@ struct MarkAbsentIntent: AppIntent {
 // MARK: - Undo
 
 struct UndoAttendanceIntent: AppIntent {
-    static let title: LocalizedStringResource = "Undo Last Attendance Mark"
+    static let title: LocalizedStringResource = "Undo Last Siri Attendance Mark"
     static let description = IntentDescription(
         "Put back the last attendance change made with Siri today.",
         categoryName: "Attendance"

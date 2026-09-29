@@ -43,7 +43,7 @@ struct AssistantAppShortcuts: AppShortcutsProvider {
             intent: UndoAttendanceIntent(),
             phrases: [
                 "Undo attendance in \(.applicationName)",
-                "Undo the last attendance mark in \(.applicationName)"
+                "Undo my last Siri attendance mark in \(.applicationName)"
             ],
             shortTitle: "Undo",
             systemImageName: "arrow.uturn.backward"

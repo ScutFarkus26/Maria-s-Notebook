@@ -18,13 +18,24 @@ enum AssistantDayRoll {
         recordStudentIDs: Set<String>,
         in context: NSManagedObjectContext
     ) -> [CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
+        let request = classroomStudents(in: context)
         request.predicate = AttendanceRoster.predicate(on: day, recordStudentIDs: recordStudentIDs)
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "firstName", ascending: true),
-            NSSortDescriptor(key: "lastName", ascending: true)
-        ]
+        request.sortDescriptors = CDStudent.sortByName
         return context.safeFetch(request)
+    }
+
+    /// A fetch of the classroom share's children only. On an Apple Account
+    /// that also keeps a Cosmic Daybook of its own, the private store holds
+    /// that notebook's children too, and a mark on one would be filed into
+    /// the guide's share. Stacks without a shared store (tests, the sample
+    /// class) read everything.
+    static func classroomStudents(in context: NSManagedObjectContext) -> NSFetchRequest<CDStudent> {
+        let request = CDFetchRequest(CDStudent.self)
+        let shared = context.persistentStoreCoordinator?.persistentStores.first {
+            $0.configurationName == CoreDataStack.sharedConfiguration
+        }
+        if let shared { request.affectedStores = [shared] }
+        return request
     }
 
     /// Siri's day: today's roll, and the children on it with no mark yet.

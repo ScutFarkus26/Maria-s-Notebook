@@ -263,10 +263,7 @@ final class ClassroomSharingService {
     /// Leaves the current shared classroom (assistant only).
     /// Purges local shared data and removes the membership record.
     func leaveClassroom() async throws {
-        // Read the row again: on a new iPhone it can arrive by sync after this
-        // service was built, and the role cached then would make leaving a
-        // silent no-op.
-        loadCurrentMembership()
+        loadCurrentMembership() // a row synced in after init left a stale role
         guard currentRole == .assistant else {
             Self.logger.warning("Only assistants can leave a classroom")
             return
@@ -281,11 +278,16 @@ final class ClassroomSharingService {
             try await container.purgeObjectsAndRecordsInZone(with: zoneID, in: store)
         }
 
-        // Remove local membership
-        let repo = ClassroomRepository(context: context)
-        if let membership = repo.fetchCurrentMembership() {
-            repo.deleteMembership(id: membership.id!)
-            _ = repo.save(reason: "Leave classroom")
+        // Every assistant row, not just the newest: two iPhones joining before
+        // either row synced leave two, and the older kept the device "joined".
+        let request = CDClassroomMembership.ownRowsRequest()
+        request.predicate = NSPredicate(
+            format: "roleRaw == %@", CDClassroomMembership.ClassroomRole.assistant.rawValue
+        )
+        let rows = context.safeFetch(request)
+        if !rows.isEmpty {
+            rows.forEach(context.delete)
+            _ = ClassroomRepository(context: context).save(reason: "Leave classroom")
         }
 
         currentShare = nil
@@ -309,9 +311,8 @@ final class ClassroomSharingService {
         }
     }
 
-    /// Re-reads the role from the current membership row. The Daybook
-    /// Assistant calls it when a row arrives by sync rather than by accepting
-    /// an invitation here.
+    /// Re-reads the role from the current membership row (the Assistant calls
+    /// it when a row arrives by sync rather than by accepting here).
     func loadCurrentMembership() {
         let repo = ClassroomRepository(context: context)
         if let membership = repo.fetchCurrentMembership() {

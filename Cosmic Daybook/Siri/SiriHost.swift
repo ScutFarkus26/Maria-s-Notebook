@@ -25,6 +25,12 @@ enum SiriHost {
             .fetchAllStudents(excludeTest: true, excludeWithdrawn: true, sortBy: CDStudent.sortByName)
     }
 
+    /// "Open Leah" still finds a child who has left the class.
+    static let findsFormerStudents = true
+
+    /// Siri names children in full here: the guide's own device.
+    static func displayNames(for students: [CDStudent]) -> [NSManagedObjectID: String] { [:] }
+
     /// Read from this device's membership, as the roll does.
     static let role: CDClassroomMembership.ClassroomRole? = nil
 

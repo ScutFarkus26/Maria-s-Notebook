@@ -14,10 +14,7 @@ import Observation
 @Observable
 final class AssistantBootstrapper {
 
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "DaybookAssistant",
-        category: "bootstrap"
-    )
+    private static let logger = Logger.app(category: "bootstrap")
 
     enum Phase {
         case starting
@@ -63,7 +60,7 @@ final class AssistantBootstrapper {
                 coreDataStack = try AssistantStack.shared()
                 phase = .ready
             } catch {
-                phase = .failed(AssistantStartupProblem(error))
+                phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
             }
             return
         }
@@ -78,7 +75,7 @@ final class AssistantBootstrapper {
             observeAccountChanges()
         } catch {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
-            phase = .failed(AssistantStartupProblem(error))
+            phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
         }
     }
 
@@ -110,7 +107,7 @@ final class AssistantBootstrapper {
             install(try AssistantStack.rebuild())
         } catch {
             Self.logger.error("Assistant rebuild failed: \(error.localizedDescription, privacy: .public)")
-            phase = .failed(AssistantStartupProblem(error))
+            phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
         }
     }
 
@@ -120,7 +117,7 @@ final class AssistantBootstrapper {
     /// first). Safe to delete here: a failed start leaves no stack holding
     /// the files (`AssistantStack.shared()` keeps only one that loaded).
     func rebuildFromICloud() async {
-        guard case .failed = phase else { return }
+        guard case .failed(let problem) = phase, problem.canRebuild, !AssistantStack.isOpen else { return }
         Self.logger.warning("Rebuilding the class from iCloud after a failed start")
         phase = .starting
         CoreDataStack.performLocalCacheReset()
@@ -155,6 +152,7 @@ final class AssistantBootstrapper {
     /// goes back to joining. Her marks stay with the guide.
     func leaveClassroom() async throws {
         try await sharingService?.leaveClassroom()
+        await ArrivalReminder.cancelAll()
         refreshMembership()
     }
 
@@ -173,13 +171,31 @@ final class AssistantBootstrapper {
             Self.logger.error("iCloud account status failed: \(error.localizedDescription, privacy: .public)")
             return
         }
-        guard coreDataStack != nil else { return }
-        if !accountCheckedSinceBuild {
-            accountCheckedSinceBuild = true
-            stackNeedsAccount = accountStatus != .available
-        } else if stackNeedsAccount, accountStatus == .available {
-            await rebuildStackForAccount()
-        }
+        guard coreDataStack != nil, let accountStatus else { return }
+        let decision = Self.accountDecision(
+            checkedSinceBuild: accountCheckedSinceBuild,
+            needsAccount: stackNeedsAccount,
+            status: accountStatus
+        )
+        accountCheckedSinceBuild = true
+        // Cleared before the rebuild awaits, so a second check arriving
+        // meanwhile (the account-change loop and Check Again together)
+        // doesn't rebuild again and pull the stores from under the first.
+        stackNeedsAccount = decision.needsAccount
+        if decision.rebuild { await rebuildStackForAccount() }
+    }
+
+    /// What one account check means for the stack. The first check after a
+    /// build decides whether it came up without an account; after that, the
+    /// account arriving is the one reason to rebuild, once.
+    nonisolated static func accountDecision(
+        checkedSinceBuild: Bool,
+        needsAccount: Bool,
+        status: CKAccountStatus
+    ) -> (needsAccount: Bool, rebuild: Bool) {
+        guard checkedSinceBuild else { return (status != .available, false) }
+        if needsAccount, status == .available { return (false, true) }
+        return (needsAccount, false)
     }
 
     /// Asks now, and again whenever the account changes (signed out in

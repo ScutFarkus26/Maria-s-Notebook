@@ -13,8 +13,10 @@ struct AssistantStartupProblemView: View {
         } description: {
             Text(problem.message)
         } actions: {
-            Button("Rebuild from iCloud") { confirmingRebuild = true }
-                .buttonStyle(.borderedProminent)
+            if problem.canRebuild {
+                Button("Rebuild from iCloud") { confirmingRebuild = true }
+                    .buttonStyle(.borderedProminent)
+            }
         }
         .confirmationDialog(
             "Rebuild your class from iCloud?",
