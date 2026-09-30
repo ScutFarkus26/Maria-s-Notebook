@@ -40,7 +40,7 @@ The groups under **More** (and in the sidebar) are:
 | Records | Logs, Notes (your observations) |
 | Classroom | Supplies, Orders, Community, Schedules, Going Out, Lesson Recall, Projects |
 | Library | Albums, Stories, Book Club, Resources, Procedures, Parsha Calendar |
-| System | Ask AI, Settings (on the Mac, Settings lives in the app menu instead — ⌘,) |
+| System | Ask AI, Settings |
 
 On the Mac, click a group's heading to collapse or expand it; the app remembers your choice. **Classroom** and **Library** start collapsed because you reach for them a few times a term. Choosing something inside a collapsed group — with a keyboard shortcut, say — opens the group for you.
 

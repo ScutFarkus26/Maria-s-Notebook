@@ -64,11 +64,10 @@ struct NavigationGroupTests {
         #expect(NavigationGroup.primaryTabs == [.today, .students, .attendance, .planningAgenda])
     }
 
-    @Test("The Mac sidebar leaves out only Settings, which has its own window")
-    func macSidebarHidesOnlySettings() {
-        let shown = NavigationGroup.all.flatMap(\.macSidebarItems)
-        #expect(Set(shown) == destinations.subtracting([.settings]))
+    @Test("Settings sits at the bottom of the sidebar, in System")
+    func settingsIsTheLastSidebarRow() {
         #expect(NavigationGroup.containing(.settings)?.id == .system)
+        #expect(NavigationGroup.all.last?.items.last == .settings)
     }
 
     // MARK: - Raw values are frozen

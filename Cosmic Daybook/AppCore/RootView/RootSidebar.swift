@@ -29,7 +29,7 @@ extension RootSidebar {
         List(selection: $selection) {
             ForEach(RootView.NavigationGroup.all) { group in
                 SidebarGroupSection(group: group) {
-                    ForEach(group.macSidebarItems) { item in
+                    ForEach(group.items) { item in
                         sidebarRow(item)
                     }
                 }

@@ -51,14 +51,6 @@ extension RootView {
                   isExpandedByDefault: true)
         ]
 
-        /// Rows the macOS sidebar leaves out: Settings is its own window
-        /// there (⌘,), so a sidebar row would be a second way to the same
-        /// panes. The destination still renders if something routes to it.
-        static let hiddenInMacSidebar: Set<NavigationItem> = [.settings]
-
-        /// This group's rows as the macOS sidebar shows them.
-        var macSidebarItems: [NavigationItem] { items.filter { !Self.hiddenInMacSidebar.contains($0) } }
-
         /// iPhone tab bar order; `RootAdaptiveTabs` adds "More" after them.
         static let primaryTabs: [NavigationItem] = [.today, .students, .attendance, .planningAgenda]
 
