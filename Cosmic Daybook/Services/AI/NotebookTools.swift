@@ -71,6 +71,10 @@ struct SearchNotebookTool: Tool {
 
     func call(arguments: Arguments) async throws -> String {
         let query = arguments.query
+        // The index is of the guide's own notebook, never Sample Class's.
+        guard await ChatToolContext.readsGuidesNotebook else {
+            return "Notebook search isn't available in Sample Class. Ask about a student by name instead."
+        }
         // The index can be purged under memory pressure — rebuild before searching
         // so a low-memory moment doesn't silently turn into "no results".
         await SearchIndexService.shared.ensureReady()
@@ -126,7 +130,7 @@ struct StudentNotesTool: Tool {
         studentName: String,
         daysBack: Int
     ) -> (text: String, sources: [EvidenceReference]) {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = ChatToolContext.context
 
         // Resolve the student by (diacritic-insensitive) name.
         let token = studentName.folded()
@@ -224,7 +228,7 @@ struct StudentPresentationHistoryTool: Tool {
 
     @MainActor
     private static func fetch(studentName: String, limit: Int) -> NotebookToolResult {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = ChatToolContext.context
         switch NotebookToolStudentResolver.resolve(studentName, in: context) {
         case .failure(let message):
             return NotebookToolResult(text: message, sources: [])
@@ -303,7 +307,7 @@ struct PresentationWorkTool: Tool {
 
     @MainActor
     private static func fetch(presentationID: UUID) -> NotebookToolResult {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = ChatToolContext.context
         let request = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "presentationID == %@", presentationID.uuidString)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
@@ -343,7 +347,7 @@ struct MissingPresentationObservationsTool: Tool {
     func call(arguments: Arguments) async throws -> String {
         let days = min(max(arguments.daysBack, 1), 120)
         let result = await MainActor.run {
-            let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+            let context = ChatToolContext.context
             let start = AppCalendar.shared.date(byAdding: .day, value: -days, to: Date()) ?? .distantPast
             return PresentationObservationCoverageService.missingObservationReferences(
                 in: context,

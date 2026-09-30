@@ -19,18 +19,19 @@ enum SiriHost {
         }
     }
 
-    /// Every enrolled child, for matching a spoken name (`StudentEntityQuery`).
-    /// Commands that act on the whole class use the day's roll instead
-    /// (`AssistantDayRoll`), which leaves out a child who hasn't started yet.
+    /// Every enrolled child, and one leaving who is still on today's roll,
+    /// for matching a spoken name (`StudentEntityQuery`, `SiriAttendance.nameable`).
+    /// Marking goes by the day's roll (`SiriAttendance.student(for:)`), and
+    /// commands that act on the whole class use it too (`AssistantDayRoll`).
     static func roster(in context: NSManagedObjectContext) -> [CDStudent] {
         let request = AssistantDayRoll.classroomStudents(in: context)
         request.sortDescriptors = CDStudent.sortByName
-        return context.safeFetch(request).filter(\.isEnrolled)
+        return SiriAttendance.nameable(AssistantDayRoll.classroom(context.safeFetch(request)), in: context)
     }
 
-    /// Nothing the Assistant does is about a child who has left, and on a
-    /// locked phone the answer would tell anyone nearby that she has.
-    static let findsFormerStudents = false
+    /// Nobody: nothing the Assistant does is about a child who has left, and
+    /// on a locked phone the answer would tell anyone nearby that she has.
+    static func formerStudents(in context: NSManagedObjectContext) -> [CDStudent] { [] }
 
     /// Siri names children as the grid does: first names, with an initial
     /// only where two share one. Here and late answer on a locked phone,
@@ -44,7 +45,7 @@ enum SiriHost {
 
     /// Once arrival has closed on this phone, a child who arrives is tardy,
     /// exactly as a tap during Late marks them.
-    static func statusForHere(on day: Date) -> AttendanceStatus {
+    static func statusForHere(on day: Date, store: CDAttendanceStore) -> AttendanceStatus {
         AttendanceLatePhase.isLate(on: day) ? .tardy : .present
     }
 

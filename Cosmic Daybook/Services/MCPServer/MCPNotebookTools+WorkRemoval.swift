@@ -67,6 +67,7 @@ extension MCPNotebookTools {
 
         let report = describeRemoval(plan, student: student, in: modelContext)
         guard arguments["confirm"]?.boolValue == true else {
+            MCPCallOutcome.markNothingWritten()
             return "remove_student_from_work refused — nothing has been changed.\n"
                 + "Re-call with confirm: true to proceed.\n\n" + report
         }

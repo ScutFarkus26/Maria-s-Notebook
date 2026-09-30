@@ -130,7 +130,7 @@ struct StudentDepartureYearPlanTests {
         let counted: Int = summary.yearPlanEntriesForDeparting
         #expect(counted == 3)
 
-        RolloverService.apply(
+        try RolloverService.apply(
             plan, students: roster, incomingYearLabel: "2026–2027",
             carryOverLanding: Date(), context: context
         )

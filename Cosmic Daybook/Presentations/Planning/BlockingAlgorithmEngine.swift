@@ -181,8 +181,9 @@ enum BlockingAlgorithmEngine {
                 let presentationID = assignment.id?.uuidString ?? ""
                 // Only this student's own work can gate their readiness — a classmate's
                 // unfinished work on the same group presentation must not block them.
-                let prerequisiteWork = (context.workByPresentationID[presentationID] ?? [])
-                    .filter { workInvolvesStudent(work: $0, studentID: studentID) }
+                let prerequisiteWork = gatingWork(
+                    for: studentID, among: context.workByPresentationID[presentationID] ?? []
+                )
 
                 if prerequisiteWork.isEmpty {
                     // No work assigned yet — if practice is required, student isn't ready
@@ -304,6 +305,17 @@ enum BlockingAlgorithmEngine {
             return work.studentID == studentIDStr
         }
         return participantsArray.contains { $0.studentID == studentIDStr }
+    }
+
+    /// The rows among one presentation's work that gate this child: the ones
+    /// they own when they own any. Group work is usually one linked copy per
+    /// child, each listing every classmate as a participant (see
+    /// `WorkGrouping`), so a classmate's unfinished copy names this child
+    /// too without being theirs. A child who owns none is gated by the rows
+    /// that name them: a shared row, or a legacy row with no participants.
+    static func gatingWork(for studentID: UUID, among works: [CDWorkModel]) -> [CDWorkModel] {
+        let owned = works.filter { WorkGrouping.owner(of: $0) == studentID }
+        return owned.isEmpty ? works.filter { workInvolvesStudent(work: $0, studentID: studentID) } : owned
     }
 
     /// Check if work is complete for a single student.

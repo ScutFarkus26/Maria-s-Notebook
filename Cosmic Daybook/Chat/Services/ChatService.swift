@@ -73,6 +73,8 @@ final class ChatService {
         // Build messages array for API (keep within token budget)
         let apiMessages = buildAPIMessages(from: session.messages)
 
+        // The notebook tools read this chat's classroom (Sample Class, say).
+        ChatToolContext.use(modelContext)
         let fullResponse = try await mcpClient.streamConversation(
             messages: apiMessages,
             systemMessage: systemMessage,

@@ -21,6 +21,10 @@ final class PresentationDetailActions {
         // Do not allow zero-student lessons; skip applying edits if empty selection
         guard !selectedStudentIDs.isEmpty else { return }
 
+        let wasPresented = lessonAssignment.isPresented
+        let removedStudentIDs = Set(lessonAssignment.studentIDs)
+            .subtracting(selectedStudentIDs.map(\.uuidString))
+
         lessonAssignment.lessonID = editingLessonID.uuidString
         lessonAssignment.notes = notes
         lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
@@ -39,6 +43,15 @@ final class PresentationDetailActions {
                 lessonAssignment.presentedAt = nil
             }
             lessonAssignment.setScheduledFor(scheduledFor, using: calendar)
+        }
+
+        // The history rows and promoted entries hang off this presentation by
+        // id, so they follow the edit here or read as given for good.
+        if let context = lessonAssignment.managedObjectContext {
+            PresentationRecordCleanup.removeStudents(removedStudentIDs, from: lessonAssignment, in: context)
+            if wasPresented && !lessonAssignment.isPresented {
+                PresentationRecordCleanup.unmarkPresented(lessonAssignment, in: context)
+            }
         }
     }
 

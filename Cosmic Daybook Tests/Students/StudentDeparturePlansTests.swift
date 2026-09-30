@@ -86,7 +86,7 @@ struct StudentDeparturePlansTests {
         let summary = RolloverService.summary(for: plan, students: [leaving, staying], context: context)
         #expect(summary.futurePlansForDeparting == 1)
 
-        RolloverService.apply(plan, students: [leaving, staying], incomingYearLabel: "2026–2027", context: context)
+        try RolloverService.apply(plan, students: [leaving, staying], incomingYearLabel: "2026–2027", context: context)
 
         #expect(leaving.isWithdrawn)
         #expect(shared.resolvedStudentIDs == [try #require(staying.id)])

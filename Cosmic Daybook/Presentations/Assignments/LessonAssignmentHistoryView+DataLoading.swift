@@ -102,6 +102,7 @@ extension LessonAssignmentHistoryView {
     // MARK: - Delete
 
     func deleteAssignment(_ assignment: CDLessonAssignment) {
+        PresentationRecordCleanup.prepareToDelete(assignment, in: viewContext)
         viewContext.delete(assignment)
         dependencies.saveCoordinator.save(viewContext, reason: "Delete presentation")
         // Reload to reflect deletion

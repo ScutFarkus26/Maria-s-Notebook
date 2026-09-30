@@ -207,6 +207,26 @@ struct CDAttendanceStore {
         return true
     }
 
+    /// Puts an absence's reason back exactly as it was, stored value and all
+    /// (Close Arrival's automatic marker included), for Siri's Undo of a
+    /// reason-only change. Returns whether it changed.
+    @discardableResult
+    func restoreAbsenceReason(_ record: CDAttendanceRecord, toRaw raw: String) -> Bool {
+        guard canWrite(on: record.date), record.status == .absent, record.absenceReasonRaw != raw else {
+            return false
+        }
+        record.absenceReasonRaw = raw
+        stamp(record)
+        return true
+    }
+
+    /// Whether arrival has closed on `date` somewhere: a record that day
+    /// carries Close Arrival's automatic absence. The Late phase itself is
+    /// only on the iPhone that closed it; this is what everyone else sees.
+    func arrivalClosed(on date: Date) throws -> Bool {
+        try loadRecords(for: date).contains(where: AttendanceDeduplication.isAutomaticAbsence)
+    }
+
     /// Convenience: Mark all students present for the date, creating missing records.
     /// Callers save immediately afterwards — this is a deliberate bulk action, not a
     /// screen-open side effect.
@@ -235,12 +255,23 @@ struct CDAttendanceStore {
         for rec in try ensureRecords(for: students, on: date)
         where rec.status == .unmarked && (rec.statusRaw.isEmpty || AttendanceStatus(rawValue: rec.statusRaw) != nil) {
             mark(rec, as: .absent, at: now)
+            // Loses a duplicate to any real mark (`AttendanceDeduplication.wins`).
+            rec.absenceReasonRaw = AttendanceDeduplication.automaticAbsenceRaw
             changed.append(rec)
         }
         return changed
     }
 
     #if !ASSISTANT_APP
+
+    /// Deletes a record, unless this role can't write or its day is locked.
+    /// Returns whether it did. The caller saves.
+    @discardableResult
+    func delete(_ record: CDAttendanceRecord) -> Bool {
+        guard canWrite(on: record.date) else { return false }
+        context.delete(record)
+        return true
+    }
 
     /// Resets the date's existing records to unmarked and clears their reasons
     /// and notes. Students without a record are left alone — no record already

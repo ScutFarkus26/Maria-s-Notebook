@@ -53,12 +53,18 @@ extension PresentationDetailViewModel {
 
     // MARK: - Mastery State Updating
 
-    /// Updates the mastery state on all CDLessonPresentation records for this lesson and students.
+    /// Gives every child a CDLessonPresentation record for this lesson, and,
+    /// when the guide changed the group's mastery control, sets all of them
+    /// to `state`. Otherwise existing records keep each child's own state and
+    /// a missing one starts at `.presented`: the control shows the group's
+    /// highest state, which is one child's, not everyone's.
     func updateProficiencyState(
         lessonID: String,
         studentIDs: [String],
-        state: LessonPresentationState
+        state guideState: LessonPresentationState,
+        guideChangedState: Bool
     ) {
+        let state = guideChangedState ? guideState : .presented
         guard !studentIDs.isEmpty, !lessonID.isEmpty else { return }
 
         let allLessonPresentations = viewContext.safeFetch(
@@ -69,6 +75,7 @@ extension PresentationDetailViewModel {
             if let existing = allLessonPresentations.first(where: {
                 $0.lessonID == lessonID && $0.studentID == studentID
             }) {
+                guard guideChangedState else { continue }
                 existing.state = state
                 existing.lastObservedAt = Date()
                 if state == .proficient && existing.masteredAt == nil {
@@ -89,7 +96,7 @@ extension PresentationDetailViewModel {
         }
 
         // If marking as mastered, check if track is now complete
-        if state == .proficient, let lesson = lessonAssignment.lesson {
+        if guideChangedState, state == .proficient, let lesson = lessonAssignment.lesson {
             for studentID in studentIDs {
                 SequenceTrackService.checkAndCompleteTrackIfNeeded(
                     lessonArea: lesson.area,

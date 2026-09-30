@@ -300,18 +300,16 @@ extension MCPNotebookTools {
             throw MCPToolError("That work item has no identifier.")
         }
 
-        var changes: [String] = []
-        do {
+        // One argument refused after another was applied would otherwise
+        // leave the earlier edit sitting unsaved in the shared context.
+        let changes: [String] = try rollingBackOnFailure(modelContext) { modelContext in
+            var changes: [String] = []
             changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
             changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
             changes += try applyCheckInMove(arguments, to: work, in: modelContext)
             changes += try applyDueDate(arguments, to: work)
             changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
-        } catch {
-            // One argument refused after another was applied would otherwise
-            // leave the earlier edit sitting unsaved in the shared context.
-            modelContext.rollback()
-            throw error
+            return changes
         }
 
         guard !changes.isEmpty else {
@@ -337,10 +335,13 @@ extension MCPNotebookTools {
             throw MCPToolError("\(student.fullName) is not on this work item.")
         }
         do {
+            // Saved with the rest of the call, so a later argument's refusal
+            // rolls this back too.
             try WorkCompletionService.markCompleted(
                 workID: workID, studentID: studentID,
                 note: nonEmpty(arguments["note"]?.stringValue) ?? "",
-                in: modelContext
+                in: modelContext,
+                saveImmediately: false
             )
         } catch {
             modelContext.rollback()

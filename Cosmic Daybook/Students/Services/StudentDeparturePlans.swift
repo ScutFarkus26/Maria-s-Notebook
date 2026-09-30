@@ -77,8 +77,8 @@ enum StudentDeparturePlans {
     ///
     /// Only `planned` ones. A promoted entry has already become a real
     /// assignment on the calendar, and that assignment — reached through
-    /// `futurePlans` above — is where a departing child comes off; touching
-    /// the entry as well would desync it from the lesson it was promoted into.
+    /// `futurePlans` above — is where a departing child comes off; `retract`
+    /// skips the entry at that moment, so the two stay in step.
     static func plannedEntries(
         for studentID: UUID, in context: NSManagedObjectContext
     ) -> [CDYearPlanEntry] {
@@ -120,7 +120,10 @@ enum StudentDeparturePlans {
     // MARK: - Retracting
 
     /// Takes `studentID` off each of `plans`. A plan left with nobody on it is
-    /// deleted, since the app never keeps a zero-child lesson. Does not save.
+    /// deleted, since the app never keeps a zero-child lesson. Her year-plan
+    /// entry promoted into a plan she comes off is skipped, like her planned
+    /// ones; any other entry left pointing at a deleted plan goes back to
+    /// planned. Does not save.
     @discardableResult
     static func retract(
         studentID: UUID, from plans: [CDLessonAssignment], in context: NSManagedObjectContext
@@ -128,9 +131,13 @@ enum StudentDeparturePlans {
         let idString = studentID.uuidString
         var result = Retraction()
         for plan in plans where !plan.isDeleted && plan.studentIDs.contains(idString) {
+            PresentationRecordCleanup.removeStudents(
+                [idString], from: plan, entriesBecome: .skipped, in: context
+            )
             var ids = plan.studentIDs
             ids.removeAll { $0 == idString }
             if ids.isEmpty {
+                PresentationRecordCleanup.prepareToDelete(plan, in: context)
                 context.delete(plan)
                 result.plansDeleted += 1
             } else {

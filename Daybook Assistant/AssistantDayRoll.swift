@@ -21,7 +21,23 @@ enum AssistantDayRoll {
         let request = classroomStudents(in: context)
         request.predicate = AttendanceRoster.predicate(on: day, recordStudentIDs: recordStudentIDs)
         request.sortDescriptors = CDStudent.sortByName
-        return context.safeFetch(request)
+        return classroom(context.safeFetch(request))
+    }
+
+    /// The children the grid and Siri may name, from a fetch of the share's
+    /// students: the guide's test students left out, as her own roll leaves
+    /// them out (`TestStudentsFilter`; the list is a setting on her device,
+    /// so this iPhone hides its default names), and a child who synced in
+    /// twice, as two rows with one id, shown once. The guide's notebook
+    /// folds such copies; this app may not delete a student, so until the
+    /// fold arrives it shows the first. Marks go by the id, so either row
+    /// marks the same child.
+    static func classroom(_ students: [CDStudent]) -> [CDStudent] {
+        var seen = Set<UUID>()
+        return TestStudentsFilter.filterVisible(students).filter { student in
+            guard let id = student.id else { return true }
+            return seen.insert(id).inserted
+        }
     }
 
     /// A fetch of the classroom share's children only. On an Apple Account

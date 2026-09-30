@@ -96,9 +96,11 @@ enum OrderService {
         }
     }
 
-    /// The office has acknowledged the request.
+    /// The office has acknowledged the request. Only an item asked for can
+    /// be confirmed: one still to request would skip Asked For, with no
+    /// request behind the confirmation.
     static func markConfirmed(_ items: [CDOrderItem], at date: Date = Date()) {
-        for item in items where item.confirmedAt == nil {
+        for item in items where item.confirmedAt == nil && item.requestedAt != nil {
             item.confirmedAt = date
             item.modifiedAt = date
         }

@@ -92,7 +92,7 @@ enum WorkLogService {
                     token.participants += close(work, for: students, on: logDay, note: entry.note, in: context)
                 } else if previous.isClosed {
                     reopened += 1
-                    reopen(work, token: &token)
+                    reopen(work, for: students, token: &token)
                 }
             }
             work.lastTouchedAt = now
@@ -128,14 +128,17 @@ enum WorkLogService {
         return WorkGrouping.owner(of: work).map { [$0] } ?? []
     }
 
-    /// Stamps the row and its participants and writes one completion record
-    /// per child logged. Returns the participant snapshots for the undo token.
+    /// Stamps the row and the participant rows of the children logged, and
+    /// writes one completion record per child logged. A linked copy's other
+    /// participants are classmates with rows of their own, so they are left
+    /// alone; `reopen` clears the same children. Returns the participant
+    /// snapshots for the undo token.
     private static func close(
         _ work: CDWorkModel, for students: [UUID], on day: Date, note: String?, in context: NSManagedObjectContext
     ) -> [ParticipantSnapshot] {
         work.completedAt = day
         var snapshots: [ParticipantSnapshot] = []
-        for participant in participants(of: work) {
+        for participant in participants(of: work, among: students) {
             snapshots.append(ParticipantSnapshot(participant))
             if participant.completedAt == nil { participant.completedAt = day }
         }
@@ -149,11 +152,21 @@ enum WorkLogService {
         return snapshots
     }
 
-    private static func reopen(_ work: CDWorkModel, token: inout UndoToken) {
+    /// Clears the row and the participant rows `close` stamps: the children logged.
+    private static func reopen(_ work: CDWorkModel, for students: [UUID], token: inout UndoToken) {
         work.completedAt = nil
-        guard let owner = WorkGrouping.owner(of: work), let participant = work.participant(for: owner) else { return }
-        token.participants.append(ParticipantSnapshot(participant))
-        participant.completedAt = nil
+        for participant in participants(of: work, among: students) {
+            token.participants.append(ParticipantSnapshot(participant))
+            participant.completedAt = nil
+        }
+    }
+
+    /// The participant rows of `students`, or every one when the row names
+    /// no child to log (unclaimed project work).
+    private static func participants(of work: CDWorkModel, among students: [UUID]) -> [CDWorkParticipantEntity] {
+        guard !students.isEmpty else { return participants(of: work) }
+        let wanted = Set(students)
+        return participants(of: work).filter { UUID(uuidString: $0.studentID).map(wanted.contains) ?? false }
     }
 
     /// Check-ins on or before `day` happened, so they are completed; later

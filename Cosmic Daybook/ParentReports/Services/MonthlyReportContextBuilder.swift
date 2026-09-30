@@ -252,7 +252,10 @@ struct MonthlyReportContextBuilder {
 
         let goingOutRequest = CDFetchRequest(CDGoingOut.self)
         for trip in context.safeFetch(goingOutRequest) {
-            guard let id = trip.id?.uuidString,
+            // A cancelled outing didn't happen: "Went out to" would tell the
+            // family otherwise.
+            guard trip.status != .cancelled,
+                  let id = trip.id?.uuidString,
                   let date = trip.actualDate ?? trip.proposedDate,
                   inMonth(date, interval),
                   trip.studentIDsArray.contains(studentID) else { continue }

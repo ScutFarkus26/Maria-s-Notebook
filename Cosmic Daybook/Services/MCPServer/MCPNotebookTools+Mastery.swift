@@ -32,7 +32,7 @@ extension MCPNotebookTools {
             handler: { arguments in
                 let modelContext = context()
                 let markings = try makeMarkings(arguments: arguments, in: modelContext)
-                return apply(markings, in: modelContext)
+                return try apply(markings, in: modelContext)
             }
         )
     }
@@ -175,9 +175,12 @@ extension MCPNotebookTools {
     /// as a run of single calls would, joined in the order they were given.
     private static func apply(
         _ markings: [MasteryMarking], in modelContext: NSManagedObjectContext
-    ) -> String {
+    ) throws -> String {
         let applied = markings.map { ($0, mark($0, in: modelContext)) }
-        _ = modelContext.safeSave()
+        guard modelContext.safeSave() else {
+            modelContext.rollback()
+            throw MCPToolError("The mastery marks could not be saved, so nothing was marked.")
+        }
         return applied.map { marking, outcome in
             describeMarking(
                 lesson: marking.lesson, assessedAt: marking.assessedAt, marked: outcome.marked,

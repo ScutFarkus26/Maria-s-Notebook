@@ -93,6 +93,7 @@ extension MCPNotebookTools {
 
         let report = clearReport(entries, in: modelContext)
         guard arguments["confirm"]?.boolValue == true else {
+            MCPCallOutcome.markNothingWritten()
             return "clear_year_plan refused — nothing has been changed.\n"
                 + "Re-call with confirm: true to skip these \(entries.count) entr\(entries.count == 1 ? "y" : "ies") "
                 + "for \(student.fullName)\(scope).\n\n" + report

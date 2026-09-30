@@ -8,6 +8,9 @@
 //
 
 import CoreData
+#if os(iOS)
+import UIKit
+#endif
 
 @MainActor
 enum SiriHost {
@@ -18,15 +21,26 @@ enum SiriHost {
     /// The notebook is always ready: it owns its data.
     static func checkReady(in context: NSManagedObjectContext) throws {}
 
-    /// The children Siri can name: enrolled, with test students hidden, as
-    /// on the roll.
+    /// The children Siri can name: enrolled, or leaving but still on today's
+    /// roll (`SiriAttendance.nameable`), with test students hidden.
     static func roster(in context: NSManagedObjectContext) -> [CDStudent] {
-        DataQueryService(context: context)
-            .fetchAllStudents(excludeTest: true, excludeWithdrawn: true, sortBy: CDStudent.sortByName)
+        let students = DataQueryService(context: context)
+            .fetchAllStudents(excludeTest: true, excludeWithdrawn: false, sortBy: CDStudent.sortByName)
+        return SiriAttendance.nameable(students, in: context)
     }
 
-    /// "Open Leah" still finds a child who has left the class.
-    static let findsFormerStudents = true
+    /// Who Siri looks through when no one on the roll has the name: "Open
+    /// Leah" still finds a child who has left, test students aside (the roll
+    /// hides them too). Not on a locked iPhone, where here and late run:
+    /// "Leah isn't in the class anymore" would tell anyone nearby that she
+    /// has left, which is why the Assistant never looks.
+    static func formerStudents(in context: NSManagedObjectContext) -> [CDStudent] {
+        #if os(iOS)
+        guard UIApplication.shared.isProtectedDataAvailable else { return [] }
+        #endif
+        return DataQueryService(context: context)
+            .fetchAllStudents(excludeTest: true, excludeWithdrawn: false, sortBy: CDStudent.sortByName)
+    }
 
     /// Siri names children in full here: the guide's own device.
     static func displayNames(for students: [CDStudent]) -> [NSManagedObjectID: String] { [:] }
@@ -34,10 +48,13 @@ enum SiriHost {
     /// Read from this device's membership, as the roll does.
     static let role: CDClassroomMembership.ClassroomRole? = nil
 
-    /// Once arrival has closed on this device (Close Arrival on the roll), a
-    /// child who arrives is tardy, as a tap on an iPhone tile marks them.
-    static func statusForHere(on day: Date) -> AttendanceStatus {
-        AttendanceLatePhase.isLate(on: day) ? .tardy : .present
+    /// Once arrival has closed, a child who arrives is tardy, as a tap on an
+    /// iPhone tile marks them: closed on this device (Close Arrival on the
+    /// roll), or anywhere else, which shows as Close Arrival's automatic
+    /// absence on a record that day (an assistant's iPhone, say).
+    static func statusForHere(on day: Date, store: CDAttendanceStore) -> AttendanceStatus {
+        if AttendanceLatePhase.isLate(on: day) { return .tardy }
+        return (try? store.arrivalClosed(on: day)) == true ? .tardy : .present
     }
 
     static func arrivalReopened(on day: Date) {

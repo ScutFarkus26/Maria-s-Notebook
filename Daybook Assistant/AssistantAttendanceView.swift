@@ -136,8 +136,13 @@ struct AssistantAttendanceView: View {
         }
         .environment(\.attendanceBackdropIsQuiet, backdropIsQuiet)
         .statusBarHidden(hidesStatusBar)
-        .sensoryFeedback(.success, trigger: viewModel?.completions)
-        .onChange(of: viewModel?.completions) { celebrateEveryoneMarked() }
+        .sensoryFeedback(.success, trigger: viewModel?.completions) {
+            AssistantAttendanceViewModel.isCompletion(from: $0, to: $1)
+        }
+        .onChange(of: viewModel?.completions) { old, new in
+            guard AssistantAttendanceViewModel.isCompletion(from: old, to: new) else { return }
+            celebrateEveryoneMarked()
+        }
         .overlay { HundredthDayConfetti(trigger: confettiBursts) }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
         .sheet(isPresented: $showingNameSheet) {

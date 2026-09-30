@@ -122,6 +122,78 @@ struct AssistantSiriTests {
         #expect(try siri.status(of: #require(kids["Noah"])) == .present)
     }
 
+    // MARK: - Undo and Close Arrival edge cases (logic-break sweep 2026-09-29, F12)
+
+    @Test("Undo puts back a reason-only change, down to Close Arrival's automatic absence")
+    func undoReasonOnly() async throws {
+        defer { cleanUp() }
+        let kids = try classOfThree()
+        let siri = session()
+        let maya = try #require(kids["Maya"])
+        _ = try await AssistantSiriCommands.closeArrival(siri)
+        let records = try siri.store.loadRecords(for: siri.today)
+        let record = try #require(records.first { $0.studentID == maya.id?.uuidString })
+        #expect(AttendanceDeduplication.isAutomaticAbsence(record))
+
+        try await siri.mark(maya, as: .absent, reason: .sick)
+        #expect(record.absenceReason == .sick)
+        #expect(try await siri.undoLast() == "Maya absent")
+        #expect(record.status == .absent)
+        #expect(AttendanceDeduplication.isAutomaticAbsence(record))
+        #expect(!context.hasChanges)
+    }
+
+    @Test("Undo on a locked day refuses and keeps the change for when it's unlocked")
+    func undoLockedDay() async throws {
+        defer { cleanUp() }
+        let kids = try classOfThree()
+        let siri = session()
+        let ari = try #require(kids["Ari"])
+        try await siri.mark(ari, as: .present)
+        #expect(AttendanceDayLocks.setLocked(true, for: monday, role: .leadGuide, in: context))
+
+        await #expect(throws: SiriAttendanceError.self) { try await siri.undoLast() }
+        #expect(SiriAttendanceChange.last() != nil)
+        #expect(try siri.status(of: ari) == .present)
+
+        #expect(AttendanceDayLocks.setLocked(false, for: monday, role: .leadGuide, in: context))
+        #expect(try await siri.undoLast() == "Ari present")
+        #expect(try siri.status(of: ari) == .unmarked)
+    }
+
+    @Test("A day locked while Siri waits for her yes isn't closed")
+    func closeLockedAfterConfirm() async throws {
+        defer { cleanUp() }
+        try classOfThree()
+        let siri = session()
+        #expect(try AssistantSiriCommands.checkClose(siri) == .ready(waiting: 3))
+        #expect(AttendanceDayLocks.setLocked(true, for: monday, role: .leadGuide, in: context))
+
+        await #expect(throws: SiriAttendanceError.self) { try await AssistantSiriCommands.closeArrival(siri) }
+        #expect(!Late.isLate(on: monday))
+        #expect(SiriAttendanceChange.last() == nil)
+    }
+
+    @Test("Closing arrival on the grid retires Siri's older change, so Undo can't reach back past it")
+    func gridCloseForgetsSiriUndo() async throws {
+        // A past Monday: the grid closes arrival only on a day that has come.
+        let past = try AssistantTestSupport.day("2021-01-04")
+        defer {
+            cleanUp()
+            Late.setLate(false, on: past)
+        }
+        let kids = try classOfThree()
+        let siri = session(on: past)
+        try await siri.mark(try #require(kids["Ari"]), as: .present)
+        #expect(SiriAttendanceChange.last() != nil)
+
+        let grid = AssistantTestSupport.viewModel(stack, on: past, defaults: .standard)
+        #expect(grid.beginLate() == 2)
+        #expect(SiriAttendanceChange.last() == nil)
+        await #expect(throws: SiriAttendanceError.self) { try await siri.undoLast() }
+        #expect(try siri.status(of: #require(kids["Ari"])) == .present)
+    }
+
     // MARK: - Membership
 
     @Test("Only an assistant row counts: a lead guide's row on the same account is not a class")

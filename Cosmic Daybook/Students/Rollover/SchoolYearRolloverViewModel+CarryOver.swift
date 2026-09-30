@@ -14,10 +14,8 @@ extension SchoolYearRolloverViewModel {
 
     /// A row per child on the roster who has entries targeted at the outgoing
     /// year. Empty when there is nothing to decide, which hides the section.
-    func carryOverSurvey(context: NSManagedObjectContext) -> [YearPlanCarryOver.Survey] {
-        YearPlanCarryOver.survey(
-            continuingStudents, in: context, yearStart: YearPlanStaleness.currentYearStart()
-        )
+    func carryOverSurvey(context: NSManagedObjectContext, store: SchoolYearStore) -> [YearPlanCarryOver.Survey] {
+        YearPlanCarryOver.survey(continuingStudents, in: context, yearStart: incomingYear(store: store).start)
     }
 
     /// Only children staying or being promoted are asked about: a departing
@@ -64,7 +62,9 @@ extension SchoolYearRolloverViewModel {
     }
 
     /// What the review step states before anything is written.
-    func carryOverCounts(context: NSManagedObjectContext) -> RolloverSummary {
-        RolloverService.summary(for: plan, students: students, context: context)
+    func carryOverCounts(context: NSManagedObjectContext, store: SchoolYearStore) -> RolloverSummary {
+        RolloverService.summary(
+            for: plan, students: students, context: context, carryOverBefore: incomingYear(store: store).start
+        )
     }
 }

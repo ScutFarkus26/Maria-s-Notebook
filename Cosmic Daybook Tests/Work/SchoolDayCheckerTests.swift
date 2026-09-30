@@ -54,6 +54,28 @@ final class SchoolDayCheckerTests {
         #expect(SchoolDayChecker.isSchoolDay(wednesday, using: ctx))
     }
 
+    // Logic-break sweep 2026-09-29, E5: the one-day check matched the stored
+    // instant exactly, while the cached calendar rounds to the day, so a
+    // holiday stored at a time other than midnight counted in one and not
+    // the other.
+    @Test("A record stored at a time other than midnight still marks its day")
+    func recordAtAnyTimeOfDay() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = stack.viewContext
+        let holiday = CDNonSchoolDay(context: ctx)
+        holiday.date = monday.addingTimeInterval(10 * 3_600)
+        let override = CDSchoolDayOverride(context: ctx)
+        override.date = saturday.addingTimeInterval(13 * 3_600)
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        #expect(!SchoolDayChecker.isSchoolDay(monday, using: ctx))
+        #expect(SchoolDayChecker.isSchoolDay(saturday, using: ctx))
+        #expect(SchoolDayChecker.isSchoolDay(wednesday, using: ctx))
+        let range = monday..<nextMonday
+        let set = SchoolDayChecker.nonSchoolDaySet(in: range, using: ctx)
+        #expect(set.contains(monday) && !set.contains(saturday) && set.contains(sunday))
+    }
+
     @Test("A SchoolDayOverride makes a weekend count as a school day")
     func weekendOverride() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()

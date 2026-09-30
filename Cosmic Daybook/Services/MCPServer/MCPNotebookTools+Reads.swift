@@ -155,11 +155,9 @@ extension MCPNotebookTools {
             throw MCPToolError("That student record has no identifier.")
         }
 
-        // `since` replaces the rolling window; without it the floor is the
-        // same "last N days" the tool has always used.
-        let floor = window.start
-            ?? AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date())
-            ?? .distantPast
+        // `since` replaces the rolling window; `until` alone moves it back;
+        // without either the floor is the "last N days" it has always used.
+        let floor = window.floor(daysBack: daysBack, now: Date())
         var clauses = [NSPredicate(format: "createdAt >= %@", floor as NSDate)]
         if let ceiling = window.endExclusive {
             clauses.append(NSPredicate(format: "createdAt < %@", ceiling as NSDate))
@@ -177,10 +175,10 @@ extension MCPNotebookTools {
                 }
             }
         let shown = matching.prefix(limit)
-        let scope = window.isSet ? window.phrase : " (last \(daysBack) days)"
+        let scope = window.isSet ? window.phrase(daysBack: daysBack) : " (last \(daysBack) days)"
         guard !shown.isEmpty else {
             return window.isSet
-                ? "No notes about \(student.firstName)\(window.phrase)."
+                ? "No notes about \(student.firstName)\(window.phrase(daysBack: daysBack))."
                 : "No notes about \(student.firstName) in the last \(daysBack) days."
         }
 
@@ -235,16 +233,14 @@ extension MCPNotebookTools {
     private static func describeMissingObservations(
         daysBack: Int, window: DayWindow, in modelContext: NSManagedObjectContext
     ) -> String {
-        let start = window.start
-            ?? AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: Date())
-            ?? .distantPast
+        let start = window.floor(daysBack: daysBack, now: Date())
         // The service compares `<=`, so the window's last instant is its end.
         let references = PresentationObservationCoverageService.missingObservationReferences(
             in: modelContext,
             from: start,
             through: window.endInclusive ?? Date()
         )
-        let scope = window.isSet ? window.phrase : " in the last \(daysBack) days"
+        let scope = window.isSet ? window.phrase(daysBack: daysBack) : " in the last \(daysBack) days"
         guard !references.isEmpty else {
             return "Every child on every presentation\(scope) has a linked observation."
         }

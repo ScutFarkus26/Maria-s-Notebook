@@ -8,6 +8,7 @@ import CoreData
 struct ChatView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
+    @Environment(\.isSampleClassroom) private var isSampleClassroom
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = ChatViewModel()
@@ -39,7 +40,8 @@ struct ChatView: View {
             .onAppear {
                 viewModel.configure(
                     viewContext: viewContext,
-                    mcpClient: dependencies.mcpClient
+                    mcpClient: dependencies.mcpClient,
+                    sampleClassroom: isSampleClassroom
                 )
             }
         }

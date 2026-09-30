@@ -25,6 +25,7 @@ extension ImmediatePresentationRecordingService {
                   row.presentationID == presentationID else {
                 continue
             }
+            row.presentedAt = state.presentedAt
             row.lastObservedAt = state.lastObservedAt
             row.followUpActionRaw = state.followUpActionRaw
             row.followUpReviewAt = state.followUpReviewAt

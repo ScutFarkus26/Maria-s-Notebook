@@ -102,10 +102,22 @@ struct OrderServiceTests {
         #expect(item.modifiedAt == Date(timeIntervalSince1970: 1_000), "no change, no new modifiedAt")
     }
 
+    // Logic-break sweep 2026-09-29, E7: confirming an item never asked for
+    // jumped it from To Request straight to Confirmed.
+    @Test("An item still to request can't be confirmed")
+    func confirmNeedsARequest() throws {
+        let context = try makeContext()
+        let items = OrderService.addLinks([link("a")], in: context)
+        OrderService.markConfirmed(items)
+        #expect(items[0].stage == .toRequest)
+        #expect(items[0].confirmedAt == nil)
+    }
+
     @Test("Confirming twice keeps the first confirmation date")
     func confirmIsIdempotent() throws {
         let context = try makeContext()
         let items = OrderService.addLinks([link("a")], in: context)
+        OrderService.markRequested(items, from: "Ms. Rivera")
         let first = Date(timeIntervalSince1970: 1_000)
         OrderService.markConfirmed(items, at: first)
         OrderService.markConfirmed(items, at: Date(timeIntervalSince1970: 2_000))

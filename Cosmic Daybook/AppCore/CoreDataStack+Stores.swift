@@ -172,11 +172,18 @@ extension CoreDataStack {
         } catch {
             logger.error("Reset Local Cache: failed to delete stores — \(error.localizedDescription)")
         }
+        clearLocalCacheResetFlags(in: defaults)
+    }
+
+    /// The flags that belonged to the deleted stores, and the reset request itself.
+    static func clearLocalCacheResetFlags(in defaults: UserDefaults) {
         // Records waiting for the classroom share named rows in the deleted
         // store; the download brings back whatever was already shared.
         defaults.removeObject(forKey: UserDefaultsKeys.classroomSharePendingAttach)
         // The history processor's per-store positions belong to it too.
         defaults.removeObject(forKey: UserDefaultsKeys.persistentHistoryStoreTokens)
+        // The fresh store's first check-in repair keeps orphans, as on a new device.
+        defaults.removeObject(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
@@ -193,8 +200,7 @@ extension CoreDataStack {
     ///
     /// Then a missing private store file means this launch downloads
     /// everything from iCloud (a reset, or a new device), so zone repair and
-    /// template seeding wait for that first import (`FirstDownloadGate`). With
-    /// CloudKit off no import will come, so nothing waits.
+    /// template seeding wait for that first import (`FirstDownloadGate`).
     static func prepareOnDiskStores(enableCloudKit: Bool) {
         let defaults = UserDefaults.standard
         if defaults.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch) {
@@ -206,10 +212,27 @@ extension CoreDataStack {
             performLocalCacheReset()
         }
 
-        if !enableCloudKit {
-            FirstDownloadGate.open()
-        } else if !FileManager.default.fileExists(atPath: privateStoreURL().path) {
-            FirstDownloadGate.arm()
+        updateFirstDownloadGate(
+            enableCloudKit: enableCloudKit,
+            privateStoreExists: FileManager.default.fileExists(atPath: privateStoreURL().path),
+            defaults: defaults
+        )
+    }
+
+    /// Arms the gate for a CloudKit launch with no private store yet, and
+    /// opens it only when the guide has turned iCloud sync off, so no import
+    /// will ever come. A launch that fell back to local stores because
+    /// CloudKit failed leaves it as it was: the download resumes when CloudKit
+    /// does, and the half-downloaded store must not be judged whole meanwhile
+    /// (once open, nothing re-arms it — the store file exists by then).
+    static func updateFirstDownloadGate(enableCloudKit: Bool, privateStoreExists: Bool, defaults: UserDefaults) {
+        let syncPreferred = defaults.object(forKey: UserDefaultsKeys.enableCloudKitSync) as? Bool ?? true
+        if enableCloudKit {
+            if !privateStoreExists {
+                FirstDownloadGate.arm(defaults: defaults)
+            }
+        } else if !syncPreferred {
+            FirstDownloadGate.open(defaults: defaults)
         }
     }
 }

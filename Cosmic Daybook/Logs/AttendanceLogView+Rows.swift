@@ -104,22 +104,30 @@ extension AttendanceLogView {
         }
     }
 
-    /// Through the store, like the grid: it refuses a locked day and stamps
-    /// who changed the mark and when.
+    /// Through the store, as a grid tap goes: it refuses a locked day and
+    /// stamps who marked it, when, and `markedAt`.
     private func updateRecordStatus(_ record: CDAttendanceRecord, to status: AttendanceStatus) {
-        guard CDAttendanceStore(context: viewContext).updateStatus(record, to: status) else {
-            dependencies.toastService.showInfo("This day is locked")
+        let store = CDAttendanceStore(context: viewContext)
+        guard store.updateStatus(record, to: status) else {
+            showRefusal(for: record, store: store)
             return
         }
         dependencies.saveCoordinator.save(viewContext, reason: "Update attendance status")
     }
 
     private func deleteRecord(_ record: CDAttendanceRecord) {
-        guard CDAttendanceStore(context: viewContext).canWrite(on: record.date) else {
-            dependencies.toastService.showInfo("This day is locked")
+        let store = CDAttendanceStore(context: viewContext)
+        guard store.delete(record) else {
+            showRefusal(for: record, store: store)
             return
         }
-        viewContext.delete(record)
         dependencies.saveCoordinator.save(viewContext, reason: "Delete attendance record")
+    }
+
+    private func showRefusal(for record: CDAttendanceRecord, store: CDAttendanceStore) {
+        let message = store.isLocked(record.date ?? Date())
+            ? "That day's attendance is locked. Unlock it to make changes."
+            : "Attendance can't be changed from here."
+        dependencies.toastService.showError(message)
     }
 }

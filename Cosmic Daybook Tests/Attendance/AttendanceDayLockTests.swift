@@ -70,6 +70,26 @@ struct AttendanceDayLockTests {
         #expect(try store.ensureRecord(for: student, on: try day("2026-10-13")) != nil)
     }
 
+    // Logic-break sweep 2026-09-29, F9: the attendance log changed status by
+    // setting `record.status` and deleted with `context.delete`, past the
+    // lock, `modifiedAt`, the marker's name and `markedAt`.
+    @Test("Deleting a record goes through the store, which refuses on a locked day")
+    func deleteHonorsTheLock() throws {
+        let ctx = try CoreDataTestHelpers.makeContext()
+        let monday = try day("2026-10-12")
+        let store = CDAttendanceStore(context: ctx, role: .leadGuide)
+        let kept = try #require(try store.ensureRecord(for: CoreDataTestHelpers.seedStudent(in: ctx), on: monday))
+        let gone = try #require(try store.ensureRecord(for: CoreDataTestHelpers.seedStudent(in: ctx), on: monday))
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        #expect(store.delete(gone))
+        #expect(gone.isDeleted)
+
+        AttendanceDayLocks.setLocked(true, for: monday, role: .leadGuide, in: ctx)
+        #expect(!store.delete(kept))
+        #expect(!kept.isDeleted)
+    }
+
     @Test("Old key-value locks become records once, and only the guide's")
     func legacyKeysCarryOver() throws {
         let ctx = try CoreDataTestHelpers.makeContext()

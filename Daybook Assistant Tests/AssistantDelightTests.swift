@@ -137,6 +137,18 @@ struct AssistantDelightTests {
 
     // MARK: - Everyone marked
 
+    @Test("Opening the screen is no completion: only a real increase buzzes, ripples and rings")
+    func completionTrigger() {
+        typealias Model = AssistantAttendanceViewModel
+        // The screen's model arriving at launch.
+        #expect(!Model.isCompletion(from: nil, to: 0))
+        #expect(!Model.isCompletion(from: nil, to: 3))
+        #expect(!Model.isCompletion(from: 1, to: nil))
+        #expect(!Model.isCompletion(from: 2, to: 2))
+        #expect(Model.isCompletion(from: 0, to: 1))
+        #expect(Model.isCompletion(from: 1, to: 2))
+    }
+
     @Test("The last unmarked child marked counts one completion; clearing and re-marking counts again")
     func completions() throws {
         let stack = try AssistantTestSupport.makeStack()

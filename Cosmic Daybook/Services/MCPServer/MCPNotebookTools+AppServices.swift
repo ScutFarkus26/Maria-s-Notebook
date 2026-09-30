@@ -32,12 +32,13 @@ extension MCPNotebookTools {
                 let result = await container.autoBackupManager.performManualBackup(
                     viewContext: container.viewContext
                 )
-                return describeBackup(result)
+                return try backupReceipt(result)
             }
         )
     }
 
-    private static func describeBackup(_ result: AutoBackupManager.BackupResult) -> String {
+    /// A failed backup is a tool error, not a receipt that reads like success.
+    static func backupReceipt(_ result: AutoBackupManager.BackupResult) throws -> String {
         switch result {
         case .success(let date, let url):
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64)
@@ -46,7 +47,7 @@ extension MCPNotebookTools {
             return "Backup written \(dayString(date)) at \(timeString(date)): "
                 + "[backup path=\(url.path)]\(sizeText)"
         case .failure(_, let error):
-            return "The backup could not be written: \(error.localizedDescription)"
+            throw MCPToolError("The backup could not be written: \(error.localizedDescription)")
         case .skippedNoChanges:
             // Manual backups are never change-gated, so this is defensive.
             return "Nothing has changed since the last backup, so no new file was written."
@@ -75,7 +76,7 @@ extension MCPNotebookTools {
                     ],
                     "month": [
                         "type": "string",
-                        "description": "The report month, YYYY-MM (default: the current month)"
+                        "description": "The report month, YYYY-MM (default: last month, the one open for reporting)"
                     ],
                     "include_student_reflection": [
                         "type": "boolean",
@@ -135,6 +136,16 @@ extension MCPNotebookTools {
         let draft = await service.generateDraft(
             for: student, month: month, includeStudentReflection: includeReflection
         )
+        // Drafting takes a while; the guide may have reviewed or sent the
+        // report meanwhile, and the upsert would put it back to draft.
+        if let existing = service.existingReport(studentID: studentID, monthKey: month.monthKey),
+           existing.status != .draft {
+            throw MCPToolError(
+                "\(name)'s \(month.displayName) report was marked \(existing.status.displayName.lowercased()) "
+                    + "while it was being drafted [communication id=\(existing.id?.uuidString ?? "unknown")]; "
+                    + "it is not replaced."
+            )
+        }
         guard !draft.narrative.isEmpty else {
             return "No evidence was recorded for \(name) in \(month.displayName) — no presentations, "
                 + "work, observations marked for the report, or attendance — so there is nothing to draft."
@@ -153,11 +164,15 @@ extension MCPNotebookTools {
             + "from \(draft.includedRefs.count) record(s). Status: draft.\n\n\(draft.narrative)"
     }
 
-    /// Parses a `YYYY-MM` argument, defaulting to the current month.
-    static func reportMonthArgument(_ arguments: [String: JSONValue], _ key: String) throws -> ReportMonth {
+    /// Parses a `YYYY-MM` argument, defaulting to the month open for
+    /// reporting (`ReportMonth.currentCycle`: last month), as the app's
+    /// Parent Reports queue does. The current month used to be the default,
+    /// a report on a month barely begun.
+    static func reportMonthArgument(
+        _ arguments: [String: JSONValue], _ key: String, now: Date = Date()
+    ) throws -> ReportMonth {
         guard let text = nonEmpty(arguments[key]?.stringValue) else {
-            let now = AppCalendar.shared.dateComponents([.year, .month], from: Date())
-            return ReportMonth(year: now.year ?? 1970, month: now.month ?? 1)
+            return ReportMonth.currentCycle(now: now)
         }
         let parts = text.split(separator: "-")
         guard parts.count == 2, let year = Int(parts[0]), let month = Int(parts[1]),

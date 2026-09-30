@@ -16,6 +16,11 @@ nonisolated struct SiriAttendanceChange: Codable, Sendable {
         let recordURI: URL
         let from: AttendanceStatus
         let to: AttendanceStatus
+        /// The stored absence reason before and after, when the change set
+        /// one: "Mark Maya absent, sick" on a child already absent changes
+        /// only this. Nil on changes remembered before 2026-09-29.
+        var fromReasonRaw: String?
+        var toReasonRaw: String?
     }
 
     let day: Date
@@ -30,17 +35,17 @@ nonisolated struct SiriAttendanceChange: Codable, Sendable {
         CloudKitEnvironment.scoped("Siri.lastAttendanceChange")
     }
 
-    @MainActor func remember() {
+    @MainActor func remember(defaults: UserDefaults = .standard) {
         guard let data = try? JSONEncoder().encode(self) else { return }
-        UserDefaults.standard.set(data, forKey: Self.key)
+        defaults.set(data, forKey: Self.key)
     }
 
-    @MainActor static func last() -> SiriAttendanceChange? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+    @MainActor static func last(defaults: UserDefaults = .standard) -> SiriAttendanceChange? {
+        guard let data = defaults.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(SiriAttendanceChange.self, from: data)
     }
 
-    @MainActor static func forget() {
-        UserDefaults.standard.removeObject(forKey: key)
+    @MainActor static func forget(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: key)
     }
 }

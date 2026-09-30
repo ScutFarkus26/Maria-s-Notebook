@@ -38,6 +38,11 @@ final class PresentationDetailViewModel {
     /// The mastery state for progress tracking. Only applies when lesson is presented.
     /// nil = not yet loaded, .presented = shown but not mastered, .proficient = student has mastered
     var proficiencyState: LessonPresentationState = .presented
+    /// What `proficiencyState` was loaded as: the highest state any child in
+    /// the group holds. A save writes the control back to the group only
+    /// when the guide moved it away from this, so one child's mastery isn't
+    /// copied onto classmates by an unrelated save.
+    var loadedProficiencyState: LessonPresentationState = .presented
 
     // MARK: - Group Recap
     /// Snapshot of every lesson, work item, and note in the same curriculum sequence as
@@ -108,6 +113,7 @@ final class PresentationDetailViewModel {
             studentIDs: lessonAssignment.studentIDs,
             viewContext: viewContext
         )
+        self.loadedProficiencyState = proficiencyState
     }
 
     // MARK: - Computed Helpers
@@ -234,8 +240,10 @@ final class PresentationDetailViewModel {
             updateProficiencyState(
                 lessonID: lessonAssignment.lessonID,
                 studentIDs: lessonAssignment.studentIDs,
-                state: proficiencyState
+                state: proficiencyState,
+                guideChangedState: proficiencyState != loadedProficiencyState
             )
+            loadedProficiencyState = proficiencyState
 
             if let lesson = lessonAssignment.lesson {
                 SequenceTrackService.autoEnrollInTrackIfNeeded(
@@ -281,14 +289,9 @@ final class PresentationDetailViewModel {
         // Perform deletion asynchronously
         Task {
             if let toDelete = ctx.object(CDLessonAssignment.self, id: id) {
-                _ = toDelete.studentIDs
-                for row in PresentationFollowUpService.rows(for: id, in: ctx)
-                    where row.hasOpenFollowUp {
-                    PresentationFollowUpService.resolve(
-                        .noFurtherFollowUp,
-                        row: row
-                    )
-                }
+                // Its history rows (and their follow-ups) go with it, and
+                // year-plan entries promoted into it return to planned.
+                PresentationRecordCleanup.prepareToDelete(toDelete, in: ctx)
                 ctx.delete(toDelete)
                 coordinator.save(ctx, reason: "Deleting lesson assignment")
             }

@@ -186,6 +186,21 @@ enum MCPNotebookTools {
             dayPadTool(context: context)
         ]
     }
+
+    /// Runs a write that can refuse an argument part-way through. A refusal
+    /// after an earlier field was applied would leave that edit pending in the
+    /// shared view context, to be saved by the next unrelated save; so any
+    /// throw rolls the context back first.
+    static func rollingBackOnFailure<Result>(
+        _ modelContext: NSManagedObjectContext, _ write: (NSManagedObjectContext) throws -> Result
+    ) throws -> Result {
+        do {
+            return try write(modelContext)
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
 }
 
 // MARK: - Shared Helpers
@@ -272,6 +287,25 @@ extension MCPNotebookTools {
             if let start, date < start { return false }
             if let endExclusive, date >= endExclusive { return false }
             return true
+        }
+
+        /// Where a read with a rolling `days_back` default starts. `since`
+        /// replaces the rolling window. With only `until`, the window is the
+        /// `daysBack` days ending on `until`: counting back from today instead
+        /// gave a floor after the ceiling, and an empty answer. With neither,
+        /// `daysBack` days back from `now` (the tool's own "today").
+        func floor(daysBack: Int, now: Date) -> Date {
+            if let start { return start }
+            let anchor = endExclusive ?? now
+            return AppCalendar.shared.date(byAdding: .day, value: -daysBack, to: anchor) ?? .distantPast
+        }
+
+        /// The header phrase for a read with a rolling default:
+        /// " in the 30 days through 2026-03-01" when only `until` was given,
+        /// otherwise `phrase`.
+        func phrase(daysBack: Int) -> String {
+            guard sinceDay == nil, let untilDay else { return phrase }
+            return " in the \(daysBack) days through \(MCPNotebookTools.dayString(untilDay))"
         }
 
         /// " since 2026-01-01", " through 2026-03-01", or both — for headers.

@@ -187,7 +187,7 @@ extension MCPNotebookTools {
             inputSchema: markAttendanceSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try markAttendance(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try markAttendance(arguments: arguments, in: $0) }
             }
         )
     }

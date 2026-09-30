@@ -96,7 +96,7 @@ extension MCPNotebookTools {
             inputSchema: updateCommunityTopicSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateCommunityTopic(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try updateCommunityTopic(arguments: arguments, in: $0) }
             }
         )
     }

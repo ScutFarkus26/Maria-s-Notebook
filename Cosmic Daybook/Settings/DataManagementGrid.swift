@@ -12,8 +12,10 @@ import AppKit
 /// automatic backups.
 struct DataManagementGrid: View {
     @Environment(\.dependencies) private var dependencies
-    /// Made once, from the environment's dependencies, when the card first
-    /// appears; the environment isn't readable in `init`.
+    @Environment(\.notebookDependencies) private var notebookDependencies
+    /// Made once, from the guide's own notebook's dependencies (see
+    /// `DataManagementPanel.notebook`), when the card first appears; the
+    /// environment isn't readable in `init`.
     @State private var viewModel: SettingsViewModel?
 
     var body: some View {
@@ -22,7 +24,7 @@ struct DataManagementGrid: View {
         } else {
             Color.clear
                 .frame(height: 0)
-                .onAppear { viewModel = SettingsViewModel(dependencies: dependencies) }
+                .onAppear { viewModel = SettingsViewModel(dependencies: notebookDependencies ?? dependencies) }
         }
     }
 }
@@ -30,9 +32,19 @@ struct DataManagementGrid: View {
 // swiftlint:disable:next type_body_length
 private struct DataManagementPanel: View {
     private static let logger = Logger.settings
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
+    @Environment(\.notebookDependencies) private var notebookDependencies
+    @Environment(\.isSampleClassroom) private var isSampleClassroom
     @Bindable var viewModel: SettingsViewModel
+
+    /// Backup and restore always act on the guide's own notebook, as the
+    /// menu's Create Backup and Restore Data do (they're off in Sample
+    /// Class). On iOS Settings lives inside the window, whose context and
+    /// dependencies are Sample Class's while it shows: a backup there was of
+    /// the made-up class, and a restore wrote into it through a second,
+    /// separate dependency graph.
+    private var notebook: AppDependencies { notebookDependencies ?? dependencies }
+    private var viewContext: NSManagedObjectContext { notebook.coreDataStack.viewContext }
 
     @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var autoBackupEnabled = true
     @AppStorage(UserDefaultsKeys.backupIncludesNotePhotos) private var backupIncludesNotePhotos = true
@@ -156,6 +168,12 @@ private struct DataManagementPanel: View {
 
     private var fileContent: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
+            if isSampleClassroom {
+                Label("Backup and restore use your own class, not Sample Class.", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             // Progress bar or result banner (inline)
             if isWorking {
                 progressBar

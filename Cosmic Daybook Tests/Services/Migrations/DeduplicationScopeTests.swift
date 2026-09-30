@@ -196,4 +196,49 @@ struct DeduplicationScopeTests {
         #expect(await waitUntil { coordinator.runAttemptCount == 2 })
         #expect(coordinator.lastRunScope == DeduplicationScope(insertedEntities: ["Note"]))
     }
+
+    // Logic-break sweep 2026-09-29, A4: a cycle that fired while a pass was
+    // still running cleared its scope and returned, so what it was asked to
+    // sweep was never swept.
+    @Test("A request that fires while a pass is running gets its own pass afterwards")
+    func requestDuringPassIsNotDropped() async throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let recorder = PassRecorder()
+        let coordinator = DeduplicationCoordinator(debounceInterval: .milliseconds(1)) { scope, _, _ in
+            await recorder.run(scope)
+        }
+        coordinator.persistentContainer = stack.container
+
+        coordinator.requestDeduplication(insertedEntities: ["Note"])
+        #expect(await waitUntil { recorder.started.count == 1 })
+        // The first pass is held open; this cycle fires while it runs.
+        coordinator.requestDeduplication(insertedEntities: ["Student"])
+        #expect(await waitUntil { coordinator.cycleCount == 2 })
+        #expect(recorder.started.count == 1)
+
+        recorder.releaseAll()
+        #expect(await waitUntil { recorder.started.count == 2 })
+        recorder.releaseAll()
+        #expect(recorder.started == [
+            DeduplicationScope(insertedEntities: ["Note"]), DeduplicationScope(insertedEntities: ["Student"])
+        ])
+    }
+}
+
+/// Records each pass's scope and holds it open until released.
+@MainActor
+private final class PassRecorder {
+    private(set) var started: [DeduplicationScope] = []
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func run(_ scope: DeduplicationScope) async {
+        started.append(scope)
+        await withCheckedContinuation { waiting.append($0) }
+    }
+
+    func releaseAll() {
+        let held = waiting
+        waiting = []
+        held.forEach { $0.resume() }
+    }
 }

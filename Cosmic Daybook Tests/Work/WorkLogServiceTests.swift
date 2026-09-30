@@ -230,6 +230,36 @@ struct WorkLogServiceTests {
         #expect(work.participant(for: room.simma)?.completedAt == nil)
     }
 
+    // Logic-break sweep 2026-09-29, B7: closing stamped every participant on
+    // the row, reopening cleared only the owner's. A linked copy's close
+    // marked the classmates it names as done, and a shared row reopened with
+    // everyone but its owner still stamped.
+    @Test("Closing a linked copy stamps only its own child")
+    func closingLinkedCopyStampsItsChildOnly() throws {
+        let room = try makeRoom()
+        let copies = seedLinkedCopies(in: room)
+        #expect(CoreDataTestHelpers.save(room.context))
+
+        try WorkLogService.log([.init(work: copies[0], status: .mastered)], on: room.today, context: room.context)
+
+        #expect(copies[0].participant(for: room.simma)?.completedAt == room.today)
+        #expect(copies[0].participant(for: room.naomi)?.completedAt == nil)
+    }
+
+    @Test("Reopening a shared row clears every child that closing stamped")
+    func reopeningSharedRowClearsEveryone() throws {
+        let room = try makeRoom()
+        let shared = seedSharedRow(in: room)
+        #expect(CoreDataTestHelpers.save(room.context))
+        try WorkLogService.log([.init(work: shared, status: .mastered)], on: room.today, context: room.context)
+        #expect(shared.participant(for: room.naomi)?.completedAt == room.today)
+
+        try WorkLogService.log([.init(work: shared, status: .active)], on: room.today, context: room.context)
+
+        #expect(shared.participant(for: room.simma)?.completedAt == nil)
+        #expect(shared.participant(for: room.naomi)?.completedAt == nil)
+    }
+
     // MARK: - Undo
 
     @Test("Undo restores every row, participant and check-in and removes what was created")

@@ -73,10 +73,9 @@ extension MCPNotebookTools {
         let signal: String? = nonEmpty(arguments["signal"]?.stringValue)
         let limit: Int = intArgument(arguments, "limit", default: 20, range: 1...50)
 
-        // `since` replaces the rolling window; `until` caps it.
-        let cutoff: Date = window.start ?? AppCalendar.shared.date(
-            byAdding: .day, value: -daysBack, to: AppCalendar.startOfDay(Date())
-        ) ?? .distantPast
+        // `since` replaces the rolling window; `until` caps it, and alone
+        // moves the rolling window back to end there.
+        let cutoff: Date = window.floor(daysBack: daysBack, now: AppCalendar.startOfDay(Date()))
 
         let all: [CDPracticeSession] = modelContext.safeFetch(CDFetchRequest(CDPracticeSession.self))
         var kept: [CDPracticeSession] = []
@@ -90,7 +89,7 @@ extension MCPNotebookTools {
         guard !kept.isEmpty else {
             let who = student.map { " for \($0.fullName)" } ?? ""
             return window.isSet
-                ? "No practice sessions\(who)\(window.phrase)."
+                ? "No practice sessions\(who)\(window.phrase(daysBack: daysBack))."
                 : "No practice sessions\(who) in the last \(daysBack) days."
         }
 
@@ -212,10 +211,9 @@ extension MCPNotebookTools {
         let window: DayWindow = try dayWindowArgument(arguments)
         let outcome: RecallOutcome? = try recallOutcomeArgument(arguments, "outcome")
 
-        // `since` replaces the rolling window; `until` caps it.
-        let cutoff: Date = window.start ?? AppCalendar.shared.date(
-            byAdding: .day, value: -daysBack, to: AppCalendar.startOfDay(Date())
-        ) ?? .distantPast
+        // `since` replaces the rolling window; `until` caps it, and alone
+        // moves the rolling window back to end there.
+        let cutoff: Date = window.floor(daysBack: daysBack, now: AppCalendar.startOfDay(Date()))
 
         let all: [CDLessonRecallCheck] = modelContext
             .safeFetch(CDFetchRequest(CDLessonRecallCheck.self))
@@ -230,7 +228,7 @@ extension MCPNotebookTools {
         guard !kept.isEmpty else {
             let who = student.map { " for \($0.fullName)" } ?? ""
             return window.isSet
-                ? "No recall checks\(who)\(window.phrase)."
+                ? "No recall checks\(who)\(window.phrase(daysBack: daysBack))."
                 : "No recall checks\(who) in the last \(daysBack) days."
         }
 

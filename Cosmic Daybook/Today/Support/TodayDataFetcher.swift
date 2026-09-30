@@ -140,18 +140,12 @@ enum TodayDataFetcher {
         errorCollector: FetchErrorCollector? = nil
     ) -> WorkFetchResult? {
         do {
-            // ENERGY OPTIMIZATION: Limit work fetch to relevant time window
-            let actualReferenceDate = max(referenceDate, Date())
-            let cutoffDate = AppCalendar.shared.date(byAdding: .day, value: -90, to: actualReferenceDate)
-                ?? actualReferenceDate.addingTimeInterval(-90*24*3600)
-
-            // Fetch Active/Review WorkModels with date filter
-            // PERFORMANCE: Add fetch limit to prevent unbounded result sets
+            // Every open (Working / Needs Review) work model, however old. A
+            // createdAt window of 90 days used to hide a child's longest-open
+            // work from Today exactly when it most needed a follow-up; open
+            // work is a small set by nature, and the fetch limit still caps it.
             let workRequest = CDFetchRequest(CDWorkModel.self)
-            workRequest.predicate = NSPredicate(
-                format: "statusRaw IN %@ AND createdAt >= %@",
-                WorkStatus.openRawValues, cutoffDate as NSDate
-            )
+            workRequest.predicate = NSPredicate(format: "statusRaw IN %@", WorkStatus.openRawValues)
             workRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)]
             workRequest.fetchLimit = 1000 // Reasonable limit for active work items
             // TodayScheduleBuilder reads work.checkIns (all statuses) for last-touch
@@ -377,7 +371,10 @@ enum TodayDataFetcher {
                 format: "date >= %@ AND date < %@",
                 day as NSDate, nextDay as NSDate
             )
-            let records = try context.fetch(request)
+            // One record per child, the same winner the grid and reports use:
+            // two devices marking the same morning each leave a record, and
+            // Today counted both.
+            let records = try context.fetch(request).deduplicatedPerStudentDay()
             let studentIDs = Set(records.compactMap { $0.studentID.asUUID })
             return AttendanceFetchResult(records: records, neededStudentIDs: studentIDs)
         } catch {

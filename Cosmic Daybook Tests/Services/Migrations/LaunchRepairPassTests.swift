@@ -46,7 +46,7 @@ struct LaunchRepairPassTests {
 
         // New: one pass on a background context.
         let outcome = await MigrationRunner.runPass(
-            on: Fixture.backgroundContext(beside: new), includeIntegrityRepairs: true
+            on: Fixture.backgroundContext(beside: new), includeIntegrityRepairs: true, firstDownloadPending: false
         ) { _ in [:] }
 
         let oldResult = Fixture.snapshot(of: old)
@@ -97,7 +97,7 @@ struct LaunchRepairPassTests {
 
         // New: all three inside the pass, the dedup in between.
         let outcome = await MigrationRunner.runPass(
-            on: Fixture.backgroundContext(beside: new), includeIntegrityRepairs: true
+            on: Fixture.backgroundContext(beside: new), includeIntegrityRepairs: true, firstDownloadPending: false
         ) { Self.dedupSweep($0) }
 
         let folded: [String: Int] = ["Student": 1, "WorkModel": 1]
@@ -121,7 +121,9 @@ struct LaunchRepairPassTests {
         let recorder = ContextSaveRecorder(coordinator: view.persistentStoreCoordinator)
 
         let background = stack.newBackgroundContext()
-        let outcome = await MigrationRunner.runPass(on: background, includeIntegrityRepairs: true) { _ in [:] }
+        let outcome = await MigrationRunner.runPass(
+            on: background, includeIntegrityRepairs: true, firstDownloadPending: false
+        ) { _ in [:] }
         let saves = recorder.finish()
 
         #expect(outcome.workRowsCleaned == 5)
@@ -146,7 +148,7 @@ struct LaunchRepairPassTests {
         let seeded = Fixture.snapshot(of: stack.viewContext)
 
         let outcome = await MigrationRunner.runPass(
-            on: stack.newBackgroundContext(), includeIntegrityRepairs: false
+            on: stack.newBackgroundContext(), includeIntegrityRepairs: false, firstDownloadPending: false
         ) { _ in [:] }
 
         let result = Fixture.snapshot(of: stack.viewContext)
@@ -164,7 +166,7 @@ struct LaunchRepairPassTests {
         // A sweep whose save "failed": it changed a row and left it unsaved.
         let firstWork = Fixture.workID(1)
         let outcome = await MigrationRunner.runPass(
-            on: stack.newBackgroundContext(), includeIntegrityRepairs: false
+            on: stack.newBackgroundContext(), includeIntegrityRepairs: false, firstDownloadPending: false
         ) { context in
             let request = CDFetchRequest(CDWorkModel.self)
             request.predicate = NSPredicate(format: "id == %@", firstWork as CVarArg)

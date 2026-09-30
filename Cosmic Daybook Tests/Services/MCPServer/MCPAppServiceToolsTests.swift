@@ -153,4 +153,19 @@ struct MCPAppServiceToolsTests {
             #expect(error.message.contains("YYYY-MM"))
         }
     }
+
+    // Logic-break sweep 2026-09-29, E6: with no month the tool drafted the
+    // month barely begun, not the one the Parent Reports queue has open.
+    @Test("draft_parent_report defaults to the month open for reporting, last month")
+    func draftDefaultsToTheOpenCycle() throws {
+        var components = DateComponents()
+        components.year = 2027
+        components.month = 3
+        components.day = 10
+        let march = try #require(AppCalendar.shared.date(from: components))
+        let month = try MCPNotebookTools.reportMonthArgument([:], "month", now: march)
+        #expect(month == ReportMonth(year: 2027, month: 2))
+        #expect(try MCPNotebookTools.reportMonthArgument(["month": .string("2026-08")], "month", now: march)
+            == ReportMonth(year: 2026, month: 8))
+    }
 }

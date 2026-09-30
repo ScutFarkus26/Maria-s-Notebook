@@ -20,6 +20,11 @@ enum MigrationRunner {
     /// - Parameter includeIntegrityRepairs: also run the two whole-table
     ///   `CDLessonAssignment` repairs (the scheduled-day mirror and orphaned
     ///   student IDs). The bootstrapper passes true on about one launch in ten.
+    ///
+    /// While the first download from iCloud is under way (`FirstDownloadGate`)
+    /// the repairs that judge a row by what else is in the store — orphaned
+    /// students, check-ins whose work is missing — wait: rows still on their
+    /// way down would read as gone, and what they cleared would sync back up.
     static func runIfNeeded(coreDataStack: CoreDataStack, includeIntegrityRepairs: Bool = false) async {
         // Heavy, synchronous launch cleanup — deduplicating ~30 entity types and
         // sweeping orphaned note images — runs on a background context so it no
@@ -28,14 +33,19 @@ enum MigrationRunner {
         // pattern already used by DeduplicationCoordinator for the post-sync pass.
         let bgContext = coreDataStack.newBackgroundContext()
         let container = coreDataStack.container
-        let outcome = await runPass(on: bgContext, includeIntegrityRepairs: includeIntegrityRepairs) { context in
+        let firstDownloadPending = FirstDownloadGate.isPending()
+        let outcome = await runPass(
+            on: bgContext,
+            includeIntegrityRepairs: includeIntegrityRepairs,
+            firstDownloadPending: firstDownloadPending
+        ) { context in
             // Remove duplicate records that may have been created by CloudKit sync conflicts.
             let results = DataMigrations.deduplicateAllModels(using: context, container: container)
             // Clean up any orphaned note images.
             DataMigrations.cleanupOrphanedNoteImages(using: context)
             // Check-ins that carry only a workID string, and whole-class notes
             // written on a presentation (see +CheckInAndNoteRepairs).
-            DataMigrations.repairWorkCheckInLinks(using: context)
+            DataMigrations.repairWorkCheckInLinks(using: context, firstDownloadPending: firstDownloadPending)
             DataMigrations.repairPresentationNoteScopes(using: context)
             // Attendance notes kept as private Notes join their shared record.
             AttendanceNoteMove.run(using: context)
@@ -67,6 +77,9 @@ enum MigrationRunner {
     ///    after the pass on the view context, firing one `participants` fault
     ///    per work row on the main thread).
     ///
+    /// With `firstDownloadPending`, the two orphaned-student steps are skipped:
+    /// the students they check against may not have downloaded yet.
+    ///
     /// Each step saves what it changed, as it did on its own context, so each
     /// reads what the one before saved — and the dedup's id-column pre-check,
     /// which falls back to reading whole tables on a context with unsaved
@@ -82,6 +95,7 @@ enum MigrationRunner {
     nonisolated static func runPass(
         on context: NSManagedObjectContext,
         includeIntegrityRepairs: Bool,
+        firstDownloadPending: Bool,
         sweep: @escaping @Sendable (NSManagedObjectContext) -> [String: Int]
     ) async -> PassOutcome {
         await context.perform {
@@ -90,14 +104,18 @@ enum MigrationRunner {
                 let start = Date()
                 DataMigrations.repairScheduledForDayMirror(using: context)
                 discardUnsavedChanges(in: context)
-                DataMigrations.cleanOrphanedStudentIDs(using: context)
-                discardUnsavedChanges(in: context)
+                if !firstDownloadPending {
+                    DataMigrations.cleanOrphanedStudentIDs(using: context)
+                    discardUnsavedChanges(in: context)
+                }
                 outcome.integrityRepairSeconds = Date().timeIntervalSince(start)
             }
             outcome.duplicatesRemoved = sweep(context)
             discardUnsavedChanges(in: context)
-            outcome.workRowsCleaned = DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
-            discardUnsavedChanges(in: context)
+            if !firstDownloadPending {
+                outcome.workRowsCleaned = DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
+                discardUnsavedChanges(in: context)
+            }
             return outcome
         }
     }

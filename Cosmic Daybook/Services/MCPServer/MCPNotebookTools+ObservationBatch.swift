@@ -77,7 +77,8 @@ extension MCPNotebookTools {
     /// The refusal both guards return: what already exists, and how to file
     /// a second copy anyway.
     static func duplicateNotice(subject: String, citation: String, on day: Date) -> String {
-        "An identical \(subject) from \(dayString(day)) already exists \(citation). "
+        MCPCallOutcome.markNothingWritten()
+        return "An identical \(subject) from \(dayString(day)) already exists \(citation). "
             + "Nothing was filed" + duplicateForceHint
     }
 
@@ -135,7 +136,9 @@ extension MCPNotebookTools {
         guard !names.isEmpty else {
             throw MCPToolError("At least one student name is required.")
         }
-        let students = try names.map { try resolveStudent(named: $0, in: modelContext) }
+        // A name or an id, as update_observation takes: two Ettys can only be
+        // told apart by id.
+        let students = try names.map { try resolveStudentReference($0, in: modelContext) }
         let studentIDs = students.compactMap(\.id)
         guard studentIDs.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")
@@ -237,7 +240,7 @@ extension MCPNotebookTools {
             "type": "array",
             "items": ["type": "string"],
             "minItems": 1,
-            "description": "First names, full names, or nicknames of the students observed"
+            "description": "The students observed: first names, full names, nicknames, or ids from list_students"
         ],
         "body": [
             "type": "string",

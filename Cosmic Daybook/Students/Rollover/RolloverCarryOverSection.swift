@@ -16,7 +16,7 @@ struct RolloverCarryOverSection: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        let surveys = viewModel.carryOverSurvey(context: viewContext)
+        let surveys = viewModel.carryOverSurvey(context: viewContext, store: store)
         if !surveys.isEmpty {
             Section {
                 setAllRow(surveys)
@@ -111,7 +111,7 @@ struct RolloverCarryOverSection: View {
     private func footerText(_ surveys: [YearPlanCarryOver.Survey]) -> String {
         let entries = surveys.reduce(0) { $0 + $1.count }
         let children = surveys.count
-        let start = DateFormatters.mediumDate.string(from: YearPlanStaleness.currentYearStart())
+        let start = DateFormatters.mediumDate.string(from: viewModel.incomingYear(store: store).start)
         return "\(entries) \(entries == 1 ? "entry" : "entries") for \(children) "
             + "\(children == 1 ? "child" : "children") target dates before \(start) — last year's "
             + "intentions, not lessons they have fallen behind on. Re-dating keeps each child's "

@@ -21,7 +21,8 @@ struct MCPRequestHandler: Sendable {
     let tools: [MCPToolDefinition]
     /// Called once for every successful call of a tool that changes the
     /// notebook, so provenance can be journalled without any entity field
-    /// having to carry it. Never called for reads or for failures.
+    /// having to carry it. Never called for reads, for failures, or for a
+    /// call the tool marked as writing nothing (`MCPCallOutcome`).
     let onWrite: (@Sendable (MCPWriteRecord) async -> Void)?
 
     init(
@@ -140,10 +141,14 @@ struct MCPRequestHandler: Sendable {
 
         let arguments = request.params?["arguments"]?.objectValue ?? [:]
         do {
-            let text = try await tool.handler(arguments)
+            let outcome = MCPCallOutcome()
+            let text = try await MCPCallOutcome.$current.withValue(outcome) {
+                try await tool.handler(arguments)
+            }
             // Only a call that returned — a thrown error falls to the catch —
-            // and only one that could have changed something.
-            if let onWrite, !tool.annotations.readOnlyHint {
+            // only one that could have changed something, and not a preview
+            // or no-op the tool said changed nothing.
+            if let onWrite, !tool.annotations.readOnlyHint, !outcome.wroteNothing {
                 await onWrite(MCPWriteRecord(
                     tool: tool.name, arguments: arguments, result: text,
                     destructive: tool.annotations.destructiveHint

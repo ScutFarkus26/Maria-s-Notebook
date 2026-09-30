@@ -280,7 +280,7 @@ struct YearPlanCarryOverTests {
         #expect(toRedate == 1)
         #expect(redateChildren == 1)
 
-        RolloverService.apply(
+        try RolloverService.apply(
             plan, students: roster, incomingYearLabel: "2026–2027",
             carryOverLanding: landing, context: context
         )
@@ -289,5 +289,36 @@ struct YearPlanCarryOverTests {
         // The departure cascade wins: skipped, and never re-dated first.
         #expect(departing.status == .skipped)
         #expect(departing.plannedDate == day(2026, 4, 14))
+    }
+
+    // Logic-break sweep 2026-09-29, E3. The rollover judged "carried over"
+    // by the current school year's start, so one done before the new year
+    // began (in June, the usual time) found only the year before last's
+    // entries and left the year being closed out alone.
+    @Test("a rollover before the new year begins carries over the year being closed out")
+    func rolloverBeforeTheNewYear() throws {
+        let context = try makeContext()
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora", lastName: "Pardo")
+        let lesson = CoreDataTestHelpers.seedLesson(in: context, name: "The Pentagon")
+        let closingYearStart = YearPlanStaleness.currentYearStart()
+        let incomingStart = try #require(AppCalendar.shared.date(byAdding: .year, value: 1, to: closingYearStart))
+        // Targeted inside the year being closed out.
+        let entry = seedEntry(
+            in: context, student: ora, lesson: lesson, plannedDate: AppCalendar.addingDays(40, to: closingYearStart)
+        )
+        CoreDataTestHelpers.save(context)
+
+        var plan = RolloverPlan(effectiveDate: Date(), writeNotes: false)
+        plan.carryOver[try #require(ora.id)] = .skip
+        let summary = RolloverService.summary(
+            for: plan, students: [ora], context: context, carryOverBefore: incomingStart
+        )
+        #expect(summary.carriedOverToSkip == 1)
+
+        try RolloverService.apply(
+            plan, students: [ora], incomingYearLabel: "next year",
+            carryOverLanding: incomingStart, carryOverBefore: incomingStart, context: context
+        )
+        #expect(entry.status == .skipped)
     }
 }

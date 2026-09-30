@@ -43,6 +43,28 @@ enum YearPlanPromotionService {
         }
     }
 
+    /// Promotes each child's matching planned entry into `assignment`, leaving
+    /// the day the assignment was given alone — for a caller that has already
+    /// chosen the day (MCP's `schedule_presentation`). Returns how many
+    /// entries were promoted. Does not save.
+    @discardableResult
+    static func promoteMatchingEntries(
+        into assignment: CDLessonAssignment,
+        context: NSManagedObjectContext
+    ) -> Int {
+        guard let assignmentID = assignment.id?.uuidString else { return 0 }
+        var promoted = 0
+        for studentID in assignment.resolvedStudentIDs {
+            guard let entry = findMatchingEntry(
+                lessonID: assignment.lessonID, studentID: studentID, context: context
+            ) else { continue }
+            entry.status = .promoted
+            entry.promotedAssignmentID = assignmentID
+            promoted += 1
+        }
+        return promoted
+    }
+
     /// Returns the earliest planned date across all matching Year Plan entries for the
     /// given lesson + students. Read-only — does not promote.
     /// Used to pre-fill the Schedule date picker so the teacher sees the planned date

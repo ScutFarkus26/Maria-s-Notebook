@@ -94,7 +94,7 @@ extension MCPNotebookTools {
             inputSchema: updateGoingOutSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateGoingOut(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try updateGoingOut(arguments: arguments, in: $0) }
             }
         )
     }

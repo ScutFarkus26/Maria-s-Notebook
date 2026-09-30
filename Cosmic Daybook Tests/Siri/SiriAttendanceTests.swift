@@ -207,4 +207,57 @@ struct SiriAttendanceTests {
         let siri = session()
         #expect { try siri.student(for: entity(for: leah)) } throws: { Self.siriError($0) == "notEnrolled" }
     }
+
+    // Logic-break sweep 2026-09-29, F8: Siri went by `isEnrolled`, not the
+    // day's roll the grid shows (`AttendanceRoster`), so it marked a child
+    // who hadn't started yet and refused one leaving today who was still on
+    // the grid.
+    @Test("A child who hasn't started yet is refused")
+    func notStartedYet() throws {
+        let noa = makeStudent("Noa")
+        noa.dateStarted = monday.addingTimeInterval(7 * 86_400)
+        let siri = session()
+        #expect { try siri.student(for: entity(for: noa)) } throws: { Self.siriError($0) == "notStarted" }
+    }
+
+    @Test("A child whose last day is today is still on the roll, and Siri can name her")
+    func leavingToday() throws {
+        let tali = makeStudent("Tali", status: .withdrawn)
+        tali.dateWithdrawn = monday
+        let siri = session()
+        #expect(try siri.student(for: entity(for: tali)) === tali)
+        #expect(SiriAttendance.nameable([tali], on: monday, in: context) == [tali])
+        tali.dateWithdrawn = monday.addingTimeInterval(-86_400)
+        #expect(SiriAttendance.nameable([tali], on: monday, in: context).isEmpty)
+    }
+
+    // Logic-break sweep 2026-09-29, F13: here was always present in the
+    // notebook, so after the Assistant closed arrival the two apps marked
+    // the same arrival differently; and the name fallback searched test
+    // students.
+    @Test("Once the Assistant has closed arrival, here marks tardy here too, never downgrading present")
+    func hereAfterAssistantCloses() async throws {
+        let maya = makeStudent("Maya"), ari = makeStudent("Ari"), noa = makeStudent("Noa")
+        let siri = session()
+        try await siri.mark(ari, as: .present)
+        #expect(try await siri.markHere(noa) == (.unmarked, .present))
+
+        let assistant = CDAttendanceStore(context: context, role: .assistant)
+        #expect(try assistant.markUnmarkedAbsent(for: monday, students: [maya, ari]).count == 1)
+        #expect(context.safeSave())
+
+        #expect(try await siri.markHere(maya) == (.absent, .tardy))
+        #expect(try await siri.markHere(ari) == (.present, .present))
+    }
+
+    @Test("When no one on the roll has the name, Siri looks at former students but never test students")
+    func formerStudentsFallback() {
+        let leah = makeStudent("Leah", status: .withdrawn)
+        let test = makeStudent("Lil")
+        test.lastName = "Dan D"
+        _ = context.safeSave()
+        let former = SiriHost.formerStudents(in: context)
+        #expect(former.contains(leah))
+        #expect(!former.contains(test))
+    }
 }

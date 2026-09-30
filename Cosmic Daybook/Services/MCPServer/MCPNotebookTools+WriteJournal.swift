@@ -61,7 +61,8 @@ extension MCPNotebookTools {
         let window: DayWindow
         let tool: String?
         let limit: Int
-        /// `since` replaces the rolling window; without it, `days` back.
+        /// `since` replaces the rolling window; `until` alone moves it back
+        /// to end there; without either, `days` back.
         let since: Date?
 
         init(_ arguments: [String: JSONValue]) throws {
@@ -69,9 +70,7 @@ extension MCPNotebookTools {
             window = try dayWindowArgument(arguments)
             tool = nonEmpty(arguments["tool"]?.stringValue)
             limit = intArgument(arguments, "limit", default: 50, range: 1...500)
-            since = window.start ?? AppCalendar.shared.date(
-                byAdding: .day, value: -days, to: AppCalendar.startOfDay(Date())
-            )
+            since = window.floor(daysBack: days, now: AppCalendar.startOfDay(Date()))
         }
     }
 
@@ -82,7 +81,9 @@ extension MCPNotebookTools {
             return "Nothing has been written over MCP in that window."
         }
         let scope = request.tool.map { " by \($0)" } ?? ""
-        let when = request.window.isSet ? request.window.phrase : " in the last \(request.days) days"
+        let when = request.window.isSet
+            ? request.window.phrase(daysBack: request.days)
+            : " in the last \(request.days) days"
         var lines: [String] = ["\(records.count) write(s) over MCP\(scope)\(when):"]
         for record in records {
             lines.append(headline(record))

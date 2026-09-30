@@ -172,6 +172,9 @@ nonisolated enum ClassroomShareAttach {
     /// server's change tag is the one a save is checked against; otherwise the
     /// store's; `share` itself when neither has it. The guide owns the share
     /// (private database); an assistant sees it in the shared database.
+    /// Off the caller's actor: offline, the store's copy is read with
+    /// `fetchShares(in:)`, which waits while an export holds the store.
+    @concurrent
     static func current(_ share: CKShare, container: NSPersistentCloudKitContainer) async -> CKShare {
         let cloud = await CloudKitConfigurationService.container
         let database = share.recordID.zoneID.ownerName == CKCurrentUserDefaultName
@@ -228,6 +231,25 @@ nonisolated enum ClassroomShareAttach {
                 try ids.map { try context.existingObject(with: $0) }
             }
             _ = try await container.share(objects, to: share)
+        }.value
+    }
+
+    /// `container.persistUpdatedShare(share, in:)` for the store with
+    /// `storeIdentifier`, off the main actor. It blocks its thread on the
+    /// same `__ulock_wait` as `share(_:to:)` until the share's export
+    /// resolves: called from the main actor, removing a participant froze
+    /// the Mac's Manage Sharing window with a spinner (2026-09-29).
+    static func persistUpdatedShareOffMain(
+        _ share: CKShare,
+        storeIdentifier: String,
+        container: NSPersistentCloudKitContainer
+    ) async throws -> CKShare {
+        try await Task.detached {
+            let stores = container.persistentStoreCoordinator.persistentStores
+            guard let store = stores.first(where: { $0.identifier == storeIdentifier }) else {
+                throw CocoaError(.persistentStoreOperation)
+            }
+            return try await container.persistUpdatedShare(share, in: store)
         }.value
     }
 

@@ -50,6 +50,16 @@ final class AssistantAttendanceViewModel {
     /// on a day that has arrived: the grid's ripple and the bar's "Everyone's
     /// here". Never by an import or a change of day.
     private(set) var completions = 0
+
+    /// Whether `completions` going from `old` to `new` is a real finish. The
+    /// screen reads it through an optional view model, so its first value
+    /// arrives as nil to 0 when the model is made: that is a launch, not
+    /// everyone being marked, and must not buzz or ring.
+    nonisolated static func isCompletion(from old: Int?, to new: Int?) -> Bool {
+        guard let old, let new else { return false }
+        return new > old
+    }
+
     /// A child just marked in after days away: "Welcome back, Maya" in the
     /// bar. Set only by her own marks, never an import or a change of day.
     private(set) var welcome: Welcome?
@@ -252,19 +262,28 @@ final class AssistantAttendanceViewModel {
     @discardableResult
     func beginLate() -> Int {
         guard canMark, !isFuture, phase == .arrival else { return 0 }
-        phase = .late
-        AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
+        let changed: [CDAttendanceRecord]
         do {
-            let changed = try store.markUnmarkedAbsent(for: date, students: rows.map(\.student))
-            createdSinceSave.append(contentsOf: changed.filter(\.isInserted))
-            persist(updating: changed)
-            lastLateBatch = changed.map(\.objectID)
-            return changed.count
+            changed = try store.markUnmarkedAbsent(for: date, students: rows.map(\.student))
         } catch {
+            // Nothing was marked, so arrival stays open (it used to go to
+            // Late with the rest still unmarked).
             Self.logger.error("Closing arrival failed: \(error.localizedDescription, privacy: .public)")
             saveError = "Couldn't mark the rest absent. Try again."
             return 0
         }
+        phase = .late
+        AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
+        // Siri's last change is from before arrival closed: "Undo that" now
+        // would put back an older voice mark, not this.
+        if let siri = SiriAttendanceChange.last(defaults: defaults),
+           Calendar.current.isDate(siri.day, inSameDayAs: date) {
+            SiriAttendanceChange.forget(defaults: defaults)
+        }
+        createdSinceSave.append(contentsOf: changed.filter(\.isInserted))
+        persist(updating: changed)
+        lastLateBatch = changed.map(\.objectID)
+        return changed.count
     }
 
     /// Back to Arrival. Marks stay as they are unless `undo` is set, when the

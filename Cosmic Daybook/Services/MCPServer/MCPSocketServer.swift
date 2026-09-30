@@ -45,6 +45,9 @@ actor MCPSocketServer {
 
     private var listener: NWListener?
     private var connectionTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+    /// Held so `stop()` can cancel them: a message loop waiting in `receive`
+    /// doesn't see its task's cancellation until the connection closes.
+    private var connections: [ObjectIdentifier: NWConnection] = [:]
     private var authenticatedClients: Set<ObjectIdentifier> = []
     private var clientCountSequence = 0
 
@@ -134,6 +137,12 @@ actor MCPSocketServer {
             task.cancel()
         }
         connectionTasks.removeAll()
+        // Close the sockets too, so no loop receives another line (and runs
+        // another tool) after the server was turned off.
+        for connection in connections.values {
+            connection.cancel()
+        }
+        connections.removeAll()
         // The owner stops counting a stopped server's clients itself.
         authenticatedClients.removeAll()
     }
@@ -142,6 +151,7 @@ actor MCPSocketServer {
 
     private func adopt(_ connection: NWConnection) {
         let id = ObjectIdentifier(connection)
+        connections[id] = connection
         connection.start(queue: queue)
         let didAuthenticate: @Sendable () async -> Void = { [weak self] in
             await self?.clientDidAuthenticate(id)
@@ -158,6 +168,7 @@ actor MCPSocketServer {
 
     private func forget(_ id: ObjectIdentifier) {
         connectionTasks[id] = nil
+        connections[id] = nil
         if authenticatedClients.remove(id) != nil {
             publishClientCount()
         }
@@ -200,11 +211,9 @@ actor MCPSocketServer {
                 buffer.append(chunk)
                 guard buffer.count <= maximumLineLength else { break }
 
-                while let newlineIndex = buffer.firstIndex(of: UInt8(ascii: "\n")) {
-                    let line = Data(buffer.prefix(upTo: newlineIndex))
-                    buffer.removeSubrange(...newlineIndex)
-                    guard !line.isEmpty else { continue }
-
+                // A stopped server dispatches nothing more, even a line that
+                // arrived in the same chunk as the last one it ran.
+                while !Task.isCancelled, let line = nextLine(from: &buffer) {
                     if !authenticated {
                         guard String(bytes: line, encoding: .utf8) == "AUTH \(authToken)" else {
                             logger.warning("MCP client rejected: bad auth preamble")
@@ -231,6 +240,17 @@ actor MCPSocketServer {
         if authenticated {
             logger.notice("MCP client disconnected")
         }
+    }
+
+    /// Removes and returns the next non-empty line (without its newline),
+    /// or nil when no complete line is buffered yet.
+    private static func nextLine(from buffer: inout Data) -> Data? {
+        while let newlineIndex = buffer.firstIndex(of: UInt8(ascii: "\n")) {
+            let line = Data(buffer.prefix(upTo: newlineIndex))
+            buffer.removeSubrange(...newlineIndex)
+            if !line.isEmpty { return line }
+        }
+        return nil
     }
 
     private static func receive(on connection: NWConnection) async throws -> Data? {

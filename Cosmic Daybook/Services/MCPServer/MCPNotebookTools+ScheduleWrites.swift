@@ -98,6 +98,8 @@ extension MCPNotebookTools {
         let assignment = existing
             ?? PresentationFactory.makeDraft(lesson: lesson, students: students, context: modelContext)
         schedule(assignment, onDay: day, at: time)
+        // The plan answers any matching year-plan intention.
+        let promoted = YearPlanPromotionService.promoteMatchingEntries(into: assignment, context: modelContext)
         if let purpose {
             recordRepeatIntent(
                 RepeatIntent(
@@ -117,8 +119,13 @@ extension MCPNotebookTools {
         let who = students.map(\.fullName).joined(separator: ", ")
         let verb = existing == nil ? "Scheduled" : "Moved the existing plan for"
         return "\(verb) [presentation id=\(id)] \(lesson.name) — \(who) on \(dayString(day))"
-            + "\(timeSuffix(assignment))"
-            + "\(repeatReceipt(purpose, conflicts: conflicts.count, of: students.count))."
+            + "\(timeSuffix(assignment))\(repeatReceipt(purpose, conflicts: conflicts.count, of: students.count))"
+            + "\(promotionReceipt(promoted))."
+    }
+
+    /// " (1 year-plan entry promoted into it)", or nothing.
+    private static func promotionReceipt(_ promoted: Int) -> String {
+        promoted == 0 ? "" : " (\(promoted) year-plan entr\(promoted == 1 ? "y" : "ies") promoted into it)"
     }
 
     /// The named children the record already covers — refusing the call when
@@ -283,6 +290,7 @@ extension MCPNotebookTools {
             assignment.unschedule()
             outcome = "\(title) is off the calendar and back in the planning list."
         } else if let day {
+            try requireSchoolDay(day, in: modelContext)
             schedule(assignment, onDay: day, at: time)
             outcome = "\(title) is now scheduled for \(dayString(day))\(timeSuffix(assignment))."
         } else if let time {

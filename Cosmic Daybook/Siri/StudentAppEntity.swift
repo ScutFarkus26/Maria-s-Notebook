@@ -87,19 +87,17 @@ struct StudentEntityQuery: EntityStringQuery {
     }
 
     /// The class first; only when no current child matches does it look at
-    /// former students, so "Open Leah" still finds a child who has left while
-    /// "Mark Leah here" never picks her over a current Leah.
+    /// former students (`SiriHost.formerStudents`), so "Open Leah" still
+    /// finds a child who has left while "Mark Leah here" never picks her
+    /// over a current Leah.
     @MainActor
     func entities(matching string: String) async throws -> [StudentEntity] {
         let context = try SiriHost.stack().viewContext
         let current = Self.entities(SiriHost.roster(in: context))
         let found = Self.matches(for: string, in: current)
-        if !found.isEmpty || !SiriHost.findsFormerStudents { return found }
-
-        let request = CDFetchRequest(CDStudent.self)
-        request.sortDescriptors = CDStudent.sortByName
-        let everyone = context.safeFetch(request).compactMap { StudentEntity(student: $0) }
-        return Self.matches(for: string, in: everyone)
+        if !found.isEmpty { return found }
+        let former = SiriHost.formerStudents(in: context).compactMap { StudentEntity(student: $0) }
+        return Self.matches(for: string, in: former)
     }
 
     /// The names Siri learns for App Shortcut phrases: the current class.

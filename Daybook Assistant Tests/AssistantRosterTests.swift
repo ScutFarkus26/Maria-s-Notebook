@@ -66,4 +66,23 @@ struct AssistantRosterTests {
         #expect(day.unmarked.isEmpty)
         #expect(!day.roll.contains(noa))
     }
+
+    // Logic-break sweep 2026-09-29, F11. The notebook's roll hides the
+    // guide's test students and her dedup folds a child synced twice; the
+    // Assistant's grid and Siri showed both.
+    @Test("The roll leaves out test students and shows a child synced twice once")
+    func testStudentsAndDuplicates() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        AssistantTestSupport.student("Ari", "Cedar", in: context)
+        AssistantTestSupport.student("Danny", "De Berry", in: context)
+        let maya = AssistantTestSupport.student("Maya", "Stone", in: context)
+        let copy = AssistantTestSupport.student("Maya", "Stone", in: context)
+        copy.id = maya.id
+        _ = context.safeSave()
+
+        let model = AssistantTestSupport.viewModel(stack)
+        #expect(model.rows.map(\.student.firstName) == ["Ari", "Maya"])
+        #expect(SiriHost.roster(in: context).map(\.firstName) == ["Ari", "Maya"])
+    }
 }

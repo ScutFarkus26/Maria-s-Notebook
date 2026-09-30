@@ -15,10 +15,10 @@
 //  nothing; a call with `confirm: true` deletes at once, whether or not a
 //  report was asked for first — the report is offered, never required, so a
 //  caller who already knows the presentation id can discard it in one call.
-//  The delete itself is the one the planning list's context menu
-//  makes — `context.delete` + save, notes cascading — plus one repair that
-//  menu does not make: a year-plan entry promoted into the discarded plan
-//  goes back to `planned`, so the intention survives the plan.
+//  The delete itself is the one every in-app delete makes —
+//  `PresentationRecordCleanup.prepareToDelete`, `context.delete` + save,
+//  notes cascading — so a year-plan entry promoted into the discarded plan
+//  goes back to `planned` and the intention survives the plan.
 //
 //  Given presentations are history and are refused by both tools;
 //  `record_presentation` corrects those.
@@ -83,14 +83,12 @@ extension MCPNotebookTools {
         }
 
         guard arguments["confirm"]?.boolValue == true else {
+            MCPCallOutcome.markNothingWritten()
             return "discard_presentation refused — nothing has been changed.\n"
                 + "Re-call with confirm: true to delete it.\n\n" + report.joined(separator: "\n")
         }
 
-        for entry in promoted {
-            entry.status = .planned
-            entry.promotedAssignmentID = nil
-        }
+        PresentationRecordCleanup.prepareToDelete(assignment, in: modelContext)
         modelContext.delete(assignment)
         guard modelContext.safeSave() else {
             modelContext.rollback()
@@ -99,16 +97,13 @@ extension MCPNotebookTools {
         return "Discarded.\n\n" + report.joined(separator: "\n")
     }
 
-    /// Year-plan entries that became this presentation. The in-app delete
-    /// leaves them pointing at nothing, still reading as promoted; returning
-    /// them to planned keeps the plan honest.
+    /// Year-plan entries that became this presentation; the delete returns
+    /// them to planned (`PresentationRecordCleanup.prepareToDelete`).
     private static func promotedYearPlanEntries(
         for assignment: CDLessonAssignment, in modelContext: NSManagedObjectContext
     ) -> [CDYearPlanEntry] {
         guard let id = assignment.id?.uuidString else { return [] }
-        let request = CDFetchRequest(CDYearPlanEntry.self)
-        request.predicate = NSPredicate(format: "promotedAssignmentID == %@", id)
-        return modelContext.safeFetch(request).filter(\.isPromoted)
+        return PresentationRecordCleanup.entries(promotedInto: id, in: modelContext)
     }
 
     // MARK: - Roster
@@ -189,11 +184,16 @@ extension MCPNotebookTools {
             )
         }
         guard roster != assignment.studentIDs else {
+            MCPCallOutcome.markNothingWritten()
             return "[presentation id=\(assignment.id?.uuidString ?? "unknown")] Nothing changed: "
                 + changes.joined(separator: ", ") + "."
         }
 
-        // The same write the detail view's Save and the departure retraction make.
+        // The same write the detail view's Save and the departure retraction
+        // make, including sending a removed child's promoted entry back to planned.
+        PresentationRecordCleanup.removeStudents(
+            Set(assignment.studentIDs).subtracting(roster), from: assignment, in: modelContext
+        )
         assignment.studentIDs = roster
         assignment.confirmedStudentIDs = assignment.confirmedStudentIDs.filter { roster.contains($0) }
         assignment.modifiedAt = Date()

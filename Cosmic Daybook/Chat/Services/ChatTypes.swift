@@ -88,34 +88,39 @@ struct ChatSession: Codable {
 
     // MARK: - Persistence
 
-    private static let storageKey = "ChatSession.saved"
+    /// Sample Class keeps its own chat: restoring the guide's real one there
+    /// showed her children's names in the practice classroom, and a sample
+    /// chat came back in her own.
+    static func storageKey(sampleClassroom: Bool) -> String {
+        sampleClassroom ? "ChatSession.saved.sampleClass" : "ChatSession.saved"
+    }
 
     /// Save session to UserDefaults.
-    func save() {
+    func save(sampleClassroom: Bool = false, defaults: UserDefaults = .standard) {
         do {
             let data = try JSONEncoder().encode(self)
-            UserDefaults.standard.set(data, forKey: Self.storageKey)
+            defaults.set(data, forKey: Self.storageKey(sampleClassroom: sampleClassroom))
         } catch {
             Logger.ai.error("Failed to save chat session: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     /// Load a previously saved session from UserDefaults. Returns nil if none exists or is older than 24 hours.
-    static func loadSaved() -> ChatSession? {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
+    static func loadSaved(sampleClassroom: Bool = false, defaults: UserDefaults = .standard) -> ChatSession? {
+        guard let data = defaults.data(forKey: storageKey(sampleClassroom: sampleClassroom)),
               let session = try? JSONDecoder().decode(ChatSession.self, from: data) else {
             return nil
         }
         // Discard sessions older than 24 hours
         if Date().timeIntervalSince(session.startedAt) > 86400 {
-            clearSaved()
+            clearSaved(sampleClassroom: sampleClassroom, defaults: defaults)
             return nil
         }
         return session
     }
 
     /// Clear the saved session.
-    static func clearSaved() {
-        UserDefaults.standard.removeObject(forKey: storageKey)
+    static func clearSaved(sampleClassroom: Bool = false, defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: storageKey(sampleClassroom: sampleClassroom))
     }
 }

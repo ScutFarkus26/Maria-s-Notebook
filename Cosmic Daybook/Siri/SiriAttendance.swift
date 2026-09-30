@@ -46,16 +46,34 @@ struct SiriAttendance {
         !SchoolDayChecker.isNonSchoolDay(today, using: context)
     }
 
-    /// The current child `entity` names. A former student is refused rather
-    /// than marked: she has no place on today's roll.
+    /// The child `entity` names, if she's on today's roll as the grid shows
+    /// it (`AttendanceRoster`): a child who hasn't started yet or has left is
+    /// refused rather than marked, and one whose last day is today is not.
     func student(for entity: StudentEntity) throws -> CDStudent {
         guard let student = context.object(CDStudent.self, id: entity.id) else {
             throw SiriAttendanceError.studentNotFound(entity.fullName)
         }
-        guard student.isEnrolled else {
-            throw SiriAttendanceError.notEnrolled(student.fullName)
+        let records = AttendanceRoster.recordStudentIDs(on: today, in: context)
+        guard !AttendanceRoster.students(on: today, from: [student], recordStudentIDs: records).isEmpty else {
+            throw student.isEnrolled
+                ? SiriAttendanceError.notStarted(student.fullName)
+                : SiriAttendanceError.notEnrolled(student.fullName)
         }
         return student
+    }
+
+    /// The children Siri matches a spoken name against: everyone enrolled
+    /// (so a child who hasn't started is refused by name, not "not found"),
+    /// and a departed child while she's still on `day`'s roll. Both apps'
+    /// `SiriHost.roster` narrow their class through this.
+    static func nameable(
+        _ students: [CDStudent], on day: Date = Date(), in context: NSManagedObjectContext
+    ) -> [CDStudent] {
+        let start = Calendar.current.startOfDay(for: day)
+        let records = AttendanceRoster.recordStudentIDs(on: start, in: context)
+        let onRoll = AttendanceRoster.students(on: start, from: students, recordStudentIDs: records)
+        let onRollIDs = Set(onRoll.map(\.objectID))
+        return students.filter { $0.isEnrolled || onRollIDs.contains($0.objectID) }
     }
 
     /// Asks before marking on a weekend or a day off: a mark there is almost
@@ -96,6 +114,7 @@ struct SiriAttendance {
             throw SiriAttendanceError.cannotMark
         }
         let previous = record.status
+        let previousReasonRaw = record.absenceReasonRaw
         let created = record.isInserted ? [record] : []
         let statusChanges = previous != status
         if statusChanges {
@@ -103,8 +122,13 @@ struct SiriAttendance {
         }
         let reasonChanges = status == .absent && reason.map { store.updateAbsenceReason(record, to: $0) } == true
         guard statusChanges || reasonChanges else { return previous }
+        var pending = Pending(record: record, from: previous, to: status)
+        if reasonChanges {
+            pending.fromReasonRaw = previousReasonRaw
+            pending.toReasonRaw = record.absenceReasonRaw
+        }
         try await commit(
-            [Pending(record: record, from: previous, to: status)],
+            [pending],
             created: created,
             summary: "\(spokenName(for: student)) \(status.displayName.lowercased())"
         )
@@ -115,7 +139,7 @@ struct SiriAttendance {
     /// (`SiriHost.statusForHere`), but never a downgrade: a child already
     /// present stays present, as a tap on the grid leaves her.
     func markHere(_ student: CDStudent) async throws -> (previous: AttendanceStatus, now: AttendanceStatus) {
-        var status = SiriHost.statusForHere(on: today)
+        var status = SiriHost.statusForHere(on: today, store: store)
         if status == .tardy, try self.status(of: student) == .present {
             status = .present
         }
@@ -127,6 +151,9 @@ struct SiriAttendance {
         let record: CDAttendanceRecord
         let from: AttendanceStatus
         let to: AttendanceStatus
+        /// The stored reason before and after, when the mark set one.
+        var fromReasonRaw: String?
+        var toReasonRaw: String?
     }
 
     /// Saves the marks just made, remembers them for Undo, and sends them on
@@ -148,7 +175,10 @@ struct SiriAttendance {
         SiriAttendanceChange(
             day: today,
             marks: marks.map {
-                SiriAttendanceChange.Mark(recordURI: $0.record.objectID.uriRepresentation(), from: $0.from, to: $0.to)
+                SiriAttendanceChange.Mark(
+                    recordURI: $0.record.objectID.uriRepresentation(), from: $0.from, to: $0.to,
+                    fromReasonRaw: $0.fromReasonRaw, toReasonRaw: $0.toReasonRaw
+                )
             },
             summary: summary,
             closedArrival: closedArrival
@@ -179,20 +209,22 @@ struct SiriAttendance {
     /// those marks since. Returns what was undone.
     ///
     /// The change is forgotten only once the undo is saved, so a failed save
-    /// can be retried. A Close Arrival that found everyone marked has no marks
-    /// to put back, and undoing it just reopens arrival.
+    /// can be retried, and a locked day refuses the undo and keeps it (it
+    /// used to find nothing it could change, and forget it). A Close Arrival
+    /// that found everyone marked has no marks to put back, and undoing it
+    /// just reopens arrival.
     func undoLast() async throws -> String {
         guard let change = SiriAttendanceChange.last(), Calendar.current.isDate(change.day, inSameDayAs: today) else {
             throw SiriAttendanceError.nothingToUndo
         }
+        guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
         guard let coordinator = context.persistentStoreCoordinator else { throw SiriAttendanceError.saveFailed }
 
         var reverted: [Pending] = []
         for mark in change.marks {
             guard let id = coordinator.managedObjectID(forURIRepresentation: mark.recordURI),
                   let record = try? context.existingObject(with: id) as? CDAttendanceRecord,
-                  record.status == mark.to,
-                  store.updateStatus(record, to: mark.from) else { continue }
+                  undo(mark, on: record) else { continue }
             reverted.append(Pending(record: record, from: mark.to, to: mark.from))
         }
         if reverted.isEmpty, !change.marks.isEmpty {
@@ -209,6 +241,24 @@ struct SiriAttendance {
         return change.summary
     }
 
+    /// Puts one remembered mark back, if nothing has changed it since: its
+    /// status, and the reason it set. A reason-only change ("absent, sick"
+    /// on a child already absent) has the same status before and after, so
+    /// only the reason goes back; it used to count as "changed since".
+    private func undo(_ mark: SiriAttendanceChange.Mark, on record: CDAttendanceRecord) -> Bool {
+        guard record.status == mark.to else { return false }
+        if let toRaw = mark.toReasonRaw, record.absenceReasonRaw != toRaw { return false }
+        var changed = false
+        if mark.from != mark.to {
+            guard store.updateStatus(record, to: mark.from) else { return false }
+            changed = true
+        }
+        if let fromRaw = mark.fromReasonRaw, store.restoreAbsenceReason(record, toRaw: fromRaw) {
+            changed = true
+        }
+        return changed
+    }
+
     /// Back to arrival, and an open grid shows it.
     private func reopenArrival() {
         SiriHost.arrivalReopened(on: today)
@@ -221,6 +271,7 @@ struct SiriAttendance {
 enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
     case studentNotFound(String)
     case notEnrolled(String)
+    case notStarted(String)
     case dayLocked
     case cannotMark
     case saveFailed
@@ -234,6 +285,8 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
             return "I couldn't find \(name) in your class."
         case .notEnrolled(let name):
             return "\(name) isn't in the class anymore, so I didn't mark attendance."
+        case .notStarted(let name):
+            return "\(name) hasn't started yet, so I didn't mark attendance."
         case .dayLocked:
             return "Today's attendance is locked, so I can't change it."
         case .cannotMark:

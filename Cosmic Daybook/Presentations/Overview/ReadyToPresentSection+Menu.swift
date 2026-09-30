@@ -75,6 +75,7 @@ extension ReadyToPresentSection {
 
     func performPendingDeletion() {
         for assignment in pendingDeletion {
+            PresentationRecordCleanup.prepareToDelete(assignment, in: viewContext)
             viewContext.delete(assignment)
         }
         viewContext.safeSave()

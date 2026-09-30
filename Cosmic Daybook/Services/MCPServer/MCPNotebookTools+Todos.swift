@@ -223,7 +223,7 @@ extension MCPNotebookTools {
             inputSchema: updateTodoSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateTodo(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try updateTodo(arguments: arguments, in: $0) }
             }
         )
     }

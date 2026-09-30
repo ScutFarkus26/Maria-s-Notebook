@@ -35,6 +35,8 @@ final class SettingsViewModel {
     var estimatedBackupSize: Int64?
 
     // Internal
+    /// The notebook backups are made of and restored into: the guide's own
+    /// (`DataManagementGrid` makes this view model with it).
     private let dependencies: AppDependencies
     private var coordinator: BackupCoordinator { dependencies.backupCoordinator }
     private var pendingImportURL: URL?

@@ -103,6 +103,53 @@ struct AttendanceDeduplicationTests {
         #expect(records.first?.status == .absent)
     }
 
+    // Logic-break sweep 2026-09-29, F10: Close Arrival on one device marks
+    // every child it hasn't seen marked absent. A present mark made on
+    // another device before they synced became a duplicate, and the later
+    // automatic absence won it.
+    @Test("Close Arrival's automatic absence loses to a real mark, even an earlier one")
+    func automaticAbsenceLosesToRealMark() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let day = AppCalendar.startOfDay(Date())
+        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ari")
+        let key = try #require(student.id?.uuidString)
+
+        // Close Arrival on the assistant's phone, which hasn't yet seen the
+        // guide's present mark made a minute earlier on the Mac.
+        let assistant = CDAttendanceStore(context: context, role: .assistant)
+        let automatic = try #require(try assistant.markUnmarkedAbsent(for: day, students: [student]).first)
+        let real = makeRecord(in: context, studentID: key, date: day, status: .present)
+        real.modifiedAt = (automatic.modifiedAt ?? Date()).addingTimeInterval(-60)
+        #expect(automatic.status == .absent)
+        #expect(AttendanceDeduplication.isAutomaticAbsence(automatic))
+
+        #expect(AttendanceDeduplication.wins(real, over: automatic))
+        #expect(!AttendanceDeduplication.wins(automatic, over: real))
+        #expect([automatic, real].deduplicatedPerStudentDay().first === real)
+    }
+
+    @Test("A reason or a real mark on an automatic absence makes it a real one")
+    func realEditClearsAutomatic() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let day = AppCalendar.startOfDay(Date())
+        let students = [
+            CoreDataTestHelpers.seedStudent(in: context, firstName: "Ari"),
+            CoreDataTestHelpers.seedStudent(in: context, firstName: "Bea")
+        ]
+        let store = CDAttendanceStore(context: context, role: .leadGuide)
+        let closed = try store.markUnmarkedAbsent(for: day, students: students)
+        #expect(closed.count == 2 && closed.allSatisfy(AttendanceDeduplication.isAutomaticAbsence))
+
+        #expect(store.updateAbsenceReason(closed[0], to: .sick))
+        #expect(!AttendanceDeduplication.isAutomaticAbsence(closed[0]))
+        #expect(closed[0].absenceReason == .sick)
+
+        #expect(closed[1].absenceReason == .none, "reads as no reason everywhere else")
+        #expect(store.updateStatus(closed[1], to: .present))
+        #expect(store.updateStatus(closed[1], to: .absent))
+        #expect(!AttendanceDeduplication.isAutomaticAbsence(closed[1]))
+    }
+
     @Test("Distinct students and distinct days are not collapsed")
     func distinctRecordsKept() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()

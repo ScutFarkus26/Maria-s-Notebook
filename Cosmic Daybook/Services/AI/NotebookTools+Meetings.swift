@@ -41,7 +41,7 @@ private func bridgedNotebookOperation(_ operation: () throws -> String) -> Strin
 /// Records a completed student meeting through the same path as the in-app
 /// meeting form; new goals become open focus items.
 struct RecordStudentMeetingTool: Tool {
-    var contextProvider: MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext }
+    var contextProvider: MCPContextProvider = { ChatToolContext.context }
     let name = "recordStudentMeeting"
     let description = "Record a completed student meeting (conference) in the student's history. "
         + "Use ONLY when the guide explicitly asks to record or file a meeting — never for "
@@ -86,7 +86,7 @@ struct RecordStudentMeetingTool: Tool {
 /// Adds a follow-up to the guide's todo list through the same path as the
 /// in-app new-todo form, including student tag syncing.
 struct AddFollowUpTool: Tool {
-    var contextProvider: MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext }
+    var contextProvider: MCPContextProvider = { ChatToolContext.context }
     let name = "addFollowUp"
     let description = "Add a follow-up to the guide's todo list — something owed to a student, "
         + "a parent, an assistant, or the guide themself. Use ONLY when the guide explicitly "
@@ -127,7 +127,7 @@ struct AddFollowUpTool: Tool {
 /// Marks a follow-up done: completes a todo or resolves a student's open
 /// goal (focus item) by id.
 struct ResolveFollowUpTool: Tool {
-    var contextProvider: MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext }
+    var contextProvider: MCPContextProvider = { ChatToolContext.context }
     let name = "resolveFollowUp"
     let description = "Mark a follow-up done: completes a todo, or resolves a student's open "
         + "goal, by the id shown in listOpenFollowUps. Use ONLY when the guide explicitly says "
@@ -157,7 +157,7 @@ struct ResolveFollowUpTool: Tool {
 /// this one cites inline ([todo id=…], [focusItem id=…], [note id=…])
 /// rather than feeding the evidence collector.
 struct ListOpenFollowUpsTool: Tool {
-    var contextProvider: MCPContextProvider = { AppBootstrapping.getSharedCoreDataStack().viewContext }
+    var contextProvider: MCPContextProvider = { ChatToolContext.context }
     let name = "listOpenFollowUps"
     let description = "List everything currently open: the guide's follow-up todos, each "
         + "student's open goals, and observation notes flagged for follow-up. Optionally "

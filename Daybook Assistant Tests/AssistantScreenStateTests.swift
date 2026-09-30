@@ -94,19 +94,72 @@ struct AssistantScreenStateTests {
             == .sending)
     }
 
+    // Logic-break sweep 2026-09-29, F7. Leave and Rebuild from iCloud kept
+    // the Late days, Siri's Undo and the sync line's times of the class
+    // they took off the iPhone.
+    @Test("Leaving or rebuilding forgets Late days, Siri's Undo and the sync line's times")
+    func forgetsClassroomState() throws {
+        let defaults = AssistantTestSupport.makeDefaults()
+        let day = try AssistantTestSupport.day("2031-01-06")
+        let syncKeys = [
+            AssistantSyncStatusView.lastSharedSaveKey,
+            AssistantSyncStatusView.lastSharedExportStartKey,
+            AssistantSyncStatusView.lastSharedImportEndKey
+        ]
+        AttendanceLatePhase.setLate(true, on: day, defaults: defaults)
+        SiriAttendanceChange(day: day, marks: [], summary: "closing arrival", closedArrival: true)
+            .remember(defaults: defaults)
+        for key in syncKeys { defaults.set(20.0, forKey: key) }
+
+        AssistantClassroomLocalState.forget(defaults: defaults)
+        #expect(!AttendanceLatePhase.isLate(on: day, defaults: defaults))
+        #expect(SiriAttendanceChange.last(defaults: defaults) == nil)
+        for key in syncKeys { #expect(defaults.object(forKey: key) == nil) }
+    }
+
     @Test("The stack is rebuilt once, only when iCloud arrives after a start without it")
     func accountDecision() {
         let decide = AssistantBootstrapper.accountDecision
+        typealias Decision = AssistantBootstrapper.AccountDecision
+        let waits = Decision(needsAccount: true), fine = Decision(needsAccount: false)
+        let rebuild = Decision(needsAccount: false, rebuild: true)
         // Started without an account, then it arrives: one rebuild.
         var step = decide(false, false, .noAccount)
-        #expect(step == (true, false))
+        #expect(step == waits)
         step = decide(true, step.needsAccount, .available)
-        #expect(step == (false, true))
-        #expect(decide(true, step.needsAccount, .available) == (false, false))
+        #expect(step == rebuild)
+        #expect(decide(true, step.needsAccount, .available) == fine)
         // Started with an account: never.
         step = decide(false, false, .available)
-        #expect(step == (false, false))
+        #expect(step == fine)
         step = decide(true, step.needsAccount, .noAccount)
-        #expect(decide(true, step.needsAccount, .available) == (false, false))
+        #expect(decide(true, step.needsAccount, .available) == fine)
+        // A restricted account can't set up sharing either.
+        #expect(decide(false, false, .restricted) == waits)
+    }
+
+    @Test("A first check that can't tell arms no rebuild; the next one decides")
+    func accountDecisionUndecided() {
+        let decide = AssistantBootstrapper.accountDecision
+        typealias Decision = AssistantBootstrapper.AccountDecision
+        let first = decide(false, false, .couldNotDetermine)
+        #expect(first == Decision(needsAccount: false, decided: false))
+        // Then the account answers as available: nothing to rebuild.
+        #expect(decide(first.decided, first.needsAccount, .available) == Decision(needsAccount: false))
+        // Or as missing: the stack waits for it, as after a start without one.
+        let missing = decide(first.decided, first.needsAccount, .noAccount)
+        #expect(missing == Decision(needsAccount: true))
+        #expect(decide(missing.decided, missing.needsAccount, .available).rebuild)
+    }
+
+    // CloudKit won't set up the container while the account is temporarily
+    // unavailable ("Unable to initialize without a valid iCloud account",
+    // simulator log 2026-09-29), so that start needs the rebuild too.
+    @Test("A start while iCloud is temporarily unavailable rebuilds once the account is back")
+    func accountDecisionTemporarilyUnavailable() {
+        let decide = AssistantBootstrapper.accountDecision
+        let first = decide(false, false, .temporarilyUnavailable)
+        #expect(first == AssistantBootstrapper.AccountDecision(needsAccount: true))
+        #expect(decide(true, first.needsAccount, .available).rebuild)
     }
 }

@@ -250,6 +250,34 @@ struct AssistantShareAttacherTests {
         #expect(share.attempts.count == 2)
     }
 
+    // Logic-break sweep 2026-09-29, F6. The attach dropped CloudKit's
+    // "mirroring stopped" signal and returned only the failed marks, so the
+    // queue kept retrying on a container where every `share(_:to:)` raises
+    // an exception no catch traps.
+    @Test("Once mirroring stops, nothing is tried again on that stack; the marks wait for a relaunch")
+    func mirroringStopped() async {
+        let attacher = launch()
+        let ids = marks(2)
+        share.stopsMirroringNextAttempt = true
+        await attach([ids[0]], with: attacher)
+        #expect(share.attempts == [[ids[0]]])
+        #expect(share.rests.isEmpty)
+
+        // A new mark, a flush and coming back to the app all try nothing.
+        await attach([ids[1]], with: attacher)
+        await flush(attacher)
+        attacher.retryWaiting()
+        await attacher.waitUntilIdle()
+        #expect(share.attempts == [[ids[0]]])
+        #expect(attacher.pending == ids.map { $0.uriRepresentation() })
+
+        // The next launch's container starts afresh and sends them.
+        let next = launch()
+        await flush(next)
+        #expect(share.attempts.last == ids)
+        #expect(next.pending.isEmpty)
+    }
+
     @Test("The list keeps the newest 500")
     func cap() async {
         let attacher = launch()
@@ -265,14 +293,20 @@ struct AssistantShareAttacherTests {
 /// Stands in for the classroom share: records every attempt, refuses what
 /// it's told to, and can hold one attempt open.
 @MainActor
-private final class FakeShare {
+final class FakeShare {
     var refuses: Set<NSManagedObjectID> = []
     var refusesEverything = false
     var holdsNextAttempt = false
+    /// Refuses everything in the next attempt only.
+    var refusesNextAttempt = false
+    /// The next attempt reports CloudKit mirroring stopped, refusing all.
+    var stopsMirroringNextAttempt = false
     /// Whether a rest's sleep returns (so the retry runs, and CloudKit is
     /// back by then) or is cancelled.
     var retriesAfterRest = false
     private(set) var attempts: [[NSManagedObjectID]] = []
+    /// The context each attempt was given.
+    private(set) var contexts: [NSManagedObjectContext] = []
     private(set) var rests: [TimeInterval] = []
     private(set) var mostAtOnce = 0
     private var running = 0
@@ -281,7 +315,10 @@ private final class FakeShare {
     var isHolding: Bool { held != nil }
 
     var attempt: AssistantShareAttacher.Attempt {
-        { [self] ids, _, _ in await self.take(ids) }
+        { [self] ids, _, context in
+            contexts.append(context)
+            return await self.take(ids)
+        }
     }
 
     var sleep: AssistantShareAttacher.Sleep {
@@ -302,7 +339,7 @@ private final class FakeShare {
         held = nil
     }
 
-    private func take(_ ids: [NSManagedObjectID]) async -> [NSManagedObjectID] {
+    private func take(_ ids: [NSManagedObjectID]) async -> CDAttendanceStore.ShareAttachResult {
         attempts.append(ids)
         running += 1
         mostAtOnce = max(mostAtOnce, running)
@@ -311,7 +348,15 @@ private final class FakeShare {
             await withCheckedContinuation { held = $0 }
         }
         running -= 1
-        return refusesEverything ? ids : ids.filter(refuses.contains)
+        if stopsMirroringNextAttempt {
+            stopsMirroringNextAttempt = false
+            return .init(left: ids, mirroringStopped: true)
+        }
+        if refusesNextAttempt {
+            refusesNextAttempt = false
+            return .init(left: ids)
+        }
+        return .init(left: refusesEverything ? ids : ids.filter(refuses.contains))
     }
 }
 

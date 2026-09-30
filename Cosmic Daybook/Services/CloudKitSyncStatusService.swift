@@ -207,6 +207,7 @@ final class CloudKitSyncStatusService {
         syncingTask = nil
 
         self.coreDataStack = stack
+        watchForFirstDownloadIfPending()
 
         // Delay starting observers to allow CloudKit initialization to complete
         // Core Data creates temporary stores during CloudKit setup that get torn down

@@ -49,15 +49,21 @@ nonisolated enum DataMigrations {
     /// Relink check-ins that carry only a `workID` string, and drop the ones
     /// whose work is gone. Orphans are only deleted from the second run on a
     /// device, so a fresh install still receiving its work rows from CloudKit
-    /// keeps a check-in that arrived a batch ahead of its work.
+    /// keeps a check-in that arrived a batch ahead of its work. While the
+    /// first download is pending (`FirstDownloadGate`) nothing is deleted and
+    /// the run doesn't count as the first one.
     @discardableResult
     static func repairWorkCheckInLinks(
-        using context: NSManagedObjectContext
+        using context: NSManagedObjectContext,
+        firstDownloadPending: Bool = FirstDownloadGate.isPending(),
+        defaults: UserDefaults = .standard
     ) -> DataCleanupService.CheckInRepairReport {
-        let hasRunBefore = UserDefaults.standard.bool(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
-        let report = DataCleanupService.repairWorkCheckInLinks(using: context, deleteOrphans: hasRunBefore)
-        if !hasRunBefore {
-            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+        let hasRunBefore = defaults.bool(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+        let report = DataCleanupService.repairWorkCheckInLinks(
+            using: context, deleteOrphans: hasRunBefore && !firstDownloadPending
+        )
+        if !hasRunBefore && !firstDownloadPending {
+            defaults.set(true, forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
         }
         return report
     }

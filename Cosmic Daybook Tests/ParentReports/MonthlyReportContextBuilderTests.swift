@@ -217,4 +217,26 @@ final class MonthlyReportContextBuilderTests {
         #expect(attendance.tardies == 1)
         #expect(attendance.markedDays == 4)
     }
+
+    // Logic-break sweep 2026-09-29, E6: a cancelled outing was reported to
+    // the family as "Went out to …".
+    @Test("A cancelled outing is not a contribution")
+    func cancelledOutingLeftOut() throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = stack.viewContext
+        let rina = CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Rina", lastName: "Ash", level: .adolescent)
+        let rinaID = try #require(rina.id)
+        for (destination, status) in [("the bakery", GoingOutStatus.completed), ("the museum", .cancelled)] {
+            let trip = CDGoingOut(context: ctx)
+            trip.id = UUID()
+            trip.destination = destination
+            trip.proposedDate = date(2026, 9, 10)
+            trip.status = status
+            trip.studentIDsArray = [rinaID.uuidString]
+        }
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let context = makeBuilder(ctx).buildContext(for: rina, month: month, includeStudentReflection: false)
+        #expect(context.contributions.map(\.phrase) == ["Went out to the bakery"])
+    }
 }

@@ -80,6 +80,7 @@ extension MCPNotebookTools {
         var inSequence = lessonsInSequence(sequence, area: area, from: lessons)
         if let existing = inSequence.first(where: { $0.name.folded() == name.folded() }) {
             let position = (inSequence.firstIndex(of: existing) ?? 0) + 1
+            MCPCallOutcome.markNothingWritten()
             return "Already in the curriculum, nothing added: \(describeLesson(existing)) "
                 + "(position \(position) of \(inSequence.count))."
         }

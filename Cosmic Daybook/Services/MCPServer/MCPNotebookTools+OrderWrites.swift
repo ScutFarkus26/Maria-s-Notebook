@@ -199,6 +199,12 @@ extension MCPNotebookTools {
         if let stage = fields["stage"]?.stringValue, !allowedStages.contains(stage) {
             throw MCPToolError("Unknown stage \"\(stage)\". Nothing was changed.")
         }
+        if fields["stage"]?.stringValue == "confirmed", item.requestedAt == nil {
+            throw MCPToolError(
+                "\"\(item.title)\" hasn't been asked for, so the office can't have confirmed it; "
+                    + "set it to asked_for first. Nothing was changed."
+            )
+        }
         if let quantity = fields["quantity"]?.intValue, quantity < 1 {
             throw MCPToolError("Quantity must be at least 1. Nothing was changed.")
         }

@@ -176,15 +176,24 @@ enum SchoolDayChecker {
         for day: Date,
         using context: NSManagedObjectContext
     ) -> Bool {
-        let request = CDFetchRequest(CDNonSchoolDay.self)
-        request.predicate = NSPredicate(format: "date == %@", day as NSDate)
-        request.fetchLimit = 1
-        return !context.safeFetch(request).isEmpty
+        hasRecord(CDNonSchoolDay.self, on: day, using: context)
     }
 
     private nonisolated static func hasSchoolDayOverride(for day: Date, using context: NSManagedObjectContext) -> Bool {
-        let request = CDFetchRequest(CDSchoolDayOverride.self)
-        request.predicate = NSPredicate(format: "date == %@", day as NSDate)
+        hasRecord(CDSchoolDayOverride.self, on: day, using: context)
+    }
+
+    /// Any record of `type` dated within `day`, as the set-based form reads
+    /// them: a record stored at a time other than midnight (an older build,
+    /// another time zone) still marks its day. This used to match the exact
+    /// instant, so such a holiday counted in the cached calendar and was a
+    /// school day everywhere that asked about one day.
+    private nonisolated static func hasRecord<T: NSManagedObject>(
+        _ type: T.Type, on day: Date, using context: NSManagedObjectContext
+    ) -> Bool {
+        let next = AppCalendar.addingDays(1, to: day)
+        let request = CDFetchRequest(T.self)
+        request.predicate = NSPredicate(format: "date >= %@ AND date < %@", day as NSDate, next as NSDate)
         request.fetchLimit = 1
         return !context.safeFetch(request).isEmpty
     }

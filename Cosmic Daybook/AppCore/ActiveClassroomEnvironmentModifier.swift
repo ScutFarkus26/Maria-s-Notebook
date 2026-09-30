@@ -12,6 +12,7 @@ private struct ActiveClassroomEnvironmentModifier: ViewModifier {
             .environment(\.managedObjectContext, workspaceStore.activeStack.viewContext)
             .environment(\.dependencies, workspaceStore.activeDependencies)
             .environment(\.isSampleClassroom, workspaceStore.isShowingSampleClass)
+            .environment(\.notebookDependencies, workspaceStore.primaryDependencies)
             // Keep identity outside the environment replacements so every
             // @FetchRequest controller is discarded before the new context is used.
             .id(workspaceStore.selection)

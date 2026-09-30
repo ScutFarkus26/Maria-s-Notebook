@@ -40,6 +40,15 @@ final class DeduplicationCoordinator {
             }
         }
 
+        /// Folds a resolved scope back in, for a cycle that couldn't run it.
+        mutating func add(_ scope: DeduplicationScope) {
+            if let names = scope.entityNames {
+                add(insertedEntities: names)
+            } else {
+                self = .everything
+            }
+        }
+
         /// `nil` when no history report arrived, so there is nothing to read.
         var resolved: DeduplicationScope? {
             switch self {
@@ -51,6 +60,17 @@ final class DeduplicationCoordinator {
     }
 
     private var pendingScope: PendingScope = .unreported
+
+    /// A cycle fired while a pass was running; its scope waits in
+    /// `pendingScope` and the cycle re-arms once the pass finishes.
+    private var rerunAfterPass = false
+    private var lastPolicy: EnergyPolicy = .shared
+
+    /// One pass over `scope`; the app sweeps on the given context's queue.
+    typealias Sweeper = @Sendable (
+        DeduplicationScope, NSManagedObjectContext, NSPersistentCloudKitContainer?
+    ) async -> Void
+    private let sweeper: Sweeper
 
     /// How long requests are coalesced before the pass runs. Fixed at 5 s in
     /// the app; the energy-gating tests shorten it so they don't sleep.
@@ -76,11 +96,20 @@ final class DeduplicationCoordinator {
 
     private init() {
         self.debounceInterval = .seconds(5)
+        self.sweeper = Self.sweepOnContextQueue
     }
 
-    /// Test seam: an isolated coordinator with a short debounce.
-    init(debounceInterval: Duration) {
+    /// Test seam: an isolated coordinator with a short debounce and,
+    /// optionally, its own pass.
+    init(debounceInterval: Duration, sweeper: Sweeper? = nil) {
         self.debounceInterval = debounceInterval
+        self.sweeper = sweeper ?? Self.sweepOnContextQueue
+    }
+
+    nonisolated private static let sweepOnContextQueue: Sweeper = { scope, context, container in
+        await context.perform {
+            DeduplicationCoordinator.sweep(scope, in: context, container: container)
+        }
     }
 
     /// Request a debounced deduplication run over every entity.
@@ -109,6 +138,7 @@ final class DeduplicationCoordinator {
     }
 
     private func armDebounce(policy: EnergyPolicy) {
+        lastPolicy = policy
         debounceTask?.cancel()
         let interval = debounceInterval
         energyDeferralCount = 0
@@ -137,7 +167,14 @@ final class DeduplicationCoordinator {
             return
         }
         runAttemptCount += 1
-        guard !isRunning, let container = persistentContainer else { return }
+        guard !isRunning else {
+            // Keep what this cycle was asked to sweep for a pass after the
+            // running one, rather than dropping it.
+            pendingScope.add(scope)
+            rerunAfterPass = true
+            return
+        }
+        guard let container = persistentContainer else { return }
         isRunning = true
 
         // Nothing was inserted, so there is nothing to read: skip the context
@@ -159,11 +196,10 @@ final class DeduplicationCoordinator {
         // CloudKit container for deterministic survivor selection — every device
         // must keep the same duplicate, or peers delete each other's survivors.
         let cloudKitContainer = container as? NSPersistentCloudKitContainer
+        let sweeper = self.sweeper
 
         Task.detached(priority: .utility) { [weak self] in
-            await bgContext.perform {
-                Self.sweep(scope, in: bgContext, container: cloudKitContainer)
-            }
+            await sweeper(scope, bgContext, cloudKitContainer)
             await MainActor.run { [weak self] in
                 self?.finishRun()
             }
@@ -202,6 +238,10 @@ final class DeduplicationCoordinator {
 
     private func finishRun() {
         isRunning = false
+        if rerunAfterPass {
+            rerunAfterPass = false
+            armDebounce(policy: lastPolicy)
+        }
     }
 }
 

@@ -255,8 +255,10 @@ extension ClassAreaChecklistViewModel {
             var newIDs = la.studentIDs
             newIDs.removeAll { $0 == sidString }
             if newIDs.isEmpty {
+                PresentationRecordCleanup.prepareToDelete(la, in: context)
                 context.delete(la)
             } else {
+                PresentationRecordCleanup.removeStudents([sidString], from: la, in: context)
                 la.studentIDs = newIDs
             }
         }

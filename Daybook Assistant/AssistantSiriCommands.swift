@@ -26,7 +26,12 @@ enum AssistantSiriCommands {
 
     /// Marks everyone still unmarked on today's roll absent and closes
     /// arrival. Returns how many it marked.
+    ///
+    /// The lock is checked again here: the day can be locked while Siri
+    /// waits for her to confirm, and the store would then mark no one, which
+    /// read as "Everyone was already marked" and closed arrival anyway.
     static func closeArrival(_ session: SiriAttendance) async throws -> Int {
+        guard !session.store.isLocked(session.today) else { throw SiriAttendanceError.dayLocked }
         let roll = try AssistantDayRoll.today(in: session).roll
         let changed = try session.store.markUnmarkedAbsent(for: session.today, students: roll)
         // Late before the commit, whose notification reloads an open grid.

@@ -96,9 +96,8 @@ struct RolloverSummary: Equatable {
     /// are excluded on purpose: their whole plan is skipped by the departure
     /// cascade, and counting it here twice would make the review lie.
     fileprivate mutating func addCarryOverCounts(
-        for plan: RolloverPlan, students: [CDStudent], context: NSManagedObjectContext
+        for plan: RolloverPlan, students: [CDStudent], context: NSManagedObjectContext, yearStart: Date
     ) {
-        let yearStart = YearPlanStaleness.currentYearStart()
         for studentID in RolloverService.continuingStudentIDs(in: plan, students: students) {
             let count = YearPlanCarryOver.entries(for: studentID, in: context, yearStart: yearStart).count
             guard count > 0 else { continue }
@@ -124,8 +123,11 @@ enum RolloverService {
 
     /// Pure summary of what a plan would do to the given roster. Pass a
     /// context to also count the planned lessons departing children are on.
+    /// `carryOverBefore` is the first day of the year being rolled into
+    /// (`carriedOverBefore`).
     static func summary(
-        for plan: RolloverPlan, students: [CDStudent], context: NSManagedObjectContext? = nil
+        for plan: RolloverPlan, students: [CDStudent], context: NSManagedObjectContext? = nil,
+        carryOverBefore: Date? = nil
     ) -> RolloverSummary {
         var result = RolloverSummary()
         for student in students {
@@ -148,7 +150,10 @@ enum RolloverService {
             result.yearPlanEntriesForDeparting = StudentDeparturePlans
                 .plannedEntries(for: departing, in: context)
                 .count
-            result.addCarryOverCounts(for: plan, students: students, context: context)
+            result.addCarryOverCounts(
+                for: plan, students: students, context: context,
+                yearStart: carriedOverBefore(carryOverBefore)
+            )
         }
         return result
     }
@@ -174,16 +179,26 @@ enum RolloverService {
         }
     }
 
+    enum ApplyError: LocalizedError {
+        case saveFailed
+
+        var errorDescription: String? {
+            "The rollover could not be saved, so nothing was changed. Try again."
+        }
+    }
+
     /// Applies the plan in a single context save (atomic: everything lands or nothing does).
-    /// Returns the number of students changed.
+    /// Returns the number of students changed. A failed save rolls every change
+    /// back and throws, so the sheet never reports a rollover that didn't land.
     @discardableResult
     static func apply(
         _ plan: RolloverPlan,
         students: [CDStudent],
         incomingYearLabel: String,
         carryOverLanding: Date? = nil,
+        carryOverBefore: Date? = nil,
         context: NSManagedObjectContext
-    ) -> Int {
+    ) throws -> Int {
         var changed = 0
         for student in students {
             let outcome = plan.outcome(for: student.id)
@@ -219,12 +234,26 @@ enum RolloverService {
         let carried = applyCarryOver(
             plan, students: students,
             landing: carryOverLanding ?? plan.carryOverLanding ?? Date(),
+            yearStart: carriedOverBefore(carryOverBefore),
             context: context
         )
         if changed > 0 || carried > 0 {
-            context.safeSave()
+            guard context.safeSave() else {
+                context.rollback()
+                throw ApplyError.saveFailed
+            }
         }
         return changed
+    }
+
+    /// Entries targeted before this are the outgoing year's, which the
+    /// rollover carries over: the incoming year's first day, as the caller
+    /// passes it. Without one, the current school year's start, which is
+    /// right only once the new year has begun: a rollover done in June (the
+    /// usual time) counted only the year before last and left the year
+    /// being closed out untouched.
+    static func carriedOverBefore(_ incomingYearStart: Date?) -> Date {
+        incomingYearStart ?? YearPlanStaleness.currentYearStart()
     }
 
     /// Applies each continuing child's carry-over choice. Returns how many
@@ -234,9 +263,9 @@ enum RolloverService {
         _ plan: RolloverPlan,
         students: [CDStudent],
         landing: Date,
+        yearStart: Date,
         context: NSManagedObjectContext
     ) -> Int {
-        let yearStart = YearPlanStaleness.currentYearStart()
         var touched = 0
         for studentID in continuingStudentIDs(in: plan, students: students) {
             let choice = plan.carryOverChoice(for: studentID)

@@ -269,13 +269,16 @@ final class ClassroomSharingService {
             return
         }
 
-        // After a relaunch nothing has fetched the share yet; without this the
-        // purge was skipped and only the membership row went.
-        let share = try currentShare ?? fetchExistingShare()
-        if let store = sharedStore, let share {
-            let zoneID = share.recordID.zoneID
-            Self.logger.info("Purging shared zone: \(zoneID.zoneName)")
-            try await container.purgeObjectsAndRecordsInZone(with: zoneID, in: store)
+        // Which share to purge, or why not to leave yet: see `shareToLeave`.
+        if let store = sharedStore {
+            let shares = try container.fetchShares(in: store)
+            let pinned = currentShare ?? CDClassroomMembership.classroomShare(among: shares, in: context)
+            let holdsClassroom = Self.holdsClassroom(store, in: context)
+            if let zoneID = try Self.shareToLeave(pinned: pinned, among: shares, holdsClassroom: holdsClassroom)?
+                .recordID.zoneID {
+                Self.logger.notice("Purging shared zone: \(zoneID.zoneName, privacy: .public)")
+                try await container.purgeObjectsAndRecordsInZone(with: zoneID, in: store)
+            }
         }
 
         // Every assistant row, not just the newest: two iPhones joining before
@@ -287,7 +290,10 @@ final class ClassroomSharingService {
         let rows = context.safeFetch(request)
         if !rows.isEmpty {
             rows.forEach(context.delete)
-            _ = ClassroomRepository(context: context).save(reason: "Leave classroom")
+            // The class is already gone, so the deletes stay pending for the next save.
+            guard ClassroomRepository(context: context).save(reason: "Leave classroom") else {
+                throw ClassroomLeaveError.notSaved
+            }
         }
 
         currentShare = nil
@@ -295,12 +301,6 @@ final class ClassroomSharingService {
         isSharing = false
         currentRole = .leadGuide
         Self.logger.info("Left classroom successfully")
-    }
-
-    // MARK: - Permission Queries
-
-    func canManageSharing() -> Bool {
-        ClassroomPermissions.canManageSharing(role: currentRole)
     }
 
     // MARK: - Private

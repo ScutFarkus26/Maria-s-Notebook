@@ -97,7 +97,7 @@ extension MCPNotebookTools {
             inputSchema: updateGuardianSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateGuardian(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try updateGuardian(arguments: arguments, in: $0) }
             }
         )
     }

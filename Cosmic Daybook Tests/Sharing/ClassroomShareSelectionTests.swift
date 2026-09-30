@@ -97,4 +97,31 @@ struct ClassroomShareSelectionTests {
         let ctx = try CoreDataTestHelpers.makeSplitStoreContext()
         #expect(CDClassroomMembership.currentRole(in: ctx) == .leadGuide)
     }
+
+    // Logic-break sweep 2026-09-29, F3: with no pinned share readable, Leave
+    // skipped the purge and still deleted the membership row, so the class
+    // stayed on the phone with nothing to remove it.
+    @Test("Leave purges the pinned share, else the only one, and refuses to guess among several")
+    func leavePicksTheShareToPurge() throws {
+        let pinned = share("classroom")
+        #expect(try ClassroomSharingService.shareToLeave(pinned: pinned, among: [share("other"), pinned]) === pinned)
+
+        let only = share("only")
+        #expect(try ClassroomSharingService.shareToLeave(pinned: nil, among: [only]) === only)
+        #expect(try ClassroomSharingService.shareToLeave(pinned: nil, among: []) == nil)
+        #expect(throws: ClassroomLeaveError.self) {
+            try ClassroomSharingService.shareToLeave(pinned: nil, among: [share("a"), share("b")])
+        }
+    }
+
+    // Seen on a simulator 2026-09-29: CloudKit hadn't finished setting up, so
+    // no share was readable; Leave deleted the membership and purged nothing,
+    // and the account stayed a member of the class on iCloud.
+    @Test("With the class on the device but no share readable, Leave refuses")
+    func leaveRefusesAnUnreadableShare() throws {
+        #expect(throws: ClassroomLeaveError.self) {
+            try ClassroomSharingService.shareToLeave(pinned: nil, among: [], holdsClassroom: true)
+        }
+        #expect(try ClassroomSharingService.shareToLeave(pinned: nil, among: [], holdsClassroom: false) == nil)
+    }
 }

@@ -44,6 +44,9 @@ struct ImmediatePresentationRecordingService {
         let existingHistoryStates: [HistoryStateSnapshot]
         let createdEnrollmentObjectIDs: [NSManagedObjectID]
         let existingEnrollmentStates: [EnrollmentStateSnapshot]
+        /// Other plans the recording took these children off (or discarded),
+        /// and the year-plan entries that pointed at them.
+        let releasedPlans: YearPlanReleasePreimage
     }
 
     /// Records one exact assignment as presented and persists the result immediately.
@@ -96,6 +99,7 @@ struct ImmediatePresentationRecordingService {
             deleteHistoryCreatedByRecord(token, in: context)
             restoreExistingEnrollments(token, in: context)
             deleteEnrollmentsCreatedByRecord(token, in: context)
+            token.releasedPlans.restore(in: context)
         }
     }
 }
@@ -130,7 +134,8 @@ private extension ImmediatePresentationRecordingService {
                 HistoryStateBeforeSave(row: $0, lastObservedAt: $0.lastObservedAt)
             },
             existingEnrollmentIdentities: Set(enrollments.map(ObjectIdentifier.init)),
-            priorEnrollmentStates: enrollments.map(EnrollmentStateBeforeSave.init)
+            priorEnrollmentStates: enrollments.map(EnrollmentStateBeforeSave.init),
+            releasePreimage: YearPlanReleaseService.preimage(after: assignment, in: context)
         )
     }
 
@@ -208,7 +213,8 @@ private extension ImmediatePresentationRecordingService {
         return RecordChanges(
             createdHistoryRows: createdHistory,
             createdEnrollmentRows: createdEnrollments,
-            existingEnrollmentStates: existingEnrollmentStates
+            existingEnrollmentStates: existingEnrollmentStates,
+            releasedPlans: preparation.releasePreimage.changed(in: context)
         )
     }
 
@@ -227,6 +233,7 @@ private extension ImmediatePresentationRecordingService {
             existingHistoryStates: preparation.priorHistoryStates.map {
                 HistoryStateSnapshot(
                     objectID: $0.row.objectID,
+                    presentedAt: $0.presentedAt,
                     lastObservedAt: $0.lastObservedAt,
                     followUpActionRaw: $0.followUpActionRaw,
                     followUpReviewAt: $0.followUpReviewAt,
@@ -239,7 +246,8 @@ private extension ImmediatePresentationRecordingService {
                 )
             },
             createdEnrollmentObjectIDs: changes.createdEnrollmentRows.map(\.objectID),
-            existingEnrollmentStates: changes.existingEnrollmentStates
+            existingEnrollmentStates: changes.existingEnrollmentStates,
+            releasedPlans: changes.releasedPlans
         )
     }
 

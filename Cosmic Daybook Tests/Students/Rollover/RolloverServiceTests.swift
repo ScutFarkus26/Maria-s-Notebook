@@ -34,7 +34,7 @@ struct RolloverServiceTests {
         var plan = RolloverPlan(effectiveDate: effective, writeNotes: false)
         plan.outcomes[try #require(student.id)] = .promote(to: .adolescent)
 
-        let changed = RolloverService.apply(
+        let changed = try RolloverService.apply(
             plan, students: [student], incomingYearLabel: "2026–2027", context: ctx
         )
         #expect(changed == 1)
@@ -57,7 +57,7 @@ struct RolloverServiceTests {
         let effective = try boundaryDate(year: 2026, month: 8, day: 31)
         var plan = RolloverPlan(effectiveDate: effective, writeNotes: false)
         plan.outcomes[try #require(student.id)] = .transfer
-        RolloverService.apply(plan, students: [student], incomingYearLabel: "2026–2027", context: ctx)
+        try RolloverService.apply(plan, students: [student], incomingYearLabel: "2026–2027", context: ctx)
 
         #expect(student.isTransferred)
         #expect(!student.isEnrolled)
@@ -91,7 +91,7 @@ struct RolloverServiceTests {
         let effective = try boundaryDate(year: 2026, month: 8, day: 31)
         var plan = RolloverPlan(effectiveDate: effective, writeNotes: false)
         plan.outcomes[try #require(student.id)] = .withdraw
-        RolloverService.apply(plan, students: [student], incomingYearLabel: "2026–2027", context: ctx)
+        try RolloverService.apply(plan, students: [student], incomingYearLabel: "2026–2027", context: ctx)
 
         #expect(student.isWithdrawn)
         #expect(!student.isTransferred)
@@ -107,7 +107,7 @@ struct RolloverServiceTests {
         let modifiedBefore = student.modifiedAt
 
         let plan = RolloverPlan(effectiveDate: Date(), writeNotes: true)
-        let changed = RolloverService.apply(
+        let changed = try RolloverService.apply(
             plan, students: [student], incomingYearLabel: "2026–2027", context: ctx
         )
 
@@ -133,7 +133,7 @@ struct RolloverServiceTests {
         var plan = RolloverPlan(effectiveDate: effective, writeNotes: true)
         plan.outcomes[try #require(promoted.id)] = .promote(to: .adolescent)
         plan.outcomes[try #require(transferred.id)] = .transfer
-        RolloverService.apply(plan, students: [promoted, transferred], incomingYearLabel: "2026–2027", context: ctx)
+        try RolloverService.apply(plan, students: [promoted, transferred], incomingYearLabel: "2026–2027", context: ctx)
 
         let notes = try ctx.fetch(CDFetchRequest(CDNote.self))
         #expect(notes.count == 2)

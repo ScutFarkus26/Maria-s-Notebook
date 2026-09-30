@@ -30,13 +30,17 @@ nonisolated struct AgingPolicy {
 /// Computes aging/overdue metrics for a CDWorkModel.
 /// Uses school-day aware calculations for accurate business rules.
 enum WorkAgingPolicy {
-    /// Returns the most recent meaningful touch date for a work model.
-    /// Priority:
-    /// 1) CDWorkModel.lastTouchedAt (if explicitly set)
-    /// 2) Most recent past completed check-in date (from CDWorkCheckIn)
-    /// 3) Most recent note timestamp (updatedAt, then createdAt)
-    /// 4) Most recent status change timestamp (completedAt if present)
-    /// 5) Fallback: assignedAt or createdAt
+    /// The most recent meaningful touch of a work model, as a start of day:
+    /// the latest of
+    /// - `lastTouchedAt`, when set,
+    /// - its latest completed check-in on or before today,
+    /// - its latest note (edited or written),
+    /// - `completedAt`;
+    /// and when there is none of these, `assignedAt`, then `createdAt`.
+    ///
+    /// These used to be taken in that order rather than by date, so a
+    /// check-in from months ago hid yesterday's note and the work read as
+    /// stale the day after the guide wrote about it.
     nonisolated static func lastMeaningfulTouchDate(
         for work: CDWorkModel,
         checkIns: [CDWorkCheckIn]? = nil,
@@ -44,32 +48,23 @@ enum WorkAgingPolicy {
     ) -> Date {
         let today = AppCalendar.startOfDay(Date())
 
-        // 1) Explicit lastTouchedAt (highest priority)
-        if let lastTouched = work.lastTouchedAt {
-            return AppCalendar.startOfDay(lastTouched)
-        }
-
-        // 2) Most recent past completed check-in date
         let workCheckIns = checkIns ?? ((work.checkIns?.allObjects as? [CDWorkCheckIn]) ?? [])
-        let pastCheckInDates: [Date] = workCheckIns
+        let latestCheckIn: Date? = workCheckIns
             .filter { $0.status == .completed }
-            .map { AppCalendar.startOfDay($0.date ?? .distantPast) }
+            .compactMap { $0.date.map(AppCalendar.startOfDay) }
             .filter { $0 <= today }
-        let latestCheckIn = pastCheckInDates.max()
+            .max()
 
-        // 3) Most recent note timestamp
         let workNotes = notes ?? ((work.unifiedNotes?.allObjects as? [CDNote]) ?? [])
-        let latestNote: Date? = workNotes.map { max($0.updatedAt ?? .distantPast, $0.createdAt ?? .distantPast) }.max()
+        let latestNote: Date? = workNotes
+            .compactMap { note in [note.updatedAt, note.createdAt].compactMap { $0 }.max() }
+            .max()
+            .map(AppCalendar.startOfDay)
 
-        // 4) Status change timestamp (completedAt)
-        let statusChange: Date? = work.completedAt.map { AppCalendar.startOfDay($0) }
-
-        // 5) Fallbacks
-        let assigned = AppCalendar.startOfDay(work.assignedAt ?? Date())
-
-        // Return the most recent non-nil in priority order
-        // CDNote: assigned is non-optional, so it's always available as final fallback
-        return latestCheckIn ?? latestNote ?? statusChange ?? assigned
+        let touches = [work.lastTouchedAt.map(AppCalendar.startOfDay), latestCheckIn, latestNote,
+                       work.completedAt.map(AppCalendar.startOfDay)]
+        if let latest = touches.compactMap({ $0 }).max() { return latest }
+        return AppCalendar.startOfDay(work.assignedAt ?? work.createdAt ?? Date())
     }
 
     /// School-day aware difference between today and the last meaningful touch.

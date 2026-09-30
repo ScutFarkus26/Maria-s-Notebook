@@ -3,6 +3,8 @@ import Foundation
 /// Centralized helper to hide configured Test Students across the app.
 /// Uses the preferences General.showTestStudents (Bool) and General.testStudentNames (String)
 /// to decide whether and which students to hide. Matching is case-insensitive on fullName.
+/// Daybook Assistant compiles this file by path: its roll hides the default names, since
+/// the list is a setting on the guide's device.
 enum TestStudentsFilter {
     static let showKey = UserDefaultsKeys.generalShowTestStudents
     static let namesKey = UserDefaultsKeys.generalTestStudentNames

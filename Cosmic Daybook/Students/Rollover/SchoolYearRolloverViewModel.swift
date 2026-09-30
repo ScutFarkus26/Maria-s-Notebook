@@ -18,6 +18,8 @@ final class SchoolYearRolloverViewModel {
     var plan = RolloverPlan()
     private(set) var students: [CDStudent] = []
     private(set) var appliedChangeCount = 0
+    /// Set when Apply's save failed; the sheet shows it and stays on Review.
+    var applyErrorMessage: String?
     /// The carry-over counts as they stood when Apply was pressed — after the
     /// entries move, re-deriving them would report zero.
     private(set) var appliedCarryOver = RolloverSummary()
@@ -152,14 +154,22 @@ final class SchoolYearRolloverViewModel {
     // MARK: - Apply
 
     func apply(context: NSManagedObjectContext, store: SchoolYearStore) {
-        appliedCarryOver = carryOverCounts(context: context)
-        appliedChangeCount = RolloverService.apply(
-            plan,
-            students: students,
-            incomingYearLabel: incomingYear(store: store).label,
-            carryOverLanding: carryOverLandingDate(store: store, context: context),
-            context: context
-        )
+        let carryOver = carryOverCounts(context: context, store: store)
+        do {
+            appliedChangeCount = try RolloverService.apply(
+                plan,
+                students: students,
+                incomingYearLabel: incomingYear(store: store).label,
+                carryOverLanding: carryOverLandingDate(store: store, context: context),
+                carryOverBefore: incomingYear(store: store).start,
+                context: context
+            )
+        } catch {
+            // Stay on Review so the guide can try again; nothing was changed.
+            applyErrorMessage = error.localizedDescription
+            return
+        }
+        appliedCarryOver = carryOver
         phase = .done
     }
 

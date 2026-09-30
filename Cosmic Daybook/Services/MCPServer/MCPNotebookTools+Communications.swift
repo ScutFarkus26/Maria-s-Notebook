@@ -108,7 +108,7 @@ extension MCPNotebookTools {
             inputSchema: recordCommunicationSchema,
             annotations: .write,
             handler: { arguments in
-                try recordParentCommunication(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try recordParentCommunication(arguments: arguments, in: $0) }
             }
         )
     }

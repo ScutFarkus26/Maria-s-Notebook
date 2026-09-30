@@ -115,11 +115,21 @@ final class AssistantBootstrapper {
     /// only marks this iPhone hadn't sent yet are lost (the screen says so
     /// first). Safe to delete here: a failed start leaves no stack holding
     /// the files (`AssistantStack.shared()` keeps only one that loaded).
+    ///
+    /// If a stack is open by now, Siri opened the class since this start
+    /// failed: it opens after all, so this starts again on that stack rather
+    /// than delete files under it. (It used to return, and the button did
+    /// nothing.)
     func rebuildFromICloud() async {
-        guard case .failed(let problem) = phase, problem.canRebuild, !AssistantStack.isOpen else { return }
-        Self.logger.warning("Rebuilding the class from iCloud after a failed start")
+        guard case .failed(let problem) = phase, problem.canRebuild else { return }
         phase = .starting
-        CoreDataStack.performLocalCacheReset()
+        if AssistantStack.isOpen {
+            Self.logger.notice("The class opened for Siri since the failed start; starting on that stack")
+        } else {
+            Self.logger.warning("Rebuilding the class from iCloud after a failed start")
+            CoreDataStack.performLocalCacheReset()
+            AssistantClassroomLocalState.forget()
+        }
         await start()
     }
 
@@ -181,6 +191,22 @@ final class AssistantBootstrapper {
     /// goes back to joining. Her marks stay with the guide.
     func leaveClassroom() async throws {
         try await sharingService?.leaveClassroom()
+        AssistantClassroomLocalState.forget()
+        await ArrivalReminder.cancelAll()
+        refreshMembership()
+    }
+
+    /// Leave on another of her iPhones deletes the membership rows, and the
+    /// deletion reaches this one by sync. Nothing followed it: this iPhone
+    /// stayed on a class it had left. Now it goes back to joining, as if she
+    /// had left here; CloudKit takes the class's copy off by itself.
+    private func followLeaveElsewhere() async {
+        guard let context = coreDataStack?.viewContext else { return }
+        let request = CDClassroomMembership.ownRowsRequest()
+        request.fetchLimit = 1
+        guard context.safeFetchFirst(request) == nil else { return }
+        Self.logger.notice("Left the classroom on another device; back to joining")
+        AssistantClassroomLocalState.forget()
         await ArrivalReminder.cancelAll()
         await FrontDeskEmailReminder.cancelAll()
         refreshMembership()
@@ -207,7 +233,7 @@ final class AssistantBootstrapper {
             needsAccount: stackNeedsAccount,
             status: accountStatus
         )
-        accountCheckedSinceBuild = true
+        accountCheckedSinceBuild = decision.decided
         // Cleared before the rebuild awaits, so a second check arriving
         // meanwhile (the account-change loop and Check Again together)
         // doesn't rebuild again and pull the stores from under the first.
@@ -215,17 +241,37 @@ final class AssistantBootstrapper {
         if decision.rebuild { await rebuildStackForAccount() }
     }
 
-    /// What one account check means for the stack. The first check after a
-    /// build decides whether it came up without an account; after that, the
+    /// What one account check means for the stack. The first check that can
+    /// tell decides whether it came up without a usable account: no account,
+    /// a restricted one, or one temporarily unavailable (an Apple Account
+    /// waiting for its password), for all of which the container's CloudKit
+    /// setup fails ("Unable to initialize without a valid iCloud account",
+    /// seen on a simulator 2026-09-29). Only "couldn't determine", the check
+    /// itself failing, decides nothing (`decided` false), so the next check
+    /// decides instead of that hiccup costing a rebuild. After that, the
     /// account arriving is the one reason to rebuild, once.
     nonisolated static func accountDecision(
         checkedSinceBuild: Bool,
         needsAccount: Bool,
         status: CKAccountStatus
-    ) -> (needsAccount: Bool, rebuild: Bool) {
-        guard checkedSinceBuild else { return (status != .available, false) }
-        if needsAccount, status == .available { return (false, true) }
-        return (needsAccount, false)
+    ) -> AccountDecision {
+        guard checkedSinceBuild else {
+            switch status {
+            case .available: return AccountDecision(needsAccount: false)
+            case .noAccount, .restricted, .temporarilyUnavailable: return AccountDecision(needsAccount: true)
+            default: return AccountDecision(needsAccount: false, decided: false)
+            }
+        }
+        if needsAccount, status == .available { return AccountDecision(needsAccount: false, rebuild: true) }
+        return AccountDecision(needsAccount: needsAccount)
+    }
+
+    nonisolated struct AccountDecision: Equatable {
+        /// The stack came up without a usable account and waits for one.
+        var needsAccount: Bool
+        var rebuild = false
+        /// False when the check couldn't tell, so the next one decides.
+        var decided = true
     }
 
     /// Asks now, and again whenever the account changes (signed out in
@@ -259,7 +305,9 @@ final class AssistantBootstrapper {
     /// A membership row can also arrive by sync rather than by accepting a
     /// link here: on a new iPhone, or after signing in, for an Apple Account
     /// that joined before. Nothing posts `.didJoinClassroom` then, so until
-    /// this device has a classroom every import re-reads the row.
+    /// this device has a classroom every import re-reads the row; once it
+    /// has one, every import checks the rows are still there
+    /// (`followLeaveElsewhere`).
     private func observeRemoteChanges() {
         guard remoteChangeObserver == nil else { return }
         remoteChangeObserver = Task { [weak self] in
@@ -268,7 +316,11 @@ final class AssistantBootstrapper {
                 .map { _ in () }
             for await _ in changes {
                 guard let self else { return }
-                if case .needsClassroom = phase { refreshMembership() }
+                switch phase {
+                case .needsClassroom: refreshMembership()
+                case .ready: await followLeaveElsewhere()
+                case .starting, .failed: break
+                }
             }
         }
     }

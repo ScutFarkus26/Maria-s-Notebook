@@ -43,7 +43,9 @@ struct LifecycleService {
     // MARK: - CDLessonPresentation Helpers
 
     /// Upsert CDLessonPresentation idempotently by (presentationID, studentID).
-    /// If exists: updates lastObservedAt. If not exists: creates new with state .presented.
+    /// If exists: moves presentedAt and lastObservedAt to `presentedAt`, since the
+    /// row records this one presentation and a corrected date is its date.
+    /// If not exists: creates new with state .presented.
     @discardableResult
     static func upsertLessonPresentation(
         presentationID: String,
@@ -59,7 +61,9 @@ struct LifecycleService {
         let existing = try context.fetch(request).first
 
         if let existing {
-            // Update lastObservedAt to track when this presentation was last seen
+            if existing.presentedAt != presentedAt {
+                existing.presentedAt = presentedAt
+            }
             existing.lastObservedAt = presentedAt
             return existing
         } else {

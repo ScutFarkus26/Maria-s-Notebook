@@ -109,36 +109,17 @@ enum BlockingCacheBuilder {
             return nil // No presentation for preceding lesson means no prerequisites
         }
 
-        // Find incomplete prerequisite work linked to the preceding presentation
-        let prerequisiteWork = workModels.filter { work in
-            work.presentationID == presentationID &&
-            !BlockingAlgorithmEngine.isWorkComplete(work: work, requiredStudentIDs: la.resolvedStudentIDs)
-        }
-
-        // Build blocking dictionary: map student IDs to their blocking work
+        // Each child is blocked by their own unfinished work on the preceding
+        // presentation, never by a classmate's copy that lists them
+        // (`BlockingAlgorithmEngine.gatingWork`).
+        let presentationWork = workModels.filter { $0.presentationID == presentationID }
         var blocking: [UUID: CDWorkModel] = [:]
-
-        for work in prerequisiteWork {
-            let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            if !participants.isEmpty {
-                for participant in participants {
-                    guard let studentID = UUID(uuidString: participant.studentID),
-                          la.resolvedStudentIDs.contains(studentID),
-                          participant.completedAt == nil else {
-                        continue
-                    }
-                    if blocking[studentID] == nil {
-                        blocking[studentID] = work
-                    }
-                }
-            } else {
-                // Legacy rows without participants belong to a single student — only
-                // that student is blocked, not every classmate on the assignment.
-                if let studentID = UUID(uuidString: work.studentID),
-                   la.resolvedStudentIDs.contains(studentID),
-                   blocking[studentID] == nil {
-                    blocking[studentID] = work
-                }
+        for studentID in la.resolvedStudentIDs {
+            let open = BlockingAlgorithmEngine.gatingWork(for: studentID, among: presentationWork).first {
+                !BlockingAlgorithmEngine.isWorkComplete(work: $0, requiredStudentIDs: [studentID])
+            }
+            if let open {
+                blocking[studentID] = open
             }
         }
 

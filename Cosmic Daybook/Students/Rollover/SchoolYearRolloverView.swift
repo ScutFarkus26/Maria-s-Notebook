@@ -42,6 +42,18 @@ struct SchoolYearRolloverView: View {
         .sheet(item: $reportStudent) { student in
             ReportGeneratorView(student: student)
         }
+        .alert(
+            "Rollover Not Applied",
+            isPresented: Binding(
+                get: { viewModel.applyErrorMessage != nil },
+                set: { if !$0 { viewModel.applyErrorMessage = nil } }
+            ),
+            presenting: viewModel.applyErrorMessage
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
     }
 
     private var title: String {
@@ -327,7 +339,7 @@ private extension SchoolYearRolloverView {
     /// exactly how many of last year's intentions move and how many retire.
     @ViewBuilder
     var carryOverEffects: some View {
-        let counts = viewModel.carryOverCounts(context: viewContext)
+        let counts = viewModel.carryOverCounts(context: viewContext, store: store)
         if counts.carriedOverToRedate > 0 {
             let landing = viewModel.carryOverLandingDate(store: store, context: viewContext)
             footnoteLabel(

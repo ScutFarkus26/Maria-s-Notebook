@@ -23,6 +23,14 @@ final class ChatViewModel {
 
     private(set) var session: ChatSession?
     private var chatService: ChatService?
+    /// Which classroom's saved chat this is (`ChatSession.storageKey`).
+    private var sampleClassroom = false
+    private var defaults: UserDefaults = .standard
+    /// The answer being streamed, and which chat it belongs to. New Chat
+    /// mid-answer cancels it and moves on a generation, so a late answer
+    /// can't put the old chat back on screen or save it over the new one.
+    private var sendTask: Task<Void, Never>?
+    private var generation = 0
 
     // MARK: - Computed
 
@@ -74,14 +82,18 @@ final class ChatViewModel {
     /// Configure with dependencies. Called from the view's onAppear.
     func configure(
         viewContext: NSManagedObjectContext,
-        mcpClient: MCPClientProtocol
+        mcpClient: MCPClientProtocol,
+        sampleClassroom: Bool = false,
+        defaults: UserDefaults = .standard
     ) {
         guard chatService == nil else { return } // Already configured
         let service = ChatService(modelContext: viewContext, mcpClient: mcpClient)
         self.chatService = service
+        self.sampleClassroom = sampleClassroom
+        self.defaults = defaults
 
         // Try to restore a saved session, otherwise start fresh
-        if let saved = ChatSession.loadSaved() {
+        if let saved = ChatSession.loadSaved(sampleClassroom: sampleClassroom, defaults: defaults) {
             self.session = saved
             // Refresh the snapshot since it's likely stale from a previous launch
             var restoredSession = saved
@@ -116,7 +128,8 @@ final class ChatViewModel {
         optimisticSession.messages.append(ChatMessage(role: .user, content: text))
         session = optimisticSession
 
-        Task { [self] in
+        let generation = generation
+        sendTask = Task { [self] in
             // The answer so far, shown at most about ten times a second rather
             // than once per chunk; flushed before the stream's outcome lands.
             let throttle = StreamingTextThrottle { [weak self] answerSoFar in
@@ -129,13 +142,16 @@ final class ChatViewModel {
                 ) { answerSoFar in
                     throttle.submit(answerSoFar)
                 }
+                // New Chat was tapped meanwhile: this answer is the old chat's.
+                guard generation == self.generation else { return }
                 throttle.flush()
                 self.session = currentSession
                 self.streamingContent = nil
 
                 // Persist after each message exchange
-                currentSession.save()
+                currentSession.save(sampleClassroom: sampleClassroom, defaults: defaults)
             } catch {
+                guard generation == self.generation else { return }
                 throttle.flush()
                 Self.logger.warning("Chat send failed: \(error)")
                 // Roll back the optimistic message and put the text back in the
@@ -154,11 +170,19 @@ final class ChatViewModel {
     /// Resets the chat session to start fresh.
     func resetSession() {
         guard let service = chatService else { return }
+        generation += 1
+        sendTask?.cancel()
+        sendTask = nil
         session = service.startSession()
         errorMessage = nil
         inputText = ""
         streamingContent = nil
         isLoading = false
-        ChatSession.clearSaved()
+        ChatSession.clearSaved(sampleClassroom: sampleClassroom, defaults: defaults)
+    }
+
+    /// Returns once the answer being streamed, if any, has landed (tests).
+    func waitForSend() async {
+        await sendTask?.value
     }
 }

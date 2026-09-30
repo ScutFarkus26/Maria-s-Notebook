@@ -41,10 +41,17 @@ final class AssistantShareAttacher {
     private var backlogWaitsUntil = Date.distantPast
     private var failuresInARow = 0
     private var retryTask: Task<Void, Never>?
-    /// What the last pass was given, for retries nobody asked for.
+    /// The newest stack a caller gave: each round of a pass uses it, so a
+    /// pass running when the stack is rebuilt moves to the new one. Also
+    /// what retries nobody asked for use.
     private weak var lastContainer: NSPersistentCloudKitContainer?
     private weak var lastContext: NSManagedObjectContext?
     private var foregroundObserver: (any NSObjectProtocol)?
+    /// The container whose CloudKit mirroring stopped mid-attach. Every later
+    /// `share(_:to:)` on it would raise an exception no Swift `catch` traps,
+    /// so no pass runs on it again: its marks wait for a rebuilt stack or
+    /// the next launch, whose container starts afresh.
+    private weak var stoppedContainer: NSPersistentCloudKitContainer?
     /// A pass that goes in ends the rest early, once: if the waiting marks are
     /// refused even then, it's something about them, not CloudKit, and they
     /// wait out the full rest rather than riding along with every tap.
@@ -54,12 +61,13 @@ final class AssistantShareAttacher {
     private let now: @MainActor () -> Date
     private let sleep: Sleep
 
-    /// One try at putting records into the share; returns those to try again.
+    /// One try at putting records into the share: those to try again, and
+    /// whether mirroring stopped.
     typealias Attempt = @MainActor (
         _ ids: [NSManagedObjectID],
         _ container: NSPersistentCloudKitContainer,
         _ context: NSManagedObjectContext
-    ) async -> [NSManagedObjectID]
+    ) async -> CDAttendanceStore.ShareAttachResult
     private let attempt: Attempt
     /// Waits out a rest before the retry; throws to cancel it.
     typealias Sleep = @MainActor (_ seconds: TimeInterval) async throws -> Void
@@ -105,6 +113,12 @@ final class AssistantShareAttacher {
     /// Tries what was just saved, and the backlog unless it's resting after a
     /// failed pass: at launch, and after each save.
     func flush(container: NSPersistentCloudKitContainer, context: NSManagedObjectContext) {
+        if let lastContainer, lastContainer !== container {
+            // A rebuilt stack. What the old one couldn't send says nothing
+            // about CloudKit, so the waiting marks don't wait out its rest.
+            backlogWaitsUntil = .distantPast
+            failuresInARow = 0
+        }
         lastContainer = container
         lastContext = context
         guard pass == nil else {
@@ -112,7 +126,7 @@ final class AssistantShareAttacher {
             return
         }
         pass = Task { [weak self] in
-            await self?.run(container: container, context: context)
+            await self?.run()
             self?.pass = nil
         }
     }
@@ -149,9 +163,12 @@ final class AssistantShareAttacher {
         while let pass { await pass.value }
     }
 
-    private func run(container: NSPersistentCloudKitContainer, context: NSManagedObjectContext) async {
+    private func run() async {
         repeat {
             runAgain = false
+            guard let container = lastContainer, let context = lastContext else { return }
+            // What's waiting stays in the list for a stack that can send it.
+            guard container !== stoppedContainer else { return }
             let backlogDue = now() >= backlogWaitsUntil
             if backlogDue, !triedEarly { earlyTryFailed = false }
             let wasEarly = triedEarly
@@ -159,16 +176,26 @@ final class AssistantShareAttacher {
             let justSaved = fresh
             fresh = []
             let taken = pending.filter { backlogDue || justSaved.contains($0.absoluteString) }
-            let ids = resolve(taken, in: context)
-            guard !ids.isEmpty else {
-                forget(taken)
+            let found = resolve(taken, in: context)
+            guard !found.ids.isEmpty else {
+                forget(found.gone)
                 continue
             }
-            let left = await attempt(ids, container, context)
+            let result = await attempt(found.ids, container, context)
+            let left = result.left
             // Marks saved during the pass stay; of these, only what failed.
-            forget(taken)
+            forget(found.gone + found.ids.map { $0.uriRepresentation() })
             remember(left.map { $0.uriRepresentation() })
-            if left.isEmpty {
+            if result.mirroringStopped {
+                stoppedContainer = container
+                retryTask?.cancel()
+                Self.logger.error(
+                    "CloudKit mirroring stopped; \(self.pending.count, privacy: .public) mark(s) wait for a relaunch"
+                )
+                if lastContainer === container { return }
+                // A rebuilt stack arrived meanwhile: it can try them.
+                runAgain = true
+            } else if left.isEmpty {
                 failuresInARow = 0
                 if backlogDue {
                     backlogWaitsUntil = .distantPast
@@ -179,6 +206,10 @@ final class AssistantShareAttacher {
                     triedEarly = true
                     runAgain = true
                 }
+            } else if lastContainer !== container {
+                // The stack was rebuilt under this round, so the refusals
+                // were the closed stack's: try them on the new one now.
+                runAgain = true
             } else {
                 if wasEarly { earlyTryFailed = true }
                 failuresInARow += 1
@@ -192,14 +223,27 @@ final class AssistantShareAttacher {
         } while runAgain
     }
 
-    /// The waiting records that still exist.
-    private func resolve(_ uris: [URL], in context: NSManagedObjectContext) -> [NSManagedObjectID] {
-        guard let coordinator = context.persistentStoreCoordinator else { return [] }
-        return uris.compactMap { uri in
-            guard let id = coordinator.managedObjectID(forURIRepresentation: uri),
-                  (try? context.existingObject(with: id)) != nil else { return nil }
-            return id
+    /// The waiting records that still exist (`ids`), and those that are
+    /// gone for good (`gone`): deleted, or from a store this open stack
+    /// doesn't have, which a Rebuild from iCloud replaced. A stack with no
+    /// stores open (one closed for a rebuild) can say neither, so its
+    /// marks are in neither list and keep waiting.
+    private func resolve(
+        _ uris: [URL], in context: NSManagedObjectContext
+    ) -> (ids: [NSManagedObjectID], gone: [URL]) {
+        guard let coordinator = context.persistentStoreCoordinator,
+              !coordinator.persistentStores.isEmpty else { return ([], []) }
+        var ids: [NSManagedObjectID] = []
+        var gone: [URL] = []
+        for uri in uris {
+            if let id = coordinator.managedObjectID(forURIRepresentation: uri),
+               (try? context.existingObject(with: id)) != nil {
+                ids.append(id)
+            } else {
+                gone.append(uri)
+            }
         }
+        return (ids, gone)
     }
 
     /// The waiting list, oldest first.

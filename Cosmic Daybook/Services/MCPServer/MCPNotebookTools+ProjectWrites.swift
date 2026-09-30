@@ -41,7 +41,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateProject(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try updateProject(arguments: arguments, in: $0) }
             }
         )
     }

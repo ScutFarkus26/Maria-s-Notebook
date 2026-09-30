@@ -10,12 +10,14 @@ extension ImmediatePresentationRecordingService {
         let priorHistoryStates: [HistoryStateBeforeSave]
         let existingEnrollmentIdentities: Set<ObjectIdentifier>
         let priorEnrollmentStates: [EnrollmentStateBeforeSave]
+        let releasePreimage: YearPlanReleasePreimage
     }
 
     struct RecordChanges {
         let createdHistoryRows: [CDLessonPresentation]
         let createdEnrollmentRows: [CDStudentTrackEnrollmentEntity]
         let existingEnrollmentStates: [EnrollmentStateSnapshot]
+        let releasedPlans: YearPlanReleasePreimage
     }
 
     struct AssignmentStateSnapshot {
@@ -62,6 +64,7 @@ extension ImmediatePresentationRecordingService {
 
     struct HistoryStateSnapshot {
         let objectID: NSManagedObjectID
+        let presentedAt: Date?
         let lastObservedAt: Date?
         let followUpActionRaw: String?
         let followUpReviewAt: Date?
@@ -75,6 +78,7 @@ extension ImmediatePresentationRecordingService {
 
     struct HistoryStateBeforeSave {
         let row: CDLessonPresentation
+        let presentedAt: Date?
         let lastObservedAt: Date?
         let followUpActionRaw: String?
         let followUpReviewAt: Date?
@@ -87,6 +91,7 @@ extension ImmediatePresentationRecordingService {
 
         init(row: CDLessonPresentation, lastObservedAt: Date?) {
             self.row = row
+            self.presentedAt = row.presentedAt
             self.lastObservedAt = lastObservedAt
             followUpActionRaw = row.followUpActionRaw
             followUpReviewAt = row.followUpReviewAt

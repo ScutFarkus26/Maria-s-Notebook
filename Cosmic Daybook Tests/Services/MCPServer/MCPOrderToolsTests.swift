@@ -110,4 +110,19 @@ struct MCPOrderToolsTests {
         }
         #expect(items(in: context).first?.stage == .toRequest)
     }
+
+    @Test("Confirming an item never asked for is refused, and nothing in the batch changes")
+    func confirmNeedsARequest() async throws {
+        let (tools, context) = try makeTools()
+        _ = try await tool(named: "add_order_items", in: tools).handler([
+            "items": .array([.object(["url": .string("example.com/a"), "title": .string("Alpha")])])
+        ])
+        let id = try #require(items(in: context).first?.id?.uuidString)
+        await #expect(throws: MCPToolError.self) {
+            _ = try await tool(named: "update_order_items", in: tools).handler([
+                "items": .array([.object(["id": .string(id), "stage": .string("confirmed")])])
+            ])
+        }
+        #expect(items(in: context).first?.stage == .toRequest)
+    }
 }

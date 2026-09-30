@@ -47,6 +47,8 @@
 		DA2C99A8FDCF1E8960A219D6 /* CloudKitEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA552C99A8FDCF1E8960A219 /* CloudKitEnvironment.swift */; };
 		DAC6166BA1229B941B603113 /* AttendanceDayLockEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA10C6166BA1229B941B6031 /* AttendanceDayLockEntity.swift */; };
 		DA34A2EEF7F2368D48101F46 /* ClassroomShareAttach.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5934A2EEF7F2368D48101F /* ClassroomShareAttach.swift */; };
+		0913BBE2BC2196998B14FF7B /* ClassroomLeave.swift in Sources */ = {isa = PBXBuildFile; fileRef = B52A6599C3A8B1D2C1A201E7 /* ClassroomLeave.swift */; };
+		C7E1A4D25B9F3E6A10D2B8F4 /* TestStudentsFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F2B5E36CA04F7B21E3C905 /* TestStudentsFilter.swift */; };
 		966C9C32A1043E8EEEF64A3E /* RemoteImportReloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88EB5EE1A1B58EA44F1C52BB /* RemoteImportReloader.swift */; };
 		DAD9568DB3B62D191F232900 /* CDAttendanceStore+ClassroomShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA82D9568DB3B62D191F2329 /* CDAttendanceStore+ClassroomShare.swift */; };
 		DA81E9509EDA1E2E64F7F3AE /* AttendanceDayLocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA2181E9509EDA1E2E64F7F3 /* AttendanceDayLocks.swift */; };
@@ -135,6 +137,8 @@
 		DA552C99A8FDCF1E8960A219 /* CloudKitEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudKitEnvironment.swift; path = "Cosmic Daybook/AppCore/CloudKitEnvironment.swift"; sourceTree = SOURCE_ROOT; };
 		DA10C6166BA1229B941B6031 /* AttendanceDayLockEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceDayLockEntity.swift; path = "Cosmic Daybook/Attendance/AttendanceDayLockEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DA5934A2EEF7F2368D48101F /* ClassroomShareAttach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomShareAttach.swift; path = "Cosmic Daybook/Sharing/ClassroomShareAttach.swift"; sourceTree = SOURCE_ROOT; };
+		B52A6599C3A8B1D2C1A201E7 /* ClassroomLeave.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomLeave.swift; path = "Cosmic Daybook/Sharing/ClassroomLeave.swift"; sourceTree = SOURCE_ROOT; };
+		D8F2B5E36CA04F7B21E3C905 /* TestStudentsFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TestStudentsFilter.swift; path = "Cosmic Daybook/Students/Roster/TestStudentsFilter.swift"; sourceTree = SOURCE_ROOT; };
 		88EB5EE1A1B58EA44F1C52BB /* RemoteImportReloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RemoteImportReloader.swift; path = "Cosmic Daybook/Sharing/RemoteImportReloader.swift"; sourceTree = SOURCE_ROOT; };
 		DA82D9568DB3B62D191F2329 /* CDAttendanceStore+ClassroomShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CDAttendanceStore+ClassroomShare.swift"; path = "Cosmic Daybook/Attendance/CDAttendanceStore+ClassroomShare.swift"; sourceTree = SOURCE_ROOT; };
 		DA2181E9509EDA1E2E64F7F3 /* AttendanceDayLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceDayLocks.swift; path = "Cosmic Daybook/Attendance/AttendanceDayLocks.swift"; sourceTree = SOURCE_ROOT; };
@@ -339,6 +343,8 @@
 				DA552C99A8FDCF1E8960A219 /* CloudKitEnvironment.swift */,
 				DA10C6166BA1229B941B6031 /* AttendanceDayLockEntity.swift */,
 				DA5934A2EEF7F2368D48101F /* ClassroomShareAttach.swift */,
+				B52A6599C3A8B1D2C1A201E7 /* ClassroomLeave.swift */,
+				D8F2B5E36CA04F7B21E3C905 /* TestStudentsFilter.swift */,
 				88EB5EE1A1B58EA44F1C52BB /* RemoteImportReloader.swift */,
 				DA82D9568DB3B62D191F2329 /* CDAttendanceStore+ClassroomShare.swift */,
 				DA2181E9509EDA1E2E64F7F3 /* AttendanceDayLocks.swift */,
@@ -616,6 +622,8 @@
 				DA2C99A8FDCF1E8960A219D6 /* CloudKitEnvironment.swift in Sources */,
 				DAC6166BA1229B941B603113 /* AttendanceDayLockEntity.swift in Sources */,
 				DA34A2EEF7F2368D48101F46 /* ClassroomShareAttach.swift in Sources */,
+				0913BBE2BC2196998B14FF7B /* ClassroomLeave.swift in Sources */,
+				C7E1A4D25B9F3E6A10D2B8F4 /* TestStudentsFilter.swift in Sources */,
 				966C9C32A1043E8EEEF64A3E /* RemoteImportReloader.swift in Sources */,
 				DAD9568DB3B62D191F232900 /* CDAttendanceStore+ClassroomShare.swift in Sources */,
 				DA81E9509EDA1E2E64F7F3AE /* AttendanceDayLocks.swift in Sources */,

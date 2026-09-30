@@ -59,20 +59,26 @@ enum YearPlanReleaseService {
         // Group by plan first, so two girls released from the same Thursday
         // group are one decision about that group rather than two — which is
         // what makes "she was the last one on it" come out right.
-        var releases: [String: Set<String>] = [:]
+        var releases: [String: [CDYearPlanEntry]] = [:]
         for entry in promotedEntries(
             lessonID: assignment.lessonID, studentIDs: assignment.studentIDs, in: context
         ) {
             guard let otherID = entry.promotedAssignmentID, otherID != assignmentID else { continue }
-            releases[otherID, default: []].insert(entry.studentID)
+            releases[otherID, default: []].append(entry)
         }
         guard !releases.isEmpty else { return Outcome() }
 
         var outcome = Outcome()
-        for (planID, studentIDs) in releases {
-            let result = release(studentIDs, fromPlan: planID, in: context, dryRun: dryRun)
+        for (planID, entries) in releases {
+            let result = release(Set(entries.map(\.studentID)), fromPlan: planID, in: context, dryRun: dryRun)
             outcome.rostersTrimmed += result.rostersTrimmed
             outcome.plansDiscarded += result.plansDiscarded
+            // The intention each released entry stood for is answered by this
+            // presentation now, so the entry points here rather than at a plan
+            // that no longer holds the child (or no longer exists).
+            if !result.isEmpty && !dryRun {
+                for entry in entries { entry.promotedAssignmentID = assignmentID }
+            }
         }
 
         if !outcome.isEmpty && !dryRun {
@@ -94,7 +100,7 @@ enum YearPlanReleaseService {
     /// Not `fetchLimit = 1`: a store that has been through a duplicating
     /// migration can carry more than one entry for the same pair, and each may
     /// name a different plan.
-    private static func promotedEntries(
+    static func promotedEntries(
         lessonID: String, studentIDs: [String], in context: NSManagedObjectContext
     ) -> [CDYearPlanEntry] {
         guard !studentIDs.isEmpty else { return [] }
@@ -133,24 +139,16 @@ enum YearPlanReleaseService {
         }
 
         guard !dryRun else { return Outcome(plansDiscarded: 1) }
-        // Every entry still pointing at this plan loses what it was pointing
-        // at, so send it back to planned rather than leaving it promoted into
-        // nothing — the repair `discard_presentation` makes. The ones this call
-        // just answered read as given either way, from the record.
-        for stranded in entriesPromoted(into: planID, in: context) {
+        // Any other entry still pointing at this plan loses what it was
+        // pointing at, so it goes back to planned rather than staying promoted
+        // into nothing — the repair every delete makes. The released children's
+        // own entries are repointed by the caller.
+        for stranded in PresentationRecordCleanup.entries(promotedInto: planID, in: context)
+            where !studentIDs.contains(stranded.studentID) {
             stranded.status = .planned
             stranded.promotedAssignmentID = nil
         }
         context.delete(other)
         return Outcome(plansDiscarded: 1)
-    }
-
-    /// Entries still promoted into a given plan.
-    private static func entriesPromoted(
-        into planID: String, in context: NSManagedObjectContext
-    ) -> [CDYearPlanEntry] {
-        let request = CDFetchRequest(CDYearPlanEntry.self)
-        request.predicate = NSPredicate(format: "promotedAssignmentID == %@", planID)
-        return context.safeFetch(request).filter(\.isPromoted)
     }
 }

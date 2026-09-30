@@ -14,6 +14,12 @@ import CloudKit
 /// everyone else, never deleting the share — a new one would be a second zone.
 extension ClassroomSharingService {
 
+    // MARK: - Permission Queries
+
+    func canManageSharing() -> Bool {
+        ClassroomPermissions.canManageSharing(role: currentRole)
+    }
+
     enum MemberError: LocalizedError {
         case noShare
         case emptyAddress
@@ -115,10 +121,13 @@ extension ClassroomSharingService {
     }
 
     private func save(_ share: CKShare) async throws {
-        guard let store = container.persistentStoreCoordinator.persistentStores
-            .first(where: { $0.configurationName == CoreDataStack.privateConfiguration })
+        guard let storeIdentifier = container.persistentStoreCoordinator.persistentStores
+            .first(where: { $0.configurationName == CoreDataStack.privateConfiguration })?.identifier
         else { throw MemberError.noShare }
-        let saved = try await container.persistUpdatedShare(share, in: store)
+        // Off the main actor: the call blocks its thread until the export resolves.
+        let saved = try await ClassroomShareAttach.persistUpdatedShareOffMain(
+            share, storeIdentifier: storeIdentifier, container: container
+        )
         updateShareState(saved)
         try refreshParticipants()
     }

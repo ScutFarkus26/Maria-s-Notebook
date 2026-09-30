@@ -6,6 +6,27 @@ import OSLog
 
 extension CloudKitSyncStatusService {
 
+    /// While the gate is armed, listens for the private store's first import
+    /// from the moment the stack is configured. The full observers start
+    /// 2 s later (see `configure`), and an import that finished inside that
+    /// window was missed, leaving the gate armed until some later import.
+    /// Ends once the gate opens; `removeAllObservers` cancels it with the rest.
+    func watchForFirstDownloadIfPending() {
+        guard FirstDownloadGate.isPending() else { return }
+        let events = NotificationCenter.default.messages(
+            of: NSPersistentCloudKitContainer.self, for: .eventChanged, bufferSize: 256
+        )
+        messageObservationTasks.append(Task { [weak self] in
+            for await message in events {
+                let event = message.event
+                guard event.type == .import, event.endDate != nil, event.succeeded else { continue }
+                guard let self else { return }
+                self.finishFirstDownloadIfNeeded(importedStoreIdentifier: event.storeIdentifier)
+                if !FirstDownloadGate.isPending() { return }
+            }
+        })
+    }
+
     /// Opens `FirstDownloadGate` once an import into the private store has
     /// finished successfully, then runs what the gate held back: the built-in
     /// template seed (a no-op when the notebook's own came down) and the

@@ -132,7 +132,7 @@ extension MCPNotebookTools {
             inputSchema: updateIssueSchema,
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateIssue(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try updateIssue(arguments: arguments, in: $0) }
             }
         )
     }
