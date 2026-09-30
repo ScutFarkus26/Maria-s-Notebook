@@ -1,10 +1,13 @@
 import AVFoundation
 import OSLog
 
-/// Soft bells as she marks, off until she turns them on in Classroom. Each
-/// child marked here rings the next note up a pentatonic scale, so the
-/// morning climbs as the class fills; an absence is one low note, and
-/// everyone marked plays a short rising run.
+/// The Montessori bells as she marks, off until she turns them on in
+/// Classroom: the eight brass bells of the C major scale, middle C to the C
+/// above. Each child marked here rings the next bell, up the scale and back
+/// down again as the children do with the real bells, so the morning never
+/// jumps from the top C to the bottom one. An absence is the low C struck and
+/// damped at once, as with the felt damper; everyone marked runs up the
+/// scale; and the hundredth day runs up and back down.
 ///
 /// The tones are made here (a few decaying partials, bell-like), not shipped
 /// as files. The session is `.ambient`: the ringer switch silences it and it
@@ -22,20 +25,21 @@ final class AssistantBells {
         case here(count: Int)
         case away
         case everyoneMarked
+        /// Everyone marked on the hundredth day of school.
+        case hundredthDay
     }
 
     private static let logger = Logger.app(category: "bells")
 
-    /// C major pentatonic from C5, two octaves.
-    static let scale: [Double] = [
-        523.25, 587.33, 659.25, 783.99, 880.00,
-        1046.50, 1174.66, 1318.51, 1567.98, 1760.00
-    ]
+    /// The white-note bells: C major from middle C to the C above.
+    static let scale: [Double] = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25]
 
-    /// The note for the `count`th child here, climbing and starting over at
-    /// the top.
+    /// Up the scale and back down, then up again: C D E F G A B C′ B A G F E D.
+    static let climb: [Int] = Array(0..<scale.count) + Array((1..<(scale.count - 1)).reversed())
+
+    /// The bell for the `count`th child here.
     static func note(forHereCount count: Int) -> Double {
-        scale[max(count - 1, 0) % scale.count]
+        scale[climb[max(count - 1, 0) % climb.count]]
     }
 
     private let engine = AVAudioEngine()
@@ -60,7 +64,7 @@ final class AssistantBells {
         nextPlayer = (nextPlayer + 1) % players.count
         player.scheduleBuffer(buffer, at: nil, options: .interrupts)
         player.play()
-        scheduleStop()
+        scheduleStop(after: max(4, Double(buffer.frameLength) / format.sampleRate + 0.5))
     }
 
     // MARK: - Engine
@@ -80,10 +84,10 @@ final class AssistantBells {
         try engine.start()
     }
 
-    private func scheduleStop() {
+    private func scheduleStop(after seconds: Double) {
         stopTask?.cancel()
         stopTask = Task {
-            guard (try? await Task.sleep(for: .seconds(4))) != nil else { return }
+            guard (try? await Task.sleep(for: .seconds(seconds))) != nil else { return }
             players.forEach { $0.stop() }
             engine.stop()
         }
@@ -98,23 +102,40 @@ final class AssistantBells {
         case .here(let count):
             notes = [Tone(frequency: Self.note(forHereCount: count), start: 0, level: 0.5)]
         case .away:
-            notes = [Tone(frequency: 392.00, start: 0, level: 0.35)]
+            notes = [Tone(frequency: Self.scale[0], start: 0, level: 0.4, damped: 0.25)]
         case .everyoneMarked:
-            notes = [523.25, 659.25, 783.99, 1046.50].enumerated().map { index, frequency in
-                Tone(frequency: frequency, start: 0.10 + 0.12 * Double(index), level: index == 3 ? 0.45 : 0.4)
-            }
+            notes = Self.run(Array(0..<Self.scale.count), spacing: 0.11)
+        case .hundredthDay:
+            notes = Self.run(Array(0..<Self.scale.count) + Array((0..<(Self.scale.count - 1)).reversed()), spacing: 0.1)
         }
         let buffer = Self.render(notes, format: format)
         buffers[chime] = buffer
         return buffer
     }
 
+    /// The bells at `indexes` struck one after another, `spacing` seconds
+    /// apart; each is damped as the next rings so the run stays clear, and the
+    /// last one rings out.
+    private static func run(_ indexes: [Int], spacing: Double) -> [Tone] {
+        indexes.enumerated().map { position, index in
+            let isLast = position == indexes.count - 1
+            return Tone(
+                frequency: scale[index],
+                start: 0.08 + spacing * Double(position),
+                level: isLast ? 0.5 : 0.36,
+                damped: isLast ? nil : spacing * 1.6
+            )
+        }
+    }
+
     /// One struck note in a chime: its pitch, when it starts (seconds into
-    /// the chime) and how loud.
+    /// the chime), how loud, and when (seconds after it's struck) the damper
+    /// stops it, if it does.
     private struct Tone {
         let frequency: Double
         let start: Double
         let level: Double
+        var damped: Double?
     }
 
     /// A bell's overtone: its pitch as a multiple of the note's, its level,
@@ -125,19 +146,27 @@ final class AssistantBells {
         let decay: Double
     }
 
+    /// A brass bell: the octave and the twelfth strong (they carry the pitch
+    /// on a phone speaker, which is thin at middle C), a slightly sharp
+    /// fourth and a high shimmer, and a long ring.
     private static let partials = [
-        Partial(ratio: 1.0, level: 1.0, decay: 3.2), Partial(ratio: 2.0, level: 0.35, decay: 5.0),
-        Partial(ratio: 3.0, level: 0.15, decay: 7.0), Partial(ratio: 4.2, level: 0.08, decay: 9.0)
+        Partial(ratio: 1.0, level: 1.0, decay: 1.1), Partial(ratio: 2.0, level: 0.6, decay: 1.8),
+        Partial(ratio: 3.0, level: 0.45, decay: 2.6), Partial(ratio: 4.07, level: 0.18, decay: 4.0),
+        Partial(ratio: 5.4, level: 0.1, decay: 6.0)
     ]
+
+    /// How long a struck bell is let ring, in seconds.
+    private static let ring = 2.2
 
     /// Each note as a few partials with a quick attack and a decay that is
     /// faster for the higher ones, which is most of what makes a bell a bell.
+    /// A damped note dies within a few hundredths of a second. The whole chime
+    /// is scaled down if its notes together would clip.
     private static func render(
         _ notes: [Tone],
         format: AVAudioFormat
     ) -> AVAudioPCMBuffer? {
         let rate = format.sampleRate
-        let ring = 1.4
         let length = (notes.map(\.start).max() ?? 0) + ring
         let frames = AVAudioFrameCount(length * rate)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
@@ -149,13 +178,22 @@ final class AssistantBells {
             var value = 0.0
             for note in notes where time >= note.start {
                 let local = time - note.start
-                let attack = min(local / 0.006, 1)
+                var envelope = min(local / 0.006, 1)
+                if let damped = note.damped, local > damped {
+                    envelope *= exp(-40 * (local - damped))
+                }
                 for partial in partials {
-                    value += note.level * partial.level * attack * exp(-partial.decay * local)
+                    value += note.level * partial.level * envelope * exp(-partial.decay * local)
                         * sin(2 * .pi * note.frequency * partial.ratio * local)
                 }
             }
             samples[index] = Float(value * 0.3)
+        }
+        var peak: Float = 0
+        for index in 0..<Int(frames) { peak = max(peak, abs(samples[index])) }
+        if peak > 0.9 {
+            let scale = 0.9 / peak
+            for index in 0..<Int(frames) { samples[index] *= scale }
         }
         return buffer
     }

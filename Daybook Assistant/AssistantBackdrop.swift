@@ -1,17 +1,26 @@
 import SwiftUI
 
-/// Behind the grid: the grouped background, washed faintly amber once arrival
-/// has closed (so a tap meaning "late" is felt, not just read), and on today
-/// the color of the sky at this hour fading down from the top.
+/// Behind the grid: the background she chose (`AssistantWallpaper`), washed
+/// faintly amber once arrival has closed (so a tap meaning "late" is felt, not
+/// just read), and on Sky, on today, the color of the sky at this hour fading
+/// down from the top.
 struct AssistantBackdrop: View {
     let isToday: Bool
     let isLate: Bool
+    /// The day on screen, for Seasons.
+    var date = Date()
+    /// How much of the class is here, 0 to 1, for Cosmic.
+    var hereFraction: Double = 0
+    /// Draws this background instead of her choice: the picker's previews.
+    var wallpaper: AssistantWallpaper?
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
 
     var body: some View {
+        let wallpaper = wallpaper ?? AssistantWallpaper.resolved(wallpaperRaw)
         ZStack(alignment: .top) {
-            AssistantBackdrop.base(isLate: isLate)
-            if isToday {
+            AssistantWallpaperView(wallpaper: wallpaper, date: date, hereFraction: hereFraction)
+            if wallpaper == .sky, isToday {
                 // The sky moves slowly; every five minutes is plenty.
                 TimelineView(.periodic(from: .now, by: 300)) { context in
                     LinearGradient(
@@ -26,18 +35,13 @@ struct AssistantBackdrop: View {
                 }
                 .transition(.opacity)
             }
+            // Over every background: late should feel the same on each.
+            Color.lateAmber.opacity(isLate ? (wallpaper.isQuiet ? 0.07 : 0.12) : 0)
         }
         .ignoresSafeArea()
         .animation(.smooth(duration: 0.4), value: isLate)
         .animation(.smooth(duration: 0.4), value: isToday)
-    }
-
-    /// The background without the sky: also under the fade above the bar.
-    static func base(isLate: Bool) -> some View {
-        ZStack {
-            Color(.systemGroupedBackground)
-            Color.lateAmber.opacity(isLate ? 0.07 : 0)
-        }
+        .animation(.smooth(duration: 0.6), value: hereFraction)
     }
 }
 

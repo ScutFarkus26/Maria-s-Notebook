@@ -7,8 +7,9 @@ import SwiftUI
 /// the day); long-press for every status, Absent with its reason, and a note.
 /// A child with a note shows it, in full, above that menu. On a child's
 /// birthday (or a summer child's half-birthday) the tile gets a party-colored
-/// edge and a cake, and sparkles when they're marked in; a mark's motion is in
-/// `TileTapMotion`.
+/// edge and a cake, and sparkles when they're marked in. A child back after
+/// days away has a waving hand, which waves up out of the tile when she marks
+/// them in. A mark's motion is in `TileTapMotion`.
 ///
 /// Phones show the shortest name that still tells children apart ("Ari", but
 /// "Etty G" and "Etty R": this classroom has two Ettys and two Sarahs). On an
@@ -79,7 +80,11 @@ struct AssistantAttendanceTile: View {
     @State private var tapKind = TileTapMotion.Kind.here
     /// Bumped when a birthday child is marked in.
     @State private var sparkleTaps = 0
+    /// Bumped when a child back after days away is marked in.
+    @State private var waveTaps = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Sky or Plain behind the grid; false frosts the tile (`TileBase`).
+    @Environment(\.assistantBackdropIsQuiet) var quietBackdrop
 
     private var isLargeText: Bool { dynamicTypeSize.isAccessibilitySize }
 
@@ -110,8 +115,16 @@ struct AssistantAttendanceTile: View {
                     BirthdaySparkles.keyframes()
                 }
             }
-            // A birthday child's sparkles draw over the tiles around them.
-            .zIndex(row.birthday == nil ? 0 : 1)
+            .overlay(alignment: .topTrailing) {
+                Color.clear.keyframeAnimator(initialValue: CGFloat(0), trigger: waveTaps) { _, progress in
+                    WelcomeWave(progress: progress)
+                } keyframes: { _ in
+                    WelcomeWave.keyframes()
+                }
+            }
+            // A birthday child's sparkles and a returning child's wave draw
+            // over the tiles around them.
+            .zIndex(row.birthday == nil && row.daysAway == nil ? 0 : 1)
             .animation(.smooth(duration: 0.25), value: row.status)
             .animation(.smooth(duration: 0.2), value: showsHoldHint)
             .sensoryFeedback(.selection, trigger: markTaps)
@@ -230,6 +243,7 @@ struct AssistantAttendanceTile: View {
         tapKind = TileTapMotion.Kind(status)
         markTaps += 1
         if row.birthday != nil, tapKind == .here, !reduceMotion { sparkleTaps += 1 }
+        if row.daysAway != nil, tapKind == .here, !reduceMotion { waveTaps += 1 }
     }
 
     // MARK: - Pieces
@@ -299,7 +313,8 @@ struct AssistantAttendanceTile: View {
     /// Late or left early, in the corner's padding so it takes no room from
     /// the name. A roomy tile has the glyph on its detail line instead.
     /// A birthday's cake takes the corner when late or left early doesn't
-    /// (a late birthday child still has the party-colored edge).
+    /// (a late birthday child still has the party-colored edge), and a
+    /// returning child's wave when neither does.
     @ViewBuilder
     private var cornerGlyph: some View {
         if !isRoomy, let glyph = Self.cornerGlyph(for: row.status) {
@@ -312,6 +327,12 @@ struct AssistantAttendanceTile: View {
             Image(systemName: birthday.symbol)
                 .font((isRoomy ? Font.footnote : .caption2).weight(.bold))
                 .foregroundStyle(isHere ? nameStyle : .pink)
+                .padding(isRoomy ? 8 : 6)
+                .accessibilityHidden(true)
+        } else if row.daysAway != nil {
+            Image(systemName: "hand.wave.fill")
+                .font((isRoomy ? Font.footnote : .caption2).weight(.bold))
+                .foregroundStyle(isHere ? nameStyle : .teal)
                 .padding(isRoomy ? 8 : 6)
                 .accessibilityHidden(true)
         }

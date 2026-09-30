@@ -37,10 +37,12 @@ extension AssistantAttendanceTile {
         }
     }
 
-    /// "Birthday · Present at 8:02 · by you", leaving out what isn't so.
+    /// "Birthday · Back after 4 days · Present at 8:02 · by you", leaving out
+    /// what isn't so.
     var menuHeader: String? {
         let mark = markSummary.map { summary in markedBy.map { "\(summary) · by \($0)" } ?? summary }
-        let parts = [row.birthday?.title, mark].compactMap(\.self)
+        let away = row.daysAway.map(AssistantWelcomeBack.phrase(daysAway:))
+        let parts = [row.birthday?.title, away, mark].compactMap(\.self)
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -72,10 +74,11 @@ extension AssistantAttendanceTile {
 
     // MARK: - Accessibility
 
-    /// "Maya Stone, birthday, Present at 8:04".
+    /// "Maya Stone, birthday, back after 4 days, Present at 8:04".
     var accessibilityName: String {
         let birthday = row.birthday.map { ", \($0.title.lowercased())" } ?? ""
-        return "\(row.name)\(birthday), \(markSummary ?? row.status.displayName)"
+        let away = row.daysAway.map { ", " + AssistantWelcomeBack.phrase(daysAway: $0).lowercased() } ?? ""
+        return "\(row.name)\(birthday)\(away), \(markSummary ?? row.status.displayName)"
     }
 
     /// "Present at 8:04", "Left Early 8:02 → 1:15", "Absent, Sick", or nil

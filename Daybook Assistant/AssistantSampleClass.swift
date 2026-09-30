@@ -66,9 +66,59 @@ enum AssistantSampleClass {
         }
         #endif
         _ = context.safeSave()
+        seedHistory(in: context)
+        _ = context.safeSave()
         // A fresh class starts the morning fresh.
         AssistantLatePhase.forget(defaults: defaults)
         return stack
+    }
+
+    /// Past marks, so the school-day count and a welcome back show: everyone
+    /// here on a first day that makes today "Day 37" (in Debug, or the day
+    /// given with `-AssistantSampleDayNumber 100`), and Noah absent the four
+    /// school days before today.
+    private static func seedHistory(in context: NSManagedObjectContext) {
+        #if DEBUG
+        let given = UserDefaults.standard.integer(forKey: "AssistantSampleDayNumber")
+        #else
+        let given = 0
+        #endif
+        let dayNumber = given > 0 ? given : 37
+        let students = context.safeFetch(CDFetchRequest(CDStudent.self))
+        let today = Calendar.current.startOfDay(for: Date())
+
+        var firstDay = today
+        for _ in 1..<dayNumber {
+            guard let earlier = SchoolDayChecker.schoolDay(from: firstDay, forward: false, using: context)
+            else { break }
+            firstDay = earlier
+        }
+        for student in students {
+            mark(student, .present, on: firstDay, in: context)
+        }
+        #if DEBUG
+        if given > 0 { AssistantSchoolDayCount.yearStartOverride = firstDay }
+        #endif
+
+        guard let noah = students.first(where: { $0.firstName == "Noah" }) else { return }
+        var day = today
+        for _ in 0..<4 {
+            guard let earlier = SchoolDayChecker.schoolDay(from: day, forward: false, using: context) else { break }
+            day = earlier
+            mark(noah, .absent, on: day, in: context)
+        }
+    }
+
+    private static func mark(
+        _ student: CDStudent,
+        _ status: AttendanceStatus,
+        on day: Date,
+        in context: NSManagedObjectContext
+    ) {
+        let record = CDAttendanceRecord(context: context)
+        record.studentID = student.id?.uuidString ?? ""
+        record.date = day
+        record.status = status
     }
 
     /// 22 children, the real class's size, with two Ettys and two Sarahs so

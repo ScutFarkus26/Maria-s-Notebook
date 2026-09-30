@@ -22,11 +22,14 @@ import CoreData
 /// A day the guide has locked shows a lock and read-only rows;
 /// `CDAttendanceStore` refuses edits to it anyway.
 ///
-/// The small pleasures: today's grid sits under the color of the sky at this
-/// hour, and turns faintly amber once arrival closes; a mark bounces and its
-/// green spreads from her finger; a birthday child has a cake and sparkles;
-/// when everyone's marked a ripple runs across the grid; and if she turns
-/// them on, soft bells climb the scale as the class fills. None of it moves a
+/// The small pleasures: the grid sits on the background she chose (Sky, the
+/// default, tints today with the color of the sky at this hour), and turns
+/// faintly amber once arrival closes; a mark bounces and its green spreads
+/// from her finger; a birthday child has a cake and sparkles; a child back
+/// after days away has a wave; the header counts the school day, with a party
+/// on the first and the hundredth; when everyone's marked a ripple runs
+/// across the grid (and on day 100, confetti); and if she turns them on, the
+/// Montessori bells climb the scale as the class fills. None of it moves a
 /// tile or waits to be dismissed.
 struct AssistantAttendanceView: View {
     let coreDataStack: CoreDataStack
@@ -44,7 +47,9 @@ struct AssistantAttendanceView: View {
     /// Which way the last step through days went, so the grid slides that way.
     @State var stepEdge: Edge = .trailing
     /// Bumped when everyone's marked, for the ripple across the grid.
-    @State private var ripples = 0
+    @State var ripples = 0
+    /// Bumped when everyone's marked on the hundredth day.
+    @State var confettiBursts = 0
     /// Bumped by the bar's Email the Front Desk (`AssistantFrontDeskMail`).
     @State private var frontDeskRequests = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -58,6 +63,10 @@ struct AssistantAttendanceView: View {
     /// The locked-day and error lines above the grid, while shown.
     @State private var noticesHeight: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
+
+    /// Sky or Plain: tiles as they are. Anything else frosts them.
+    private var backdropIsQuiet: Bool { AssistantWallpaper.resolved(wallpaperRaw).isQuiet }
 
     private static let phoneColumnWidth: CGFloat = 105
     private var gridSpacing: CGFloat { usesShortNames ? 8 : 10 }
@@ -106,13 +115,15 @@ struct AssistantAttendanceView: View {
             .navigationTitle("Attendance")
             .toolbarTitleDisplayMode(.inline)
             .toolbar { toolbar }
+            // A picture behind the date would make it hard to read.
+            .toolbarBackground(backdropIsQuiet ? .automatic : .visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
-                    // Tiles scrolled under the bar fade out rather than sit
+                    // Room for the grid's fade (`fadeAboveBar`): tiles
+                    // scrolled toward the bar fade out here rather than sit
                     // half-visible against it.
-                    AssistantBackdrop.base(isLate: viewModel.map(showsLate) ?? false)
-                        .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
-                        .frame(height: 14)
+                    Color.clear
+                        .frame(height: Self.barFadeHeight)
                         .allowsHitTesting(false)
                     if let viewModel {
                         AssistantArrivalBar(
@@ -123,12 +134,11 @@ struct AssistantAttendanceView: View {
                 }
             }
         }
+        .environment(\.assistantBackdropIsQuiet, backdropIsQuiet)
         .statusBarHidden(hidesStatusBar)
         .sensoryFeedback(.success, trigger: viewModel?.completions)
-        .onChange(of: viewModel?.completions) {
-            ripples += 1
-            AssistantBells.shared.play(.everyoneMarked)
-        }
+        .onChange(of: viewModel?.completions) { celebrateEveryoneMarked() }
+        .overlay { HundredthDayConfetti(trigger: confettiBursts) }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
         .sheet(isPresented: $showingNameSheet) {
             AssistantNameSheet(isRequired: true)
@@ -209,7 +219,7 @@ struct AssistantAttendanceView: View {
     private func content(_ viewModel: AssistantAttendanceViewModel) -> some View {
         if let dayOff = viewModel.dayOff {
             AssistantDayOffView(dayOff: dayOff, isToday: viewModel.isToday) { viewModel.load() }
-                .background { AssistantBackdrop(isToday: viewModel.isToday, isLate: false) }
+                .background { AssistantBackdrop(isToday: viewModel.isToday, isLate: false, date: viewModel.date) }
         } else if viewModel.rows.isEmpty {
             ContentUnavailableView {
                 Label("No students yet", systemImage: "person.3")
@@ -241,7 +251,15 @@ struct AssistantAttendanceView: View {
                 // grid's padding: 16 each side, 8 above, 12 below.
                 CGSize(width: proxy.size.width - 32, height: proxy.size.height - 20)
             } action: { gridSpace = $0 }
-            .background { AssistantBackdrop(isToday: viewModel.isToday, isLate: showsLate(viewModel)) }
+            .mask { fadeAboveBar }
+            .background {
+                AssistantBackdrop(
+                    isToday: viewModel.isToday,
+                    isLate: showsLate(viewModel),
+                    date: viewModel.date,
+                    hereFraction: viewModel.hereFraction
+                )
+            }
             .refreshable { viewModel.load() }
             .simultaneousGesture(daySwipe(viewModel))
         }
@@ -304,10 +322,46 @@ struct AssistantAttendanceView: View {
             : max(1, Int((gridSpace.width + gridSpacing) / (columnWidth + gridSpacing)))
         return Double(index / columns) * 0.07 + Double(index % columns) * 0.035
     }
+}
+
+// MARK: - Celebrations, bells and the fade
+
+extension AssistantAttendanceView {
+
+    static let barFadeHeight: CGFloat = 14
+
+    /// The grid's mask: whole down to the clear strip above the bottom bar,
+    /// fading out across it, and gone under the bar. A mask rather than a
+    /// strip painted over the tiles, so they fade into whatever background is
+    /// behind them.
+    var fadeAboveBar: some View {
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                    .frame(height: Self.barFadeHeight)
+                Color.clear
+                    .frame(height: max(proxy.safeAreaInsets.bottom - Self.barFadeHeight, 0))
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    /// Everyone's marked: the ripple and the tune, and on the hundredth day
+    /// (today) the confetti and the longer tune.
+    func celebrateEveryoneMarked() {
+        ripples += 1
+        if let viewModel, viewModel.isToday, viewModel.milestone == .hundredthDay {
+            confettiBursts += 1
+            AssistantBells.shared.play(.hundredthDay)
+        } else {
+            AssistantBells.shared.play(.everyoneMarked)
+        }
+    }
 
     /// Her mark's bell, if she has them on: the next note up for a child
     /// here, a low one for an absence, nothing for clearing.
-    private func ring(for row: AssistantAttendanceViewModel.Row, in viewModel: AssistantAttendanceViewModel) {
+    func ring(for row: AssistantAttendanceViewModel.Row, in viewModel: AssistantAttendanceViewModel) {
         guard AssistantBells.isOn, let marked = viewModel.rows.first(where: { $0.id == row.id }) else { return }
         switch TileTapMotion.Kind(marked.status) {
         case .here:
@@ -319,5 +373,4 @@ struct AssistantAttendanceView: View {
             break
         }
     }
-
 }

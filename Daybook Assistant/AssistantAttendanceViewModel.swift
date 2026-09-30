@@ -21,57 +21,6 @@ final class AssistantAttendanceViewModel {
 
     private static let logger = Logger.app(category: "attendance")
 
-    /// The record's values are copied in when the day loads, not read through
-    /// it: a tile handed the same record object after its status changed would
-    /// look unchanged to SwiftUI and keep its old color.
-    ///
-    /// Equatable so that a reload which finds nothing new (most imports touch
-    /// other days or other entities, and every return to the app reloads)
-    /// leaves `rows` unannounced and the grid undrawn: `@Observable` skips
-    /// notifying for an Equatable value set to an equal one. Everything a tile
-    /// shows is a copied value here, the names included, so equal rows draw
-    /// identically.
-    struct Row: Identifiable, Equatable {
-        let student: CDStudent
-        let id: UUID
-        /// The student's full name when the day loaded.
-        let name: String
-        let status: AttendanceStatus
-        let absenceReason: AbsenceReason
-        /// The day's note, shared with the guide.
-        let note: String
-        /// When the current mark was made (for Left Early, the arrival); nil
-        /// while unmarked and for marks made on another day.
-        let markedAt: Date?
-        /// When a Left Early child went home.
-        let leftAt: Date?
-        /// Who made the mark: role raw value, CloudKit user, and typed name
-        /// (assistants only; the guide's marks carry none).
-        let recordedBy: String?
-        let recordedByID: String?
-        let recordedByName: String?
-        /// The name on the three-column phone grid: see `AssistantDayRoll.gridNames(for:)`.
-        let shortName: String
-        /// A birthday or half-birthday on the row's day, for the cake.
-        let birthday: AssistantBirthday?
-
-        init(student: CDStudent, record: CDAttendanceRecord?, shortName: String, day: Date) {
-            self.student = student
-            self.shortName = shortName
-            self.birthday = AssistantBirthday.on(day, birthday: student.birthday)
-            self.id = student.id ?? UUID()
-            self.name = student.fullName
-            self.status = record?.status ?? .unmarked
-            self.absenceReason = record?.absenceReason ?? .none
-            self.note = record?.note ?? ""
-            self.markedAt = record?.markedAt
-            self.leftAt = record?.leftAt
-            self.recordedBy = record?.recordedBy
-            self.recordedByID = record?.recordedByID
-            self.recordedByName = record?.recordedByName
-        }
-    }
-
     /// Which part of the morning the taps are for.
     enum Phase: Equatable {
         /// Children are arriving: a tap marks present.
@@ -93,10 +42,26 @@ final class AssistantAttendanceViewModel {
     private(set) var loadGeneration = 0
 
     var unmarkedCount: Int { rows.count { $0.status == .unmarked } }
+    /// How much of the class is here (late and left early count), 0 to 1:
+    /// the Cosmic background's stars.
+    var hereFraction: Double {
+        guard !rows.isEmpty else { return 0 }
+        return Double(rows.count { Self.isHere($0.status) }) / Double(rows.count)
+    }
     /// Bumped when her own mark (or closing arrival) leaves no one unmarked
     /// on a day that has arrived: the grid's ripple and the bar's "Everyone's
     /// here". Never by an import or a change of day.
     private(set) var completions = 0
+    /// A child just marked in after days away: "Welcome back, Maya" in the
+    /// bar. Set only by her own marks, never an import or a change of day.
+    private(set) var welcome: Welcome?
+
+    /// The day on screen's school day of the year ("Day 37"), nil on a day
+    /// off, before the first day, or before any mark this year has synced.
+    private(set) var dayNumber: Int?
+    var milestone: AssistantSchoolDayCount.Milestone? { AssistantSchoolDayCount.milestone(for: dayNumber) }
+    @ObservationIgnored private var dayCounter = AssistantDayCounter()
+
     /// The last failed save or bulk mark, else the last failed load. A save
     /// failure outlasts a successful reload (the change is still unsaved);
     /// a load failure clears on the next load that works.
@@ -242,13 +207,21 @@ final class AssistantAttendanceViewModel {
         )
 
         let gridNames = AssistantDayRoll.gridNames(for: students)
+        let returning = dayOff == nil ? AssistantWelcomeBack.returning(on: date, in: context) : [:]
         rows = students.map { student in
-            Row(
+            let key = student.id?.uuidString ?? ""
+            return Row(
                 student: student,
-                record: byStudent[student.id?.uuidString ?? ""],
+                record: byStudent[key],
                 shortName: gridNames[student.objectID] ?? student.shortName,
-                day: date
+                day: date,
+                daysAway: returning[key]
             )
+        }
+        if case .counted(let number) = dayCounter.count(
+            date, isDayOff: dayOff != nil, current: dayNumber, in: context
+        ) {
+            dayNumber = number
         }
     }
 
@@ -264,8 +237,12 @@ final class AssistantAttendanceViewModel {
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
             if record.isInserted { createdSinceSave.append(record) }
+            let wasHere = Self.isHere(record.status)
             _ = store.updateStatus(record, to: status)
             persist(updating: [record])
+            if row.daysAway != nil, !wasHere, Self.isHere(status), saveError == nil {
+                welcome = Welcome(name: row.shortName)
+            }
         } catch {
             Self.logger.error("Marking failed: \(error.localizedDescription, privacy: .public)")
             saveError = "Couldn't save that mark. Try again."
@@ -387,7 +364,9 @@ final class AssistantAttendanceViewModel {
         let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
         rows = rows.map { row in
             guard let key = row.student.id?.uuidString, let record = byStudent[key] else { return row }
-            return Row(student: row.student, record: record, shortName: row.shortName, day: date)
+            return Row(
+                student: row.student, record: record, shortName: row.shortName, day: date, daysAway: row.daysAway
+            )
         }
     }
 }

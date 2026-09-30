@@ -8,6 +8,12 @@ import CoreData
 // remembered Late phase (`AssistantLatePhase`).
 extension AssistantAttendanceViewModel {
 
+    /// A child marked in after days away, for "Welcome back, Maya".
+    struct Welcome: Equatable {
+        let id = UUID()
+        let name: String
+    }
+
     /// What a tap on `row` does in the current phase. During Arrival a tap
     /// marks present and a second tap unmarks; during Late a tap turns absent
     /// (or unmarked) into tardy and a second tap turns it back. A present
@@ -20,6 +26,11 @@ extension AssistantAttendanceViewModel {
         case (.late, .absent), (.late, .unmarked): return .tardy
         case (.late, _): return nil
         }
+    }
+
+    /// Present, late and left early all mean the child came in.
+    static func isHere(_ status: AttendanceStatus) -> Bool {
+        status == .present || status == .tardy || status == .leftEarly
     }
 
     /// Whether `status` can be set on `day`. Ahead of the day there's no
@@ -98,12 +109,22 @@ extension AssistantAttendanceViewModel {
     }
 
     /// The line in the bar once everyone's marked: "Everyone's here · 8:14"
-    /// (the time only today), or "All marked · 20 here, 2 home".
-    static func completionText(_ rows: [Row], at time: Date?) -> String {
+    /// (the time only today; "for day 100" on that day), or "All marked · 20
+    /// here, 2 home".
+    static func completionText(
+        _ rows: [Row],
+        at time: Date?,
+        milestone: AssistantSchoolDayCount.Milestone? = nil
+    ) -> String {
         let here = rows.count { [.present, .tardy, .leftEarly].contains($0.status) }
         let home = rows.count { $0.status == .absent }
         guard home > 0 else {
-            return time.map { "Everyone's here · \(AssistantClock.string($0))" } ?? "Everyone's here"
+            let everyone = switch milestone {
+            case .hundredthDay: "Everyone's here for day 100"
+            case .firstDay: "Everyone's here for the first day"
+            case nil: "Everyone's here"
+            }
+            return time.map { "\(everyone) · \(AssistantClock.string($0))" } ?? everyone
         }
         return "All marked · \(here) here, \(home) home"
     }

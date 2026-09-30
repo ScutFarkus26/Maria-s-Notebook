@@ -14,8 +14,9 @@ import SwiftUI
 ///
 /// Its top edge fills green as children come in (gray for the absent), so
 /// how close the class is shows without reading. Before the first mark of
-/// the day the count's place greets her; when everyone's marked it says so
-/// for a few seconds.
+/// the day the count's place greets her (with the school day, "Day 37");
+/// a child back after days away gets "Welcome back, Maya" there for a few
+/// seconds; when everyone's marked it says so for a few seconds.
 struct AssistantArrivalBar: View {
     let viewModel: AssistantAttendanceViewModel
     let coreDataStack: CoreDataStack
@@ -29,6 +30,8 @@ struct AssistantArrivalBar: View {
     @State private var emailAfterClose = false
     /// "Everyone's here · 8:14", for a few seconds after the last mark.
     @State private var finishedLine: String?
+    /// "Welcome back, Maya", for a few seconds after she marks them in.
+    @State private var welcomeLine: String?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Side by side normally; stacked at accessibility sizes, where the count
@@ -71,14 +74,24 @@ struct AssistantArrivalBar: View {
         .sensoryFeedback(.impact(weight: .light), trigger: viewModel.phase)
         .onChange(of: viewModel.completions) {
             finishedLine = AssistantAttendanceViewModel.completionText(
-                viewModel.rows, at: viewModel.isToday ? Date() : nil
+                viewModel.rows, at: viewModel.isToday ? Date() : nil, milestone: viewModel.milestone
             )
         }
         .task(id: finishedLine) {
             guard finishedLine != nil, (try? await Task.sleep(for: .seconds(5))) != nil else { return }
             finishedLine = nil
         }
-        .onChange(of: viewModel.date) { finishedLine = nil }
+        .onChange(of: viewModel.welcome) { _, welcome in
+            welcomeLine = welcome.map { "Welcome back, \($0.name)" }
+        }
+        .task(id: welcomeLine) {
+            guard welcomeLine != nil, (try? await Task.sleep(for: .seconds(3))) != nil else { return }
+            welcomeLine = nil
+        }
+        .onChange(of: viewModel.date) {
+            finishedLine = nil
+            welcomeLine = nil
+        }
         .confirmationDialog(closeTitle, isPresented: $confirmingClose, titleVisibility: .visible) {
             Button(
                 emailAfterClose ? "Mark \(unmarkedNames.count) Absent & Email" : "Mark \(unmarkedNames.count) Absent",
@@ -113,6 +126,12 @@ struct AssistantArrivalBar: View {
                 }
                 .minimumScaleFactor(0.8)
                 .transition(.opacity)
+            } else if let welcomeLine {
+                Label(welcomeLine, systemImage: "hand.wave.fill")
+                    .foregroundStyle(.primary)
+                    .fontWeight(.medium)
+                    .minimumScaleFactor(0.8)
+                    .transition(.opacity)
             } else if let finishedLine, viewModel.unmarkedCount == 0 {
                 Label(finishedLine, systemImage: "sparkles")
                     .foregroundStyle(.primary)
@@ -120,9 +139,15 @@ struct AssistantArrivalBar: View {
                     .minimumScaleFactor(0.8)
                     .transition(.opacity)
             } else if showsGreeting {
+                // Her name before the day number, and the day number before
+                // nothing; a milestone's own words always stay.
+                let name = ClassroomIdentity.displayName
+                let day = viewModel.dayNumber
                 ViewThatFits(in: .horizontal) {
-                    greetingText(ClassroomIdentity.displayName)
-                    greetingText(nil)
+                    greetingText(name, day: day)
+                    greetingText(name, day: viewModel.milestone == nil ? nil : day)
+                    greetingText(nil, day: day)
+                    greetingText(nil, day: nil)
                 }
                 .transition(.opacity)
             } else {
@@ -142,6 +167,7 @@ struct AssistantArrivalBar: View {
         .lineLimit(1)
         .animation(.smooth(duration: 0.3), value: undo?.id)
         .animation(.smooth(duration: 0.3), value: finishedLine)
+        .animation(.smooth(duration: 0.3), value: welcomeLine)
         .animation(.smooth(duration: 0.3), value: showsGreeting)
     }
 
@@ -150,8 +176,8 @@ struct AssistantArrivalBar: View {
         viewModel.isToday && viewModel.dayOff == nil && viewModel.rows.allSatisfy { $0.status == .unmarked }
     }
 
-    private func greetingText(_ name: String?) -> some View {
-        Text(AssistantGreeting.text(at: Date(), name: name))
+    private func greetingText(_ name: String?, day: Int?) -> some View {
+        Text(AssistantGreeting.text(at: Date(), name: name, dayNumber: day))
             .font(.subheadline.weight(.medium))
             .foregroundStyle(.primary)
             .fixedSize()

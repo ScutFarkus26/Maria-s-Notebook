@@ -5,7 +5,7 @@ import UserNotifications
 
 /// The Assistant's one settings screen, behind the person button: whose
 /// classroom this is and since when, her name, the arrival and front-desk
-/// email reminders, the bells, and the way out.
+/// email reminders, the background, the bells, and the way out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -26,6 +26,7 @@ struct AssistantClassroomSheet: View {
     @AppStorage(FrontDeskEmailReminder.leadKey) private var frontDeskLead = FrontDeskEmailReminder.defaultLeadMinutes
     @State private var notificationsDenied = false
     @AppStorage(AssistantBells.enabledKey) private var bellsOn = false
+    @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
 
     var body: some View {
         NavigationStack {
@@ -33,6 +34,7 @@ struct AssistantClassroomSheet: View {
                 classroomSection
                 nameSection
                 reminderSection
+                backgroundSection
                 bellsSection
                 if AssistantSampleClass.isChosen {
                     sampleSection
@@ -104,12 +106,41 @@ struct AssistantClassroomSheet: View {
         }
     }
 
+    private var backgroundSection: some View {
+        Section {
+            NavigationLink {
+                AssistantWallpaperPicker()
+            } label: {
+                let wallpaper = AssistantWallpaper.resolved(wallpaperRaw)
+                LabeledContent("Background") {
+                    HStack(spacing: 8) {
+                        Text(wallpaper.title)
+                        Color.clear
+                            .frame(width: 22, height: 22)
+                            .background {
+                                AssistantBackdrop(isToday: true, isLate: false, hereFraction: 0.6, wallpaper: wallpaper)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                            }
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+        } footer: {
+            Text("What's behind the class. Only on this iPhone.")
+        }
+    }
+
     private var bellsSection: some View {
         Section {
             Toggle("Bells", isOn: $bellsOn)
         } footer: {
-            Text("A soft bell as you mark each child, climbing as the class fills, and a little tune when "
-                + "everyone's marked. The ringer switch silences them.")
+            Text("The Montessori bells as you mark: each child here rings the next bell up the scale "
+                + "and back down, an absence is the low C damped, and everyone marked runs up the scale. "
+                + "The ringer switch silences them.")
         }
         .onChange(of: bellsOn) { _, isOn in
             if isOn { AssistantBells.shared.play(.here(count: 1)) }

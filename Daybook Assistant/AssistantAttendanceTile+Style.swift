@@ -65,7 +65,11 @@ extension AssistantAttendanceTile {
                 style: StrokeStyle(lineWidth: 2, dash: row.status == .absent ? [5, 4] : [])
             )
         } else if row.status == .absent {
-            shape.strokeBorder(Color(.tertiaryLabel), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            // A shade darker over a picture, where the frost softens it.
+            shape.strokeBorder(
+                Color(quietBackdrop ? .tertiaryLabel : .secondaryLabel),
+                style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+            )
         } else if !isHere {
             shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
         }

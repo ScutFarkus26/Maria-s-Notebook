@@ -5,14 +5,23 @@ import SwiftUI
 // everyone's marked is with the grid's rules). Pure, so the tests call them
 // directly.
 
-/// "Good morning, Rivka": to the assistant, by the first word of the name she
-/// gave (`ClassroomIdentity.displayName`), or without a name when she hasn't.
+/// "Good morning, Rivka · Day 37": to the assistant, by the first word of the
+/// name she gave (`ClassroomIdentity.displayName`), or without a name when she
+/// hasn't. The first day and the hundredth get their own words.
 enum AssistantGreeting {
-    static func text(at date: Date, name: String?, calendar: Calendar = .current) -> String {
-        let hour = calendar.component(.hour, from: date)
-        let part = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
-        guard let first = firstName(name) else { return part }
-        return "\(part), \(first)"
+    static func text(at date: Date, name: String?, dayNumber: Int? = nil, calendar: Calendar = .current) -> String {
+        let first = firstName(name)
+        switch AssistantSchoolDayCount.milestone(for: dayNumber) {
+        case .firstDay:
+            return first.map { "Welcome to a new year, \($0)" } ?? "Welcome to a new year"
+        case .hundredthDay:
+            return first.map { "Happy 100th day, \($0)!" } ?? "Happy 100th day!"
+        case nil:
+            let hour = calendar.component(.hour, from: date)
+            let part = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
+            let greeting = first.map { "\(part), \($0)" } ?? part
+            return dayNumber.map { "\(greeting) · Day \($0)" } ?? greeting
+        }
     }
 
     /// The first word of her name, or nil when there's none.

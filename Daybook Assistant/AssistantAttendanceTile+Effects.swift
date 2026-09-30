@@ -91,11 +91,31 @@ struct TileRipple {
 
 // MARK: - Pieces
 
-/// The tile's fill: its resting color, with the green of a child who is here
+/// What a tile rests on before any green: the card, frosted glass over a
+/// picture, or nothing (absent on Sky or Plain).
+enum TileBase: Equatable {
+    case card
+    case frosted
+    case thinFrost
+    case clear
+
+    /// The unmarked card, or nothing for absent; frosted over a picture so
+    /// the outline and dashes still read.
+    init(status: AttendanceStatus, quietBackdrop: Bool) {
+        switch (status == .absent, quietBackdrop) {
+        case (false, true): self = .card
+        case (false, false): self = .frosted
+        case (true, true): self = .clear
+        case (true, false): self = .thinFrost
+        }
+    }
+}
+
+/// The tile's fill: its resting base, with the green of a child who is here
 /// on top, drawn as a circle from `origin` that `spread` grows to cover it.
 struct TileFill<S: Shape>: View {
     let shape: S
-    let base: Color
+    let base: TileBase
     let isHere: Bool
     let origin: CGPoint?
     let spread: CGFloat
@@ -107,7 +127,12 @@ struct TileFill<S: Shape>: View {
             // Far enough from any point in the tile to reach every corner.
             let reach = 2 * hypot(size.width, size.height) * spread
             ZStack {
-                shape.fill(base)
+                switch base {
+                case .card: shape.fill(Color(.secondarySystemGroupedBackground))
+                case .frosted: shape.fill(.regularMaterial)
+                case .thinFrost: shape.fill(.ultraThinMaterial)
+                case .clear: EmptyView()
+                }
                 shape.fill(Color.green)
                     .opacity(isHere ? 1 : 0)
                     .mask {
@@ -163,6 +188,35 @@ struct BirthdaySparkles: View {
     }
 }
 
+/// A waving hand rising out of the corner of a returning child's tile as
+/// they're marked in: it waves twice and fades. `progress` runs 0 to 1; it
+/// shows only in between.
+struct WelcomeWave: View {
+    let progress: CGFloat
+
+    static func keyframes() -> some Keyframes<CGFloat> {
+        KeyframeTrack {
+            MoveKeyframe(0)
+            LinearKeyframe(1, duration: 1.0)
+        }
+    }
+
+    var body: some View {
+        if progress > 0 && progress < 1 {
+            Image(systemName: "hand.wave.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.teal)
+                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                .rotationEffect(.degrees(sin(Double(progress) * .pi * 4) * 20), anchor: .bottomTrailing)
+                .scaleEffect(0.7 + 0.4 * min(progress * 3, 1))
+                .offset(x: 4, y: -6 - 30 * progress)
+                .opacity(progress < 0.7 ? 1 : Double((1 - progress) / 0.3))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
 extension AssistantAttendanceTile {
 
     /// A birthday tile's party-colored edge, around whatever the mark's shape
@@ -172,8 +226,8 @@ extension AssistantAttendanceTile {
         center: .center
     )
 
-    /// The color under the green: the unmarked card, or nothing for absent.
-    var baseFill: Color {
-        row.status == .absent ? .clear : Color(.secondarySystemGroupedBackground)
+    /// What's under the green (`TileBase`).
+    var baseFill: TileBase {
+        TileBase(status: row.status, quietBackdrop: quietBackdrop)
     }
 }

@@ -64,26 +64,18 @@ extension AssistantAttendanceView {
             Button {
                 showingDatePicker = true
             } label: {
-                // One line: "Today  Tue, Sep 29", or just the date on
-                // another day.
-                HStack(spacing: 5) {
-                    if viewModel.isLocked {
-                        Image(systemName: "lock.fill")
-                            .font(.caption2)
-                            .accessibilityLabel("Locked")
-                    }
-                    if viewModel.isToday {
-                        Text("Today")
-                            .font(.headline)
-                    }
-                    Text(viewModel.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                        .font(viewModel.isToday ? .subheadline : .headline)
-                        .foregroundStyle(viewModel.isToday ? .secondary : .primary)
+                // One line: "Today  Tue, Sep 29 · Day 37", and on a milestone
+                // "Day 100" or "First Day" in Today's place. An SE never has
+                // room for the day number beside its clock (the greeting
+                // has it); the toolbar doesn't limit the title's width, so
+                // `ViewThatFits` can't tell.
+                ViewThatFits(in: .horizontal) {
+                    dayLine(viewModel, detail: hidesStatusBar ? .milestone : .full)
+                    dayLine(viewModel, detail: .milestone)
+                    dayLine(viewModel, detail: .dateOnly)
                 }
-                .lineLimit(1)
-                .foregroundStyle(.primary)
             }
-            .accessibilityLabel(viewModel.date.formatted(date: .complete, time: .omitted))
+            .accessibilityLabel(dayAccessibilityLabel(viewModel))
             .accessibilityHint("Choose another day")
 
             Button {
@@ -92,6 +84,60 @@ extension AssistantAttendanceView {
                 Image(systemName: "chevron.right")
             }
             .accessibilityLabel("Next school day")
+        }
+    }
+
+    /// How much of the day the header says, widest first.
+    private enum DayLineDetail {
+        case full
+        case milestone
+        case dateOnly
+    }
+
+    static let milestoneStyle = LinearGradient(
+        colors: [.pink, .orange, .purple],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+
+    private func dayLine(_ viewModel: AssistantAttendanceViewModel, detail: DayLineDetail) -> some View {
+        HStack(spacing: 5) {
+            if viewModel.isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.caption2)
+                    .accessibilityLabel("Locked")
+            }
+            if let milestone = viewModel.milestone, viewModel.isToday || detail != .dateOnly {
+                Text(milestone.title)
+                    .font(.headline)
+                    .foregroundStyle(Self.milestoneStyle)
+            } else if viewModel.isToday {
+                Text("Today")
+                    .font(.headline)
+            }
+            let showsLabel = viewModel.isToday || (viewModel.milestone != nil && detail != .dateOnly)
+            Text(viewModel.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                .font(showsLabel ? .subheadline : .headline)
+                .foregroundStyle(showsLabel ? .secondary : .primary)
+            if detail == .full, viewModel.milestone == nil, let number = viewModel.dayNumber {
+                Text("· Day \(number)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .lineLimit(1)
+        .fixedSize()
+        .foregroundStyle(.primary)
+    }
+
+    /// "Tuesday, September 29, 2026, school day 37".
+    private func dayAccessibilityLabel(_ viewModel: AssistantAttendanceViewModel) -> String {
+        let date = viewModel.date.formatted(date: .complete, time: .omitted)
+        switch viewModel.milestone {
+        case .firstDay: return "\(date), the first day of school"
+        case .hundredthDay: return "\(date), the 100th day of school"
+        case nil: return viewModel.dayNumber.map { "\(date), school day \($0)" } ?? date
         }
     }
 

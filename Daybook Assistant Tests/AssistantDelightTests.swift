@@ -84,6 +84,18 @@ struct AssistantDelightTests {
         #expect(AssistantGreeting.text(at: eight, name: "   ") == "Good morning")
     }
 
+    @Test("The greeting counts the school day, and the first and hundredth get their own words")
+    func greetingWithDayNumber() throws {
+        let day = try AssistantTestSupport.day("2026-09-29")
+        let eight = try #require(Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: day))
+
+        #expect(AssistantGreeting.text(at: eight, name: "Rivka", dayNumber: 37) == "Good morning, Rivka · Day 37")
+        #expect(AssistantGreeting.text(at: eight, name: nil, dayNumber: 37) == "Good morning · Day 37")
+        #expect(AssistantGreeting.text(at: eight, name: "Rivka", dayNumber: 1) == "Welcome to a new year, Rivka")
+        #expect(AssistantGreeting.text(at: eight, name: nil, dayNumber: 100) == "Happy 100th day!")
+        #expect(AssistantGreeting.text(at: eight, name: "Rivka", dayNumber: 100) == "Happy 100th day, Rivka!")
+    }
+
     // MARK: - Sky
 
     @Test("The sky holds at the ends of the day and blends between")
@@ -191,6 +203,7 @@ struct AssistantDelightTests {
         let here = "Everyone's here · \(AssistantClock.string(eight))"
         #expect(Model.completionText(model.rows, at: eight) == here)
         #expect(Model.completionText(model.rows, at: nil) == "Everyone's here")
+        #expect(Model.completionText(model.rows, at: nil, milestone: .hundredthDay) == "Everyone's here for day 100")
 
         model.markAbsent(reason: .none, for: model.rows[1])
         #expect(Model.completionText(model.rows, at: eight) == "All marked · 1 here, 1 home")
@@ -198,10 +211,26 @@ struct AssistantDelightTests {
 
     // MARK: - Bells
 
-    @Test("Bells climb the scale as the class fills and start over at the top")
+    @Test("The bells are the C major scale from middle C")
+    func bellScale() {
+        #expect(AssistantBells.scale.count == 8)
+        #expect(abs(AssistantBells.scale[0] - 261.63) < 0.01)
+        #expect(abs(AssistantBells.scale[7] - 2 * AssistantBells.scale[0]) < 0.05)
+    }
+
+    @Test("Bells climb the scale as the class fills, come back down, and never jump")
     func bellNotes() {
-        #expect(AssistantBells.note(forHereCount: 1) == AssistantBells.scale[0])
-        #expect(AssistantBells.note(forHereCount: 2) > AssistantBells.note(forHereCount: 1))
-        #expect(AssistantBells.note(forHereCount: AssistantBells.scale.count + 1) == AssistantBells.scale[0])
+        let notes = (1...30).map(AssistantBells.note(forHereCount:))
+        #expect(notes[0] == AssistantBells.scale[0])
+        #expect(notes[7] == AssistantBells.scale[7])
+        #expect(notes[8] == AssistantBells.scale[6])
+        // Around again after C D E F G A B C′ B A G F E D.
+        #expect(notes[14] == AssistantBells.scale[0])
+        // Every step is to a neighboring bell.
+        for (earlier, later) in zip(notes, notes.dropFirst()) {
+            let from = AssistantBells.scale.firstIndex(of: earlier) ?? -10
+            let to = AssistantBells.scale.firstIndex(of: later) ?? 10
+            #expect(abs(from - to) == 1)
+        }
     }
 }
