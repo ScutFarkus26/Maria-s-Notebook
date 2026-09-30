@@ -100,7 +100,8 @@ older build from migrating a newer store backwards.
 ## 2. Sharing: one classroom, one share
 
 The notebook has exactly two zones: the private default zone, and one
-classroom share holding the five types above.
+classroom share holding the share types above, this school year's only (see
+"Who is in the share" below).
 
 - **Creating the share — once, on purpose.** Settings → Classroom → **Set Up
   Classroom Sharing** (`ClassroomSharingService+Setup.swift`). It refuses unless
@@ -155,6 +156,62 @@ classroom share holding the five types above.
 `share(_:to:)`. On 2026-09-27 that failed with 134410 → 134421 and killed the
 mirroring delegate for the session. `ClassroomShareAttach.unshared` filters
 every attach down to records in no share.
+
+### Who is in the share: this school year only (2026-09-30)
+
+`ClassroomShareScope` is the one rule, and every path that puts records into the
+share filters through it (setup, "Add Them to the Share", the orphan guard):
+
+- **Students:** enrolled, or departed during this school year
+  (`dateWithdrawn` on or after its first day), or with any attendance from this
+  year (covers a missing or placeholder departure date). A child who leaves
+  mid-year stays: off today's roll, still on the days she was here.
+- **Attendance:** dated on or after the school year's first day, for a student
+  who belongs. Ids compare case-insensitively.
+- **Everything else** in the share (days off, extra school days, locked days,
+  the front-desk email) always belongs.
+
+The first day is the school-year start (`YearPlanStaleness.currentYearStart`),
+which is one synced setting (`SchoolYearSync`, §7).
+
+**Taking last year out: `ClassroomShareRelease`.** Nothing leaves the share on
+its own. Once a new school year begins, Settings › Classroom shows how many
+records from before it are still shared, and on the Mac (a Debug build takes
+`-AllowShareReleaseOnIOS` for rehearsals) **Remove Last Year from the Share**
+opens a preview: each departing child with her date and record count, the
+earlier attendance of children who stay, and a checklist. It refuses to start
+unless sync is healthy, online and caught up (0 pending), this is the lead
+guide's only running copy, and no attendance sits in the two weeks before the
+school-year start (a start set later than the real first day). It then makes a
+manual backup and checks it (`BackupReader.verifyStructure`, student and
+attendance counts equal to the store) before touching anything.
+
+There is no API to unshare a record, so each is **copied**: an identical object
+(same `id`, every attribute, `copyAttributes`) goes into the private default
+zone, and the shared original is deleted only after the copy is on the server.
+Each batch (a departed child with her marks first — the smallest is the canary —
+then earlier-year attendance in slices of 500) runs five steps: insert the
+copies; confirm them **on the CloudKit server** (`CloudKitServerCheck`, not an
+export event: on 2026-09-30 a store read healthy while its exports were refused);
+check each copy is still here and bring over anything the original changed;
+delete the originals; confirm on the server that they're gone. iCloud always
+holds at least one copy, and other devices receive the copy before the delete.
+A run stopped anywhere leaves at most both copies; the next run finds the
+private copy ("twin") and only deletes. A copy that disappears (a device on an
+old build deduplicating it away) stops the run with the original kept.
+
+Two guards make the in-between safe on the guide's other devices, and must be
+on every device before any release: **dedup never deletes either copy of a
+record held both in and out of a share** (`DedupShareBoundary`), and **the
+launch orphan cleanups only strip a student id missing on passes a day apart**
+(`OrphanStudentGrace`).
+
+**If a release goes wrong:** stop; nothing is lost locally (at worst both copies
+exist, and dedup keeps both). If sync stopped, quit and read the log, then Reset
+Local Cache on the Mac or a **Merge** restore of the checked backup — never
+Replace. Last year's records can always go back: move the school-year start
+earlier and "Add Them to the Share" attaches them (attaching unshared records is
+the safe path).
 
 ## 3. The Daybook Assistant
 
@@ -269,6 +326,17 @@ through `UbiquitousFile`:
 
 **Preferences.** `SyncedPreferencesStore` (see
 [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md)).
+
+**The school year (2026-09-30).** The start month and day, and whether day
+counters start over on it, are one setting for the class, synced by
+`SchoolYearSync` through key-value storage. UserDefaults stays the local copy
+every reader uses (`FloridaGradeCalculator`, `YearPlanStaleness`,
+`SchoolYearCounters`, MCP); iCloud's values are copied in at launch and on each
+external change. Only an explicit edit publishes (Settings, the MCP tool, a
+backup restore) — never a launch — except that the Mac fills an empty iCloud
+with its own values; an iPhone or iPad only adopts. The live instance never
+starts under unit tests (a Mac test run is signed into the guide's iCloud). The
+day counters' epoch is derived, not stored: the current school year's first day.
 
 **Account state.** Use `CKContainer.accountStatus` / `.CKAccountChanged` for
 sync health. `ubiquityIdentityToken` describes iCloud *Drive*, which a user can

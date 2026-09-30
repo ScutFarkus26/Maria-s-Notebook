@@ -1,0 +1,151 @@
+import CloudKit
+import CoreData
+import Foundation
+import OSLog
+
+/// Drives "Remove Last Year from the Share": the preview, the checks, the verified backup,
+/// the run and its report (`ClassroomShareRelease`).
+@Observable @MainActor
+final class ClassroomReleaseModel {
+    enum Stage: Equatable {
+        case loading
+        /// Ready to confirm, or blocked with the reason.
+        case ready(ClassroomShareRelease.Preview, blocker: String?)
+        case backingUp
+        case running(done: Int, total: Int)
+        case finished(ClassroomShareRelease.Report, shareNow: String?)
+        case failed(String)
+    }
+
+    private(set) var stage: Stage = .loading
+    private let dependencies: AppDependencies
+    private let isRestoring: () -> Bool
+    private static let logger = Logger.classroomSharing
+
+    init(dependencies: AppDependencies, isRestoring: @escaping () -> Bool) {
+        self.dependencies = dependencies
+        self.isRestoring = isRestoring
+    }
+
+    var isWorking: Bool {
+        switch stage {
+        case .backingUp, .running: return true
+        default: return false
+        }
+    }
+
+    // MARK: - Preview
+
+    func load() async {
+        stage = .loading
+        let stack = dependencies.coreDataStack
+        do {
+            guard let preview = try await ClassroomShareRelease.preview(coreDataStack: stack) else {
+                stage = .failed("The classroom share can't be read right now.")
+                return
+            }
+            stage = .ready(preview, blocker: blocker(for: preview))
+        } catch {
+            stage = .failed("Couldn't read what the share holds: \(error.localizedDescription)")
+        }
+    }
+
+    /// Every reason not to start, the last one being the cutoff check (#1 in the plan): a
+    /// start date set later than the first day school met would take this year's first
+    /// marks out of the share.
+    private func blocker(for preview: ClassroomShareRelease.Preview) -> String? {
+        let stack = dependencies.coreDataStack
+        if let reason = ClassroomShareRelease.blocker(coreDataStack: stack, isRestoring: isRestoring()) {
+            return reason
+        }
+        let scope = ClassroomShareScope(cutoff: preview.cutoff)
+        if let early = scope.attendanceJustBeforeCutoff(in: stack.viewContext, store: stack.privatePersistentStore) {
+            let day = early.formatted(.dateTime.weekday(.wide).month(.wide).day())
+            let start = preview.cutoff.formatted(.dateTime.month(.wide).day())
+            return "Attendance was taken on \(day), before your school-year start (\(start)). "
+                + "Set the start to the first day of school in Settings › School year, then come back."
+        }
+        return nil
+    }
+
+    // MARK: - Running
+
+    func start() async {
+        guard case .ready(let preview, nil) = stage, !preview.isEmpty else { return }
+        let stack = dependencies.coreDataStack
+        // Checked again: time passed while the guide read the preview.
+        if let reason = ClassroomShareRelease.blocker(coreDataStack: stack, isRestoring: isRestoring()) {
+            stage = .ready(preview, blocker: reason)
+            return
+        }
+        guard let store = stack.privatePersistentStore,
+              let zone = CDClassroomMembership.pinnedZoneName(in: stack.viewContext) else {
+            stage = .failed("The classroom share can't be read right now.")
+            return
+        }
+
+        stage = .backingUp
+        // The backup is made and checked before anything is touched; then the plan is made
+        // again, since the preview may be minutes old.
+        guard await makeCheckedBackup(), let fresh = await replan() else { return }
+
+        let activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated, .idleSystemSleepDisabled],
+            reason: "Removing last year's records from the classroom share"
+        )
+        defer { ProcessInfo.processInfo.endActivity(activity) }
+        UserDefaults.standard.set(Date(), forKey: ClassroomShareRelease.inProgressKey)
+
+        stage = .running(done: 0, total: fresh.batches.count)
+        let report = await ClassroomShareRelease.run(
+            fresh.batches,
+            container: stack.container,
+            storeID: store.identifier,
+            environment: .live(container: stack.container)
+        ) { [weak self] done, total in
+            await MainActor.run { self?.stage = .running(done: done, total: total) }
+        }
+        if report.stoppedBecause == nil {
+            UserDefaults.standard.removeObject(forKey: ClassroomShareRelease.inProgressKey)
+        }
+        stage = .finished(report, shareNow: await serverSummary(zone: zone))
+    }
+
+    /// False (with the stage set to say why) when the backup failed or didn't check out.
+    private func makeCheckedBackup() async -> Bool {
+        do {
+            let url = try await ClassroomShareRelease.verifiedBackup(
+                coreDataStack: dependencies.coreDataStack, backups: dependencies.autoBackupManager
+            )
+            Self.logger.notice("Release: verified backup \(url.lastPathComponent, privacy: .public)")
+            return true
+        } catch {
+            stage = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    private func replan() async -> ClassroomShareRelease.Preview? {
+        do {
+            if let planned = try await ClassroomShareRelease.preview(coreDataStack: dependencies.coreDataStack) {
+                return planned
+            }
+            stage = .failed("The classroom share can't be read right now.")
+        } catch {
+            stage = .failed("Couldn't read what the share holds: \(error.localizedDescription)")
+        }
+        return nil
+    }
+
+    /// What the share holds now, as the CloudKit server itself counts it.
+    private func serverSummary(zone: String) async -> String? {
+        let database = CloudKitConfigurationService.container.privateCloudDatabase
+        guard let counts = try? await CloudKitServerCheck.recordTypeCounts(inZone: zone, database: database) else {
+            return nil
+        }
+        let students = counts["CD_Student", default: 0]
+        let marks = counts["CD_AttendanceRecord", default: 0]
+        return "iCloud now holds \(students) student\(students == 1 ? "" : "s") and "
+            + "\(marks.formatted()) attendance record\(marks == 1 ? "" : "s") in the classroom share."
+    }
+}

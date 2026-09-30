@@ -32,6 +32,9 @@ struct ClassroomSharingView: View {
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
             shareStatusCard
+            if service?.currentRole == .leadGuide, service?.isSharing == true {
+                ClassroomLastYearCard(contents: contents) { await refreshContents() }
+            }
             roleGroup
             ClassroomAssistantCard(service: service, contents: contents)
             ClassroomMembersCard(service: service)
@@ -174,7 +177,8 @@ struct ClassroomSharingView: View {
             Button("Set up") { Task { await setUpSharing() } }
         } message: {
             Text(
-                "Your students, attendance, school calendar and locked days go into one classroom share. " +
+                "This school year's students and attendance, your school calendar and locked days go into one " +
+                "classroom share. " +
                 "Lessons, notes, work and everything else stay yours alone. Keep the app open until it finishes."
             )
         }
