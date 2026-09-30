@@ -59,13 +59,12 @@ extension MCPNotebookTools {
         if let error = nonEmpty(service.lastSyncError) {
             lines.append("  Last error: \(error)")
         }
-        // A failed mirroring delegate is terminal for the process: nothing will
-        // sync again until the app restarts, so it must not be buried.
+        // A failed mirroring delegate is terminal for the process, so it must
+        // not be buried; the advice says which store and whether re-downloading
+        // helps (it doesn't when the server refused the store's changes).
         if service.mirroringDelegateFailed {
-            lines.append(
-                "  WARNING: CloudKit's mirroring delegate failed to start this session. "
-                    + "Nothing will sync until the app is restarted."
-            )
+            let advice = SyncStoppedAdvice.make(health: service.storeHealth)
+            lines.append("  WARNING: \(advice.title). \(advice.message)")
         }
         return lines.joined(separator: "\n")
     }

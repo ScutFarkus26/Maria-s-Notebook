@@ -32,7 +32,7 @@ struct CloudKitStatusSettingsView: View {
             }
 
             if syncService.mirroringDelegateFailed {
-                mirroringDelegateFailedBanner
+                SyncStoppedBanner(advice: SyncStoppedAdvice.make(health: syncService.storeHealth))
             }
 
             // Status Indicator Row
@@ -128,44 +128,6 @@ struct CloudKitStatusSettingsView: View {
                 }
             }
         )
-    }
-
-    /// Banner shown when `NSPersistentCloudKitContainer`'s mirroring delegate
-    /// failed to initialize this session (NSCocoaErrorDomain 134421 or a
-    /// setup-event failure). After this fires, no records sync until the user
-    /// resets the local cache and lets CloudKit re-download data.
-    private var mirroringDelegateFailedBanner: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.octagon.fill")
-                .font(.title3)
-                .foregroundStyle(AppColors.destructive)
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
-                Text("iCloud sync is stopped")
-                    .font(.subheadline.weight(.semibold))
-                Text(mirroringDelegateFailedMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(AppTheme.Spacing.compact)
-        .surface(
-            UIConstants.CornerRadius.control,
-            fill: AppColors.destructive.opacity(UIConstants.OpacityConstants.medium),
-            stroke: AppColors.destructive.opacity(UIConstants.OpacityConstants.muted),
-            lineWidth: 1,
-            style: .continuous
-        )
-    }
-
-    /// Recovery message shown in `mirroringDelegateFailedBanner`. Kept as a typed
-    /// `String` so the multi-part concatenation type-checks outside the view body.
-    private var mirroringDelegateFailedMessage: String {
-        "iCloud couldn't start syncing this time, most likely because this device's copy of " +
-        "your notebook is damaged. To fix it, open Troubleshooting and \(PlatformVerb.tapLowercased) " +
-        "\u{201C}Re-download from iCloud\u{2026}\u{201D} Your notebook is safe in iCloud and " +
-        "downloads again on its own."
     }
 
     private var syncDetailsSection: some View {

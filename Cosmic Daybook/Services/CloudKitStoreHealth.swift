@@ -70,9 +70,44 @@ nonisolated struct StoreSyncFailure: Equatable, Sendable {
         case stopped
     }
 
+    /// Why it failed, as far as the error says. Decides the advice: a refusal
+    /// is fixed on the iCloud side, a dead delegate on its own points at this
+    /// device's copy (see `SyncStoppedAdvice`).
+    enum Cause: Equatable, Sendable {
+        /// Network trouble, throttling, a busy zone: the container retries.
+        case transient
+        /// CloudKit refused the request: a CloudKit code outside
+        /// `CloudKitStoreHealth.retryingCodes` (invalid arguments such as a
+        /// schema the server doesn't have, a rejected request, permission,
+        /// quota). Re-downloading sends the same thing and gets the same answer.
+        case serverRefusal(ckCode: Int)
+        /// Core Data's mirroring delegate died (134421, 134406, "never
+        /// successfully initialized").
+        case mirroringDelegateDied
+        /// Anything else, or no error at all.
+        case other
+
+        var isServerRefusal: Bool {
+            if case .serverRefusal = self { return true }
+            return false
+        }
+
+        /// True when retrying cannot help.
+        var stops: Bool {
+            switch self {
+            case .serverRefusal, .mirroringDelegateDied: return true
+            case .transient, .other: return false
+            }
+        }
+    }
+
+    /// `errorCode` of a failed event that carried no error.
+    static let noErrorCode = "no code"
+
     let store: SyncedStore
     let eventType: NSPersistentCloudKitContainer.EventType
     let severity: Severity
+    let cause: Cause
     /// What the server (or Core Data) said, verbatim.
     let serverMessage: String
     /// "CKError 12", "NSCocoaErrorDomain 134406", …
@@ -112,7 +147,11 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
 
     /// Records a finished event. A failure replaces any earlier failure of the
     /// same kind on that store, keeping the first one's date (the store has been
-    /// failing since then); a success clears it.
+    /// failing since then); a success clears it. A server refusal is the one
+    /// exception: the dead delegate and retries that follow it are its
+    /// symptoms, so they don't replace it (on 2026-09-30 the schema refusal was
+    /// followed by "never successfully initialized", which on its own reads as
+    /// a damaged local store).
     mutating func recordFinishedEvent(
         store: SyncedStore,
         type: NSPersistentCloudKitContainer.EventType,
@@ -127,13 +166,15 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
             return
         }
         let detail = error.map(Self.detail(of:))
+        if failures[key]?.cause.isServerRefusal == true, detail?.cause.isServerRefusal != true { return }
         let severity: StoreSyncFailure.Severity = (type == .setup || detail?.stops == true) ? .stopped : .retrying
         failures[key] = StoreSyncFailure(
             store: store,
             eventType: type,
             severity: severity,
+            cause: detail?.cause ?? .other,
             serverMessage: detail?.message ?? "No error was given",
-            errorCode: detail?.code ?? "no code",
+            errorCode: detail?.code ?? StoreSyncFailure.noErrorCode,
             date: failures[key]?.date ?? date
         )
     }
@@ -161,8 +202,9 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
 
     // MARK: - Reading the error
 
-    /// Transient CloudKit codes: the container retries these by itself.
-    private static let retryingCodes: Set<CKError.Code> = [
+    /// Transient CloudKit codes: the container retries these by itself. Any
+    /// other CloudKit code is a refusal.
+    static let retryingCodes: Set<CKError.Code> = [
         .networkUnavailable, .networkFailure, .serviceUnavailable, .requestRateLimited,
         .zoneBusy, .operationCancelled, .serverRecordChanged, .changeTokenExpired, .unknownItem,
         .limitExceeded, .assetFileModified, .accountTemporarilyUnavailable, .batchRequestFailed,
@@ -172,17 +214,21 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
     struct Detail: Equatable, Sendable {
         let message: String
         let code: String
+        let cause: StoreSyncFailure.Cause
         /// True when retrying cannot help.
-        let stops: Bool
+        var stops: Bool { cause.stops }
     }
 
     /// The most telling leaf of `error`. A partial failure's per-record errors
-    /// and underlying errors are opened up; then a leaf that stops sync wins,
-    /// then a CloudKit leaf other than `batchRequestFailed` (which only says
-    /// another record in the batch failed), then anything.
+    /// and underlying errors are opened up; then a server refusal wins (it is
+    /// the cause when Core Data wraps it in a dead-delegate error), then any
+    /// other leaf that stops sync, then a CloudKit leaf other than
+    /// `batchRequestFailed` (which only says another record in the batch
+    /// failed), then anything.
     static func detail(of error: any Error) -> Detail {
         let leaves = leafErrors(of: error as NSError)
-        let pick = leaves.first { leafDetail($0).stops }
+        let pick = leaves.first { leafDetail($0).cause.isServerRefusal }
+            ?? leaves.first { leafDetail($0).stops }
             ?? leaves.first { $0.domain == CKErrorDomain && $0.code != CKError.Code.batchRequestFailed.rawValue }
             ?? leaves.first
             ?? (error as NSError)
@@ -213,12 +259,19 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
             .flatMap { $0.isEmpty ? nil : $0 }
         let message = server ?? error.localizedDescription
         if error.domain == CKErrorDomain {
-            let code = CKError.Code(rawValue: error.code)
-            let stops = code.map { !retryingCodes.contains($0) } ?? true
-            return Detail(message: message, code: "CKError \(error.code)", stops: stops)
+            let retries = CKError.Code(rawValue: error.code).map(retryingCodes.contains) ?? false
+            return Detail(
+                message: message,
+                code: "CKError \(error.code)",
+                cause: retries ? .transient : .serverRefusal(ckCode: error.code)
+            )
         }
         let delegateDead = error.domain == NSCocoaErrorDomain && (error.code == 134421 || error.code == 134406)
         let neverInitialized = message.range(of: "never successfully initialized", options: .caseInsensitive) != nil
-        return Detail(message: message, code: "\(error.domain) \(error.code)", stops: delegateDead || neverInitialized)
+        return Detail(
+            message: message,
+            code: "\(error.domain) \(error.code)",
+            cause: delegateDead || neverInitialized ? .mirroringDelegateDied : .other
+        )
     }
 }

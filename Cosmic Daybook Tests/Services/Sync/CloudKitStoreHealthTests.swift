@@ -280,6 +280,27 @@ struct CloudKitStoreHealthServiceTests {
         }
     }
 
+    @Test("After the refusal the delegate dies; sync_status blames the schema, not this device's copy")
+    func deadDelegateAfterRefusal() {
+        withSavedDefaults {
+            let service = makeService()
+            defer { service.retryLogic.resetRetryCount() }
+            finish(service, .export, store: "shared-store", error: productionSchemaRejection())
+            let aborted = NSError(domain: NSCocoaErrorDomain, code: 134_406, userInfo: [
+                NSLocalizedDescriptionKey: "The request was aborted because the mirroring delegate "
+                    + "never successfully initialized."
+            ])
+            finish(service, .export, store: "shared-store", error: aborted)
+            #expect(service.mirroringDelegateFailed)
+
+            let text = MCPNotebookTools.describeSyncStatus(service)
+            #expect(text.contains("WARNING: Classroom share sync is stopped."))
+            #expect(text.contains("deploy the CloudKit schema to Production"))
+            #expect(text.contains("\u{201C}\(schemaMessage)\u{201D} (CKError 12)"))
+            #expect(!text.contains("damaged"))
+        }
+    }
+
     @Test("A failure's global error names its store")
     func globalErrorNamesStore() {
         withSavedDefaults {

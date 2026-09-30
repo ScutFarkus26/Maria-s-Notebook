@@ -425,7 +425,7 @@ extension CloudKitSyncStatusService {
             if isSetupFailure || isDelegateDeadCode || mentionsNeverInitialized {
                 mirroringDelegateFailed = true
                 Self.logger.error(
-                    "CloudKit mirroring delegate marked as failed for this session — Reset Local Cache required"
+                    "CloudKit mirroring delegate marked as failed for this session"
                 )
             }
         } else {
