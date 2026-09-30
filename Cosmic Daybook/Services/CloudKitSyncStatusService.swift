@@ -61,6 +61,16 @@ final class CloudKitSyncStatusService {
     /// "Reset Local Cache" button in Settings → Database performs this.
     var mirroringDelegateFailed: Bool = false
 
+    /// Failed setup/import/export events per store (notebook, classroom share)
+    /// that no later success of the same kind on the same store has cleared.
+    /// One store can stop while the other keeps syncing, and the other's
+    /// successes must not hide it — `lastSyncError` is cleared by any success.
+    var storeHealth = CloudKitStoreHealth()
+
+    /// Names the store an event's `storeIdentifier` belongs to. Nil reads the
+    /// configured stack's private and shared stores; tests supply their own.
+    @ObservationIgnored var syncedStoreResolver: ((String?) -> SyncedStore)?
+
     /// True while `NSPersistentCloudKitContainer` is performing its initial
     /// `setup` or `import` of data from iCloud. Drives the "Syncing from iCloud…"
     /// overlay so a freshly launched or freshly signed-in device shows progress
@@ -206,6 +216,12 @@ final class CloudKitSyncStatusService {
         syncingTask?.cancel()
         syncingTask = nil
 
+        // A new stack brings new mirroring delegates; the old stores' failures
+        // say nothing about them. (Another window configuring with the same
+        // stack must keep them.)
+        if stack !== coreDataStack {
+            storeHealth = CloudKitStoreHealth()
+        }
         self.coreDataStack = stack
         watchForFirstDownloadIfPending()
 
@@ -313,7 +329,8 @@ final class CloudKitSyncStatusService {
             lastSyncError: lastSyncError,
             isNetworkAvailable: isNetworkAvailable,
             isEnabled: isEnabled,
-            isActive: isActive
+            isActive: isActive,
+            storeFailure: storeHealth.mostSevereFailure
         )
     }
 

@@ -183,22 +183,34 @@ final class CloudKitHealthCheck {
     ///   - isNetworkAvailable: Whether network is available
     ///   - isEnabled: Whether CloudKit sync is enabled
     ///   - isActive: Whether CloudKit is active
+    ///   - storeFailure: The most severe outstanding per-store failure, if any.
+    ///     A stopped store is an error even while the other store syncs or has
+    ///     just succeeded; a retrying one is a warning once nothing else is wrong.
     func updateSyncHealth(
         isSyncing: Bool,
         lastSuccessfulSync: Date?,
         lastSyncError: String?,
         isNetworkAvailable: Bool,
         isEnabled: Bool,
-        isActive: Bool
+        isActive: Bool,
+        storeFailure: StoreSyncFailure? = nil
     ) {
         guard isEnabled, isActive, isNetworkAvailable else {
             syncHealth = .offline
+            return
+        }
+        if let storeFailure, storeFailure.severity == .stopped {
+            syncHealth = .error(storeFailure.message)
             return
         }
         if isSyncing { syncHealth = .syncing; return }
 
         if let health = syncHealthFromError(lastSyncError, lastSuccessfulSync: lastSuccessfulSync) {
             syncHealth = health
+            return
+        }
+        if storeFailure != nil {
+            syncHealth = .warning
             return
         }
 

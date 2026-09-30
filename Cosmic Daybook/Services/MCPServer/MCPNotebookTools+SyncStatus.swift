@@ -19,8 +19,9 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "sync_status",
             title: "Sync Status",
-            description: "Whether the notebook is syncing to iCloud: overall health, the last "
-                + "successful sync, how many local changes are still waiting, and any error. "
+            description: "Whether the notebook is syncing to iCloud: overall health, each store "
+                + "(the notebook and the classroom share) with its last success or the server's own "
+                + "error, how many local changes are still waiting, and any error. "
                 + "Use this when the guide asks whether their data is safe or why a device "
                 + "looks out of date.",
             inputSchema: ["type": "object", "properties": [:]],
@@ -31,12 +32,12 @@ extension MCPNotebookTools {
         )
     }
 
-    private static func describeSyncStatus() -> String {
-        let service = CloudKitSyncStatusService.shared
+    static func describeSyncStatus(_ service: CloudKitSyncStatusService = .shared) -> String {
         var lines: [String] = ["Sync: \(healthLabel(service.syncHealth))"]
+        lines += storeLines(service.storeHealth)
 
         if let last = service.lastSuccessfulSync {
-            lines.append("  Last successful sync: \(dayString(last)) at \(timeString(last))")
+            lines.append("  Last successful sync (any store): \(dayString(last)) at \(timeString(last))")
         } else {
             lines.append("  No successful sync recorded this session.")
         }
@@ -67,6 +68,25 @@ extension MCPNotebookTools {
             )
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// One line per store that has reported this session: its outstanding
+    /// failures (quoting the server), else when it last finished an event.
+    /// A store can stop while the other keeps syncing, so neither speaks for both.
+    private static func storeLines(_ health: CloudKitStoreHealth) -> [String] {
+        health.knownStores.flatMap { store -> [String] in
+            let failures = health.failures(for: store)
+            guard !failures.isEmpty else {
+                guard let last = health.lastSuccess[store] else { return [] }
+                return ["  \(store.displayName): OK, last synced \(dayString(last)) at \(timeString(last))."]
+            }
+            return failures.map { failure in
+                let state = failure.severity == .stopped ? "NOT SYNCING" : "retrying"
+                return "  \(store.displayName): \(state) since \(dayString(failure.date)) at "
+                    + "\(timeString(failure.date)) — \(failure.eventName) failed: "
+                    + "\u{201C}\(failure.serverMessage)\u{201D} (\(failure.errorCode))."
+            }
+        }
     }
 
     private static func healthLabel(_ health: CloudKitHealthCheck.SyncHealth) -> String {

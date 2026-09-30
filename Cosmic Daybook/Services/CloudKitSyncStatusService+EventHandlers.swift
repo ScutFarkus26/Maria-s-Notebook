@@ -259,12 +259,17 @@ extension CloudKitSyncStatusService {
             noteCloudImportActivity()
         }
 
+        let store = syncedStore(forIdentifier: storeIdentifier)
+        storeHealth.recordFinishedEvent(store: store, type: type, succeeded: succeeded, error: error)
+
         if succeeded {
             handleSuccessfulCloudKitEvent(
                 type: type, typeDescription: typeDescription, startDate: startDate, storeIdentifier: storeIdentifier
             )
         } else {
-            handleFailedCloudKitEvent(type: type, typeDescription: typeDescription, error: error)
+            handleFailedCloudKitEvent(
+                type: type, typeDescription: "\(store.displayName) \(typeDescription.lowercased())", error: error
+            )
         }
 
         updateSyncHealth()

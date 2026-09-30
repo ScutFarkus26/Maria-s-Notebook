@@ -87,27 +87,12 @@ struct CloudKitStatusSettingsView: View {
 
             // Error Display
             if case .error(let message) = syncService.syncHealth {
-                HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(AppColors.destructive)
-
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(AppColors.destructive)
-                        .lineLimit(3)
-
-                    Spacer()
-
-                    Button("Dismiss") {
-                        syncService.clearError()
-                    }
-                    .font(.caption)
-                    .buttonStyle(.borderless)
-                }
-                .padding(AppTheme.Spacing.small)
-                .surface(
-                    UIConstants.CornerRadius.medium,
-                    fill: AppColors.destructive.opacity(UIConstants.OpacityConstants.light)
+                // A stopped store clears only when that store next succeeds;
+                // dismissing would just hide it.
+                SyncErrorRow(
+                    message: message,
+                    canDismiss: syncService.storeHealth.mostSevereFailure?.severity != .stopped,
+                    dismiss: syncService.clearError
                 )
             }
         }
@@ -258,6 +243,9 @@ struct CloudKitStatusSettingsView: View {
             case .healthy, .unknown:
                 return "Your notebook is kept in iCloud. New changes reach your other devices on their own."
             case .warning:
+                if let failure = syncService.storeHealth.mostSevereFailure {
+                    return failure.message + " Your notebook is safe on this device."
+                }
                 return "Sync is still working, but it's slower than usual or had a hiccup."
                     + " Your notebook is safe on this device."
             case .error:
@@ -358,4 +346,36 @@ private struct CloudKitStatusSettingsViewPreview: View {
 
 #Preview {
     CloudKitStatusSettingsViewPreview()
+}
+
+/// The red row under the sync status: the error, and Dismiss when dismissing means something.
+private struct SyncErrorRow: View {
+    let message: String
+    let canDismiss: Bool
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(AppColors.destructive)
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(AppColors.destructive)
+                .lineLimit(6)
+
+            Spacer()
+
+            if canDismiss {
+                Button("Dismiss", action: dismiss)
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+            }
+        }
+        .padding(AppTheme.Spacing.small)
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: AppColors.destructive.opacity(UIConstants.OpacityConstants.light)
+        )
+    }
 }
