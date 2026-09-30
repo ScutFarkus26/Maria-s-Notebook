@@ -107,6 +107,7 @@ struct BackupPreferencesServiceTests {
             UserDefaultsKeys.schoolYearStartMonth,
             UserDefaultsKeys.schoolYearStartDay,
             UserDefaultsKeys.schoolYearSelection,
+            UserDefaultsKeys.schoolYearCountersResetAtYearStart,
             UserDefaultsKeys.recallSpacedIntervalDays,
             UserDefaultsKeys.generalTestStudentNames,
             UserDefaultsKeys.lessonPlanningSystemPrompt,

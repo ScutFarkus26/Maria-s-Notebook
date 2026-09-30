@@ -18,7 +18,7 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.schoolYearStartMonth,
         UserDefaultsKeys.schoolYearStartDay,
         UserDefaultsKeys.schoolYearSelection,
-        UserDefaultsKeys.schoolYearCounterEpoch,
+        UserDefaultsKeys.schoolYearCountersResetAtYearStart,
         UserDefaultsKeys.schoolYearCounterPromptAnsweredYear,
         // Recall
         UserDefaultsKeys.recallSpacedIntervalDays,
@@ -219,6 +219,24 @@ nonisolated enum BackupPreferencesService {
                 defaults.set(merged, forKey: key)
             }
         }
+        applySchoolYearSettings(from: dto, defaults: defaults)
+    }
+
+    /// A backup from before the counter mode had its own key carries the stored epoch date
+    /// instead: present meant counters reset at the year start. Then the restored school-year
+    /// settings are published to the class's other devices, since restoring is an explicit
+    /// choice (`SchoolYearSync`).
+    @MainActor static func applySchoolYearSettings(from dto: PreferencesDTO, defaults: UserDefaults) {
+        let modeKey = UserDefaultsKeys.schoolYearCountersResetAtYearStart
+        if dto.values[modeKey] == nil, dto.values[UserDefaultsKeys.schoolYearCounterEpoch] != nil {
+            defaults.set(true, forKey: modeKey)
+        }
+        let schoolYearKeys = [
+            UserDefaultsKeys.schoolYearStartMonth, UserDefaultsKeys.schoolYearStartDay, modeKey,
+            UserDefaultsKeys.schoolYearCounterEpoch
+        ]
+        guard schoolYearKeys.contains(where: { dto.values[$0] != nil }) else { return }
+        SchoolYearSync.shared?.localSettingsReplaced()
     }
 
     /// Converts a backup representation back into the object UserDefaults stores.

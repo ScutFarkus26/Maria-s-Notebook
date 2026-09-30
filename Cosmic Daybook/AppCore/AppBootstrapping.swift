@@ -97,6 +97,10 @@ final class AppBootstrapping {
             disableCloudKitForCurrentLaunch = true
         }
 
+        // One school year on every device: adopt the synced start date and counter mode
+        // before anything reads them (the Mac seeds an empty iCloud). Never under tests.
+        SchoolYearSync.start()
+
         // Start monitoring main thread for stutters (blocking > 100ms)
         // This runs in all build configurations (Debug and Release)
         PerformanceLogger.startStutterDetection()

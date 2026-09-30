@@ -210,6 +210,14 @@ struct MCPSchoolCalendarToolsTests {
         let read = try await tool(named: "school_calendar", in: harness.tools).handler([:])
         #expect(read.contains("School year starts August 15."))
         #expect(read.contains("Day counters run over all history."))
+
+        // Back on, counters start over on this year's first day — the start date itself,
+        // never a stored date from an earlier year.
+        _ = try await tool(named: "update_school_calendar", in: harness.tools).handler([
+            "counters_reset_at_year_start": .bool(true)
+        ])
+        let reset = try await tool(named: "school_calendar", in: harness.tools).handler([:])
+        #expect(reset.contains("Day counters start over on \(MCPNotebookTools.dayString(store.current.start))."))
     }
 
     @Test("update_school_calendar refuses bad values and empty calls")

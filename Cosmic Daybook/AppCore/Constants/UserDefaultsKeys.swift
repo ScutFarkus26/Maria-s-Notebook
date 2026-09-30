@@ -229,8 +229,13 @@ nonisolated enum UserDefaultsKeys {
     static let schoolYearStartDay = "SchoolYear.startDay"
     /// Persisted active viewing lens token ("all", "year:2025", "cycle:2025").
     static let schoolYearSelection = "SchoolYear.selection"
-    /// Date (as `timeIntervalSinceReferenceDate`) every elapsed-day counter counts from.
-    /// Absent means counters run over the full history. See `SchoolYearCounters`.
+    /// Whether elapsed-day counters start over on the first day of each school year (true)
+    /// or run over the full history (false). Synced with the start date (`SchoolYearSync`).
+    /// See `SchoolYearCounters`.
+    static let schoolYearCountersResetAtYearStart = "SchoolYear.countersResetAtYearStart"
+    /// Legacy: the date (as `timeIntervalSinceReferenceDate`) counters counted from, back when
+    /// it was stored and could fall behind the school year. Only read as the mode's default
+    /// when `schoolYearCountersResetAtYearStart` has never been written: present = on.
     static let schoolYearCounterEpoch = "SchoolYear.counterEpoch"
     /// Begin year of the last school year whose "start counters fresh?" prompt was answered,
     /// so the prompt appears once per school year.

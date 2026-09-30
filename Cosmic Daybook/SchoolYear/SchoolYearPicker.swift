@@ -135,7 +135,8 @@ struct SchoolYearStartConfig: View {
 
             Text(
                 "The \(store.current.label) school year began \(startDateText). Changing the start "
-                + "re-buckets which year past activity falls into; it never moves or deletes data."
+                + "re-buckets which year past activity falls into; it never moves or deletes data. "
+                + "It's the same on all your devices."
             )
             .font(.footnote)
             .foregroundStyle(.secondary)
@@ -173,16 +174,6 @@ struct SchoolYearStartConfig: View {
             Text(counterExplanation)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-
-            if store.isResettingCounters, store.counterEpoch != store.current.start {
-                Button {
-                    store.setCountersResetAtYearStart(true)
-                } label: {
-                    Label("Reset counters to \(startDateText)", systemImage: "arrow.counterclockwise")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
         }
     }
 
@@ -200,7 +191,7 @@ struct SchoolYearStartConfig: View {
         }
         return "Days since last lesson, days since last meeting, and work-aging counters start "
             + "over on \(Self.dateText(epoch)) — anything older counts from that day, so every "
-            + "counter reads 0 on the first morning of school."
+            + "counter reads 0 on the first morning of school. Each new school year moves it on its own."
     }
 
     private var startDateText: String { Self.dateText(store.current.start) }

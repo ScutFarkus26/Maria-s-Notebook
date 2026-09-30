@@ -246,7 +246,6 @@ extension MCPNotebookTools {
             throw MCPToolError("start_day must be 1-31, got \(day).")
         }
 
-        let before = SchoolYearSettings(store: store)
         let changes = applySchoolYearSettings(
             month: month, day: day, resetCounters: resetCounters, to: store
         )
@@ -259,14 +258,6 @@ extension MCPNotebookTools {
             lines.append("Updated \(changes.joined(separator: ", ")).")
         }
         lines.append(contentsOf: after.lines)
-        if before.currentYear != after.currentYear, store.isResettingCounters,
-           store.counterEpoch != after.currentYear.start {
-            lines.append(
-                "Day counters still start over on \(dayString(store.counterEpoch)); call again "
-                    + "with counters_reset_at_year_start true to move them to "
-                    + "\(dayString(after.currentYear.start))."
-            )
-        }
         return lines.joined(separator: "\n")
     }
 

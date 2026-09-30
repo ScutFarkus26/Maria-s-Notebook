@@ -174,26 +174,31 @@ struct RootView: View {
         .alert(
             "The \(dependencies.schoolYearStore.current.label) School Year Has Begun",
             isPresented: Binding(
-                get: { dependencies.schoolYearStore.needsCounterResetPrompt },
+                get: { dependencies.schoolYearStore.needsNewYearPrompt },
                 set: { isPresented in
-                    if !isPresented { dependencies.schoolYearStore.keepCountersRunning() }
+                    if !isPresented { dependencies.schoolYearStore.keepCurrentView() }
                 }
             )
         ) {
-            Button("Start Fresh") { dependencies.schoolYearStore.startFreshCounters() }
-            Button("Keep Counting", role: .cancel) { dependencies.schoolYearStore.keepCountersRunning() }
+            Button("View \(dependencies.schoolYearStore.current.label)") {
+                dependencies.schoolYearStore.switchToNewYear()
+            }
+            Button("Not Now", role: .cancel) { dependencies.schoolYearStore.keepCurrentView() }
         } message: {
-            Text(schoolYearResetPromptMessage)
+            Text(schoolYearPromptMessage)
         }
     }
 
-    /// Explains what "start fresh" does before the guide commits to it: counters only, and
-    /// nothing is moved or deleted.
-    private var schoolYearResetPromptMessage: String {
-        let start = dependencies.schoolYearStore.current.start
-            .formatted(.dateTime.month(.wide).day().year())
-        return "Restart the day counters — days since last lesson, days since last meeting, and "
-            + "work aging — from \(start)? Last year's records stay exactly as they are."
+    /// Says what switching does: the lens only. Day counters already follow the new year on
+    /// their own, and nothing is moved or deleted.
+    private var schoolYearPromptMessage: String {
+        let store = dependencies.schoolYearStore
+        let start = store.current.start.formatted(.dateTime.month(.wide).day().year())
+        let counters = store.isResettingCounters
+            ? " Day counters already start over on \(start)."
+            : ""
+        return "Show \(store.current.label) across the notebook?\(counters) "
+            + "Last year's records stay exactly as they are."
     }
 
     private var rootLayoutWithObservers: some View {

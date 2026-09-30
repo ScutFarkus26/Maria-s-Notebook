@@ -97,16 +97,20 @@ final class SchoolYearTests {
 
     // MARK: - Counter epoch
 
-    /// Runs `body` with the counter defaults isolated, restoring whatever the machine had.
+    /// Runs `body` with every school-year default isolated, restoring whatever the machine
+    /// had — a Mac test host shares the app's real defaults.
     private func withCounterDefaults(_ body: () -> Void) {
         let defaults = UserDefaults.standard
-        let epochKey = UserDefaultsKeys.schoolYearCounterEpoch
-        let answeredKey = UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
-        let savedEpoch = defaults.object(forKey: epochKey)
-        let savedAnswered = defaults.object(forKey: answeredKey)
+        let keys = [
+            UserDefaultsKeys.schoolYearStartMonth, UserDefaultsKeys.schoolYearStartDay,
+            UserDefaultsKeys.schoolYearSelection, UserDefaultsKeys.schoolYearCounterEpoch,
+            UserDefaultsKeys.schoolYearCountersResetAtYearStart,
+            UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
+        ]
+        let saved = keys.map { defaults.object(forKey: $0) }
         defer {
-            defaults.set(savedEpoch, forKey: epochKey)
-            defaults.set(savedAnswered, forKey: answeredKey)
+            for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) }
+            YearPlanStaleness.invalidateCache()
         }
         body()
     }
@@ -114,20 +118,26 @@ final class SchoolYearTests {
     @Test("The epoch clamps older dates forward and leaves this year's alone")
     func counterClamping() {
         withCounterDefaults {
-            SchoolYearCounters.setEpoch(day(2026, 9, 1))
+            let store = SchoolYearStore()
+            store.startMonth = 9
+            store.startDay = 1
+            store.setCountersResetAtYearStart(true)
+            let start = store.current.start
+            let lastYear = cal.date(byAdding: .month, value: -4, to: start)!
+            let thisYear = cal.date(byAdding: .day, value: 3, to: start)!
             #expect(SchoolYearCounters.isResetting)
-            #expect(SchoolYearCounters.countFrom(day(2026, 5, 12)) == day(2026, 9, 1)) // last year
-            #expect(SchoolYearCounters.countFrom(day(2026, 10, 3)) == day(2026, 10, 3)) // this year
-            #expect(SchoolYearCounters.countFrom(Date.distantPast) == day(2026, 9, 1))
+            #expect(SchoolYearCounters.countFrom(lastYear) == start)
+            #expect(SchoolYearCounters.countFrom(thisYear) == thisYear)
+            #expect(SchoolYearCounters.countFrom(Date.distantPast) == start)
             #expect(SchoolYearCounters.countFrom(nil as Date?) == nil)
 
-            SchoolYearCounters.setEpoch(nil)
+            store.setCountersResetAtYearStart(false)
             #expect(!SchoolYearCounters.isResetting)
-            #expect(SchoolYearCounters.countFrom(day(2026, 5, 12)) == day(2026, 5, 12)) // untouched
+            #expect(SchoolYearCounters.countFrom(lastYear) == lastYear) // untouched
         }
     }
 
-    @Test("Turning the reset on pins the epoch to the year start; off counts all history")
+    @Test("Turning the reset on follows the year start; off counts all history")
     func counterToggle() {
         withCounterDefaults {
             let store = SchoolYearStore()
@@ -137,52 +147,145 @@ final class SchoolYearTests {
             store.setCountersResetAtYearStart(true)
             #expect(store.isResettingCounters)
             #expect(store.counterEpoch == store.current.start)
-            #expect(SchoolYearCounters.epoch == store.current.start) // mirrored for the engines
+            #expect(SchoolYearCounters.epoch == store.current.start) // read off the main actor
 
             store.setCountersResetAtYearStart(false)
+            #expect(!store.isResettingCounters)
+            #expect(store.counterEpoch == nil)
+            #expect(SchoolYearCounters.epoch == nil)
+        }
+    }
+
+    @Test("Moving the start date moves the counters with it — no stored date to fall behind")
+    func counterFollowsStartEdit() {
+        withCounterDefaults {
+            let store = SchoolYearStore()
+            store.setCountersResetAtYearStart(true)
+            store.startMonth = 9
+            store.startDay = 1
+            let septemberStart = store.current.start
+
+            store.startMonth = 8
+            store.startDay = 25
+            #expect(store.current.start != septemberStart)
+            #expect(store.counterEpoch == store.current.start)
+            #expect(SchoolYearCounters.epoch == store.current.start)
+        }
+    }
+
+    @Test("A legacy stored epoch — even last year's — reads as 'reset' and follows this year")
+    func legacyEpochBecomesMode() {
+        withCounterDefaults {
+            let defaults = UserDefaults.standard
+            defaults.removeObject(forKey: UserDefaultsKeys.schoolYearCountersResetAtYearStart)
+            defaults.set(
+                day(2025, 9, 1).timeIntervalSinceReferenceDate, forKey: UserDefaultsKeys.schoolYearCounterEpoch
+            )
+            defaults.set(2025, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear)
+
+            let store = SchoolYearStore()
+            #expect(store.isResettingCounters)
+            #expect(store.counterEpoch == store.current.start)
+            #expect(SchoolYearCounters.hasExplicitMode(in: defaults)) // written once, so it can sync
+        }
+    }
+
+    @Test("A legacy install with no epoch keeps counting all history")
+    func legacyNoEpochStaysAllHistory() {
+        withCounterDefaults {
+            let defaults = UserDefaults.standard
+            defaults.removeObject(forKey: UserDefaultsKeys.schoolYearCountersResetAtYearStart)
+            defaults.removeObject(forKey: UserDefaultsKeys.schoolYearCounterEpoch)
+            defaults.set(2025, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear)
+
+            let store = SchoolYearStore()
             #expect(!store.isResettingCounters)
             #expect(SchoolYearCounters.epoch == nil)
         }
     }
 
-    @Test("A new school year prompts once, and starting fresh moves the epoch and the lens")
-    func counterResetPrompt() {
+    @Test("A new school year offers to switch the lens once; answering either way stops it")
+    func newYearPrompt() {
         withCounterDefaults {
             let store = SchoolYearStore()
             store.startMonth = 9
             store.startDay = 1
-
-            // Pretend the last answer was for the previous school year.
+            let lastYear = SchoolYear.beginning(
+                in: store.current.beginYear - 1, startMonth: 9, startDay: 1, calendar: cal
+            )
+            store.select(lastYear)
             UserDefaults.standard.set(
                 store.current.beginYear - 1, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
             )
-            let reopened = SchoolYearStore()
-            #expect(reopened.needsCounterResetPrompt)
 
-            reopened.startFreshCounters()
-            #expect(!reopened.needsCounterResetPrompt)
-            #expect(reopened.counterEpoch == reopened.current.start)
+            let reopened = SchoolYearStore()
+            #expect(reopened.needsNewYearPrompt)
+            reopened.switchToNewYear()
+            #expect(!reopened.needsNewYearPrompt)
             #expect(reopened.isCurrentYearSelected)
+
+            reopened.select(lastYear)
+            UserDefaults.standard.set(
+                reopened.current.beginYear - 1, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
+            )
+            let declined = SchoolYearStore()
+            #expect(declined.needsNewYearPrompt)
+            declined.keepCurrentView()
+            #expect(!declined.needsNewYearPrompt)
+            #expect(!declined.isCurrentYearSelected)
         }
     }
 
-    @Test("Declining the prompt leaves counters alone and doesn't ask again this year")
-    func counterResetDeclined() {
+    @Test("No new-year prompt while the lens already shows this year")
+    func noPromptOnCurrentYear() {
         withCounterDefaults {
             let store = SchoolYearStore()
-            store.startMonth = 9
-            store.startDay = 1
-            store.setCountersResetAtYearStart(false)
-
+            store.selectCurrentYear()
             UserDefaults.standard.set(
                 store.current.beginYear - 1, forKey: UserDefaultsKeys.schoolYearCounterPromptAnsweredYear
             )
-            let reopened = SchoolYearStore()
-            #expect(reopened.needsCounterResetPrompt)
+            #expect(!SchoolYearStore().needsNewYearPrompt)
+        }
+    }
 
-            reopened.keepCountersRunning()
-            #expect(!reopened.needsCounterResetPrompt)
-            #expect(reopened.counterEpoch == nil)
+    // MARK: - Sync from the store's side
+
+    @Test("An edit publishes all three settings; applying synced settings publishes nothing")
+    func editsPublishSyncedDoNot() {
+        withCounterDefaults {
+            let store = SchoolYearStore()
+            var sent: [[Int]] = []
+            store.publish = { month, day, resetting in sent.append([month, day, resetting ? 1 : 0]) }
+
+            store.startMonth = 8
+            #expect(sent.last == [8, store.startDay, store.isResettingCounters ? 1 : 0])
+            store.setCountersResetAtYearStart(false)
+            #expect(sent.last == [8, store.startDay, 0])
+
+            let count = sent.count
+            let defaults = UserDefaults.standard
+            defaults.set(7, forKey: UserDefaultsKeys.schoolYearStartMonth)
+            defaults.set(15, forKey: UserDefaultsKeys.schoolYearStartDay)
+            defaults.set(true, forKey: UserDefaultsKeys.schoolYearCountersResetAtYearStart)
+            store.applySyncedSettings()
+            #expect(store.startMonth == 7)
+            #expect(store.startDay == 15)
+            #expect(store.isResettingCounters)
+            #expect(sent.count == count) // no echo back to iCloud
+        }
+    }
+
+    @Test("A start edit re-resolves the viewing lens against the new boundary")
+    func startEditRefreshesLens() {
+        withCounterDefaults {
+            let store = SchoolYearStore()
+            store.publish = { _, _, _ in }
+            store.startMonth = 9
+            store.startDay = 1
+            store.selectCurrentYear()
+            store.startMonth = 8
+            store.startDay = 25
+            #expect(store.activeRange?.start == store.current.start)
         }
     }
 
