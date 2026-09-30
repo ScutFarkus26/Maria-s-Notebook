@@ -25,6 +25,8 @@ struct AttendanceStandaloneView: View {
     @State private var toastMessage: String?
     @State private var showingTardyReport = false
     @State private var showingAbsenceReport = false
+    /// "Day 37", from the roll (`AttendanceDayLabelKey`).
+    @State private var dayLabel: String?
 
     // MARK: - Body
     var body: some View {
@@ -72,11 +74,13 @@ struct AttendanceStandaloneView: View {
                 onStepDay: { forward in
                     let next = forward ? nextSchoolDaySync(after: date) : previousSchoolDaySync(before: date)
                     date = AppCalendar.startOfDay(next)
-                }
+                },
+                showsDayInTitle: true
             )
             .padding(.horizontal, AppTheme.Spacing.compact)
             .quickCaptureButtonClearance()
             .navigationTitle("Attendance")
+            .onPreferenceChange(AttendanceDayLabelKey.self) { dayLabel = $0 }
             #if os(iOS)
             .toolbar { toolbarContent }
             #endif
@@ -115,6 +119,16 @@ struct AttendanceStandaloneView: View {
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .semibold))
+                }
+            }
+            // "Day 37" under the date, as the Daybook Assistant shows it.
+            .overlay(alignment: .bottom) {
+                if let dayLabel {
+                    Text(dayLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                        .offset(y: 16)
                 }
             }
         }

@@ -17,6 +17,9 @@ extension AttendanceExpandedView {
                     if let finishedLine {
                         Label(finishedLine, systemImage: "sparkles")
                             .foregroundStyle(.primary)
+                    } else if let welcomeLine {
+                        Label(welcomeLine, systemImage: "hand.wave.fill")
+                            .foregroundStyle(.primary)
                     } else {
                         Text(AttendanceRules.tally(viewModel.rows))
                             .monospacedDigit()
@@ -35,6 +38,7 @@ extension AttendanceExpandedView {
             .padding(.bottom, AppTheme.Spacing.small)
             .animation(.smooth, value: viewModel.rows.map(\.status))
             .animation(.smooth(duration: 0.3), value: finishedLine)
+            .animation(.smooth(duration: 0.3), value: welcomeLine)
         }
     }
 
@@ -61,6 +65,7 @@ extension AttendanceExpandedView {
             .padding(.horizontal, AppTheme.Spacing.compact)
             .padding(.bottom, AppTheme.Spacing.small)
             .animation(.smooth(duration: 0.3), value: finishedLine)
+            .animation(.smooth(duration: 0.3), value: welcomeLine)
         }
 #endif
     }
@@ -69,6 +74,11 @@ extension AttendanceExpandedView {
         HStack(spacing: 10) {
             if let finishedLine {
                 Label(finishedLine, systemImage: "sparkles")
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .lineLimit(1)
+                    .transition(.opacity)
+            } else if let welcomeLine {
+                Label(welcomeLine, systemImage: "hand.wave.fill")
                     .font(AppTheme.ScaledFont.captionSemibold)
                     .lineLimit(1)
                     .transition(.opacity)

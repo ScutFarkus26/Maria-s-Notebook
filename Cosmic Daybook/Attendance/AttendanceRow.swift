@@ -37,7 +37,7 @@ struct AttendanceRow: Identifiable, Equatable {
     /// A birthday or half-birthday on the row's day, for the cake.
     let birthday: AttendanceBirthday?
     /// School days away in a row before the row's day, when it's enough for
-    /// a welcome back (the Daybook Assistant's `AssistantWelcomeBack`).
+    /// a welcome back (the Daybook Assistant's `AttendanceWelcomeBack`).
     let daysAway: Int?
 
     init(

@@ -9,7 +9,7 @@ import Testing
 @MainActor
 struct AssistantSchoolDayCountTests {
 
-    typealias Count = AssistantSchoolDayCount
+    typealias Count = AttendanceSchoolDayCount
 
     private func day(_ iso: String) throws -> Date {
         try AssistantTestSupport.day(iso)

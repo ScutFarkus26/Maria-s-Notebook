@@ -25,7 +25,7 @@ struct AssistantClassroomSheet: View {
     @AppStorage(FrontDeskEmailReminder.enabledKey) private var frontDeskOn = FrontDeskEmailReminder.isOnByDefault
     @AppStorage(FrontDeskEmailReminder.leadKey) private var frontDeskLead = FrontDeskEmailReminder.defaultLeadMinutes
     @State private var notificationsDenied = false
-    @AppStorage(AssistantBells.enabledKey) private var bellsOn = false
+    @AppStorage(AttendanceBells.enabledKey) private var bellsOn = false
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
 
     var body: some View {
@@ -143,7 +143,7 @@ struct AssistantClassroomSheet: View {
                 + "The ringer switch silences them.")
         }
         .onChange(of: bellsOn) { _, isOn in
-            if isOn { AssistantBells.shared.play(.here(count: 1)) }
+            if isOn { AttendanceBells.shared.play(.here(count: 1)) }
         }
     }
 

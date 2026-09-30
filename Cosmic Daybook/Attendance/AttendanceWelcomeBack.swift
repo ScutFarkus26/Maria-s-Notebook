@@ -8,7 +8,7 @@ import CoreData
 /// Only marked absences count. A school day with no record for the child (the
 /// roll wasn't taken, or they weren't in the class yet) ends the run, so a
 /// week without attendance never makes the whole class "back".
-enum AssistantWelcomeBack {
+enum AttendanceWelcomeBack {
     /// Away this many school days in a row before a welcome.
     static let threshold = 3
     /// How far back to count; a child away longer shows as "15 or more".

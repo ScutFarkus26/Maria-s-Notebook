@@ -27,7 +27,7 @@ struct HundredthDayConfetti: View {
     }
 
     private static let pieces: [Piece] = {
-        var random = WallpaperRandom(seed: 100)
+        var random = SeededRandom(seed: 100)
         return (0..<count).map { index in
             Piece(
                 x: .random(in: 0...1, using: &random),

@@ -30,6 +30,23 @@ final class AttendanceViewModel {
     /// arrived: the success tap and "Everyone's here". Never by a load.
     private(set) var completions = 0
 
+    /// A child marked in after days away, for "Welcome back, Maya".
+    struct Welcome: Equatable {
+        let id = UUID()
+        let name: String
+    }
+
+    /// Set when a mark made here brings in a child back after days away
+    /// (`AttendanceWelcomeBack`); never by a load or an import.
+    private(set) var welcome: Welcome?
+
+    /// The day on screen's school day of the year ("Day 37"), nil on a day
+    /// off, before the year's first day, or before anyone was marked here.
+    private(set) var dayNumber: Int?
+    /// Counts school days from the year's first here-mark, as the Daybook
+    /// Assistant does, so both show the same number.
+    @ObservationIgnored private var dayCounter = AttendanceDayCounter()
+
     enum SortKey: String, CaseIterable { case firstName, lastName }
 
     /// The picker's last choice, remembered across launches (and across devices, since the key syncs).
@@ -45,12 +62,6 @@ final class AttendanceViewModel {
         self.defaults = defaults
     }
 
-    /// Reads the stored sort choice, falling back to last name for a notebook that has never set one.
-    static func storedSortKey() -> SortKey {
-        let raw = SyncedPreferencesStore.shared.string(forKey: sortKeyPreferenceKey)
-        return raw.flatMap(SortKey.init(rawValue:)) ?? .lastName
-    }
-
     /// Changes the sort and writes it back, so reopening attendance lands on the same order.
     func setSortKey(_ newValue: SortKey) {
         guard newValue != sortKey else { return }
@@ -59,52 +70,6 @@ final class AttendanceViewModel {
         students = sortedAndFiltered(students: students)
         let byID = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         rows = students.compactMap { $0.id.flatMap { byID[$0] } }
-    }
-
-    // MARK: - The day
-
-    var isToday: Bool { Calendar.current.isDateInToday(selectedDate) }
-
-    /// A day after today: only absences and notes can be marked ahead.
-    var isFuture: Bool { selectedDate > Calendar.current.startOfDay(for: Date()) }
-
-    /// The statuses the menu offers on the day on screen.
-    var menuStatuses: [AttendanceStatus] { AttendanceRules.menuStatuses(on: selectedDate) }
-
-    var unmarkedCount: Int { rows.count { $0.status == .unmarked } }
-
-    /// The children still unmarked, by full name: Close Arrival's list.
-    var unmarkedNames: [String] {
-        rows.filter { $0.status == .unmarked }.map(\.name)
-    }
-
-    /// Whether Close Arrival is on offer: someone's still unmarked, arrival
-    /// is open, and the day has arrived. `canMark` is the caller's (a locked
-    /// day can't be).
-    func offersCloseArrival(canMark: Bool) -> Bool {
-        canMark && !isFuture && phase == .arrival && unmarkedCount > 0
-    }
-
-    /// What a tap on an iPhone tile does, or nil when it does nothing: a
-    /// present child during Late, and every tap on a day ahead.
-    func statusAfterTap(for row: AttendanceRow) -> AttendanceStatus? {
-        guard !isFuture else { return nil }
-        return AttendanceRules.statusAfterTap(from: row.status, in: phase)
-    }
-
-    // MARK: - Filtering
-
-    func visibleStudents(from all: [CDStudent]) -> [CDStudent] {
-        TestStudentsFilter.filterVisible(all)
-    }
-
-    func sortedAndFiltered(students: [CDStudent]) -> [CDStudent] {
-        switch sortKey {
-        case .firstName:
-            return students.sorted(by: StudentSortComparator.byFirstName)
-        case .lastName:
-            return students.sorted(by: StudentSortComparator.byLastName)
-        }
     }
 
     // MARK: - Loading
@@ -134,13 +99,21 @@ final class AttendanceViewModel {
             records.filter { allowed.contains($0.studentID) }.map { ($0.studentID, $0) },
             uniquingKeysWith: { first, _ in first }
         )
+        let isDayOff = SchoolDayChecker.isNonSchoolDay(target, using: modelContext)
+        if case .counted(let number) = dayCounter.count(
+            target, isDayOff: isDayOff, current: dayNumber, in: modelContext
+        ) {
+            dayNumber = number
+        }
+        let returning = isDayOff ? [:] : AttendanceWelcomeBack.returning(on: target, in: modelContext)
         let gridNames = AttendanceGridNames.names(for: students)
         rows = students.map { student in
             AttendanceRow(
                 student: student,
                 record: recordsByStudentID[student.cloudKitKey],
                 shortName: gridNames[student.objectID] ?? student.shortName,
-                day: target
+                day: target,
+                daysAway: returning[student.cloudKitKey]
             )
         }
     }
@@ -171,6 +144,7 @@ final class AttendanceViewModel {
         let store = CDAttendanceStore(context: modelContext)
         guard store.updateStatus(record, to: status) else { return false }
         changed([record])
+        welcomeBack(row, to: status)
         return true
     }
 
@@ -182,6 +156,13 @@ final class AttendanceViewModel {
         let marked = store.updateStatus(record, to: .absent)
         let reasoned = store.updateAbsenceReason(record, to: reason)
         if marked || reasoned { changed([record]) }
+    }
+
+    /// "Welcome back" when a child back after days away is marked in.
+    private func welcomeBack(_ row: AttendanceRow, to status: AttendanceStatus) {
+        let comesIn = status == .present || status == .tardy || status == .leftEarly
+        guard row.daysAway != nil, !row.isHere, comesIn else { return }
+        welcome = Welcome(name: row.shortName)
     }
 
     /// Writes the day's note, creating the record if there is none yet.
@@ -315,17 +296,6 @@ final class AttendanceViewModel {
         return restored.count
     }
 
-    // MARK: - Stats
-
-    var countPresent: Int { rows.count { $0.status == .present } }
-    var countAbsent: Int { rows.count { $0.status == .absent } }
-    var countTardy: Int { rows.count { $0.status == .tardy } }
-    var countLeftEarly: Int { rows.count { $0.status == .leftEarly } }
-
-    /// "In Class" counts students who are either Present or Tardy.
-    /// This is a derived metric for the header summary only and does not change stored data.
-    var inClassCount: Int { countPresent + countTardy }
-
     // MARK: - Rows
 
     /// The row's record, created on the first mark. Nil when the child has
@@ -360,7 +330,10 @@ final class AttendanceViewModel {
         for (key, record) in byStudent { recordsByStudentID[key] = record }
         rows = rows.map { row in
             guard let record = byStudent[row.student.cloudKitKey] else { return row }
-            return AttendanceRow(student: row.student, record: record, shortName: row.shortName, day: selectedDate)
+            return AttendanceRow(
+                student: row.student, record: record, shortName: row.shortName,
+                day: selectedDate, daysAway: row.daysAway
+            )
         }
     }
 }

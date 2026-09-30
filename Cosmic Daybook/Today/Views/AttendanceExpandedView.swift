@@ -15,6 +15,8 @@ struct AttendanceExpandedView: View {
     let onToast: (String) -> Void
     /// A sideways swipe on the iPhone's tiles: true for the next school day.
     var onStepDay: ((Bool) -> Void)?
+    /// The Attendance screen's own title shows "Day 37"; Today keeps its own.
+    var showsDayInTitle = false
 
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.horizontalSizeClass) var hSizeClass
@@ -44,6 +46,14 @@ struct AttendanceExpandedView: View {
     @State var activeChipPopover: AttendanceStatus?
     /// "Everyone's here · 8:14", for a few seconds after a mark completes the roll.
     @State var finishedLine: String?
+    /// "Welcome back, Maya", for a few seconds after a returning child is marked in.
+    @State var welcomeLine: String?
+    /// Bumped to drop the Day 100 confetti.
+    @State var confettiBursts = 0
+    #if os(iOS)
+    /// The Montessori bells on the iPhone's tiles, off until turned on.
+    @AppStorage(AttendanceBells.enabledKey) var bellsOn = false
+    #endif
 
     // Locked days are `AttendanceDayLock` records in the classroom share, so
     // an assistant sees them too (they used to be an iCloud setting only the
@@ -90,14 +100,17 @@ struct AttendanceExpandedView: View {
                 tap: { row in
                     viewModel.tap(row, modelContext: viewContext)
                     saved("Update status")
+                    rang(after: row)
                 },
                 setStatus: { status, row in
                     viewModel.setStatus(status, for: row, modelContext: viewContext)
                     saved("Update status")
+                    rang(after: row)
                 },
                 markAbsent: { reason, row in
                     viewModel.markAbsent(reason: reason, for: row, modelContext: viewContext)
                     saved("Update reason")
+                    rang(after: row)
                 },
                 saveNote: { row, note in
                     viewModel.updateNote(for: row, note: note, modelContext: viewContext)
@@ -107,6 +120,13 @@ struct AttendanceExpandedView: View {
             onStepDay: onStepDay
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// A bell for the mark, on the iPhone's tiles (`ring(after:)`).
+    private func rang(after row: AttendanceRow) {
+        #if os(iOS)
+        ring(after: row)
+        #endif
     }
 
     /// Saves a change to the roll and tells the host screen.
@@ -141,6 +161,7 @@ struct AttendanceExpandedView: View {
             // An Undo belongs to the day it was offered on.
             dependencies.toastService.dismiss()
             finishedLine = nil
+            welcomeLine = nil
             loadData()
         }
         .onChange(of: rosterIDs) { _, _ in
@@ -162,9 +183,8 @@ struct AttendanceExpandedView: View {
         .onChange(of: localSortKey) { _, newValue in
             viewModel.setSortKey(newValue)
         }
-        .onChange(of: viewModel.completions) {
-            finishedLine = AttendanceRules.completionText(viewModel.rows, at: viewModel.isToday ? Date() : nil)
-        }
+        .onChange(of: viewModel.completions) { rollCompleted() }
+        .modifier(delightFollowUps)
         .task(id: finishedLine) {
             guard finishedLine != nil, (try? await Task.sleep(for: .seconds(5))) != nil else { return }
             finishedLine = nil

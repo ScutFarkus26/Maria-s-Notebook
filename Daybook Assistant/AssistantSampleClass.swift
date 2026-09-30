@@ -97,7 +97,7 @@ enum AssistantSampleClass {
             mark(student, .present, on: firstDay, in: context)
         }
         #if DEBUG
-        if given > 0 { AssistantSchoolDayCount.yearStartOverride = firstDay }
+        if given > 0 { AttendanceSchoolDayCount.yearStartOverride = firstDay }
         #endif
 
         guard let noah = students.first(where: { $0.firstName == "Noah" }) else { return }

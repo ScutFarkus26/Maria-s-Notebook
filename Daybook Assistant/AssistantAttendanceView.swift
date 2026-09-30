@@ -353,22 +353,22 @@ extension AssistantAttendanceView {
         ripples += 1
         if let viewModel, viewModel.isToday, viewModel.milestone == .hundredthDay {
             confettiBursts += 1
-            AssistantBells.shared.play(.hundredthDay)
+            AttendanceBells.shared.play(.hundredthDay)
         } else {
-            AssistantBells.shared.play(.everyoneMarked)
+            AttendanceBells.shared.play(.everyoneMarked)
         }
     }
 
     /// Her mark's bell, if she has them on: the next note up for a child
     /// here, a low one for an absence, nothing for clearing.
     func ring(for row: AssistantAttendanceViewModel.Row, in viewModel: AssistantAttendanceViewModel) {
-        guard AssistantBells.isOn, let marked = viewModel.rows.first(where: { $0.id == row.id }) else { return }
+        guard AttendanceBells.isOn, let marked = viewModel.rows.first(where: { $0.id == row.id }) else { return }
         switch TileTapMotion.Kind(marked.status) {
         case .here:
             let here = viewModel.rows.count { [.present, .tardy, .leftEarly].contains($0.status) }
-            AssistantBells.shared.play(.here(count: here))
+            AttendanceBells.shared.play(.here(count: here))
         case .away:
-            AssistantBells.shared.play(.away)
+            AttendanceBells.shared.play(.away)
         case .cleared:
             break
         }

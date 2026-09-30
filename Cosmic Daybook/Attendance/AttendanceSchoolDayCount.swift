@@ -5,14 +5,14 @@ import CoreData
 /// party: the first day, and the hundredth, which elementary classes make a
 /// fuss of.
 ///
-/// The school year's start is the guide's own setting, on her devices only,
-/// so the Assistant works it out from what they share: the first day since
+/// The Assistant can't read the guide's school-year setting (it lives on the
+/// guide's devices only), so it works the start out from what they share: the first day since
 /// July 1 that any child was marked here (present, late or left early). A
 /// vacation marked absent ahead of time can't make a false first day. July,
 /// not September: this class began on Aug 31. From there it counts school
 /// days by the guide's calendar (`SchoolDayChecker`), the same days the ‹ ›
 /// arrows step through.
-enum AssistantSchoolDayCount {
+enum AttendanceSchoolDayCount {
 
     enum Milestone: Equatable {
         case firstDay
@@ -23,6 +23,14 @@ enum AssistantSchoolDayCount {
             switch self {
             case .firstDay: return "First Day"
             case .hundredthDay: return "Day 100"
+            }
+        }
+
+        /// The first half of "Everyone's here · 8:14" on this day.
+        var everyoneHere: String {
+            switch self {
+            case .firstDay: return "Everyone's here for the first day"
+            case .hundredthDay: return "Everyone's here for day 100"
             }
         }
     }
@@ -109,8 +117,9 @@ enum AssistantSchoolDayCount {
 /// Keeps the grid from recounting on every reload: it counts when the day
 /// changes, or while the count isn't known yet (the year's first marks may
 /// still be on their way from iCloud), and remembers each year's first day
-/// once found.
-struct AssistantDayCounter {
+/// once found. Both apps count the same way, so the guide's notebook and her
+/// assistant's phone always show the same day number.
+struct AttendanceDayCounter {
     /// Each school year's first day, by its July 1.
     private var firstDays: [Date: Date] = [:]
     /// The day last counted.
@@ -132,12 +141,12 @@ struct AssistantDayCounter {
         guard countedDay != day || (current == nil && !isDayOff) else { return .unchanged }
         countedDay = day
         guard !isDayOff else { return .counted(nil) }
-        let yearStart = AssistantSchoolDayCount.yearStart(for: day)
+        let yearStart = AttendanceSchoolDayCount.yearStart(for: day)
         if firstDays[yearStart] == nil {
-            firstDays[yearStart] = AssistantSchoolDayCount.firstDay(inYearStarting: yearStart, in: context)
+            firstDays[yearStart] = AttendanceSchoolDayCount.firstDay(inYearStarting: yearStart, in: context)
         }
         let number = firstDays[yearStart].flatMap {
-            AssistantSchoolDayCount.number(of: day, firstDay: $0, in: context)
+            AttendanceSchoolDayCount.number(of: day, firstDay: $0, in: context)
         }
         return .counted(number)
     }

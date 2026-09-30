@@ -20,6 +20,11 @@
 		DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */; };
 		DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */; };
 		DB2A0C5E7F20A4B3C9D82E01 /* AttendanceRoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */; };
+		DDB3A07161C605469391E73F /* SeededRandom.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB3A07161C605469391E73F /* SeededRandom.swift */; };
+		DDB083A413102361A9AFA9CC /* AttendanceBells.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB083A413102361A9AFA9CC /* AttendanceBells.swift */; };
+		DD835A40FF4DF2089FDEDE6B /* HundredthDayConfetti.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC835A40FF4DF2089FDEDE6B /* HundredthDayConfetti.swift */; };
+		DD35413E73674FA3481208C0 /* AttendanceWelcomeBack.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC35413E73674FA3481208C0 /* AttendanceWelcomeBack.swift */; };
+		DD3C1A90BFC5AEF2675084A6 /* AttendanceSchoolDayCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3C1A90BFC5AEF2675084A6 /* AttendanceSchoolDayCount.swift */; };
 		DD72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift */; };
 		DD5F670542853FBEBAF589D5 /* TileAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5F670542853FBEBAF589D5 /* TileAccessibility.swift */; };
 		DDB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift */; };
@@ -168,6 +173,11 @@
 		DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NonSchoolDayEntity.swift; path = "Cosmic Daybook/Models/NonSchoolDayEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchoolDayOverrideEntity.swift; path = "Cosmic Daybook/Models/SchoolDayOverrideEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceRoster.swift; path = "Cosmic Daybook/Attendance/AttendanceRoster.swift"; sourceTree = SOURCE_ROOT; };
+		DCB3A07161C605469391E73F /* SeededRandom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SeededRandom.swift"; path = "Cosmic Daybook/Attendance/SeededRandom.swift"; sourceTree = SOURCE_ROOT; };
+		DCB083A413102361A9AFA9CC /* AttendanceBells.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceBells.swift"; path = "Cosmic Daybook/Attendance/AttendanceBells.swift"; sourceTree = SOURCE_ROOT; };
+		DC835A40FF4DF2089FDEDE6B /* HundredthDayConfetti.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "HundredthDayConfetti.swift"; path = "Cosmic Daybook/Attendance/HundredthDayConfetti.swift"; sourceTree = SOURCE_ROOT; };
+		DC35413E73674FA3481208C0 /* AttendanceWelcomeBack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceWelcomeBack.swift"; path = "Cosmic Daybook/Attendance/AttendanceWelcomeBack.swift"; sourceTree = SOURCE_ROOT; };
+		DC3C1A90BFC5AEF2675084A6 /* AttendanceSchoolDayCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceSchoolDayCount.swift"; path = "Cosmic Daybook/Attendance/AttendanceSchoolDayCount.swift"; sourceTree = SOURCE_ROOT; };
 		DC72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "EnvironmentValues+AttendanceBackdrop.swift"; path = "Cosmic Daybook/Attendance/Tile/EnvironmentValues+AttendanceBackdrop.swift"; sourceTree = SOURCE_ROOT; };
 		DC5F670542853FBEBAF589D5 /* TileAccessibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TileAccessibility.swift"; path = "Cosmic Daybook/Attendance/Tile/TileAccessibility.swift"; sourceTree = SOURCE_ROOT; };
 		DCB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceTile+Style.swift"; path = "Cosmic Daybook/Attendance/Tile/AttendanceTile+Style.swift"; sourceTree = SOURCE_ROOT; };
@@ -351,6 +361,11 @@
 				DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */,
 				DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */,
 				DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */,
+				DCB3A07161C605469391E73F /* SeededRandom.swift */,
+				DCB083A413102361A9AFA9CC /* AttendanceBells.swift */,
+				DC835A40FF4DF2089FDEDE6B /* HundredthDayConfetti.swift */,
+				DC35413E73674FA3481208C0 /* AttendanceWelcomeBack.swift */,
+				DC3C1A90BFC5AEF2675084A6 /* AttendanceSchoolDayCount.swift */,
 				DC72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift */,
 				DC5F670542853FBEBAF589D5 /* TileAccessibility.swift */,
 				DCB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift */,
@@ -623,6 +638,11 @@
 				DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */,
 				DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */,
 				DB2A0C5E7F20A4B3C9D82E01 /* AttendanceRoster.swift in Sources */,
+				DDB3A07161C605469391E73F /* SeededRandom.swift in Sources */,
+				DDB083A413102361A9AFA9CC /* AttendanceBells.swift in Sources */,
+				DD835A40FF4DF2089FDEDE6B /* HundredthDayConfetti.swift in Sources */,
+				DD35413E73674FA3481208C0 /* AttendanceWelcomeBack.swift in Sources */,
+				DD3C1A90BFC5AEF2675084A6 /* AttendanceSchoolDayCount.swift in Sources */,
 				DD72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift in Sources */,
 				DD5F670542853FBEBAF589D5 /* TileAccessibility.swift in Sources */,
 				DDB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift in Sources */,

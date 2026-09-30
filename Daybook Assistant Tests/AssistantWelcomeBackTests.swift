@@ -8,7 +8,7 @@ import Testing
 @MainActor
 struct AssistantWelcomeBackTests {
 
-    typealias Welcome = AssistantWelcomeBack
+    typealias Welcome = AttendanceWelcomeBack
 
     private func day(_ iso: String) throws -> Date {
         try AssistantTestSupport.day(iso)

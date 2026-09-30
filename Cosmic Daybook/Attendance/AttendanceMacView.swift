@@ -28,6 +28,8 @@ struct AttendanceMacView: View {
     @State private var historySheetStudentID: UUID?
     @State private var reloadToken: Int = 0
     @State private var toastMessage: String?
+    /// "Day 37", from the roll (`AttendanceDayLabelKey`).
+    @State private var dayLabel: String?
 
     private static let logger = Logger.attendance
 
@@ -88,6 +90,7 @@ struct AttendanceMacView: View {
             )
         }
         .navigationTitle("Attendance")
+        .onPreferenceChange(AttendanceDayLabelKey.self) { dayLabel = $0 }
     }
 
     private var mainColumn: some View {
@@ -113,7 +116,8 @@ struct AttendanceMacView: View {
                 date: selectedDate,
                 isNonSchoolDay: SchoolCalendarService.shared.isNonSchoolDaySync(selectedDate, using: viewContext),
                 onChange: { bumpReloadToken() },
-                onToast: { message in toast(message) }
+                onToast: { message in toast(message) },
+                showsDayInTitle: true
             )
             .padding(.horizontal, AppTheme.Spacing.medium)
         }
@@ -168,7 +172,9 @@ struct AttendanceMacView: View {
 
             Spacer()
 
-            Text(DateFormatters.fullDate.string(from: selectedDate))
+            // "Wednesday, September 30, 2026 · Day 23"
+            Text([DateFormatters.fullDate.string(from: selectedDate), dayLabel].compactMap(\.self)
+                .joined(separator: " · "))
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(.secondary)
         }

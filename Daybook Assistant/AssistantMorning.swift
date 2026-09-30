@@ -11,7 +11,7 @@ import SwiftUI
 enum AssistantGreeting {
     static func text(at date: Date, name: String?, dayNumber: Int? = nil, calendar: Calendar = .current) -> String {
         let first = firstName(name)
-        switch AssistantSchoolDayCount.milestone(for: dayNumber) {
+        switch AttendanceSchoolDayCount.milestone(for: dayNumber) {
         case .firstDay:
             return first.map { "Welcome to a new year, \($0)" } ?? "Welcome to a new year"
         case .hundredthDay:

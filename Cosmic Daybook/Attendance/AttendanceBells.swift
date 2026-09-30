@@ -1,8 +1,10 @@
+#if os(iOS)
 import AVFoundation
 import OSLog
 
-/// The Montessori bells as she marks, off until she turns them on in
-/// Classroom: the eight brass bells of the C major scale, middle C to the C
+/// The Montessori bells as children are marked in on a phone's attendance
+/// grid, off until turned on (the Assistant's Classroom sheet, the notebook's
+/// attendance menu): the eight brass bells of the C major scale, middle C to the C
 /// above. Each child marked here rings the next bell, up the scale and back
 /// down again as the children do with the real bells, so the morning never
 /// jumps from the top C to the bottom one. An absence is the low C struck and
@@ -14,8 +16,9 @@ import OSLog
 /// never stops her music. The engine runs only while a bell rings, stopping
 /// a few seconds after the last.
 @MainActor
-final class AssistantBells {
-    static let shared = AssistantBells()
+final class AttendanceBells {
+    static let shared = AttendanceBells()
+    /// Each app keeps its own; the name dates from when only the Assistant rang.
     static let enabledKey = "Assistant.bellsOn"
 
     static var isOn: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
@@ -63,7 +66,17 @@ final class AssistantBells {
         let player = players[nextPlayer]
         nextPlayer = (nextPlayer + 1) % players.count
         player.scheduleBuffer(buffer, at: nil, options: .interrupts)
-        player.play()
+        // The Assistant runs on iOS 18; the throwing forms arrived in iOS 27.
+        if #available(iOS 27.0, *) {
+            do {
+                try player.playAudio()
+            } catch {
+                Self.logger.error("A bell couldn't ring: \(error.localizedDescription, privacy: .public)")
+                return
+            }
+        } else {
+            player.play()
+        }
         scheduleStop(after: max(4, Double(buffer.frameLength) / format.sampleRate + 0.5))
     }
 
@@ -74,7 +87,11 @@ final class AssistantBells {
             for _ in 0..<4 {
                 let player = AVAudioPlayerNode()
                 engine.attach(player)
-                engine.connect(player, to: engine.mainMixerNode, format: format)
+                if #available(iOS 27.0, *) {
+                    try engine.connectNode(player, to: engine.mainMixerNode, format: format)
+                } else {
+                    engine.connect(player, to: engine.mainMixerNode, format: format)
+                }
                 players.append(player)
             }
             engine.mainMixerNode.outputVolume = 0.5
@@ -198,3 +215,4 @@ final class AssistantBells {
         return buffer
     }
 }
+#endif

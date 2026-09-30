@@ -180,6 +180,59 @@ struct AttendanceViewModelTests {
         #expect(status(locked, "Maya") == .unmarked)
     }
 
+    // MARK: - Welcome back and the day's number
+
+    private func mark(_ student: CDStudent, _ status: AttendanceStatus, on day: String) throws {
+        let store = CDAttendanceStore(context: context)
+        let record = try #require(try store.ensureRecord(for: student, on: try CoreDataTestHelpers.day(day)))
+        #expect(store.updateStatus(record, to: status))
+    }
+
+    @Test("A child absent the last three school days is welcomed back when marked in")
+    func welcomeBack() throws {
+        let maya = student("Maya")
+        let ari = student("Ari")
+        for day in ["2026-09-09", "2026-09-10", "2026-09-11"] { try mark(maya, .absent, on: day) }
+        try mark(ari, .absent, on: "2026-09-11")
+        let roll = model(on: try CoreDataTestHelpers.day("2026-09-14"), students: [maya, ari])
+        let mayaRow = try #require(roll.rows.first { $0.shortName == "Maya" })
+        #expect(mayaRow.daysAway == 3)
+        #expect(roll.rows.first { $0.shortName == "Ari" }?.daysAway == nil)
+
+        roll.tap(mayaRow, modelContext: context)
+        #expect(roll.welcome?.name == "Maya")
+    }
+
+    @Test("Marking a returning child absent again welcomes no one")
+    func noWelcomeForAbsence() throws {
+        let maya = student("Maya")
+        for day in ["2026-09-09", "2026-09-10", "2026-09-11"] { try mark(maya, .absent, on: day) }
+        let roll = model(on: try CoreDataTestHelpers.day("2026-09-14"), students: [maya])
+        roll.markAbsent(reason: .sick, for: try #require(roll.rows.first), modelContext: context)
+        #expect(roll.welcome == nil)
+    }
+
+    @Test("The day's number counts school days from the year's first child marked here")
+    func dayNumber() throws {
+        let maya = student("Maya")
+        try mark(maya, .present, on: "2026-09-01")
+        let roll = model(on: try CoreDataTestHelpers.day("2026-09-14"), students: [maya])
+        // Sep 1–4, 7–11 and 14: ten school days, with no days off entered.
+        #expect(roll.dayNumber == 10)
+        #expect(roll.dayLabel == "Day 10")
+
+        roll.load(for: try CoreDataTestHelpers.day("2026-09-01"), students: [maya], modelContext: context)
+        #expect(roll.milestone == .firstDay)
+        #expect(roll.dayLabel == "First Day")
+    }
+
+    @Test("No count before anyone has been marked here this year")
+    func noDayNumberYet() throws {
+        let roll = model(on: try CoreDataTestHelpers.day("2026-09-14"), students: [student("Maya")])
+        #expect(roll.dayNumber == nil)
+        #expect(roll.dayLabel == nil)
+    }
+
     // MARK: - Reset
 
     @Test("Undoing Reset Day puts back marks, reasons, notes and times")

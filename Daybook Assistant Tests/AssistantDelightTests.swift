@@ -213,23 +213,23 @@ struct AssistantDelightTests {
 
     @Test("The bells are the C major scale from middle C")
     func bellScale() {
-        #expect(AssistantBells.scale.count == 8)
-        #expect(abs(AssistantBells.scale[0] - 261.63) < 0.01)
-        #expect(abs(AssistantBells.scale[7] - 2 * AssistantBells.scale[0]) < 0.05)
+        #expect(AttendanceBells.scale.count == 8)
+        #expect(abs(AttendanceBells.scale[0] - 261.63) < 0.01)
+        #expect(abs(AttendanceBells.scale[7] - 2 * AttendanceBells.scale[0]) < 0.05)
     }
 
     @Test("Bells climb the scale as the class fills, come back down, and never jump")
     func bellNotes() {
-        let notes = (1...30).map(AssistantBells.note(forHereCount:))
-        #expect(notes[0] == AssistantBells.scale[0])
-        #expect(notes[7] == AssistantBells.scale[7])
-        #expect(notes[8] == AssistantBells.scale[6])
+        let notes = (1...30).map(AttendanceBells.note(forHereCount:))
+        #expect(notes[0] == AttendanceBells.scale[0])
+        #expect(notes[7] == AttendanceBells.scale[7])
+        #expect(notes[8] == AttendanceBells.scale[6])
         // Around again after C D E F G A B C′ B A G F E D.
-        #expect(notes[14] == AssistantBells.scale[0])
+        #expect(notes[14] == AttendanceBells.scale[0])
         // Every step is to a neighboring bell.
         for (earlier, later) in zip(notes, notes.dropFirst()) {
-            let from = AssistantBells.scale.firstIndex(of: earlier) ?? -10
-            let to = AssistantBells.scale.firstIndex(of: later) ?? 10
+            let from = AttendanceBells.scale.firstIndex(of: earlier) ?? -10
+            let to = AttendanceBells.scale.firstIndex(of: later) ?? 10
             #expect(abs(from - to) == 1)
         }
     }

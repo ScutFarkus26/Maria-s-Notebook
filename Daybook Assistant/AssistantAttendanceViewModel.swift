@@ -57,8 +57,8 @@ final class AssistantAttendanceViewModel {
     /// The day on screen's school day of the year ("Day 37"), nil on a day
     /// off, before the first day, or before any mark this year has synced.
     private(set) var dayNumber: Int?
-    var milestone: AssistantSchoolDayCount.Milestone? { AssistantSchoolDayCount.milestone(for: dayNumber) }
-    @ObservationIgnored private var dayCounter = AssistantDayCounter()
+    var milestone: AttendanceSchoolDayCount.Milestone? { AttendanceSchoolDayCount.milestone(for: dayNumber) }
+    @ObservationIgnored private var dayCounter = AttendanceDayCounter()
 
     /// The last failed save or bulk mark, else the last failed load. A save
     /// failure outlasts a successful reload (the change is still unsaved);
@@ -205,7 +205,7 @@ final class AssistantAttendanceViewModel {
         )
 
         let gridNames = AttendanceGridNames.names(for: students)
-        let returning = dayOff == nil ? AssistantWelcomeBack.returning(on: date, in: context) : [:]
+        let returning = dayOff == nil ? AttendanceWelcomeBack.returning(on: date, in: context) : [:]
         rows = students.map { student in
             let key = student.id?.uuidString ?? ""
             return Row(

@@ -58,13 +58,8 @@ extension AssistantAttendanceViewModel {
     static func completionText(
         _ rows: [Row],
         at time: Date?,
-        milestone: AssistantSchoolDayCount.Milestone? = nil
+        milestone: AttendanceSchoolDayCount.Milestone? = nil
     ) -> String {
-        let everyone = switch milestone {
-        case .hundredthDay: "Everyone's here for day 100"
-        case .firstDay: "Everyone's here for the first day"
-        case nil: "Everyone's here"
-        }
-        return AttendanceRules.completionText(rows, at: time, everyone: everyone)
+        AttendanceRules.completionText(rows, at: time, everyone: milestone?.everyoneHere ?? "Everyone's here")
     }
 }

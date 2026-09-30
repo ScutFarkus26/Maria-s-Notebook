@@ -53,6 +53,13 @@ extension AttendanceExpandedView {
                 }
                 .disabled(isNonSchoolDay || !isEditing)
 
+                #if os(iOS)
+                // The Montessori bells as children are marked in (this phone only)
+                Toggle(isOn: $bellsOn) {
+                    Label("Bells", systemImage: "bell")
+                }
+                #endif
+
                 Divider()
 
                 // Tardy Report

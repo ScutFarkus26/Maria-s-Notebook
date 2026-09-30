@@ -75,6 +75,16 @@ struct AttendanceCard: View {
                     .accessibilityLabel(birthday.title)
             }
 
+            // Back after days away: welcome them at the door.
+            if let daysAway = row.daysAway {
+                let phrase = AttendanceRules.welcomeBackPhrase(daysAway: daysAway)
+                Image(systemName: "hand.wave.fill")
+                    .font(.caption)
+                    .foregroundStyle(.teal)
+                    .help(phrase)
+                    .accessibilityLabel(phrase)
+            }
+
             // Visual indicator that a note exists
             if hasNote {
                 Image(systemName: "note.text")
@@ -201,9 +211,10 @@ struct AttendanceCard: View {
             .accessibilityHint(isEditing ? "Changes the attendance status" : "")
     }
 
-    /// "Maya Stone, birthday, Present at 8:04".
+    /// "Maya Stone, birthday, back after 4 days, Present at 8:04".
     private var accessibilityLabel: String {
         let birthday = row.birthday.map { ", \($0.title.lowercased())" } ?? ""
-        return "\(row.name)\(birthday), \(AttendanceRules.markSummary(row) ?? status.displayName)"
+        let away = row.daysAway.map { ", " + AttendanceRules.welcomeBackPhrase(daysAway: $0).lowercased() } ?? ""
+        return "\(row.name)\(birthday)\(away), \(AttendanceRules.markSummary(row) ?? status.displayName)"
     }
 }
