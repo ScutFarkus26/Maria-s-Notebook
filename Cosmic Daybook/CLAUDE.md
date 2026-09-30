@@ -343,3 +343,20 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 - **Model-driven rows for 31 types:** where a backup is a straight copy of the attributes, the DTO name is an alias of `ModelRow<Kind>` (`Backup/ModelRow.swift`) and the type has a short `ModelRowSpec` in `Backup/ModelRowKinds.swift`: `filling` (optional attributes the export writes "now"/a new id/`[]` for when nil — older builds need them to decode), `omitting` (device-local blobs), `parentIDs` (a parent's id written from a relationship) and `parents` (how restore re-links: keep, clear when not found, or always set). Everything else — keys, types, which keys are required — comes from the model, read once off the main actor (`BackupModelSchema`). Restore goes through `BackupEntityImporter.importRows`. The other 42 types keep hand-written DTOs (`Backup/BackupTypes*.swift`), transformers (`Backup/Export/`) and importers (`Backup/Import/`) because they reshape, validate or drop data. A new plain type is one table line plus one spec.
 - **Output is pinned:** `BackupGoldenOutputTests` (+ `BackupGolden-v27.json`) compares a backup of the fully populated field-coverage fixture byte for byte and checks restore-then-export; `BackupSparseRowTests` (+ `BackupSparseRows-v27.json`, recorded from the hand-written code) pins nil fields, id-less records, id-only rows and missing parents for the 31 model-row types. Re-record only for an intended format change (`TEST_RUNNER_RECORD_BACKUP_GOLDEN=1` / `TEST_RUNNER_RECORD_BACKUP_SPARSE=1`; the file lands in the simulator app's tmp).
 - Binary attributes are excluded from backups by design because they're regenerable (thumbnails, covers, file bookmarks). The **one exception is the album annotations** (format v21): highlight rectangles travel as plain numbers and Pencil ink travels as its PencilKit data, because neither can be recreated after a restore.
+
+## Todos for Danny
+
+Todos for this app go in Tide, in `Areas/App Development/Cosmic Daybook/TODO.md` —
+never in the old single `Areas/App Development/TODO.md`, which is gone. Add
+them with Tide's `add_action`, giving that file and one of its five headings:
+
+- `Release` — getting a build onto devices or TestFlight, uploading an archive, importing data into CloudKit.
+- `Check on a device` — by-hand checks of something built ("try", "click through", "after the roll-out, check…").
+- `Build & fix` — code work for a later Claude session, and cleanup of bad data.
+- `Review choices` — mainly deciding: confirming choices in a DECISIONS or progress doc. "Try it, and review" is a Check.
+- `Someday ideas` — features not committed to.
+
+Put a row last in its heading unless it is urgent or blocks the rows below it;
+the file's first two open rows are this app's next actions. A row for another
+of Danny's apps goes in that app's folder; the full rules are in
+`~/Documents/My Documents/Areas/App Development/README.md`.
