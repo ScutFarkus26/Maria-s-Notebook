@@ -20,16 +20,23 @@ struct ClassroomMembersSheet: View {
     @State private var isWorking = false
     @State private var errorMessage: String?
     @State private var confirmingRemoveAll = false
+    /// The person whose minus button was clicked, waiting for the confirmation.
+    @State private var memberToRemove: CKShare.Participant?
     @State private var linkCopied = false
+    /// Puts "Copy link" back a moment after a copy; replaced by each new copy.
+    @State private var linkCopiedReset: Task<Void, Never>?
+
+    private static let loseAccessMessage =
+        "They'll lose access to your students, attendance and school calendar. You can add them again later."
 
     private var members: [CKShare.Participant] {
         service.participants.filter { $0.role != .owner }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Share Classroom")
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                Text("Share your classroom")
                     .font(.title2.weight(.semibold))
                 Text(
                     "Add your assistant by the email address or phone number of their Apple Account, " +
@@ -39,7 +46,7 @@ struct ClassroomMembersSheet: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 if let contents {
-                    Label("They'll see \(contents.summary).", systemImage: "person.2")
+                    Label("What your assistant sees: \(contents.summary).", systemImage: "eye")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -53,13 +60,13 @@ struct ClassroomMembersSheet: View {
             if let errorMessage {
                 Text(errorMessage)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.destructive)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack {
                 if !members.isEmpty {
-                    Button("Remove Everyone…", role: .destructive) {
+                    Button("Remove everyone…", role: .destructive) {
                         confirmingRemoveAll = true
                     }
                     .disabled(isWorking)
@@ -73,24 +80,40 @@ struct ClassroomMembersSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 480)
+        .frame(minWidth: 420, idealWidth: 480)
         .confirmationDialog(
             "Remove everyone from your classroom?",
             isPresented: $confirmingRemoveAll,
             titleVisibility: .visible
         ) {
-            Button("Remove Everyone", role: .destructive) {
+            Button("Remove everyone", role: .destructive) {
                 run("removing classroom members") { try await service.removeAllMembers() }
             }
         } message: {
-            Text("Assistants will lose access to classroom data. You can add them again later.")
+            Text(Self.loseAccessMessage)
         }
+        .confirmationDialog(
+            memberToRemove.map { "Remove \(displayName($0)) from your classroom?" } ?? "",
+            isPresented: Binding(
+                get: { memberToRemove != nil },
+                set: { if !$0 { memberToRemove = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: memberToRemove
+        ) { member in
+            Button("Remove", role: .destructive) {
+                run("removing \(displayName(member))") { try await service.removeMember(member) }
+            }
+        } message: { _ in
+            Text(Self.loseAccessMessage)
+        }
+        .onDisappear { linkCopiedReset?.cancel() }
     }
 
     // MARK: - Add
 
     private var addForm: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: AppTheme.Spacing.small) {
             TextField("Email or phone number", text: $address)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(add)
@@ -118,8 +141,8 @@ struct ClassroomMembersSheet: View {
     // MARK: - Members
 
     private var memberList: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("People")
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+            Text("Members")
                 .font(.headline)
             if members.isEmpty {
                 Text("Nobody else yet.")
@@ -136,7 +159,7 @@ struct ClassroomMembersSheet: View {
     private func memberRow(_ member: CKShare.Participant) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "person.circle.fill")
-                .foregroundStyle(member.acceptanceStatus == .accepted ? .blue : .yellow)
+                .foregroundStyle(member.acceptanceStatus == .accepted ? AppColors.info : AppColors.warning)
             VStack(alignment: .leading, spacing: 1) {
                 Text(displayName(member))
                 Text(statusLine(member))
@@ -145,12 +168,13 @@ struct ClassroomMembersSheet: View {
             }
             Spacer()
             Button {
-                run("removing \(displayName(member))") { try await service.removeMember(member) }
+                memberToRemove = member
             } label: {
                 Image(systemName: "minus.circle")
             }
             .buttonStyle(.borderless)
             .help("Remove")
+            .accessibilityLabel("Remove \(displayName(member))")
             .disabled(isWorking)
         }
     }
@@ -166,7 +190,7 @@ struct ClassroomMembersSheet: View {
 
     private func statusLine(_ member: CKShare.Participant) -> String {
         let status = member.acceptanceStatus == .accepted ? "Joined" : "Invited"
-        let access = member.permission == .readWrite ? "can make changes" : "view only"
+        let access = member.permission == .readWrite ? "Can make changes" : "View only"
         return "\(status) · \(access)"
     }
 
@@ -175,16 +199,22 @@ struct ClassroomMembersSheet: View {
     @ViewBuilder
     private var linkRow: some View {
         if let url = service.currentShare?.url {
-            HStack(spacing: 8) {
+            HStack(spacing: AppTheme.Spacing.small) {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(url.absoluteString, forType: .string)
                     linkCopied = true
+                    linkCopiedReset?.cancel()
+                    linkCopiedReset = Task {
+                        try? await Task.sleep(for: .seconds(2))
+                        guard !Task.isCancelled else { return }
+                        linkCopied = false
+                    }
                 } label: {
-                    Label(linkCopied ? "Link Copied" : "Copy Link", systemImage: "link")
+                    Label(linkCopied ? "Link copied" : "Copy link", systemImage: "link")
                 }
                 ShareLink(item: url) {
-                    Label("Send Link…", systemImage: "square.and.arrow.up")
+                    Label("Send link…", systemImage: "square.and.arrow.up")
                 }
             }
         }

@@ -8,7 +8,7 @@ struct TestStudentsSettingsView: View {
     @State private var draftNames: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             Toggle("Show Test Students", isOn: $showTestStudents)
             
             if !showTestStudents {
@@ -20,12 +20,12 @@ struct TestStudentsSettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 #else
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                     Text("Test students are excluded from all views:")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: AppTheme.Spacing.small) {
                             ExclusionItem("Students")
                             ExclusionItem("Today")
                             ExclusionItem("Attendance")
@@ -38,11 +38,11 @@ struct TestStudentsSettingsView: View {
                             ExclusionItem("Notes")
                             ExclusionItem("Inbox")
                         }
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, AppTheme.Spacing.xsmall)
                     }
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
+                .padding(.vertical, AppTheme.Spacing.small)
+                .padding(.horizontal, AppTheme.Spacing.compact)
                 .surface(
                     UIConstants.CornerRadius.medium,
                     fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
@@ -61,7 +61,7 @@ struct TestStudentsSettingsView: View {
                 .font(AppTheme.ScaledFont.body)
                 .frame(minHeight: 80)
                 #if os(iOS)
-                .padding(8)
+                .padding(AppTheme.Spacing.small)
                 .surface(
                     UIConstants.CornerRadius.medium,
                     fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
@@ -87,8 +87,6 @@ struct TestStudentsSettingsView: View {
             }
         }
         .onAppear { draftNames = testStudentNamesRaw }
-        .onChange(of: showTestStudents) { _, _ in SettingsCategory.markModified(.advanced) }
-        .onChange(of: testStudentNamesRaw) { _, _ in SettingsCategory.markModified(.advanced) }
     }
 }
 
@@ -100,9 +98,9 @@ private struct ExclusionItem: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: AppTheme.Spacing.verySmall) {
             Image(systemName: "minus.circle.fill")
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundStyle(.secondary)
             Text(name)
                 .font(.footnote)

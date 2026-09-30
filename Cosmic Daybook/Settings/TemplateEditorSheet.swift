@@ -39,16 +39,16 @@ struct TemplateEditorSheet<Adapter: TemplateEditing>: View {
     @Environment(\.dismiss) private var dismiss
 
     let template: Adapter.Template?
-    var onSaved: () -> Void
 
     @State private var draft: Adapter.Draft
     @State private var saveTrigger = 0
 
     private var isEditing: Bool { template != nil }
 
-    init(template: Adapter.Template?, onSaved: @escaping () -> Void) {
+    /// The management screen's `@FetchRequest` picks up the save, so there
+    /// is no callback to refresh it.
+    init(template: Adapter.Template?) {
         self.template = template
-        self.onSaved = onSaved
         _draft = State(initialValue: Adapter.makeDraft(from: template))
     }
 
@@ -57,7 +57,7 @@ struct TemplateEditorSheet<Adapter: TemplateEditing>: View {
             Form {
                 Adapter.fields($draft)
             }
-            .navigationTitle(isEditing ? "Edit Template" : "New Template")
+            .navigationTitle(isEditing ? "Edit template" : "New template")
             .inlineNavigationTitle()
             #if os(iOS)
             .scrollDismissesKeyboard(Adapter.keyboardDismissMode)
@@ -100,7 +100,6 @@ struct TemplateEditorSheet<Adapter: TemplateEditing>: View {
         if viewContext.safeSave() {
             saveTrigger &+= 1
         }
-        onSaved()
         dismiss()
     }
 }

@@ -1,8 +1,11 @@
+#if DEBUG
 import SwiftUI
 
 // MARK: - AI Connection Test View
 
-/// Sends a test prompt to the configured AI model to verify the setup works.
+/// Sends a test prompt through the AI router (on-device, then Private Cloud
+/// Compute when allowed) to check it answers. Debug builds only: Settings ›
+/// Intelligence › Developer.
 struct AIConnectionTestView: View {
     @Environment(\.dependencies) private var dependencies
     @State private var testResult: String?
@@ -18,7 +21,7 @@ struct AIConnectionTestView: View {
             Button {
                 Task { await runTest() }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: AppTheme.Spacing.verySmall) {
                     if isTesting {
                         ProgressView()
                             .controlSize(.small)
@@ -34,7 +37,7 @@ struct AIConnectionTestView: View {
             .disabled(isTesting)
 
             if let result = testResult {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
                     Image(
                         systemName: testSuccess
                             ? "checkmark.circle.fill" : "xmark.circle.fill"
@@ -45,7 +48,7 @@ struct AIConnectionTestView: View {
                         .foregroundStyle(testSuccess ? AppColors.success : AppColors.destructive)
                         .lineLimit(4)
                 }
-                .padding(8)
+                .padding(AppTheme.Spacing.small)
                 .surface(
                     UIConstants.CornerRadius.medium,
                     fill: (testSuccess ? AppColors.success : AppColors.destructive)
@@ -78,3 +81,4 @@ struct AIConnectionTestView: View {
         isTesting = false
     }
 }
+#endif

@@ -31,11 +31,15 @@ final class LocalModelClient: FoundationModelClient {
         case .available:
             return ""
         case .unavailable(.appleIntelligenceNotEnabled):
-            return "Enable Apple Intelligence in Settings."
+            #if os(macOS)
+            return "Turn on Apple Intelligence in System Settings."
+            #else
+            return "Turn on Apple Intelligence in Settings."
+            #endif
         case .unavailable(.deviceNotEligible):
-            return "This device does not support Apple Intelligence."
+            return "This device doesn't support Apple Intelligence."
         case .unavailable(.modelNotReady):
-            return "Apple Intelligence model is downloading. Try again later."
+            return "Apple Intelligence is still downloading. Try again in a little while."
         case .unavailable:
             return "Apple Intelligence is not available."
         }

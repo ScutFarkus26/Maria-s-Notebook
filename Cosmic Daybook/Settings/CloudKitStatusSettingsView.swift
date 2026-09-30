@@ -2,29 +2,31 @@ import SwiftUI
 import CoreData
 
 struct CloudKitStatusSettingsView: View {
-    @State private var syncService: CloudKitSyncStatusService
+    @Environment(\.dependencies) private var dependencies
     @State private var isSyncDetailsExpanded = false
     @AppStorage(UserDefaultsKeys.enableCloudKitSync) private var isCloudKitEnabled = true
-    
-    init() {
-        syncService = AppDependenciesKey.defaultValue.cloudKitSyncStatusService
-    }
+    @State private var showingTurnOffConfirmation = false
 
-    private var isCloudKitActive: Bool {
-        UserDefaults.standard.bool(forKey: UserDefaultsKeys.cloudKitActive)
-    }
+    /// The three newest logged problems, decoded when the log changes rather than on every redraw.
+    @State private var recentErrorLogs: [CloudKitConfigurationService.ErrorLogEntry] = []
+    @AppStorage(UserDefaultsKeys.cloudKitErrorLog) private var errorLogData: Data?
 
-    private var recentErrorLogs: [CloudKitConfigurationService.ErrorLogEntry] {
-        let logs = CloudKitConfigurationService.getErrorLogs()
-        return Array(logs.suffix(3).reversed())
+    private var syncService: CloudKitSyncStatusService { dependencies.cloudKitSyncStatusService }
+
+    // Written by the launch that opened the store; @AppStorage so the card
+    // follows it rather than reading UserDefaults once per redraw.
+    @AppStorage(UserDefaultsKeys.cloudKitActive) private var isCloudKitActive = false
+
+    private func loadRecentErrorLogs() {
+        recentErrorLogs = Array(CloudKitConfigurationService.getErrorLogs().suffix(3).reversed())
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Toggle("Enable iCloud Sync", isOn: $isCloudKitEnabled)
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
+            Toggle("Sync with iCloud", isOn: syncToggle)
 
             if isCloudKitEnabled != isCloudKitActive {
-                Text("Restart required for this change to take effect.")
+                Text("Takes effect the next time you open the app.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -37,7 +39,7 @@ struct CloudKitStatusSettingsView: View {
             HStack(spacing: 10) {
                 SyncStatusIndicator(health: syncService.syncHealth)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
                     Text(statusText)
                         .font(.headline)
 
@@ -62,8 +64,8 @@ struct CloudKitStatusSettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(syncService.isSyncing)
-                    .help("Sync Now")
-                    .accessibilityLabel("Sync Now")
+                    .help("Sync now")
+                    .accessibilityLabel("Sync now")
                     // Only announce a value while syncing — a momentary button
                     // carries no value at rest ("Idle" is noise for VoiceOver).
                     .accessibilityValue(syncService.isSyncing ? "Syncing" : "")
@@ -85,7 +87,7 @@ struct CloudKitStatusSettingsView: View {
 
             // Error Display
             if case .error(let message) = syncService.syncHealth {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(AppColors.destructive)
 
@@ -102,11 +104,45 @@ struct CloudKitStatusSettingsView: View {
                     .font(.caption)
                     .buttonStyle(.borderless)
                 }
-                .padding(8)
-                .background(Color.red.opacity(UIConstants.OpacityConstants.light))
-                .cornerRadius(8)
+                .padding(AppTheme.Spacing.small)
+                .surface(
+                    UIConstants.CornerRadius.medium,
+                    fill: AppColors.destructive.opacity(UIConstants.OpacityConstants.light)
+                )
             }
         }
+        .onAppear(perform: loadRecentErrorLogs)
+        .onChange(of: errorLogData) { loadRecentErrorLogs() }
+        .confirmationDialog(
+            "Turn off iCloud sync?",
+            isPresented: $showingTurnOffConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Turn off sync", role: .destructive) {
+                isCloudKitEnabled = false
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text(
+                "From the next time you open the app, this device stops syncing. Your notebook stays "
+                + "here, but changes you make won't reach your other devices or your assistant, and "
+                + "theirs won't reach you, until you turn sync back on."
+            )
+        }
+    }
+
+    /// Turning sync on applies at once; turning it off asks first.
+    private var syncToggle: Binding<Bool> {
+        Binding(
+            get: { isCloudKitEnabled },
+            set: { newValue in
+                if newValue {
+                    isCloudKitEnabled = true
+                } else {
+                    showingTurnOffConfirmation = true
+                }
+            }
+        )
     }
 
     /// Banner shown when `NSPersistentCloudKitContainer`'s mirroring delegate
@@ -117,8 +153,8 @@ struct CloudKitStatusSettingsView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.octagon.fill")
                 .font(.title3)
-                .foregroundStyle(.red)
-            VStack(alignment: .leading, spacing: 4) {
+                .foregroundStyle(AppColors.destructive)
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
                 Text("iCloud sync is stopped")
                     .font(.subheadline.weight(.semibold))
                 Text(mirroringDelegateFailedMessage)
@@ -128,11 +164,11 @@ struct CloudKitStatusSettingsView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(12)
+        .padding(AppTheme.Spacing.compact)
         .surface(
             UIConstants.CornerRadius.control,
-            fill: Color.red.opacity(0.12),
-            stroke: Color.red.opacity(0.4),
+            fill: AppColors.destructive.opacity(UIConstants.OpacityConstants.medium),
+            stroke: AppColors.destructive.opacity(UIConstants.OpacityConstants.muted),
             lineWidth: 1,
             style: .continuous
         )
@@ -141,80 +177,46 @@ struct CloudKitStatusSettingsView: View {
     /// Recovery message shown in `mirroringDelegateFailedBanner`. Kept as a typed
     /// `String` so the multi-part concatenation type-checks outside the view body.
     private var mirroringDelegateFailedMessage: String {
-        "CloudKit's sync engine couldn't start this session — likely a corrupt " +
-        "local cache. To recover, open the Database tab and \(PlatformVerb.tapLowercased) " +
-        "\u{201C}Reset Local Cache.\u{201D} Your data is safe in iCloud and will " +
-        "re-download automatically."
+        "iCloud couldn't start syncing this time, most likely because this device's copy of " +
+        "your notebook is damaged. To fix it, open Troubleshooting and \(PlatformVerb.tapLowercased) " +
+        "\u{201C}Re-download from iCloud\u{2026}\u{201D} Your notebook is safe in iCloud and " +
+        "downloads again on its own."
     }
 
     private var syncDetailsSection: some View {
-        DisclosureGroup("Sync Details", isExpanded: $isSyncDetailsExpanded) {
-            VStack(alignment: .leading, spacing: 6) {
-                #if os(macOS)
-                LabeledContent("Network", value: syncService.isNetworkAvailable ? "Online" : "Offline")
-                LabeledContent("iCloud Account", value: syncService.isICloudAvailable ? "Available" : "Unavailable")
-                LabeledContent("Current Operation", value: syncService.currentOperation ?? "Idle")
-                LabeledContent("Pending Changes", value: "\(syncService.pendingLocalChanges)")
-                LabeledContent(
-                    "Retry",
-                    value: syncService.hasPendingRetry
-                        ? "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts) scheduled"
-                        : "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts)"
-                )
-
-                if let lastOperation = syncService.lastOperation {
-                    LabeledContent("Last Operation", value: lastOperation)
-                }
-
+        DisclosureGroup("Details", isExpanded: $isSyncDetailsExpanded) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+                LabeledContent("Internet", value: syncService.isNetworkAvailable ? "Connected" : "Not connected")
+                LabeledContent("iCloud account", value: syncService.isICloudAvailable ? "Signed in" : "Not available")
+                LabeledContent("Right now", value: rightNowText)
+                LabeledContent("Changes waiting to send", value: "\(syncService.pendingLocalChanges)")
                 if let lastOperationDate = syncService.lastOperationDate {
                     LabeledContent(
-                        "Last Operation Time",
-                        value: lastOperationDate.formatted(date: .abbreviated, time: .standard)
+                        "Last activity",
+                        value: lastOperationDate.formatted(date: .abbreviated, time: .shortened)
                     )
                 }
-                #else
-                DetailRow(label: "Network", value: syncService.isNetworkAvailable ? "Online" : "Offline")
-                DetailRow(label: "iCloud Account", value: syncService.isICloudAvailable ? "Available" : "Unavailable")
-                DetailRow(label: "Current Operation", value: syncService.currentOperation ?? "Idle")
-                DetailRow(label: "Pending Changes", value: "\(syncService.pendingLocalChanges)")
-                DetailRow(
-                    label: "Retry",
-                    value: syncService.hasPendingRetry
-                        ? "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts) scheduled"
-                        : "\(syncService.retryAttempt)/\(syncService.maxRetryAttempts)"
-                )
-
-                if let lastOperation = syncService.lastOperation {
-                    DetailRow(label: "Last Operation", value: lastOperation)
-                }
-
-                if let lastOperationDate = syncService.lastOperationDate {
-                    DetailRow(
-                        label: "Last Operation Time",
-                        value: lastOperationDate.formatted(date: .abbreviated, time: .standard)
-                    )
-                }
-                #endif
             }
-            .padding(.top, 6)
+            .font(.footnote)
+            .padding(.top, AppTheme.Spacing.verySmall)
         }
-        .padding(.top, 4)
+        .padding(.top, AppTheme.Spacing.xsmall)
     }
 
     private var recentErrorsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Recent CloudKit Errors")
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
+            Text("Recent sync problems")
                 .font(.subheadline)
                 .fontWeight(.semibold)
 
             ForEach(Array(recentErrorLogs.enumerated()), id: \.offset) { _, log in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(log.category.displayName): \(log.errorMessage)")
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                    Text("\(SyncProblemCopy.title(log.category)): \(log.errorMessage)")
                         .font(.caption)
                         .foregroundStyle(AppColors.destructive)
                         .lineLimit(3)
 
-                    Text(log.category.recommendedAction)
+                    Text(SyncProblemCopy.advice(log.category))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
 
@@ -222,28 +224,29 @@ struct CloudKitStatusSettingsView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                .padding(6)
-                .background(AppColors.destructive.opacity(UIConstants.OpacityConstants.subtle))
-                .cornerRadius(6)
+                .padding(AppTheme.Spacing.verySmall)
+                .surface(
+                    UIConstants.CornerRadius.small,
+                    fill: AppColors.destructive.opacity(UIConstants.OpacityConstants.subtle)
+                )
             }
         }
-        .padding(.top, 4)
+        .padding(.top, AppTheme.Spacing.xsmall)
     }
 
     private var statusText: String {
         if isCloudKitActive {
             switch syncService.syncHealth {
-            case .syncing: return "Syncing..."
-            case .healthy: return "iCloud Sync Active"
-            case .warning: return "iCloud Sync Active"
-            case .error: return "Sync Error"
+            case .syncing: return "Syncing…"
+            case .healthy, .unknown: return "iCloud sync is on"
+            case .warning: return "iCloud sync is having trouble"
+            case .error: return "Sync problem"
             case .offline: return "Offline"
-            case .unknown: return "iCloud Sync Active"
             }
         } else if isCloudKitEnabled {
-            return "iCloud Sync Enabled (Restart Required)"
+            return "iCloud sync isn't running"
         } else {
-            return "iCloud Sync Disabled"
+            return "iCloud sync is off"
         }
     }
 
@@ -251,58 +254,77 @@ struct CloudKitStatusSettingsView: View {
         if isCloudKitActive {
             switch syncService.syncHealth {
             case .syncing:
-                return "Syncing your recent changes with iCloud now..."
+                return "Sending and receiving your latest changes…"
             case .healthy, .unknown:
-                return "Your data stays in sync with iCloud. New changes sync automatically across your devices."
+                return "Your notebook is kept in iCloud. New changes reach your other devices on their own."
             case .warning:
-                return "iCloud sync is active but experiencing minor issues."
+                return "Sync is still working, but it's slower than usual or had a hiccup."
+                    + " Your notebook is safe on this device."
             case .error:
-                return "There was a problem syncing with iCloud. Your data is safe locally."
+                return "There was a problem syncing with iCloud. Your notebook is safe on this device."
             case .offline:
                 return offlineDescription
             }
         } else if isCloudKitEnabled {
             if let errorDescription = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription),
                !errorDescription.isEmpty {
-                return "CloudKit sync failed to initialize."
-                    + " Your data is stored locally and will NOT sync across devices."
-                    + " Check your iCloud account and network connection, then restart the app."
+                return "iCloud sync couldn't start, so changes on this device aren't reaching your other devices."
+                    + " Check that you're signed in to iCloud in \(SystemSettingsApp.name) and online,"
+                    + " then reopen the app."
+                    + " If it keeps happening, open Troubleshooting."
             } else {
-                return "iCloud sync is enabled but requires an app restart to take effect."
+                return "iCloud sync starts the next time you open the app."
             }
         } else {
-            return "Your data is stored locally on this device only."
-                + " Enable iCloud sync to keep your data synchronized across devices."
+            return "Your notebook is kept on this device only."
+                + " Turn on iCloud sync to have it on all your devices."
         }
     }
 
     private var offlineDescription: String {
         if !syncService.isNetworkAvailable && !syncService.isICloudAvailable {
-            return "No network connection and iCloud account unavailable."
-                + " Changes are saved locally and will sync when both are restored."
+            return "No internet connection, and iCloud isn't available."
+                + " Changes are saved on this device and sync when both are back."
         } else if !syncService.isNetworkAvailable {
-            return "No network connection. Changes are saved locally and will sync when you're back online."
+            return "No internet connection. Changes are saved on this device and sync when you're back online."
         } else if !syncService.isICloudAvailable {
-            return "iCloud account unavailable. Sign in to iCloud in System Settings to sync your data."
+            return "iCloud isn't available. Sign in to iCloud in \(SystemSettingsApp.name) to sync your notebook."
         } else {
-            return "Unable to connect to iCloud. Changes are saved locally and will sync when connection is restored."
+            return "Can't reach iCloud right now. Changes are saved on this device and sync when it's reachable again."
         }
+    }
+
+    /// What sync is doing now, in plain words; a scheduled retry reads as "Trying again soon".
+    private var rightNowText: String {
+        if syncService.hasPendingRetry { return "Trying again soon" }
+        if syncService.isSyncing || syncService.currentOperation != nil { return "Syncing" }
+        return "Nothing in progress"
     }
 }
 
-private struct DetailRow: View {
-    let label: String
-    let value: String
+/// Plain words for a logged sync problem (the log's own names are iCloud's).
+private enum SyncProblemCopy {
+    /// A short name for the kind of problem.
+    static func title(_ category: CloudKitConfigurationService.ErrorCategory) -> String {
+        switch category {
+        case .authentication: return "iCloud sign-in"
+        case .network: return "Internet connection"
+        case .quota: return "iCloud storage is full"
+        case .conflict: return "Two devices disagreed"
+        case .schema: return "The app needs an update"
+        case .unknown: return "Something went wrong"
+        }
+    }
 
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(.caption)
-                .multilineTextAlignment(.trailing)
+    /// What to do about a logged sync problem.
+    static func advice(_ category: CloudKitConfigurationService.ErrorCategory) -> String {
+        switch category {
+        case .authentication: return "Check that you're signed in to iCloud in \(SystemSettingsApp.name)."
+        case .network: return "Check your internet connection. Sync tries again on its own."
+        case .quota: return "Free up some iCloud storage. Sync tries again on its own."
+        case .conflict: return "Keep working. This usually sorts itself out on the next try."
+        case .schema: return "Update Cosmic Daybook on all your devices."
+        case .unknown: return "Sync tries again on its own. If it keeps happening, reopen the app."
         }
     }
 }
@@ -318,7 +340,7 @@ struct SyncStatusIndicator: View {
                 .frame(width: 28, height: 28)
 
             Image(systemName: health.icon)
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .foregroundStyle(health.color)
                 .spinning(while: health == .syncing)
         }
@@ -330,6 +352,7 @@ struct SyncStatusIndicator: View {
 private struct CloudKitStatusSettingsViewPreview: View {
     var body: some View {
         CloudKitStatusSettingsView()
+            .previewEnvironment()
     }
 }
 

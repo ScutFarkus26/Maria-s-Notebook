@@ -3,6 +3,26 @@
 
 import SwiftUI
 
+// MARK: - The Device's Settings App
+
+/// The device's own settings app, named the way each platform names it, for every
+/// "turn it on in …" or "sign in in …" message.
+nonisolated enum SystemSettingsApp {
+    /// "System Settings" on the Mac, "Settings" on iPhone and iPad.
+    static var name: String {
+        #if os(macOS)
+        "System Settings"
+        #else
+        "Settings"
+        #endif
+    }
+
+    /// The path to a privacy pane, e.g. "Settings › Privacy & Security › Calendars".
+    static func privacyPath(_ pane: String) -> String {
+        "\(name) › Privacy & Security › \(pane)"
+    }
+}
+
 // MARK: - Reusable Authorization Section
 
 /// A reusable component for displaying authorization request UI for system services
@@ -12,7 +32,7 @@ struct AuthorizationRequestSection: View {
     let description: String
     let settingsPath: String
     let isRefreshing: Bool
-    let statusMessage: String?
+    let statusMessage: StatusMessage?
     let onRequestAccess: () -> Void
 
     var body: some View {
@@ -22,26 +42,26 @@ struct AuthorizationRequestSection: View {
                 .foregroundStyle(.secondary)
 
             if isRefreshing {
-                HStack(spacing: 8) {
+                HStack(spacing: AppTheme.Spacing.small) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Requesting access...")
+                    Text("Asking for access…")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Button("Request Access") {
+                Button("Request access") {
                     onRequestAccess()
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             }
 
-            if let status = statusMessage {
-                StatusMessageView(message: status)
+            if let statusMessage {
+                StatusMessageView(status: statusMessage)
             }
 
-            Text("If denied, enable access in System Settings → Privacy & Security → \(settingsPath).")
+            Text("If you turned access off before, turn it back on in \(SystemSettingsApp.privacyPath(settingsPath)).")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -50,39 +70,37 @@ struct AuthorizationRequestSection: View {
 
 // MARK: - Status Message View
 
-/// A reusable component for displaying status messages with appropriate coloring
-struct StatusMessageView: View {
-    let message: String
-    var style: StatusStyle = .auto
-
-    enum StatusStyle {
-        case auto
+/// A one-line result shown under a sync panel's buttons. The caller says whether
+/// it went well; the color follows from that, never from the wording.
+struct StatusMessage: Equatable {
+    enum Kind {
         case success
-        case error
+        case failure
         case info
     }
 
+    let text: String
+    let kind: Kind
+
+    static func success(_ text: String) -> StatusMessage { StatusMessage(text: text, kind: .success) }
+    static func failure(_ text: String) -> StatusMessage { StatusMessage(text: text, kind: .failure) }
+    static func info(_ text: String) -> StatusMessage { StatusMessage(text: text, kind: .info) }
+}
+
+/// Shows a `StatusMessage` in its kind's color.
+struct StatusMessageView: View {
+    let status: StatusMessage
+
     private var color: Color {
-        switch style {
-        case .success:
-            return .green
-        case .error:
-            return .red
-        case .info:
-            return .secondary
-        case .auto:
-            if message.contains("Error") || message.contains("Failed") || message.contains("denied") {
-                return .red
-            } else if message.contains("success") || message.contains("granted") || message.contains("completed") {
-                return .green
-            } else {
-                return .secondary
-            }
+        switch status.kind {
+        case .success: return AppColors.success
+        case .failure: return AppColors.destructive
+        case .info: return .secondary
         }
     }
 
     var body: some View {
-        Text(message)
+        Text(status.text)
             .font(.footnote)
             .foregroundStyle(color)
     }
@@ -101,7 +119,7 @@ struct SyncActionButtons: View {
 
     init(
         refreshLabel: String = "Refresh",
-        syncLabel: String = "Sync Now",
+        syncLabel: String = "Sync now",
         isSyncDisabled: Bool,
         isRefreshing: Bool,
         onRefresh: @escaping () -> Void,

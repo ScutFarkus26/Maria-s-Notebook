@@ -13,7 +13,7 @@ enum NoteTemplateManaging: TemplateManaging {
         [NSSortDescriptor(keyPath: \CDNoteTemplate.sortOrder, ascending: true)]
     }
 
-    static let navigationTitle = "Note Templates"
+    static let navigationTitle = "Note templates"
     static let builtInFooter = "Built-in templates cannot be edited or deleted."
     static var customFooter: String {
         "\(PlatformVerb.tap) a template to preview. Use the menu to edit or delete."
@@ -35,9 +35,7 @@ enum NoteTemplateManaging: TemplateManaging {
     }
 
     static func editorSheet(for template: CDNoteTemplate?) -> some View {
-        NoteTemplateEditorSheet(template: template) {
-            // Refresh after adding or editing
-        }
+        NoteTemplateEditorSheet(template: template)
     }
 
     static func previewSheet(
@@ -59,10 +57,10 @@ private struct NoteTemplatePreviewSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
                     // Tag badges
                     if !((template.tags as? [String]) ?? []).isEmpty {
-                        HStack(spacing: 6) {
+                        HStack(spacing: AppTheme.Spacing.verySmall) {
                             ForEach((template.tags as? [String]) ?? [], id: \.self) { tag in
                                 TagBadge(tag: tag)
                             }
@@ -71,7 +69,7 @@ private struct NoteTemplatePreviewSheet: View {
                     }
 
                     // Template content
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                         Text("Template Content")
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(.secondary)

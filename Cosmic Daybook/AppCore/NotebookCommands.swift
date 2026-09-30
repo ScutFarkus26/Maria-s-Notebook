@@ -37,7 +37,7 @@ struct NotebookCommands: Commands {
             }
 
             Section {
-                Button("Create Backup") { appRouter.requestCreateBackup() }
+                Button("Back Up Now") { appRouter.requestCreateBackup() }
                     .keyboardShortcut("b", modifiers: [.command])
                     .disabled(classroomWorkspace.isShowingSampleClass)
 

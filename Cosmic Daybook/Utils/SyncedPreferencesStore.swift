@@ -75,10 +75,7 @@ public final class SyncedPreferencesStore {
         "WorkAge.overdueDays",
         "WorkAge.freshColorHex",
         "WorkAge.warningColorHex",
-        "WorkAge.overdueColorHex",
-        
-        // Backup Settings
-        "Backup.encrypt"
+        "WorkAge.overdueColorHex"
     ]
     
     /// Key prefixes that should sync across devices (for dynamic keys like per-date locks)

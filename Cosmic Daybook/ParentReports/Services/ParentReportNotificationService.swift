@@ -77,13 +77,11 @@ struct ParentReportsSettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .onChange(of: reminderEnabled) { _, newValue in
-            SettingsCategory.markModified(.communication)
             Task { await ParentReportNotificationService.applyPreference(enabled: newValue) }
         }
         #else
         Toggle("Remind me on the 1st of each month", isOn: $reminderEnabled)
             .onChange(of: reminderEnabled) { _, newValue in
-                SettingsCategory.markModified(.communication)
                 Task { await ParentReportNotificationService.applyPreference(enabled: newValue) }
             }
         #endif

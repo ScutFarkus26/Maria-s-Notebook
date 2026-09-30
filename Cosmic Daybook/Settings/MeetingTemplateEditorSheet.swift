@@ -117,9 +117,7 @@ typealias MeetingTemplateEditorSheet = TemplateEditorSheet<MeetingTemplateEditin
 // for the module; a private view is checked once, in this file's job.
 private struct MeetingTemplateEditorSheetPreview: View {
     var body: some View {
-        MeetingTemplateEditorSheet(template: nil) {
-            print("Saved!")
-        }
+        MeetingTemplateEditorSheet(template: nil)
     }
 }
 

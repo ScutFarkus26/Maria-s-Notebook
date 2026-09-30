@@ -8,7 +8,15 @@ import OSLog
 import AppKit
 #endif
 
-@Observable
+/// What a finished backup or restore says in the banner above the backup
+/// cards, and whether it reads as done, merely noted, or gone wrong.
+struct BackupResultNote: Equatable {
+    enum Tone { case success, neutral, failure }
+    let text: String
+    let tone: Tone
+}
+
+@Observable @MainActor
 final class SettingsViewModel {
     private static let logger = Logger.settings
 
@@ -18,7 +26,7 @@ final class SettingsViewModel {
     var backupMessage: String = ""
     var importProgress: Double = 0
     var importMessage: String = ""
-    var resultSummary: String?
+    var resultSummary: BackupResultNote?
     var operationSummary: BackupOperationSummary?
     var restorePreviewData: RestorePreview?
     var defaultFolderName: String = ""
@@ -107,7 +115,7 @@ final class SettingsViewModel {
                 do {
                     try FileManager.default.copyItem(at: tmp, to: dest)
                     setLastBackupNow()
-                    resultSummary = "Exported backup to \(dest.lastPathComponent)."
+                    resultSummary = BackupResultNote(text: "Saved backup as \(dest.lastPathComponent).", tone: .success)
                     dependencies.toastService.showSuccess("Backup saved successfully")
                     safeRemoveItem(at: tmp, context: "performExport-seamlessSave")
                     loadDefaultFolderName()
@@ -139,14 +147,16 @@ final class SettingsViewModel {
                 do {
                     try FileManager.default.copyItem(at: tmp, to: finalURL)
                     setLastBackupNow()
-                    resultSummary = "Exported backup to \(finalURL.lastPathComponent)."
+                    resultSummary = BackupResultNote(
+                        text: "Saved backup as \(finalURL.lastPathComponent).", tone: .success
+                    )
                     dependencies.toastService.showSuccess("Backup saved successfully")
                     loadDefaultFolderName()
                 } catch {
                     importError = AppErrorMessages.backupMessage(for: error, operation: "save the backup")
                 }
             } else {
-                resultSummary = "Export canceled."
+                resultSummary = BackupResultNote(text: "Backup canceled.", tone: .neutral)
             }
             safeRemoveItem(at: tmp, context: "performExport-macOSCleanup")
 #else
@@ -170,8 +180,13 @@ final class SettingsViewModel {
     @discardableResult
     func restoreMostRecentAutoBackup(viewContext: NSManagedObjectContext) async -> Bool {
         guard let candidate = coordinator.backupStatus().mostRecentAutoBackupURL else {
-            importError = "No auto-backups found yet. Open Settings → Backup to enable auto-backups, " +
-                "or use Import to pick a file manually."
+            #if os(macOS)
+            let when = "each time you quit Cosmic Daybook"
+            #else
+            let when = "each time you leave Cosmic Daybook"
+            #endif
+            importError = "There's no automatic backup yet. With Automatic backups on, one is saved \(when). " +
+                "To restore now, choose Import and pick a backup file."
             return false
         }
         await previewImportedURL(viewContext: viewContext, url: candidate)
@@ -225,7 +240,7 @@ final class SettingsViewModel {
             pendingImportURL = nil
             importError = nil
             setLastBackupNow()
-            resultSummary = "Import complete. Restored data successfully."
+            resultSummary = BackupResultNote(text: "Restore complete.", tone: .success)
             operationSummary = BackupOperationSummary(
                 kind: .import,
                 fileName: summary.fileName,

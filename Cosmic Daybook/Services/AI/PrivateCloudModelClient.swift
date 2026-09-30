@@ -36,10 +36,10 @@ final class PrivateCloudModelClient: FoundationModelClient {
         case .available:
             return ""
         case .unavailable(.deviceNotEligible):
-            return "This device cannot use Private Cloud Compute."
+            return "This device can't use Private Cloud Compute."
         case .unavailable(.systemNotReady):
-            return "Private Cloud Compute is not ready. It needs Apple Intelligence, "
-                + "a network connection, and the app's PCC entitlement."
+            return "Private Cloud Compute isn't ready yet. It needs Apple Intelligence "
+                + "turned on and an internet connection."
         case .unavailable:
             return "Private Cloud Compute is not available."
         }

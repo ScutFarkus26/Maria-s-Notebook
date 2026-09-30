@@ -2,160 +2,133 @@ import Foundation
 
 // MARK: - Settings Category
 
+/// The sidebar's categories, one job each (regrouped 2026-09-29). The cards
+/// inside each one, and what search finds them by, live in `SettingsCopy.Group`.
 enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
-    case general
-    case dataSync
+    case overview
+    case schoolYear
     case classroom
-    case backup
+    case lookAndFeel
+    case messages
     case templates
-    case communication
-    case aiFeatures
-    case database
-    case advanced // Only shown in DEBUG builds
+    case connections
+    case intelligence
+    case syncBackup
+    case troubleshooting
 
     var id: String { rawValue }
 
-    var subtitle: String {
-        switch self {
-        case .general: return "School calendar, display & quick capture"
-        case .dataSync: return "iCloud, Reminders, Calendar"
-        case .classroom: return "Sharing, roles & members"
-        case .backup: return "Export, restore & auto-backup"
-        case .templates: return "Note & meeting templates"
-        case .communication: return "Attendance email, parent reports & order requests"
-        case .aiFeatures: return "Apple Intelligence & Siri"
-        case .database: return "Record counts & statistics"
-        case .advanced: return "Testing & debug tools"
+    /// Reads a saved selection, including one an older build saved before the
+    /// categories were regrouped.
+    init?(storedValue: String) {
+        if let category = SettingsCategory(rawValue: storedValue) {
+            self = category
+            return
+        }
+        switch storedValue {
+        case "general": self = .schoolYear
+        case "dataSync", "backup": self = .syncBackup
+        case "communication": self = .messages
+        case "aiFeatures": self = .intelligence
+        case "database", "advanced": self = .troubleshooting
+        default: return nil
         }
     }
 
+    // MARK: - Sidebar Sections
+
+    enum Section: CaseIterable, Hashable {
+        case top
+        case yourClassroom
+        case beyondTheNotebook
+        case bottom
+
+        var title: String? {
+            switch self {
+            case .yourClassroom: return "Your classroom"
+            case .beyondTheNotebook: return "Beyond the notebook"
+            case .top, .bottom: return nil
+            }
+        }
+    }
+
+    var section: Section {
+        switch self {
+        case .overview: return .top
+        case .schoolYear, .classroom, .lookAndFeel, .messages, .templates: return .yourClassroom
+        case .connections, .intelligence, .syncBackup: return .beyondTheNotebook
+        case .troubleshooting: return .bottom
+        }
+    }
+
+    // MARK: - Labels
+
     var displayName: String {
         switch self {
-        case .general: return "General"
-        case .dataSync: return "Data & Sync"
+        case .overview: return "Overview"
+        case .schoolYear: return "School year"
         case .classroom: return "Classroom"
-        case .backup: return "Backup"
+        case .lookAndFeel: return "Look and feel"
+        case .messages: return "Messages"
         case .templates: return "Templates"
-        case .communication: return "Communication"
-        case .aiFeatures: return "AI"
-        case .database: return "Database"
-        case .advanced: return "Advanced"
+        case .connections: return "Connections"
+        case .intelligence: return "Intelligence"
+        case .syncBackup: return "Sync and backup"
+        case .troubleshooting: return "Troubleshooting"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .overview: return "What needs you, and what's new"
+        case .schoolYear: return "Days off, year start, rollover"
+        case .classroom: return "Sharing with your assistant"
+        case .lookAndFeel: return "Age colors, quick capture"
+        case .messages: return "Attendance email, parent reports, orders"
+        case .templates: return "Note, meeting and to-do templates"
+        case .connections:
+            #if os(macOS)
+            return "Calendar, Reminders, Claude Desktop"
+            #else
+            return "Calendar and Reminders"
+            #endif
+        case .intelligence: return "Apple Intelligence and Siri"
+        case .syncBackup: return "iCloud, backups, moving settings"
+        case .troubleshooting: return "Sync history and repairs"
         }
     }
 
     var icon: String {
         switch self {
-        case .general: return "gear"
-        case .dataSync: return "arrow.triangle.2.circlepath"
-        case .classroom: return "person.2.badge.gearshape.fill"
-        case .backup: return "externaldrive.fill"
+        case .overview: return "sparkles"
+        case .schoolYear: return "calendar"
+        case .classroom: return "person.2.fill"
+        case .lookAndFeel: return "paintpalette.fill"
+        case .messages: return "envelope.fill"
         case .templates: return "doc.on.doc.fill"
-        case .communication: return "envelope.fill"
-        case .aiFeatures: return "brain.head.profile"
-        case .database: return "cylinder.fill"
-        case .advanced: return "wrench.and.screwdriver.fill"
+        case .connections: return "app.connected.to.app.below.fill"
+        case .intelligence: return "apple.intelligence"
+        case .syncBackup: return "icloud.fill"
+        case .troubleshooting: return "lifepreserver.fill"
         }
     }
 
-    var searchKeywords: String {
-        switch self {
-        case .general: return "general school calendar display colors lesson age work age quick capture button"
-        case .dataSync: return "data sync icloud reminders calendar"
-        case .classroom: return "classroom sharing invite assistant guide role members"
-        case .backup: return "backup restore data management export import"
-        case .templates: return "templates note meeting"
-        case .communication: return "communication attendance email parent reports orders office request"
-        case .aiFeatures:
-            return "ai features claude api lesson planning assistant model apple on device private cloud local"
-        case .database: return "database statistics records overview storage"
-        case .advanced: return "advanced debug test students"
+    // MARK: - Search
+
+    /// The cards this build shows in the category.
+    var groups: [SettingsCopy.Group] {
+        SettingsCopy.Group.allCases.filter { $0.category == self && $0.isAvailable }
+    }
+
+    /// Case- and diacritic-insensitive match on the category's name or any of its cards.
+    func matches(_ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+        if displayName.localizedStandardContains(query) || subtitle.localizedStandardContains(query) {
+            return true
         }
+        return groups.contains { $0.matches(query) }
     }
 
-    /// Detailed setting labels within each category for deep search
-    var detailedSettings: [String] {
-        switch self {
-        case .general:
-            return [
-                "School Calendar", "Non-School Days", "Clear Month", "Keep Weekends Only",
-                "School Year Rollover", "Carried-Over Year Plans",
-                "Display & Colors", "Lesson Age Indicators", "Warning Days", "Overdue Days",
-                "Fresh Color", "Warning Color", "Overdue Color",
-                "Work Age Indicators",
-                "Quick Capture Button"
-            ]
-        case .dataSync:
-            return [
-                "iCloud", "CloudKit", "Sync Now", "Last Synced", "Enable iCloud Backup",
-                "Reminders", "Reminder List", "Request Access", "Sync Reminders",
-                "Calendar", "Calendar Events", "Refresh Calendars"
-            ]
-        case .classroom:
-            return [
-                "Share Classroom", "Participants", "Your Role",
-                "Leave Classroom", "Invite Assistant"
-            ]
-        case .backup:
-            return [
-                "Create Backup", "Encrypted", "Restore", "Merge", "Replace",
-                "Import", "Storage", "Choose Folder", "Auto-Backup", "Retention"
-            ]
-        case .templates:
-            return [
-                "Note Templates", "Meeting Templates", "Manage Templates"
-            ]
-        case .communication:
-            return [
-                "Attendance Email", "Email To", "Email From", "Enable Email",
-                "Order Requests", "Office Email", "Sign Off"
-            ]
-        case .aiFeatures:
-            return [
-                "Apple Intelligence", "On-Device", "Private Cloud", "Private Cloud Compute",
-                "Test Connection",
-                "Lesson Planning Assistant", "Depth", "System Prompt", "Temperature", "Timeout"
-            ]
-        case .database:
-            return [
-                "Total Records", "Students", "Lessons", "Lessons Planned", "Lessons Given",
-                "Work Items", "Presentations", "Observations", "Meetings", "Practice",
-                "To-Do Items", "Reminders", "Tracks", "Calendar Events", "Projects",
-                "Attendance", "Supplies", "Issues", "Community", "Procedures",
-                "Documents", "Lesson Files", "Templates", "Dev Snapshots"
-            ]
-        case .advanced:
-            return [
-                "Test Students", "Show Test Students", "Test Student Names"
-            ]
-        }
-    }
-
-    // MARK: - Recently Changed Tracking
-
-    var lastModifiedKey: String {
-        "Settings.lastModified.\(rawValue)"
-    }
-
-    var wasRecentlyModified: Bool {
-        let timestamp = UserDefaults.standard.double(forKey: lastModifiedKey)
-        guard timestamp > 0 else { return false }
-        let lastModified = Date(timeIntervalSinceReferenceDate: timestamp)
-        return Date().timeIntervalSince(lastModified) < 86400 // 24 hours
-    }
-
-    static func markModified(_ category: SettingsCategory) {
-        UserDefaults.standard.set(
-            Date().timeIntervalSinceReferenceDate,
-            forKey: category.lastModifiedKey
-        )
-    }
-
-    /// Categories visible in the UI (excludes advanced in release builds)
-    static var visibleCategories: [SettingsCategory] {
-        #if DEBUG
-        return allCases
-        #else
-        return allCases.filter { $0 != .advanced }
-        #endif
-    }
+    static var visibleCategories: [SettingsCategory] { allCases }
 }

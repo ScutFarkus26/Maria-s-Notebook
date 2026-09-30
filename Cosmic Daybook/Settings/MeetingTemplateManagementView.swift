@@ -13,7 +13,7 @@ enum MeetingTemplateManaging: TemplateManaging {
         [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)]
     }
 
-    static let navigationTitle = "Meeting Templates"
+    static let navigationTitle = "Meeting templates"
     static let builtInFooter = "Built-in templates cannot be edited or deleted, but can be set as active."
     static var customFooter: String {
         "\(PlatformVerb.tap) a template to preview. "
@@ -47,9 +47,7 @@ enum MeetingTemplateManaging: TemplateManaging {
     }
 
     static func editorSheet(for template: CDMeetingTemplate?) -> some View {
-        MeetingTemplateEditorSheet(template: template) {
-            // Refresh after adding or editing
-        }
+        MeetingTemplateEditorSheet(template: template)
     }
 
     static func previewSheet(
@@ -73,15 +71,23 @@ private struct MeetingTemplatePreviewSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Status badge
+                    // Status badge, or the button that makes this the active template
                     HStack {
                         if template.isActive {
-                            Label("Active Template", systemImage: "checkmark.circle.fill")
+                            Label("Active template", systemImage: "checkmark.circle.fill")
                                 .font(.subheadline.weight(.medium))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
+                                .padding(.horizontal, AppTheme.Spacing.compact)
+                                .padding(.vertical, AppTheme.Spacing.verySmall)
                                 .capsuleFill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
                                 .foregroundStyle(AppColors.success)
+                        } else {
+                            Button {
+                                onActivate()
+                                dismiss()
+                            } label: {
+                                Label("Set as active", systemImage: "checkmark.circle")
+                            }
+                            .buttonStyle(.bordered)
                         }
                         Spacer()
                     }
@@ -101,16 +107,8 @@ private struct MeetingTemplatePreviewSheet: View {
             .navigationTitle(template.name)
             .inlineNavigationTitle()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                }
-                if !template.isActive {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Set as Active") {
-                            onActivate()
-                            dismiss()
-                        }
-                    }
                 }
             }
         }
@@ -123,7 +121,7 @@ private struct PromptSection: View {
     let content: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             Label(title, systemImage: icon)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.secondary)

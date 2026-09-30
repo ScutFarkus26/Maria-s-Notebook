@@ -31,7 +31,7 @@ struct KeyboardShortcutsHelpView: View {
                 shortcutSection("Import & Backup", shortcuts: [
                     ShortcutItem(keys: "\u{2318}I", description: "Import Lessons"),
                     ShortcutItem(keys: "\u{21E7}\u{2318}I", description: "Import Students"),
-                    ShortcutItem(keys: "\u{2318}B", description: "Create Backup"),
+                    ShortcutItem(keys: "\u{2318}B", description: "Back Up Now"),
                     ShortcutItem(keys: "\u{21E7}\u{2318}B", description: "Restore Data")
                 ])
 

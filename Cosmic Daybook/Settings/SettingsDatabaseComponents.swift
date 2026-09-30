@@ -1,109 +1,52 @@
 // SettingsDatabaseComponents.swift
-// Collapsible database stats subsection and total summary components for Settings.
+// The collapsible sections and the total of Notebook at a glance.
 
 import SwiftUI
 
 // MARK: - Database Stats Subsection (Collapsible)
 
-/// A collapsible subsection for grouping database stats within the Database section
+/// One section of Notebook at a glance, collapsed to its title and record count.
 struct DatabaseStatsSubsection<Content: View>: View {
     let title: String
     let systemImage: String
-    let summaryValue: String
+    /// Records in this section, shown beside its title.
+    let count: Int
     @ViewBuilder var content: Content
 
     @State private var isExpanded: Bool = false
 
     var body: some View {
-        #if os(macOS)
         DisclosureGroup(isExpanded: $isExpanded) {
             content
-                .padding(.top, 8)
+                .padding(.top, AppTheme.Spacing.small)
         } label: {
-            HStack {
+            HStack(spacing: AppTheme.Spacing.small) {
                 Label(title, systemImage: systemImage)
+                    .font(.subheadline.weight(.semibold))
                 Spacer()
-                Text(summaryValue)
+                Text("^[\(count) record](inflect: true)")
+                    .font(.subheadline)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
+            .contentShape(Rectangle())
         }
-        #else
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: systemImage)
-                        .font(.subheadline)
-                        .foregroundStyle(.tint)
-                        .frame(width: 20)
-                    Text(title)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Text(summaryValue)
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 12)
-                .surface(
-                    UIConstants.CornerRadius.control,
-                    fill: Color.primary.opacity(UIConstants.OpacityConstants.whisper),
-                    style: .continuous
-                )
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                content
-                    .padding(.top, 12)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        #endif
     }
 }
 
 // MARK: - Database Total Summary
 
-/// Displays total record count with a progress-style bar
+/// The notebook's record count, shown once above the sections.
 struct DatabaseTotalSummary: View {
     let totalRecords: Int
 
     var body: some View {
-        #if os(macOS)
-        VStack(alignment: .leading, spacing: 4) {
-            LabeledContent("Total records", value: "\(totalRecords)")
-            Text("Records across all database categories")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        #else
-        HStack(spacing: 12) {
-            Image(systemName: "cylinder.fill")
-                .font(.title2)
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Total Records")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                Text("\(totalRecords) records across all entities")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        HStack(spacing: AppTheme.Spacing.compact) {
+            Label("Records across your notebook", systemImage: "books.vertical.fill")
+                .font(.subheadline.weight(.semibold))
             Spacer()
-            Text("\(totalRecords)")
+            Text(totalRecords, format: .number)
                 .font(.title2.weight(.bold).monospacedDigit())
-                .foregroundStyle(.primary)
         }
         .padding(SettingsStyle.compactPadding)
         .surface(
@@ -112,6 +55,6 @@ struct DatabaseTotalSummary: View {
             stroke: Color.accentColor.opacity(UIConstants.OpacityConstants.accent),
             style: .continuous
         )
-        #endif
+        .accessibilityElement(children: .combine)
     }
 }

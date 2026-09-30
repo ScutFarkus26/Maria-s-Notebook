@@ -108,8 +108,7 @@ final class Phase5PostTests {
     func settingsCategoryClassroom() {
         let category = SettingsCategory.classroom
         #expect(category.displayName == "Classroom")
-        #expect(category.icon == "person.2.badge.gearshape.fill")
-        #expect(category.searchKeywords.contains("sharing"))
-        #expect(!category.detailedSettings.isEmpty)
+        #expect(category.matches("sharing"))
+        #expect(category.groups == [.classroomSharing])
     }
 }

@@ -30,6 +30,7 @@ nonisolated enum BackupPreferencesService {
         // General
         UserDefaultsKeys.generalShowTestStudents,
         UserDefaultsKeys.generalTestStudentNames,
+        UserDefaultsKeys.quickCaptureButtonVisible,
         // Attendance (synced)
         "AttendanceEmail.enabled",
         "AttendanceEmail.to",
@@ -54,7 +55,6 @@ nonisolated enum BackupPreferencesService {
         "WorkAge.warningColorHex",
         "WorkAge.overdueColorHex",
         // Backup
-        "Backup.encrypt",
         "LastBackupTimeInterval",
         UserDefaultsKeys.lastBackupTimeInterval,
         UserDefaultsKeys.autoBackupEnabled,

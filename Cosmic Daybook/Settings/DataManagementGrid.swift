@@ -6,30 +6,45 @@ import OSLog
 
 #if os(macOS)
 import AppKit
-#else
-import UIKit
 #endif
 
-// swiftlint:disable:next type_body_length
+/// Sync and backup › Backups: back up, restore, the backup folder and
+/// automatic backups.
 struct DataManagementGrid: View {
+    @Environment(\.dependencies) private var dependencies
+    /// Made once, from the environment's dependencies, when the card first
+    /// appears; the environment isn't readable in `init`.
+    @State private var viewModel: SettingsViewModel?
+
+    var body: some View {
+        if let viewModel {
+            DataManagementPanel(viewModel: viewModel)
+        } else {
+            Color.clear
+                .frame(height: 0)
+                .onAppear { viewModel = SettingsViewModel(dependencies: dependencies) }
+        }
+    }
+}
+
+// swiftlint:disable:next type_body_length
+private struct DataManagementPanel: View {
     private static let logger = Logger.settings
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dependencies) private var dependencies
-    @State private var viewModel: SettingsViewModel
-
-    init() {
-        // Initialize with default dependencies - will be overridden by environment
-        viewModel = SettingsViewModel(dependencies: AppDependenciesKey.defaultValue)
-    }
+    @Bindable var viewModel: SettingsViewModel
 
     @AppStorage(UserDefaultsKeys.autoBackupEnabled) private var autoBackupEnabled = true
     @AppStorage(UserDefaultsKeys.backupIncludesNotePhotos) private var backupIncludesNotePhotos = true
     @AppStorage(UserDefaultsKeys.autoBackupRetentionCount) private var autoBackupRetention = 10
+    // Defaults match AutoBackupManager's.
+    @AppStorage(UserDefaultsKeys.autoBackupScheduledEnabled) private var timedBackupsEnabled = false
+    @AppStorage(UserDefaultsKeys.autoBackupIntervalHours) private var timedBackupHours = 4
 
     @State private var showingImporter = false
     @State private var showingExporter = false
     @State private var showingFolderImporter = false
-    @State private var resultMessage: String?
+    @State private var resultMessage: BackupResultNote?
     @State private var folderRejection: BackupDestination.FolderRejection?
     @State private var migrationPrompt: BackupFolderMigration.Prompt?
     @State private var isDropTargeted: Bool = false
@@ -144,15 +159,15 @@ struct DataManagementGrid: View {
             // Progress bar or result banner (inline)
             if isWorking {
                 progressBar
-            } else if let message = resultMessage {
-                resultBanner(message)
+            } else if let note = resultMessage {
+                resultBanner(note)
             }
 
             // Compact 2x2 grid
             LazyVGrid(
                 columns: [
-                    GridItem(.flexible(), spacing: SettingsStyle.groupSpacing),
-                    GridItem(.flexible(), spacing: SettingsStyle.groupSpacing)
+                    GridItem(.flexible(), spacing: SettingsStyle.groupSpacing, alignment: .top),
+                    GridItem(.flexible(), spacing: SettingsStyle.groupSpacing, alignment: .top)
                 ],
                 spacing: SettingsStyle.groupSpacing
             ) {
@@ -223,12 +238,12 @@ struct DataManagementGrid: View {
         switch result {
         case .moved(let count, _):
             let noun = count == 1 ? "backup" : "backups"
-            resultMessage = "Moved \(count) \(noun) to iCloud Drive."
+            resultMessage = .init(text: "Moved \(count) \(noun) to iCloud Drive.", tone: .success)
             dependencies.toastService.showSuccess("Backups moved")
         case .nothingToMove:
-            resultMessage = "Cleared default folder. Future backups go to iCloud Drive."
+            resultMessage = .init(text: "New backups will go to iCloud Drive.", tone: .success)
         case .failed(let error):
-            resultMessage = "Couldn't move backups: \(error.localizedDescription)"
+            resultMessage = .init(text: "Couldn't move backups: \(error.localizedDescription)", tone: .failure)
         }
         viewModel.loadDefaultFolderName()
     }
@@ -237,8 +252,8 @@ struct DataManagementGrid: View {
 
     private var progressBar: some View {
         let (progress, color): (Double, Color) = viewModel.backupProgress > 0
-            ? (viewModel.backupProgress, .blue)
-            : (viewModel.importProgress, .orange)
+            ? (viewModel.backupProgress, AppColors.info)
+            : (viewModel.importProgress, AppColors.warning)
 
         return HStack(spacing: AppTheme.Spacing.small) {
             ProgressView(value: progress)
@@ -261,10 +276,10 @@ struct DataManagementGrid: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 Label("Backup", systemImage: "externaldrive.fill")
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppColors.info)
 
                 if let size = viewModel.estimatedBackupSize {
-                    Text(formatBytes(size))
+                    Text("Estimated size: \(formatBytes(size))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -272,7 +287,7 @@ struct DataManagementGrid: View {
                 Button {
                     Task { await viewModel.performExport(viewContext: viewContext) }
                 } label: {
-                    Text("Create Backup")
+                    Text("Back up now")
                         .font(.subheadline.weight(.medium))
                         .frame(maxWidth: .infinity)
                 }
@@ -292,12 +307,25 @@ struct DataManagementGrid: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(AppColors.warning)
 
-                Picker("", selection: $viewModel.restoreMode) {
+                Picker("How to restore", selection: $viewModel.restoreMode) {
                     Text("Merge").tag(BackupService.RestoreMode.merge)
                     Text("Replace").tag(BackupService.RestoreMode.replace)
                 }
                 .pickerStyle(.segmented)
                 .controlSize(.small)
+                .labelsHidden()
+
+                // Both explained before the choice; the chosen one reads brighter.
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                    restoreModeLine(
+                        .merge,
+                        "**Merge:** Add what's in the backup and keep everything else."
+                    )
+                    restoreModeLine(
+                        .replace,
+                        "**Replace:** Make this device match the backup exactly."
+                    )
+                }
 
                 Button {
                     #if os(macOS)
@@ -317,15 +345,23 @@ struct DataManagementGrid: View {
                 Button {
                     Task { await viewModel.restoreMostRecentAutoBackup(viewContext: viewContext) }
                 } label: {
-                    Label("Restore Latest Auto", systemImage: "clock.arrow.circlepath")
+                    Label("Restore last automatic backup", systemImage: "clock.arrow.circlepath")
                         .font(.caption.weight(.medium))
                         .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .disabled(isWorking)
             }
         }
+    }
+
+    private func restoreModeLine(_ mode: BackupService.RestoreMode, _ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(viewModel.restoreMode == mode ? .primary : .secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Storage Card
@@ -336,7 +372,7 @@ struct DataManagementGrid: View {
                 HStack {
                     Label("Storage", systemImage: SFSymbol.CDDocument.folderFill)
                         .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(.tint)
                     Spacer()
                     folderMenu
                 }
@@ -347,7 +383,7 @@ struct DataManagementGrid: View {
                     .lineLimit(1)
 
                 if let date = viewModel.lastBackupDate {
-                    Text("Last: \(date.formatted(.relative(presentation: .named)))")
+                    Text("Last backup \(date.formatted(.relative(presentation: .named)))")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
 
@@ -364,7 +400,7 @@ struct DataManagementGrid: View {
                     }
                 } else {
                     Label(
-                        "No backup found",
+                        "No backup yet",
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .font(.caption2)
@@ -377,11 +413,13 @@ struct DataManagementGrid: View {
     private var folderMenu: some View {
         Menu {
             Button { showingFolderImporter = true } label: {
-                Label("Choose Custom Folder…", systemImage: SFSymbol.CDDocument.folderBadgePlus)
+                Label("Choose another folder…", systemImage: SFSymbol.CDDocument.folderBadgePlus)
             }
+            #if os(macOS)
             Button { openFolder() } label: {
-                Label("Open in Finder", systemImage: "arrow.up.forward.square")
+                Label("Show in Finder", systemImage: "arrow.up.forward.square")
             }
+            #endif
             if BackupDestination.resolveBookmarkedFolder() != nil {
                 Divider()
                 Button { resetToDefault() } label: {
@@ -394,6 +432,7 @@ struct DataManagementGrid: View {
                 .foregroundStyle(.secondary)
         }
         .menuStyle(.borderlessButton)
+        .accessibilityLabel("Backup folder options")
     }
 
     // MARK: - Auto-Backup Card
@@ -402,31 +441,52 @@ struct DataManagementGrid: View {
         CompactGridCard {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                 HStack {
-                    Label("Auto-Backup", systemImage: "clock.arrow.circlepath")
+                    Label("Automatic backups", systemImage: "clock.arrow.circlepath")
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(AppColors.success)
                     Spacer()
                     // Title is hidden visually but read by VoiceOver — an empty
                     // title would announce as an unlabeled switch.
-                    Toggle("Auto-Backup", isOn: $autoBackupEnabled)
+                    Toggle("Automatic backups", isOn: $autoBackupEnabled)
                         .toggleStyle(.switch)
                         .controlSize(.small)
                         .labelsHidden()
                 }
 
-                HStack {
-                    Text("Keep")
+                footnote(Self.leavingTriggerText)
+                    .opacity(autoBackupEnabled ? 1 : 0.4)
+
+                // The timer is its own switch: AutoBackupManager runs it
+                // whether or not the quit/leave backups above are on.
+                Toggle(isOn: $timedBackupsEnabled) {
+                    Text(timedBackupLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Stepper(value: $autoBackupRetention, in: 1...50) {
-                        Text("\(autoBackupRetention)")
-                            .font(.caption.weight(.medium))
-                            .monospacedDigit()
-                    }
-                    .controlSize(.small)
+                        .monospacedDigit()
                 }
-                .opacity(autoBackupEnabled ? 1 : 0.4)
-                .disabled(!autoBackupEnabled)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+
+                if timedBackupsEnabled {
+                    Stepper("Hours between backups", value: $timedBackupHours, in: 1...24)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .controlSize(.small)
+                    footnote("While Cosmic Daybook is open. Skips a turn when the device is hot or in Low Power Mode.")
+                }
+
+                footnote("Any automatic backup is skipped when nothing has changed since the last one.")
+
+                // Retention trims every automatic backup, timed ones included.
+                Stepper(value: $autoBackupRetention, in: 1...50) {
+                    Text(retentionLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                .controlSize(.small)
+                .opacity(autoBackupEnabled || timedBackupsEnabled ? 1 : 0.4)
+                .disabled(!autoBackupEnabled && !timedBackupsEnabled)
 
                 // Every backup, manual or automatic, follows this.
                 Toggle(isOn: $backupIncludesNotePhotos) {
@@ -436,20 +496,59 @@ struct DataManagementGrid: View {
                 }
                 .toggleStyle(.switch)
                 .controlSize(.small)
-                .help("Photos make each backup larger: every kept backup holds its own copy.")
+
+                footnote("Photos make each backup larger: every kept backup holds its own copy.")
             }
         }
+        // AutoBackupManager reads the switch and the interval only when it
+        // arms the next timed backup, so restart it from the new values.
+        .onChange(of: timedBackupsEnabled) { rescheduleTimedBackups() }
+        .onChange(of: timedBackupHours) { rescheduleTimedBackups() }
+    }
+
+    /// When the switch in the card's header backs up.
+    private static var leavingTriggerText: String {
+        #if os(macOS)
+        "Saves a backup each time you quit Cosmic Daybook."
+        #else
+        "Saves a backup when you leave the app, and now and then while it's charging."
+        #endif
+    }
+
+    private var timedBackupLabel: String {
+        timedBackupHours == 1 ? "Back up every hour" : "Back up every \(timedBackupHours) hours"
+    }
+
+    private var retentionLabel: String {
+        autoBackupRetention == 1 ? "Keep the last backup" : "Keep the last \(autoBackupRetention) backups"
+    }
+
+    private func footnote(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func rescheduleTimedBackups() {
+        dependencies.autoBackupManager.startScheduledBackups(viewContext: dependencies.viewContext)
     }
 
     // MARK: - Result Banner
 
-    private func resultBanner(_ message: String) -> some View {
-        HStack(spacing: AppTheme.Spacing.small) {
-            Image(systemName: SFSymbol.Action.checkmarkCircleFill)
-                .foregroundStyle(AppColors.success)
-            Text(message)
+    private func resultBanner(_ note: BackupResultNote) -> some View {
+        let (symbol, color): (String, Color) = switch note.tone {
+        case .success: (SFSymbol.Action.checkmarkCircleFill, AppColors.success)
+        case .neutral: ("info.circle.fill", Color.secondary)
+        case .failure: (SFSymbol.Status.exclamationmarkTriangleFill, AppColors.destructive)
+        }
+        return HStack(spacing: AppTheme.Spacing.small) {
+            Image(systemName: symbol)
+                .foregroundStyle(color)
+                .accessibilityHidden(true)
+            Text(note.text)
                 .font(.caption)
-                .lineLimit(1)
+                .lineLimit(note.tone == .failure ? nil : 1)
             Spacer()
             Button { resultMessage = nil } label: {
                 Image(systemName: SFSymbol.Action.xmark)
@@ -457,12 +556,13 @@ struct DataManagementGrid: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
         }
         .padding(.horizontal, AppTheme.Spacing.small + 2)
         .padding(.vertical, AppTheme.Spacing.sm)
         .surface(
             AppTheme.Spacing.small,
-            fill: Color.green.opacity(UIConstants.OpacityConstants.medium),
+            fill: color.opacity(UIConstants.OpacityConstants.medium),
             style: .continuous
         )
     }
@@ -473,17 +573,13 @@ struct DataManagementGrid: View {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
+    #if os(macOS)
     private func openFolder() {
-        #if os(macOS)
         if let url = BackupDestination.resolveDefaultFolder() {
             NSWorkspace.shared.activateFileViewerSelecting([url])
         }
-        #else
-        if let url = BackupDestination.resolveDefaultFolder() {
-            UIApplication.shared.open(url)
-        }
-        #endif
     }
+    #endif
 
     private func resetToDefault() {
         BackupDestination.clearDefaultFolder()

@@ -1,6 +1,5 @@
 import SwiftUI
 import CoreData
-import UniformTypeIdentifiers
 
 // MARK: - SettingsView
 
@@ -10,8 +9,11 @@ struct SettingsView: View {
     @Environment(\.dependencies) private var dependencies
     @State var statsViewModel = SettingsStatsViewModel()
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// A card the Overview opened (wide layout); cleared once another category is picked.
+    @State private var requestedFocus: SettingsCopy.Group?
     @State private var searchText = ""
+    /// The iPhone's pushed panes, so the Overview can open another category.
+    @State private var compactPath: [SettingsPaneRoute] = []
     @AppStorage(UserDefaultsKeys.settingsSelectedCategory) private var selectedCategoryRaw: String = ""
 
     init(showsPageHeader: Bool = true) {
@@ -26,26 +28,44 @@ struct SettingsView: View {
         #endif
     }
 
-    var selectedCategory: SettingsCategory? {
-        SettingsCategory(rawValue: selectedCategoryRaw)
+    /// The open category; a selection saved by an older build maps onto the new categories.
+    var selectedCategory: SettingsCategory {
+        SettingsCategory(storedValue: selectedCategoryRaw) ?? .overview
     }
 
     var selectedCategoryBinding: Binding<SettingsCategory?> {
         Binding<SettingsCategory?>(
-            get: { SettingsCategory(rawValue: selectedCategoryRaw) },
-            set: { selectedCategoryRaw = $0?.rawValue ?? "" }
+            get: { selectedCategory },
+            set: { selectedCategoryRaw = ($0 ?? .overview).rawValue }
         )
     }
 
     var filteredCategories: [SettingsCategory] {
-        let visible = SettingsCategory.visibleCategories
-        guard !searchText.isEmpty else { return visible }
-        let query = searchText.lowercased()
-        return visible.filter {
-            $0.searchKeywords.lowercased().contains(query) ||
-            $0.displayName.lowercased().contains(query) ||
-            $0.detailedSettings.contains { $0.lowercased().contains(query) }
-        }
+        SettingsCategory.visibleCategories.filter { $0.matches(searchText) }
+    }
+
+    private func categories(in section: SettingsCategory.Section) -> [SettingsCategory] {
+        filteredCategories.filter { $0.section == section }
+    }
+
+    private var isSearching: Bool { SettingsSearch.isSearching(searchText) }
+
+    /// A search that matches nothing at all.
+    private var hasNoResults: Bool { isSearching && filteredCategories.isEmpty }
+
+    /// The card the wide layout scrolls to and outlines: the open category's
+    /// first card that matches the search.
+    private var searchFocus: SettingsCopy.Group? {
+        SettingsSearch.firstMatchingGroup(in: selectedCategory, query: searchText)
+    }
+
+    /// The wide layout's card to show: a search match, else a card the Overview asked for.
+    private var paneFocus: SettingsCopy.Group? {
+        searchFocus ?? requestedFocus.flatMap { $0.category == selectedCategory ? $0 : nil }
+    }
+
+    private var trimmedSearchText: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var sidebarWidth: CGFloat {
@@ -56,16 +76,28 @@ struct SettingsView: View {
         #endif
     }
 
-    var overviewColumns: [GridItem] {
-        if dynamicTypeSize.isAccessibilitySize {
-            return [GridItem(.flexible())]
+    /// Opens a category from inside a pane (the Overview's fix buttons): selects
+    /// it beside the sidebar, or pushes its pane on iPhone.
+    func openCategory(_ category: SettingsCategory) {
+        if isCompact {
+            compactPath.append(SettingsPaneRoute(category: category))
+        } else {
+            selectedCategoryRaw = category.rawValue
         }
-        let columnCount = horizontalSizeClass == .regular ? 4 : 2
-        return Array(repeating: GridItem(.flexible(), spacing: 16), count: columnCount)
+    }
+
+    /// Opens the category that holds a card, scrolled to the card and outlined.
+    func openCard(_ group: SettingsCopy.Group) {
+        if isCompact {
+            compactPath.append(SettingsPaneRoute(category: group.category, focus: group))
+        } else {
+            requestedFocus = group
+            selectedCategoryRaw = group.category.rawValue
+        }
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $compactPath) {
             VStack(spacing: 0) {
                 if showsPageHeader {
                     ViewHeader(title: "Settings")
@@ -75,31 +107,15 @@ struct SettingsView: View {
             }
         }
         .inlineNavigationTitle()
-        .fileImporter(
-            isPresented: $showingSettingsImporter,
-            allowedContentTypes: [.json],
-            allowsMultipleSelection: false
-        ) { result in
-            do {
-                if let url = try result.get().first {
-                    let data = try Data(contentsOf: url)
-                    try SettingsExportService.importSettings(from: data)
-                    settingsImportMessage = "Settings imported successfully"
-                }
-            } catch {
-                settingsImportMessage = AppErrorMessages.importMessage(for: error, fileType: "settings file")
-            }
+        .onChange(of: selectedCategoryRaw) { _, _ in
+            // A card the Overview asked for belongs to that one visit.
+            if requestedFocus?.category != selectedCategory { requestedFocus = nil }
         }
-        .alert("Settings Import", isPresented: Binding(
-            get: { settingsImportMessage != nil },
-            set: { if !$0 { settingsImportMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let msg = settingsImportMessage {
-                Text(msg)
-            }
+        .onChange(of: isCompact) { _, compact in
+            // The pushed panes belong to the iPhone list; the wide layout has none.
+            if !compact { compactPath.removeAll() }
         }
+        .onDisappear { statsViewModel.stopObserving() }
         .onAppear {
             statsViewModel.loadCounts(context: viewContext)
 
@@ -133,55 +149,40 @@ struct SettingsView: View {
 
     private var settingsSidebar: some View {
         VStack(spacing: 0) {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
-                TextField("Search", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.subheadline)
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(8)
-            .surface(
-                UIConstants.CornerRadius.medium,
-                fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
-                style: .continuous
-            )
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            SettingsSidebarSearchField(text: $searchText)
+                .padding(.horizontal, AppTheme.Spacing.compact)
+                .padding(.top, AppTheme.Spacing.compact)
+                .padding(.bottom, AppTheme.Spacing.small)
 
-            List(filteredCategories, selection: selectedCategoryBinding) { category in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Label(category.displayName, systemImage: category.icon)
-                        Text(category.subtitle)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    connectionStatusDot(for: category)
-                    if category.wasRecentlyModified {
-                        Circle()
-                            .fill(AppColors.info)
-                            .frame(width: 6, height: 6)
+            List(selection: selectedCategoryBinding) {
+                ForEach(SettingsCategory.Section.allCases, id: \.self) { section in
+                    let sectionCategories = categories(in: section)
+                    if !sectionCategories.isEmpty {
+                        Section {
+                            ForEach(sectionCategories) { category in
+                                categoryRow(category)
+                                    .tag(category)
+                            }
+                        } header: {
+                            if let title = section.title {
+                                Text(title)
+                            }
+                        }
                     }
                 }
-                .tag(category)
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .overlay(alignment: .top) {
+                if hasNoResults {
+                    Text("No settings match “\(trimmedSearchText)”")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppTheme.Spacing.compact)
+                        .padding(.top, AppTheme.Spacing.large)
+                }
+            }
         }
         .background(SettingsStyle.groupBackgroundColor.opacity(UIConstants.OpacityConstants.half))
         .onChange(of: searchText) { _, _ in
@@ -197,11 +198,10 @@ struct SettingsView: View {
     @ViewBuilder
     private func connectionStatusDot(for category: SettingsCategory) -> some View {
         switch category {
-        case .dataSync:
-            Circle()
-                .fill(syncHealthColor(dependencies.cloudKitSyncStatusService.syncHealth))
-                .frame(width: 8, height: 8)
-        case .aiFeatures:
+        case .syncBackup:
+            SyncSkyIcon(health: dependencies.cloudKitSyncStatusService.syncHealth)
+                .font(.caption)
+        case .intelligence:
             Circle()
                 .fill(AIClientRouter.isAvailable ? AppColors.success : AppColors.warning)
                 .frame(width: 8, height: 8)
@@ -210,126 +210,92 @@ struct SettingsView: View {
         }
     }
 
-    private func syncHealthColor(_ health: CloudKitHealthCheck.SyncHealth) -> Color {
-        switch health {
-        case .healthy: return AppColors.success
-        case .syncing: return AppColors.info
-        case .warning: return AppColors.warning
-        case .error: return AppColors.destructive
-        case .offline, .unknown: return .gray
-        }
-    }
-
+    @ViewBuilder
     private var settingsDetailPane: some View {
-        ScrollView {
-            Group {
-                if let category = selectedCategory {
-                    settingsPaneContent(for: category)
-                } else {
-                    SettingsDashboardView(statsViewModel: statsViewModel)
+        if hasNoResults {
+            ContentUnavailableView.search(text: trimmedSearchText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // While searching, scrolls to the open category's first matching card.
+            SettingsPaneScrollView(focus: paneFocus?.anchorID) {
+                VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+                    SettingsCategoryHeader(category: selectedCategory)
+                    settingsPaneContent(for: selectedCategory)
                 }
+                .frame(maxWidth: 700)
+                .padding(.horizontal, AppTheme.Spacing.large)
+                .padding(.vertical, AppTheme.Spacing.medium)
+                .frame(maxWidth: .infinity)
+                .transition(.opacity)
+                .id(selectedCategoryRaw)
             }
-            .frame(maxWidth: 700)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity)
-            .transition(.opacity)
-            .id(selectedCategoryRaw)
+            .animation(.easeInOut(duration: 0.2), value: selectedCategoryRaw)
         }
-        .animation(.easeInOut(duration: 0.2), value: selectedCategoryRaw)
     }
 
     // MARK: - Compact Layout (iPhone)
 
     private var compactSettingsList: some View {
         List {
-            ForEach(filteredCategories) { category in
-                NavigationLink(value: category) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label(category.displayName, systemImage: category.icon)
-                            Text(category.subtitle)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .lineLimit(1)
+            ForEach(SettingsCategory.Section.allCases, id: \.self) { section in
+                let sectionCategories = categories(in: section)
+                if !sectionCategories.isEmpty {
+                    Section {
+                        ForEach(sectionCategories) { category in
+                            NavigationLink(value: SettingsPaneRoute(category: category)) {
+                                categoryRow(category)
+                            }
+                            // While searching, the matching cards, each opening its pane at that card.
+                            ForEach(SettingsSearch.matchingGroups(in: category, query: searchText)) { group in
+                                NavigationLink(value: SettingsPaneRoute(category: category, focus: group)) {
+                                    SettingsSearchResultRow(group: group)
+                                }
+                            }
                         }
-                        Spacer()
-                        connectionStatusDot(for: category)
-                        if category.wasRecentlyModified {
-                            Circle()
-                                .fill(AppColors.info)
-                                .frame(width: 6, height: 6)
+                    } header: {
+                        if let title = section.title {
+                            Text(title)
                         }
                     }
                 }
             }
         }
-        .searchable(text: $searchText, prompt: "Search settings")
-        .navigationDestination(for: SettingsCategory.self) { category in
-            ScrollView {
-                settingsPaneContent(for: category)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+        .overlay {
+            if hasNoResults {
+                ContentUnavailableView.search(text: trimmedSearchText)
             }
-            .navigationTitle(category.displayName)
+        }
+        .searchable(text: $searchText, prompt: "Search settings")
+        .navigationDestination(for: SettingsPaneRoute.self) { route in
+            SettingsPaneScrollView(focus: route.focus?.anchorID) {
+                settingsPaneContent(for: route.category)
+                    .padding(.horizontal, AppTheme.Spacing.medium)
+                    .padding(.vertical, AppTheme.Spacing.compact)
+            }
+            .navigationTitle(route.category.displayName)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
             #endif
         }
     }
-    // Settings Import
-    @State var showingSettingsImporter = false
-    @State var settingsImportMessage: String?
-    @State var settingsExportMessage: String?
-}
 
-// MARK: - Apple Intelligence Status Row
+    // MARK: - Category Row
 
-#if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
-import FoundationModels
-
-struct AppleIntelligenceStatusRow: View {
-    private let onDevice = LocalModelClient()
-    private let privateCloud = PrivateCloudModelClient()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-            statusLine(
-                label: "On-Device",
-                available: onDevice.isAvailable,
-                reason: onDevice.unavailabilityReason
-            )
-            Divider()
-            statusLine(
-                label: "Private Cloud Compute",
-                available: privateCloud.isAvailable,
-                reason: privateCloud.unavailabilityReason
-            )
-        }
-    }
-
-    private func statusLine(label: String, available: Bool, reason: String) -> some View {
-        HStack(spacing: AppTheme.Spacing.small) {
-            Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(available ? AppColors.success : AppColors.warning)
-                .font(.subheadline)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(label): \(available ? "Available" : "Not Available")")
-                    .font(AppTheme.ScaledFont.bodySemibold)
-                    .foregroundStyle(available ? AppColors.success : AppColors.warning)
-
-                if !available {
-                    Text(reason)
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(.secondary)
-                }
+    private func categoryRow(_ category: SettingsCategory) -> some View {
+        HStack(spacing: 10) {
+            SettingsCategoryIcon(category: category)
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                Text(category.displayName)
+                Text(category.subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
             Spacer()
+            connectionStatusDot(for: category)
         }
     }
 }
-#endif
 
 // The `#Preview` closure is expanded and type-checked in every compiler job
 // for the module; a private view is checked once, in this file's job.

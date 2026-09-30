@@ -1,9 +1,11 @@
 import SwiftUI
 
-// MARK: - Sync Conflict Resolution View
+// MARK: - Sync Problems View
 
-/// Informational view about sync conflicts and resolution.
-/// SwiftData with CloudKit uses last-writer-wins, so this is primarily informational.
+/// "Sync problems": what has gone wrong with iCloud sync lately, and how two
+/// devices' edits are settled. The notebook is Core Data mirrored to iCloud,
+/// which keeps the most recent change to a record, so there is nothing to pick
+/// between here; the real recovery is Troubleshooting › If sync gets stuck.
 struct SyncConflictResolutionView: View {
     @Environment(\.dependencies) private var dependencies
     let logger = SyncEventLogger.shared
@@ -16,24 +18,24 @@ struct SyncConflictResolutionView: View {
         ScrollView {
             VStack(spacing: SettingsStyle.sectionSpacing) {
                 // Summary
-                SettingsGroup(title: "Sync Overview", systemImage: "arrow.triangle.2.circlepath") {
-                    VStack(alignment: .leading, spacing: 12) {
+                SettingsGroup(title: "Lately", systemImage: "arrow.triangle.2.circlepath") {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
                                 Text("\(logger.events.count)")
                                     .font(.title2.weight(.semibold))
-                                Text("Total sync events")
+                                Text("Recent sync activity")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
+                            VStack(alignment: .trailing, spacing: AppTheme.Spacing.xxsmall) {
                                 Text("\(recentErrors.count)")
                                     .font(.title2.weight(.semibold))
                                     .foregroundStyle(
                                         recentErrors.isEmpty ? AppColors.success : AppColors.warning
                                     )
-                                Text("Errors")
+                                Text("Problems")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -41,61 +43,59 @@ struct SyncConflictResolutionView: View {
                     }
                 }
 
-                // How Conflicts Work
-                SettingsGroup(title: "How Conflicts are Resolved", systemImage: "info.circle") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(
-                            "Cosmic Daybook uses iCloud with SwiftData for syncing. "
-                            + "When the same record is edited on multiple devices, "
-                            + "the most recent change wins automatically."
-                        )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Text(
-                            "This means you should avoid editing the same student, lesson, "
-                            + "or record on two devices simultaneously. "
-                            + "Changes sync within a few minutes when connected."
-                        )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                // How two devices' edits are settled
+                SettingsGroup(
+                    title: "When two devices change the same thing",
+                    systemImage: "info.circle",
+                    footer: "Changes usually reach your other devices within a few minutes "
+                        + "when they're online, so try not to edit the same student or lesson "
+                        + "on two devices at once."
+                ) {
+                    Text(
+                        "Your notebook lives in iCloud. When the same record is changed on "
+                        + "two devices, the most recent change wins."
+                    )
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // Force Re-Sync
-                SettingsGroup(title: "Troubleshooting", systemImage: "wrench.fill") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("If data appears out of sync, try forcing a full re-sync.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                // Send now
+                SettingsGroup(
+                    title: "Still out of sync?",
+                    systemImage: "wrench.fill",
+                    footer: "If a device still looks out of date after a few minutes, open "
+                        + "Troubleshooting › If sync gets stuck."
+                ) {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
+                        Text("Send this device's latest changes to iCloud right away.")
+                            .font(.callout)
+                            .fixedSize(horizontal: false, vertical: true)
 
                         Button {
                             Task {
                                 await dependencies.cloudKitSyncStatusService.syncNow()
                             }
                         } label: {
-                            HStack {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                Text("Force Full Re-Sync")
-                            }
-                            .frame(maxWidth: .infinity)
+                            Label("Send changes now", systemImage: "arrow.up.circle")
+                                .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                        .disabled(dependencies.cloudKitSyncStatusService.isSyncing)
                     }
                 }
 
                 // Recent Errors
                 if !recentErrors.isEmpty {
-                    SettingsGroup(title: "Recent Errors", systemImage: "exclamationmark.triangle") {
-                        VStack(alignment: .leading, spacing: 8) {
+                    SettingsGroup(title: "Recent problems", systemImage: "exclamationmark.triangle") {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                             ForEach(recentErrors.prefix(5)) { event in
-                                HStack(alignment: .top, spacing: 8) {
+                                HStack(alignment: .top, spacing: AppTheme.Spacing.small) {
                                     Circle()
                                         .fill(AppColors.destructive)
                                         .frame(width: 6, height: 6)
                                         .padding(.top, 5)
-                                    VStack(alignment: .leading, spacing: 2) {
+                                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
                                         Text(event.message)
                                             .font(.caption)
                                         Text(event.timestamp.formatted(.relative(presentation: .named)))
@@ -108,10 +108,10 @@ struct SyncConflictResolutionView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.vertical, AppTheme.Spacing.compact)
         }
-        .navigationTitle("Sync Details")
+        .navigationTitle("Sync problems")
         .inlineNavigationTitle()
     }
 }

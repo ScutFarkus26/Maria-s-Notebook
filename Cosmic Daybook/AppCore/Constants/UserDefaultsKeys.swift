@@ -12,7 +12,6 @@ nonisolated enum UserDefaultsKeys {
     static let useInMemoryStoreOnce = "UseInMemoryStoreOnce"
     static let ephemeralSessionFlag = "SwiftDataEphemeralSession"
     static let lastStoreErrorDescription = "SwiftDataLastErrorDescription"
-    static let allowLocalStoreFallback = "AllowLocalStoreFallback"
     static let enableCloudKitSync = "EnableCloudKitSync"
     static let cloudKitActive = "CloudKitActive"
     static let cloudKitLastErrorDescription = "CloudKitLastErrorDescription"
@@ -134,7 +133,10 @@ nonisolated enum UserDefaultsKeys {
     /// Last-opened settings category (a `SettingsCategory` raw value).
     static let settingsSelectedCategory = "settings_selectedCategory"
     /// Version whose "What's New" banner the guide has already dismissed.
-    static let whatsNewDismissedVersion = "WhatsNew.dismissedVersion"
+    /// Id of the newest `SettingsWhatsNew` release the guide has dismissed.
+    static let whatsNewDismissedRelease = "WhatsNew.dismissedRelease"
+    /// The footer's easter egg: a starfield in the Settings footer and behind its header.
+    static let settingsCosmicAccent = "Settings.cosmicAccent"
 
     // MARK: - Resources
     /// Grid or list on the resource library (a `ResourceViewMode` raw value).

@@ -2,8 +2,14 @@ import Foundation
 
 // MARK: - Settings Export Service
 
-/// Exports and imports app settings as a JSON profile.
-/// IMPORTANT: Never exports API keys, passwords, or sensitive credentials.
+/// Sync and backup › Move settings to another device: writes the guide's
+/// settings to a small JSON file and reads one back on another device.
+///
+/// The settings are the ones every backup carries
+/// (`BackupPreferencesService.preferenceKeys`), less the few that describe
+/// this device rather than the guide's choices. That list already leaves out
+/// device plumbing (sync tokens, window positions, the Claude connection), and
+/// an imported file can only set keys on it.
 enum SettingsExportService {
 
     enum SettingsImportError: Error, LocalizedError {
@@ -12,156 +18,197 @@ enum SettingsExportService {
 
         var errorDescription: String? {
             switch self {
-            case .invalidFormat: return "Invalid settings file format."
-            case .incompatibleVersion: return "Settings file version is not compatible."
+            case .invalidFormat:
+                return "This file isn't a Cosmic Daybook settings file."
+            case .incompatibleVersion:
+                return "This settings file came from a newer version of Cosmic Daybook. " +
+                    "Update the app on this device, then import it again."
             }
         }
     }
 
-    // MARK: - Setting Descriptors
+    /// The file version this build writes. Version 1 (until 2026-09-30) held
+    /// 21 hand-picked settings under names of its own; it still imports.
+    static let currentVersion = 2
 
-    private enum Store { case synced, userDefaults }
-    private enum ValueType { case int, string, double, bool }
+    // MARK: - Keys
 
-    private struct Descriptor {
-        let jsonKey: String
-        let storeKey: String
-        let store: Store
-        let type: ValueType
-        /// The value the app behaves with when the key was never customized.
-        /// Exported in place of a missing key so importing a profile reproduces
-        /// the exporting device's effective configuration — the stores' scalar
-        /// getters would otherwise silently turn "never set" into 0/false.
-        let defaultValue: Any
-    }
-
-    // Each setting is declared once — used for both export and import.
-    private static let descriptors: [Descriptor] = [
-        // General — Age Indicators (CDLesson)
-        .init(jsonKey: "lessonAgeWarningDays", storeKey: "LessonAge.warningDays", store: .synced, type: .int,
-              defaultValue: LessonAgeDefaults.warningDays),
-        .init(jsonKey: "lessonAgeOverdueDays", storeKey: "LessonAge.overdueDays", store: .synced, type: .int,
-              defaultValue: LessonAgeDefaults.overdueDays),
-        .init(jsonKey: "lessonAgeFreshColorHex", storeKey: "LessonAge.freshColorHex", store: .synced, type: .string,
-              defaultValue: LessonAgeDefaults.freshColorHex),
-        .init(jsonKey: "lessonAgeWarningColorHex", storeKey: "LessonAge.warningColorHex",
-              store: .synced, type: .string, defaultValue: LessonAgeDefaults.warningColorHex),
-        .init(jsonKey: "lessonAgeOverdueColorHex", storeKey: "LessonAge.overdueColorHex",
-              store: .synced, type: .string, defaultValue: LessonAgeDefaults.overdueColorHex),
-        // General — Age Indicators (Work)
-        .init(jsonKey: "workAgeWarningDays", storeKey: "WorkAge.warningDays", store: .synced, type: .int,
-              defaultValue: WorkAgeDefaults.warningDays),
-        .init(jsonKey: "workAgeOverdueDays", storeKey: "WorkAge.overdueDays", store: .synced, type: .int,
-              defaultValue: WorkAgeDefaults.overdueDays),
-        .init(jsonKey: "workAgeFreshColorHex", storeKey: "WorkAge.freshColorHex", store: .synced, type: .string,
-              defaultValue: WorkAgeDefaults.freshColorHex),
-        .init(jsonKey: "workAgeWarningColorHex", storeKey: "WorkAge.warningColorHex", store: .synced, type: .string,
-              defaultValue: WorkAgeDefaults.warningColorHex),
-        .init(jsonKey: "workAgeOverdueColorHex", storeKey: "WorkAge.overdueColorHex", store: .synced, type: .string,
-              defaultValue: WorkAgeDefaults.overdueColorHex),
-        // CDLesson Planning — defaults mirror LessonPlanningSettingsView's @AppStorage values
-        .init(jsonKey: "lessonPlanningTimeout", storeKey: UserDefaultsKeys.lessonPlanningTimeout,
-              store: .userDefaults, type: .int, defaultValue: 120),
-        .init(jsonKey: "lessonPlanningDefaultDepth", storeKey: UserDefaultsKeys.lessonPlanningDefaultDepth,
-              store: .userDefaults, type: .string, defaultValue: "standard"),
-        .init(jsonKey: "lessonPlanningTemperature", storeKey: UserDefaultsKeys.lessonPlanningTemperature,
-              store: .userDefaults, type: .double, defaultValue: 0.3),
-        // Backup — defaults mirror AutoBackupManager's @AppStorage values
-        .init(jsonKey: "autoBackupEnabled", storeKey: UserDefaultsKeys.autoBackupEnabled,
-              store: .userDefaults, type: .bool, defaultValue: true),
-        .init(jsonKey: "autoBackupRetentionCount", storeKey: UserDefaultsKeys.autoBackupRetentionCount,
-              store: .userDefaults, type: .int, defaultValue: 10),
-        .init(jsonKey: "backupEncrypt", storeKey: "Backup.encrypt", store: .synced, type: .bool,
-              defaultValue: false),
-        // Communication — defaults mirror AttendanceEmail's @SyncedAppStorage values
-        .init(jsonKey: "attendanceEmailEnabled", storeKey: "AttendanceEmail.enabled", store: .synced, type: .bool,
-              defaultValue: true),
-        .init(jsonKey: "attendanceEmailTo", storeKey: "AttendanceEmail.to", store: .synced, type: .string,
-              defaultValue: ""),
-        .init(jsonKey: "attendanceEmailFrom", storeKey: "AttendanceEmail.from", store: .synced, type: .string,
-              defaultValue: ""),
-        .init(jsonKey: "attendanceEmailNameOrder", storeKey: "AttendanceEmail.nameOrder", store: .synced,
-              type: .string, defaultValue: AttendanceEmailNameOrder.firstLast.rawValue),
-        .init(jsonKey: "attendanceEmailGroupByLevel", storeKey: "AttendanceEmail.groupByLevel", store: .synced,
-              type: .bool, defaultValue: false),
-        .init(jsonKey: "attendanceEmailDeadlineMinutes", storeKey: "AttendanceEmail.deadlineMinutes", store: .synced,
-              type: .int, defaultValue: AttendanceEmailLog.defaultDeadlineMinutes)
+    /// Backed-up keys that stay behind when settings move to another device.
+    private static let deviceOnlyKeys: Set<String> = [
+        // When this device last backed up. Copied across, it would hide the
+        // other device's "no backup yet" warning.
+        "LastBackupTimeInterval",
+        UserDefaultsKeys.lastBackupTimeInterval,
+        // Album folders and files on this device; they mean nothing elsewhere.
+        UserDefaultsKeys.albumsFolderBookmarks,
+        UserDefaultsKeys.albumsFingerprints,
+        UserDefaultsKeys.albumsLastSeenModDates
     ]
+
+    /// Every setting the file carries. The per-date attendance locks
+    /// (`BackupPreferencesService.preferenceKeyPrefixes`) are classroom
+    /// records, not settings, so they stay out.
+    static let transferKeys: [String] =
+        BackupPreferencesService.preferenceKeys.filter { !deviceOnlyKeys.contains($0) }
+
+    // MARK: - File Format
+
+    /// Version 2: each setting under its stored key, typed as in a backup's
+    /// `preferences.json`.
+    private nonisolated struct Profile: Codable {
+        var exportVersion: Int
+        var exportDate: String
+        var appVersion: String
+        /// The settings the exporting device has chosen. One it never changed
+        /// isn't in the file, and importing leaves the other device's own choice
+        /// alone: clearing it would reach every device through iCloud.
+        var settings: [String: PreferenceValueDTO]
+    }
 
     // MARK: - Export
 
-    static func exportSettings() -> Data? {
-        var settings: [String: Any] = [:]
-
-        // Metadata
-        settings["exportVersion"] = 1
-        settings["exportDate"] = DateFormatters.iso8601DateTime.string(from: Date())
-        settings["appVersion"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-
-        let syncStore = SyncedPreferencesStore.shared
-        let ud = UserDefaults.standard
-
-        for desc in descriptors {
-            settings[desc.jsonKey] = readValue(desc, syncStore: syncStore, userDefaults: ud)
+    /// - Parameters:
+    ///   - defaults: Where settings that don't sync through iCloud live.
+    ///   - syncedStore: Where synced settings live; nil reads every key from `defaults` (tests).
+    static func exportSettings(
+        defaults: UserDefaults = .standard,
+        syncedStore: SyncedPreferencesStore? = .shared
+    ) -> Data? {
+        let storage = Storage(defaults: defaults, syncedStore: syncedStore)
+        var settings: [String: PreferenceValueDTO] = [:]
+        for key in transferKeys {
+            guard let stored = storage.value(forKey: key) else { continue }
+            if let value = BackupPreferencesService.dtoValue(for: stored) {
+                settings[key] = value
+            }
         }
 
-        return try? JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
+        let profile = Profile(
+            exportVersion: currentVersion,
+            exportDate: DateFormatters.iso8601DateTime.string(from: Date()),
+            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            settings: settings
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try? encoder.encode(profile)
     }
 
     // MARK: - Import
 
-    static func importSettings(from data: Data) throws {
-        guard let settings = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+    static func importSettings(
+        from data: Data,
+        defaults: UserDefaults = .standard,
+        syncedStore: SyncedPreferencesStore? = .shared
+    ) throws {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw SettingsImportError.invalidFormat
         }
+        let storage = Storage(defaults: defaults, syncedStore: syncedStore)
 
-        guard let version = settings["exportVersion"] as? Int, version == 1 else {
+        switch object["exportVersion"] as? Int {
+        case .some(1):
+            importVersion1(object, into: storage)
+        case .some(currentVersion):
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            guard let profile = try? decoder.decode(Profile.self, from: data) else {
+                throw SettingsImportError.invalidFormat
+            }
+            let known = Set(transferKeys)
+            for (key, value) in profile.settings where known.contains(key) {
+                if let native = BackupPreferencesService.nativeValue(for: value) {
+                    storage.set(native, forKey: key)
+                }
+            }
+        case .some:
             throw SettingsImportError.incompatibleVersion
-        }
-
-        let syncStore = SyncedPreferencesStore.shared
-        let ud = UserDefaults.standard
-
-        for desc in descriptors {
-            guard let value = settings[desc.jsonKey] else { continue }
-            writeValue(desc, value: value, syncStore: syncStore, userDefaults: ud)
+        case .none:
+            throw SettingsImportError.invalidFormat
         }
     }
 
-    // MARK: - Read/Write Helpers
+    // MARK: - Version 1
 
-    /// Reads the effective value for a setting: the raw stored object when the
-    /// user customized it, otherwise the app default. Only object-level reads
-    /// can distinguish "never set" (nil) from an explicit 0/false, per
-    /// `UserDefaults.object(forKey:)` semantics.
-    private static func readValue(
-        _ desc: Descriptor, syncStore: SyncedPreferencesStore, userDefaults ud: UserDefaults
-    ) -> Any {
-        let stored: Any? = switch desc.store {
-        case .synced: syncStore.get(key: desc.storeKey)
-        case .userDefaults: ud.object(forKey: desc.storeKey)
-        }
-        switch desc.type {
-        case .int:    return (stored as? Int) ?? desc.defaultValue
-        case .string: return (stored as? String) ?? desc.defaultValue
-        case .double: return (stored as? Double) ?? desc.defaultValue
-        case .bool:   return (stored as? Bool) ?? desc.defaultValue
+    private enum ValueType { case int, string, double, bool }
+
+    private struct Version1Key {
+        let jsonKey: String
+        let storeKey: String
+        let type: ValueType
+
+        init(_ jsonKey: String, _ storeKey: String, _ type: ValueType) {
+            self.jsonKey = jsonKey
+            self.storeKey = storeKey
+            self.type = type
         }
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
-    private static func writeValue(
-        _ desc: Descriptor, value: Any, syncStore: SyncedPreferencesStore, userDefaults ud: UserDefaults
-    ) {
-        switch (desc.store, desc.type) {
-        case (.synced, .int):         if let v = value as? Int { syncStore.set(v, forKey: desc.storeKey) }
-        case (.synced, .string):      if let v = value as? String { syncStore.set(v, forKey: desc.storeKey) }
-        case (.synced, .double):      if let v = value as? Double { syncStore.set(v, forKey: desc.storeKey) }
-        case (.synced, .bool):        if let v = value as? Bool { syncStore.set(v, forKey: desc.storeKey) }
-        case (.userDefaults, .int):    if let v = value as? Int { ud.set(v, forKey: desc.storeKey) }
-        case (.userDefaults, .string): if let v = value as? String { ud.set(v, forKey: desc.storeKey) }
-        case (.userDefaults, .double): if let v = value as? Double { ud.set(v, forKey: desc.storeKey) }
-        case (.userDefaults, .bool):   if let v = value as? Bool { ud.set(v, forKey: desc.storeKey) }
+    /// Version 1's names for its settings. It wrote every one, with the app
+    /// default in place of a value never set, so importing it sets them all.
+    /// Its `backupEncrypt` is skipped: nothing reads it.
+    private static let version1Keys: [Version1Key] = [
+        .init("lessonAgeWarningDays", "LessonAge.warningDays", .int),
+        .init("lessonAgeOverdueDays", "LessonAge.overdueDays", .int),
+        .init("lessonAgeFreshColorHex", "LessonAge.freshColorHex", .string),
+        .init("lessonAgeWarningColorHex", "LessonAge.warningColorHex", .string),
+        .init("lessonAgeOverdueColorHex", "LessonAge.overdueColorHex", .string),
+        .init("workAgeWarningDays", "WorkAge.warningDays", .int),
+        .init("workAgeOverdueDays", "WorkAge.overdueDays", .int),
+        .init("workAgeFreshColorHex", "WorkAge.freshColorHex", .string),
+        .init("workAgeWarningColorHex", "WorkAge.warningColorHex", .string),
+        .init("workAgeOverdueColorHex", "WorkAge.overdueColorHex", .string),
+        .init("lessonPlanningTimeout", UserDefaultsKeys.lessonPlanningTimeout, .int),
+        .init("lessonPlanningDefaultDepth", UserDefaultsKeys.lessonPlanningDefaultDepth, .string),
+        .init("lessonPlanningTemperature", UserDefaultsKeys.lessonPlanningTemperature, .double),
+        .init("autoBackupEnabled", UserDefaultsKeys.autoBackupEnabled, .bool),
+        .init("autoBackupRetentionCount", UserDefaultsKeys.autoBackupRetentionCount, .int),
+        .init("attendanceEmailEnabled", "AttendanceEmail.enabled", .bool),
+        .init("attendanceEmailTo", "AttendanceEmail.to", .string),
+        .init("attendanceEmailFrom", "AttendanceEmail.from", .string),
+        .init("attendanceEmailNameOrder", "AttendanceEmail.nameOrder", .string),
+        .init("attendanceEmailGroupByLevel", "AttendanceEmail.groupByLevel", .bool)
+    ]
+
+    private static func importVersion1(_ settings: [String: Any], into storage: Storage) {
+        for entry in version1Keys {
+            guard let value = settings[entry.jsonKey] else { continue }
+            let typed: Any? = switch entry.type {
+            case .int: value as? Int
+            case .string: value as? String
+            case .double: value as? Double
+            case .bool: value as? Bool
+            }
+            if let typed {
+                storage.set(typed, forKey: entry.storeKey)
+            }
+        }
+    }
+
+    // MARK: - Storage
+
+    /// Routes each key to where the app keeps it: synced settings in iCloud
+    /// (`SyncedPreferencesStore`), the rest in `defaults`.
+    private struct Storage {
+        let defaults: UserDefaults
+        let syncedStore: SyncedPreferencesStore?
+
+        func value(forKey key: String) -> Any? {
+            if let syncedStore, syncedStore.isSynced(key: key) {
+                return syncedStore.get(key: key)
+            }
+            return defaults.object(forKey: key)
+        }
+
+        func set(_ value: Any?, forKey key: String) {
+            if let syncedStore, syncedStore.isSynced(key: key) {
+                syncedStore.set(value, forKey: key)
+            } else if let value {
+                defaults.set(value, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
         }
     }
 }

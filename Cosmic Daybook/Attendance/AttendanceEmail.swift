@@ -108,12 +108,6 @@ public struct AttendanceEmailSettingsView: View {
     public var body: some View {
         platformBody
             .task(id: changeSignature) { await applyChanges() }
-            .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
-            .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
-            .onChange(of: fromAddress) { _, _ in SettingsCategory.markModified(.communication) }
-            .onChange(of: nameOrderRaw) { _, _ in SettingsCategory.markModified(.communication) }
-            .onChange(of: groupByLevel) { _, _ in SettingsCategory.markModified(.communication) }
-            .onChange(of: deadlineMinutes) { _, _ in SettingsCategory.markModified(.communication) }
     }
 
     @ViewBuilder

@@ -17,7 +17,9 @@ struct ClassroomSharingView: View {
     @State private var sharingService: ClassroomSharingService?
     @State private var showingSharingSheet = false
     @State private var showingLeaveConfirmation = false
+    #if os(macOS)
     @State private var showingStopSharingConfirmation = false
+    #endif
     @State private var showingSetupConfirmation = false
     @State private var errorMessage: String?
     @State private var resultMessage: String?
@@ -28,25 +30,26 @@ struct ClassroomSharingView: View {
     private var service: ClassroomSharingService? { sharingService }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SettingsStyle.groupSpacing) {
             shareStatusCard
             roleGroup
-            membersGroup
-            actionsGroup
+            ClassroomAssistantCard(service: service, contents: contents)
+            ClassroomMembersCard(service: service)
+            sharingGroup
 
             if let resultMessage {
                 Text(resultMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, AppTheme.Spacing.xsmall)
             }
             if let error = errorMessage ?? service?.shareError {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColors.destructive)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, AppTheme.Spacing.xsmall)
             }
         }
         .task {
@@ -82,251 +85,85 @@ struct ClassroomSharingView: View {
         if service?.currentRole == .leadGuide {
             if service?.isSharing != true {
                 if FirstDownloadGate.isPending() {
-                    bannerCard(
+                    ClassroomShareBanner(
                         icon: "icloud.and.arrow.down",
                         tint: .secondary,
                         title: "Still downloading from iCloud",
-                        body: "Classroom sharing can be set up once the notebook has finished downloading."
+                        message: "Classroom sharing can be set up once the notebook has finished downloading."
                     )
                 } else {
-                    bannerCard(
+                    ClassroomShareBanner(
                         icon: "person.2.slash",
                         tint: .secondary,
                         title: "Not shared yet",
-                        body: "Set up classroom sharing once, on this Mac, to give an assistant your class " +
-                            "list, attendance and school calendar."
+                        message: "Set up classroom sharing once, on one of your devices, to give an assistant " +
+                            "your class list, attendance and school calendar."
                     )
                 }
             } else if let contents {
                 if contents.outside > 0 {
-                    bannerCard(
+                    ClassroomShareBanner(
                         icon: "exclamationmark.triangle.fill",
-                        tint: .orange,
-                        title: "\(contents.outside) classroom record(s) aren't in the classroom share",
-                        body: "Your assistant can't see them. The share holds \(contents.summary)."
+                        tint: AppColors.warning,
+                        title: Self.outsideTitle(contents.outside),
+                        message: "Your assistant can't see them. The share holds \(contents.summary)."
                     )
                 } else {
-                    bannerCard(
+                    ClassroomShareBanner(
                         icon: "checkmark.circle.fill",
-                        tint: .green,
+                        tint: AppColors.success,
                         title: "Classroom shared",
-                        body: "The share holds \(contents.summary)."
+                        message: "The share holds \(contents.summary)."
                     )
                 }
             }
         }
     }
 
-    private func bannerCard(icon: String, tint: Color, title: String, body: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(tint)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(body)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .surface(
-            UIConstants.CornerRadius.control,
-            fill: tint.opacity(0.12),
-            stroke: tint.opacity(0.4),
-            lineWidth: 1,
-            style: .continuous
-        )
+    private static func outsideTitle(_ count: Int) -> String {
+        count == 1
+            ? "1 classroom record isn't in the classroom share"
+            : "\(count.formatted()) classroom records aren't in the classroom share"
     }
 
     // MARK: - Role Display
 
     private var roleGroup: some View {
-        SettingsGroup(title: "Your Role", systemImage: "person.badge.key.fill") {
-            HStack(spacing: 12) {
-                Image(systemName: roleIcon)
-                    .font(.title2)
-                    .foregroundStyle(roleColor)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(roleDisplayName)
-                        .font(.headline)
-                    Text(roleDescription)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-            }
-            .frame(maxWidth: .infinity)
+        SettingsGroup(title: "Your role", systemImage: "person.badge.key.fill") {
+            ClassroomRoleSummary(role: service?.currentRole)
         }
     }
 
-    private var roleIcon: String {
-        switch service?.currentRole {
-        case .leadGuide: return "star.circle.fill"
-        case .assistant: return "person.circle.fill"
-        case nil: return "person.circle"
-        }
-    }
-
-    private var roleColor: Color {
-        switch service?.currentRole {
-        case .leadGuide: return .orange
-        case .assistant: return .blue
-        case nil: return .secondary
-        }
-    }
-
-    private var roleDisplayName: String {
-        switch service?.currentRole {
-        case .leadGuide: return "Lead Guide"
-        case .assistant: return "Assistant"
-        case nil: return "Not Connected"
-        }
-    }
-
-    private var roleDescription: String {
-        switch service?.currentRole {
-        case .leadGuide: return "Full access to all classroom data"
-        case .assistant: return "Read access with limited write permissions"
-        case nil: return "Set up sharing to collaborate"
-        }
-    }
-
-    // MARK: - Members
-
-    private var membersGroup: some View {
-        SettingsGroup(title: "Classroom Members", systemImage: "person.2.fill", collapsible: true) {
-            VStack(spacing: 8) {
-                if let participants = service?.participants, !participants.isEmpty {
-                    ForEach(participants, id: \.userIdentity.userRecordID) { participant in
-                        participantRow(participant)
-                    }
-                } else {
-                    Text("No participants yet")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-    }
-
-    private func participantRow(_ participant: CKShare.Participant) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: participantIcon(for: participant))
-                .foregroundStyle(participantColor(for: participant))
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(participantName(participant))
-                    .font(.subheadline)
-                Text(participantStatus(participant))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Text(participantPermission(participant))
-                .font(.caption2)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(.quaternary)
-                .clipShape(Capsule())
-        }
-    }
-
-    private func participantName(_ participant: CKShare.Participant) -> String {
-        let isYou = participant.userIdentity.userRecordID?.recordName != nil
-            && participant.userIdentity.userRecordID?.recordName == service?.currentUserRecordName
-
-        if let name = participant.userIdentity.nameComponents {
-            let formatted = PersonNameComponentsFormatter
-                .localizedString(from: name, style: .default)
-                .trimmed()
-            if !formatted.isEmpty {
-                return isYou ? "\(formatted) (you)" : formatted
-            }
-        }
-
-        // CloudKit withholds your own name components entirely, and withholds
-        // an invitee's until they accept — so both rows would otherwise render
-        // blank and be impossible to tell apart.
-        return isYou ? "You" : "Name not shared"
-    }
-
-    private func participantStatus(_ participant: CKShare.Participant) -> String {
-        switch participant.acceptanceStatus {
-        case .accepted: return "Joined"
-        case .pending: return "Invited"
-        case .removed: return "Removed"
-        case .unknown: return "Unknown"
-        @unknown default: return "Unknown"
-        }
-    }
-
-    private func participantPermission(_ participant: CKShare.Participant) -> String {
-        switch participant.permission {
-        case .readWrite: return "Read & Write"
-        case .readOnly: return "Read Only"
-        case .none: return "None"
-        case .unknown: return "Unknown"
-        @unknown default: return "Unknown"
-        }
-    }
-
-    private func participantIcon(for participant: CKShare.Participant) -> String {
-        participant.role == .owner ? "star.circle.fill" : "person.circle.fill"
-    }
-
-    private func participantColor(for participant: CKShare.Participant) -> Color {
-        switch participant.acceptanceStatus {
-        case .accepted: return participant.role == .owner ? .orange : .blue
-        case .pending: return .yellow
-        default: return .secondary
-        }
-    }
-
-    // MARK: - Actions
+    // MARK: - Sharing
 
     @ViewBuilder
-    private var actionsGroup: some View {
+    private var sharingGroup: some View {
         if let svc = service {
-            SettingsGroup(title: "Actions", systemImage: "square.and.arrow.up") {
-                VStack(spacing: 8) {
-                    if svc.canManageSharing() {
-                        leadGuideActions
-                        NavigationLink {
-                            AssistantPermissionsView()
-                        } label: {
-                            Label("Assistant Permissions", systemImage: "lock.shield")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    } else {
-                        assistantActions
-                    }
+            if svc.canManageSharing() {
+                SettingsGroup(title: "Sharing", systemImage: "square.and.arrow.up") {
+                    leadGuideActions
+                        .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+            } else {
+                SettingsGroup(title: "Your classroom", systemImage: "rectangle.portrait.and.arrow.right") {
+                    assistantActions
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
     }
 
     @ViewBuilder
     private var leadGuideActions: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: AppTheme.Spacing.small) {
             if service?.isSharing == true {
                 manageSharingButton
                 if (contents?.outside ?? 0) > 0 {
-                    setUpButton(title: "Add Them to the Share", prominent: false)
+                    setUpButton(title: "Add them to the share", prominent: false)
                 }
                 stopSharingButton
             } else {
-                setUpButton(title: "Set Up Classroom Sharing", prominent: true)
+                setUpButton(title: "Set up classroom sharing", prominent: true)
             }
         }
         .confirmationDialog(
@@ -334,7 +171,7 @@ struct ClassroomSharingView: View {
             isPresented: $showingSetupConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Set Up") { Task { await setUpSharing() } }
+            Button("Set up") { Task { await setUpSharing() } }
         } message: {
             Text(
                 "Your students, attendance, school calendar and locked days go into one classroom share. " +
@@ -348,7 +185,7 @@ struct ClassroomSharingView: View {
         let button = Button {
             showingSetupConfirmation = true
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: AppTheme.Spacing.small) {
                 if isSettingUp {
                     ProgressView().controlSize(.small)
                 }
@@ -368,11 +205,11 @@ struct ClassroomSharingView: View {
         Button {
             Task { await prepareAndPresentSharingSheet() }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: AppTheme.Spacing.small) {
                 if isPreparingShare {
                     ProgressView().controlSize(.small)
                 }
-                Label("Manage Sharing", systemImage: "square.and.arrow.up")
+                Label("Manage sharing", systemImage: "square.and.arrow.up")
                     .frame(maxWidth: .infinity)
             }
         }
@@ -380,60 +217,38 @@ struct ClassroomSharingView: View {
         .controlSize(.regular)
         .disabled(isPreparingShare)
         .sheet(isPresented: $showingSharingSheet) {
-            sharingSheet
-        }
-    }
-
-    @ViewBuilder
-    private var sharingSheet: some View {
-        #if os(macOS)
-        if let svc = service {
-            ClassroomMembersSheet(service: svc, contents: contents) {
-                showingSharingSheet = false
-                try? svc.refreshParticipants()
-            }
-        }
-        #else
-        if let svc = service, let share = svc.currentShare {
-            CloudSharingSheet(
-                share: share,
-                container: CloudKitConfigurationService.container,
-                onShareSaved: {
-                    // Resync right away rather than waiting for Core Data to
-                    // surface the saved share.
-                    _ = try? svc.fetchExistingShare()
-                },
-                onStopSharing: {
-                    // Owner ended the share inside the sheet — resync
-                    // published share state immediately instead of reporting
-                    // the dead share until the next launch.
-                    svc.handleSharingStopped()
-                },
-                onDismiss: {
+            if let svc = service {
+                ClassroomSharingSheet(service: svc, contents: contents) {
                     showingSharingSheet = false
                     try? svc.refreshParticipants()
                 }
-            )
+            }
         }
-        #endif
     }
 
+    /// On the Mac this removes everyone, so it asks first. On iPad and iPhone
+    /// it opens the system sharing sheet, whose own Stop Sharing asks — a
+    /// dialog here as well would make the guide confirm twice.
     private var stopSharingButton: some View {
         Button(role: .destructive) {
+            #if os(macOS)
             showingStopSharingConfirmation = true
+            #else
+            showingSharingSheet = true
+            #endif
         } label: {
-            Label("Stop Sharing", systemImage: "xmark.circle")
+            Label("Stop sharing…", systemImage: "xmark.circle")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
+        #if os(macOS)
         .confirmationDialog(
-            "Stop Sharing?",
+            "Stop sharing?",
             isPresented: $showingStopSharingConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Stop Sharing", role: .destructive) {
-                #if os(macOS)
+            Button("Stop sharing", role: .destructive) {
                 // The Mac has no system sharing UI to end the share in, and
                 // the share itself has to stay (a new one would be a second
                 // zone) — so remove everyone.
@@ -444,14 +259,11 @@ struct ClassroomSharingView: View {
                         errorMessage = AppErrorMessages.userMessage(for: error, context: "stopping sharing")
                     }
                 }
-                #else
-                // Stopping sharing is handled by the CloudSharingController
-                showingSharingSheet = true
-                #endif
             }
         } message: {
-            Text("Assistants will lose access to classroom data.")
+            Text("Your assistant will lose access to your students, attendance and school calendar.")
         }
+        #endif
     }
 
     private func setUpSharing() async {
@@ -465,10 +277,10 @@ struct ClassroomSharingView: View {
             contents = report.contents
             try? svc.refreshParticipants()
             var message = report.created ? "Classroom share created. " : ""
-            message += "\(report.attached) record(s) added."
+            message += report.attached == 1 ? "1 record added." : "\(report.attached.formatted()) records added."
             if let contents = report.contents { message += " The share holds \(contents.summary)." }
             if report.failed > 0 {
-                message += " \(report.failed) couldn't be added"
+                message += " \(report.failed.formatted()) couldn't be added"
                 message += report.stoppedBecause.map { " (\($0))" } ?? ""
                 message += "; try again later."
             }
@@ -511,13 +323,13 @@ struct ClassroomSharingView: View {
         Button(role: .destructive) {
             showingLeaveConfirmation = true
         } label: {
-            Label("Leave Classroom", systemImage: "rectangle.portrait.and.arrow.right")
+            Label("Leave classroom", systemImage: "rectangle.portrait.and.arrow.right")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
         .controlSize(.regular)
         .confirmationDialog(
-            "Leave Classroom?",
+            "Leave classroom?",
             isPresented: $showingLeaveConfirmation,
             titleVisibility: .visible
         ) {

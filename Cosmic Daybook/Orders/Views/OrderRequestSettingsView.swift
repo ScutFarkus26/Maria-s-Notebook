@@ -43,9 +43,6 @@ struct OrderRequestSettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-        .onChange(of: recipientName) { _, _ in SettingsCategory.markModified(.communication) }
-        .onChange(of: recipientEmail) { _, _ in SettingsCategory.markModified(.communication) }
-        .onChange(of: signOffName) { _, _ in SettingsCategory.markModified(.communication) }
     }
 
     private var greetingName: String {

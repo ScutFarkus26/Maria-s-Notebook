@@ -1,81 +1,96 @@
 import SwiftUI
 
-/// Settings view for configuring the AI lesson planning assistant.
-/// Model selection has moved to the AI Models section above.
+// MARK: - Defaults
+
+/// Lesson planning's settings as they start, and as Reset puts them back.
+/// `AIConfigurationResolver` falls back to the same values when nothing is stored.
+enum LessonPlanningDefaults {
+    /// Seconds to wait for a planning response.
+    static let timeout = 120
+    static let depth: PlanningDepth = .standard
+    static let temperature = 0.3
+    /// Empty means the built-in prompt (`AIPrompts.lessonPlanningAssistant`).
+    static let systemPrompt = ""
+}
+
+// MARK: - Lesson Planning
+
+/// Settings › Intelligence › Lesson planning: how much work the planning
+/// assistant does by default. The prompt, temperature and timeout are
+/// developer controls, in `LessonPlanningDeveloperSettingsView` (debug builds).
 struct LessonPlanningSettingsView: View {
-    @AppStorage(UserDefaultsKeys.lessonPlanningTimeout) private var timeout = 120
-    @AppStorage(UserDefaultsKeys.lessonPlanningDefaultDepth) private var defaultDepth = "standard"
-    @AppStorage(UserDefaultsKeys.lessonPlanningTemperature) private var temperature = 0.3
-    @AppStorage(UserDefaultsKeys.lessonPlanningSystemPrompt) private var customSystemPrompt = ""
-
-    @State private var isPromptExpanded = false
-
-    private let depthOptions = [
-        ("quick", "Quick", "Fast suggestions from curriculum and guide records"),
-        ("standard", "Standard", "Scheduled plan with grouping suggestions"),
-        ("deep", "Deep", "Full weekly optimization across all students")
-    ]
+    @AppStorage(UserDefaultsKeys.lessonPlanningDefaultDepth)
+    private var defaultDepth: PlanningDepth = LessonPlanningDefaults.depth
 
     var body: some View {
-        VStack(spacing: SettingsStyle.groupSpacing) {
-            planningSection
-            promptSection
-            advancedSection
-            resetSection
-        }
-        .onChange(of: timeout) { _, _ in SettingsCategory.markModified(.aiFeatures) }
-        .onChange(of: defaultDepth) { _, _ in SettingsCategory.markModified(.aiFeatures) }
-        .onChange(of: temperature) { _, _ in SettingsCategory.markModified(.aiFeatures) }
-        .onChange(of: customSystemPrompt) { _, _ in SettingsCategory.markModified(.aiFeatures) }
-    }
-
-    // MARK: - Planning Defaults
-
-    private var planningSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             #if os(macOS)
             LabeledContent("Default depth") {
-                Picker("Default depth", selection: $defaultDepth) {
-                    ForEach(depthOptions, id: \.0) { value, label, _ in
-                        Text(label).tag(value)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 180, alignment: .trailing)
+                depthPicker
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
             }
             #else
-            Text("Default Depth")
+            Text("Default depth")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            Picker("Depth", selection: $defaultDepth) {
-                ForEach(depthOptions, id: \.0) { value, label, _ in
-                    Text(label).tag(value)
-                }
-            }
-            .pickerStyle(.segmented)
+            depthPicker
+                .pickerStyle(.segmented)
             #endif
 
-            if let selected = depthOptions.first(where: { $0.0 == defaultDepth }) {
-                Text(selected.2)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            Text(defaultDepth.description)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private var depthPicker: some View {
+        Picker("Default depth", selection: $defaultDepth) {
+            ForEach(PlanningDepth.allCases) { depth in
+                Text(depth.displayName).tag(depth)
             }
+        }
+    }
+}
+
+#if DEBUG
+/// The planning assistant's prompt, temperature and request timeout. Not
+/// teacher settings: debug builds show them in Settings › Intelligence ›
+/// Developer, and release builds use `AIConfigurationResolver`'s defaults.
+struct LessonPlanningDeveloperSettingsView: View {
+    @AppStorage(UserDefaultsKeys.lessonPlanningTimeout) private var timeout = LessonPlanningDefaults.timeout
+    @AppStorage(UserDefaultsKeys.lessonPlanningDefaultDepth)
+    private var defaultDepth: PlanningDepth = LessonPlanningDefaults.depth
+    @AppStorage(UserDefaultsKeys.lessonPlanningTemperature) private var temperature = LessonPlanningDefaults.temperature
+    @AppStorage(UserDefaultsKeys.lessonPlanningSystemPrompt)
+    private var customSystemPrompt = LessonPlanningDefaults.systemPrompt
+
+    @State private var isPromptExpanded = false
+    @State private var isConfirmingClearPrompt = false
+    @State private var isConfirmingReset = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
+            promptSection
+            Divider()
+            advancedSection
+            resetSection
         }
     }
 
     // MARK: - System Prompt
 
     private var promptSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             Button {
                 adaptiveWithAnimation(.easeInOut(duration: 0.2)) {
                     isPromptExpanded.toggle()
                 }
             } label: {
                 HStack {
-                    Text("System Prompt")
+                    Text("System prompt")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -88,7 +103,7 @@ struct LessonPlanningSettingsView: View {
             .buttonStyle(.plain)
 
             if isPromptExpanded {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.verySmall) {
                     Text("Override the default Montessori planning prompt. Leave empty to use the built-in prompt.")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -96,7 +111,7 @@ struct LessonPlanningSettingsView: View {
                     TextEditor(text: $customSystemPrompt)
                         .font(.system(.caption, design: .monospaced))
                         .frame(minHeight: 120, maxHeight: 240)
-                        .padding(6)
+                        .padding(AppTheme.Spacing.verySmall)
                         .surface(
                             UIConstants.CornerRadius.medium,
                             fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
@@ -115,7 +130,7 @@ struct LessonPlanningSettingsView: View {
                                 .foregroundStyle(.secondary)
                             Spacer()
                             Button("Clear") {
-                                customSystemPrompt = ""
+                                isConfirmingClearPrompt = true
                             }
                             .font(.caption2)
                             .foregroundStyle(AppColors.destructive)
@@ -124,21 +139,28 @@ struct LessonPlanningSettingsView: View {
                 }
             }
         }
+        .confirmationDialog(
+            "Clear the custom prompt?",
+            isPresented: $isConfirmingClearPrompt,
+            titleVisibility: .visible
+        ) {
+            Button("Clear prompt", role: .destructive) {
+                customSystemPrompt = LessonPlanningDefaults.systemPrompt
+            }
+        } message: {
+            Text("Lesson planning goes back to the built-in prompt.")
+        }
     }
 
     // MARK: - Advanced
 
     private var advancedSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Advanced")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             #if os(macOS)
             LabeledContent("Temperature") {
-                HStack(spacing: 8) {
+                HStack(spacing: AppTheme.Spacing.small) {
                     Slider(value: $temperature, in: 0.0...1.0, step: 0.1)
-                        .frame(width: 180)
+                        .frame(minWidth: 140, idealWidth: 180, maxWidth: 220)
                     Text(String(format: "%.1f", temperature))
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -156,9 +178,9 @@ struct LessonPlanningSettingsView: View {
 
             #if os(macOS)
             LabeledContent("Request timeout") {
-                HStack(spacing: 8) {
+                HStack(spacing: AppTheme.Spacing.small) {
                     timeoutSlider
-                        .frame(width: 180)
+                        .frame(minWidth: 140, idealWidth: 180, maxWidth: 220)
                     Text("\(timeout)s")
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -183,7 +205,7 @@ struct LessonPlanningSettingsView: View {
 
     #if os(iOS)
     private var temperatureControl: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: AppTheme.Spacing.small) {
             HStack {
                 Text("Temperature")
                     .font(.subheadline)
@@ -197,9 +219,9 @@ struct LessonPlanningSettingsView: View {
     }
 
     private var timeoutControl: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: AppTheme.Spacing.small) {
             HStack {
-                Text("Request Timeout")
+                Text("Request timeout")
                     .font(.subheadline)
                 Spacer()
                 Text("\(timeout)s")
@@ -216,15 +238,27 @@ struct LessonPlanningSettingsView: View {
     private var resetSection: some View {
         HStack {
             Spacer()
-            Button("Reset to Defaults") {
-                timeout = 120
-                defaultDepth = "standard"
-                temperature = 0.3
-                customSystemPrompt = ""
+            Button("Reset to defaults") {
+                isConfirmingReset = true
             }
             .font(.caption)
             .foregroundStyle(AppColors.destructive)
             Spacer()
         }
+        .confirmationDialog(
+            "Reset lesson planning to its defaults?",
+            isPresented: $isConfirmingReset,
+            titleVisibility: .visible
+        ) {
+            Button("Reset", role: .destructive) {
+                timeout = LessonPlanningDefaults.timeout
+                defaultDepth = LessonPlanningDefaults.depth
+                temperature = LessonPlanningDefaults.temperature
+                customSystemPrompt = LessonPlanningDefaults.systemPrompt
+            }
+        } message: {
+            Text("The default depth, prompt, temperature and timeout all go back to how they started.")
+        }
     }
 }
+#endif

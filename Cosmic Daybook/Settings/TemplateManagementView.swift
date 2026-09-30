@@ -63,6 +63,7 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
     @State private var showingAddSheet = false
     @State private var editingTemplate: Adapter.Template?
     @State private var previewingTemplate: Adapter.Template?
+    @State private var templatePendingDelete: Adapter.Template?
 
     init() {
         _templates = FetchRequest(sortDescriptors: Adapter.sortDescriptors)
@@ -90,9 +91,24 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
                 Button {
                     showingAddSheet = true
                 } label: {
-                    Label("Add Template", systemImage: "plus")
+                    Label("Add template", systemImage: "plus")
                 }
             }
+        }
+        .confirmationDialog(
+            deleteConfirmationTitle,
+            isPresented: Binding(
+                get: { templatePendingDelete != nil },
+                set: { if !$0 { templatePendingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: templatePendingDelete
+        ) { template in
+            Button("Delete template", role: .destructive) {
+                deleteTemplate(template)
+            }
+        } message: { _ in
+            Text("This can't be undone.")
         }
         .sheet(isPresented: $showingAddSheet) {
             Adapter.editorSheet(for: nil)
@@ -116,7 +132,7 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
     private var builtInSection: some View {
         if !builtInTemplates.isEmpty {
             VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
-                Text("Built-in Templates")
+                Text("Built-in templates")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.secondary)
 
@@ -133,7 +149,7 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
 
     private var customSection: some View {
         VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
-            Text("My Templates")
+            Text("My templates")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(.secondary)
 
@@ -152,11 +168,19 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
     }
 
     private var emptyState: some View {
-        HStack {
-            Image(systemName: "doc.badge.plus")
-                .foregroundStyle(.secondary)
-            Text("No custom templates yet")
-                .foregroundStyle(.secondary)
+        VStack(spacing: SettingsStyle.groupSpacing) {
+            HStack {
+                Image(systemName: "doc.badge.plus")
+                    .foregroundStyle(.secondary)
+                Text("No custom templates yet")
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                showingAddSheet = true
+            } label: {
+                Label("Add template", systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
         }
         .frame(maxWidth: .infinity)
         .padding()
@@ -176,8 +200,13 @@ struct TemplateManagementView<Adapter: TemplateManaging>: View {
             onTap: { previewingTemplate = template },
             onActivate: Adapter.supportsActivation ? { activateTemplate(template) } : nil,
             onEdit: isBuiltIn ? nil : { editingTemplate = template },
-            onDelete: isBuiltIn ? nil : { deleteTemplate(template) }
+            onDelete: isBuiltIn ? nil : { templatePendingDelete = template }
         )
+    }
+
+    private var deleteConfirmationTitle: String {
+        guard let templatePendingDelete else { return "Delete this template?" }
+        return "Delete “\(Adapter.title(of: templatePendingDelete))”?"
     }
 
     // MARK: - Actions
@@ -209,16 +238,16 @@ private struct TemplateCardRow<Adapter: TemplateManaging>: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(spacing: AppTheme.Spacing.compact) {
                 // Active indicator
                 if Adapter.supportsActivation {
                     Circle()
-                        .fill(isActive ? Color.green : Color.secondary.opacity(UIConstants.OpacityConstants.semi))
+                        .fill(isActive ? AppColors.success : Color.secondary.opacity(UIConstants.OpacityConstants.semi))
                         .frame(width: 10, height: 10)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                    HStack(spacing: AppTheme.Spacing.verySmall) {
                         Text(Adapter.title(of: template))
                             .font(.headline)
                             .foregroundStyle(.primary)
@@ -249,10 +278,6 @@ private struct TemplateCardRow<Adapter: TemplateManaging>: View {
                 if Adapter.supportsActivation || !isBuiltIn {
                     actionsMenu
                 }
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
             .padding(SettingsStyle.compactPadding)
             .surface(
@@ -272,8 +297,8 @@ private struct TemplateCardRow<Adapter: TemplateManaging>: View {
         Text("Active")
             .font(.caption2)
             .fontWeight(.medium)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, AppTheme.Spacing.verySmall)
+            .padding(.vertical, AppTheme.Spacing.xxsmall)
             .capsuleFill(AppColors.success.opacity(UIConstants.OpacityConstants.accent))
             .foregroundStyle(AppColors.success)
     }
@@ -284,7 +309,7 @@ private struct TemplateCardRow<Adapter: TemplateManaging>: View {
                 Button {
                     onActivate()
                 } label: {
-                    Label("Set as Active", systemImage: "checkmark.circle")
+                    Label("Set as active", systemImage: "checkmark.circle")
                 }
             }
             if let onEdit {

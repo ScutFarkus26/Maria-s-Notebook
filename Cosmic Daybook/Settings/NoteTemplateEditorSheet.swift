@@ -87,9 +87,9 @@ private struct NoteTemplateTagsField: View {
     @State private var showingTagPicker = false
 
     var body: some View {
-        FlowLayout(spacing: 4) {
+        FlowLayout(spacing: AppTheme.Spacing.xsmall) {
             ForEach(tags, id: \.self) { tag in
-                HStack(spacing: 4) {
+                HStack(spacing: AppTheme.Spacing.xsmall) {
                     TagBadge(tag: tag, compact: true)
                     Button {
                         tags.removeAll { $0 == tag }
@@ -126,9 +126,7 @@ private struct NoteTemplateTagsField: View {
 // for the module; a private view is checked once, in this file's job.
 private struct NoteTemplateEditorSheetPreview: View {
     var body: some View {
-        NoteTemplateEditorSheet(template: nil) {
-            print("Saved!")
-        }
+        NoteTemplateEditorSheet(template: nil)
     }
 }
 

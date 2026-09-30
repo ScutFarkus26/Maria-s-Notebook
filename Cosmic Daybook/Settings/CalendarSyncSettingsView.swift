@@ -10,19 +10,15 @@ public struct CalendarSyncSettingsView: View {
     private var syncService: CalendarSyncService { dependencies.calendarSync }
     @State private var selectedCalendarIdentifiers: Set<String> = []
     @State private var availableCalendars: [CalendarSyncService.CalendarInfo] = []
+    /// Keeps "No calendars found" from flashing before the first load.
+    @State private var hasLoadedCalendars = false
     @State private var isRefreshing: Bool = false
-    @State private var lastSyncStatus: String?
+    @State private var lastSyncStatus: StatusMessage?
 
     public init() {}
 
     private var needsAuthorization: Bool {
-        if #available(macOS 14.0, iOS 17.0, *) {
-            return syncService.authorizationStatus != EKAuthorizationStatus.fullAccess
-        } else {
-            return syncService.authorizationStatus == EKAuthorizationStatus.notDetermined ||
-                   syncService.authorizationStatus == EKAuthorizationStatus.denied ||
-                   syncService.authorizationStatus == EKAuthorizationStatus.restricted
-        }
+        syncService.authorizationStatus != EKAuthorizationStatus.fullAccess
     }
 
     public var body: some View {
@@ -41,7 +37,7 @@ public struct CalendarSyncSettingsView: View {
             } else {
                 VStack(alignment: .leading, spacing: SettingsStyle.groupSpacing) {
                     if !availableCalendars.isEmpty {
-                        Text("Select calendars to sync:")
+                        Text("Choose calendars to sync")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -62,7 +58,7 @@ public struct CalendarSyncSettingsView: View {
                         }
 
                         SyncActionButtons(
-                            refreshLabel: "Refresh Calendars",
+                            refreshLabel: "Refresh calendars",
                             isSyncDisabled: selectedCalendarIdentifiers.isEmpty,
                             isRefreshing: isRefreshing,
                             onRefresh: { Task { await loadAvailableCalendars() } },
@@ -70,16 +66,14 @@ public struct CalendarSyncSettingsView: View {
                         )
 
                         LastSyncView(lastSync: syncService.lastSuccessfulSync)
-                    } else {
-                        Button("Load Calendars") {
-                            Task { await loadAvailableCalendars() }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                    } else if hasLoadedCalendars {
+                        Text("No calendars found")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
 
-                    if let status = lastSyncStatus {
-                        StatusMessageView(message: status)
+                    if let lastSyncStatus {
+                        StatusMessageView(status: lastSyncStatus)
                     }
 
                     Text(
@@ -118,18 +112,17 @@ public struct CalendarSyncSettingsView: View {
                 // Load calendars first, then update status
                 await loadAvailableCalendars()
                 if availableCalendars.isEmpty {
-                    lastSyncStatus = "Access granted but no calendars found."
+                    lastSyncStatus = .success("Access granted, but no calendars were found.")
                 } else {
-                    lastSyncStatus = "Access granted! Select calendars below."
+                    lastSyncStatus = .success("Access granted. Choose calendars below.")
                 }
                 isRefreshing = false
             } else {
-                lastSyncStatus = "Access was denied."
-                    + " Please enable it in System Settings > Privacy & Security > Calendars."
+                lastSyncStatus = .failure("Access is off. Turn it on in \(SystemSettingsApp.privacyPath("Calendars")).")
                 isRefreshing = false
             }
         } catch {
-            lastSyncStatus = AppErrorMessages.syncMessage(for: error, service: "Calendar")
+            lastSyncStatus = .failure(AppErrorMessages.syncMessage(for: error, service: "Calendar"))
             isRefreshing = false
         }
     }
@@ -138,22 +131,20 @@ public struct CalendarSyncSettingsView: View {
         isRefreshing = true
         let calendars = syncService.getAvailableCalendarsWithIdentifiers()
         availableCalendars = calendars
+        hasLoadedCalendars = true
         isRefreshing = false
-        if lastSyncStatus?.contains("Loading") == true {
-            lastSyncStatus = nil
-        }
     }
 
     private func syncCalendarEvents() async {
         isRefreshing = true
-        lastSyncStatus = "Syncing..."
+        lastSyncStatus = .info("Syncing…")
 
         do {
             try await syncService.syncEvents(force: true)
-            lastSyncStatus = "Sync completed successfully"
+            lastSyncStatus = .success("Synced just now.")
             isRefreshing = false
         } catch {
-            lastSyncStatus = AppErrorMessages.syncMessage(for: error, service: "Calendar")
+            lastSyncStatus = .failure(AppErrorMessages.syncMessage(for: error, service: "Calendar"))
             isRefreshing = false
         }
     }
@@ -176,7 +167,7 @@ private struct CalendarToggleRow: View {
                 onToggle(newValue)
             }
         )) {
-            HStack(spacing: 8) {
+            HStack(spacing: AppTheme.Spacing.small) {
                 if let cgColor = calendarInfo.color {
                     Circle()
                         .fill(Color(cgColor: cgColor))

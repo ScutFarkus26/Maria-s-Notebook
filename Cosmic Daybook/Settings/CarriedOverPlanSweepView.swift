@@ -1,5 +1,5 @@
 // CarriedOverPlanSweepView.swift
-// Settings → School Calendar → "Carried-Over Year Plans…": the one-time sweep
+// Settings › School year › New year › "Carried-over year plans": the sweep
 // of year-plan entries whose targets fell in a school year that has ended.
 //
 // Deliberately shaped like the rollover's own carry-over section — a count
@@ -66,12 +66,10 @@ struct CarriedOverPlanSweepView: View {
     @ViewBuilder
     private var choosePhase: some View {
         if viewModel.surveys.isEmpty {
-            ContentUnavailableView(
-                "Nothing carried over",
-                systemImage: "checkmark.circle",
-                description: Text(
-                    "Every planned year-plan target on the roster falls in this school year."
-                )
+            SettingsEmptyState(
+                symbol: "leaf.fill",
+                title: "Nothing carried over",
+                message: "Every planned year-plan target on the roster falls in this school year."
             )
         } else {
             List {
@@ -118,7 +116,7 @@ struct CarriedOverPlanSweepView: View {
 
     private func childRow(_ survey: YearPlanCarryOver.Survey) -> some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
                 Text(survey.name)
                 Text(survey.detail)
                     .font(.footnote)
@@ -143,10 +141,10 @@ struct CarriedOverPlanSweepView: View {
     }
 
     private func choiceLabel(_ choice: YearPlanCarryOverChoice) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: AppTheme.Spacing.xsmall) {
             Text(choice.label)
             Image(systemName: "chevron.up.chevron.down")
-                .font(.system(size: 9, weight: .semibold))
+                .imageScale(.small)
         }
         .font(AppTheme.ScaledFont.captionSemibold)
         .foregroundStyle(choice == .leave ? Color.secondary : Color.accentColor)
@@ -161,10 +159,9 @@ struct CarriedOverPlanSweepView: View {
 
     private var footerText: String {
         let start = DateFormatters.mediumDate.string(from: viewModel.yearStart)
-        return "These targets fall before \(start), the first day of this school year — last "
-            + "year's intentions rather than lessons the children have fallen behind on. "
-            + "Re-dating keeps each child's order and the school days between her targets. "
-            + "Skipping never deletes: the entries stay readable and can be restored."
+        return "These targets fall before \(start), when this school year began: last year's intentions, "
+            + "not lessons the children have fallen behind on. Re-dating keeps each child's order and the "
+            + "spacing between her targets, and skipping never deletes."
     }
 
     // MARK: - Done
@@ -177,7 +174,7 @@ struct CarriedOverPlanSweepView: View {
                         .font(AppTheme.ScaledFont.calloutSemibold)
                 } icon: {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppColors.success)
                 }
             }
         }

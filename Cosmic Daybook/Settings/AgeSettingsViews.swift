@@ -1,175 +1,253 @@
 import SwiftUI
 
-struct LessonAgeSettingsView: View {
-    @SyncedAppStorage("LessonAge.warningDays") private var warningDays: Int = LessonAgeDefaults.warningDays
-    @SyncedAppStorage("LessonAge.overdueDays") private var overdueDays: Int = LessonAgeDefaults.overdueDays
-    @SyncedAppStorage("LessonAge.freshColorHex") private var freshHex: String = LessonAgeDefaults.freshColorHex
-    @SyncedAppStorage("LessonAge.warningColorHex") private var warningHex: String = LessonAgeDefaults.warningColorHex
-    @SyncedAppStorage("LessonAge.overdueColorHex") private var overdueHex: String = LessonAgeDefaults.overdueColorHex
+// MARK: - Age Indicators Group
 
-    @State private var freshColor: Color = ColorUtils.color(from: LessonAgeDefaults.freshColorHex)
-    @State private var warningColor: Color = ColorUtils.color(from: LessonAgeDefaults.warningColorHex)
-    @State private var overdueColor: Color = ColorUtils.color(from: LessonAgeDefaults.overdueColorHex)
+/// Look and feel › Age indicators: the lesson and work thresholds and colors,
+/// with Reset to Defaults.
+struct AgeIndicatorsSettingsGroup: View {
+    @State private var isConfirmingReset = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Configure thresholds and colors for the lesson age indicator in Planning → Agenda.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            #if os(macOS)
-            LabeledContent("Warning threshold") {
-                Stepper(value: $warningDays, in: 0...30) {
-                    Text("\(warningDays) school day\(warningDays == 1 ? "" : "s")")
-                }
+        SettingsGroup(.ageIndicators, collapsible: true, onReset: confirmReset) {
+            VStack(spacing: AppTheme.Spacing.compact) {
+                AgeIndicatorSettings(kind: .lesson)
+                Divider()
+                AgeIndicatorSettings(kind: .work)
             }
-            LabeledContent("Overdue threshold") {
-                Stepper(value: $overdueDays, in: 1...60) {
-                    Text("\(overdueDays) school day\(overdueDays == 1 ? "" : "s")")
-                }
-            }
-
-            LabeledContent("Fresh color") {
-                    ColorPicker("Fresh", selection: Binding(get: { freshColor }, set: { new in
-                        freshColor = new
-                        freshHex = ColorUtils.hexString(from: new)
-                    }))
-                    .labelsHidden()
-            }
-            LabeledContent("Warning color") {
-                    ColorPicker("Warning", selection: Binding(get: { warningColor }, set: { new in
-                        warningColor = new
-                        warningHex = ColorUtils.hexString(from: new)
-                    }))
-                    .labelsHidden()
-            }
-            LabeledContent("Overdue color") {
-                    ColorPicker("Overdue", selection: Binding(get: { overdueColor }, set: { new in
-                        overdueColor = new
-                        overdueHex = ColorUtils.hexString(from: new)
-                    }))
-                    .labelsHidden()
-            }
-            #else
-            lessonAgeCompactControls
-            #endif
+            .frame(maxWidth: .infinity)
         }
-        .onAppear {
-            // Initialize pickers from stored hex strings
-            freshColor = ColorUtils.color(from: freshHex)
-            warningColor = ColorUtils.color(from: warningHex)
-            overdueColor = ColorUtils.color(from: overdueHex)
+        .confirmationDialog(
+            "Reset the age indicators?",
+            isPresented: $isConfirmingReset,
+            titleVisibility: .visible
+        ) {
+            Button("Reset to defaults", role: .destructive) {
+                AgeIndicatorKind.lesson.resetToDefaults()
+                AgeIndicatorKind.work.resetToDefaults()
+            }
+        } message: {
+            Text("Both the lesson and work thresholds and colors go back to how they started.")
         }
-        .onChange(of: warningDays) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: overdueDays) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: freshHex) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: warningHex) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: overdueHex) { _, _ in SettingsCategory.markModified(.general) }
     }
 
-    #if os(iOS)
-    private var lessonAgeCompactControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 16) {
-                Stepper("Warning: \(warningDays) days", value: $warningDays, in: 0...30)
-                Stepper("Overdue: \(overdueDays) days", value: $overdueDays, in: 1...60)
-            }
-            HStack(spacing: 16) {
-                ColorPicker("Fresh", selection: $freshColor)
-                ColorPicker("Warning", selection: $warningColor)
-                ColorPicker("Overdue", selection: $overdueColor)
-            }
-        }
-        .onChange(of: freshColor) { _, new in freshHex = ColorUtils.hexString(from: new) }
-        .onChange(of: warningColor) { _, new in warningHex = ColorUtils.hexString(from: new) }
-        .onChange(of: overdueColor) { _, new in overdueHex = ColorUtils.hexString(from: new) }
+    private func confirmReset() {
+        isConfirmingReset = true
     }
-    #endif
 }
 
-struct WorkAgeSettingsView: View {
-    @SyncedAppStorage("WorkAge.warningDays") private var warningDays: Int = WorkAgeDefaults.warningDays
-    @SyncedAppStorage("WorkAge.overdueDays") private var overdueDays: Int = WorkAgeDefaults.overdueDays
-    @SyncedAppStorage("WorkAge.freshColorHex") private var freshHex: String = WorkAgeDefaults.freshColorHex
-    @SyncedAppStorage("WorkAge.warningColorHex") private var warningHex: String = WorkAgeDefaults.warningColorHex
-    @SyncedAppStorage("WorkAge.overdueColorHex") private var overdueHex: String = WorkAgeDefaults.overdueColorHex
+// MARK: - Age Indicator Kind
 
-    @State private var freshColor: Color = ColorUtils.color(from: WorkAgeDefaults.freshColorHex)
-    @State private var warningColor: Color = ColorUtils.color(from: WorkAgeDefaults.warningColorHex)
-    @State private var overdueColor: Color = ColorUtils.color(from: WorkAgeDefaults.overdueColorHex)
+/// Which age indicator a block of settings edits: where it shows, the keys it
+/// is stored under, and the values it starts with.
+struct AgeIndicatorKind {
+    let title: String
+    let placement: String
+    let keys: StudentAgeKeys
+    let warningDays: Int
+    let overdueDays: Int
+    let freshColorHex: String
+    let warningColorHex: String
+    let overdueColorHex: String
+
+    static let lesson = AgeIndicatorKind(
+        title: "Lesson age",
+        placement: "Shown for lessons in Planning › Agenda",
+        keys: .lessons,
+        warningDays: LessonAgeDefaults.warningDays,
+        overdueDays: LessonAgeDefaults.overdueDays,
+        freshColorHex: LessonAgeDefaults.freshColorHex,
+        warningColorHex: LessonAgeDefaults.warningColorHex,
+        overdueColorHex: LessonAgeDefaults.overdueColorHex
+    )
+
+    static let work = AgeIndicatorKind(
+        title: "Work age",
+        placement: "Shown for work in Planning › Work Agenda",
+        keys: .work,
+        warningDays: WorkAgeDefaults.warningDays,
+        overdueDays: WorkAgeDefaults.overdueDays,
+        freshColorHex: WorkAgeDefaults.freshColorHex,
+        warningColorHex: WorkAgeDefaults.warningColorHex,
+        overdueColorHex: WorkAgeDefaults.overdueColorHex
+    )
+
+    /// The ranges the steppers allow.
+    static let warningRange = 0...30
+    static let overdueRange = 1...60
+
+    func resetToDefaults(in store: SyncedPreferencesStore = .shared) {
+        store.set(warningDays, forKey: keys.warningDays)
+        store.set(overdueDays, forKey: keys.overdueDays)
+        store.set(freshColorHex, forKey: keys.freshColorHex)
+        store.set(warningColorHex, forKey: keys.warningColorHex)
+        store.set(overdueColorHex, forKey: keys.overdueColorHex)
+    }
+}
+
+// MARK: - Age Indicator Settings
+
+/// The thresholds and colors of one age indicator, with a preview of the pills they draw.
+struct AgeIndicatorSettings: View {
+    let kind: AgeIndicatorKind
+
+    @SyncedAppStorage private var warningDays: Int
+    @SyncedAppStorage private var overdueDays: Int
+    @SyncedAppStorage private var freshHex: String
+    @SyncedAppStorage private var warningHex: String
+    @SyncedAppStorage private var overdueHex: String
+
+    // The pickers hold a `Color`; the store holds hex. Each side follows the
+    // other, so a change synced in from another device shows here too.
+    @State private var freshColor: Color
+    @State private var warningColor: Color
+    @State private var overdueColor: Color
+
+    init(kind: AgeIndicatorKind) {
+        self.kind = kind
+        let keys = kind.keys
+        let fresh = SyncedAppStorage(wrappedValue: kind.freshColorHex, keys.freshColorHex)
+        let warning = SyncedAppStorage(wrappedValue: kind.warningColorHex, keys.warningColorHex)
+        let overdue = SyncedAppStorage(wrappedValue: kind.overdueColorHex, keys.overdueColorHex)
+        _warningDays = SyncedAppStorage(wrappedValue: kind.warningDays, keys.warningDays)
+        _overdueDays = SyncedAppStorage(wrappedValue: kind.overdueDays, keys.overdueDays)
+        _freshHex = fresh
+        _warningHex = warning
+        _overdueHex = overdue
+        _freshColor = State(initialValue: ColorUtils.color(from: fresh.wrappedValue))
+        _warningColor = State(initialValue: ColorUtils.color(from: warning.wrappedValue))
+        _overdueColor = State(initialValue: ColorUtils.color(from: overdue.wrappedValue))
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Configure thresholds and colors for the work age indicator in Planning → Work Agenda.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                Text(kind.title)
+                    .font(.subheadline.weight(.semibold))
+                Text(kind.placement)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
-            #if os(macOS)
-            LabeledContent("Warning threshold") {
-                Stepper(value: $warningDays, in: 0...30) {
-                    Text("\(warningDays) school day\(warningDays == 1 ? "" : "s")")
+            LabeledContent("Warn after") {
+                Stepper(value: $warningDays, in: AgeIndicatorKind.warningRange) {
+                    Text(Self.schoolDays(warningDays))
+                        .monospacedDigit()
                 }
             }
-            LabeledContent("Overdue threshold") {
-                Stepper(value: $overdueDays, in: 1...60) {
-                    Text("\(overdueDays) school day\(overdueDays == 1 ? "" : "s")")
+            LabeledContent("Overdue after") {
+                Stepper(value: $overdueDays, in: AgeIndicatorKind.overdueRange) {
+                    Text(Self.schoolDays(overdueDays))
+                        .monospacedDigit()
                 }
             }
 
-            LabeledContent("Fresh color") {
-                    ColorPicker("Fresh", selection: Binding(get: { freshColor }, set: { new in
-                        freshColor = new
-                        freshHex = ColorUtils.hexString(from: new)
-                    }))
-                    .labelsHidden()
-            }
-            LabeledContent("Warning color") {
-                    ColorPicker("Warning", selection: Binding(get: { warningColor }, set: { new in
-                        warningColor = new
-                        warningHex = ColorUtils.hexString(from: new)
-                    }))
-                    .labelsHidden()
-            }
-            LabeledContent("Overdue color") {
-                    ColorPicker("Overdue", selection: Binding(get: { overdueColor }, set: { new in
-                        overdueColor = new
-                        overdueHex = ColorUtils.hexString(from: new)
-                    }))
-                    .labelsHidden()
-            }
-            #else
-            workAgeCompactControls
-            #endif
+            colorRow("Fresh color", color: $freshColor)
+            colorRow("Warning color", color: $warningColor)
+            colorRow("Overdue color", color: $overdueColor)
+
+            AgeIndicatorPreview(palette: palette)
         }
-        .onAppear {
-            // Initialize pickers from stored hex strings
-            freshColor = ColorUtils.color(from: freshHex)
-            warningColor = ColorUtils.color(from: warningHex)
-            overdueColor = ColorUtils.color(from: overdueHex)
-        }
-        .onChange(of: warningDays) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: overdueDays) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: freshHex) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: warningHex) { _, _ in SettingsCategory.markModified(.general) }
-        .onChange(of: overdueHex) { _, _ in SettingsCategory.markModified(.general) }
+        .onChange(of: freshColor) { _, new in Self.store(new, in: &freshHex) }
+        .onChange(of: warningColor) { _, new in Self.store(new, in: &warningHex) }
+        .onChange(of: overdueColor) { _, new in Self.store(new, in: &overdueHex) }
+        .onChange(of: freshHex) { _, new in Self.follow(new, into: &freshColor) }
+        .onChange(of: warningHex) { _, new in Self.follow(new, into: &warningColor) }
+        .onChange(of: overdueHex) { _, new in Self.follow(new, into: &overdueColor) }
     }
 
-    #if os(iOS)
-    private var workAgeCompactControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 16) {
-                Stepper("Warning: \(warningDays) days", value: $warningDays, in: 0...30)
-                Stepper("Overdue: \(overdueDays) days", value: $overdueDays, in: 1...60)
-            }
-            HStack(spacing: 16) {
-                ColorPicker("Fresh", selection: $freshColor)
-                ColorPicker("Warning", selection: $warningColor)
-                ColorPicker("Overdue", selection: $overdueColor)
-            }
-        }
-        .onChange(of: freshColor) { _, new in freshHex = ColorUtils.hexString(from: new) }
-        .onChange(of: warningColor) { _, new in warningHex = ColorUtils.hexString(from: new) }
-        .onChange(of: overdueColor) { _, new in overdueHex = ColorUtils.hexString(from: new) }
+    private var palette: StudentAgePalette {
+        StudentAgePalette(
+            warningDays: warningDays,
+            overdueDays: overdueDays,
+            fresh: freshColor,
+            warning: warningColor,
+            overdue: overdueColor
+        )
     }
-    #endif
+
+    private func colorRow(_ title: String, color: Binding<Color>) -> some View {
+        LabeledContent(title) {
+            ColorPicker(title, selection: color)
+                .labelsHidden()
+        }
+    }
+
+    static func schoolDays(_ count: Int) -> String {
+        count == 1 ? "1 school day" : "\(count) school days"
+    }
+
+    /// Writes a picked color, unless the store already holds it. A color just
+    /// read from the stored hex is never written back, so a hex-to-color round
+    /// trip can't nudge the value and echo it to the other devices.
+    private static func store(_ color: Color, in hex: inout String) {
+        guard color != ColorUtils.color(from: hex) else { return }
+        let picked = ColorUtils.hexString(from: color)
+        if picked != hex { hex = picked }
+    }
+
+    /// Takes up a stored color set elsewhere (another device, Reset to Defaults),
+    /// unless the picker already shows it.
+    private static func follow(_ hex: String, into color: inout Color) {
+        if ColorUtils.hexString(from: color) != hex { color = ColorUtils.color(from: hex) }
+    }
+}
+
+// MARK: - Preview Strip
+
+/// Three sample pills, one per color, at ages the thresholds put in each band.
+struct AgeIndicatorPreview: View {
+    let palette: StudentAgePalette
+
+    /// A fresh age halfway to the warning, the warning threshold, and the overdue threshold.
+    /// Each pill takes the color that age really gets, so thresholds set out of
+    /// order show that too.
+    static func sampleDays(warningDays: Int, overdueDays: Int) -> [Int] {
+        let warning = max(0, warningDays)
+        return [warning / 2, warning, max(overdueDays, warning + 1)]
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: AppTheme.Spacing.small) { pills }
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) { pills }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Preview")
+    }
+
+    private var pills: some View {
+        let samples = Self.sampleDays(warningDays: palette.warningDays, overdueDays: palette.overdueDays)
+        return ForEach(Array(samples.enumerated()), id: \.offset) { _, days in
+            pill(days: days)
+        }
+    }
+
+    private func pill(days: Int) -> some View {
+        let color = palette.color(forDays: days)
+        return HStack(spacing: AppTheme.Spacing.xsmall) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(days == 1 ? "1 day" : "\(days) days")
+                .font(AppTheme.ScaledFont.caption)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, AppTheme.Spacing.small)
+        .padding(.vertical, AppTheme.Spacing.xsmall)
+        .background(color.opacity(UIConstants.OpacityConstants.accent), in: Capsule())
+        .overlay(Capsule().strokeBorder(color, lineWidth: 1))
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(AgeIndicatorSettings.schoolDays(days)): \(Self.statusName(palette.status(forDays: days)))"
+        )
+    }
+
+    private static func statusName(_ status: LessonAgeStatus) -> String {
+        switch status {
+        case .fresh: return "fresh"
+        case .warning: return "warning"
+        case .overdue: return "overdue"
+        }
+    }
 }

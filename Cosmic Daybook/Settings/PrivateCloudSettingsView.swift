@@ -8,16 +8,16 @@ struct PrivateCloudSettingsView: View {
 
     var body: some View {
         Toggle(isOn: $allowAutomaticPrivateCloud) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Allow Apple Private Cloud")
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                Text("Allow Private Cloud Compute")
                 Text(
-                    "When off, the app's AI keeps student records on this device "
-                        + "and stops if the on-device model can't finish."
+                    "When on, a request too big for this device can finish on Apple's servers, "
+                        + "which don't keep your data. When off, student records never leave this "
+                        + "device, and a request the on-device model can't finish stops."
                 )
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .onChange(of: allowAutomaticPrivateCloud) { _, _ in SettingsCategory.markModified(.aiFeatures) }
     }
 }

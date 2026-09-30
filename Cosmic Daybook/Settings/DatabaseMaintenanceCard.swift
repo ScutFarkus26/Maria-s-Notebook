@@ -1,8 +1,8 @@
 import SwiftUI
 import OSLog
 
-/// Maintenance card for the Settings → Database tab. Exposes "Reset Local
-/// Cache" — the only known recovery path when
+/// Troubleshooting's "If sync gets stuck" card. Offers "Re-download from
+/// iCloud" (Reset Local Cache) — the only known recovery path when
 /// `NSPersistentCloudKitContainer`'s mirroring delegate fails to initialize
 /// (`NSCocoaErrorDomain 134421`, "Never successfully initialized").
 ///
@@ -16,124 +16,83 @@ struct DatabaseMaintenanceCard: View {
 
     @State private var showingResetConfirmation = false
     @State private var showingRelaunchPrompt = false
+
+    // @AppStorage, not a computed read of UserDefaults, so arming or cancelling
+    // redraws the card straight away.
+    @AppStorage(UserDefaultsKeys.resetLocalCacheOnLaunch) private var isResetArmed = false
+    #if DEBUG
     @State private var showingInMemoryConfirmation = false
-    #if os(macOS)
-    @AppStorage(UserDefaultsKeys.allowLocalStoreFallback) private var allowLocalStoreFallback = false
+    @AppStorage(UserDefaultsKeys.useInMemoryStoreOnce) private var isInMemoryArmed = false
     #endif
 
-    private var isResetArmed: Bool {
-        UserDefaults.standard.bool(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
-    }
-
     var body: some View {
-        SettingsGroup(title: "Maintenance", systemImage: "wrench.and.screwdriver.fill") {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Reset Local Cache")
-                    .font(.subheadline.weight(.semibold))
-
-                Text(
-                    "Deletes the local Core Data stores and re-downloads everything from iCloud on the next launch. " +
-                    "Use this if iCloud sync is stuck (you'll see a red banner in Data & Sync when that happens) " +
-                    "or if you're recovering from a corrupted local database."
-                )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("Your data lives in iCloud and is not affected. Local-only data (if any) will be lost.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        SettingsGroup(
+            .maintenance,
+            footer: "Your notebook lives in iCloud. This throws away this device's copy "
+                + "and downloads a fresh one when you next open the app."
+        ) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
+                Text("If this device stops syncing, or its notebook looks out of date or damaged, re-download it.")
+                    .font(.callout)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if isResetArmed {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.clockwise.circle.fill")
-                            .foregroundStyle(.orange)
-                        Text("Reset will run when you next launch the app.")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.orange)
-                        Spacer(minLength: 0)
-                        Button("Cancel") {
-                            clearPendingResetRequest()
-                        }
-                        .font(.caption)
-                        .buttonStyle(.borderless)
-                    }
-                    .padding(8)
-                    .surface(UIConstants.CornerRadius.medium, fill: Color.orange.opacity(0.12), style: .continuous)
+                    armedRow(
+                        "Your notebook will re-download when you next open the app.",
+                        systemImage: "arrow.clockwise.circle.fill",
+                        onCancel: clearPendingResetRequest
+                    )
                 } else {
                     Button(role: .destructive) {
                         showingResetConfirmation = true
                     } label: {
-                        Label("Reset Local Cache and Re-sync from iCloud",
-                              systemImage: "arrow.triangle.2.circlepath")
+                        Label("Re-download from iCloud…", systemImage: "icloud.and.arrow.down")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
-                    .tint(.red)
+                    .tint(AppColors.destructive)
                 }
 
+                #if DEBUG
                 Divider()
-                    .padding(.vertical, 4)
+                    .padding(.vertical, AppTheme.Spacing.xsmall)
 
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 12) {
-                        #if os(macOS)
-                        Toggle("Allow Local Store Fallback", isOn: $allowLocalStoreFallback)
-                        Text("If iCloud is unavailable at launch, open a local-only store instead of failing to start.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        #endif
-
-                        Button("Use In-Memory Store on Next Launch") {
-                            showingInMemoryConfirmation = true
-                        }
-                        Text("Diagnostic only: the next launch runs without saving. Your stored data is untouched and returns when you relaunch normally afterward.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.top, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                } label: {
-                    // Style the disclosure label only — .font on the whole group
-                    // would cascade into the child Toggle/Button labels.
-                    Text("Advanced")
-                        .font(.subheadline.weight(.semibold))
-                }
+                advancedSection
+                #endif
             }
             .frame(maxWidth: .infinity)
         }
         .confirmationDialog(
-            "Reset local cache?",
+            "Re-download from iCloud?",
             isPresented: $showingResetConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Reset on Next Launch", role: .destructive) {
+            Button("Re-download next time", role: .destructive) {
                 armResetRequest(source: "Settings.DatabaseMaintenanceCard")
                 showingRelaunchPrompt = true
             }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text(
-                "On next launch, the app will delete the local Core Data stores and re-download your data " +
-                "from iCloud. This can take several minutes depending on classroom size and network speed."
+                "When you next open the app, this device's copy of your notebook is thrown away and a " +
+                "fresh one downloads from iCloud. Changes that haven't reached iCloud yet are lost. " +
+                "With a big classroom or a slow connection this can take several minutes."
             )
         }
         .alert("Relaunch the app", isPresented: $showingRelaunchPrompt) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Quit Cosmic Daybook (⌘Q on Mac) and reopen it. The reset will run automatically.")
+            Text(relaunchInstructions)
         }
+        #if DEBUG
         .confirmationDialog(
             "Use in-memory store next launch?",
             isPresented: $showingInMemoryConfirmation,
             titleVisibility: .visible
         ) {
             Button("Use In-Memory Next Launch", role: .destructive) {
-                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
+                isInMemoryArmed = true
             }
             Button("Cancel", role: .cancel) { }
         } message: {
@@ -143,12 +102,83 @@ struct DatabaseMaintenanceCard: View {
                 "to return to your real data."
             )
         }
+        #endif
+    }
+
+    #if DEBUG
+    private var advancedSection: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
+                // Developer diagnostic, never shown in a release build.
+                if isInMemoryArmed {
+                    armedRow(
+                        "The next launch will run without saving.",
+                        systemImage: "memorychip",
+                        onCancel: { isInMemoryArmed = false }
+                    )
+                } else {
+                    Button("Use In-Memory Store on Next Launch") {
+                        showingInMemoryConfirmation = true
+                    }
+                }
+                Text(
+                    "Diagnostic only: the next launch runs without saving. Your stored data is " +
+                    "untouched and returns when you relaunch normally afterward."
+                )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, AppTheme.Spacing.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            // Style the disclosure label only — .font on the whole group
+            // would cascade into the child Toggle/Button labels.
+            Text("Advanced")
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+    #endif
+
+    /// How to quit and reopen, in this platform's words (no ⌘Q on iPhone or iPad).
+    private var relaunchInstructions: String {
+        #if os(macOS)
+        "Quit Cosmic Daybook (⌘Q) and open it again. The download starts on its own."
+        #else
+        "Close Cosmic Daybook (swipe it away in the app switcher) and open it again. "
+            + "The download starts on its own."
+        #endif
+    }
+
+    /// The orange "this will happen on the next launch" row, with a way to take it back.
+    private func armedRow(
+        _ message: String,
+        systemImage: String,
+        onCancel: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: AppTheme.Spacing.small) {
+            Image(systemName: systemImage)
+                .foregroundStyle(AppColors.warning)
+            Text(message)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(AppColors.warning)
+            Spacer(minLength: 0)
+            Button("Cancel", action: onCancel)
+                .font(.caption)
+                .buttonStyle(.borderless)
+        }
+        .padding(AppTheme.Spacing.small)
+        .surface(
+            UIConstants.CornerRadius.medium,
+            fill: AppColors.warning.opacity(UIConstants.OpacityConstants.medium),
+            style: .continuous
+        )
     }
 
     private func armResetRequest(source: String) {
         let armedAt = Date.now.ISO8601Format()
         let defaults = UserDefaults.standard
-        defaults.set(true, forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
+        isResetArmed = true
         defaults.set(armedAt, forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
         defaults.set(source, forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
         Self.logger.warning(
@@ -160,11 +190,12 @@ struct DatabaseMaintenanceCard: View {
         let defaults = UserDefaults.standard
         let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
         let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
+        isResetArmed = false
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
         Self.logger.info(
-            "Cleared pending local cache reset. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
+            "Cancelled local cache reset. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
         )
     }
 }

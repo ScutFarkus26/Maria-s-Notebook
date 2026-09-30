@@ -2,37 +2,22 @@ import SwiftUI
 
 // MARK: - What's New Banner
 
-/// A dismissible banner showing recently added settings features.
-/// Dismissed per app version — shows again when the app updates.
+/// A dismissible card with the newest release's notes (`SettingsWhatsNew`).
+/// Dismissed per release, not per app version, so it comes back only when there is something new to read.
 struct WhatsNewBanner: View {
-    @AppStorage(UserDefaultsKeys.whatsNewDismissedVersion) private var dismissedVersion = ""
-
-    private var currentVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-    }
-
-    private let newFeatures: [(icon: String, text: String)] = [
-        ("magnifyingglass", "Enhanced settings search with deep indexing"),
-        ("chart.bar.xaxis", "Settings dashboard overview"),
-        ("circle.fill", "Connection status indicators in sidebar"),
-        ("arrow.triangle.2.circlepath", "Sync history log")
-    ]
-
-    private var shouldShow: Bool {
-        dismissedVersion != currentVersion
-    }
+    @AppStorage(UserDefaultsKeys.whatsNewDismissedRelease) private var dismissedReleaseID = ""
 
     var body: some View {
-        if shouldShow {
-            VStack(alignment: .leading, spacing: 8) {
+        if let release = SettingsWhatsNew.releaseToShow(dismissedID: dismissedReleaseID) {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 HStack {
-                    Label("What's New", systemImage: "sparkles")
-                        .font(.subheadline.weight(.bold))
+                    Label("What’s new", systemImage: "sparkles")
+                        .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.tint)
                     Spacer()
                     Button {
                         adaptiveWithAnimation(.easeInOut(duration: 0.25)) {
-                            dismissedVersion = currentVersion
+                            dismissedReleaseID = release.id
                         }
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -40,11 +25,18 @@ struct WhatsNewBanner: View {
                             .font(.caption)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss What’s new")
                 }
-                ForEach(newFeatures, id: \.text) { feature in
-                    Label(feature.text, systemImage: feature.icon)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                ForEach(release.notes, id: \.self) { note in
+                    Label {
+                        Text(note.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: note.symbol)
+                            .foregroundStyle(.tint)
+                    }
+                    .font(AppTheme.ScaledFont.body)
+                    .foregroundStyle(.secondary)
                 }
             }
             .padding(SettingsStyle.compactPadding)
@@ -57,4 +49,18 @@ struct WhatsNewBanner: View {
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
+}
+
+// The `#Preview` closure is expanded and type-checked in every compiler job
+// for the module; a private view is checked once, in this file's job.
+private struct WhatsNewBannerPreview: View {
+    var body: some View {
+        WhatsNewBanner()
+            .padding()
+            .frame(maxWidth: 520)
+    }
+}
+
+#Preview {
+    WhatsNewBannerPreview()
 }
