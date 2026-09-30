@@ -79,6 +79,7 @@ final class ChatService {
             temperature: 0.7,
             maxTokens: 2048,
             model: nil,
+            timeout: nil,
             onText: onText
         )
         let sources = await mcpClient.consumeEvidenceSources()

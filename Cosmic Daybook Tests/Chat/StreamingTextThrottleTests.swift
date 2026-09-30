@@ -170,9 +170,7 @@ struct StreamingTextThrottleTests {
 
     // MARK: - The reply through ChatService
 
-    /// A client whose conversation answer is fixed. Its streaming method
-    /// records a call: ChatService's call omits `timeout`, so it resolves to
-    /// the protocol's non-streaming fallback and never reaches this.
+    /// A client whose conversation answer is fixed, streamed in one piece.
     private final class FixedAnswerClient: MCPClientProtocol {
         let answer: String
         var streamingCalls = 0
@@ -195,6 +193,7 @@ struct StreamingTextThrottleTests {
             onText: @escaping @MainActor @Sendable (String) -> Void
         ) async throws -> String {
             streamingCalls += 1
+            onText(answer)
             return answer
         }
     }
@@ -217,6 +216,6 @@ struct StreamingTextThrottleTests {
         #expect(session.messages.last?.content == answer)
         #expect(session.messages.last?.role == .assistant)
         #expect(published.texts == [answer])
-        #expect(client.streamingCalls == 0)
+        #expect(client.streamingCalls == 1)
     }
 }

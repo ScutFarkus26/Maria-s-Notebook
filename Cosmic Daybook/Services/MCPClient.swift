@@ -77,54 +77,63 @@ protocol MCPClientProtocol {
 
 // MARK: - Default Implementations
 
+// Fallbacks for clients that don't implement a form themselves. None of them
+// takes default argument values: a call that left an argument out would bind
+// to the fallback statically and skip the client's own implementation (Ask AI
+// never streamed that way). Each forwards to a requirement, so the client's
+// fullest form runs; only a client with nothing but the short forms loses the
+// system message and token limit.
 extension MCPClientProtocol {
     func consumeEvidenceSources() async -> [EvidenceReference] { [] }
 
     func generateText(
-        prompt: String, systemMessage: String? = nil,
-        temperature: Double, maxTokens: Int? = nil
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?
+    ) async throws -> String {
+        try await generateText(
+            prompt: prompt, systemMessage: systemMessage,
+            temperature: temperature, maxTokens: maxTokens,
+            model: nil, timeout: nil
+        )
+    }
+
+    func generateStructuredJSON(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?
+    ) async throws -> String {
+        try await generateStructuredJSON(
+            prompt: prompt, systemMessage: systemMessage,
+            temperature: temperature, maxTokens: maxTokens,
+            model: nil, timeout: nil
+        )
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    func generateText(
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?,
+        model: String?, timeout: TimeInterval?
     ) async throws -> String {
         try await generateText(prompt: prompt, temperature: temperature)
     }
 
+    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
-        prompt: String, systemMessage: String? = nil,
-        temperature: Double, maxTokens: Int? = nil
+        prompt: String, systemMessage: String?,
+        temperature: Double, maxTokens: Int?,
+        model: String?, timeout: TimeInterval?
     ) async throws -> String {
-        try await generateStructuredJSON(
-            prompt: prompt, temperature: temperature
-        )
+        try await generateStructuredJSON(prompt: prompt, temperature: temperature)
     }
 
-    func generateText(
-        prompt: String, systemMessage: String? = nil,
-        temperature: Double, maxTokens: Int? = nil,
-        model: String? = nil, timeout: TimeInterval? = nil
-    ) async throws -> String {
-        try await generateText(
-            prompt: prompt, systemMessage: systemMessage,
-            temperature: temperature, maxTokens: maxTokens
-        )
-    }
-
-    func generateStructuredJSON(
-        prompt: String, systemMessage: String? = nil,
-        temperature: Double, maxTokens: Int? = nil,
-        model: String? = nil, timeout: TimeInterval? = nil
-    ) async throws -> String {
-        try await generateStructuredJSON(
-            prompt: prompt, systemMessage: systemMessage,
-            temperature: temperature, maxTokens: maxTokens
-        )
-    }
-
+    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
-        systemMessage: String? = nil,
-        temperature: Double = 0.7,
-        maxTokens: Int = 2048,
-        model: String? = nil,
-        timeout: TimeInterval? = nil
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        model: String?,
+        timeout: TimeInterval?
     ) async throws -> String {
         // Flatten multi-turn messages into a single prompt for clients
         // that don't support native multi-turn conversation.
@@ -140,13 +149,14 @@ extension MCPClientProtocol {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]],
-        systemMessage: String? = nil,
-        temperature: Double = 0.7,
-        maxTokens: Int = 2048,
-        model: String? = nil,
-        timeout: TimeInterval? = nil,
+        systemMessage: String?,
+        temperature: Double,
+        maxTokens: Int,
+        model: String?,
+        timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
         // Non-streaming fallback: generate full text, emit it once.
