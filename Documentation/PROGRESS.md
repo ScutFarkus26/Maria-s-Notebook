@@ -188,7 +188,7 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 - [x] Assistant App ID: extended share access capability
 - [x] Roll main 4c83cb89 out to Mac, iPhone and iPad (16:35–16:41)
 - [x] Daybook Assistant on Danny's iPhone (4c83cb89, 16:43)
-- [ ] Assistant TestFlight build for the assistants (asks Danny first)
+- [x] Assistant TestFlight build for the assistants: 0.1 (202609302045) from 6674a930, uploaded and processed
 
 ### Checks
 - [ ] Classroom sync resumes after the roll-out (Mac: first upload 16:35 clean; iPhone and iPad not yet read)
