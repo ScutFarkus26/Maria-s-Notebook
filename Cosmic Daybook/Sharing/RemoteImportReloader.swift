@@ -17,7 +17,12 @@ import CoreData
 @MainActor
 final class RemoteImportReloader {
 
+    /// Waits out `delay`. Tests pass one that returns at once, so they don't
+    /// hang on a real 30 ms sleep that a busy simulator can stretch past 10 s.
+    typealias Sleep = @Sendable (Duration) async throws -> Void
+
     private let delay: Duration
+    private let sleep: Sleep
     private let reload: @MainActor () -> Void
     private var pending: Task<Void, Never>?
     /// A reload came due while paused and waits for the pause to lift.
@@ -32,8 +37,13 @@ final class RemoteImportReloader {
         }
     }
 
-    init(delay: Duration = .seconds(1), reload: @escaping @MainActor () -> Void) {
+    init(
+        delay: Duration = .seconds(1),
+        sleep: @escaping Sleep = { try await Task.sleep(for: $0) },
+        reload: @escaping @MainActor () -> Void
+    ) {
         self.delay = delay
+        self.sleep = sleep
         self.reload = reload
     }
 
@@ -46,8 +56,9 @@ final class RemoteImportReloader {
     func importFinished() {
         pending?.cancel()
         let delay = delay
+        let sleep = sleep
         pending = Task { [weak self] in
-            try? await Task.sleep(for: delay)
+            try? await sleep(delay)
             guard !Task.isCancelled else { return }
             self?.fire()
         }

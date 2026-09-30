@@ -192,7 +192,9 @@ struct SearchIndexCatchUpTests {
 
         try addNote("Stamp game", to: fixture)
 
-        let deadline = ContinuousClock.now + .seconds(10)
+        // Generous: the full parallel suite starves the main actor well past
+        // 10 s (2026-09-30: failed at 23.7 s); a passing run returns early.
+        let deadline = ContinuousClock.now + .seconds(60)
         while titles(service, "stamp").isEmpty, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(25))
         }

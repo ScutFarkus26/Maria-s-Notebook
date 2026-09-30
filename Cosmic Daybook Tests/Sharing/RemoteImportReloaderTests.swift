@@ -15,10 +15,16 @@ struct RemoteImportReloaderTests {
         var reloads = 0
     }
 
-    /// Waits for `condition`, up to two seconds; timing on a busy simulator
-    /// varies, so no test depends on an exact interval.
+    /// Returns at once, so a reload comes due as soon as its task runs. With a
+    /// real 30 ms sleep, the full parallel suite's heavy main-actor tests held
+    /// that task past a two-second wait (2026-09-30: 10–14 s).
+    private static let noWait: RemoteImportReloader.Sleep = { _ in }
+
+    /// Waits for `condition`. The deadline is generous because the full
+    /// parallel suite can starve the main actor for many seconds; a passing
+    /// run returns as soon as the condition holds.
     private func waitFor(_ condition: () -> Bool) async {
-        let deadline = ContinuousClock.now + .seconds(2)
+        let deadline = ContinuousClock.now + .seconds(60)
         while !condition(), ContinuousClock.now < deadline {
             try? await Task.sleep(for: .milliseconds(10))
         }
@@ -27,7 +33,7 @@ struct RemoteImportReloaderTests {
     @Test("a burst of imports reloads once, after it settles")
     func burstReloadsOnce() async {
         let counter = Counter()
-        let reloader = RemoteImportReloader(delay: .milliseconds(30)) { counter.reloads += 1 }
+        let reloader = RemoteImportReloader(delay: .milliseconds(30), sleep: Self.noWait) { counter.reloads += 1 }
 
         for _ in 0..<5 { reloader.importFinished() }
         #expect(counter.reloads == 0)
@@ -40,12 +46,10 @@ struct RemoteImportReloaderTests {
     @Test("a reload due while paused waits and runs once when the pause lifts")
     func pauseHoldsTheReload() async {
         let counter = Counter()
-        let reloader = RemoteImportReloader(delay: .milliseconds(30)) { counter.reloads += 1 }
+        let reloader = RemoteImportReloader(delay: .milliseconds(30), sleep: Self.noWait) { counter.reloads += 1 }
 
         reloader.isPaused = true
         reloader.importFinished()
-        // Wait for the reload to come due rather than for a fixed time: on a
-        // loaded simulator a 30 ms sleep can take longer than any fixed wait.
         await waitFor { reloader.hasHeldReload }
         #expect(reloader.hasHeldReload)
         #expect(counter.reloads == 0)
