@@ -21,9 +21,10 @@ open -a "/Applications/Xcode.app" "Cosmic Daybook.xcodeproj"
 # It takes the Mac-wide build lock that Tide's Scripts/build also takes (~/Library/Caches/xcodebuild.lock),
 # so builds from either project take turns — two at once on this fanless MacBook Air turned a 48 s
 # clean build into 255 s (2026-09-23) — and runs the build at `nice -n 10`, leaving the performance
-# cores to Danny's own Xcode builds. While it waits it names the processes holding or queued on the
-# lock; after 15 min (BUILD_LOCK_WAIT) it gives up with exit status 75, which means "never started",
-# not a build failure.
+# cores to Danny's own Xcode builds. Turns go in arrival order through ~/.claude/bin/build-turn, which
+# says how many builds are ahead while it waits (the Build Queue menu bar app shows whose); after
+# 15 min (BUILD_LOCK_WAIT) it gives up with exit status 75, which means "never started", not a build
+# failure. Any other compile (`swift build`/`test`) goes through `~/.claude/bin/build-turn <command>`.
 # COMPILER_INDEX_STORE_ENABLE=NO skips the IDE-only index store on CLI builds.
 Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   COMPILER_INDEX_STORE_ENABLE=NO build

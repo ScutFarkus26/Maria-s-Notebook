@@ -13,6 +13,12 @@
 # BUILD_NICE       niceness for the build (default 10; 0 for timing baselines).
 # BUILD_LOCK_FILE  the lock (default ~/Library/Caches/xcodebuild.lock, Tide's);
 #                  override only to test this script.
+#
+# Builds take turns in the order they arrived when ~/.claude/bin/build-turn is
+# installed: it queues on numbered tickets, then takes this same lock, so
+# builds through it and through the code below still exclude each other. A
+# bare flock hands the lock to whichever waiter wins the wake-up instead: on
+# 2026-09-30 a build that had waited 5 min went ahead of one that had waited 27.
 
 emulate -R zsh
 setopt no_unset pipe_fail no_bg_nice   # BG_NICE would add +5 to the backgrounded build
@@ -25,6 +31,9 @@ niceness=${BUILD_NICE:-10}
 
 [[ $wait_limit == <-> ]] || { print -u2 "$me: BUILD_LOCK_WAIT must be whole seconds, not '$wait_limit'"; exit 64 }
 [[ $niceness == <0-20> ]] || { print -u2 "$me: BUILD_NICE must be 0–20, not '$niceness'"; exit 64 }
+
+turn=$HOME/.claude/bin/build-turn
+[[ -x $turn ]] && exec $turn --wait $wait_limit --nice $niceness xcodebuild "$@"
 
 [[ -e $lock ]] || : >> $lock || exit 73
 
