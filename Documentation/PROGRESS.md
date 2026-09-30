@@ -5,8 +5,8 @@ Milestones 1–7: Part 2 of the two-zone Production move. Milestones 8–13: the
 Daybook Assistant improvements picked from the 2026-09-29 top-25 review (plan:
 `~/.claude/plans/polymorphic-crafting-kahan.md`). Milestones 14–21: the logic-break
 sweep (plan: `~/.claude/plans/analyze-my-code-and-happy-frog.md`), squashed onto main
-as 81e8f4cb. Milestone 22: the sweep's loose ends and live MCP checks, on branch
-`fix/logic-break-loose-ends-2026-09-30`.
+as 81e8f4cb. Milestone 22: the sweep's loose ends and live MCP checks, squashed onto
+main as fa1c434f. Milestone 13 ships it all to the devices.
 
 ## Milestones
 - [x] 1. Two-zone app changes
@@ -21,7 +21,7 @@ as 81e8f4cb. Milestone 22: the sweep's loose ends and live MCP checks, on branch
 - [x] 10. Tile menu
 - [x] 11. Reminder, Siri, sync
 - [x] 12. Close Arrival & layout
-- [ ] 13. Ship to devices (waits on Danny's steps)
+- [ ] 13. Ship to devices (active)
 - [x] 14. Launch cleanup gate
 - [x] 15. Assistant attach, Leave
 - [x] 16. Group leaks
@@ -30,7 +30,7 @@ as 81e8f4cb. Milestone 22: the sweep's loose ends and live MCP checks, on branch
 - [x] 19. MCP write safety
 - [x] 20. Assistant leftovers
 - [x] 21. Medium and low
-- [ ] 22. Sweep loose ends
+- [x] 22. Sweep loose ends
 
 ## 5. iPhone + iPad (done 2026-09-28)
 
@@ -179,3 +179,18 @@ as 81e8f4cb. Milestone 22: the sweep's loose ends and live MCP checks, on branch
 - [x] Cosmic Daybook: 2081 of 2081
 - [x] macOS build of the branch: clean
 - [ ] Merge and push (Danny's call)
+
+## 13. Ship to devices (active, 2026-09-30)
+
+### Ship
+- [x] Merge the branch to main and push (944eb2c5)
+- [x] Schemas 11 and 12 deployed to Production (12 on 2026-09-30: Production had refused CD_AttendanceEmailSettings, which stopped classroom sync on 92f7f54f and 81e8f4cb)
+- [x] Assistant App ID: extended share access capability
+- [x] Roll main 4c83cb89 out to Mac, iPhone and iPad (16:35–16:41)
+- [x] Daybook Assistant on Danny's iPhone (4c83cb89, 16:43)
+- [ ] Assistant TestFlight build for the assistants (asks Danny first)
+
+### Checks
+- [ ] Classroom sync resumes after the roll-out (Mac: first upload 16:35 clean; iPhone and iPad not yet read)
+- [ ] Real-share checks: join state, Leave, guide's name, reminder firing, Siri
+- [ ] Tide device checks: fa1c434f, gmail re-invite, then the rest
