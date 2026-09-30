@@ -89,6 +89,15 @@ nonisolated extension CDClassroomMembership {
         return zone
     }
 
+    /// The short classroom ID people read out: the first 8 characters of the
+    /// share zone's UUID, e.g. "DB5879EF" for
+    /// `com.apple.coredata.cloudkit.share.DB5879EF-…`. It used to take the
+    /// zone name's first 8 characters, "com.appl" for every classroom.
+    static func classroomID(forZone zone: String) -> String {
+        let uuid = zone.split(separator: ".").last.map(String.init) ?? zone
+        return String(uuid.prefix(8)).uppercased()
+    }
+
     /// The classroom's share among the shares a store holds: the one whose
     /// zone is pinned, and nothing else.
     ///

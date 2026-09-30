@@ -261,11 +261,11 @@ struct AssistantClassroomSheet: View {
         return CDClassroomMembership.current(in: context)?.joinedAt
     }
 
-    /// The first 8 characters of the pinned share zone, e.g. "DB5879EF".
+    /// The pinned share zone's short ID, e.g. "DB5879EF".
     private var classroomID: String? {
         guard let context = bootstrapper.coreDataStack?.viewContext,
               let zone = CDClassroomMembership.pinnedZoneName(in: context) else { return nil }
-        return String(zone.prefix(8))
+        return CDClassroomMembership.classroomID(forZone: zone)
     }
 
     private func leave() async {

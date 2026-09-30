@@ -44,6 +44,10 @@ final class AssistantBootstrapper {
     private var stackNeedsAccount = false
     /// Whether the account has been checked since the stack was built.
     private var accountCheckedSinceBuild = false
+    /// Set while this iPhone's own Leave runs. Its membership delete comes
+    /// back as a remote change, which `followLeaveElsewhere` read as a Leave
+    /// on another device.
+    private var isLeavingHere = false
 
     /// True inside a hosted `Daybook Assistant Tests` run, the same check as
     /// the notebook's `AppBootstrapping.isRunningUnitTests`.
@@ -190,10 +194,10 @@ final class AssistantBootstrapper {
     /// Leaves the classroom: the class comes off this iPhone and the screen
     /// goes back to joining. Her marks stay with the guide.
     func leaveClassroom() async throws {
+        isLeavingHere = true
+        defer { isLeavingHere = false }
         try await sharingService?.leaveClassroom()
-        AssistantClassroomLocalState.forget()
-        await ArrivalReminder.cancelAll()
-        refreshMembership()
+        await backToJoining()
     }
 
     /// Leave on another of her iPhones deletes the membership rows, and the
@@ -204,8 +208,21 @@ final class AssistantBootstrapper {
         guard let context = coreDataStack?.viewContext else { return }
         let request = CDClassroomMembership.ownRowsRequest()
         request.fetchLimit = 1
-        guard context.safeFetchFirst(request) == nil else { return }
+        let hasOwnRow = context.safeFetchFirst(request) != nil
+        guard Self.leftElsewhere(hasOwnRow: hasOwnRow, leavingHere: isLeavingHere) else { return }
         Self.logger.notice("Left the classroom on another device; back to joining")
+        await backToJoining()
+    }
+
+    /// An import that finds no membership row means she left on another
+    /// iPhone, unless the Leave is this iPhone's own and still running.
+    nonisolated static func leftElsewhere(hasOwnRow: Bool, leavingHere: Bool) -> Bool {
+        !hasOwnRow && !leavingHere
+    }
+
+    /// After a Leave, here or elsewhere: this iPhone's classroom state and
+    /// reminders go, and the screen goes back to joining.
+    private func backToJoining() async {
         AssistantClassroomLocalState.forget()
         await ArrivalReminder.cancelAll()
         await FrontDeskEmailReminder.cancelAll()

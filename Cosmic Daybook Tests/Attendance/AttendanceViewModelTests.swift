@@ -151,6 +151,25 @@ struct AttendanceViewModelTests {
         #expect(roll.closeArrival(modelContext: context) == nil)
     }
 
+    // Loose end from the logic-break sweep (F12): only the Assistant's grid
+    // retired Siri's Undo, so after the notebook's Close Arrival "Undo that"
+    // put back a voice mark made before it.
+    @Test("Close Arrival retires Siri's Undo for that day, not another day's")
+    func closeArrivalRetiresSiriUndo() throws {
+        let roll = model(students: [student("Maya")])
+        SiriAttendanceChange(day: today, marks: [], summary: "Maya Stone present", closedArrival: false)
+            .remember(defaults: defaults)
+        #expect(roll.closeArrival(modelContext: context) != nil)
+        #expect(SiriAttendanceChange.last(defaults: defaults) == nil)
+
+        SiriAttendanceChange(day: today, marks: [], summary: "Ari Stone absent", closedArrival: false)
+            .remember(defaults: defaults)
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today) ?? today
+        let earlier = model(on: yesterday, students: [student("Lea")])
+        #expect(earlier.closeArrival(modelContext: context) != nil)
+        #expect(SiriAttendanceChange.last(defaults: defaults)?.summary == "Ari Stone absent")
+    }
+
     @Test("Undoing Close Arrival skips a child marked late since")
     func undoCloseArrival() throws {
         let roll = model(students: [student("Maya"), student("Ari")])

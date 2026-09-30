@@ -117,6 +117,27 @@ struct AssistantScreenStateTests {
         for key in syncKeys { #expect(defaults.object(forKey: key) == nil) }
     }
 
+    // Loose end from the logic-break sweep: the Classroom screen read
+    // "com.appl", the start of the zone name, instead of the share's UUID.
+    @Test("The classroom ID is the start of the share zone's UUID")
+    func classroomID() {
+        let zone = "com.apple.coredata.cloudkit.share.DB5879EF-1C2D-4E5F-8A9B-0C1D2E3F4A5B"
+        #expect(CDClassroomMembership.classroomID(forZone: zone) == "DB5879EF")
+        #expect(CDClassroomMembership.classroomID(forZone: "db5879ef-1c2d") == "DB5879EF")
+    }
+
+    // Loose end from the logic-break sweep: this iPhone's own Leave deletes
+    // its membership row, the delete comes back as a remote change, and it
+    // was read as a Leave on another device.
+    @Test("A missing membership row means a Leave elsewhere, not one running here")
+    func leftElsewhere() {
+        let leftElsewhere = AssistantBootstrapper.leftElsewhere
+        #expect(leftElsewhere(false, false))
+        #expect(!leftElsewhere(false, true))
+        #expect(!leftElsewhere(true, false))
+        #expect(!leftElsewhere(true, true))
+    }
+
     @Test("The stack is rebuilt once, only when iCloud arrives after a start without it")
     func accountDecision() {
         let decide = AssistantBootstrapper.accountDecision

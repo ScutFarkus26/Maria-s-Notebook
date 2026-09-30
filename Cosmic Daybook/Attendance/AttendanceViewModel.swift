@@ -210,6 +210,9 @@ final class AttendanceViewModel {
             try modelContext.obtainPermanentIDs(for: marked.filter(\.objectID.isTemporaryID))
             phase = .late
             AttendanceLatePhase.setLate(true, on: selectedDate, defaults: defaults)
+            // As on the Assistant's grid: Siri's last change is from before
+            // arrival closed, so "Undo that" can't reach past this.
+            SiriAttendanceChange.forget(ifOn: selectedDate, defaults: defaults)
             changed(marked)
             return ArrivalUndo(day: selectedDate, records: marked.map(\.objectID))
         } catch {

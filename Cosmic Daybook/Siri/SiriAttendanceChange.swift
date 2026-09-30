@@ -48,4 +48,13 @@ nonisolated struct SiriAttendanceChange: Codable, Sendable {
     @MainActor static func forget(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: key)
     }
+
+    /// Closing arrival on `day` forgets Siri's last change that day: it came
+    /// before, so "Undo that" would put back an older voice mark, not the
+    /// Close Arrival. A change on another day is kept.
+    @MainActor static func forget(ifOn day: Date, defaults: UserDefaults = .standard) {
+        guard let change = last(defaults: defaults),
+              Calendar.current.isDate(change.day, inSameDayAs: day) else { return }
+        forget(defaults: defaults)
+    }
 }

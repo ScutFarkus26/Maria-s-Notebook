@@ -276,10 +276,7 @@ final class AssistantAttendanceViewModel {
         AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
         // Siri's last change is from before arrival closed: "Undo that" now
         // would put back an older voice mark, not this.
-        if let siri = SiriAttendanceChange.last(defaults: defaults),
-           Calendar.current.isDate(siri.day, inSameDayAs: date) {
-            SiriAttendanceChange.forget(defaults: defaults)
-        }
+        SiriAttendanceChange.forget(ifOn: date, defaults: defaults)
         createdSinceSave.append(contentsOf: changed.filter(\.isInserted))
         persist(updating: changed)
         lastLateBatch = changed.map(\.objectID)

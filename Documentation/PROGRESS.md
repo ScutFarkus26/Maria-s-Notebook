@@ -4,8 +4,9 @@ Repo copy of the build board (https://claude.ai/artifact/VZpfwHWT7cGz1vkn3xNzNm)
 Milestones 1–7: Part 2 of the two-zone Production move. Milestones 8–13: the 20
 Daybook Assistant improvements picked from the 2026-09-29 top-25 review (plan:
 `~/.claude/plans/polymorphic-crafting-kahan.md`). Milestones 14–21: the logic-break
-sweep (plan: `~/.claude/plans/analyze-my-code-and-happy-frog.md`), on branch
-`fix/logic-breaks-2026-09-29`.
+sweep (plan: `~/.claude/plans/analyze-my-code-and-happy-frog.md`), squashed onto main
+as 81e8f4cb. Milestone 22: the sweep's loose ends and live MCP checks, on branch
+`fix/logic-break-loose-ends-2026-09-30`.
 
 ## Milestones
 - [x] 1. Two-zone app changes
@@ -29,6 +30,7 @@ sweep (plan: `~/.claude/plans/analyze-my-code-and-happy-frog.md`), on branch
 - [x] 19. MCP write safety
 - [x] 20. Assistant leftovers
 - [x] 21. Medium and low
+- [ ] 22. Sweep loose ends
 
 ## 5. iPhone + iPad (done 2026-09-28)
 
@@ -157,4 +159,23 @@ sweep (plan: `~/.claude/plans/analyze-my-code-and-happy-frog.md`), on branch
 - [x] Cosmic Daybook: 1963 of 1965; the two failures pass alone (ChatViewModelTests raced on the process-wide chat context, now serialized; RemoteImportReloaderTests' pause test is timing-bound under load and untouched by this branch)
 - [x] Group A device check (milestone 14): passed
 - [x] Found during it and fixed: F4 temporarily-unavailable iCloud rebuilds again, Leave refuses with no readable share (ea271509); Manage Sharing saves off the main actor (ba4bf394)
-- [ ] Merge (main has moved on: Sample Class rework cbfdc454 overlaps F7, schema 12 is on main)
+- [x] Merge: squashed onto main as 81e8f4cb and pushed 2026-09-30 (Assistant 116/116, notebook 2080/2080, Mac build clean)
+
+## 22. Sweep loose ends (active, branch fix/logic-break-loose-ends-2026-09-30)
+
+### Code (612956a4; each new test failed on the old code first)
+- [x] The notebook's Close Arrival retires Siri's Undo for that day, as the Assistant's grid does
+- [x] The Assistant's Classroom ID reads the share UUID ("DB5879EF"), not "com.appl"
+- [x] Leave-elsewhere ignores this iPhone's own Leave in progress (rule unit-tested; the flag wiring has no unit test); own Leave also cancels the front-desk email reminder
+- [x] Ask AI streams: already on main as 80437937 (ChatService passes `timeout: nil`)
+
+### Live MCP checks (2026-09-30, Release origin/main 81e8f4cb installed in /Applications)
+- [x] update_work: a real completion plus a bad due_date is refused and leaves no completion, nothing journaled
+- [x] student_observations with only `until` (2026-02-15) returns the 30 days through it (3 notes, not the Jan 5 ones)
+- [x] Turning the Claude Desktop toggle off mid-session: the next call gets "Connection closed", the port is closed, and the log shows only the disconnect
+
+### Full suites (2026-09-30, iOS 27 iPhone 17 simulator) and Mac build
+- [x] Daybook Assistant: 118 of 118
+- [x] Cosmic Daybook: 2081 of 2081
+- [x] macOS build of the branch: clean
+- [ ] Merge and push (Danny's call)
