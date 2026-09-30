@@ -7,7 +7,7 @@ import Testing
 @Suite("Assistant phone tile size")
 struct AssistantTileSizeTests {
 
-    typealias Tile = AssistantAttendanceTile
+    typealias Tile = AttendanceTile
 
     @Test("A Pro Max's room makes 22 children roomy tiles")
     func proMaxFills() {

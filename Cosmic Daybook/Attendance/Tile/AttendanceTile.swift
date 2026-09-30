@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 /// One child's tile in the attendance grid. The mark shows in the tile's
@@ -21,8 +22,8 @@ import SwiftUI
 /// reason comes back on a second line. Wider screens keep full names with that
 /// detail line. At accessibility text sizes the grid goes to two columns and a
 /// name may wrap.
-struct AssistantAttendanceTile: View {
-    let row: AssistantAttendanceViewModel.Row
+struct AttendanceTile: View {
+    let row: AttendanceRow
     /// What a tap would set, or nil when a tap does nothing here.
     let tapTarget: AttendanceStatus?
     /// Why a tap does nothing, shown briefly on the tile.
@@ -84,7 +85,7 @@ struct AssistantAttendanceTile: View {
     @State private var waveTaps = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Sky or Plain behind the grid; false frosts the tile (`TileBase`).
-    @Environment(\.assistantBackdropIsQuiet) var quietBackdrop
+    @Environment(\.attendanceBackdropIsQuiet) var quietBackdrop
 
     private var isLargeText: Bool { dynamicTypeSize.isAccessibilitySize }
 
@@ -281,7 +282,7 @@ struct AssistantAttendanceTile: View {
                     Text(leftEarlyTimes ?? "Left early")
                         .monospacedDigit()
                 default:
-                    Text(row.markedAt.map(AssistantClock.string) ?? (isRoomy ? row.status.displayName : " "))
+                    Text(row.markedAt.map(AttendanceClock.string) ?? (isRoomy ? row.status.displayName : " "))
                         .monospacedDigit()
                 }
                 if !row.note.isEmpty {
@@ -302,13 +303,7 @@ struct AssistantAttendanceTile: View {
     }
 
     /// "8:02 → 1:15", "left 1:15", or nil when neither time is known.
-    private var leftEarlyTimes: String? {
-        switch (row.markedAt, row.leftAt) {
-        case let (arrived?, left?): return "\(AssistantClock.string(arrived)) → \(AssistantClock.string(left))"
-        case let (nil, left?): return "left \(AssistantClock.string(left))"
-        default: return nil
-        }
-    }
+    private var leftEarlyTimes: String? { AttendanceRules.leftEarlyTimes(row) }
 
     /// Late or left early, in the corner's padding so it takes no room from
     /// the name. A roomy tile has the glyph on its detail line instead.
@@ -351,3 +346,4 @@ struct AssistantAttendanceTile: View {
         }
     }
 }
+#endif

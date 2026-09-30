@@ -175,6 +175,21 @@ struct SiriAttendanceTests {
         await #expect { try await siri.undoLast() } throws: { Self.siriError($0) == "nothingToUndo" }
     }
 
+    // Close Arrival on the notebook's roll closes it for Siri on this device
+    // too, as the Daybook Assistant's does.
+    @Test("After Close Arrival, \"here\" marks late but never downgrades a child already present")
+    func hereAfterCloseArrival() async throws {
+        let maya = makeStudent("Maya")
+        let ari = makeStudent("Ari")
+        let siri = session()
+        try await siri.mark(ari, as: .present)
+        AttendanceLatePhase.setLate(true, on: siri.today)
+        defer { AttendanceLatePhase.setLate(false, on: siri.today) }
+
+        #expect(try await siri.markHere(maya).now == .tardy)
+        #expect(try await siri.markHere(ari).now == .present)
+    }
+
     @Test("A locked day takes no marks")
     func lockedDay() async throws {
         let maya = makeStudent("Maya")

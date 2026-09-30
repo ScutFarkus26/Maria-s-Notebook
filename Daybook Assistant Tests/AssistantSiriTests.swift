@@ -11,7 +11,7 @@ import Testing
 @MainActor
 struct AssistantSiriTests {
 
-    private typealias Late = AssistantLatePhase
+    private typealias Late = AttendanceLatePhase
 
     private let stack: CoreDataStack
     private let monday: Date

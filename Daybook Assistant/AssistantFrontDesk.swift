@@ -46,15 +46,16 @@ final class AssistantFrontDesk {
         settings?.canSend == true && viewModel.dayOff == nil && !viewModel.rows.isEmpty && !viewModel.isFuture
     }
 
-    /// The day's email in the guide's format: on time, tardy and absent, as
-    /// the notebook writes it.
+    /// The day's email in the guide's format: on time, tardy, left early and
+    /// absent, as the notebook writes it.
     func draft(for rows: [AssistantAttendanceViewModel.Row]) -> AttendanceEmailDraft? {
         guard let settings, settings.canSend else { return nil }
         func students(_ status: AttendanceStatus) -> [AttendanceEmailStudent] {
             rows.filter { $0.status == status }.map { AttendanceEmailStudent($0.student) }
         }
         return settings.draft(
-            for: date, present: students(.present), tardy: students(.tardy), absent: students(.absent)
+            for: date, present: students(.present), tardy: students(.tardy), absent: students(.absent),
+            leftEarly: students(.leftEarly)
         )
     }
 

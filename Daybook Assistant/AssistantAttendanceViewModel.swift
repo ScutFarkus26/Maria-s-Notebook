@@ -21,13 +21,11 @@ final class AssistantAttendanceViewModel {
 
     private static let logger = Logger.app(category: "attendance")
 
+    /// One child on the day, with their record's values copied in.
+    typealias Row = AttendanceRow
+
     /// Which part of the morning the taps are for.
-    enum Phase: Equatable {
-        /// Children are arriving: a tap marks present.
-        case arrival
-        /// Arrival has closed: the rest are absent, and a tap marks tardy.
-        case late
-    }
+    typealias Phase = AttendancePhase
 
     /// Why there is no school on `date`, when there isn't.
     enum DayOff: Equatable {
@@ -175,7 +173,7 @@ final class AssistantAttendanceViewModel {
             if day != date { lastLateBatch = [] }
             date = day
         }
-        phase = AssistantLatePhase.isLate(on: date, defaults: defaults) ? .late : .arrival
+        phase = AttendanceLatePhase.isLate(on: date, defaults: defaults) ? .late : .arrival
         dayOff = Self.dayOff(on: date, in: context)
         loadGeneration &+= 1
         isLocked = store.isLocked(date)
@@ -206,7 +204,7 @@ final class AssistantAttendanceViewModel {
             uniquingKeysWith: { first, _ in first }
         )
 
-        let gridNames = AssistantDayRoll.gridNames(for: students)
+        let gridNames = AttendanceGridNames.names(for: students)
         let returning = dayOff == nil ? AssistantWelcomeBack.returning(on: date, in: context) : [:]
         rows = students.map { student in
             let key = student.id?.uuidString ?? ""
@@ -255,7 +253,7 @@ final class AssistantAttendanceViewModel {
     func beginLate() -> Int {
         guard canMark, !isFuture, phase == .arrival else { return 0 }
         phase = .late
-        AssistantLatePhase.setLate(true, on: date, defaults: defaults)
+        AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
         do {
             let changed = try store.markUnmarkedAbsent(for: date, students: rows.map(\.student))
             createdSinceSave.append(contentsOf: changed.filter(\.isInserted))
@@ -277,7 +275,7 @@ final class AssistantAttendanceViewModel {
         // can't be put back, so reopening arrival would only mislead.
         guard canMark else { return }
         phase = .arrival
-        AssistantLatePhase.setLate(false, on: date, defaults: defaults)
+        AttendanceLatePhase.setLate(false, on: date, defaults: defaults)
         let batch = lastLateBatch
         lastLateBatch = []
         guard undo, !batch.isEmpty else { return }

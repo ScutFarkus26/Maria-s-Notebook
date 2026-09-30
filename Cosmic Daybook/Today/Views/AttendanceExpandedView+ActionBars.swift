@@ -23,16 +23,15 @@ extension AttendanceExpandedView {
 
             // Mark All Present
             Button {
-                viewModel.markAllPresent(students: filteredStudents, modelContext: viewContext)
-                saveCoordinator.save(viewContext, reason: "Mark all present")
-                onChange()
+                viewModel.markAllPresent(modelContext: viewContext)
+                saved("Mark all present")
             } label: {
                 Label("All Present", systemImage: "checkmark.circle.fill")
                     .font(AppTheme.ScaledFont.captionSemibold)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .disabled(isNonSchoolDay || !isEditing)
+            .disabled(isNonSchoolDay || !isEditing || viewModel.isFuture)
 
             // Overflow menu
             Menu {
@@ -46,13 +45,11 @@ extension AttendanceExpandedView {
                     }
                 }
 
-                // Reset
+                // Reset (asks first, then offers Undo)
                 Button(role: .destructive) {
-                    viewModel.resetDay(students: filteredStudents, modelContext: viewContext)
-                    saveCoordinator.save(viewContext, reason: "Reset day")
-                    onChange()
+                    confirmingReset = true
                 } label: {
-                    Label("Reset Day", systemImage: SFSymbol.Action.arrowCounterclockwise)
+                    Label("Reset Day…", systemImage: SFSymbol.Action.arrowCounterclockwise)
                 }
                 .disabled(isNonSchoolDay || !isEditing)
 
@@ -125,26 +122,23 @@ extension AttendanceExpandedView {
                 .help(isEditing ? "Lock this day" : "Unlock this day")
             }
 
-            // Reset
+            // Reset (asks first, then offers Undo)
             Button {
-                viewModel.resetDay(students: filteredStudents, modelContext: viewContext)
-                saveCoordinator.save(viewContext, reason: "Reset day")
-                onChange()
+                confirmingReset = true
             } label: {
                 Image(systemName: SFSymbol.Action.arrowCounterclockwise)
             }
             .buttonStyle(.bordered)
             .disabled(isNonSchoolDay || !isEditing)
-            .help("Reset Day")
+            .help("Reset Day…")
 
             // Mark All Present
             Button("Mark All Present") {
-                viewModel.markAllPresent(students: filteredStudents, modelContext: viewContext)
-                saveCoordinator.save(viewContext, reason: "Mark all present")
-                onChange()
+                viewModel.markAllPresent(modelContext: viewContext)
+                saved("Mark all present")
             }
             .buttonStyle(.borderedProminent)
-            .disabled(isNonSchoolDay || !isEditing)
+            .disabled(isNonSchoolDay || !isEditing || viewModel.isFuture)
 
             // Email the front desk: prominent once everyone's marked, and
             // who sent it once it has gone

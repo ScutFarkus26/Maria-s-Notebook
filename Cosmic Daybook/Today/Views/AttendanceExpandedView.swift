@@ -13,20 +13,14 @@ struct AttendanceExpandedView: View {
     let isNonSchoolDay: Bool
     let onChange: () -> Void
     let onToast: (String) -> Void
+    /// A sideways swipe on the iPhone's tiles: true for the next school day.
+    var onStepDay: ((Bool) -> Void)?
 
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.horizontalSizeClass) var hSizeClass
     @Environment(SaveCoordinator.self) var saveCoordinator
-    @Environment(\.dependencies) private var dependencies
+    @Environment(\.dependencies) var dependencies
 
-    // The day's roll from the workspace's live roster (the store drops
-    // CloudKit's duplicate-ID rows): enrolled that day by their dates, or
-    // holding a record that day, so looking back shows who was here then.
-    private var allStudents: [CDStudent] {
-        AttendanceRoster.students(
-            on: date, from: dependencies.roster.all, recordStudentIDs: viewModel.dayRecordStudentIDs
-        )
-    }
     /// Reload when the class itself changes. (Not the day's roll, which the
     /// load decides: watching that would load every day twice.)
     private var rosterIDs: [UUID] { dependencies.roster.all.compactMap(\.id) }
@@ -44,9 +38,12 @@ struct AttendanceExpandedView: View {
     @State var confirmingRestAbsent = false
     @State var showingTardyReport = false
     @State var showingAbsenceReport = false
+    @State var confirmingReset = false
     @State var isEditing: Bool = true
     @State var localSortKey: AttendanceViewModel.SortKey = AttendanceViewModel.storedSortKey()
-    @State private var activeChipPopover: AttendanceStatus?
+    @State var activeChipPopover: AttendanceStatus?
+    /// "Everyone's here · 8:14", for a few seconds after a mark completes the roll.
+    @State var finishedLine: String?
 
     // Locked days are `AttendanceDayLock` records in the classroom share, so
     // an assistant sees them too (they used to be an iCloud setting only the
@@ -71,11 +68,6 @@ struct AttendanceExpandedView: View {
         saveCoordinator.save(viewContext, reason: locked ? "Lock attendance day" : "Unlock attendance day")
     }
 
-    var filteredStudents: [CDStudent] {
-        let visible = viewModel.visibleStudents(from: allStudents)
-        return viewModel.sortedAndFiltered(students: visible)
-    }
-
     private var nonSchoolDayWarning: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
             Image(systemName: SFSymbol.Status.exclamationmarkTriangleFill).foregroundStyle(.yellow)
@@ -88,116 +80,39 @@ struct AttendanceExpandedView: View {
 
     private var attendanceGrid: some View {
         AttendanceGrid(
-            students: filteredStudents,
-            recordsByStudentID: viewModel.recordsByStudentID,
-            loadGeneration: viewModel.loadGeneration,
+            viewModel: viewModel,
             isEditing: isEditing,
-            onCycleStatus: { student in
-                viewModel.cycleStatus(for: student, modelContext: viewContext)
-                saveCoordinator.save(viewContext, reason: "Update status")
-                onChange()
-            },
-            onUpdateNote: { student, note in
-                viewModel.updateNote(for: student, note: note, modelContext: viewContext)
-                saveCoordinator.save(viewContext, reason: "Update note")
-            },
-            onUpdateAbsenceReason: { student, reason in
-                viewModel.updateAbsenceReason(for: student, reason: reason, modelContext: viewContext)
-                saveCoordinator.save(viewContext, reason: "Update reason")
-            }
+            actions: AttendanceGridActions(
+                cycle: { row in
+                    viewModel.cycleStatus(for: row, modelContext: viewContext)
+                    saved("Update status")
+                },
+                tap: { row in
+                    viewModel.tap(row, modelContext: viewContext)
+                    saved("Update status")
+                },
+                setStatus: { status, row in
+                    viewModel.setStatus(status, for: row, modelContext: viewContext)
+                    saved("Update status")
+                },
+                markAbsent: { reason, row in
+                    viewModel.markAbsent(reason: reason, for: row, modelContext: viewContext)
+                    saved("Update reason")
+                },
+                saveNote: { row, note in
+                    viewModel.updateNote(for: row, note: note, modelContext: viewContext)
+                    saveCoordinator.save(viewContext, reason: "Update note")
+                }
+            ),
+            onStepDay: onStepDay
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Attendance Summary Strip (iPhone)
-
-    @ViewBuilder
-    private var attendanceSummaryStrip: some View {
-#if os(iOS)
-        if hSizeClass == .compact {
-            HStack(spacing: 10) {
-                // Primary: In Class count
-                HStack(spacing: 6) {
-                    Text("In Class")
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.secondary)
-                    Text("\(viewModel.inClassCount)")
-                        .font(AppTheme.ScaledFont.calloutSemibold)
-                        .monospacedDigit()
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
-                }
-
-                if viewModel.countTardy > 0 {
-                    tappableStatChip(title: "Tardy", count: viewModel.countTardy, color: .blue, status: .tardy)
-                }
-                if viewModel.countAbsent > 0 {
-                    tappableStatChip(title: "Absent", count: viewModel.countAbsent, color: .red, status: .absent)
-                }
-                if viewModel.countLeftEarly > 0 {
-                    tappableStatChip(
-                        title: "Left Early", count: viewModel.countLeftEarly,
-                        color: .purple, status: .leftEarly
-                    )
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, AppTheme.Spacing.compact)
-            .padding(.bottom, AppTheme.Spacing.small)
-        }
-#endif
-    }
-
-    private func tappableStatChip(title: String, count: Int, color: Color, status: AttendanceStatus) -> some View {
-        Button {
-            activeChipPopover = activeChipPopover == status ? nil : status
-        } label: {
-            HStack(spacing: 4) {
-                Circle().fill(color).frame(width: 6, height: 6)
-                Text("\(title) \(count)")
-                    .font(AppTheme.ScaledFont.captionSmallSemibold)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().strokeBorder(color.opacity(0.20), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: Binding(
-            get: { activeChipPopover == status },
-            set: { if !$0 { activeChipPopover = nil } }
-        )) {
-            chipPopoverContent(title: title, color: color, status: status)
-        }
-    }
-
-    private func chipPopoverContent(title: String, color: Color, status: AttendanceStatus) -> some View {
-        let studentNames = names(for: status)
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Circle().fill(color).frame(width: 8, height: 8)
-                Text(title)
-                    .font(AppTheme.ScaledFont.calloutSemibold)
-            }
-            .padding(.bottom, 2)
-
-            if studentNames.isEmpty {
-                Text("None")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(studentNames, id: \.self) { name in
-                    Text(name)
-                        .font(AppTheme.ScaledFont.callout)
-                }
-            }
-        }
-        .padding()
-        .frame(minWidth: 160, alignment: .leading)
-        .presentationCompactAdaptation(.popover)
+    /// Saves a change to the roll and tells the host screen.
+    func saved(_ reason: String) {
+        saveCoordinator.save(viewContext, reason: reason)
+        onChange()
     }
 
     var body: some View {
@@ -214,6 +129,8 @@ struct AttendanceExpandedView: View {
                 nonSchoolDayWarning
             }
 
+            tallyLine
+
             attendanceGrid
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -221,6 +138,9 @@ struct AttendanceExpandedView: View {
             loadData()
         }
         .onChange(of: date) { _, _ in
+            // An Undo belongs to the day it was offered on.
+            dependencies.toastService.dismiss()
+            finishedLine = nil
             loadData()
         }
         .onChange(of: rosterIDs) { _, _ in
@@ -235,10 +155,27 @@ struct AttendanceExpandedView: View {
         ) {
             loadData()
         }
+        // A mark made with Siri while the roll is open.
+        .onReceive(NotificationCenter.default.publisher(for: .attendanceChangedBySiri)) { _ in
+            loadData()
+        }
         .onChange(of: localSortKey) { _, newValue in
-            Task {
-                viewModel.setSortKey(newValue)
-            }
+            viewModel.setSortKey(newValue)
+        }
+        .onChange(of: viewModel.completions) {
+            finishedLine = AttendanceRules.completionText(viewModel.rows, at: viewModel.isToday ? Date() : nil)
+        }
+        .task(id: finishedLine) {
+            guard finishedLine != nil, (try? await Task.sleep(for: .seconds(5))) != nil else { return }
+            finishedLine = nil
+        }
+#if os(iOS)
+        .sensoryFeedback(.success, trigger: viewModel.completions)
+#endif
+        .confirmationDialog(resetTitle, isPresented: $confirmingReset, titleVisibility: .visible) {
+            Button("Reset Day", role: .destructive, action: resetDay)
+        } message: {
+            Text("Clears every mark, reason and note on the day. You can undo it right after.")
         }
         .sheet(isPresented: $showingTardyReport) {
             AttendanceTardyReport()
@@ -252,6 +189,7 @@ struct AttendanceExpandedView: View {
                 present: students(for: .present),
                 tardy: students(for: .tardy),
                 absent: students(for: .absent),
+                leftEarly: students(for: .leftEarly),
                 date: date
             ) { result, error in
                 switch result {
@@ -275,8 +213,6 @@ struct AttendanceExpandedView: View {
     }
 
     private func loadData() {
-        // Every candidate, not just the day's roll: the roll depends on which
-        // records the day holds, and those come from this load.
         viewModel.load(
             for: date, students: viewModel.visibleStudents(from: dependencies.roster.all), modelContext: viewContext
         )
@@ -286,14 +222,11 @@ struct AttendanceExpandedView: View {
     }
 
     func students(for status: AttendanceStatus) -> [AttendanceEmailStudent] {
-        filteredStudents.compactMap { s in
-            guard let rec = viewModel.recordsByStudentID[s.cloudKitKey], rec.status == status else { return nil }
-            return AttendanceEmailStudent(s)
-        }
+        viewModel.rows.filter { $0.status == status }.map { AttendanceEmailStudent($0.student) }
     }
 
     /// The status popover always reads "First Last", regardless of the email's own preference.
-    private func names(for status: AttendanceStatus) -> [String] {
+    func names(for status: AttendanceStatus) -> [String] {
         AttendanceEmailReport.sorted(students(for: status), by: .firstLast)
             .map { $0.name(order: .firstLast) }
     }

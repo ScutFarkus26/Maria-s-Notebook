@@ -1,19 +1,29 @@
 import SwiftUI
 import CoreData
 
+/// What the roll's cards and tiles do. The expanded view saves after each.
+struct AttendanceGridActions {
+    /// A card's click: the next status in the cycle.
+    let cycle: (AttendanceRow) -> Void
+    /// A phone tile's tap: present during arrival, late after it closes.
+    let tap: (AttendanceRow) -> Void
+    let setStatus: (AttendanceStatus, AttendanceRow) -> Void
+    let markAbsent: (AbsenceReason, AttendanceRow) -> Void
+    let saveNote: (AttendanceRow, String?) -> Void
+}
+
+/// The day's roll: cards on the Mac and iPad, the Daybook Assistant's tiles
+/// on the iPhone (tap anywhere on a child; long-press for everything else).
 struct AttendanceGrid: View {
-    let students: [CDStudent]
-    let recordsByStudentID: [String: CDAttendanceRecord]
-    /// Changes on every reload, so cards redraw when an import changed a
-    /// record object in place (`AttendanceViewModel.loadGeneration`).
-    let loadGeneration: Int
-    /// When false (e.g. the day is locked), cards render read-only and taps no longer cycle status.
+    let viewModel: AttendanceViewModel
+    /// When false (e.g. the day is locked), cards render read-only and taps no longer mark.
     let isEditing: Bool
-    let onCycleStatus: (CDStudent) -> Void
-    let onUpdateNote: (CDStudent, String?) -> Void
-    let onUpdateAbsenceReason: (CDStudent, AbsenceReason) -> Void
+    let actions: AttendanceGridActions
+    /// A sideways swipe across the iPhone tiles: true for the next school day.
+    var onStepDay: ((Bool) -> Void)?
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @State private var noteRow: AttendanceRow?
 
     // Layout constants
     private let horizontalPadding: CGFloat = UIConstants.AttendanceGrid.horizontalPadding
@@ -24,9 +34,29 @@ struct AttendanceGrid: View {
     private let minCardHeight: CGFloat = UIConstants.AttendanceGrid.minCardHeight
 
     var body: some View {
+        layout
+            .sheet(item: $noteRow) { row in
+                AttendanceNoteSheet(
+                    studentName: row.student.shortName,
+                    initialText: row.note,
+                    sharedWith: "Anyone you share your classroom with sees this note.",
+                    onSave: { actions.saveNote(row, $0) }
+                )
+            }
+    }
+
+    @ViewBuilder
+    private var layout: some View {
 #if os(iOS)
         if hSizeClass == .compact {
-            compactListLayout
+            AttendanceTileGrid(
+                viewModel: viewModel,
+                isEditing: isEditing,
+                actions: actions,
+                markedBy: markedBy,
+                onNote: { noteRow = $0 },
+                onStepDay: onStepDay
+            )
         } else {
             gridLayout
         }
@@ -35,35 +65,34 @@ struct AttendanceGrid: View {
 #endif
     }
 
-    // MARK: - iPhone Compact: Reminders-style list
-
-#if os(iOS)
-    private var compactListLayout: some View {
-        List {
-            ForEach(students, id: \.id) { student in
-                AttendanceCard(
-                    student: student,
-                    record: recordsByStudentID[student.cloudKitKey],
-                    isEditing: isEditing,
-                    onTap: {
-                        onCycleStatus(student)
-                    },
-                    onEditNote: { newNote in
-                        onUpdateNote(student, newNote)
-                    },
-                    onSetAbsenceReason: { reason in
-                        onUpdateAbsenceReason(student, reason)
-                    }
-                )
-                .listRowInsets(EdgeInsets())
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+    /// Who made a mark, when it wasn't you: an assistant's name. The guide's
+    /// own marks carry none.
+    private func markedBy(_ row: AttendanceRow) -> String? {
+        let name = AttendanceRules.markerName(
+            for: row,
+            myRecordName: ClassroomIdentity.currentUserRecordName,
+            myName: ClassroomIdentity.displayName,
+            guideName: "you"
+        )
+        return name == "you" ? nil : name
     }
-#endif
+
+    private func card(_ row: AttendanceRow) -> some View {
+        AttendanceCard(
+            row: row,
+            isEditing: isEditing,
+            markedBy: markedBy(row),
+            menuStatuses: viewModel.menuStatuses,
+            onTap: { actions.cycle(row) },
+            onSetStatus: { actions.setStatus($0, row) },
+            onMarkAbsent: { reason in
+                actions.markAbsent(reason, row)
+                // "Other" is only as good as the note that says what.
+                if reason == .other { noteRow = row }
+            },
+            onNote: { noteRow = row }
+        )
+    }
 
     // MARK: - iPad/macOS: Card grid
 
@@ -71,10 +100,11 @@ struct AttendanceGrid: View {
         GeometryReader { geometry in
             let availableWidth = geometry.size.width - (horizontalPadding * 2)
             let availableHeight = geometry.size.height - (verticalPadding * 2)
+            let rows = viewModel.rows
 
             // Calculate optimal grid layout
             let layout = calculateLayout(
-                studentCount: students.count,
+                studentCount: rows.count,
                 availableWidth: availableWidth,
                 availableHeight: availableHeight
             )
@@ -92,22 +122,9 @@ struct AttendanceGrid: View {
             if layout.needsScrolling {
                 ScrollView {
                     LazyVGrid(columns: columns, alignment: .center, spacing: cardSpacing) {
-                        ForEach(students, id: \.id) { student in
-                            AttendanceCard(
-                                student: student,
-                                record: recordsByStudentID[student.cloudKitKey],
-                                isEditing: isEditing,
-                                onTap: {
-                                    onCycleStatus(student)
-                                },
-                                onEditNote: { newNote in
-                                    onUpdateNote(student, newNote)
-                                },
-                                onSetAbsenceReason: { reason in
-                                    onUpdateAbsenceReason(student, reason)
-                                }
-                            )
-                            .frame(height: layout.cardHeight)
+                        ForEach(rows) { row in
+                            card(row)
+                                .frame(height: layout.cardHeight)
                         }
                     }
                     .padding(.horizontal, horizontalPadding)
@@ -116,22 +133,9 @@ struct AttendanceGrid: View {
             } else {
                 VStack(spacing: 0) {
                     LazyVGrid(columns: columns, alignment: .center, spacing: cardSpacing) {
-                        ForEach(students, id: \.id) { student in
-                            AttendanceCard(
-                                student: student,
-                                record: recordsByStudentID[student.cloudKitKey],
-                                isEditing: isEditing,
-                                onTap: {
-                                    onCycleStatus(student)
-                                },
-                                onEditNote: { newNote in
-                                    onUpdateNote(student, newNote)
-                                },
-                                onSetAbsenceReason: { reason in
-                                    onUpdateAbsenceReason(student, reason)
-                                }
-                            )
-                            .frame(height: layout.cardHeight)
+                        ForEach(rows) { row in
+                            card(row)
+                                .frame(height: layout.cardHeight)
                         }
                     }
                     .padding(.horizontal, horizontalPadding)
@@ -143,8 +147,8 @@ struct AttendanceGrid: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityRotor("Students") {
-            ForEach(students, id: \.id) { student in
-                AccessibilityRotorEntry(student.fullName, id: student.id)
+            ForEach(viewModel.rows) { row in
+                AccessibilityRotorEntry(row.name, id: row.id)
             }
         }
     }

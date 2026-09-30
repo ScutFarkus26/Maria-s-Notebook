@@ -36,7 +36,7 @@ enum SiriHost {
     /// only where two share one. Here and late answer on a locked phone,
     /// where a full name tells anyone nearby more than was said.
     static func displayNames(for students: [CDStudent]) -> [NSManagedObjectID: String] {
-        AssistantDayRoll.gridNames(for: students)
+        AttendanceGridNames.names(for: students)
     }
 
     /// Hardcoded, as in the grid: this app is only ever used by an assistant.
@@ -45,11 +45,11 @@ enum SiriHost {
     /// Once arrival has closed on this phone, a child who arrives is tardy,
     /// exactly as a tap during Late marks them.
     static func statusForHere(on day: Date) -> AttendanceStatus {
-        AssistantLatePhase.isLate(on: day) ? .tardy : .present
+        AttendanceLatePhase.isLate(on: day) ? .tardy : .present
     }
 
     static func arrivalReopened(on day: Date) {
-        AssistantLatePhase.setLate(false, on: day)
+        AttendanceLatePhase.setLate(false, on: day)
     }
 
     /// New marks go into the classroom share explicitly, as the grid's do.

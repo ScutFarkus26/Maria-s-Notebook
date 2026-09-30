@@ -48,7 +48,7 @@ public struct AttendanceEmailSettingsView: View {
     private var groupingFootnote: some View {
         Text(
             "Grouping writes each level as its own report \u{2014} on time, tardy, "
-            + "and absent \u{2014} Upper Elementary first."
+            + "left early and absent \u{2014} Upper Elementary first."
         )
             .font(.footnote)
             .foregroundStyle(.secondary)

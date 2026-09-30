@@ -4,8 +4,12 @@ import Foundation
 /// phase survives a relaunch mid-morning. Each day keeps its own: closing
 /// arrival on another day (or reopening it there) leaves today's alone, so
 /// a late child is still tardy after a look at yesterday.
+///
+/// Shared with the Daybook Assistant. The keys keep their "Assistant." names:
+/// each app has its own defaults, and renaming them would drop a Late phase
+/// the Assistant closed before it updated.
 @MainActor
-enum AssistantLatePhase {
+enum AttendanceLatePhase {
     private static let key = "Assistant.latePhaseDays"
     /// Before each day kept its own, one day was remembered here.
     private static let singleDayKey = "Assistant.latePhaseDay"

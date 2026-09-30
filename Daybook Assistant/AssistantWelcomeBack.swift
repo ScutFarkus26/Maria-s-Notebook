@@ -12,7 +12,7 @@ enum AssistantWelcomeBack {
     /// Away this many school days in a row before a welcome.
     static let threshold = 3
     /// How far back to count; a child away longer shows as "15 or more".
-    static let lookback = 15
+    static let lookback = AttendanceRules.welcomeBackLookback
     /// Calendar days searched for `lookback` school days, with room for a
     /// two-week break.
     private static let window = 40
@@ -68,6 +68,6 @@ enum AssistantWelcomeBack {
 
     /// "Back after 4 days", "Back after 15+ days".
     static func phrase(daysAway: Int) -> String {
-        daysAway >= lookback ? "Back after \(lookback)+ days" : "Back after \(daysAway) days"
+        AttendanceRules.welcomeBackPhrase(daysAway: daysAway)
     }
 }

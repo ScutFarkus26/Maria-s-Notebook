@@ -34,10 +34,15 @@ enum SiriHost {
     /// Read from this device's membership, as the roll does.
     static let role: CDClassroomMembership.ClassroomRole? = nil
 
-    /// The notebook's roll has no arrival phase: here is present.
-    static func statusForHere(on day: Date) -> AttendanceStatus { .present }
+    /// Once arrival has closed on this device (Close Arrival on the roll), a
+    /// child who arrives is tardy, as a tap on an iPhone tile marks them.
+    static func statusForHere(on day: Date) -> AttendanceStatus {
+        AttendanceLatePhase.isLate(on: day) ? .tardy : .present
+    }
 
-    static func arrivalReopened(on day: Date) {}
+    static func arrivalReopened(on day: Date) {
+        AttendanceLatePhase.setLate(false, on: day)
+    }
 
     /// Nothing to do: `SharedStoreOrphanGuard` files the guide's new records
     /// into the classroom share from the save itself.

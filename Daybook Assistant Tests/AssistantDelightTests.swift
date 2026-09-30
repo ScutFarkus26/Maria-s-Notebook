@@ -16,33 +16,33 @@ struct AssistantDelightTests {
     @Test("A birthday shows on its day, not the day before or after")
     func birthdayOnItsDay() throws {
         let born = try AssistantTestSupport.day("2016-10-14")
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2026-10-14"), birthday: born) == .birthday)
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2026-10-13"), birthday: born) == nil)
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2026-10-15"), birthday: born) == nil)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2026-10-14"), birthday: born) == .birthday)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2026-10-13"), birthday: born) == nil)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2026-10-15"), birthday: born) == nil)
     }
 
     @Test("A summer birthday gets a half-birthday six months on, in the next year")
     func summerHalfBirthday() throws {
         let born = try AssistantTestSupport.day("2017-07-20")
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2027-01-20"), birthday: born) == .halfBirthday)
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2026-07-20"), birthday: born) == .birthday)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2027-01-20"), birthday: born) == .halfBirthday)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2026-07-20"), birthday: born) == .birthday)
         // Not a summer birthday: no half.
         let spring = try AssistantTestSupport.day("2017-04-20")
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2026-10-20"), birthday: spring) == nil)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2026-10-20"), birthday: spring) == nil)
     }
 
     @Test("Aug 31 has its half-birthday on the last day of February")
     func halfBirthdayClampsToFebruary() throws {
         let born = try AssistantTestSupport.day("2016-08-31")
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2027-02-28"), birthday: born) == .halfBirthday)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2027-02-28"), birthday: born) == .halfBirthday)
     }
 
     @Test("Feb 29 is kept on Feb 28 in other years")
     func leapDay() throws {
         let born = try AssistantTestSupport.day("2016-02-29")
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2027-02-28"), birthday: born) == .birthday)
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2028-02-29"), birthday: born) == .birthday)
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2028-02-28"), birthday: born) == nil)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2027-02-28"), birthday: born) == .birthday)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2028-02-29"), birthday: born) == .birthday)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2028-02-28"), birthday: born) == nil)
     }
 
     @Test("A birthday never entered (the day the child was added) shows no cake")
@@ -50,8 +50,8 @@ struct AssistantDelightTests {
         // CDStudent stamps Date() as the birthday: a year later that's a
         // one-year-old, who can't be in the class.
         let added = try AssistantTestSupport.day("2025-09-29")
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2026-09-29"), birthday: added) == nil)
-        #expect(AssistantBirthday.on(try AssistantTestSupport.day("2026-09-29"), birthday: nil) == nil)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2026-09-29"), birthday: added) == nil)
+        #expect(AttendanceBirthday.on(try AssistantTestSupport.day("2026-09-29"), birthday: nil) == nil)
     }
 
     @Test("A row carries its child's birthday on the day loaded")
@@ -200,7 +200,7 @@ struct AssistantDelightTests {
         model.tap(model.rows[1])
         let eight = try #require(Calendar.current.date(bySettingHour: 8, minute: 14, second: 0, of: Date()))
 
-        let here = "Everyone's here · \(AssistantClock.string(eight))"
+        let here = "Everyone's here · \(AttendanceClock.string(eight))"
         #expect(Model.completionText(model.rows, at: eight) == here)
         #expect(Model.completionText(model.rows, at: nil) == "Everyone's here")
         #expect(Model.completionText(model.rows, at: nil, milestone: .hundredthDay) == "Everyone's here for day 100")

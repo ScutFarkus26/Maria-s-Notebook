@@ -20,6 +20,21 @@
 		DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */; };
 		DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */; };
 		DB2A0C5E7F20A4B3C9D82E01 /* AttendanceRoster.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */; };
+		DD72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift */; };
+		DD5F670542853FBEBAF589D5 /* TileAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5F670542853FBEBAF589D5 /* TileAccessibility.swift */; };
+		DDB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift */; };
+		DD95A5F91B4E3CE7B0DD8E2D /* AttendanceTile+Menu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC95A5F91B4E3CE7B0DD8E2D /* AttendanceTile+Menu.swift */; };
+		DD2A4DE08590216C6AD63BAF /* AttendanceTile+Effects.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2A4DE08590216C6AD63BAF /* AttendanceTile+Effects.swift */; };
+		DDEC271785E158018948AF5F /* AttendanceTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCEC271785E158018948AF5F /* AttendanceTile.swift */; };
+		DDC76F529AE3D3B027B6B127 /* AttendanceStatusMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC76F529AE3D3B027B6B127 /* AttendanceStatusMenu.swift */; };
+		DD2935A9BAE4E4B2254F05D1 /* AttendanceDaySwipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2935A9BAE4E4B2254F05D1 /* AttendanceDaySwipe.swift */; };
+		DDCBCA727A681F4BDD0E949E /* AttendanceGridNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCCBCA727A681F4BDD0E949E /* AttendanceGridNames.swift */; };
+		DDCDEECD597579B5473D5CFF /* AttendanceRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCCDEECD597579B5473D5CFF /* AttendanceRules.swift */; };
+		DDF920B5AB04CCFFBB1EEF4B /* AttendanceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF920B5AB04CCFFBB1EEF4B /* AttendanceRow.swift */; };
+		DDD2C9FD890E1507329D086D /* Color+LateAmber.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD2C9FD890E1507329D086D /* Color+LateAmber.swift */; };
+		DD54395EF7B9505D4AC2A555 /* AttendanceLatePhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC54395EF7B9505D4AC2A555 /* AttendanceLatePhase.swift */; };
+		DDF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift */; };
+		DD03529481808C8C9F50FCC2 /* AttendanceClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC03529481808C8C9F50FCC2 /* AttendanceClock.swift */; };
 		DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */; };
 		DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4C4B2353AC01D418062C7F /* UIConstants.swift */; };
 		DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */; };
@@ -153,6 +168,21 @@
 		DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NonSchoolDayEntity.swift; path = "Cosmic Daybook/Models/NonSchoolDayEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchoolDayOverrideEntity.swift; path = "Cosmic Daybook/Models/SchoolDayOverrideEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceRoster.swift; path = "Cosmic Daybook/Attendance/AttendanceRoster.swift"; sourceTree = SOURCE_ROOT; };
+		DC72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "EnvironmentValues+AttendanceBackdrop.swift"; path = "Cosmic Daybook/Attendance/Tile/EnvironmentValues+AttendanceBackdrop.swift"; sourceTree = SOURCE_ROOT; };
+		DC5F670542853FBEBAF589D5 /* TileAccessibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TileAccessibility.swift"; path = "Cosmic Daybook/Attendance/Tile/TileAccessibility.swift"; sourceTree = SOURCE_ROOT; };
+		DCB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceTile+Style.swift"; path = "Cosmic Daybook/Attendance/Tile/AttendanceTile+Style.swift"; sourceTree = SOURCE_ROOT; };
+		DC95A5F91B4E3CE7B0DD8E2D /* AttendanceTile+Menu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceTile+Menu.swift"; path = "Cosmic Daybook/Attendance/Tile/AttendanceTile+Menu.swift"; sourceTree = SOURCE_ROOT; };
+		DC2A4DE08590216C6AD63BAF /* AttendanceTile+Effects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceTile+Effects.swift"; path = "Cosmic Daybook/Attendance/Tile/AttendanceTile+Effects.swift"; sourceTree = SOURCE_ROOT; };
+		DCEC271785E158018948AF5F /* AttendanceTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceTile.swift"; path = "Cosmic Daybook/Attendance/Tile/AttendanceTile.swift"; sourceTree = SOURCE_ROOT; };
+		DCC76F529AE3D3B027B6B127 /* AttendanceStatusMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceStatusMenu.swift"; path = "Cosmic Daybook/Attendance/AttendanceStatusMenu.swift"; sourceTree = SOURCE_ROOT; };
+		DC2935A9BAE4E4B2254F05D1 /* AttendanceDaySwipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceDaySwipe.swift"; path = "Cosmic Daybook/Attendance/AttendanceDaySwipe.swift"; sourceTree = SOURCE_ROOT; };
+		DCCBCA727A681F4BDD0E949E /* AttendanceGridNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceGridNames.swift"; path = "Cosmic Daybook/Attendance/AttendanceGridNames.swift"; sourceTree = SOURCE_ROOT; };
+		DCCDEECD597579B5473D5CFF /* AttendanceRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceRules.swift"; path = "Cosmic Daybook/Attendance/AttendanceRules.swift"; sourceTree = SOURCE_ROOT; };
+		DCF920B5AB04CCFFBB1EEF4B /* AttendanceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceRow.swift"; path = "Cosmic Daybook/Attendance/AttendanceRow.swift"; sourceTree = SOURCE_ROOT; };
+		DCD2C9FD890E1507329D086D /* Color+LateAmber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Color+LateAmber.swift"; path = "Cosmic Daybook/Attendance/Color+LateAmber.swift"; sourceTree = SOURCE_ROOT; };
+		DC54395EF7B9505D4AC2A555 /* AttendanceLatePhase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceLatePhase.swift"; path = "Cosmic Daybook/Attendance/AttendanceLatePhase.swift"; sourceTree = SOURCE_ROOT; };
+		DCF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceBirthday.swift"; path = "Cosmic Daybook/Attendance/AttendanceBirthday.swift"; sourceTree = SOURCE_ROOT; };
+		DC03529481808C8C9F50FCC2 /* AttendanceClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceClock.swift"; path = "Cosmic Daybook/Attendance/AttendanceClock.swift"; sourceTree = SOURCE_ROOT; };
 		DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceNoteSheet.swift; path = "Cosmic Daybook/Attendance/AttendanceNoteSheet.swift"; sourceTree = SOURCE_ROOT; };
 		DB1A0C5E7F20A4B3C9D81E03 /* Daybook Assistant Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Daybook Assistant Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA78AF6D99DF99878361E70F /* StudentAppEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentAppEntity.swift; path = "Cosmic Daybook/Siri/StudentAppEntity.swift"; sourceTree = SOURCE_ROOT; };
@@ -321,6 +351,21 @@
 				DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */,
 				DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */,
 				DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */,
+				DC72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift */,
+				DC5F670542853FBEBAF589D5 /* TileAccessibility.swift */,
+				DCB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift */,
+				DC95A5F91B4E3CE7B0DD8E2D /* AttendanceTile+Menu.swift */,
+				DC2A4DE08590216C6AD63BAF /* AttendanceTile+Effects.swift */,
+				DCEC271785E158018948AF5F /* AttendanceTile.swift */,
+				DCC76F529AE3D3B027B6B127 /* AttendanceStatusMenu.swift */,
+				DC2935A9BAE4E4B2254F05D1 /* AttendanceDaySwipe.swift */,
+				DCCBCA727A681F4BDD0E949E /* AttendanceGridNames.swift */,
+				DCCDEECD597579B5473D5CFF /* AttendanceRules.swift */,
+				DCF920B5AB04CCFFBB1EEF4B /* AttendanceRow.swift */,
+				DCD2C9FD890E1507329D086D /* Color+LateAmber.swift */,
+				DC54395EF7B9505D4AC2A555 /* AttendanceLatePhase.swift */,
+				DCF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift */,
+				DC03529481808C8C9F50FCC2 /* AttendanceClock.swift */,
 				DA20E7D5C359FCF5C7158BD8 /* CDAttendanceStore.swift */,
 				DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */,
 				DAA256BA27C74AEF2E0888A8 /* ClassroomMembershipEntity.swift */,
@@ -578,6 +623,21 @@
 				DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */,
 				DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */,
 				DB2A0C5E7F20A4B3C9D82E01 /* AttendanceRoster.swift in Sources */,
+				DD72F3D88DD6468FC296BA4A /* EnvironmentValues+AttendanceBackdrop.swift in Sources */,
+				DD5F670542853FBEBAF589D5 /* TileAccessibility.swift in Sources */,
+				DDB6CA90AECF813945EEC5DD /* AttendanceTile+Style.swift in Sources */,
+				DD95A5F91B4E3CE7B0DD8E2D /* AttendanceTile+Menu.swift in Sources */,
+				DD2A4DE08590216C6AD63BAF /* AttendanceTile+Effects.swift in Sources */,
+				DDEC271785E158018948AF5F /* AttendanceTile.swift in Sources */,
+				DDC76F529AE3D3B027B6B127 /* AttendanceStatusMenu.swift in Sources */,
+				DD2935A9BAE4E4B2254F05D1 /* AttendanceDaySwipe.swift in Sources */,
+				DDCBCA727A681F4BDD0E949E /* AttendanceGridNames.swift in Sources */,
+				DDCDEECD597579B5473D5CFF /* AttendanceRules.swift in Sources */,
+				DDF920B5AB04CCFFBB1EEF4B /* AttendanceRow.swift in Sources */,
+				DDD2C9FD890E1507329D086D /* Color+LateAmber.swift in Sources */,
+				DD54395EF7B9505D4AC2A555 /* AttendanceLatePhase.swift in Sources */,
+				DDF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift in Sources */,
+				DD03529481808C8C9F50FCC2 /* AttendanceClock.swift in Sources */,
 				DA85F54020C188A55AC2044D /* CDAttendanceStore.swift in Sources */,
 				DA1C2BA2B4668F28BBD1641B /* StudentEntity.swift in Sources */,
 				DA7F870A08077490BED3589E /* ClassroomMembershipEntity.swift in Sources */,

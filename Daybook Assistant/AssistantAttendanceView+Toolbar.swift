@@ -154,10 +154,8 @@ extension AssistantAttendanceView {
     func daySwipe(_ viewModel: AssistantAttendanceViewModel) -> some Gesture {
         DragGesture(minimumDistance: 30)
             .onEnded { value in
-                let dx = value.translation.width
-                let dy = value.translation.height
-                guard abs(dx) > 80, abs(dx) > abs(dy) * 2 else { return }
-                step(viewModel, forward: dx < 0)
+                guard let forward = AttendanceDaySwipe.step(for: value.translation) else { return }
+                step(viewModel, forward: forward)
             }
     }
 }

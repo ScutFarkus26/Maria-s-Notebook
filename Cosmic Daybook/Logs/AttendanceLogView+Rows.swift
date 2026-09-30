@@ -65,9 +65,12 @@ extension AttendanceLogView {
         )
         .contentShape(Rectangle())
         .contextMenu {
+            let canEdit = CDAttendanceStore(context: viewContext).canWrite(on: record.date)
+            // Ahead of the day, only an absence (or clearing it).
+            let statuses = availableStatuses.filter { AttendanceRules.allows($0, on: record.date ?? Date()) }
             // Change status submenu
             Menu {
-                ForEach(availableStatuses, id: \.self) { status in
+                ForEach(statuses, id: \.self) { status in
                     Button {
                         updateRecordStatus(record, to: status)
                     } label: {
@@ -78,6 +81,7 @@ extension AttendanceLogView {
             } label: {
                 Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
             }
+            .disabled(!canEdit)
 
             if let studentID = record.studentIDUUID {
                 #if os(macOS)
@@ -96,15 +100,25 @@ extension AttendanceLogView {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .disabled(!canEdit)
         }
     }
 
+    /// Through the store, like the grid: it refuses a locked day and stamps
+    /// who changed the mark and when.
     private func updateRecordStatus(_ record: CDAttendanceRecord, to status: AttendanceStatus) {
-        record.status = status
+        guard CDAttendanceStore(context: viewContext).updateStatus(record, to: status) else {
+            dependencies.toastService.showInfo("This day is locked")
+            return
+        }
         dependencies.saveCoordinator.save(viewContext, reason: "Update attendance status")
     }
 
     private func deleteRecord(_ record: CDAttendanceRecord) {
+        guard CDAttendanceStore(context: viewContext).canWrite(on: record.date) else {
+            dependencies.toastService.showInfo("This day is locked")
+            return
+        }
         viewContext.delete(record)
         dependencies.saveCoordinator.save(viewContext, reason: "Delete attendance record")
     }

@@ -20,6 +20,9 @@ struct AttendanceMacView: View {
     }
 
     @State private var selectedDate: Date = AppCalendar.startOfDay(Date())
+    /// The school day that stood for today when the screen last looked; see
+    /// `AttendanceDayRollover`.
+    @State private var todayAnchor: Date?
     @State private var visibleMonth: Date = AppCalendar.startOfDay(Date())
     @State private var monthCounts: [Date: DayAttendanceCounts] = [:]
     @State private var historySheetStudentID: UUID?
@@ -38,7 +41,12 @@ struct AttendanceMacView: View {
         }
         .onAppear {
             ensureSelectedIsSchoolDay()
+            handleDayChange()
             reloadMonthCounts()
+        }
+        // Left open overnight on today, the roll moves to the new today.
+        .onCalendarDayChange {
+            handleDayChange()
         }
         .onChange(of: selectedDate) { _, _ in
             reloadMonthCounts()
@@ -205,6 +213,13 @@ struct AttendanceMacView: View {
         if !AppCalendar.shared.isDate(day, equalTo: visibleMonth, toGranularity: .month) {
             visibleMonth = day
         }
+    }
+
+    private func handleDayChange() {
+        let newAnchor = nearestSchoolDay(to: Date())
+        let next = AttendanceDayRollover.advance(selected: selectedDate, anchor: todayAnchor, newAnchor: newAnchor)
+        todayAnchor = next.anchor
+        if next.selected != selectedDate { selectDate(next.selected) }
     }
 
     private func ensureSelectedIsSchoolDay() {

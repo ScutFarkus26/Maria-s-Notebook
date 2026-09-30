@@ -60,13 +60,14 @@ enum AttendanceEmailLog {
             for day: Date,
             present: [AttendanceEmailStudent],
             tardy: [AttendanceEmailStudent],
-            absent: [AttendanceEmailStudent]
+            absent: [AttendanceEmailStudent],
+            leftEarly: [AttendanceEmailStudent] = []
         ) -> AttendanceEmailDraft {
             AttendanceEmailDraft(
                 recipients: recipients,
                 subject: AttendanceEmailReport.makeSubject(for: day),
                 body: AttendanceEmailReport.makeBody(
-                    present: present, tardy: tardy, absent: absent, date: day,
+                    present: present, tardy: tardy, absent: absent, leftEarly: leftEarly, date: day,
                     nameOrder: nameOrder, groupByLevel: groupByLevel
                 )
             )

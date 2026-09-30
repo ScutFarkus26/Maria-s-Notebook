@@ -68,7 +68,11 @@ struct AttendanceStandaloneView: View {
                 date: date,
                 isNonSchoolDay: isNonSchoolDaySync(date),
                 onChange: { },
-                onToast: { message in toast(message) }
+                onToast: { message in toast(message) },
+                onStepDay: { forward in
+                    let next = forward ? nextSchoolDaySync(after: date) : previousSchoolDaySync(before: date)
+                    date = AppCalendar.startOfDay(next)
+                }
             )
             .padding(.horizontal, AppTheme.Spacing.compact)
             .quickCaptureButtonClearance()
@@ -132,11 +136,9 @@ struct AttendanceStandaloneView: View {
     /// Idempotent — called at midnight, on scene activation, and on appear.
     private func handleDayChange() {
         let newAnchor = AppCalendar.startOfDay(nearestSchoolDaySync(to: Date()))
-        guard newAnchor != todayAnchor else { return }
-        if todayAnchor == nil || date == todayAnchor {
-            date = newAnchor
-        }
-        todayAnchor = newAnchor
+        let next = AttendanceDayRollover.advance(selected: date, anchor: todayAnchor, newAnchor: newAnchor)
+        if next.selected != date { date = next.selected }
+        todayAnchor = next.anchor
     }
 
     // MARK: - School Day Navigation

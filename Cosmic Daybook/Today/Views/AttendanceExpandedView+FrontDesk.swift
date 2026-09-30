@@ -11,10 +11,7 @@ extension AttendanceExpandedView {
 
     /// Everyone on the day's roll has a mark: the email is worth sending.
     var isRollComplete: Bool {
-        let roll = filteredStudents
-        return !roll.isEmpty && roll.allSatisfy {
-            (viewModel.recordsByStudentID[$0.cloudKitKey]?.status ?? .unmarked) != .unmarked
-        }
+        !viewModel.rows.isEmpty && viewModel.unmarkedCount == 0
     }
 
     /// When the front desk needs it by: the guide's setting.
@@ -45,18 +42,13 @@ extension AttendanceExpandedView {
         }
     }
 
-    /// The children still unmarked, whom Mark Rest Absent & Email marks absent.
-    var unmarkedNames: [String] {
-        filteredStudents
-            .filter { (viewModel.recordsByStudentID[$0.cloudKitKey]?.status ?? .unmarked) == .unmarked }
-            .map(\.fullName)
-    }
-
-    /// Everyone still unmarked goes absent, then the email opens.
+    /// Everyone still unmarked goes absent (closing arrival here, as Close
+    /// Arrival does), then the email opens.
     func markRestAbsentAndEmail() {
-        viewModel.markUnmarkedAbsent(students: filteredStudents, modelContext: viewContext)
-        saveCoordinator.save(viewContext, reason: "Mark the rest absent")
-        onChange()
+        withAnimation(.smooth(duration: 0.3)) {
+            viewModel.markUnmarkedAbsent(modelContext: viewContext)
+        }
+        saved("Mark the rest absent")
         prepareAttendanceEmail()
     }
 
@@ -106,13 +98,16 @@ extension AttendanceExpandedView {
         let present = students(for: .present)
         let tardy = students(for: .tardy)
         let absent = students(for: .absent)
+        let leftEarly = students(for: .leftEarly)
 #if os(iOS)
         if MFMailComposeViewController.canSendMail() {
             showMailSheet = true
         } else if let url = AttendanceEmail.makeMailtoURL(
             to: AttendanceEmail.parseRecipients(from: AttendanceEmail.storedToAddress()),
             subject: AttendanceEmail.makeSubject(for: date),
-            body: AttendanceEmail.makeBody(present: present, tardy: tardy, absent: absent, date: date)
+            body: AttendanceEmail.makeBody(
+                present: present, tardy: tardy, absent: absent, leftEarly: leftEarly, date: date
+            )
         ) {
             // Another Mail app can't say whether it sent; ask only if one opened.
             UIApplication.shared.open(url) { accepted in
@@ -124,6 +119,7 @@ extension AttendanceExpandedView {
             present: present,
             tardy: tardy,
             absent: absent,
+            leftEarly: leftEarly,
             date: date
         ) { success in
             if success {
@@ -142,7 +138,7 @@ extension AttendanceExpandedView {
         FrontDeskFollowUps(
             askingWhetherSent: $askingWhetherSent,
             confirmingRestAbsent: $confirmingRestAbsent,
-            unmarkedNames: unmarkedNames,
+            unmarkedNames: viewModel.unmarkedNames,
             onMarkRestAbsent: markRestAbsentAndEmail,
             onSent: { recordFrontDeskSend(confirmedByHand: true) },
             onReminderTap: {

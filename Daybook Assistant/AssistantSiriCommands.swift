@@ -13,7 +13,7 @@ enum AssistantSiriCommands {
         case ready(waiting: Int)
     }
 
-    private typealias Late = AssistantLatePhase
+    private typealias Late = AttendanceLatePhase
 
     /// Whether arrival can close today, and how many it would mark. Throws
     /// `dayLocked` on a locked day.
@@ -60,7 +60,7 @@ enum AssistantSiriCommands {
     static func missingNames(_ session: SiriAttendance) throws -> [String]? {
         guard session.isSchoolDay else { return nil }
         let (roll, missing) = try AssistantDayRoll.today(in: session)
-        let names = AssistantDayRoll.gridNames(for: roll)
+        let names = AttendanceGridNames.names(for: roll)
         return missing.map { names[$0.objectID] ?? $0.firstName }
     }
 }

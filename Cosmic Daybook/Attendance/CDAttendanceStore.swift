@@ -242,23 +242,45 @@ struct CDAttendanceStore {
 
     #if !ASSISTANT_APP
 
-    /// Convenience: Reset the date's existing records to unmarked and clear their
-    /// notes. Students without a record are left alone — no record already reads
-    /// as unmarked. Callers save immediately afterwards.
+    /// Resets the date's existing records to unmarked and clears their reasons
+    /// and notes. Students without a record are left alone — no record already
+    /// reads as unmarked. Returns what each record it cleared held before, for
+    /// `restore(_:)`. Callers save immediately afterwards.
     @discardableResult
-    func resetDay(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
+    func resetDay(for date: Date, students: [CDStudent]) throws -> [AttendanceRecordSnapshot] {
         guard canWrite(on: date) else { return [] }
         let studentIDs = Set(students.compactMap { $0.id?.uuidString })
-        var records: [CDAttendanceRecord] = []
-        for rec in try loadRecords(for: date) where studentIDs.contains(rec.studentID) {
-            if rec.status != .unmarked || rec.absenceReason != .none || rec.note != nil {
-                rec.absenceReason = .none
-                rec.note = nil
-                mark(rec, as: .unmarked, at: Date())
-            }
-            records.append(rec)
+        let records = try loadRecords(for: date).filter {
+            studentIDs.contains($0.studentID) && !AttendanceRecordSnapshot.isBlank($0)
         }
-        return records
+        // An unsaved record's id is temporary and won't find it after the
+        // save that follows; the snapshot needs the one that lasts.
+        try context.obtainPermanentIDs(for: records.filter(\.objectID.isTemporaryID))
+        var cleared: [AttendanceRecordSnapshot] = []
+        for rec in records {
+            cleared.append(AttendanceRecordSnapshot(rec))
+            rec.absenceReason = .none
+            rec.note = nil
+            mark(rec, as: .unmarked, at: Date())
+        }
+        return cleared
+    }
+
+    /// Undoes a reset: each record gets back what it held, unless it has been
+    /// marked (or given a note) again since. Nothing on a locked day. Returns
+    /// the records put back. Callers save afterwards.
+    @discardableResult
+    func restore(_ snapshots: [AttendanceRecordSnapshot]) -> [CDAttendanceRecord] {
+        var restored: [CDAttendanceRecord] = []
+        for snapshot in snapshots {
+            guard let rec = try? context.existingObject(with: snapshot.objectID) as? CDAttendanceRecord,
+                  !rec.isDeleted,
+                  canWrite(on: rec.date),
+                  AttendanceRecordSnapshot.isBlank(rec) else { continue }
+            snapshot.apply(to: rec)
+            restored.append(rec)
+        }
+        return restored
     }
 
     #endif

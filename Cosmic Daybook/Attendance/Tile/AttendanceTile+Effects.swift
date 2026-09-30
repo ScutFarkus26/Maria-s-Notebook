@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 // MARK: - Motion
@@ -217,7 +218,7 @@ struct WelcomeWave: View {
     }
 }
 
-extension AssistantAttendanceTile {
+extension AttendanceTile {
 
     /// A birthday tile's party-colored edge, around whatever the mark's shape
     /// is (dashed still means absent).
@@ -231,3 +232,4 @@ extension AssistantAttendanceTile {
         TileBase(status: row.status, quietBackdrop: quietBackdrop)
     }
 }
+#endif

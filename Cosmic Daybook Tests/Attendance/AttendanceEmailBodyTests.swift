@@ -20,6 +20,7 @@ struct AttendanceEmailBodyTests {
         present: [AttendanceEmailStudent] = [],
         tardy: [AttendanceEmailStudent] = [],
         absent: [AttendanceEmailStudent] = [],
+        leftEarly: [AttendanceEmailStudent] = [],
         nameOrder: AttendanceEmailNameOrder = .firstLast,
         groupByLevel: Bool = false
     ) -> [String] {
@@ -27,6 +28,7 @@ struct AttendanceEmailBodyTests {
             present: present,
             tardy: tardy,
             absent: absent,
+            leftEarly: leftEarly,
             date: Date(),
             nameOrder: nameOrder,
             groupByLevel: groupByLevel
@@ -143,6 +145,49 @@ struct AttendanceEmailBodyTests {
             "ABSENT (0)",
             "    None"
         ])
+    }
+
+    // Left Early used to be missing from the email altogether, so a child who went home
+    // at noon simply wasn't in the office's report.
+    @Test("Children who left early get their own list after Tardy")
+    func leftEarlyList() {
+        let lines = sections(
+            present: [student("Ada", "Zeller")],
+            leftEarly: [student("Bo", "Adams")]
+        )
+        #expect(lines == [
+            "",
+            "ON TIME (1)",
+            "    • Ada Zeller",
+            "",
+            "TARDY (0)",
+            "    None",
+            "",
+            "LEFT EARLY (1)",
+            "    • Bo Adams",
+            "",
+            "ABSENT (0)",
+            "    None"
+        ])
+    }
+
+    @Test("Left Early is left out on a day nobody left")
+    func noLeftEarlyList() {
+        let lines = sections(present: [student("Ada", "Zeller")])
+        #expect(!lines.contains { $0.hasPrefix("LEFT EARLY") })
+    }
+
+    @Test("Grouped, Left Early appears only in a level someone left from")
+    func groupedLeftEarly() {
+        let lines = sections(
+            present: [student("Ada", "Zeller", .upper), student("Cy", "Nolan", .adolescent)],
+            leftEarly: [student("Bo", "Adams", .adolescent)],
+            groupByLevel: true
+        )
+        #expect(lines.filter { $0.hasPrefix("Left Early") } == ["Left Early (1)"])
+        let adolescent = lines.firstIndex(of: "ADOLESCENT") ?? lines.endIndex
+        let leftEarly = lines.firstIndex(of: "Left Early (1)") ?? -1
+        #expect(leftEarly > adolescent)
     }
 
     @Test("The report ends on its last list, with no trailing blank line")

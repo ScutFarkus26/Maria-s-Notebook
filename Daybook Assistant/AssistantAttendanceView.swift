@@ -91,11 +91,11 @@ struct AssistantAttendanceView: View {
     /// The SE keeps its fixed tiles; any other phone fills the room it has.
     private func phoneTileHeight(_ viewModel: AssistantAttendanceViewModel) -> CGFloat {
         guard usesShortNames, !hidesStatusBar, !dynamicTypeSize.isAccessibilitySize else {
-            return AssistantAttendanceTile.phoneHeight
+            return AttendanceTile.phoneHeight
         }
         let columns = max(1, Int((gridSpace.width + gridSpacing) / (Self.phoneColumnWidth + gridSpacing)))
         let notices = AssistantDayNotices.shows(for: viewModel) ? noticesHeight + 12 : 0
-        return AssistantAttendanceTile.fittedPhoneHeight(
+        return AttendanceTile.fittedPhoneHeight(
             visibleHeight: gridSpace.height - notices,
             columns: columns,
             count: viewModel.rows.count,
@@ -134,7 +134,7 @@ struct AssistantAttendanceView: View {
                 }
             }
         }
-        .environment(\.assistantBackdropIsQuiet, backdropIsQuiet)
+        .environment(\.attendanceBackdropIsQuiet, backdropIsQuiet)
         .statusBarHidden(hidesStatusBar)
         .sensoryFeedback(.success, trigger: viewModel?.completions)
         .onChange(of: viewModel?.completions) { celebrateEveryoneMarked() }
@@ -272,7 +272,7 @@ struct AssistantAttendanceView: View {
         height: CGFloat,
         index: Int
     ) -> some View {
-        AssistantAttendanceTile(
+        AttendanceTile(
             row: row,
             tapTarget: viewModel.statusAfterTap(for: row),
             tapHint: viewModel.isFuture ? "Only absences ahead" : "Hold to change",

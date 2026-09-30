@@ -1,18 +1,14 @@
+#if os(iOS)
 import SwiftUI
 
 // MARK: - Style and times
 
-extension AssistantAttendanceTile {
+extension AttendanceTile {
 
     // MARK: - Style
 
     /// Present, late and left early all mean the child came in.
-    var isHere: Bool {
-        switch row.status {
-        case .present, .tardy, .leftEarly: return true
-        case .absent, .unmarked: return false
-        }
-    }
+    var isHere: Bool { row.isHere }
 
     static func cornerGlyph(for status: AttendanceStatus) -> String? {
         switch status {
@@ -30,18 +26,6 @@ extension AssistantAttendanceTile {
         case .tardy: return "clock"
         case .leftEarly: return "arrow.right"
         case .unmarked: return nil
-        }
-    }
-
-    /// A status's glyph in the long-press menu.
-    static func glyph(_ status: AttendanceStatus) -> String {
-        switch status {
-        case .unmarked: return "circle.dashed"
-        // Not a checkmark: that marks the current choice in the menu.
-        case .present: return "figure.walk.arrival"
-        case .absent: return "xmark"
-        case .tardy: return "clock"
-        case .leftEarly: return "arrow.right"
         }
     }
 
@@ -75,3 +59,4 @@ extension AssistantAttendanceTile {
         }
     }
 }
+#endif

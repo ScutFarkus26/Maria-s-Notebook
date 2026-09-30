@@ -31,12 +31,12 @@ struct AssistantSampleClassTests {
     @Test("Opening the sample starts its own Late phase fresh, apart from the real class's")
     func latePhaseKeptApart() throws {
         let today = Date()
-        AssistantLatePhase.setLate(true, on: today, defaults: AssistantSampleClass.defaults)
+        AttendanceLatePhase.setLate(true, on: today, defaults: AssistantSampleClass.defaults)
         #expect(AssistantSampleClass.defaults !== UserDefaults.standard)
 
         _ = try AssistantSampleClass.makeStack()
 
-        #expect(!AssistantLatePhase.isLate(on: today, defaults: AssistantSampleClass.defaults))
+        #expect(!AttendanceLatePhase.isLate(on: today, defaults: AssistantSampleClass.defaults))
     }
 
     @Test("The sample's marks save with no share to attach to")

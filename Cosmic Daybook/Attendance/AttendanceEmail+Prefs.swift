@@ -73,6 +73,7 @@ extension AttendanceEmail {
         present: [AttendanceEmailStudent],
         tardy: [AttendanceEmailStudent],
         absent: [AttendanceEmailStudent],
+        leftEarly: [AttendanceEmailStudent] = [],
         date: Date,
         calendar: Calendar = .current
     ) -> String {
@@ -80,6 +81,7 @@ extension AttendanceEmail {
             present: present,
             tardy: tardy,
             absent: absent,
+            leftEarly: leftEarly,
             date: date,
             calendar: calendar,
             nameOrder: storedNameOrder(),
@@ -96,6 +98,7 @@ extension AttendanceEmail {
         present: [AttendanceEmailStudent],
         tardy: [AttendanceEmailStudent],
         absent: [AttendanceEmailStudent],
+        leftEarly: [AttendanceEmailStudent] = [],
         date: Date = Date(),
         calendar: Calendar = .current,
         onComplete: @escaping (MFMailComposeResult, Error?) -> Void
@@ -105,6 +108,7 @@ extension AttendanceEmail {
             present: present,
             tardy: tardy,
             absent: absent,
+            leftEarly: leftEarly,
             date: date,
             calendar: calendar
         )
@@ -125,6 +129,7 @@ extension AttendanceEmail {
         present: [AttendanceEmailStudent],
         tardy: [AttendanceEmailStudent],
         absent: [AttendanceEmailStudent],
+        leftEarly: [AttendanceEmailStudent] = [],
         date: Date = Date(),
         calendar: Calendar = .current,
         completion: @escaping (Bool) -> Void
@@ -134,6 +139,7 @@ extension AttendanceEmail {
             present: present,
             tardy: tardy,
             absent: absent,
+            leftEarly: leftEarly,
             date: date,
             calendar: calendar
         )

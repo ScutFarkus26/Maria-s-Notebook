@@ -69,7 +69,7 @@ enum AssistantSampleClass {
         seedHistory(in: context)
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
-        AssistantLatePhase.forget(defaults: defaults)
+        AttendanceLatePhase.forget(defaults: defaults)
         return stack
     }
 

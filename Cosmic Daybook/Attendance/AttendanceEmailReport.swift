@@ -113,6 +113,7 @@ public struct AttendanceEmailReport {
         present: [AttendanceEmailStudent],
         tardy: [AttendanceEmailStudent],
         absent: [AttendanceEmailStudent],
+        leftEarly: [AttendanceEmailStudent] = [],
         date: Date,
         calendar: Calendar = .current,
         nameOrder: AttendanceEmailNameOrder = .firstLast,
@@ -122,11 +123,14 @@ public struct AttendanceEmailReport {
             "Attendance Report",
             headerFormatter.string(from: calendar.startOfDay(for: date))
         ]
-        let statuses = [
-            (title: "On Time", students: present),
-            (title: "Tardy", students: tardy),
-            (title: "Absent", students: absent)
-        ]
+        // Left Early appears only on a day someone left, so an ordinary day's report
+        // doesn't gain a "(0) None" section.
+        let statuses: [StatusList] = [
+            StatusList(title: "On Time", students: present),
+            StatusList(title: "Tardy", students: tardy),
+            StatusList(title: "Left Early", students: leftEarly, optional: true),
+            StatusList(title: "Absent", students: absent)
+        ].filter { !$0.optional || !$0.students.isEmpty }
         let body: [String]
         let levels = groupByLevel ? levelBlocks(statuses, nameOrder: nameOrder) : []
         if levels.isEmpty {
@@ -145,20 +149,25 @@ public struct AttendanceEmailReport {
         return stack([header, body], gap: 1).joined(separator: "\n")
     }
 
+    /// A titled list of students; an `optional` one is left out wherever it would be empty.
+    struct StatusList {
+        let title: String
+        let students: [AttendanceEmailStudent]
+        var optional = false
+    }
+
     /// One block per level anyone is in today: the level's name over its own On Time,
     /// Tardy, and Absent lists, so a reader sees each class whole instead of hunting
     /// through three separate lists for it.
     private static func levelBlocks(
-        _ statuses: [(title: String, students: [AttendanceEmailStudent])],
+        _ statuses: [StatusList],
         nameOrder: AttendanceEmailNameOrder
     ) -> [[String]] {
-        levelsAttending(statuses).map { level in
-            let sections = statuses.map { status in
-                statusBlock(
-                    status.title,
-                    students: status.students.filter { $0.level == level.level },
-                    nameOrder: nameOrder
-                )
+        levelsAttending(statuses.map { (title: $0.title, students: $0.students) }).map { level in
+            let sections: [[String]] = statuses.compactMap { status in
+                let students = status.students.filter { $0.level == level.level }
+                if status.optional && students.isEmpty { return nil }
+                return statusBlock(status.title, students: students, nameOrder: nameOrder)
             }
             return stack([[level.title.uppercased()]] + sections, gap: 1)
         }

@@ -68,10 +68,3 @@ enum AssistantWallpaper: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Environment
-
-extension EnvironmentValues {
-    /// Whether the grid sits on Sky or Plain: tiles keep their solid card and
-    /// clear absence. False frosts them so their shapes read on a picture.
-    @Entry var assistantBackdropIsQuiet = true
-}

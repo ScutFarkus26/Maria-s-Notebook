@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 /// One VoiceOver element per tile: its label, the note as its value, a tap
@@ -20,3 +21,4 @@ struct TileAccessibility: ViewModifier {
             .accessibilityAction(named: "Note", onNote)
     }
 }
+#endif

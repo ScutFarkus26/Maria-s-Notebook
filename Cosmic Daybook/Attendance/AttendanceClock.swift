@@ -1,9 +1,9 @@
 import Foundation
 
-/// Mark times as the Assistant shows them: in the tile's menu and detail line,
-/// and in the bar's "Everyone's here · 8:14".
+/// Mark times as the attendance grids show them: on a card or tile, in its
+/// menu, and in "Everyone's here · 8:14". Shared with the Daybook Assistant.
 @MainActor
-enum AssistantClock {
+enum AttendanceClock {
     /// "8:02", not "8:02 AM": it's always the school day, and the header and
     /// the detail line need the width for an arrival and a departure.
     static func string(_ date: Date) -> String {

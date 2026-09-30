@@ -1,46 +1,41 @@
 // AttendanceCard.swift
-// Attendance card component extracted from AttendanceView
+// One child's card on the Mac and iPad roll. (The iPhone draws `AttendanceTile`.)
 
 import SwiftUI
 import CoreData
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
 
-// swiftlint:disable:next type_body_length
 struct AttendanceCard: View {
-    let student: CDStudent
-    let record: CDAttendanceRecord?
+    let row: AttendanceRow
     let isEditing: Bool
+    /// Who made the mark, when it wasn't you ("Rivka").
+    let markedBy: String?
+    /// The statuses the menu offers on this day.
+    let menuStatuses: [AttendanceStatus]
+    /// A click or tap: the next status in the cycle.
     let onTap: () -> Void
-    let onEditNote: (String?) -> Void
-    let onSetAbsenceReason: ((AbsenceReason) -> Void)?
+    let onSetStatus: (AttendanceStatus) -> Void
+    let onMarkAbsent: (AbsenceReason) -> Void
+    let onNote: () -> Void
 
-    @Environment(\.horizontalSizeClass) private var hSizeClass
-    @State private var showingNoteEditor = false
-
-    private var status: AttendanceStatus { record?.status ?? .unmarked }
-    private var absenceReason: AbsenceReason { record?.absenceReason ?? .none }
-
-    private var statusLabel: String { status.displayName }
+    private var status: AttendanceStatus { row.status }
+    private var absenceReason: AbsenceReason { row.absenceReason }
+    private var hasNote: Bool { !row.note.isEmpty }
 
     /// Who marked this, shown only when it wasn't you. Your own marks carry no
     /// name — labelling every one of them would bury the handful that came
     /// from someone else, which is the only case worth reading.
     @ViewBuilder
     private var markedByLabel: some View {
-        if let name = record?.recordedByName?.trimmed(), !name.isEmpty {
+        if let markedBy {
             HStack(spacing: 3) {
                 Image(systemName: "person.crop.circle")
-                Text(name)
+                Text(markedBy)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
             .font(AppTheme.ScaledFont.captionSmall)
             .foregroundStyle(.secondary)
-            .accessibilityLabel("Marked by \(name)")
+            .accessibilityLabel("Marked by \(markedBy)")
         }
     }
 
@@ -54,19 +49,31 @@ struct AttendanceCard: View {
         }
     }
 
-    /// The day's note, shared with the assistant.
-    private var noteText: String { record?.note ?? "" }
+    /// When the child came in ("8:02"), or came and went ("8:02 → 1:15").
+    /// Only marks made on their own day carry a time.
+    private var timeText: String? {
+        switch status {
+        case .present, .tardy: return row.markedAt.map(AttendanceClock.string)
+        case .leftEarly: return AttendanceRules.leftEarlyTimes(row)
+        case .absent, .unmarked: return nil
+        }
+    }
 
-    private var hasNote: Bool { !noteText.isEmpty }
-
-    // Original layout: note icon next to name (macOS and iOS regular)
     @ViewBuilder
-    private var originalLayout: some View {
+    private var content: some View {
         HStack(spacing: 8) {
-            Text(student.shortName)
+            Text(row.student.shortName)
                 .font(AppTheme.ScaledFont.titleSmall)
                 .lineLimit(1)
                 .truncationMode(.tail)
+
+            if let birthday = row.birthday {
+                Image(systemName: birthday.symbol)
+                    .font(.caption)
+                    .foregroundStyle(.pink)
+                    .help(birthday.title)
+                    .accessibilityLabel(birthday.title)
+            }
 
             // Visual indicator that a note exists
             if hasNote {
@@ -78,9 +85,7 @@ struct AttendanceCard: View {
             Spacer(minLength: 0)
             // Small note icon at far right (only when no note exists and editing)
             if !hasNote && isEditing {
-                Button {
-                    showingNoteEditor = true
-                } label: {
+                Button(action: onNote) {
                     Image(systemName: "square.and.pencil")
                         .imageScale(.medium)
                         .foregroundStyle(.secondary)
@@ -90,180 +95,65 @@ struct AttendanceCard: View {
             }
         }
 
-        // Compact status pill with absence reason indicator
-        StatusPill(
-            text: statusLabel,
-            color: accentColor,
-            icon: (status == .absent && absenceReason != .none) ? absenceReason.icon : nil
-        )
-        .id(status)
-        .transition(.asymmetric(
-            insertion: .move(edge: .bottom).combined(with: .opacity),
-            removal: .move(edge: .top).combined(with: .opacity)
-        ))
-        .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
+        HStack(spacing: 6) {
+            // Compact status pill with absence reason indicator
+            StatusPill(
+                text: status.displayName,
+                color: accentColor,
+                icon: (status == .absent && absenceReason != .none) ? absenceReason.icon : nil
+            )
+            .id(status)
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .top).combined(with: .opacity)
+            ))
+            .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
+
+            if let timeText {
+                Text(timeText)
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+        }
 
         markedByLabel
 
         // Clicking the note opens the editor only if editing, otherwise static display
         if hasNote {
             if isEditing {
-                Button {
-                    showingNoteEditor = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "note.text")
-                            .foregroundStyle(.secondary)
-                        Text(noteText)
-                            .font(AppTheme.ScaledFont.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                .buttonStyle(.plain)
-                .help("Edit note")
+                Button(action: onNote) { noteLine }
+                    .buttonStyle(.plain)
+                    .help("Edit note")
             } else {
-                HStack(spacing: 6) {
-                    Image(systemName: "note.text")
-                        .foregroundStyle(.secondary)
-                    Text(noteText)
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+                noteLine
             }
+        }
+    }
+
+    private var noteLine: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "note.text")
+                .foregroundStyle(.secondary)
+            Text(row.note)
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
     }
 
     private var background: some View {
         // Neutral card background with subtle elevation
-        let bgColor = Color.windowBackgroundColor()
-
-        return RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
-            .fill(bgColor)
+        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
+            .fill(Color.windowBackgroundColor())
             .overlay(
                 RoundedRectangle(cornerRadius: UIConstants.CornerRadius.tile, style: .continuous)
                     .stroke(Color.primary.opacity(UIConstants.OpacityConstants.subtle), lineWidth: 1)
             )
     }
 
-    // MARK: - Layout Variants
-
-    // Status circle icon for compact row layout (Reminders-style)
-    private var statusIconName: String {
-        switch status {
-        case .unmarked: return "circle"
-        case .present: return "checkmark.circle.fill"
-        case .absent: return "xmark.circle.fill"
-        case .tardy: return "clock.fill"
-        case .leftEarly: return "arrow.right.circle.fill"
-        }
-    }
-
-    @ViewBuilder
-    private var compactLayout: some View {
-        // Reminders-style list row: status circle | name + details | note indicator
-        HStack(spacing: AppTheme.Spacing.compact) {
-            // Tappable status circle
-            Button {
-                if isEditing { onTap() }
-            } label: {
-                Image(systemName: statusIconName)
-                    .font(.system(.title2, weight: .medium))
-                    .foregroundStyle(accentColor)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .id(status)
-            .transition(.asymmetric(
-                insertion: .scale.combined(with: .opacity),
-                removal: .scale.combined(with: .opacity)
-            ))
-            .adaptiveAnimation(.bouncy(duration: 0.3, extraBounce: 0.2), value: status)
-
-            // Name + subtitle
-            VStack(alignment: .leading, spacing: 2) {
-                Text(student.shortName)
-                    .font(AppTheme.ScaledFont.callout)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                // Status label + absence reason on one line
-                HStack(spacing: 4) {
-                    Text(statusLabel)
-                        .font(AppTheme.ScaledFont.captionSmall)
-                        .foregroundStyle(accentColor)
-                    if status == .absent && absenceReason != .none {
-                        Image(systemName: absenceReason.icon)
-                            .font(.caption2)
-                            .foregroundStyle(accentColor)
-                        Text(absenceReason.displayName)
-                            .font(AppTheme.ScaledFont.captionSmall)
-                            .foregroundStyle(accentColor)
-                    }
-                }
-
-                markedByLabel
-            }
-
-            Spacer(minLength: 0)
-
-            compactTrailingNote
-        }
-        .padding(.vertical, AppTheme.Spacing.small)
-        .padding(.horizontal, AppTheme.Spacing.medium)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(compactAccessibilityLabel)
-        .accessibilityAddTraits(isEditing ? .isButton : [])
-    }
-
-    @ViewBuilder
-    private var compactTrailingNote: some View {
-        // Trailing: note indicator or add-note button
-        if hasNote {
-            if isEditing {
-                Button {
-                    showingNoteEditor = true
-                } label: {
-                    Image(systemName: "note.text")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Image(systemName: "note.text")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        } else if isEditing {
-            Button {
-                showingNoteEditor = true
-            } label: {
-                Image(systemName: "square.and.pencil")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var compactAccessibilityLabel: String {
-        "\(student.shortName), \(statusLabel)" +
-        "\(status == .absent && absenceReason != .none ? ", \(absenceReason.displayName)" : "")" +
-        "\(hasNote ? ", has note" : "")"
-    }
-
-    @ViewBuilder
-    private var regularLayout: some View {
-        // iOS regular layout and macOS: original layout
-        originalLayout
-    }
-
-    // MARK: - Card body (grid layout for iPad/macOS)
     private var cardBody: some View {
         HStack(spacing: 0) {
             // Left accent bar indicating status color
@@ -273,7 +163,7 @@ struct AttendanceCard: View {
                 .clipRounded(2)
 
             VStack(alignment: .leading, spacing: 8) {
-                regularLayout
+                content
             }
             .padding(10)
         }
@@ -285,69 +175,35 @@ struct AttendanceCard: View {
     }
 
     var body: some View {
-        Group {
-#if os(iOS)
-            if hSizeClass == .compact {
-                compactLayout
-            } else {
-                cardBody
-            }
-#else
-            cardBody
-#endif
-        }
+        cardBody
 #if os(macOS)
-        .highPriorityGesture(TapGesture(count: 1).onEnded { if isEditing { onTap() } })
+            .highPriorityGesture(TapGesture(count: 1).onEnded { if isEditing { onTap() } })
 #else
-        .onTapGesture {
-            // Only handle tap for non-compact (card) layout; compact uses the circle button
-            if hSizeClass != .compact && isEditing { onTap() }
-        }
+            .onTapGesture { if isEditing { onTap() } }
 #endif
-        .contextMenu { cardContextMenu }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(student.fullName), \(statusLabel)")
-        .accessibilityValue(hasNote ? "Has note" : "No note")
-        .accessibilityHint(isEditing ? "Changes the attendance status" : "")
-        .sheet(isPresented: $showingNoteEditor) {
-            AttendanceNoteSheet(
-                studentName: student.shortName,
-                initialText: noteText,
-                sharedWith: "Anyone you share your classroom with sees this note.",
-                onSave: onEditNote
-            )
-        }
+            .contextMenu {
+                if isEditing {
+                    AttendanceStatusMenu(
+                        status: status,
+                        absenceReason: absenceReason,
+                        hasNote: hasNote,
+                        header: AttendanceStatusMenu.header(for: row, markedBy: markedBy),
+                        statuses: menuStatuses,
+                        onSetStatus: onSetStatus,
+                        onMarkAbsent: onMarkAbsent,
+                        onNote: onNote
+                    )
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(hasNote ? row.note : "No note")
+            .accessibilityHint(isEditing ? "Changes the attendance status" : "")
     }
 
-    @ViewBuilder
-    private var cardContextMenu: some View {
-        if isEditing {
-            Button {
-                showingNoteEditor = true
-            } label: {
-                Label("Note…", systemImage: "square.and.pencil")
-            }
-
-            // Absence reason options (only show when status is absent)
-            if status == .absent, let onSetAbsenceReason = onSetAbsenceReason {
-                Divider()
-
-                ForEach(AbsenceReason.given, id: \.self) { reason in
-                    Button {
-                        onSetAbsenceReason(reason)
-                    } label: {
-                        Label("Mark as \(reason.displayName)", systemImage: reason.icon)
-                    }
-                }
-
-                if absenceReason != .none {
-                    Button {
-                        onSetAbsenceReason(.none)
-                    } label: {
-                        Label("Clear Reason", systemImage: "xmark.circle")
-                    }
-                }
-            }
-        }
+    /// "Maya Stone, birthday, Present at 8:04".
+    private var accessibilityLabel: String {
+        let birthday = row.birthday.map { ", \($0.title.lowercased())" } ?? ""
+        return "\(row.name)\(birthday), \(AttendanceRules.markSummary(row) ?? status.displayName)"
     }
 }
