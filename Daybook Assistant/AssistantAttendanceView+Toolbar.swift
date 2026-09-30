@@ -59,6 +59,7 @@ extension AssistantAttendanceView {
             } label: {
                 Image(systemName: "chevron.left")
             }
+            .disabled(!viewModel.canStepBack)
             .accessibilityLabel("Previous school day")
 
             Button {

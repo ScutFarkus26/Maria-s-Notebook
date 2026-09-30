@@ -30,15 +30,17 @@ nonisolated enum DataMigrations {
 
     /// Cleans orphaned student IDs from CDLessonAssignment records.
     /// On `context`'s queue (the launch pass: a background context's `perform`).
-    static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext) {
-        DataCleanupService.cleanOrphanedStudentIDs(using: context)
+    static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext, grace: OrphanStudentGrace? = nil) {
+        DataCleanupService.cleanOrphanedStudentIDs(using: context, grace: grace)
     }
 
     /// Cleans orphaned student IDs from CDWorkModel records; returns how many rows changed.
     /// On `context`'s queue (the launch pass: a background context's `perform`).
     @discardableResult
-    static func cleanOrphanedWorkStudentIDs(using context: NSManagedObjectContext) -> Int {
-        DataCleanupService.cleanOrphanedWorkStudentIDs(using: context)
+    static func cleanOrphanedWorkStudentIDs(
+        using context: NSManagedObjectContext, grace: OrphanStudentGrace? = nil
+    ) -> Int {
+        DataCleanupService.cleanOrphanedWorkStudentIDs(using: context, grace: grace)
     }
 
     /// Clean up orphaned note images that are no longer referenced by any CDNote.

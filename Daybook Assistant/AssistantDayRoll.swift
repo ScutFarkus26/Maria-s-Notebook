@@ -54,6 +54,22 @@ enum AssistantDayRoll {
         return request
     }
 
+    /// The earliest day the classroom share holds attendance for, or nil when it holds none.
+    /// The share keeps this school year only, so the grid doesn't page back past it: earlier
+    /// days would show today's children unmarked, and a mark there would be filed outside
+    /// the year the guide shares (`ClassroomShareScope`).
+    static func earliestRecordDay(in context: NSManagedObjectContext) -> Date? {
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        let shared = context.persistentStoreCoordinator?.persistentStores.first {
+            $0.configurationName == CoreDataStack.sharedConfiguration
+        }
+        if let shared { request.affectedStores = [shared] }
+        request.predicate = NSPredicate(format: "date != nil")
+        request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: true)]
+        request.fetchLimit = 1
+        return context.safeFetchFirst(request)?.date.map { Calendar.current.startOfDay(for: $0) }
+    }
+
     /// Siri's day: today's roll, and the children on it with no mark yet.
     static func today(
         in session: SiriAttendance

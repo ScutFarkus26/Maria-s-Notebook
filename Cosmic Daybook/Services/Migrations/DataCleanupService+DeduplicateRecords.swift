@@ -37,6 +37,7 @@ nonisolated extension DataCleanupService {
     @discardableResult
     static func deduplicateAttendanceRecordsStrong(
         using context: NSManagedObjectContext,
+        container: NSPersistentCloudKitContainer? = nil,
         scope: DeduplicationScope = .everything
     ) -> Int {
         guard scope.includes(CDAttendanceRecord.self) else { return 0 }
@@ -70,9 +71,19 @@ nonisolated extension DataCleanupService {
 
         var deletedCount = 0
         for (_, group) in groups where group.count > 1 {
+            // A record moving out of the classroom share has a copy on each side until
+            // the move finishes; deleting either here could leave none (DedupShareBoundary).
+            if DedupShareBoundary.spansShare(group, container: container) { continue }
             // Deterministic survivor: the shared comparator's winner, so all
-            // devices — and the read-side dedup — agree on the same record.
-            let sorted = group.sorted { AttendanceDeduplication.wins($0, over: $1) }
+            // devices — and the read-side dedup — agree on the same record. Two
+            // copies it can't tell apart (same mark, time and id) fall back to the
+            // CloudKit record name, the same on every device; before, fetch order
+            // decided, and two devices could each delete a different copy.
+            let sorted = group.sorted { lhs, rhs in
+                if AttendanceDeduplication.wins(lhs, over: rhs) { return true }
+                if AttendanceDeduplication.wins(rhs, over: lhs) { return false }
+                return precedesAsCanonical(lhs, rhs, container: container)
+            }
             guard let canonical = sorted.first else { continue }
 
             for duplicate in sorted.dropFirst() {

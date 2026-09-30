@@ -63,6 +63,13 @@ struct AttendanceRow: Identifiable, Equatable {
         self.recordedByName = record?.recordedByName
     }
 
+    /// The student row is gone from the store: deleted here, or by an import (a child the
+    /// guide takes out of the classroom share when a school year ends). Nothing may read or
+    /// mark it; the next load drops or replaces the row.
+    var studentIsGone: Bool {
+        student.isDeleted || student.managedObjectContext == nil
+    }
+
     /// Present, late and left early all mean the child came in.
     var isHere: Bool {
         switch status {

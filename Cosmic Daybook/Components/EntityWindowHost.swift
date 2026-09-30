@@ -41,6 +41,10 @@ struct EntityWindowHost<Entity: NSManagedObject, Content: View>: View {
     private let content: (Entity) -> Content
 
     @Environment(\.managedObjectContext) private var viewContext
+    /// Bumped when a row of this type is deleted, so the window looks its record up again:
+    /// a record replaced by a copy with the same id (a student leaving the classroom share,
+    /// `ClassroomShareRelease`) is found anew instead of drawn from the deleted object.
+    @State private var deletions = 0
 
     init(
         id: UUID,
@@ -55,8 +59,21 @@ struct EntityWindowHost<Entity: NSManagedObject, Content: View>: View {
     }
 
     var body: some View {
+        resolved(afterDeletions: deletions)
+            .onReceive(
+                NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: viewContext)
+            ) { note in
+                let deleted = note.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? []
+                if deleted.contains(where: { $0 is Entity }) { deletions += 1 }
+            }
+    }
+
+    /// `afterDeletions` only makes the body read `deletions`, so a deletion looks the record up again.
+    @ViewBuilder
+    private func resolved(afterDeletions _: Int) -> some View {
         if let entity = viewContext.object(Entity.self, id: id) {
             content(entity)
+                .id(entity.objectID)
                 .windowMinSize(minSize)
         } else {
             ContentUnavailableView(

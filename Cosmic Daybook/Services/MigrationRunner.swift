@@ -13,6 +13,8 @@ enum MigrationRunner {
         var integrityRepairSeconds: TimeInterval?
         /// Work rows whose orphaned student references were cleared.
         var workRowsCleaned = 0
+        /// The orphan-grace ledger after the pass, when one was passed in.
+        var orphanGraceLedger: [String: Date]?
     }
 
     /// Runs the launch repairs on a background context.
@@ -37,7 +39,8 @@ enum MigrationRunner {
         let outcome = await runPass(
             on: bgContext,
             includeIntegrityRepairs: includeIntegrityRepairs,
-            firstDownloadPending: firstDownloadPending
+            firstDownloadPending: firstDownloadPending,
+            orphanGraceLedger: OrphanStudentGrace.load(from: .standard)
         ) { context in
             // Remove duplicate records that may have been created by CloudKit sync conflicts.
             let results = DataMigrations.deduplicateAllModels(using: context, container: container)
@@ -64,6 +67,9 @@ enum MigrationRunner {
         }
         if outcome.workRowsCleaned > 0 {
             logger.info("Cleared orphaned students on \(outcome.workRowsCleaned, privacy: .public) work row(s)")
+        }
+        if let ledger = outcome.orphanGraceLedger {
+            OrphanStudentGrace.save(ledger, to: .standard)
         }
     }
 
@@ -92,20 +98,27 @@ enum MigrationRunner {
     /// task's executor at that task's priority (`.utility` at launch), not
     /// from the main thread.
     @concurrent
+    ///
+    /// With `orphanGraceLedger`, a missing student id is only cleared once it has been
+    /// missing on passes a day apart (`OrphanStudentGrace`); the updated ledger comes back
+    /// in the outcome. Without one (tests), every missing id is cleared at once.
     nonisolated static func runPass(
         on context: NSManagedObjectContext,
         includeIntegrityRepairs: Bool,
         firstDownloadPending: Bool,
+        orphanGraceLedger: [String: Date]? = nil,
+        now: Date = Date(),
         sweep: @escaping @Sendable (NSManagedObjectContext) -> [String: Int]
     ) async -> PassOutcome {
         await context.perform {
             var outcome = PassOutcome()
+            let grace = orphanGraceLedger.map { OrphanStudentGrace(ledger: $0, now: now) }
             if includeIntegrityRepairs {
                 let start = Date()
                 DataMigrations.repairScheduledForDayMirror(using: context)
                 discardUnsavedChanges(in: context)
                 if !firstDownloadPending {
-                    DataMigrations.cleanOrphanedStudentIDs(using: context)
+                    DataMigrations.cleanOrphanedStudentIDs(using: context, grace: grace)
                     discardUnsavedChanges(in: context)
                 }
                 outcome.integrityRepairSeconds = Date().timeIntervalSince(start)
@@ -113,9 +126,10 @@ enum MigrationRunner {
             outcome.duplicatesRemoved = sweep(context)
             discardUnsavedChanges(in: context)
             if !firstDownloadPending {
-                outcome.workRowsCleaned = DataMigrations.cleanOrphanedWorkStudentIDs(using: context)
+                outcome.workRowsCleaned = DataMigrations.cleanOrphanedWorkStudentIDs(using: context, grace: grace)
                 discardUnsavedChanges(in: context)
             }
+            outcome.orphanGraceLedger = grace?.ledger
             return outcome
         }
     }

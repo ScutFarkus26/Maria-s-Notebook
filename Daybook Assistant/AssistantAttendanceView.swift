@@ -153,7 +153,7 @@ struct AssistantAttendanceView: View {
         }
         .sheet(isPresented: $showingDatePicker) {
             if let viewModel {
-                AssistantDatePickerSheet(date: viewModel.date) { picked in
+                AssistantDatePickerSheet(date: viewModel.date, earliest: viewModel.earliestDay) { picked in
                     viewModel.load(picked)
                 }
             }

@@ -181,7 +181,10 @@ struct StudentsView: View {
     private var detailColumn: some View {
         if let student = selectedStudent {
             StudentDetailView(student: student, isInline: true, onDone: { selectedStudentID = nil })
-                .id(student.id)
+                // The object, not the UUID: when a student leaves the classroom share her
+                // row is replaced by a copy with the same id (`ClassroomShareRelease`), and a
+                // view kept for the old object would read a deleted row.
+                .id(student.objectID)
                 .navigationTitle(student.fullName)
                 .inlineNavigationTitle()
                 .toolbar { detailToolbar }
@@ -227,7 +230,10 @@ struct StudentsView: View {
     private var macDetailColumn: some View {
         if let student = selectedStudent {
             StudentDetailView(student: student, isInline: true, onDone: { selectedStudentID = nil })
-                .id(student.id)
+                // The object, not the UUID: when a student leaves the classroom share her
+                // row is replaced by a copy with the same id (`ClassroomShareRelease`), and a
+                // view kept for the old object would read a deleted row.
+                .id(student.objectID)
                 .navigationTitle(student.fullName)
                 .inlineNavigationTitle()
         } else {

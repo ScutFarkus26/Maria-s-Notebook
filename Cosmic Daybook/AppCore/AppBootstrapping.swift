@@ -100,6 +100,11 @@ final class AppBootstrapping {
         // One school year on every device: adopt the synced start date and counter mode
         // before anything reads them (the Mac seeds an empty iCloud). Never under tests.
         SchoolYearSync.start()
+        // Which rules this build keeps the classroom share by, so a device's build can be
+        // checked before last year's records are taken out of the share.
+        Logger.classroomSharing.notice(
+            "Classroom share scope v\(ClassroomShareScope.version, privacy: .public): this school year only"
+        )
 
         // Start monitoring main thread for stutters (blocking > 100ms)
         // This runs in all build configurations (Debug and Release)

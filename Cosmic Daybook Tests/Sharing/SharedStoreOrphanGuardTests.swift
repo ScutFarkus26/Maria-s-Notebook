@@ -62,10 +62,60 @@ struct SharedStoreOrphanGuardTests {
     @Test("What the share holds: counts, the outside total and the summary line")
     func contentsSummary() {
         var contents = ClassroomShareContents()
-        contents.total = ["Student": 40, "AttendanceRecord": 3_908, "NonSchoolDay": 16, "AttendanceDayLock": 0]
+        contents.inScope = ["Student": 40, "AttendanceRecord": 3_908, "NonSchoolDay": 16, "AttendanceDayLock": 0]
+        contents.inScopeAndShared = ["Student": 40, "AttendanceRecord": 3_900, "NonSchoolDay": 16, "AttendanceDayLock": 0]
         contents.inShare = ["Student": 40, "AttendanceRecord": 3_900, "NonSchoolDay": 16, "AttendanceDayLock": 0]
         #expect(contents.outside == 8)
+        #expect(contents.toRelease == 0)
         #expect(contents.summary == "40 students, 3,900 attendance records, 16 days off")
         #expect(ClassroomShareContents().summary == "0 students")
+    }
+
+    @Test("Last year's records still in the share count as to release, never as outside")
+    func contentsToRelease() {
+        var contents = ClassroomShareContents()
+        // 38 shared students, 24 of them this year's; 3,107 shared marks, 314 this year's.
+        contents.inShare = ["Student": 38, "AttendanceRecord": 3_107, "NonSchoolDay": 40]
+        contents.inScope = ["Student": 24, "AttendanceRecord": 314, "NonSchoolDay": 40]
+        contents.inScopeAndShared = ["Student": 24, "AttendanceRecord": 314, "NonSchoolDay": 40]
+        #expect(contents.outside == 0) // "Add Them to the Share" has nothing to offer
+        #expect(contents.toRelease(of: "Student") == 14)
+        #expect(contents.toRelease(of: "AttendanceRecord") == 2_793)
+        #expect(contents.toRelease == 2_807)
+    }
+
+    @Test("The flush keeps only what belongs this school year")
+    func flushFiltersThroughTheScope() async throws {
+        let stack = try CoreDataTestHelpers.makeInMemoryStack()
+        let ctx = stack.viewContext
+        let cutoff = AppCalendar.startOfDay(Date(timeIntervalSinceReferenceDate: 800_000_000))
+        let scope = ClassroomShareScope(cutoff: cutoff)
+        let lastYear = cutoff.addingTimeInterval(-100 * 86_400)
+        let thisYear = cutoff.addingTimeInterval(10 * 86_400)
+
+        let current = CDStudent(context: ctx)
+        let departed = CDStudent(context: ctx)
+        departed.enrollmentStatus = .withdrawn
+        departed.dateWithdrawn = lastYear
+        let currentOld = CDAttendanceRecord(context: ctx)
+        currentOld.studentID = try #require(current.id?.uuidString)
+        currentOld.date = lastYear
+        let currentNew = CDAttendanceRecord(context: ctx)
+        currentNew.studentID = try #require(current.id?.uuidString.lowercased())
+        currentNew.date = thisYear
+        let departedOld = CDAttendanceRecord(context: ctx)
+        departedOld.studentID = try #require(departed.id?.uuidString)
+        departedOld.date = lastYear
+        let dayOff = CDNonSchoolDay(context: ctx)
+        dayOff.date = lastYear
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let all = [current, departed, currentOld, currentNew, departedOld, dayOff]
+        let kept = await SharedStoreOrphanGuard.existingIDs(
+            for: all.map { $0.objectID.uriRepresentation().absoluteString },
+            container: stack.container,
+            scope: scope
+        )
+        #expect(Set(kept) == [current.objectID, currentNew.objectID, dayOff.objectID])
     }
 }

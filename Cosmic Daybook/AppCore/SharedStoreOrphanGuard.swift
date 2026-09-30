@@ -61,6 +61,7 @@ final class SharedStoreOrphanGuard {
         ) { [weak self] message in
             guard let self, let stack = self.coreDataStack else { return }
             let ids = Self.classroomInserts(message.inserted, privateStore: stack.privatePersistentStore)
+                + Self.returningStudentRecords(message.updated, in: stack)
             guard !ids.isEmpty else { return }
             self.handleInserts(ids, in: stack)
         }
@@ -91,6 +92,32 @@ final class SharedStoreOrphanGuard {
             .filter { CoreDataStack.sharedEntityNames.contains($0.objectID.entity.name ?? "") }
             .map(\.objectID)
             .filter { $0.persistentStore === privateStore && !$0.isTemporaryID }
+    }
+
+    /// Students a save *updated* in the private store, with their attendance from this school
+    /// year: a student who re-enrols after leaving in an earlier year is outside the share,
+    /// and nothing else would bring her back. The flush keeps only what is unshared and in
+    /// scope, so an ordinary edit to a shared student costs one check and attaches nothing.
+    static func returningStudentRecords(
+        _ updated: Set<NSManagedObject>,
+        in stack: CoreDataStack
+    ) -> [NSManagedObjectID] {
+        guard let privateStore = stack.privatePersistentStore else { return [] }
+        let students = updated.compactMap { $0 as? CDStudent }
+            .filter { $0.objectID.persistentStore === privateStore && !$0.objectID.isTemporaryID }
+        guard !students.isEmpty else { return [] }
+        let cutoff = ClassroomShareScope().cutoff
+        var ids: [NSManagedObjectID] = []
+        for student in students {
+            ids.append(student.objectID)
+            guard let sid = student.id?.uuidString else { continue }
+            let request = NSFetchRequest<NSManagedObjectID>(entityName: "AttendanceRecord")
+            request.resultType = .managedObjectIDResultType
+            request.affectedStores = [privateStore]
+            request.predicate = NSPredicate(format: "studentID ==[c] %@ AND date >= %@", sid, cutoff as NSDate)
+            ids += (try? stack.viewContext.fetch(request)) ?? []
+        }
+        return ids
     }
 
     // MARK: - Save handling
@@ -182,7 +209,9 @@ final class SharedStoreOrphanGuard {
         // Pinned, but its CKShare hasn't imported yet: keep waiting.
         guard let share else { return }
 
-        let existing = await Self.existingIDs(for: taken, container: container)
+        // This school year only (`ClassroomShareScope`): a mark on a past year's day, a
+        // student who left in an earlier year, or a restore of either stays in the notebook.
+        let existing = await Self.existingIDs(for: taken, container: container, scope: ClassroomShareScope())
         let waiting: [NSManagedObjectID]
         do {
             waiting = try await ClassroomShareAttach.unshared(existing, container: container)
@@ -201,21 +230,23 @@ final class SharedStoreOrphanGuard {
         let remaining = pendingURIs.filter { !takenSet.contains($0) } + failed
         if remaining.isEmpty { clearPending() } else { defaults.set(remaining, forKey: Self.pendingKey) }
         let summary = "attached \(outcome.attached), failed \(outcome.failed.count), " +
-            "already shared or deleted \(taken.count - waiting.count)"
+            "already shared, deleted or outside this school year \(taken.count - waiting.count)"
         Self.logger.notice("Classroom attach: \(summary, privacy: .public)")
     }
 
-    /// The object IDs among `uris` whose records still exist.
+    /// The object IDs among `uris` whose records still exist and belong in the share.
     @concurrent
-    private static func existingIDs(
+    static func existingIDs(
         for uris: [String],
-        container: NSPersistentCloudKitContainer
+        container: NSPersistentCloudKitContainer,
+        scope: ClassroomShareScope
     ) async -> [NSManagedObjectID] {
         let coordinator = container.persistentStoreCoordinator
         let ids = uris.compactMap { URL(string: $0).flatMap(coordinator.managedObjectID(forURIRepresentation:)) }
         let context = container.newBackgroundContext()
         return await context.perform {
-            ids.filter { (try? context.existingObject(with: $0)) != nil }
+            let existing = ids.filter { (try? context.existingObject(with: $0)) != nil }
+            return scope.filter(existing, in: context)
         }
     }
 }

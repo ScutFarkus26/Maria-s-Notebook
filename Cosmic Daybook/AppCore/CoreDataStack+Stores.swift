@@ -184,6 +184,7 @@ extension CoreDataStack {
         defaults.removeObject(forKey: UserDefaultsKeys.persistentHistoryStoreTokens)
         // The fresh store's first check-in repair keeps orphans, as on a new device.
         defaults.removeObject(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+        defaults.removeObject(forKey: UserDefaultsKeys.orphanStudentGrace)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
         defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)

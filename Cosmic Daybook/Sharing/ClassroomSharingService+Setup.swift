@@ -15,23 +15,20 @@ extension ClassroomSharingService {
 
     private static let setupLogger = Logger.classroomSharing
 
-    /// Zone-name prefix `NSPersistentCloudKitContainer` gives the zones that
-    /// back a `CKShare` (`com.apple.coredata.cloudkit.share.<UUID>`).
-    static let shareZoneNamePrefix = "com.apple.coredata.cloudkit.share."
-
     /// Share zones that exist on the server in the guide's private database.
     /// The local store only knows what it has imported, so this is the only
     /// reliable answer to "is there a share already?". Throws when the server
     /// can't be reached — callers treat that as unknown and refuse.
     static func fetchServerShareZoneNames() async throws -> Set<String> {
         let zones = try await CloudKitConfigurationService.container.privateCloudDatabase.allRecordZones()
-        return Set(zones.map(\.zoneID.zoneName).filter { $0.hasPrefix(shareZoneNamePrefix) })
+        return Set(zones.map(\.zoneID.zoneName).filter { $0.hasPrefix(ClassroomShareScope.shareZonePrefix) })
     }
 
     // MARK: - Set up
 
-    /// Creates the classroom share and puts every student, attendance record,
-    /// school-calendar day and day lock into it, then pins its zone.
+    /// Creates the classroom share and puts this school year's students and
+    /// attendance (`ClassroomShareScope`), and every school-calendar day, day
+    /// lock and front-desk email record into it, then pins its zone.
     ///
     /// Run once, on the Mac, after the notebook is fully downloaded. Refuses
     /// unless this device is the lead guide's, the first download has
@@ -46,7 +43,8 @@ extension ClassroomSharingService {
         // types is shared below, so these go; anything added meanwhile stays.
         let waitingAtStart = SharedStoreOrphanGuard.shared.pendingURIs
 
-        let byEntity = await Self.classroomRecordIDs(in: store, container: container)
+        // This school year's records only (`ClassroomShareScope`): earlier years stay private.
+        let byEntity = await Self.classroomRecordIDs(in: store, container: container, scope: ClassroomShareScope())
         let all = ClassroomShareSetupReport.orderedEntityNames.flatMap { byEntity[$0] ?? [] }
         var waiting = try await ClassroomShareAttach.unshared(all, container: container)
 
@@ -66,7 +64,7 @@ extension ClassroomSharingService {
         // Records created while that ran — before the pin was saved the guard
         // had no share to put them in — get a second pass.
         if outcome.stoppedBecause == nil {
-            let latest = await Self.classroomRecordIDs(in: store, container: container)
+            let latest = await Self.classroomRecordIDs(in: store, container: container, scope: ClassroomShareScope())
             let again = ClassroomShareSetupReport.orderedEntityNames.flatMap { latest[$0] ?? [] }
             let stragglers = try await ClassroomShareAttach.unshared(again, container: container)
                 .filter { !Set(outcome.failed).contains($0) }
@@ -160,79 +158,6 @@ extension ClassroomSharingService {
         let contents = await Self.shareContents(coreDataStack: coreDataStack)
         guard (contents?.inShare["Student"] ?? 0) > 0 else { throw ClassroomShareError.shareHasNoStudents }
         return (share, contents ?? ClassroomShareContents())
-    }
-
-    // MARK: - What the share holds
-
-    /// Per type, how many of the lead guide's classroom records are in the
-    /// pinned share and how many exist. Read-only: the difference is shown in
-    /// Settings, never fixed on its own. Nil when there is nothing to read or
-    /// CloudKit can't say.
-    static func shareContents(coreDataStack: CoreDataStack) async -> ClassroomShareContents? {
-        guard coreDataStack.isCloudKitActive, let store = coreDataStack.privatePersistentStore else { return nil }
-        let pinnedZone = CDClassroomMembership.pinnedZoneName(in: coreDataStack.viewContext)
-        let byEntity = await classroomRecordIDs(in: store, container: coreDataStack.container)
-        return await countInShare(byEntity, zone: pinnedZone, container: coreDataStack.container)
-    }
-
-    @concurrent
-    private static func countInShare(
-        _ byEntity: [String: [NSManagedObjectID]],
-        zone: String?,
-        container: NSPersistentCloudKitContainer
-    ) async -> ClassroomShareContents? {
-        var contents = ClassroomShareContents()
-        for (entity, ids) in byEntity {
-            contents.total[entity] = ids.count
-            guard let zone, !ids.isEmpty else {
-                contents.inShare[entity] = 0
-                continue
-            }
-            guard let shares = try? container.fetchShares(matching: ids) else { return nil }
-            contents.inShare[entity] = shares.values.filter { $0.recordID.zoneID.zoneName == zone }.count
-        }
-        return contents
-    }
-
-    /// Object IDs of every record of the classroom share's types in `store`,
-    /// by entity, read on a background context without faulting any row.
-    @concurrent
-    static func classroomRecordIDs(
-        in store: NSPersistentStore,
-        container: NSPersistentCloudKitContainer
-    ) async -> [String: [NSManagedObjectID]] {
-        let context = container.newBackgroundContext()
-        return await context.perform {
-            var result: [String: [NSManagedObjectID]] = [:]
-            for entity in ClassroomShareSetupReport.orderedEntityNames {
-                let request = NSFetchRequest<NSManagedObjectID>(entityName: entity)
-                request.affectedStores = [store]
-                request.resultType = .managedObjectIDResultType
-                result[entity] = (try? context.fetch(request)) ?? []
-            }
-            return result
-        }
-    }
-}
-
-/// How many records of each classroom-share type are in the share, of how many.
-nonisolated struct ClassroomShareContents: Sendable, Equatable {
-    var inShare: [String: Int] = [:]
-    var total: [String: Int] = [:]
-
-    /// Records of the share's types that aren't in it.
-    var outside: Int {
-        total.reduce(0) { $0 + max(0, $1.value - (inShare[$1.key] ?? 0)) }
-    }
-
-    /// "40 students, 3,908 attendance records, 16 school-calendar days, 2 locked days".
-    var summary: String {
-        ClassroomShareSetupReport.orderedEntityNames.compactMap { entity in
-            let count = inShare[entity] ?? 0
-            guard count > 0 || entity == "Student" else { return nil }
-            return ClassroomShareSetupReport.describe(count, entity)
-        }
-        .joined(separator: ", ")
     }
 }
 

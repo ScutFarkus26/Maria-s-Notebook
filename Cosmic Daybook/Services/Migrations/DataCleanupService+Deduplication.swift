@@ -134,6 +134,9 @@ nonisolated extension DataCleanupService {
         var deletedCount = 0
 
         for (_, items) in byID where items.count > 1 {
+            // A record moving out of the classroom share has a copy on each side until
+            // the move finishes; deleting either here could leave none (DedupShareBoundary).
+            if DedupShareBoundary.spansShare(items, container: container) { continue }
             let ordered = items.sorted { precedesAsCanonical($0, $1, container: container) }
             guard let canonical = ordered.first else { continue }
             for duplicate in ordered.dropFirst() {
@@ -343,7 +346,7 @@ nonisolated extension DataCleanupService {
         results["Document"] = deduplicate(CDDocument.self, using: context, container: c, scope: s)
 
         // Attendance and calendar
-        results["AttendanceRecord"] = deduplicateAttendanceRecordsStrong(using: context, scope: s)
+        results["AttendanceRecord"] = deduplicateAttendanceRecordsStrong(using: context, container: c, scope: s)
         results["StudentMeeting"] = deduplicate(
             CDStudentMeeting.self, using: context, container: c, scope: s, merge: mergeStudentMeeting
         )

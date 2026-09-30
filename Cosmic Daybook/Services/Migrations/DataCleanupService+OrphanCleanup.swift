@@ -17,7 +17,9 @@ nonisolated extension DataCleanupService {
     /// Removes student IDs that no longer exist in the database to maintain referential integrity
     /// when using manual ID management instead of Core Data relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
-    static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext) {
+    /// - Parameter grace: when given, an id is only removed once it has been missing long
+    ///   enough (`OrphanStudentGrace`); nil removes every missing id at once.
+    static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext, grace: OrphanStudentGrace? = nil) {
         // Guard against an empty student list - if fetch failed, bail out to prevent mass deletion
         guard let validStudentIDs = studentIDStrings(using: context) else {
             logger.info("cleanOrphanedStudentIDs: No students found - skipping cleanup to prevent data loss")
@@ -27,10 +29,13 @@ nonisolated extension DataCleanupService {
         let laFetch = CDFetchRequest(CDLessonAssignment.self)
         let allLAs = context.safeFetch(laFetch)
 
+        let missing = Set(allLAs.flatMap(\.studentIDs)).subtracting(validStudentIDs)
+        let removable = grace?.admit(missing: missing, validIDs: validStudentIDs) ?? missing
+
         var cleaned = 0
         for la in allLAs {
             let originalIDs = la.studentIDs
-            let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
+            let cleanedIDs = originalIDs.filter { !removable.contains($0) }
 
             if cleanedIDs.count != originalIDs.count {
                 la.studentIDs = cleanedIDs
@@ -48,8 +53,12 @@ nonisolated extension DataCleanupService {
     /// when using manual ID management instead of Core Data relationships.
     /// Safe to call repeatedly - it's idempotent and only removes non-existent IDs.
     /// - Returns: How many work rows it changed.
+    /// - Parameter grace: when given, an id is only cleared once it has been missing long
+    ///   enough (`OrphanStudentGrace`); nil clears every missing id at once.
     @discardableResult
-    static func cleanOrphanedWorkStudentIDs(using context: NSManagedObjectContext) -> Int {
+    static func cleanOrphanedWorkStudentIDs(
+        using context: NSManagedObjectContext, grace: OrphanStudentGrace? = nil
+    ) -> Int {
         // Guard against an empty student list - if fetch failed, bail out to prevent mass deletion
         guard let validStudentIDs = studentIDStrings(using: context) else {
             logger.info("cleanOrphanedWorkStudentIDs: No students found - skipping cleanup to prevent data loss")
@@ -58,19 +67,22 @@ nonisolated extension DataCleanupService {
 
         let allWorks = context.safeFetch(orphanCleanupWorkFetch())
 
+        let missing = studentIDsNamed(by: allWorks).subtracting(validStudentIDs)
+        let removable = grace?.admit(missing: missing, validIDs: validStudentIDs) ?? missing
+
         var cleaned = 0
         for work in allWorks {
             var modified = false
 
-            // Check work.studentID - if not empty and not in valid set, clear it
-            if !work.studentID.isEmpty && !validStudentIDs.contains(work.studentID) {
+            // Check work.studentID - if not empty and missing long enough, clear it
+            if !work.studentID.isEmpty && removable.contains(work.studentID) {
                 work.studentID = ""
                 modified = true
             }
 
-            // Check work.participants - remove any with orphaned studentIDs
+            // Check work.participants - remove any whose student is missing long enough
             if let participantsSet = work.participants as? Set<CDWorkParticipantEntity>, !participantsSet.isEmpty {
-                let orphanedParticipants = participantsSet.filter { !validStudentIDs.contains($0.studentID) }
+                let orphanedParticipants = participantsSet.filter { removable.contains($0.studentID) }
 
                 if !orphanedParticipants.isEmpty {
                     for participant in orphanedParticipants {
@@ -89,6 +101,18 @@ nonisolated extension DataCleanupService {
             context.safeSave()
         }
         return cleaned
+    }
+
+    /// Every student id the rows name, as owner or participant.
+    private static func studentIDsNamed(by works: [CDWorkModel]) -> Set<String> {
+        var named = Set<String>()
+        for work in works {
+            if !work.studentID.isEmpty { named.insert(work.studentID) }
+            for participant in (work.participants as? Set<CDWorkParticipantEntity>) ?? [] {
+                named.insert(participant.studentID)
+            }
+        }
+        return named
     }
 
     /// Every work row, with its participants loaded by one batched prefetch

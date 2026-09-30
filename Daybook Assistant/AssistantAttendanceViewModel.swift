@@ -79,6 +79,8 @@ final class AssistantAttendanceViewModel {
     /// Set on weekends and on the guide's days off, which follow the notebook's
     /// school calendar (`SchoolDayChecker`): no marks are taken then.
     private(set) var dayOff: DayOff?
+    /// The share's first day with attendance: the grid pages no earlier (`canStepBack`).
+    private(set) var earliestDay: Date?
     /// Set when the guide has locked this day: its rows are read-only.
     private(set) var isLocked = false
     /// This device's phase for the day on screen. Local, not shared: another
@@ -183,6 +185,7 @@ final class AssistantAttendanceViewModel {
             if day != date { lastLateBatch = [] }
             date = day
         }
+        earliestDay = AssistantDayRoll.earliestRecordDay(in: context)
         phase = AttendanceLatePhase.isLate(on: date, defaults: defaults) ? .late : .arrival
         dayOff = Self.dayOff(on: date, in: context)
         loadGeneration &+= 1
@@ -241,6 +244,7 @@ final class AssistantAttendanceViewModel {
     /// Sets any status directly (the long-press menu), creating the record on
     /// the first mark.
     func setStatus(_ status: AttendanceStatus, for row: Row) {
+        guard !reloadIfGone(row) else { return }
         guard canMark, Self.allows(status, on: date) else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
@@ -264,7 +268,8 @@ final class AssistantAttendanceViewModel {
         guard canMark, !isFuture, phase == .arrival else { return 0 }
         let changed: [CDAttendanceRecord]
         do {
-            changed = try store.markUnmarkedAbsent(for: date, students: rows.map(\.student))
+            let students = rows.filter { !$0.studentIsGone }.map(\.student)
+            changed = try store.markUnmarkedAbsent(for: date, students: students)
         } catch {
             // Nothing was marked, so arrival stays open (it used to go to
             // Late with the rest still unmarked).
@@ -308,6 +313,7 @@ final class AssistantAttendanceViewModel {
     /// Absent with a reason (or none), in one save: the menu's Absent
     /// choices. Allowed on days ahead, for a known vacation or appointment.
     func markAbsent(reason: AbsenceReason, for row: Row) {
+        guard !reloadIfGone(row) else { return }
         guard canMark, Self.allows(.absent, on: date) else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
@@ -324,6 +330,7 @@ final class AssistantAttendanceViewModel {
     /// Writes the day's note for a student, creating the record if there is
     /// none yet. Empty text removes the note.
     func setNote(_ text: String?, for row: Row) {
+        guard !reloadIfGone(row) else { return }
         guard canMark else { return }
         do {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
@@ -346,10 +353,12 @@ final class AssistantAttendanceViewModel {
 
     /// Moves to the next (`forward`) or previous school day, skipping weekends
     /// and the guide's days off. Stays put if none is found within a year.
+    /// Never back past the share's first day with attendance (`canStepBack`).
     func step(forward: Bool) {
-        if let next = SchoolDayChecker.schoolDay(from: date, forward: forward, using: context) {
-            load(next)
-        }
+        guard forward || canStepBack,
+              let next = SchoolDayChecker.schoolDay(from: date, forward: forward, using: context),
+              forward || isOnOrAfterEarliestDay(next) else { return }
+        load(next)
     }
 
     /// Saves, puts new records into the classroom share, and redraws the
@@ -377,7 +386,9 @@ final class AssistantAttendanceViewModel {
         guard !records.isEmpty else { return }
         let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
         rows = rows.map { row in
-            guard let key = row.student.id?.uuidString, let record = byStudent[key] else { return row }
+            guard !row.studentIsGone, let key = row.student.id?.uuidString, let record = byStudent[key] else {
+                return row
+            }
             return Row(
                 student: row.student, record: record, shortName: row.shortName, day: date, daysAway: row.daysAway
             )

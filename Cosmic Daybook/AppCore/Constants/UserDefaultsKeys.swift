@@ -209,6 +209,9 @@ nonisolated enum UserDefaultsKeys {
     /// Orphaned check-ins are only deleted from the second run on, so a fresh
     /// install still importing its work rows from CloudKit deletes nothing.
     static var checkInLinkRepairHasRun: String { CloudKitEnvironment.scoped("DataMigrations.checkInLinkRepair.hasRun") }
+    /// Student ids the launch cleanups found missing, with when each was first seen missing
+    /// (`OrphanStudentGrace`). Per store environment; cleared by Reset Local Cache.
+    static var orphanStudentGrace: String { CloudKitEnvironment.scoped("DataMigrations.orphanStudentGrace") }
     static let resetLocalCacheArmedAt = "AppCore.resetLocalCacheArmedAt"
     static let resetLocalCacheArmedSource = "AppCore.resetLocalCacheArmedSource"
 
