@@ -34,7 +34,14 @@ struct AttendanceExpandedView: View {
     @State var viewModel = AttendanceViewModel()
 
     @SyncedAppStorage("AttendanceEmail.enabled") var emailEnabled: Bool = true
-    @State private var showMailSheet = false
+    @State var showMailSheet = false
+    /// The day's newest front-desk email, from any device in the classroom.
+    @State var frontDeskSend: AttendanceEmailLog.Send?
+    /// Mail couldn't say whether the email went (another Mail app on iOS, or
+    /// the Mac's Mail not answering): ask.
+    @State var askingWhetherSent = false
+    /// Mark Rest Absent & Email asks first, naming who.
+    @State var confirmingRestAbsent = false
     @State var showingTardyReport = false
     @State var showingAbsenceReport = false
     @State var isEditing: Bool = true
@@ -201,6 +208,8 @@ struct AttendanceExpandedView: View {
 
             attendanceSummaryStrip
 
+            compactFrontDeskRow
+
             if isNonSchoolDay {
                 nonSchoolDayWarning
             }
@@ -217,10 +226,12 @@ struct AttendanceExpandedView: View {
         .onChange(of: rosterIDs) { _, _ in
             loadData()
         }
-        // A mark or lock made on another device arrives as an iCloud import;
+        // A mark, lock or front-desk email sent on another device (an
+        // assistant's, say) arrives as an iCloud import;
         // the roll is a one-off fetch, so redraw it while it is on screen.
         .onPresentationDataChangeWhenVisible(
-            of: ["AttendanceRecord", "AttendanceDayLock"], in: viewContext, catchUpOnAppear: false
+            of: ["AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend"],
+            in: viewContext, catchUpOnAppear: false
         ) {
             loadData()
         }
@@ -246,6 +257,7 @@ struct AttendanceExpandedView: View {
                 switch result {
                 case .sent:
                     onToast("Email sent")
+                    recordFrontDeskSend(confirmedByHand: false)
                 case .saved:
                     onToast("Draft saved")
                 case .failed:
@@ -259,6 +271,7 @@ struct AttendanceExpandedView: View {
             .ignoresSafeArea()
 #endif
         }
+        .modifier(frontDeskFollowUps)
     }
 
     private func loadData() {
@@ -269,9 +282,10 @@ struct AttendanceExpandedView: View {
         )
         isEditing = !isLocked(for: date)
         localSortKey = viewModel.sortKey
+        frontDeskSend = AttendanceEmailLog.latestSend(on: date, in: viewContext)
     }
 
-    private func students(for status: AttendanceStatus) -> [AttendanceEmailStudent] {
+    func students(for status: AttendanceStatus) -> [AttendanceEmailStudent] {
         filteredStudents.compactMap { s in
             guard let rec = viewModel.recordsByStudentID[s.cloudKitKey], rec.status == status else { return nil }
             return AttendanceEmailStudent(s)
@@ -282,25 +296,5 @@ struct AttendanceExpandedView: View {
     private func names(for status: AttendanceStatus) -> [String] {
         AttendanceEmailReport.sorted(students(for: status), by: .firstLast)
             .map { $0.name(order: .firstLast) }
-    }
-
-    func prepareAttendanceEmail() {
-        let present = students(for: .present)
-        let tardy = students(for: .tardy)
-        let absent = students(for: .absent)
-#if os(iOS)
-        if MFMailComposeViewController.canSendMail() {
-            showMailSheet = true
-        }
-#else
-        AttendanceEmail.sendUsingMailAppForCurrentPrefs(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            date: date
-        ) { success in
-            onToast(success ? "Email sent" : "Failed to send email")
-        }
-#endif
     }
 }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 import CoreData
 import CloudKit
 #if os(macOS)
@@ -61,6 +62,9 @@ struct CosmicDaybookApp: App {
         #endif
 
         AppBootstrapping.performInitialSetup()
+        // Before launch finishes, so a tapped reminder that launched the app
+        // is delivered (the front-desk email's opens Attendance).
+        UNUserNotificationCenter.current().delegate = NotebookNotificationTaps.shared
         let stack = AppBootstrapping.getSharedCoreDataStack()
         coreDataStack = stack
         let deps = AppDependencies(coreDataStack: stack)

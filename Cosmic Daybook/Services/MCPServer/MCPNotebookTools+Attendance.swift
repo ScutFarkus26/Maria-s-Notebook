@@ -58,6 +58,9 @@ extension MCPNotebookTools {
             lines.append("  School is not in session that day.")
         }
         lines.append(contentsOf: statusLines(from: grouped))
+        if let sent = AttendanceEmailLog.thirdPersonSummary(on: day, in: modelContext) {
+            lines.append("  Front desk email: " + sent)
+        }
         return lines.joined(separator: "\n")
     }
 

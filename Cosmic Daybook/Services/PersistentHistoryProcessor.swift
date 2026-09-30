@@ -39,7 +39,7 @@ actor PersistentHistoryProcessor {
     /// notice a remote change (see `View.onPresentationDataChange`).
     nonisolated static let presentationEntityNames: Set<String> = [
         "LessonAssignment", "Lesson", "Student", "WorkModel",
-        "AttendanceRecord", "AttendanceDayLock"
+        "AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings"
     ]
 
     /// `userInfo` key of `.presentationDataDidChange`: the `Set<String>` of

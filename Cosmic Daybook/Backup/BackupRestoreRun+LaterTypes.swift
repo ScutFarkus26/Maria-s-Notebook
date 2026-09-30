@@ -261,4 +261,23 @@ extension BackupRestoreRun {
             )
         }
     }
+
+    /// v34+ entities: front-desk attendance emails and their settings.
+    func importV34Entities() throws {
+        let viewContext = context
+        let index = self.index
+
+        if let sends = try rows(\.attendanceEmailSends) {
+            BackupEntityImporter.importRows(
+                sends, as: CDAttendanceEmailSend.self, into: viewContext,
+                existing: { try index.existing(CDAttendanceEmailSend.self, id: $0) }
+            )
+        }
+        if let settings = try rows(\.attendanceEmailSettings) {
+            BackupEntityImporter.importRows(
+                settings, as: CDAttendanceEmailSettings.self, into: viewContext,
+                existing: { try index.existing(CDAttendanceEmailSettings.self, id: $0) }
+            )
+        }
+    }
 }

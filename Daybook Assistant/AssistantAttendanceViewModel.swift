@@ -111,6 +111,8 @@ final class AssistantAttendanceViewModel {
     /// This device's phase for the day on screen. Local, not shared: another
     /// device sees the marks Late made, not the switch.
     private(set) var phase: Phase = .arrival
+    /// The front-desk email for the day on screen.
+    let frontDesk: AssistantFrontDesk
     /// The records the last Close Arrival marked absent, for its Undo.
     @ObservationIgnored private var lastLateBatch: [NSManagedObjectID] = []
 
@@ -143,6 +145,7 @@ final class AssistantAttendanceViewModel {
         // app is only ever used by an assistant, and ClassroomPermissions is
         // what stops a mis-set membership from writing beyond attendance.
         self.store = CDAttendanceStore(context: context, role: .assistant)
+        self.frontDesk = AssistantFrontDesk(context: context, container: container)
         self.importReloader = RemoteImportReloader { [weak self] in self?.load() }
     }
 
@@ -212,6 +215,7 @@ final class AssistantAttendanceViewModel {
         loadGeneration &+= 1
         isLocked = store.isLocked(date)
         canMark = store.canWrite(on: date)
+        frontDesk.load(date)
 
         let records: [CDAttendanceRecord]
         do {

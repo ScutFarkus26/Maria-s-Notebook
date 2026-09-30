@@ -702,7 +702,9 @@ final class BackupFieldCoverageTests {
         FieldSpec("AlbumPageInk"),
         FieldSpec("OrderItem"),
         FieldSpec("AttendanceDayLock"),
-        FieldSpec("SupplyTransaction")
+        FieldSpec("SupplyTransaction"),
+        FieldSpec("AttendanceEmailSend"),
+        FieldSpec("AttendanceEmailSettings")
     ]
 
     /// Inserts this suite's fixture — one instance of every backed-up entity,

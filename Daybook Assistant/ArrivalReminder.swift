@@ -37,7 +37,7 @@ enum ArrivalReminder {
 
     /// When the next reminders fire: the set time on each of the next `count`
     /// school days, leaving out a time already past and, when `todayIsDone`,
-    /// today. Pure, for the tests.
+    /// today. The front-desk reminder's rule (`FrontDeskEmailReminder`).
     static func fireDates(
         from now: Date,
         minutes: Int,
@@ -46,17 +46,10 @@ enum ArrivalReminder {
         todayIsDone: Bool,
         calendar: Calendar = AppCalendar.shared
     ) -> [Date] {
-        var dates: [Date] = []
-        var day = calendar.startOfDay(for: now)
-        let today = day
-        for _ in 0..<(count * 3) where dates.count < count {
-            defer { day = calendar.date(byAdding: .day, value: 1, to: day) ?? day }
-            guard !nonSchoolDays.contains(day) else { continue }
-            if day == today, todayIsDone { continue }
-            guard let fire = calendar.date(byAdding: .minute, value: minutes, to: day), fire > now else { continue }
-            dates.append(fire)
-        }
-        return dates
+        FrontDeskEmailReminder.fireDates(
+            from: now, minutes: minutes, nonSchoolDays: nonSchoolDays,
+            count: count, todayIsDone: todayIsDone, calendar: calendar
+        )
     }
 
     /// What the attendance screen calls as its roll changes: asks for
@@ -143,7 +136,8 @@ enum ArrivalReminder {
 }
 
 /// Shows a reminder that fires while the app is open, and turns a tap on one
-/// into "show today" for the attendance screen.
+/// into "show today" for the attendance screen (and, for the front-desk
+/// reminder, "open the email").
 final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
     static let shared = ArrivalReminderTaps()
 
@@ -158,8 +152,10 @@ final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
+        let isFrontDesk = FrontDeskEmailReminder.isReminder(response.notification.request.identifier)
         await MainActor.run {
             NotificationCenter.default.post(name: .assistantShowToday, object: nil)
+            if isFrontDesk { FrontDeskEmailReminder.handleTap() }
         }
     }
 }
@@ -167,7 +163,8 @@ final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
 /// Keeps the arrival reminders in step with the roll: rebuilt on every full
 /// load (a day change, a return to the app, an import that may bring the
 /// guide's calendar) and whenever today's unmarked count moves, so today's
-/// goes once everyone's marked.
+/// goes once everyone's marked. The front-desk email reminder follows the
+/// same loads, and a send recorded here, so today's goes once the email has.
 ///
 /// A modifier of its own, like `AssistantReloadOnReturn`: read in the
 /// attendance screen's body, `loadGeneration` would redraw the whole grid on
@@ -178,12 +175,19 @@ struct ArrivalReminderFollower: ViewModifier {
 
     private var signature: String {
         guard let viewModel else { return "" }
-        return "\(viewModel.loadGeneration)|\(viewModel.isToday ? viewModel.unmarkedCount : -1)"
+        let today = viewModel.isToday ? viewModel.unmarkedCount : -1
+        return "\(viewModel.loadGeneration)|\(today)|\(viewModel.frontDesk.sendsRecorded)"
     }
 
     func body(content: Content) -> some View {
         content.task(id: signature) {
             await ArrivalReminder.update(hasClass: viewModel?.rows.isEmpty == false, in: context)
+            // The sample class schedules nothing.
+            guard !AssistantSampleClass.isActive, viewModel?.rows.isEmpty == false else { return }
+            if FrontDeskEmailReminder.isEnabled(), AttendanceEmailLog.settings(in: context)?.canSend == true {
+                _ = await FrontDeskEmailReminder.requestPermission()
+            }
+            await FrontDeskEmailReminder.reschedule(in: context)
         }
     }
 }

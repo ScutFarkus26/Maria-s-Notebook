@@ -1,10 +1,11 @@
 import Foundation
 import CoreData
 
-/// How the Assistant saves a mark: save, then put the records that save
-/// created into the classroom share explicitly rather than wherever Core
-/// Data would file them (`CDAttendanceStore.attachNewRecordsToClassroomShare`).
-/// The grid saves through here. (Siri saves through `SiriAttendance`.)
+/// How the Assistant saves a mark (or a front-desk email send): save, then put
+/// the records that save created into the classroom share explicitly rather
+/// than wherever Core Data would file them
+/// (`CDAttendanceStore.attachNewRecordsToClassroomShare`). The grid saves
+/// through here. (Siri saves through `SiriAttendance`.)
 @MainActor
 enum AssistantSave {
 
@@ -13,7 +14,7 @@ enum AssistantSave {
     static func save(
         _ context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer?,
-        created: [CDAttendanceRecord]
+        created: [NSManagedObject]
     ) -> Bool {
         guard context.safeSave() else { return false }
         // Read after the save, which is what turns temporary IDs permanent.

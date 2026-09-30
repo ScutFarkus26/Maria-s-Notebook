@@ -149,6 +149,11 @@ final class AppBootstrapper {
         // records (schema 9); carry this device's old ones over, once.
         AttendanceDayLocks.migrateStoredLegacyKeysIfNeeded(in: coreDataStack.viewContext)
 
+        // The front-desk email's settings travel to the assistants in the
+        // classroom share (schema 12); this device's may have changed on
+        // another of the guide's devices since the last launch.
+        AttendanceEmail.shareSettings(in: coreDataStack.viewContext)
+
         // Save all migration changes in one batch to minimize store coordinator changes
         if coreDataStack.viewContext.hasChanges {
             if coreDataStack.viewContext.safeSave() {
@@ -160,6 +165,10 @@ final class AppBootstrapper {
         // pin arrived (a new device) go in now, if the share is here. Nothing
         // else is swept in: see SharedStoreOrphanGuard.
         SharedStoreOrphanGuard.shared.flushPendingIfPossible()
+
+        // The front-desk email reminder, if this device has it on: the next
+        // school days' requests, without today's once the email has gone.
+        await FrontDeskEmailReminder.reschedule(in: coreDataStack.viewContext)
 
         logger.info("Post-launch migrations finished in \(formatSeconds(Date().timeIntervalSince(start)))")
 

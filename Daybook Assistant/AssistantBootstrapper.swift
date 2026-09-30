@@ -182,6 +182,7 @@ final class AssistantBootstrapper {
     func leaveClassroom() async throws {
         try await sharingService?.leaveClassroom()
         await ArrivalReminder.cancelAll()
+        await FrontDeskEmailReminder.cancelAll()
         refreshMembership()
     }
 

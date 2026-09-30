@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import Foundation
 import SwiftUI
 import OSLog
@@ -7,346 +6,6 @@ import OSLog
 import AppKit
 import ObjectiveC
 #endif
-
-/// Preference keys for Attendance Email feature.
-/// - CDNote: Values are stored in UserDefaults via @AppStorage.
-public enum AttendanceEmailPrefs {
-    public static let enabledKey = "AttendanceEmail.enabled"
-    public static let toKey = "AttendanceEmail.to"
-    public static let fromKey = "AttendanceEmail.from" // iOS preferred sending address
-    public static let nameOrderKey = "AttendanceEmail.nameOrder"
-    public static let groupByLevelKey = "AttendanceEmail.groupByLevel"
-}
-
-// MARK: - Report Formatting
-
-/// How each student's name is written — and sorted — in the report body.
-public enum AttendanceEmailNameOrder: String, CaseIterable, Identifiable, Sendable {
-    case firstLast
-    case lastFirst
-
-    public var id: String { rawValue }
-
-    public var title: String {
-        switch self {
-        case .firstLast: return "First Last"
-        case .lastFirst: return "Last, First"
-        }
-    }
-}
-
-/// The levels the report groups by, listed in the order their groups appear.
-/// - CDNote: Raw values match `CDStudent.Level`, so a student's level maps straight across.
-///   Lower Elementary trails because that class transferred out; any straggler belongs last.
-public enum AttendanceEmailLevel: String, CaseIterable, Sendable {
-    case upper = "Upper"
-    case adolescent = "Adolescent"
-    case lower = "Lower"
-
-    public var title: String {
-        switch self {
-        case .upper: return "Upper Elementary"
-        case .adolescent: return "Adolescent"
-        case .lower: return "Lower Elementary"
-        }
-    }
-}
-
-/// One student on the report. The name stays split so the body can reorder and group it.
-public struct AttendanceEmailStudent: Sendable, Hashable {
-    public let firstName: String
-    public let lastName: String
-    /// nil when the student's level isn't one the report groups by.
-    public let level: AttendanceEmailLevel?
-
-    public init(firstName: String, lastName: String, level: AttendanceEmailLevel?) {
-        self.firstName = firstName
-        self.lastName = lastName
-        self.level = level
-    }
-
-    /// The name written in the requested order, tolerating a missing half.
-    public func name(order: AttendanceEmailNameOrder) -> String {
-        let first = firstName.trimmed()
-        let last = lastName.trimmed()
-        guard !first.isEmpty else { return last }
-        guard !last.isEmpty else { return first }
-        switch order {
-        case .firstLast: return "\(first) \(last)"
-        case .lastFirst: return "\(last), \(first)"
-        }
-    }
-}
-
-extension AttendanceEmailStudent {
-    init(_ student: CDStudent) {
-        self.init(
-            firstName: student.firstName,
-            lastName: student.lastName,
-            level: AttendanceEmailLevel(rawValue: student.level.rawValue)
-        )
-    }
-}
-
-// MARK: - Report Generator
-public struct AttendanceEmailReport {
-    /// Names sit one step in from the heading above them. Mail sends the report as plain
-    /// text in a proportional font, where indentation reads faintly, so the layout leans on
-    /// blank lines and capitalization to carry the hierarchy.
-    private static let nameIndent = "    "
-
-    public static func makeSubject(
-        for date: Date,
-        calendar: Calendar = .current
-    ) -> String {
-        let dayStr = DateFormatters.mediumDate.string(from: calendar.startOfDay(for: date))
-        return "Attendance \u{2022} \(dayStr)"
-    }
-
-    public static func makeBody(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        date: Date,
-        calendar: Calendar = .current,
-        nameOrder: AttendanceEmailNameOrder = .firstLast,
-        groupByLevel: Bool = false
-    ) -> String {
-        let header = [
-            "Attendance Report",
-            DateFormatters.fullDate.string(from: calendar.startOfDay(for: date))
-        ]
-        let statuses = [
-            (title: "On Time", students: present),
-            (title: "Tardy", students: tardy),
-            (title: "Absent", students: absent)
-        ]
-        let body: [String]
-        let levels = groupByLevel ? levelBlocks(statuses, nameOrder: nameOrder) : []
-        if levels.isEmpty {
-            // Also the path when grouping is on but nobody is on the roster today, which
-            // would otherwise leave the report with no lists under its date at all.
-            body = stack(
-                statuses.map {
-                    statusBlock($0.title.uppercased(), students: $0.students, nameOrder: nameOrder)
-                },
-                gap: 1
-            )
-        } else {
-            // Two blank lines between levels against one inside them, so each class reads whole.
-            body = stack(levels, gap: 2)
-        }
-        return stack([header, body], gap: 1).joined(separator: "\n")
-    }
-
-    /// One block per level anyone is in today: the level's name over its own On Time,
-    /// Tardy, and Absent lists, so a reader sees each class whole instead of hunting
-    /// through three separate lists for it.
-    private static func levelBlocks(
-        _ statuses: [(title: String, students: [AttendanceEmailStudent])],
-        nameOrder: AttendanceEmailNameOrder
-    ) -> [[String]] {
-        levelsAttending(statuses).map { level in
-            let sections = statuses.map { status in
-                statusBlock(
-                    status.title,
-                    students: status.students.filter { $0.level == level.level },
-                    nameOrder: nameOrder
-                )
-            }
-            return stack([[level.title.uppercased()]] + sections, gap: 1)
-        }
-    }
-
-    /// A heading with its count over the names under it, or "None" when nobody is in it.
-    private static func statusBlock(
-        _ title: String,
-        students: [AttendanceEmailStudent],
-        nameOrder: AttendanceEmailNameOrder
-    ) -> [String] {
-        let heading = "\(title) (\(students.count))"
-        guard !students.isEmpty else { return [heading, "\(nameIndent)None"] }
-        return [heading] + sorted(students, by: nameOrder).map {
-            "\(nameIndent)\u{2022} \($0.name(order: nameOrder))"
-        }
-    }
-
-    /// Stacks blocks of lines with `gap` blank lines between them. Empty blocks drop out,
-    /// so a level nobody is in can't leave a hole in the spacing.
-    private static func stack(_ blocks: [[String]], gap: Int) -> [String] {
-        Array(blocks.filter { !$0.isEmpty }.joined(separator: Array(repeating: "", count: gap)))
-    }
-
-    /// Sorts on the field the chosen name order leads with, so the list reads in order.
-    static func sorted(
-        _ students: [AttendanceEmailStudent],
-        by order: AttendanceEmailNameOrder
-    ) -> [AttendanceEmailStudent] {
-        let lead: KeyPath<AttendanceEmailStudent, String>
-        let follow: KeyPath<AttendanceEmailStudent, String>
-        switch order {
-        case .firstLast: (lead, follow) = (\.firstName, \.lastName)
-        case .lastFirst: (lead, follow) = (\.lastName, \.firstName)
-        }
-        return students.sorted { lhs, rhs in
-            let leading = lhs[keyPath: lead].localizedCaseInsensitiveCompare(rhs[keyPath: lead])
-            if leading != .orderedSame { return leading == .orderedAscending }
-            return lhs[keyPath: follow].localizedCaseInsensitiveCompare(rhs[keyPath: follow]) == .orderedAscending
-        }
-    }
-
-    /// The levels to write up, in report order, skipping any nobody is in today. A student
-    /// whose level isn't one the report knows about lands in a trailing "Other" group
-    /// rather than vanishing.
-    static func levelsAttending(
-        _ statuses: [(title: String, students: [AttendanceEmailStudent])]
-    ) -> [(title: String, level: AttendanceEmailLevel?)] {
-        let everyone = statuses.flatMap(\.students)
-        var levels: [(title: String, level: AttendanceEmailLevel?)] =
-            AttendanceEmailLevel.allCases.map { (title: $0.title, level: $0) }
-        levels.append((title: "Other", level: nil))
-        return levels.filter { level in everyone.contains { $0.level == level.level } }
-    }
-}
-
-/// Convenience helpers to read stored preferences and create prefilled mail senders.
-/// Includes platform-aware availability checks.
-public enum AttendanceEmail {
-    public static func storedToAddress() -> String? {
-        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.toKey)?.trimmed()
-        guard let s, !s.isEmpty else { return nil }
-        return s
-    }
-
-    public static func storedFromAddress() -> String? {
-        let s = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.fromKey)?.trimmed()
-        guard let s, !s.isEmpty else { return nil }
-        return s
-    }
-
-    /// Falls back to "First Last" so an unset preference reads the way the report always has.
-    public static func storedNameOrder() -> AttendanceEmailNameOrder {
-        let raw = SyncedPreferencesStore.shared.string(forKey: AttendanceEmailPrefs.nameOrderKey)
-        return raw.flatMap(AttendanceEmailNameOrder.init(rawValue:)) ?? .firstLast
-    }
-
-    public static func storedGroupByLevel() -> Bool {
-        SyncedPreferencesStore.shared.bool(forKey: AttendanceEmailPrefs.groupByLevelKey)
-    }
-
-    /// Parses a user-entered recipients string into an array of
-    /// email addresses by splitting on commas/semicolons and trimming
-    /// whitespace.
-    /// - Parameter string: A raw recipients string,
-    ///   e.g., "a@example.com, b@example.com".
-    /// - Returns: An array of non-empty email strings.
-    /// - CDNote: Multi-recipient support is implemented and used in
-    ///   all composer/send flows.
-    public static func parseRecipients(from string: String?) -> [String] {
-        guard let string, !string.trimmed().isEmpty else { return [] }
-        let separators = CharacterSet(charactersIn: ",;")
-        return string
-            .components(separatedBy: separators)
-            .map { $0.trimmed() }
-            .filter { !$0.isEmpty }
-    }
-
-    public static func makeSubject(for date: Date, calendar: Calendar = .current) -> String {
-        AttendanceEmailReport.makeSubject(for: date, calendar: calendar)
-    }
-
-    /// Builds the body using the teacher's stored name-order and grouping preferences.
-    public static func makeBody(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        date: Date,
-        calendar: Calendar = .current
-    ) -> String {
-        AttendanceEmailReport.makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            date: date,
-            calendar: calendar,
-            nameOrder: storedNameOrder(),
-            groupByLevel: storedGroupByLevel()
-        )
-    }
-
-    /// Builds a mailto: URL with the provided recipients, subject, and body.
-    /// - CDNote: Useful as a fallback when `isAvailable` is false.
-    public static func makeMailtoURL(to recipients: [String], subject: String, body: String) -> URL? {
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = recipients.joined(separator: ",")
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: body)
-        ]
-        return components.url
-    }
-
-    #if os(iOS)
-    /// Creates a prefilled mail composer using current preferences.
-    /// - Important: Check `AttendanceEmail.isAvailable` before
-    ///   presenting. If unavailable, consider using
-    ///   `mailtoURLForCurrentPrefs(...)` as a fallback.
-    public static func composerForCurrentPrefs(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        date: Date = Date(),
-        calendar: Calendar = .current,
-        onComplete: @escaping (MFMailComposeResult, Error?) -> Void
-    ) -> MailComposerView {
-        let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            date: date,
-            calendar: calendar
-        )
-        let to = parseRecipients(from: storedToAddress())
-        let from = storedFromAddress()
-        return MailComposerView(
-            toRecipients: to,
-            subject: subject,
-            body: body,
-            preferredSender: from,
-            onComplete: onComplete
-        )
-    }
-    #endif
-
-    #if os(macOS)
-    public static func sendUsingMailAppForCurrentPrefs(
-        present: [AttendanceEmailStudent],
-        tardy: [AttendanceEmailStudent],
-        absent: [AttendanceEmailStudent],
-        date: Date = Date(),
-        calendar: Calendar = .current,
-        completion: @escaping (Bool) -> Void
-    ) {
-        let subject = makeSubject(for: date, calendar: calendar)
-        let body = makeBody(
-            present: present,
-            tardy: tardy,
-            absent: absent,
-            date: date,
-            calendar: calendar
-        )
-        MacOSMailSender.send(
-            to: storedToAddress(),
-            subject: subject,
-            body: body,
-            completion: completion
-        )
-    }
-
-    #endif
-}
 
 // MARK: - Settings View
 
@@ -360,6 +19,13 @@ public struct AttendanceEmailSettingsView: View {
     @SyncedAppStorage(AttendanceEmailPrefs.groupByLevelKey) private var groupByLevel: Bool = false
     @SyncedAppStorage(AttendanceEmailPrefs.nameOrderKey)
     private var nameOrderRaw: String = AttendanceEmailNameOrder.firstLast.rawValue
+    // The reminder is this device's own, not synced: whoever wants it turns it on.
+    @AppStorage(FrontDeskEmailReminder.enabledKey) private var reminderOn = FrontDeskEmailReminder.isOnByDefault
+    @AppStorage(FrontDeskEmailReminder.leadKey) private var reminderLead = FrontDeskEmailReminder.defaultLeadMinutes
+    @SyncedAppStorage(AttendanceEmailPrefs.deadlineKey)
+    private var deadlineMinutes: Int = AttendanceEmailLog.defaultDeadlineMinutes
+    @State private var notificationsDenied = false
+    @Environment(\.managedObjectContext) private var viewContext
 
     public init() {}
 
@@ -388,13 +54,66 @@ public struct AttendanceEmailSettingsView: View {
             .foregroundStyle(.secondary)
     }
 
+    /// When the front desk needs it by (shared with the assistants), and this
+    /// device's reminder: its switch, how long before, and why it can't show
+    /// when notifications are off.
+    private var reminderRows: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DatePicker("Due at the front desk by", selection: deadlineTime, displayedComponents: .hourAndMinute)
+            Toggle("Remind me if it hasn't gone", isOn: $reminderOn)
+            if reminderOn {
+                Picker("Remind me", selection: $reminderLead) {
+                    ForEach(FrontDeskEmailReminder.leadChoices, id: \.self) { minutes in
+                        Text("\(minutes) minutes before").tag(minutes)
+                    }
+                }
+            }
+            Text(notificationsDenied && reminderOn
+                ? "Notifications are off for Cosmic Daybook, so the reminder can't show."
+                : "The due time and these settings go to your assistants' Daybook Assistant, which sends the "
+                    + "same email to the same addresses. The reminder is this device's own: on school days, "
+                    + "before the due time and again at it, if nobody has sent the day's email.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Minutes after midnight, as the time the picker shows.
+    private var deadlineTime: Binding<Date> {
+        Binding(
+            get: {
+                let midnight = Calendar.current.startOfDay(for: Date())
+                return Calendar.current.date(byAdding: .minute, value: deadlineMinutes, to: midnight) ?? Date()
+            },
+            set: { date in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                deadlineMinutes = (parts.hour ?? 9) * 60 + (parts.minute ?? 0)
+            }
+        )
+    }
+
+    /// Carries the settings to the assistants (after typing pauses, not per
+    /// keystroke: each write is a CloudKit upload) and rebuilds the reminder.
+    private func applyChanges() async {
+        guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
+        if AttendanceEmail.shareSettings(in: viewContext) { viewContext.safeSave() }
+        if reminderOn { notificationsDenied = !(await FrontDeskEmailReminder.requestPermission()) }
+        await FrontDeskEmailReminder.reschedule(in: viewContext)
+    }
+
+    private var changeSignature: String {
+        "\(enabled)|\(toAddress)|\(nameOrderRaw)|\(groupByLevel)|\(deadlineMinutes)|\(reminderOn)|\(reminderLead)"
+    }
+
     public var body: some View {
         platformBody
+            .task(id: changeSignature) { await applyChanges() }
             .onChange(of: enabled) { _, _ in SettingsCategory.markModified(.communication) }
             .onChange(of: toAddress) { _, _ in SettingsCategory.markModified(.communication) }
             .onChange(of: fromAddress) { _, _ in SettingsCategory.markModified(.communication) }
             .onChange(of: nameOrderRaw) { _, _ in SettingsCategory.markModified(.communication) }
             .onChange(of: groupByLevel) { _, _ in SettingsCategory.markModified(.communication) }
+            .onChange(of: deadlineMinutes) { _, _ in SettingsCategory.markModified(.communication) }
     }
 
     @ViewBuilder
@@ -427,6 +146,8 @@ public struct AttendanceEmailSettingsView: View {
             Text("You can enter multiple addresses separated by commas or semicolons.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            Divider()
+            reminderRows
         }
         #else
         // A plain stack, not a Form: this view is embedded inline in a SettingsGroup
@@ -470,6 +191,12 @@ public struct AttendanceEmailSettingsView: View {
                 .pickerStyle(.segmented)
             Toggle("Group by Level", isOn: $groupByLevel)
             groupingFootnote
+
+            Divider()
+
+            Text("Front Desk Deadline")
+                .font(.subheadline.weight(.semibold))
+            reminderRows
         }
         #endif
     }
@@ -485,91 +212,6 @@ private struct AttendanceEmailPreview: View {
 #Preview {
     AttendanceEmailPreview()
 }
-
-// MARK: - iOS Mail Composer Wrapper
-#if os(iOS)
-import MessageUI
-
-/// SwiftUI wrapper for MFMailComposeViewController.
-/// - Important: Check AttendanceEmail.isAvailable before presenting.
-public struct MailComposerView: UIViewControllerRepresentable {
-    public typealias UIViewControllerType = MFMailComposeViewController
-
-    /// A file to attach to the composed message.
-    public struct Attachment {
-        public let data: Data
-        public let mimeType: String
-        public let fileName: String
-
-        public init(data: Data, mimeType: String, fileName: String) {
-            self.data = data
-            self.mimeType = mimeType
-            self.fileName = fileName
-        }
-    }
-
-    public var toRecipients: [String]
-    public var subject: String
-    public var body: String
-    public var preferredSender: String?
-    public var attachments: [Attachment]
-    public var onComplete: (MFMailComposeResult, Error?) -> Void
-
-    public init(
-        toRecipients: [String],
-        subject: String,
-        body: String,
-        preferredSender: String?,
-        attachments: [Attachment] = [],
-        onComplete: @escaping (MFMailComposeResult, Error?) -> Void
-    ) {
-        self.toRecipients = toRecipients
-        self.subject = subject
-        self.body = body
-        self.preferredSender = preferredSender
-        self.attachments = attachments
-        self.onComplete = onComplete
-    }
-
-    public func makeUIViewController(context: Context) -> MFMailComposeViewController {
-        let vc = MFMailComposeViewController()
-        vc.mailComposeDelegate = context.coordinator
-        vc.setToRecipients(toRecipients)
-        vc.setSubject(subject)
-        vc.setMessageBody(body, isHTML: false)
-        if let preferred = preferredSender, !preferred.trimmed().isEmpty {
-            vc.setPreferredSendingEmailAddress(preferred)
-        }
-        for attachment in attachments {
-            vc.addAttachmentData(
-                attachment.data,
-                mimeType: attachment.mimeType,
-                fileName: attachment.fileName
-            )
-        }
-        return vc
-    }
-
-    public func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) { }
-
-    public func makeCoordinator() -> Coordinator { Coordinator(onComplete: onComplete) }
-
-    public final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
-        let onComplete: (MFMailComposeResult, Error?) -> Void
-        init(onComplete: @escaping (MFMailComposeResult, Error?) -> Void) {
-            self.onComplete = onComplete
-        }
-        public func mailComposeController(
-            _ controller: MFMailComposeViewController,
-            didFinishWith result: MFMailComposeResult,
-            error: Error?
-        ) {
-            onComplete(result, error)
-            controller.dismiss(animated: true)
-        }
-    }
-}
-#endif
 
 // MARK: - macOS Mail Sender Helper
 

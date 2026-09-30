@@ -319,6 +319,13 @@ nonisolated enum BackupEntityTable {
         ),
         .optional(
             "SupplyTransaction", CDSupplyTransaction.self, \.supplyTransactions, SupplyTransactionDTO.rows
+        ),
+        .optional(
+            "AttendanceEmailSend", CDAttendanceEmailSend.self, \.attendanceEmailSends, AttendanceEmailSendDTO.rows
+        ),
+        .optional(
+            "AttendanceEmailSettings", CDAttendanceEmailSettings.self, \.attendanceEmailSettings,
+            AttendanceEmailSettingsDTO.rows
         )
     ]
 }

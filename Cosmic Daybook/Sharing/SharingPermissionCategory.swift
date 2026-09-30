@@ -53,7 +53,7 @@ enum SharingPermissionCategory: String, CaseIterable, Identifiable, Sendable {
     var entityNames: [String] {
         switch self {
         case .attendance:
-            return ["AttendanceRecord"]
+            return ["AttendanceRecord", "AttendanceEmailSend"]
         case .notes:
             return ["Note", "NoteStudentLink"]
         case .workCheckIns:

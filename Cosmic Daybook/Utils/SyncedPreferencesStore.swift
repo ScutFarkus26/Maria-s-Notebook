@@ -53,6 +53,7 @@ public final class SyncedPreferencesStore {
         "AttendanceEmail.from",
         "AttendanceEmail.nameOrder",
         "AttendanceEmail.groupByLevel",
+        "AttendanceEmail.deadlineMinutes",
 
         // Attendance
         "Attendance.sortKey",

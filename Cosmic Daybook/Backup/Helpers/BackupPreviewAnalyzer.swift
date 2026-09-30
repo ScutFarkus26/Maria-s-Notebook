@@ -165,7 +165,8 @@ enum BackupPreviewAnalyzer {
         "GoingOutChecklistItem", "ClassroomJob", "JobAssignment", "CalendarNote", "ScheduledMeeting",
         "ClassroomMembership", "MeetingWorkReview", "StudentFocusItem", "YearPlanEntry", "LessonSequenceSettings",
         "Story", "BookClubPacket", "BookClubSession", "BookClubMeeting", "Guardian",
-        "ParentCommunication", "OrderItem", "AttendanceDayLock", "SupplyTransaction"
+        "ParentCommunication", "OrderItem", "AttendanceDayLock", "SupplyTransaction",
+        "AttendanceEmailSend", "AttendanceEmailSettings"
     ]
 
     // MARK: - Merge Mode Analysis

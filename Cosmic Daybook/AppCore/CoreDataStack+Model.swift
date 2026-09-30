@@ -67,8 +67,9 @@ extension CoreDataStack {
     /// It used to hold 33 types, and the Student ↔ StudentTrackEnrollment
     /// relationship pulled tracks, steps, lessons and other students into any
     /// share a student joined. Since schema 9 the relationship is gone
-    /// (enrollments name their student by `studentID`) and the list is these
-    /// five. Everything else is the guide's own.
+    /// (enrollments name their student by `studentID`) and the list was five;
+    /// schema 12 added the two front-desk email types. Everything else is the
+    /// guide's own.
     nonisolated static let sharedEntityNames: Set<String> = [
         "Student",
         // The assistant writes attendance, so it lives in the share. Its former
@@ -79,7 +80,12 @@ extension CoreDataStack {
         "NonSchoolDay",
         "SchoolDayOverride",
         // The guide's locked days, which the assistant must respect.
-        "AttendanceDayLock"
+        "AttendanceDayLock",
+        // The front-desk attendance email (schema 12): who sent each day's,
+        // so whoever took the roll sees it went, and the guide's recipients
+        // and format, so an assistant's email reads like the guide's.
+        "AttendanceEmailSend",
+        "AttendanceEmailSettings"
     ]
 
     /// Entities stored in the private (per-teacher) store and never shared.

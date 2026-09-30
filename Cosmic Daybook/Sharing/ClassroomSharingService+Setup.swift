@@ -240,7 +240,8 @@ nonisolated struct ClassroomShareContents: Sendable, Equatable {
 nonisolated struct ClassroomShareSetupReport: Sendable {
     /// Students first: the first record becomes the share's seed.
     static let orderedEntityNames = [
-        "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock"
+        "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
+        "AttendanceEmailSend", "AttendanceEmailSettings"
     ]
 
     let created: Bool
@@ -262,6 +263,8 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
         case "NonSchoolDay": return count == 1 ? "1 day off" : "\(number) days off"
         case "SchoolDayOverride": return count == 1 ? "1 extra school day" : "\(number) extra school days"
         case "AttendanceDayLock": return count == 1 ? "1 locked day" : "\(number) locked days"
+        case "AttendanceEmailSend": return count == 1 ? "1 front-desk email" : "\(number) front-desk emails"
+        case "AttendanceEmailSettings": return count == 1 ? "the front-desk email settings" : "\(number) email settings"
         default: return "\(number) \(entity)"
         }
     }

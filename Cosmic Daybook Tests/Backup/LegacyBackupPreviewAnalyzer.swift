@@ -202,7 +202,9 @@ enum LegacyBackupPreviewAnalyzer {
             "ParentCommunication": payload.parentCommunications?.count ?? 0,
             "OrderItem": payload.orderItems?.count ?? 0,
             "AttendanceDayLock": payload.attendanceDayLocks?.count ?? 0,
-            "SupplyTransaction": payload.supplyTransactions?.count ?? 0
+            "SupplyTransaction": payload.supplyTransactions?.count ?? 0,
+            "AttendanceEmailSend": payload.attendanceEmailSends?.count ?? 0,
+            "AttendanceEmailSettings": payload.attendanceEmailSettings?.count ?? 0
         ]
     }
 

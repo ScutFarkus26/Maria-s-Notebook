@@ -82,7 +82,11 @@ extension CoreDataStack {
     /// - `11` — `AttendanceRecord.leftAt`: when a Left Early child went home,
     ///   so leaving early no longer overwrites the arrival in `markedAt`.
     ///   Additive optional Date on the shared entity.
-    nonisolated static let currentSchemaVersion = 11
+    /// - `12` — the front-desk attendance email. New shared `AttendanceEmailSend`
+    ///   (a day's email went: when, and who sent it) and `AttendanceEmailSettings`
+    ///   (the guide's recipients and report format, so an assistant's email
+    ///   matches), both in the classroom share. Additive entities.
+    nonisolated static let currentSchemaVersion = 12
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

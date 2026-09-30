@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DA04ADDDFA93604DC6F41927 /* FrontDeskEmailReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA81450488D563DB66DE5C52 /* FrontDeskEmailReminder.swift */; };
+		DAA69B3F552AAB25E7E0C7AA /* AttendanceEmailReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0E0896BB76C0AC8423748B /* AttendanceEmailReport.swift */; };
+		DAE0AFEF3C256CA7BE75E379 /* AttendanceEmailLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4381AE092034B60AB373EF /* AttendanceEmailLog.swift */; };
+		DAC981E4D451662AE6834EBF /* AttendanceEmailSettingsEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9FBBE074540600EBA950C6 /* AttendanceEmailSettingsEntity.swift */; };
+		DAB306EA1A8AFF297FDA05F6 /* AttendanceEmailSendEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA2063ED6D053DB24D69F916 /* AttendanceEmailSendEntity.swift */; };
 		DA1C2BA2B4668F28BBD1641B /* StudentEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */; };
 		DA1CECBB03D8A407B1467D98 /* SharingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABF8694226D7807EB46BC77 /* SharingPreferences.swift */; };
 		DA252003A84AA445F1A97E95 /* ClassroomRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */; };
@@ -88,6 +93,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		DA81450488D563DB66DE5C52 /* FrontDeskEmailReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FrontDeskEmailReminder.swift; path = "Cosmic Daybook/Attendance/FrontDeskEmailReminder.swift"; sourceTree = SOURCE_ROOT; };
+		DA0E0896BB76C0AC8423748B /* AttendanceEmailReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailReport.swift; path = "Cosmic Daybook/Attendance/AttendanceEmailReport.swift"; sourceTree = SOURCE_ROOT; };
+		DA4381AE092034B60AB373EF /* AttendanceEmailLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailLog.swift; path = "Cosmic Daybook/Attendance/AttendanceEmailLog.swift"; sourceTree = SOURCE_ROOT; };
+		DA9FBBE074540600EBA950C6 /* AttendanceEmailSettingsEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailSettingsEntity.swift; path = "Cosmic Daybook/Attendance/AttendanceEmailSettingsEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DA2063ED6D053DB24D69F916 /* AttendanceEmailSendEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceEmailSendEntity.swift; path = "Cosmic Daybook/Attendance/AttendanceEmailSendEntity.swift"; sourceTree = SOURCE_ROOT; };
 		5141E7F52ED77B0F004F918F /* Cosmic Daybook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cosmic Daybook.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5193CB052F0B155C0017A069 /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/FoundationModels.framework; sourceTree = DEVELOPER_DIR; };
 		51F9242D2F1C43F900E480A1 /* Cosmic Daybook Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cosmic Daybook Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -292,6 +302,11 @@
 				88EB5EE1A1B58EA44F1C52BB /* RemoteImportReloader.swift */,
 				DA82D9568DB3B62D191F2329 /* CDAttendanceStore+ClassroomShare.swift */,
 				DA2181E9509EDA1E2E64F7F3 /* AttendanceDayLocks.swift */,
+				DA81450488D563DB66DE5C52 /* FrontDeskEmailReminder.swift */,
+				DA0E0896BB76C0AC8423748B /* AttendanceEmailReport.swift */,
+				DA4381AE092034B60AB373EF /* AttendanceEmailLog.swift */,
+				DA9FBBE074540600EBA950C6 /* AttendanceEmailSettingsEntity.swift */,
+				DA2063ED6D053DB24D69F916 /* AttendanceEmailSendEntity.swift */,
 				DA41C31E09C9ADA2993260E4 /* SchoolDayChecker+Stepping.swift */,
 				DAF1D0A7E5C94B2E8A6D3F01 /* FirstDownloadGate.swift */,
 				DA18960A04AB0CB34A2B3C3D /* NSManagedObjectContext+SafeFetch.swift */,
@@ -544,6 +559,11 @@
 				966C9C32A1043E8EEEF64A3E /* RemoteImportReloader.swift in Sources */,
 				DAD9568DB3B62D191F232900 /* CDAttendanceStore+ClassroomShare.swift in Sources */,
 				DA81E9509EDA1E2E64F7F3AE /* AttendanceDayLocks.swift in Sources */,
+				DA04ADDDFA93604DC6F41927 /* FrontDeskEmailReminder.swift in Sources */,
+				DAA69B3F552AAB25E7E0C7AA /* AttendanceEmailReport.swift in Sources */,
+				DAE0AFEF3C256CA7BE75E379 /* AttendanceEmailLog.swift in Sources */,
+				DAC981E4D451662AE6834EBF /* AttendanceEmailSettingsEntity.swift in Sources */,
+				DAB306EA1A8AFF297FDA05F6 /* AttendanceEmailSendEntity.swift in Sources */,
 				DAC31E09C9ADA2993260E472 /* SchoolDayChecker+Stepping.swift in Sources */,
 				DAF1D0A7E5C94B2E8A6D3F02 /* FirstDownloadGate.swift in Sources */,
 				DAB35AFA34D0F1C960DA212B /* NSManagedObjectContext+SafeFetch.swift in Sources */,

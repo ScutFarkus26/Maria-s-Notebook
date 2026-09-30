@@ -53,6 +53,18 @@ enum AssistantSampleClass {
                 : calendar.date(from: DateComponents(year: calendar.component(.year, from: Date()) - age,
                                                      month: 1 + (index * 5) % 12, day: 1 + (index * 7) % 28))
         }
+        // A made-up front desk, so the email shows once everyone's marked.
+        // Nothing can go there: `example.org` takes no mail.
+        let email = CDAttendanceEmailSettings(context: context)
+        email.toAddresses = "frontdesk@example.org"
+        #if DEBUG
+        // `-AssistantSampleDeadline 75` (minutes after midnight) moves the
+        // due time, to see the due and late states at any hour.
+        // A launch argument arrives as text; `integer(forKey:)` reads it.
+        if UserDefaults.standard.object(forKey: "AssistantSampleDeadline") != nil {
+            email.deadlineMinutes = Int32(UserDefaults.standard.integer(forKey: "AssistantSampleDeadline"))
+        }
+        #endif
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
         AssistantLatePhase.forget(defaults: defaults)

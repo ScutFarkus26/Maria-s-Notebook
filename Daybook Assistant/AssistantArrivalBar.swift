@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The bar under the grid: the count (or the Undo for closing arrival), the
-/// arrival control, and the iCloud line. The lines are centered; while the
+/// arrival control, the front-desk email once everyone's marked, and the
+/// iCloud line. The lines are centered; while the
 /// arrival control shows, the count moves to the left beside it.
 ///
 /// Closing arrival marks everyone still unmarked absent, so it's a button
@@ -20,8 +21,12 @@ struct AssistantArrivalBar: View {
     let coreDataStack: CoreDataStack
     /// "Marked 4 absent · Undo", in the count's place until the next mark.
     @Binding var undo: ArrivalUndo?
+    /// Email the Front Desk (and Send Again): opens the ready email.
+    var onEmailFrontDesk: () -> Void = {}
 
     @State private var confirmingClose = false
+    /// Set by Close Arrival & Email: once arrival closes, open the email.
+    @State private var emailAfterClose = false
     /// "Everyone's here · 8:14", for a few seconds after the last mark.
     @State private var finishedLine: String?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -51,6 +56,10 @@ struct AssistantArrivalBar: View {
                 }
                 .frame(minHeight: 32)
             }
+            AssistantFrontDeskRow(viewModel: viewModel, onSend: onEmailFrontDesk) {
+                emailAfterClose = true
+                confirmingClose = true
+            }
             AssistantSyncStatusView(coreDataStack: coreDataStack)
         }
         .frame(maxWidth: .infinity)
@@ -71,9 +80,18 @@ struct AssistantArrivalBar: View {
         }
         .onChange(of: viewModel.date) { finishedLine = nil }
         .confirmationDialog(closeTitle, isPresented: $confirmingClose, titleVisibility: .visible) {
-            Button("Mark \(unmarkedNames.count) Absent", role: .destructive, action: closeArrival)
+            Button(
+                emailAfterClose ? "Mark \(unmarkedNames.count) Absent & Email" : "Mark \(unmarkedNames.count) Absent",
+                role: .destructive
+            ) {
+                closeArrival()
+                if emailAfterClose { onEmailFrontDesk() }
+            }
         } message: {
             Text("\(unmarkedNames.formatted(.list(type: .and))). After this, a tap marks a child late.")
+        }
+        .onChange(of: confirmingClose) { _, showing in
+            if !showing { emailAfterClose = false }
         }
     }
 

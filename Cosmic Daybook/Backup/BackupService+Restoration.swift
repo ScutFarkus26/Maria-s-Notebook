@@ -283,6 +283,7 @@ extension BackupService {
         try run.importV27Entities()
         try run.importV30Entities()
         try run.importV31Entities()
+        try run.importV34Entities()
     }
 
     /// The restore's own warnings for the summary: the album reattach warning,

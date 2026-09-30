@@ -939,6 +939,19 @@ extension BackupService {
                 parents: ["supply": { try index.related(CDSupply.self, id: $0) }]
             )
         }
+        // v34: front-desk attendance emails and their settings.
+        if let sends = payload.attendanceEmailSends {
+            BackupEntityImporter.importRows(
+                sends, as: CDAttendanceEmailSend.self, into: viewContext,
+                existing: { try index.existing(CDAttendanceEmailSend.self, id: $0) }
+            )
+        }
+        if let settings = payload.attendanceEmailSettings {
+            BackupEntityImporter.importRows(
+                settings, as: CDAttendanceEmailSettings.self, into: viewContext,
+                existing: { try index.existing(CDAttendanceEmailSettings.self, id: $0) }
+            )
+        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {

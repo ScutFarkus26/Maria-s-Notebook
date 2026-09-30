@@ -72,12 +72,12 @@ extension AttendanceExpandedView {
                     Label("Absence Report", systemImage: "chart.bar.doc.horizontal")
                 }
 
-                // Email
+                // Email (also on its own row once everyone's marked)
                 if emailEnabled {
                     Button {
                         prepareAttendanceEmail()
                     } label: {
-                        Label("Email Attendance", systemImage: SFSymbol.Communication.envelope)
+                        Label("Email Front Desk", systemImage: SFSymbol.Communication.envelope)
                     }
                     .disabled(isNonSchoolDay)
                 }
@@ -146,16 +146,11 @@ extension AttendanceExpandedView {
             .buttonStyle(.borderedProminent)
             .disabled(isNonSchoolDay || !isEditing)
 
-            // Email
+            // Email the front desk: prominent once everyone's marked, and
+            // who sent it once it has gone
             if emailEnabled {
-                Button {
-                    prepareAttendanceEmail()
-                } label: {
-                    Label("Email", systemImage: SFSymbol.Communication.envelope)
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.bordered)
-                .disabled(isNonSchoolDay)
+                frontDeskControl
+                    .disabled(isNonSchoolDay)
             }
         }
         .padding(.vertical, AppTheme.Spacing.small)

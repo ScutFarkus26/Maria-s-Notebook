@@ -744,6 +744,29 @@
             <fetchIndexElement property="date" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
+    <!-- ==================== AttendanceEmailSend ==================== -->
+    <entity name="AttendanceEmailSend" representedClassName="CDAttendanceEmailSend" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sentAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sentBy" optional="YES" attributeType="String"/>
+        <attribute name="sentByID" optional="YES" attributeType="String"/>
+        <attribute name="sentByName" optional="YES" attributeType="String"/>
+        <attribute name="wasConfirmedByHand" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <fetchIndex name="byDate">
+            <fetchIndexElement property="date" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <!-- ==================== AttendanceEmailSettings ==================== -->
+    <entity name="AttendanceEmailSettings" representedClassName="CDAttendanceEmailSettings" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isEnabled" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="toAddresses" optional="YES" attributeType="String"/>
+        <attribute name="nameOrderRaw" optional="YES" attributeType="String"/>
+        <attribute name="groupByLevel" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="deadlineMinutes" attributeType="Integer 32" defaultValueString="540" usesScalarValueType="YES"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
     <!-- ==================== GoingOut ==================== -->
     <entity name="GoingOut" representedClassName="CDGoingOut" syncable="YES">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>

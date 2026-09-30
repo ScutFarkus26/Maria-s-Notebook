@@ -145,6 +145,19 @@ final class AttendanceViewModel {
         }
     }
 
+    /// Marks everyone still unmarked absent, as the Assistant's Close Arrival
+    /// does: before the front-desk email goes at its due time.
+    func markUnmarkedAbsent(students: [CDStudent], modelContext: NSManagedObjectContext) {
+        let store = CDAttendanceStore(context: modelContext)
+        do {
+            for rec in try store.markUnmarkedAbsent(for: selectedDate, students: students) {
+                recordsByStudentID[rec.studentID] = rec
+            }
+        } catch {
+            Self.logger.warning("Failed to mark the rest absent: \(error)")
+        }
+    }
+
     func resetDay(students: [CDStudent], modelContext: NSManagedObjectContext) {
         let store = CDAttendanceStore(context: modelContext)
         do {

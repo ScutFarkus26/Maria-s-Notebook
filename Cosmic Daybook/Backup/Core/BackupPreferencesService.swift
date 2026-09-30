@@ -36,6 +36,7 @@ nonisolated enum BackupPreferencesService {
         "AttendanceEmail.from",
         "AttendanceEmail.nameOrder",
         "AttendanceEmail.groupByLevel",
+        "AttendanceEmail.deadlineMinutes",
         "Attendance.sortKey",
         // Order requests (synced)
         "Orders.recipientName",

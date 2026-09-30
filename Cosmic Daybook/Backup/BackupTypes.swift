@@ -138,6 +138,8 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case orderItems
         case attendanceDayLocks
         case supplyTransactions
+        case attendanceEmailSends
+        case attendanceEmailSettings
         case preferences
     }
 
@@ -285,6 +287,11 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     // Supply stock changes (format v31+). Older backups left them out, so a
     // restore from one keeps each supply's quantity but none of its history.
     public var supplyTransactions: [SupplyTransactionDTO]?
+
+    // Front-desk attendance emails sent, and the guide's settings for them as
+    // the classroom share carries them (format v34+, schema 12).
+    public var attendanceEmailSends: [AttendanceEmailSendDTO]?
+    public var attendanceEmailSettings: [AttendanceEmailSettingsDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

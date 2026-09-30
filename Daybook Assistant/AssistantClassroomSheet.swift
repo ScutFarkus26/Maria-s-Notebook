@@ -4,8 +4,8 @@ import CoreData
 import UserNotifications
 
 /// The Assistant's one settings screen, behind the person button: whose
-/// classroom this is and since when, her name, the arrival reminder, the
-/// bells, and the way out.
+/// classroom this is and since when, her name, the arrival and front-desk
+/// email reminders, the bells, and the way out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -22,6 +22,8 @@ struct AssistantClassroomSheet: View {
     @State private var leaveError: String?
     @AppStorage(ArrivalReminder.enabledKey) private var reminderOn = true
     @AppStorage(ArrivalReminder.timeKey) private var reminderMinutes = ArrivalReminder.defaultMinutes
+    @AppStorage(FrontDeskEmailReminder.enabledKey) private var frontDeskOn = FrontDeskEmailReminder.isOnByDefault
+    @AppStorage(FrontDeskEmailReminder.leadKey) private var frontDeskLead = FrontDeskEmailReminder.defaultLeadMinutes
     @State private var notificationsDenied = false
     @AppStorage(AssistantBells.enabledKey) private var bellsOn = false
 
@@ -118,10 +120,20 @@ struct AssistantClassroomSheet: View {
         Section {
             Toggle("Arrival reminder", isOn: $reminderOn)
             if reminderOn {
-                DatePicker("Time", selection: reminderTime, displayedComponents: .hourAndMinute)
+                DatePicker("Time", selection: time($reminderMinutes), displayedComponents: .hourAndMinute)
+            }
+            if let dueAt = frontDeskDueAt {
+                Toggle("Front desk email reminder", isOn: $frontDeskOn)
+                if frontDeskOn {
+                    Picker("Remind me", selection: $frontDeskLead) {
+                        ForEach(FrontDeskEmailReminder.leadChoices, id: \.self) { minutes in
+                            Text("\(minutes) min before \(dueAt)").tag(minutes)
+                        }
+                    }
+                }
             }
         } footer: {
-            if reminderOn && notificationsDenied {
+            if (reminderOn || frontDeskOn) && notificationsDenied {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Notifications are off for Daybook Assistant.")
                     Button("Turn On in Settings") {
@@ -131,24 +143,41 @@ struct AssistantClassroomSheet: View {
                     }
                 }
             } else {
-                Text("On school days, a reminder to close arrival, unless everyone's already marked.")
+                Text(reminderFooter)
             }
         }
-        .task(id: "\(reminderOn)|\(reminderMinutes)") {
+        .task(id: "\(reminderOn)|\(reminderMinutes)|\(frontDeskOn)|\(frontDeskLead)") {
             await applyReminderSetting()
         }
     }
 
+    private var reminderFooter: String {
+        let arrival = "On school days, a reminder to close arrival, unless everyone's already marked."
+        guard let dueAt = frontDeskDueAt else { return arrival }
+        return arrival + " The front desk needs attendance by \(dueAt): that one comes before then, "
+            + "and again at \(dueAt), if nobody has emailed it yet."
+    }
+
+    /// The guide's due time ("9:00 AM"), once the guide has set up the
+    /// front-desk email in the notebook.
+    private var frontDeskDueAt: String? {
+        guard let context = bootstrapper.coreDataStack?.viewContext,
+              let settings = AttendanceEmailLog.settings(in: context), settings.canSend else { return nil }
+        return FrontDeskEmailReminder.timeString(settings.deadlineMinutes)
+    }
+
+    private var frontDeskIsSetUp: Bool { frontDeskDueAt != nil }
+
     /// Minutes after midnight, as the time the picker shows.
-    private var reminderTime: Binding<Date> {
+    private func time(_ minutes: Binding<Int>) -> Binding<Date> {
         Binding(
             get: {
                 let midnight = Calendar.current.startOfDay(for: Date())
-                return Calendar.current.date(byAdding: .minute, value: reminderMinutes, to: midnight) ?? Date()
+                return Calendar.current.date(byAdding: .minute, value: minutes.wrappedValue, to: midnight) ?? Date()
             },
             set: { date in
                 let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                reminderMinutes = (parts.hour ?? 8) * 60 + (parts.minute ?? 15)
+                minutes.wrappedValue = (parts.hour ?? 8) * 60 + (parts.minute ?? 15)
             }
         )
     }
@@ -157,10 +186,12 @@ struct AssistantClassroomSheet: View {
         // The sample class schedules nothing, so it doesn't ask either.
         if AssistantSampleClass.isActive { return }
         if reminderOn { await ArrivalReminder.requestPermissionIfNeeded() }
+        if frontDeskOn, frontDeskIsSetUp { _ = await FrontDeskEmailReminder.requestPermission() }
         let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         notificationsDenied = status == .denied
         if let context = bootstrapper.coreDataStack?.viewContext {
             await ArrivalReminder.reschedule(in: context)
+            await FrontDeskEmailReminder.reschedule(in: context)
         }
     }
 

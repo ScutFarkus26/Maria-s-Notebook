@@ -327,5 +327,9 @@ extension BackupService {
             CDAttendanceDayLock.self, using: viewContext) { AttendanceDayLockDTO.rows($0) }
         payload.supplyTransactions = fetchAndTransformInBatches(
             CDSupplyTransaction.self, using: viewContext) { SupplyTransactionDTO.rows($0) }
+        payload.attendanceEmailSends = fetchAndTransformInBatches(
+            CDAttendanceEmailSend.self, using: viewContext) { AttendanceEmailSendDTO.rows($0) }
+        payload.attendanceEmailSettings = fetchAndTransformInBatches(
+            CDAttendanceEmailSettings.self, using: viewContext) { AttendanceEmailSettingsDTO.rows($0) }
     }
 }

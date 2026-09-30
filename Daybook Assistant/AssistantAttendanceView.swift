@@ -45,6 +45,8 @@ struct AssistantAttendanceView: View {
     @State var stepEdge: Edge = .trailing
     /// Bumped when everyone's marked, for the ripple across the grid.
     @State private var ripples = 0
+    /// Bumped by the bar's Email the Front Desk (`AssistantFrontDeskMail`).
+    @State private var frontDeskRequests = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     /// The top safe area outside the navigation bar: 20 on a phone with a
     /// home button (the SE), 0 once its status bar is hidden, 44 or more
@@ -113,7 +115,10 @@ struct AssistantAttendanceView: View {
                         .frame(height: 14)
                         .allowsHitTesting(false)
                     if let viewModel {
-                        AssistantArrivalBar(viewModel: viewModel, coreDataStack: coreDataStack, undo: $lateUndo)
+                        AssistantArrivalBar(
+                            viewModel: viewModel, coreDataStack: coreDataStack, undo: $lateUndo,
+                            onEmailFrontDesk: { frontDeskRequests += 1 }
+                        )
                     }
                 }
             }
@@ -158,6 +163,7 @@ struct AssistantAttendanceView: View {
             }
         }
         .modifier(ArrivalReminderFollower(viewModel: viewModel, context: coreDataStack.viewContext))
+        .modifier(AssistantFrontDeskMail(viewModel: viewModel, requests: frontDeskRequests))
         .onReceive(NotificationCenter.default.publisher(for: .attendanceChangedBySiri)) { _ in
             // A mark made with Siri while the screen was open.
             viewModel?.load()

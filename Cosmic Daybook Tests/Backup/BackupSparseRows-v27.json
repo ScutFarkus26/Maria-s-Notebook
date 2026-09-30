@@ -15,6 +15,12 @@
     "AttendanceDayLock" : [
       "restored"
     ],
+    "AttendanceEmailSend" : [
+      "rejected"
+    ],
+    "AttendanceEmailSettings" : [
+      "rejected"
+    ],
     "BookClubMeeting" : [
       "rejected"
     ],
@@ -170,6 +176,14 @@
     "AttendanceDayLock" : [
       "{\"id\":\"00000000-0000-4000-8000-00000000001F\"}",
       "{\"id\":\"<new id>\"}"
+    ],
+    "AttendanceEmailSend" : [
+      "{\"id\":\"00000000-0000-4000-8000-000000000021\",\"wasConfirmedByHand\":false}",
+      "{\"id\":\"<new id>\",\"wasConfirmedByHand\":false}"
+    ],
+    "AttendanceEmailSettings" : [
+      "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"00000000-0000-4000-8000-000000000022\",\"isEnabled\":true}",
+      "{\"deadlineMinutes\":540,\"groupByLevel\":false,\"id\":\"<new id>\",\"isEnabled\":true}"
     ],
     "BookClubMeeting" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000001C\",\"isCompleted\":false,\"leaderStudentID\":\"\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"ordinal\":0,\"readingLabel\":\"\",\"sessionID\":\"\"}",

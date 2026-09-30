@@ -201,6 +201,22 @@ public enum SupplyTransactionBackupRow: ModelRowKind {
     )
 }
 
+public typealias AttendanceEmailSendDTO = ModelRow<AttendanceEmailSendBackupRow>
+
+/// One front-desk attendance email that went (format v34+). Nothing older
+/// reads it, so nothing needs filling.
+public enum AttendanceEmailSendBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("AttendanceEmailSend")
+}
+
+public typealias AttendanceEmailSettingsDTO = ModelRow<AttendanceEmailSettingsBackupRow>
+
+/// The guide's front-desk email settings as the classroom share carries them
+/// (format v34+); the preferences they're copied from travel too.
+public enum AttendanceEmailSettingsBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("AttendanceEmailSettings")
+}
+
 public typealias OrderItemDTO = ModelRow<OrderItemBackupRow>
 
 public enum OrderItemBackupRow: ModelRowKind {
