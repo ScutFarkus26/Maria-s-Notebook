@@ -80,6 +80,7 @@ final class AssistantBootstrapper {
     /// Takes a newly built stack: its sharing service, and the phase its
     /// membership row gives.
     private func install(_ stack: CoreDataStack) {
+        AssistantSampleClass.isChosen = false
         coreDataStack = stack
         let service = ClassroomSharingService(
             container: stack.container,
@@ -149,6 +150,31 @@ final class AssistantBootstrapper {
         if let stack = coreDataStack {
             AssistantShareAttacher.shared.flush(container: stack.container, context: stack.viewContext)
         }
+    }
+
+    /// The join screen's Try a Sample Class: a made-up class in memory for
+    /// this session. The real stack stays open underneath (Siri and joining
+    /// still use it); only the screens switch.
+    func openSampleClass() {
+        guard case .needsClassroom = phase else { return }
+        do {
+            let sample = try AssistantSampleClass.makeStack()
+            AssistantSampleClass.isChosen = true
+            coreDataStack = sample
+            phase = .ready
+        } catch {
+            Self.logger.error("Sample class failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Back from the sample class to the real stack, and to joining unless a
+    /// classroom arrived meanwhile.
+    func leaveSampleClass() {
+        guard AssistantSampleClass.isChosen else { return }
+        AssistantSampleClass.isChosen = false
+        coreDataStack = AssistantStack.isOpen ? try? AssistantStack.shared() : nil
+        refreshMembership()
+        if coreDataStack == nil { phase = .needsClassroom }
     }
 
     /// Leaves the classroom: the class comes off this iPhone and the screen
@@ -255,7 +281,11 @@ final class AssistantBootstrapper {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refreshMembership() }
+            MainActor.assumeIsolated {
+                // Joined while looking at the sample: the real class wins.
+                self?.leaveSampleClass()
+                self?.refreshMembership()
+            }
         }
     }
 }

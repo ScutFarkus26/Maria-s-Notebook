@@ -180,15 +180,20 @@ struct AssistantAttendanceView: View {
 
     /// The sample class marks under no one's name, so it doesn't ask.
     private var asksForName: Bool {
-        if AssistantSampleClass.isRequested { return false }
+        if AssistantSampleClass.isActive { return false }
         return ClassroomIdentity.displayName == nil
     }
 
     // MARK: - Content
 
     private func startDay() {
+        // The sample's marks go into no share, and its Late phase is kept
+        // apart from the real class's.
+        let isSample = AssistantSampleClass.isActive
         let model = AssistantAttendanceViewModel(
-            context: coreDataStack.viewContext, container: coreDataStack.container
+            context: coreDataStack.viewContext,
+            container: isSample ? nil : coreDataStack.container,
+            defaults: isSample ? AssistantSampleClass.defaults : .standard
         )
         model.load()
         viewModel = model

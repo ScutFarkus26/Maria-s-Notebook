@@ -63,7 +63,7 @@ enum ArrivalReminder {
     /// notifications the first time a class is on screen, then rebuilds the
     /// reminders. The sample class schedules nothing.
     static func update(hasClass: Bool, in context: NSManagedObjectContext) async {
-        if AssistantSampleClass.isRequested { return }
+        if AssistantSampleClass.isActive { return }
         guard hasClass else { return }
         await requestPermissionIfNeeded()
         await reschedule(in: context)

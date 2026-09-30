@@ -11,16 +11,11 @@ enum AssistantStack {
 
     static func shared() throws -> CoreDataStack {
         if let stack { return stack }
-        let made: CoreDataStack
-        #if DEBUG
-        if AssistantSampleClass.isRequested {
-            made = try AssistantSampleClass.makeStack()
-        } else {
-            made = try CoreDataStack()
-        }
-        #else
-        made = try CoreDataStack()
-        #endif
+        // The launch-argument sample only (Debug). The join screen's sample
+        // sits beside this stack instead; see AssistantBootstrapper.
+        let made = AssistantSampleClass.isRequested
+            ? try AssistantSampleClass.makeStack()
+            : try CoreDataStack()
         stack = made
         if !AssistantSampleClass.isRequested {
             // A mark tapped just before the phone locks still goes out.

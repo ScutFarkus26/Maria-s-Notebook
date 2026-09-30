@@ -1,13 +1,23 @@
 import Foundation
 import CoreData
 
-/// A throwaway class for looking at the attendance screen without joining a
-/// real one. Launch with `-AssistantSampleClass` and the app skips joining,
-/// opens an in-memory store (no iCloud, nothing on disk) and fills it with a
-/// made-up roster. Debug builds only.
+/// A made-up class for looking at the attendance screen without joining a
+/// real one: an in-memory store (no iCloud, nothing on disk) filled with a
+/// roster of invented names.
+///
+/// Two ways in. The join screen's **Try a Sample Class** opens it for this
+/// session, which is how App Review (and anyone curious before their guide's
+/// invitation arrives) sees the app; Leave Sample Class or a relaunch goes
+/// back to joining. And in Debug builds, launching with `-AssistantSampleClass`
+/// skips joining altogether.
+///
+/// Its marks go nowhere: no share attach, no reminders, no Siri, and the Late
+/// phase is kept in its own defaults suite so it can't touch the real class's.
 enum AssistantSampleClass {
-    /// Always false in Release, so callers need no `#if` of their own (a
-    /// Release-only branch is one no Debug build compiles).
+    /// Launched with `-AssistantSampleClass`. Always false in Release, so
+    /// callers need no `#if` of their own (a Release-only branch is one no
+    /// Debug build compiles). `AssistantStack` builds the sample then, so
+    /// Siri reads it too.
     static var isRequested: Bool {
         #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-AssistantSampleClass")
@@ -16,7 +26,17 @@ enum AssistantSampleClass {
         #endif
     }
 
-    #if DEBUG
+    /// Opened from the join screen for this session. The real stack stays
+    /// open underneath, untouched, for Siri and for joining.
+    static var isChosen = false
+
+    /// The sample is on screen, however it was opened.
+    static var isActive: Bool { isRequested || isChosen }
+
+    /// Where the sample's Late phase is remembered, apart from the real
+    /// class's (`.standard`).
+    static let defaults = UserDefaults(suiteName: "Assistant.sampleClass") ?? .standard
+
     static func makeStack() throws -> CoreDataStack {
         let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
         let context = stack.viewContext
@@ -35,13 +55,13 @@ enum AssistantSampleClass {
         }
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
-        AssistantLatePhase.forget()
+        AssistantLatePhase.forget(defaults: defaults)
         return stack
     }
 
     /// 22 children, the real class's size, with two Ettys and two Sarahs so
     /// short names have to tell them apart.
-    private static let names: [(String, String)] = [
+    static let names: [(String, String)] = [
         ("Ari", "Cedar"), ("Maya", "Stone"), ("Noah", "Linden"), ("Leah", "Hart"),
         ("Ezra", "Bloom"), ("Tamar", "Reed"), ("Miriam", "Vale"), ("Eli", "Brooks"),
         ("Rina", "Ash"), ("Etty", "Rosen"), ("Etty", "Goldman"), ("Sarah", "Klein"),
@@ -49,5 +69,4 @@ enum AssistantSampleClass {
         ("Asher", "Quinn"), ("Gideon", "Hale"), ("Micah", "Frost"), ("Noa", "Winter"),
         ("Shira", "Lowe"), ("Talia", "Brook")
     ]
-    #endif
 }

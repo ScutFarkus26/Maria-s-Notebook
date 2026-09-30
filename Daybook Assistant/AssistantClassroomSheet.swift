@@ -32,7 +32,9 @@ struct AssistantClassroomSheet: View {
                 nameSection
                 reminderSection
                 bellsSection
-                if bootstrapper.sharingService != nil {
+                if AssistantSampleClass.isChosen {
+                    sampleSection
+                } else if bootstrapper.sharingService != nil, !AssistantSampleClass.isActive {
                     leaveSection
                 }
             }
@@ -152,12 +154,26 @@ struct AssistantClassroomSheet: View {
     }
 
     private func applyReminderSetting() async {
+        // The sample class schedules nothing, so it doesn't ask either.
+        if AssistantSampleClass.isActive { return }
         if reminderOn { await ArrivalReminder.requestPermissionIfNeeded() }
         let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         notificationsDenied = status == .denied
-        if AssistantSampleClass.isRequested { return }
         if let context = bootstrapper.coreDataStack?.viewContext {
             await ArrivalReminder.reschedule(in: context)
+        }
+    }
+
+    /// The sample class opened from the join screen: the way back to joining.
+    private var sampleSection: some View {
+        Section {
+            Button("Leave Sample Class") {
+                dismiss()
+                bootstrapper.leaveSampleClass()
+            }
+        } footer: {
+            Text("This is a sample class with made-up names. Nothing you mark here is saved. "
+                + "To take real attendance, open your guide's invitation.")
         }
     }
 

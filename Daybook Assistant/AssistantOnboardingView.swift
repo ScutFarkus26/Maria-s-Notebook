@@ -35,6 +35,15 @@ struct AssistantOnboardingView: View {
                     Task { await bootstrapper.refreshAccountStatus() }
                 }
                 .buttonStyle(.bordered)
+
+                // No invitation yet (or App Review, which never gets one):
+                // the attendance screen with made-up names.
+                VStack(spacing: 4) {
+                    Button("Try a Sample Class") { bootstrapper.openSampleClass() }
+                    Text("Made-up names. Nothing is saved or sent.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(28)
