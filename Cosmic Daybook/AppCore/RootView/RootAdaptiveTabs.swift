@@ -11,18 +11,52 @@ import SwiftUI
 /// real one back so its layout stays the iPad's.
 ///
 /// The bar's four tabs and the grouped sections behind "More" both come from
-/// `RootView.NavigationGroup`, the same table the macOS sidebar reads.
+/// `RootView.NavigationGroup`, the same table the macOS sidebar reads. Where
+/// the bar is at the bottom, "More" is the app's own tab (`RootMoreTab`).
 struct RootAdaptiveTabs: View {
     @Binding var selectedNavItem: RootView.NavigationItem
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    /// The More tab's stack, and the destination at its bottom.
+    @State private var morePath = NavigationPath()
+    @State private var moreOpenItem: RootView.NavigationItem?
 
     var body: some View {
-        TabView(selection: $selectedNavItem) {
-            primaryTabs
-            secondaryTabs
+        Group {
+            if Self.usesMoreList {
+                TabView(selection: tabBarSelection) {
+                    primaryTabs
+                    Tab(RootView.NavigationItem.more.displayName, systemImage: "ellipsis",
+                        value: RootView.NavigationItem.more) {
+                        RootMoreTab(
+                            selectedNavItem: $selectedNavItem,
+                            openItem: $moreOpenItem,
+                            path: $morePath,
+                            pageSizeClass: horizontalSizeClass
+                        )
+                    }
+                }
+            } else {
+                TabView(selection: $selectedNavItem) {
+                    primaryTabs
+                    secondaryTabs
+                }
+            }
         }
         .tabViewStyle(.sidebarAdaptable)
         .environment(\.horizontalSizeClass, Self.usesBottomTabBar ? .compact : horizontalSizeClass)
+    }
+
+    /// The bar's selection: a destination behind More selects More, and More
+    /// selected again shows what was open there.
+    private var tabBarSelection: Binding<RootView.NavigationItem> {
+        Binding(
+            get: {
+                RootView.NavigationGroup.primaryTabs.contains(selectedNavItem) ? selectedNavItem : .more
+            },
+            set: { tab in
+                selectedNavItem = tab == .more ? (moreOpenItem ?? .more) : tab
+            }
+        )
     }
 
     /// True on the iPad mini, the only iPad whose screen is 744 points on its
@@ -48,15 +82,16 @@ struct RootAdaptiveTabs: View {
 
     /// Pages whose root view already holds its own `NavigationStack` (or, for
     /// Students and Albums, a split view that collapses to one); a second one
-    /// around them would nest stacks.
+    /// around them would nest stacks. Behind More they leave theirs out and
+    /// push into `RootMoreTab`'s instead.
     static let pagesWithOwnStack: Set<RootView.NavigationItem> = [
         .today, .students, .attendance, .teachingAlbums,
         .settings, .askAI, .thisWeeksParsha, .parshaCalendar, .smallSequencePlanner
     ]
 
-    /// A page on a phone-sized layout. Neither the tab bar nor the More list
-    /// gives a page a navigation stack, so its title never showed and a row
-    /// inside it had nowhere to push; each page without one gets its own.
+    /// A tab's page on a phone-sized layout. The tab bar gives a page no
+    /// navigation stack, so its title never showed and a row inside it had
+    /// nowhere to push; each page without one gets its own.
     @ViewBuilder
     private func phonePage(_ item: RootView.NavigationItem) -> some View {
         if (Self.usesMoreList || horizontalSizeClass == .compact)
@@ -79,8 +114,9 @@ struct RootAdaptiveTabs: View {
         }
     }
 
-    /// Sections shown in the sidebar on iPad and under More on iPhone. The
-    /// primary tabs are left out of their groups: a `Tab` may appear once.
+    /// Sections shown in the sidebar on iPad (and its bar when the window is
+    /// narrow). The primary tabs are left out of their groups: a `Tab` may
+    /// appear once.
     @TabContentBuilder<RootView.NavigationItem>
     private var secondaryTabs: some TabContent<RootView.NavigationItem> {
         ForEach(RootView.NavigationGroup.secondaryGroups) { group in

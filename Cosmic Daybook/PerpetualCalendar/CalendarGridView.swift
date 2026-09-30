@@ -19,6 +19,7 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
+    @Environment(\.navigationPush) private var enclosingPush
 
     init(
         title: String,
@@ -247,9 +248,10 @@ struct CalendarGridView<DayContent: View, HeaderTrailing: View>: View {
         }
     }
 
+    /// Also true in the iPad mini's More tab, whose bar holds the back button.
     private var isCompact: Bool {
         #if os(iOS)
-        horizontalSizeClass == .compact
+        horizontalSizeClass == .compact || enclosingPush != nil
         #else
         false
         #endif

@@ -8,6 +8,9 @@ struct ViewHeader<TrailingContent: View>: View {
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    /// Set inside the More tab's stack, whose bar holds the back button even at
+    /// the iPad mini's regular width, so the bar is never hidden there.
+    @Environment(\.navigationPush) private var enclosingPush
     #endif
 
     init(title: String, @ViewBuilder trailingContent: @escaping () -> TrailingContent = { EmptyView() }) {
@@ -17,7 +20,7 @@ struct ViewHeader<TrailingContent: View>: View {
 
     var body: some View {
         #if os(iOS)
-        if horizontalSizeClass == .compact {
+        if horizontalSizeClass == .compact || enclosingPush != nil {
             compactHeader
         } else {
             regularHeader

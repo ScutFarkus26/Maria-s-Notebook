@@ -19,7 +19,7 @@ struct ChatView: View {
     @State private var cardsAppeared = false
 
     var body: some View {
-        NavigationStack {
+        PageNavigationStack {
             VStack(spacing: 0) {
                 chatContent
             }

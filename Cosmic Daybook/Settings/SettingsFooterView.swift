@@ -153,10 +153,13 @@ private struct SettingsFooterAppIcon: View {
         #if os(macOS)
         return Image(nsImage: NSApplication.shared.applicationIconImage)
         #else
+        // The loose PNGs Xcode writes beside the binary (AppIcon60x60@2x.png), never
+        // `CFBundleIconName`: the catalog's icon entry has no image to hand over, and
+        // `UIImage(named: "AppIcon")` throws "Need an imageRef" and takes the app down.
         let icons = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any]
         let primary = icons?["CFBundlePrimaryIcon"] as? [String: Any]
-        let name = primary?["CFBundleIconName"] as? String ?? "AppIcon"
-        return UIImage(named: name).map { Image(uiImage: $0) }
+        guard let file = (primary?["CFBundleIconFiles"] as? [String])?.last else { return nil }
+        return UIImage(named: file).map { Image(uiImage: $0) }
         #endif
     }()
 }

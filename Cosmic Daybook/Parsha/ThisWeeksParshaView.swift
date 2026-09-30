@@ -30,7 +30,7 @@ struct ThisWeeksParshaView: View {
 
     var body: some View {
         if forShabbat == nil {
-            NavigationStack {
+            PageNavigationStack {
                 rootContent
             }
         } else {

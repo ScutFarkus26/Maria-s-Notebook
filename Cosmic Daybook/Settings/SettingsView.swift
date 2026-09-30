@@ -10,11 +10,15 @@ struct SettingsView: View {
     @State var statsViewModel = SettingsStatsViewModel()
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     /// A card the Overview opened (wide layout); cleared once another category is picked.
-    @State private var requestedFocus: SettingsCopy.Group?
+    @State var requestedFocus: SettingsCopy.Group?
     @State private var searchText = ""
     /// The iPhone's pushed panes, so the Overview can open another category.
-    @State private var compactPath: [SettingsPaneRoute] = []
-    @AppStorage(UserDefaultsKeys.settingsSelectedCategory) private var selectedCategoryRaw: String = ""
+    /// Unused in the More tab, whose stack the panes push into instead.
+    @State var compactPath: [SettingsPaneRoute] = []
+    /// The More tab's stack on iPhone; nil where Settings roots its own (the
+    /// Mac's Settings window, the iPad sidebar).
+    @Environment(\.navigationPush) var enclosingPush
+    @AppStorage(UserDefaultsKeys.settingsSelectedCategory) var selectedCategoryRaw: String = ""
 
     init(showsPageHeader: Bool = true) {
         self.showsPageHeader = showsPageHeader
@@ -76,37 +80,19 @@ struct SettingsView: View {
         #endif
     }
 
-    /// Opens a category from inside a pane (the Overview's fix buttons): selects
-    /// it beside the sidebar, or pushes its pane on iPhone.
-    func openCategory(_ category: SettingsCategory) {
-        if isCompact {
-            compactPath.append(SettingsPaneRoute(category: category))
-        } else {
-            selectedCategoryRaw = category.rawValue
-        }
-    }
-
-    /// Opens the category that holds a card, scrolled to the card and outlined.
-    func openCard(_ group: SettingsCopy.Group) {
-        if isCompact {
-            compactPath.append(SettingsPaneRoute(category: group.category, focus: group))
-        } else {
-            requestedFocus = group
-            selectedCategoryRaw = group.category.rawValue
-        }
-    }
-
     var body: some View {
-        NavigationStack(path: $compactPath) {
-            VStack(spacing: 0) {
-                if showsPageHeader {
-                    ViewHeader(title: "Settings")
-                    Divider()
+        Group {
+            if enclosingPush != nil {
+                // Pushed into the More tab's stack: its bar has the one back
+                // button and shows the title; a stack here added a second of each.
+                settingsPage
+            } else {
+                NavigationStack(path: $compactPath) {
+                    settingsPage
                 }
-                settingsContent
+                .inlineNavigationTitle()
             }
         }
-        .inlineNavigationTitle()
         .onChange(of: selectedCategoryRaw) { _, _ in
             // A card the Overview asked for belongs to that one visit.
             if requestedFocus?.category != selectedCategory { requestedFocus = nil }
@@ -122,6 +108,16 @@ struct SettingsView: View {
             if !UserDefaults.standard.bool(forKey: UserDefaultsKeys.ephemeralSessionFlag) {
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
             }
+        }
+    }
+
+    private var settingsPage: some View {
+        VStack(spacing: 0) {
+            if showsPageHeader {
+                ViewHeader(title: "Settings")
+                Divider()
+            }
+            settingsContent
         }
     }
 

@@ -86,7 +86,7 @@ struct ParshaCalendarView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        PageNavigationStack {
             ScrollViewReader { proxy in
                 List {
                     Section {

@@ -59,7 +59,7 @@ extension RootView {
         /// This group's rows as the macOS sidebar shows them.
         var macSidebarItems: [NavigationItem] { items.filter { !Self.hiddenInMacSidebar.contains($0) } }
 
-        /// iPhone tab bar order; the `TabView` adds "More" itself.
+        /// iPhone tab bar order; `RootAdaptiveTabs` adds "More" after them.
         static let primaryTabs: [NavigationItem] = [.today, .students, .attendance, .planningAgenda]
 
         /// This group's rows as the iPhone More list and iPad sidebar show

@@ -13,6 +13,12 @@ struct AlbumsRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var nav = AlbumsNavModel()
     @State private var intelligence = AlbumIntelligence()
+    /// The iPhone More tab's stack. A split view can't sit inside a stack, so
+    /// there the list is a page of its own and each section pushes onto it.
+    @Environment(\.navigationPush) private var enclosingPush
+    /// Set on the first appearance, so coming back to the list never undoes
+    /// what the guide has opened since.
+    @State private var hasAppeared = false
     @SceneStorage(UserDefaultsKeys.albumsSidebarSelection) private var storedSelection = ""
 
     var body: some View {
@@ -46,10 +52,17 @@ struct AlbumsRootView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 #else
-                NavigationSplitView {
+                if enclosingPush != nil {
                     AlbumsSidebar(selection: $nav.selection)
-                } detail: {
-                    detail
+                        .navigationDestination(item: $nav.selection) { item in
+                            detail(for: item)
+                        }
+                } else {
+                    NavigationSplitView {
+                        AlbumsSidebar(selection: $nav.selection)
+                    } detail: {
+                        detail
+                    }
                 }
                 #endif
             }
@@ -78,7 +91,13 @@ struct AlbumsRootView: View {
         }
         .onChange(of: appRouter.albumPageRequest) { consumeRouterRequest() }
         .onAppear {
-            if let restored = AlbumsSidebarItem(rawStorage: storedSelection) {
+            guard !hasAppeared else { return }
+            hasAppeared = true
+            // In the More tab a selection is a pushed page, so the list opens
+            // on the list, not on the section last read.
+            if enclosingPush != nil {
+                nav.selection = nil
+            } else if let restored = AlbumsSidebarItem(rawStorage: storedSelection) {
                 nav.selection = restored
             }
         }
@@ -105,9 +124,13 @@ struct AlbumsRootView: View {
                  highlight: request.highlight)
     }
 
+    private var detail: some View { detail(for: nav.selection) }
+
+    /// Takes the item rather than reading `nav.selection`, which a pop clears
+    /// while the pushed page is still sliding away.
     @ViewBuilder
-    private var detail: some View {
-        switch nav.selection {
+    private func detail(for item: AlbumsSidebarItem?) -> some View {
+        switch item {
         case .library, nil:
             AlbumsLibraryView()
         case .search:

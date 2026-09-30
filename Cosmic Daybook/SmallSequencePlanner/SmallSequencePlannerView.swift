@@ -18,11 +18,11 @@ struct SmallSequencePlannerView: View {
     @State private var changeToken = 0
 
     /// Its own stack, as every other root screen that pushes has (Settings,
-    /// This Week's Parsha): no container gives a root screen one — not the
-    /// iPad's tab view, the iPhone's More list or the Mac's split view detail
-    /// column — so without it the title was missing on iPad and iPhone and
-    /// every lesson card was dead.
-    var body: some View { NavigationStack { planner } }
+    /// This Week's Parsha): neither the iPad's tab view nor the Mac's split
+    /// view detail column gives a root screen one, so without it the title was
+    /// missing and every lesson card was dead. The iPhone's More tab has a
+    /// stack already, and the planner pushes into that one.
+    var body: some View { PageNavigationStack { planner } }
 
     private var planner: some View {
         content
