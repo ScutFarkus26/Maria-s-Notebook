@@ -68,27 +68,8 @@ final class CalendarSyncService {
         self.managedObjectContext = context
         self.defaults = defaults
 
-        // Load calendar identifiers (with migration from legacy single-calendar storage)
-        if let identifiers = defaults.array(forKey: UserDefaultsKeys.calendarSyncIdentifiers) as? [String] {
-            self.syncCalendarIdentifiers = identifiers
-        } else if let legacyIdentifier = defaults.string(forKey: UserDefaultsKeys.calendarSyncLegacyIdentifier) {
-            // Migrate from legacy single calendar
-            self.syncCalendarIdentifiers = [legacyIdentifier]
-            defaults.set([legacyIdentifier], forKey: UserDefaultsKeys.calendarSyncIdentifiers)
-        } else {
-            self.syncCalendarIdentifiers = []
-        }
-
-        // Load calendar names (with migration from legacy single-calendar storage)
-        if let names = defaults.array(forKey: UserDefaultsKeys.calendarSyncNames) as? [String] {
-            self.syncCalendarNames = names
-        } else if let legacyName = defaults.string(forKey: UserDefaultsKeys.calendarSyncLegacyName) {
-            // Migrate from legacy single calendar
-            self.syncCalendarNames = [legacyName]
-            defaults.set([legacyName], forKey: UserDefaultsKeys.calendarSyncNames)
-        } else {
-            self.syncCalendarNames = []
-        }
+        self.syncCalendarIdentifiers = defaults.array(forKey: UserDefaultsKeys.calendarSyncIdentifiers) as? [String] ?? []
+        self.syncCalendarNames = defaults.array(forKey: UserDefaultsKeys.calendarSyncNames) as? [String] ?? []
 
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
 

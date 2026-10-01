@@ -20,9 +20,6 @@ nonisolated enum UserDefaultsKeys {
     }
     static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
     static var cloudKitErrorLog: String { CloudKitEnvironment.scoped("cloudKitErrorLog") }
-    /// Legacy — the history processor's single token for both stores, which
-    /// only ever held a position in one of them. Removed on launch.
-    static let persistentHistoryLastToken = "PersistentHistory.lastToken"
     /// The history processor's position in each store: archived
     /// `NSPersistentHistoryToken` data keyed by `NSPersistentStore.identifier`.
     static var persistentHistoryStoreTokens: String { CloudKitEnvironment.scoped("PersistentHistory.storeTokens") }
@@ -100,9 +97,6 @@ nonisolated enum UserDefaultsKeys {
     static let lessonsAgendaStartDate = "LessonsAgenda.startDate"
     static let lessonsAgendaMissWindow = "LessonsAgenda.missWindow"
     static let planningRecentWindowDays = "Planning.recentWindowDays"
-    /// Legacy — the "Work" checkbox on the old presentations-only calendar.
-    /// No longer read (its one-time migration was never wired up); still carried in backups.
-    static let presentationsCalendarShowWork = "PresentationsCalendar.showWork"
     /// What the merged calendar shows: a `CalendarKindFilter` raw value.
     static let calendarVisibleKinds = "Calendar.visibleKinds"
 
@@ -152,9 +146,6 @@ nonisolated enum UserDefaultsKeys {
     // MARK: - Calendar & Reminder Sync
     static let calendarSyncIdentifiers = "CalendarSync.syncCalendarIdentifiers"
     static let calendarSyncNames = "CalendarSync.syncCalendarNames"
-    /// Single-calendar spellings kept only so an old install migrates forward.
-    static let calendarSyncLegacyIdentifier = "CalendarSync.syncCalendarIdentifier"
-    static let calendarSyncLegacyName = "CalendarSync.syncCalendarName"
     static let reminderSyncListIdentifier = "ReminderSync.syncListIdentifier"
     static let reminderSyncListName = "ReminderSync.syncListName"
 
@@ -172,9 +163,6 @@ nonisolated enum UserDefaultsKeys {
     static let workAgendaCalendarExpanded = "WorkAgenda.calendarExpanded"
     /// The calendar pane's share of the workspace height, 0.2–0.7.
     static let workAgendaCalendarFraction = "WorkAgenda.calendarFraction"
-    /// Legacy — the "Presentations" checkbox on the old work-only calendar.
-    /// No longer read (its one-time migration was never wired up); still carried in backups.
-    static let workCalendarShowPresentations = "WorkCalendar.showPresentations"
 
     // MARK: - Migrations
     static let retiredAIKeysRemovedV1 = "Migration.retiredAIKeysRemoved.v1"

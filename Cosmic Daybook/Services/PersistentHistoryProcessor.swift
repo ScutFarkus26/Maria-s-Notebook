@@ -73,10 +73,6 @@ actor PersistentHistoryProcessor {
         self.container = container
         self.defaults = defaults
         self.positions = Self.loadPositions(from: defaults)
-        // The single token kept before per-store positions covered one store,
-        // and nothing records which. Without it the first pass reads each
-        // store from its beginning, exactly as on a first launch.
-        defaults.removeObject(forKey: UserDefaultsKeys.persistentHistoryLastToken)
     }
 
     // MARK: - Public: Process Remote Changes

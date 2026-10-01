@@ -151,19 +151,17 @@ struct PersistentHistoryStoreCursorTests {
 
     // MARK: - Across launches
 
-    @Test("The processor saves one position per store, keeps them across a relaunch, and drops the old token")
+    @Test("The processor saves one position per store and keeps them across a relaunch")
     func positionsSurviveARelaunch() async throws {
         let stores = try TwoStoreHistoryFixture()
         defer { stores.removeFiles() }
         let suite = "PersistentHistoryStoreCursorTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        defaults.set(Data([0x01]), forKey: UserDefaultsKeys.persistentHistoryLastToken)
 
         let processor = PersistentHistoryProcessor(
             container: stores.container, defaults: try Self.processorDefaults(suite: suite)
         )
-        #expect(defaults.object(forKey: UserDefaultsKeys.persistentHistoryLastToken) == nil)
 
         try stores.write(.privateStore, as: Self.ownAuthor)
         try stores.write(.sharedStore, as: Self.ownAuthor)

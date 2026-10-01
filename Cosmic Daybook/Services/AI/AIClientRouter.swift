@@ -57,24 +57,22 @@ final class AIClientRouter: MCPClientProtocol {
         try await generateText(
             prompt: prompt, systemMessage: nil,
             temperature: temperature, maxTokens: nil,
-            model: nil, timeout: nil
+            timeout: nil
         )
     }
 
-    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String,
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int?,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
         try await route { client in
             try await client.generateText(
                 prompt: prompt, systemMessage: systemMessage,
                 temperature: temperature, maxTokens: maxTokens,
-                model: model, timeout: timeout
+                timeout: timeout
             )
         }
     }
@@ -85,37 +83,33 @@ final class AIClientRouter: MCPClientProtocol {
         try await generateStructuredJSON(
             prompt: prompt, systemMessage: nil,
             temperature: temperature, maxTokens: nil,
-            model: nil, timeout: nil
+            timeout: nil
         )
     }
 
-    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String,
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int?,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
         try await route { client in
             try await client.generateStructuredJSON(
                 prompt: prompt, systemMessage: systemMessage,
                 temperature: temperature, maxTokens: maxTokens,
-                model: model, timeout: timeout
+                timeout: timeout
             )
         }
     }
 
     // MARK: - MCPClientProtocol — sendConversation
 
-    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
         try await route { client in
@@ -124,7 +118,7 @@ final class AIClientRouter: MCPClientProtocol {
                 systemMessage: systemMessage,
                 temperature: temperature,
                 maxTokens: maxTokens,
-                model: model, timeout: timeout
+                timeout: timeout
             )
         }
     }
@@ -137,7 +131,6 @@ final class AIClientRouter: MCPClientProtocol {
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
@@ -147,7 +140,7 @@ final class AIClientRouter: MCPClientProtocol {
                 systemMessage: systemMessage,
                 temperature: temperature,
                 maxTokens: maxTokens,
-                model: model, timeout: timeout,
+                timeout: timeout,
                 onText: onText
             )
         }

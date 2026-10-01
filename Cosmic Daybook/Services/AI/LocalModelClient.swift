@@ -62,13 +62,11 @@ final class LocalModelClient: FoundationModelClient {
     // model can search the teacher's own notes/lessons/students while answering —
     // fully on-device.
 
-    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
         try requireAvailable()
@@ -90,7 +88,6 @@ final class LocalModelClient: FoundationModelClient {
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {

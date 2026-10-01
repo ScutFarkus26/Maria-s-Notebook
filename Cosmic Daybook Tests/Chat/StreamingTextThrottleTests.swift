@@ -181,15 +181,14 @@ struct StreamingTextThrottleTests {
 
         func generateText(prompt: String, temperature: Double) async throws -> String { answer }
         func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { "{}" }
-        // swiftlint:disable:next function_parameter_count
         func sendConversation(
             messages: [[String: String]], systemMessage: String?, temperature: Double,
-            maxTokens: Int, model: String?, timeout: TimeInterval?
+            maxTokens: Int, timeout: TimeInterval?
         ) async throws -> String { answer }
         // swiftlint:disable:next function_parameter_count
         func streamConversation(
             messages: [[String: String]], systemMessage: String?, temperature: Double,
-            maxTokens: Int, model: String?, timeout: TimeInterval?,
+            maxTokens: Int, timeout: TimeInterval?,
             onText: @escaping @MainActor @Sendable (String) -> Void
         ) async throws -> String {
             streamingCalls += 1

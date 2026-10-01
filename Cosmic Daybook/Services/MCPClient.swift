@@ -2,7 +2,7 @@
 //  MCPClient.swift
 //  Cosmic Daybook
 //
-//  MCP (Model Context Protocol) client for external AI tool integration
+//  The app's language-model client interface; AIClientRouter tries on-device, then opt-in Private Cloud Compute
 //
 
 import Foundation
@@ -30,29 +30,25 @@ protocol MCPClientProtocol {
     ) async throws -> String
 
     // Generates text with full configuration including model and timeout
-    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
-        model: String?, timeout: TimeInterval?
+        timeout: TimeInterval?
     ) async throws -> String
 
     // Generates structured JSON with full configuration
-    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
-        model: String?, timeout: TimeInterval?
+        timeout: TimeInterval?
     ) async throws -> String
     
     // Sends a multi-turn conversation and returns the assistant's response text.
-    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String
 
@@ -65,7 +61,6 @@ protocol MCPClientProtocol {
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String
@@ -93,7 +88,7 @@ extension MCPClientProtocol {
         try await generateText(
             prompt: prompt, systemMessage: systemMessage,
             temperature: temperature, maxTokens: maxTokens,
-            model: nil, timeout: nil
+            timeout: nil
         )
     }
 
@@ -104,35 +99,31 @@ extension MCPClientProtocol {
         try await generateStructuredJSON(
             prompt: prompt, systemMessage: systemMessage,
             temperature: temperature, maxTokens: maxTokens,
-            model: nil, timeout: nil
+            timeout: nil
         )
     }
 
-    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
-        model: String?, timeout: TimeInterval?
+        timeout: TimeInterval?
     ) async throws -> String {
         try await generateText(prompt: prompt, temperature: temperature)
     }
 
-    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String, systemMessage: String?,
         temperature: Double, maxTokens: Int?,
-        model: String?, timeout: TimeInterval?
+        timeout: TimeInterval?
     ) async throws -> String {
         try await generateStructuredJSON(prompt: prompt, temperature: temperature)
     }
 
-    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]],
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
         // Flatten multi-turn messages into a single prompt for clients
@@ -144,7 +135,6 @@ extension MCPClientProtocol {
             systemMessage: systemMessage,
             temperature: temperature,
             maxTokens: maxTokens,
-            model: model,
             timeout: timeout
         )
     }
@@ -155,7 +145,6 @@ extension MCPClientProtocol {
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int,
-        model: String?,
         timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
@@ -165,7 +154,6 @@ extension MCPClientProtocol {
             systemMessage: systemMessage,
             temperature: temperature,
             maxTokens: maxTokens,
-            model: model,
             timeout: timeout
         )
         onText(result)

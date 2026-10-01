@@ -79,25 +79,12 @@ final class ReminderSyncService {
         self.syncListName = defaults.string(forKey: UserDefaultsKeys.reminderSyncListName)
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
 
-        // Migrate from name-only storage to identifier-based storage
-        migrateToIdentifierBasedStorage()
-
         // Start observing if we have access and a sync list configured
         if syncListIdentifier != nil && hasFullAccess {
             startObservingChanges()
         }
     }
 
-    /// Migrate from legacy name-based storage to identifier-based storage
-    private func migrateToIdentifierBasedStorage() {
-        // If we have a name but no identifier, try to find the calendar and store its identifier
-        if syncListIdentifier == nil, let name = syncListName, !name.isEmpty, hasFullAccess {
-            if let calendar = findReminderList(named: name) {
-                syncListIdentifier = calendar.calendarIdentifier
-            }
-        }
-    }
-    
     deinit {
         // `deinit` is not MainActor-isolated
         // The stopObservingChangesOnMainActor method is already designed to handle cleanup safely
@@ -197,10 +184,6 @@ final class ReminderSyncService {
     }
 
     // MARK: - Private Helpers
-
-    func findReminderList(named name: String) -> EKCalendar? {
-        Self.reminderList(named: name, in: eventStore.calendars(for: .reminder))
-    }
 
     /// The first of `lists` titled `name`.
     static func reminderList(named name: String, in lists: [EKCalendar]) -> EKCalendar? {

@@ -176,12 +176,12 @@ private struct RestorePreviewViewPreview: View {
     var body: some View {
         let preview = RestorePreview(
             mode: "merge",
-            entityInserts: ["Student": 3, "Lesson": 1, "LegacyPresentation": 4],
-            entitySkips: ["Student": 2, "Lesson": 0, "LegacyPresentation": 1],
-            entityDeletes: ["Student": 0, "Lesson": 0, "LegacyPresentation": 0],
+            entityInserts: ["Student": 3, "Lesson": 1, "LessonAssignment": 4],
+            entitySkips: ["Student": 2, "Lesson": 0, "LessonAssignment": 1],
+            entityDeletes: ["Student": 0, "Lesson": 0, "LessonAssignment": 0],
             totalInserts: 8,
             totalDeletes: 0,
-            warnings: ["1 LegacyPresentation records reference missing Lessons and will be skipped."]
+            warnings: ["1 LessonAssignment records reference missing Lessons and will be skipped."]
         )
         return RestorePreviewView(preview: preview, onCancel: {}, onConfirm: {})
     }

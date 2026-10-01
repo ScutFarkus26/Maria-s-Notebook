@@ -284,7 +284,7 @@ private extension PostPresentationCaptureSheet {
         let lessonData = [LessonData(id: lessonID, name: lesson.name, area: lesson.area, sequence: lesson.sequence)]
 
         Task {
-            await captureViewModel.submit(students: studentData, lessons: lessonData, mcpClient: nil)
+            await captureViewModel.submit(students: studentData, lessons: lessonData)
             normalizeProposalAfterOrganization(originalWords: trimmed)
         }
     }

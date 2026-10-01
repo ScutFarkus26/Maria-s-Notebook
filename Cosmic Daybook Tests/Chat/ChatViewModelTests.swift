@@ -28,10 +28,9 @@ private struct HeldAnswerClient: MCPClientProtocol {
     let gate: AnswerGate
     func generateText(prompt: String, temperature: Double) async throws -> String { "" }
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { "{}" }
-    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, model: String?, timeout: TimeInterval?
+        maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String {
         await gate.hold()
         return "Maya had the golden beads on Monday."
@@ -39,7 +38,7 @@ private struct HeldAnswerClient: MCPClientProtocol {
     // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, model: String?, timeout: TimeInterval?,
+        maxTokens: Int, timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String {
         await gate.hold()

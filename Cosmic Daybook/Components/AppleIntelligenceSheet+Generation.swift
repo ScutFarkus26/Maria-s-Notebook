@@ -90,7 +90,7 @@ extension AppleIntelligenceSheet {
                 guard onDevice.isAvailable else { throw error }
                 return try await onDevice.generateText(
                     prompt: prompt, systemMessage: AIPrompts.advancedAssistant,
-                    temperature: 0.7, maxTokens: nil, model: nil, timeout: nil
+                    temperature: 0.7, maxTokens: nil, timeout: nil
                 )
             }
         }
@@ -98,7 +98,7 @@ extension AppleIntelligenceSheet {
         do {
             return try await onDevice.generateText(
                 prompt: prompt, systemMessage: AIPrompts.advancedAssistant,
-                temperature: 0.7, maxTokens: nil, model: nil, timeout: nil
+                temperature: 0.7, maxTokens: nil, timeout: nil
             )
         } catch LocalModelError.contextTooLarge where privateCloud.isAvailable {
             return try await privateCloud.generateDraft(

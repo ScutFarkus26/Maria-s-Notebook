@@ -24,10 +24,9 @@ struct MCPClientDispatchTests {
 
         func generateText(prompt: String, temperature: Double) async throws -> String { "text" }
         func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { "{}" }
-        // swiftlint:disable:next function_parameter_count
         func sendConversation(
             messages: [[String: String]], systemMessage: String?, temperature: Double,
-            maxTokens: Int, model: String?, timeout: TimeInterval?
+            maxTokens: Int, timeout: TimeInterval?
         ) async throws -> String {
             sendCalls += 1
             return "whole answer, not streamed"
@@ -35,7 +34,7 @@ struct MCPClientDispatchTests {
         // swiftlint:disable:next function_parameter_count
         func streamConversation(
             messages: [[String: String]], systemMessage: String?, temperature: Double,
-            maxTokens: Int, model: String?, timeout: TimeInterval?,
+            maxTokens: Int, timeout: TimeInterval?,
             onText: @escaping @MainActor @Sendable (String) -> Void
         ) async throws -> String {
             streamCalls += 1
@@ -56,13 +55,12 @@ struct MCPClientDispatchTests {
         func generateText(prompt: String, temperature: Double) async throws -> String {
             try await generateText(
                 prompt: prompt, systemMessage: nil, temperature: temperature,
-                maxTokens: nil, model: nil, timeout: nil
+                maxTokens: nil, timeout: nil
             )
         }
-        // swiftlint:disable:next function_parameter_count
         func generateText(
             prompt: String, systemMessage: String?, temperature: Double,
-            maxTokens: Int?, model: String?, timeout: TimeInterval?
+            maxTokens: Int?, timeout: TimeInterval?
         ) async throws -> String {
             textSystemMessage = systemMessage
             textMaxTokens = maxTokens
@@ -71,13 +69,12 @@ struct MCPClientDispatchTests {
         func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String {
             try await generateStructuredJSON(
                 prompt: prompt, systemMessage: nil, temperature: temperature,
-                maxTokens: nil, model: nil, timeout: nil
+                maxTokens: nil, timeout: nil
             )
         }
-        // swiftlint:disable:next function_parameter_count
         func generateStructuredJSON(
             prompt: String, systemMessage: String?, temperature: Double,
-            maxTokens: Int?, model: String?, timeout: TimeInterval?
+            maxTokens: Int?, timeout: TimeInterval?
         ) async throws -> String {
             jsonSystemMessage = systemMessage
             jsonMaxTokens = maxTokens
@@ -159,14 +156,14 @@ struct MCPClientDispatchTests {
             prompt: "a", systemMessage: "s", temperature: 0.5, maxTokens: 10
         )
         let six = try await client.generateText(
-            prompt: "b", systemMessage: "s", temperature: 0.5, maxTokens: 10, model: nil, timeout: nil
+            prompt: "b", systemMessage: "s", temperature: 0.5, maxTokens: 10, timeout: nil
         )
         let json = try await client.generateStructuredJSON(
-            prompt: "c", systemMessage: "s", temperature: 0.5, maxTokens: 10, model: nil, timeout: nil
+            prompt: "c", systemMessage: "s", temperature: 0.5, maxTokens: 10, timeout: nil
         )
         let streamed = try await client.streamConversation(
             messages: [["role": "user", "content": "hi"]], systemMessage: nil,
-            temperature: 0.7, maxTokens: 100, model: nil, timeout: nil
+            temperature: 0.7, maxTokens: 100, timeout: nil
         ) { answerSoFar in
             recorder.texts.append(answerSoFar)
         }

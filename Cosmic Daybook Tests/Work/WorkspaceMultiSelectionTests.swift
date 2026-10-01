@@ -104,11 +104,11 @@ struct WorkspaceMultiSelectionTests {
         #expect(UnifiedCalendarDragPayload.parse(payload) == .work(first))
     }
 
-    @Test("Single-record strings are unchanged, legacy forms included")
+    @Test("Single-record strings are unchanged, a bare id included")
     func singleRecordStringsStillParse() {
         let id = UUID()
         #expect(UnifiedCalendarDragPayload.parse("WORK:\(id.uuidString)") == .work(id))
-        #expect(UnifiedCalendarDragPayload.parse("STUDENTLESSON:\(id.uuidString)") == .presentation(id))
+        #expect(UnifiedCalendarDragPayload.parse("CHECKIN:\(id.uuidString)") == nil)
         #expect(UnifiedCalendarDragPayload.parse(id.uuidString) == .presentation(id))
         #expect(UnifiedCalendarDragPayload.parse("nonsense") == nil)
         #expect(UnifiedCalendarDragPayload.parseAll("nonsense").isEmpty)

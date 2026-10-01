@@ -120,7 +120,6 @@ struct BackupPreferencesServiceTests {
         // Never export secrets or device-only plumbing.
         let forbidden = [
             UserDefaultsKeys.cloudKitLastErrorDescription,
-            UserDefaultsKeys.persistentHistoryLastToken,
             UserDefaultsKeys.persistentHistoryStoreTokens,
             UserDefaultsKeys.classroomSharePendingAttach,
             UserDefaultsKeys.aiMCPServerEnabled,

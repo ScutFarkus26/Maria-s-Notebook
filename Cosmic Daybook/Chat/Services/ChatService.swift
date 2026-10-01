@@ -80,7 +80,6 @@ final class ChatService {
             systemMessage: systemMessage,
             temperature: 0.7,
             maxTokens: 2048,
-            model: nil,
             timeout: nil,
             onText: onText
         )

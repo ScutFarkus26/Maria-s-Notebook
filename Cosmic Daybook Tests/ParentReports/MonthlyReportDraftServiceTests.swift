@@ -15,15 +15,14 @@ private struct UnavailableModelClient: MCPClientProtocol {
     struct Unavailable: Error {}
     func generateText(prompt: String, temperature: Double) async throws -> String { throw Unavailable() }
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { throw Unavailable() }
-    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, model: String?, timeout: TimeInterval?
+        maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String { throw Unavailable() }
     // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, model: String?, timeout: TimeInterval?,
+        maxTokens: Int, timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String { throw Unavailable() }
 }
@@ -33,15 +32,14 @@ private struct FixedNarrativeClient: MCPClientProtocol {
     let narrative: String
     func generateText(prompt: String, temperature: Double) async throws -> String { narrative }
     func generateStructuredJSON(prompt: String, temperature: Double) async throws -> String { "{}" }
-    // swiftlint:disable:next function_parameter_count
     func sendConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, model: String?, timeout: TimeInterval?
+        maxTokens: Int, timeout: TimeInterval?
     ) async throws -> String { narrative }
     // swiftlint:disable:next function_parameter_count
     func streamConversation(
         messages: [[String: String]], systemMessage: String?, temperature: Double,
-        maxTokens: Int, model: String?, timeout: TimeInterval?,
+        maxTokens: Int, timeout: TimeInterval?,
         onText: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> String { narrative }
 }

@@ -60,13 +60,7 @@ nonisolated public enum UnifiedCalendarDragPayload: Equatable {
         let trimmed = firstLine.trimmed()
         if trimmed.hasPrefix("PRESENTATION:"), let id = UUID(uuidString: String(trimmed.dropFirst(13))) {
             return .presentation(id)
-        } else if trimmed.hasPrefix("STUDENTLESSON:"), let id = UUID(uuidString: String(trimmed.dropFirst(14))) {
-            // Legacy format support
-            return .presentation(id)
         } else if trimmed.hasPrefix("WORKCHECKIN:"), let id = UUID(uuidString: String(trimmed.dropFirst(12))) {
-            return .workCheckIn(id)
-        } else if trimmed.hasPrefix("CHECKIN:"), let id = UUID(uuidString: String(trimmed.dropFirst(8))) {
-            // Legacy format from WorkAgendaDragPayload
             return .workCheckIn(id)
         } else if trimmed.hasPrefix("WORK:"), let id = UUID(uuidString: String(trimmed.dropFirst(5))) {
             return .work(id)

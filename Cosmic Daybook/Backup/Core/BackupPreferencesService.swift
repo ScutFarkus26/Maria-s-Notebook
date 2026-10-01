@@ -74,7 +74,6 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.planningRecentWindowDays,
         UserDefaultsKeys.planningRootViewMode,
         UserDefaultsKeys.planningInboxOrder,
-        UserDefaultsKeys.presentationsCalendarShowWork,
         UserDefaultsKeys.presentationHistoryNameDisplayStyle,
         UserDefaultsKeys.calendarVisibleKinds,
         UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold,
@@ -93,7 +92,6 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.workAgendaVisibleKinds,
         UserDefaultsKeys.workAgendaCalendarExpanded,
         UserDefaultsKeys.workAgendaCalendarFraction,
-        UserDefaultsKeys.workCalendarShowPresentations,
         // View preferences
         UserDefaultsKeys.studentsViewSortOrder,
         UserDefaultsKeys.studentsViewSelectedFilter,

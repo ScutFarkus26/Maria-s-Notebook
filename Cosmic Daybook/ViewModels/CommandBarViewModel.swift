@@ -55,7 +55,7 @@ final class CommandBarViewModel {
 
     // MARK: - Public Methods
 
-    func submit(students: [StudentData], lessons: [LessonData], mcpClient: MCPClientProtocol?) async {
+    func submit(students: [StudentData], lessons: [LessonData]) async {
         let trimmed = inputText.trimmed()
         guard !trimmed.isEmpty else { return }
 
@@ -67,8 +67,7 @@ final class CommandBarViewModel {
         await commandBarService.parse(
             input: trimmed,
             students: students,
-            lessons: lessons,
-            mcpClient: mcpClient
+            lessons: lessons
         )
 
         switch commandBarService.parseState {

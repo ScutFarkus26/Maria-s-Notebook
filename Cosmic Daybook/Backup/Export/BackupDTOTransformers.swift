@@ -24,9 +24,6 @@ import OSLog
 /// carries their full field set. Duplicating them here caused silent field loss
 /// in the past — keep a single transformer per entity.
 enum BackupDTOTransformers {
-    // MARK: - LegacyPresentation (removed — model fully migrated to CDLessonAssignment)
-    // LegacyPresentationDTO is kept for import backward compatibility only.
-
     // MARK: - WorkPlanItem - REMOVED IN PHASE 6
     // WorkPlanItem has been migrated to CDWorkCheckIn and removed from schema
 

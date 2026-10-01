@@ -59,7 +59,7 @@ final class ParshaSuggestionService {
         let topics = metadata?.topics ?? []
         let passageRange = metadata?.passageRange ?? ""
 
-        // Build a compact, indexed digest. We send numeric indices and let Claude
+        // Build a compact, indexed digest. We send numeric indices and let the model
         // respond with indices to avoid UUID hallucination.
         let digestEntries: [(index: Int, lesson: CDLesson)] = albumLessons.prefix(400)
             .enumerated()
@@ -102,7 +102,6 @@ final class ParshaSuggestionService {
             systemMessage: systemMessage,
             temperature: 0.3,
             maxTokens: 1024,
-            model: nil,
             timeout: 90
         )
 

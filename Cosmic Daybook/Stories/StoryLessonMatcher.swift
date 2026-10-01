@@ -278,7 +278,6 @@ enum StoryLessonMatcher {
                 systemMessage: system,
                 temperature: 0.3,
                 maxTokens: 1024,
-                model: nil,
                 timeout: 30
             )
         } catch {

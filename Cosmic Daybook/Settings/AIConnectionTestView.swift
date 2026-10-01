@@ -69,7 +69,6 @@ struct AIConnectionTestView: View {
                 systemMessage: "You are a test assistant. Reply concisely with the requested text.",
                 temperature: 0.0,
                 maxTokens: 20,
-                model: nil,
                 timeout: 15
             )
             testSuccess = true

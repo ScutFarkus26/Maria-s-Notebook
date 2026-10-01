@@ -382,8 +382,7 @@ struct CommandBarSheet: View {
         Task {
             await viewModel.submit(
                 students: studentData,
-                lessons: lessonData,
-                mcpClient: dependencies.mcpClient
+                lessons: lessonData
             )
         }
     }

@@ -12,7 +12,6 @@ enum BackupSizeEstimator {
     static let averageBytesPerEntity: [String: Int] = [
         "Student": 600,
         "Lesson": 2500,
-        "LegacyPresentation": 300,
         "Note": 300,
         "NonSchoolDay": 200,
         "SchoolDayOverride": 200,

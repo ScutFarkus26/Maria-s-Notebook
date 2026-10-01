@@ -61,7 +61,6 @@ final class LessonPlanningService {
             systemMessage: config.systemPrompt,
             temperature: config.temperature,
             maxTokens: 4096,
-            model: nil,
             timeout: config.timeout
         )
 
@@ -87,7 +86,6 @@ final class LessonPlanningService {
                 systemMessage: config.systemPrompt,
                 temperature: config.temperature,
                 maxTokens: 4096,
-                model: nil,
                 timeout: config.timeout
             )
 
@@ -140,7 +138,6 @@ final class LessonPlanningService {
             systemMessage: config.systemPrompt,
             temperature: min(config.temperature + 0.1, 1.0),
             maxTokens: 4096,
-            model: nil,
             timeout: config.timeout
         )
 

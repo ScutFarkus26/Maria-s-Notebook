@@ -34,8 +34,7 @@ final class CommandBarService {
     func parse(
         input: String,
         students: [StudentData],
-        lessons: [LessonData],
-        mcpClient _: MCPClientProtocol?
+        lessons: [LessonData]
     ) async {
         parseState = .parsing
 

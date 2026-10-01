@@ -109,13 +109,11 @@ extension FoundationModelClient {
         )
     }
 
-    // swiftlint:disable:next function_parameter_count
     func generateText(
         prompt: String,
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int?,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
         try await respond(
@@ -131,13 +129,11 @@ extension FoundationModelClient {
         )
     }
 
-    // swiftlint:disable:next function_parameter_count
     func generateStructuredJSON(
         prompt: String,
         systemMessage: String?,
         temperature: Double,
         maxTokens: Int?,
-        model: String?,
         timeout: TimeInterval?
     ) async throws -> String {
         try await respondJSON(
