@@ -1,51 +1,10 @@
 // LessonPlanningService+Helpers.swift
-// Plan building, context helpers, and data fetching for LessonPlanningService.
+// Context helpers and data fetching for LessonPlanningService.
 
 import Foundation
 import CoreData
 
 extension LessonPlanningService {
-
-    // MARK: - Week Plan Building
-
-    func buildWeekPlan(
-        from recommendations: [LessonRecommendation],
-        groupings: [GroupingSuggestion],
-        weekStart: Date,
-        summary: String
-    ) -> WeekPlan {
-        let weekDays = (0..<5).compactMap { offset -> (String, Date)? in
-            guard let date = AppCalendar.shared.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
-            return (DateFormatters.weekdayAndDate.string(from: date), date)
-        }
-
-        var days = weekDays.map { WeekPlan.DayPlanEntry(dayName: $0.0, date: $0.1) }
-
-        // Assign recommendations to days
-        for rec in recommendations {
-            if let dayName = rec.suggestedDay,
-               let dayIndex = days.firstIndex(where: {
-                   let prefix = dayName.lowercased().prefix(3)
-                   return $0.dayName.lowercased().hasPrefix(String(prefix))
-               }) {
-                days[dayIndex].recommendations.append(rec)
-            } else {
-                // Find the day with fewest recommendations
-                if let minIndex = days.indices.min(by: {
-                    days[$0].recommendations.count < days[$1].recommendations.count
-                }) {
-                    days[minIndex].recommendations.append(rec)
-                }
-            }
-        }
-
-        return WeekPlan(
-            weekStartDate: weekStart,
-            days: days,
-            groupings: groupings,
-            summary: summary
-        )
-    }
 
     // MARK: - Context Helpers
 
@@ -57,10 +16,6 @@ extension LessonPlanningService {
         case .singleStudent(let id):
             let name = session.readinessProfiles.first { $0.studentID == id }?.studentName ?? "student"
             lines.append("Planning for: \(name)")
-        case .wholeClass:
-            lines.append("Whole-class weekly planning")
-        case .quickSuggest(let ids):
-            lines.append("Quick suggestions for \(ids.count) students")
         }
 
         // Factual curriculum evidence (very condensed)
@@ -132,11 +87,6 @@ extension LessonPlanningService {
         switch mode {
         case .singleStudent(let id):
             return allStudents.filter { $0.id == id }
-        case .wholeClass:
-            return allStudents
-        case .quickSuggest(let ids):
-            let idSet = Set(ids)
-            return allStudents.filter { guard let sid = $0.id else { return false }; return idSet.contains(sid) }
         }
     }
 

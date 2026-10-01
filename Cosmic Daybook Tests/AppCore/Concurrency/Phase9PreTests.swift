@@ -7,43 +7,6 @@ import Testing
 @MainActor
 final class Phase9PreTests {
 
-    // MARK: - @MainActor Annotation Baseline
-
-    @Test("@MainActor annotation count is documented baseline (~496)")
-    func mainActorAnnotationBaseline() {
-        // This test documents the current @MainActor usage count.
-        // The app uses @MainActor extensively on views, view models, and services.
-        // Under Swift 6.2 module-level @MainActor, most of these become redundant.
-        // Baseline count: ~496 (as of Phase 8 completion)
-        //
-        // This is a documentation test — it always passes.
-        // The actual count is verified manually via grep.
-        let documentedCount = 496
-        #expect(documentedCount > 400, "App should have significant @MainActor usage")
-    }
-
-    // MARK: - Sendable Conformance Baseline
-
-    @Test("Sendable conformance count is documented baseline (~46)")
-    func sendableConformanceBaseline() {
-        // Documents the current Sendable protocol conformance count.
-        // These types can safely cross concurrency boundaries.
-        // Baseline: ~46 types conform to Sendable
-        let documentedCount = 46
-        #expect(documentedCount > 20, "App should have meaningful Sendable conformance")
-    }
-
-    // MARK: - nonisolated Baseline
-
-    @Test("nonisolated declaration count is documented baseline (~257)")
-    func nonisolatedDeclarationBaseline() {
-        // Documents current nonisolated declarations.
-        // Under module-level @MainActor, these become critical for opting out.
-        // Baseline: ~257 nonisolated declarations
-        let documentedCount = 257
-        #expect(documentedCount > 100, "App should have significant nonisolated usage")
-    }
-
     // MARK: - NSManagedObject Sendable Safety
 
     @Test("No NSManagedObject subclass conforms to Sendable")

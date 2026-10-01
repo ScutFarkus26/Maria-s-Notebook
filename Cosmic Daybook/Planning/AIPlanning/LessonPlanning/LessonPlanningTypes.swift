@@ -9,8 +9,16 @@ enum PlanningDepth: String, Codable, CaseIterable, Identifiable {
     case quick
     /// Steps 1-3: adds plan synthesis with day scheduling.
     case standard
-    /// Steps 1-4: adds whole-class week optimization.
+    /// No longer offered: it added a whole-class week optimization that is
+    /// gone. Kept so a stored setting and saved recommendations still decode;
+    /// it plans exactly as `.standard` does.
     case deep
+
+    /// The depths the pickers offer.
+    static let offered: [PlanningDepth] = [.quick, .standard]
+
+    /// What a stored depth plans as: `.deep` reads as `.standard`.
+    var effective: PlanningDepth { self == .deep ? .standard : self }
     
     var id: String { rawValue }
     
@@ -26,7 +34,7 @@ enum PlanningDepth: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .quick: return "Fast suggestions from curriculum and guide records"
         case .standard: return "Scheduled plan with grouping suggestions"
-        case .deep: return "Full weekly optimization across all students"
+        case .deep: return PlanningDepth.standard.description
         }
     }
 }
@@ -36,8 +44,6 @@ enum PlanningDepth: String, Codable, CaseIterable, Identifiable {
 /// Determines what the planning session is focused on.
 enum PlanningMode: Equatable {
     case singleStudent(UUID)
-    case wholeClass
-    case quickSuggest([UUID])
 }
 
 // MARK: - Pipeline Step
@@ -79,7 +85,6 @@ struct PlanningSession: Identifiable {
     let startedAt: Date
     var messages: [PlanningMessage] = []
     var recommendations: [LessonRecommendation] = []
-    var weekPlan: WeekPlan?
     var readinessProfiles: [StudentReadinessProfile] = []
     var tokensUsed: Int = 0
     
@@ -186,51 +191,6 @@ struct LessonRecommendation: Identifiable, Codable {
         self.evidenceAvailability = evidenceAvailability
         self.priority = priority
         self.suggestedDay = suggestedDay
-    }
-}
-
-// MARK: - Grouping Suggestion
-
-/// Suggests grouping students together for a shared lesson presentation.
-struct GroupingSuggestion: Identifiable, Codable {
-    let id: UUID
-    let lessonID: UUID
-    let lessonName: String
-    let studentIDs: [UUID]
-    let studentNames: [String]
-    let rationale: String
-    
-    init(lessonID: UUID, lessonName: String, studentIDs: [UUID], studentNames: [String], rationale: String) {
-        self.id = UUID()
-        self.lessonID = lessonID
-        self.lessonName = lessonName
-        self.studentIDs = studentIDs
-        self.studentNames = studentNames
-        self.rationale = rationale
-    }
-}
-
-// MARK: - Week Plan
-
-/// A complete weekly lesson plan.
-struct WeekPlan: Codable {
-    let weekStartDate: Date
-    var days: [DayPlanEntry]
-    var groupings: [GroupingSuggestion]
-    var summary: String
-    
-    struct DayPlanEntry: Identifiable, Codable {
-        let id: UUID
-        let dayName: String
-        let date: Date
-        var recommendations: [LessonRecommendation]
-        
-        init(dayName: String, date: Date, recommendations: [LessonRecommendation] = []) {
-            self.id = UUID()
-            self.dayName = dayName
-            self.date = date
-            self.recommendations = recommendations
-        }
     }
 }
 

@@ -2,14 +2,14 @@
 // The two student chips the app draws, written once each.
 //
 // `StudentChip` is the rounded, area-tinted chip: 16 pt continuous corners,
-// footnote-semibold text, 10 × 6 padding, the area colour at 0.15. Before
+// footnote-semibold text, 10 × 6 padding, the area color at 0.15. Before
 // 2026-09-22 it was hand-rolled in PresentationCard, StudentPillsSection,
 // PresentationDetailComponents and WorkCard+Compact, each with one extra:
 // a "(Removed)" state, a record caption, a remove button, a leading icon.
 // Those are the parameters here.
 //
 // `StudentCapsuleChip` is the small capsule chip a presentation pill shows
-// per child: caption2-semibold text, 8 × 4 padding, the area colour at 0.15
+// per child: caption2-semibold text, 8 × 4 padding, the area color at 0.15
 // (0.06 while absent), with a red / amber / orange ring for absent /
 // double-booked / not-yet-had. It was `ChipView` in Students/Selection and
 // a private `StudentChipView` in WorkCard+Pill (the absent-only subset).

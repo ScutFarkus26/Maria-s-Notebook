@@ -40,7 +40,6 @@ final class SharedStoreOrphanGuard {
     private var saveObservation: NotificationCenter.ObservationToken?
     private var remoteChangeTask: Task<Void, Never>?
     private var flushTask: Task<Void, Never>?
-    private var flushing = false
     private var flushAgain = false
     private let defaults: UserDefaults
 

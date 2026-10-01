@@ -69,7 +69,7 @@ struct AIPlanningAssistantView: View {
             
             // Depth picker
             Picker("Depth", selection: $vm.selectedDepth) {
-                ForEach(PlanningDepth.allCases) { depth in
+                ForEach(PlanningDepth.offered) { depth in
                     Text(depth.displayName).tag(depth)
                 }
             }
@@ -212,20 +212,6 @@ struct AIPlanningAssistantView: View {
         }
     }
     
-    // MARK: - Week Plan
-    
-    private var weekPlanSection: some View {
-        Group {
-            if let plan = vm.weekPlan {
-                WeekPlanOverviewView(
-                    weekPlan: plan,
-                    onAcceptRecommendation: { vm.acceptRecommendation($0) },
-                    onRejectRecommendation: { vm.rejectRecommendation($0) }
-                )
-            }
-        }
-    }
-    
     // MARK: - Message Row
     
     @ViewBuilder
@@ -245,21 +231,14 @@ struct AIPlanningAssistantView: View {
             }
             
         case .assistant:
-            VStack(alignment: .leading, spacing: 8) {
-                Text(message.content)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        .secondary.opacity(UIConstants.OpacityConstants.subtle),
-                        in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
-                    )
-                    .frame(maxWidth: 500, alignment: .leading)
-                
-                // Show week plan if this is a whole-class result
-                if vm.weekPlan != nil && !message.recommendationIDs.isEmpty {
-                    weekPlanSection
-                }
-            }
+            Text(message.content)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    .secondary.opacity(UIConstants.OpacityConstants.subtle),
+                    in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.extraLarge)
+                )
+                .frame(maxWidth: 500, alignment: .leading)
             
         case .system:
             Text(message.content)

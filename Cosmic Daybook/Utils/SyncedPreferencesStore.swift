@@ -404,10 +404,6 @@ extension SyncedPreferencesStore {
         set(value as Any?, forKey: key)
     }
 
-    public func set(_ value: Double, forKey key: String) {
-        set(value as Any?, forKey: key)
-    }
-
     public func set(_ value: String?, forKey key: String) {
         set(value as Any?, forKey: key)
     }

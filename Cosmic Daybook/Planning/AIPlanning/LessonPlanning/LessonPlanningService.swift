@@ -72,7 +72,7 @@ final class LessonPlanningService {
         )
 
         // Step 3 (standard+): Plan synthesis with day scheduling
-        if depth == .standard || depth == .deep {
+        if depth != .quick {
             let candidateJSON = encodeRecommendationsForPrompt(recommendations)
             let synthesisPrompt = PlanningPromptBuilder.buildPlanSynthesisPrompt(
                 candidateJSON: candidateJSON,
@@ -112,119 +112,6 @@ final class LessonPlanningService {
         ))
 
         return (recommendations, session)
-    }
-
-    // Generates a weekly plan for the whole class.
-    // swiftlint:disable:next function_body_length
-    func generateWeekPlan(
-        students: [CDStudent],
-        weekStartDate: Date? = nil,
-        preferences: String? = nil
-    ) async throws -> (weekPlan: WeekPlan?, session: PlanningSession) {
-        var session = PlanningSession(mode: .wholeClass, depth: .deep)
-        let weekStart = weekStartDate ?? nextWeekStart()
-
-        // Step 1: Assemble factual evidence for all students
-        let profiles = StudentReadinessAssessor.assessReadiness(for: students, context: managedObjectContext)
-        session.readinessProfiles = profiles
-
-        // Step 2: Curriculum map + gap analysis
-        let curriculum = CurriculumDataAssembler.assembleCurriculumMap(for: students, context: managedObjectContext)
-        let curriculumSummary = CurriculumDataAssembler.compressedSummary(of: curriculum)
-
-        let gapPrompt = PlanningPromptBuilder.buildGapAnalysisPrompt(
-            profiles: profiles,
-            curriculum: curriculumSummary,
-            preferences: preferences
-        )
-
-        session.tokensUsed += PlanningPromptBuilder.estimateTokens(for: gapPrompt)
-
-        let gapResponse = try await mcpClient.generateStructuredJSON(
-            prompt: gapPrompt,
-            systemMessage: config.systemPrompt,
-            temperature: config.temperature,
-            maxTokens: 6144,
-            model: nil,
-            timeout: config.timeout
-        )
-
-        let candidates = parseRecommendations(
-            from: gapResponse,
-            students: students,
-            profiles: profiles
-        )
-
-        // Step 3: Plan synthesis
-        let candidateJSON = encodeRecommendationsForPrompt(candidates)
-        let synthesisPrompt = PlanningPromptBuilder.buildPlanSynthesisPrompt(
-            candidateJSON: candidateJSON,
-            students: students.map(\.fullName),
-            weekStart: weekStart
-        )
-
-        session.tokensUsed += PlanningPromptBuilder.estimateTokens(for: synthesisPrompt)
-
-        let synthesisResponse = try await mcpClient.generateStructuredJSON(
-            prompt: synthesisPrompt,
-            systemMessage: config.systemPrompt,
-            temperature: config.temperature,
-            maxTokens: 6144,
-            model: nil,
-            timeout: config.timeout
-        )
-
-        var scheduledRecs = parseRecommendations(
-            from: synthesisResponse,
-            students: students,
-            profiles: profiles
-        )
-        let groupings = parseGroupings(from: synthesisResponse, students: students)
-
-        // Step 4: Week optimization
-        let optimizationPrompt = PlanningPromptBuilder.buildWeekOptimizationPrompt(
-            studentPlansJSON: encodeRecommendationsForPrompt(scheduledRecs),
-            constraints: preferences
-        )
-
-        session.tokensUsed += PlanningPromptBuilder.estimateTokens(for: optimizationPrompt)
-
-        let optimizationResponse = try await mcpClient.generateStructuredJSON(
-            prompt: optimizationPrompt,
-            systemMessage: config.systemPrompt,
-            temperature: config.temperature,
-            maxTokens: 6144,
-            model: nil,
-            timeout: config.timeout
-        )
-
-        scheduledRecs = parseRecommendations(
-            from: optimizationResponse,
-            students: students,
-            profiles: profiles
-        )
-
-        // Build week plan from scheduled recommendations
-        let weekPlan = buildWeekPlan(
-            from: scheduledRecs,
-            groupings: groupings,
-            weekStart: weekStart,
-            summary: parseSummary(from: optimizationResponse)
-        )
-
-        session.weekPlan = weekPlan
-        session.recommendations = scheduledRecs
-
-        let recCount = scheduledRecs.count
-        let dayCount = weekPlan.days.count
-        let summary = "Generated weekly plan with \(recCount) presentations across \(dayCount) days."
-        session.messages.append(PlanningMessage(
-            role: .assistant,
-            content: summary,
-            recommendationIDs: scheduledRecs.map(\.id)
-        ))
-
-        return (weekPlan, session)
     }
 
     /// Handles a follow-up question in an existing planning session.
@@ -280,10 +167,7 @@ final class LessonPlanningService {
     }
 
     /// Creates CDLessonAssignment drafts from accepted recommendations.
-    func applyRecommendations(
-        _ recommendations: [LessonRecommendation],
-        scheduledDates: [UUID: Date] = [:]
-    ) throws -> [CDLessonAssignment] {
+    func applyRecommendations(_ recommendations: [LessonRecommendation]) throws -> [CDLessonAssignment] {
         let allLessons = fetchAllLessons()
 
         var created: [CDLessonAssignment] = []
@@ -301,13 +185,6 @@ final class LessonPlanningService {
                 studentIDs: rec.studentIDs,
                 context: managedObjectContext
             )
-
-            // Schedule if date provided
-            if let date = scheduledDates[rec.id] {
-                // Through the setter, so the day mirror and `.scheduled` state
-                // are written too — a bare assignment left both wrong.
-                la.schedule(onDay: date)
-            }
 
             created.append(la)
         }

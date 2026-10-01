@@ -92,38 +92,6 @@ extension LessonPlanningService {
         return EvidenceAvailability.combined(values)
     }
 
-    func parseGroupings(from jsonString: String, students: [CDStudent]) -> [GroupingSuggestion] {
-        guard let data = jsonString.data(using: .utf8) else { return [] }
-
-        do {
-            let response = try JSONDecoder().decode(PlanningResponse.self, from: data)
-            let allLessons = fetchAllLessons()
-            let studentNameMap = Dictionary(uniqueKeysWithValues: students.compactMap { student -> (String, UUID)? in
-                guard let id = student.id else { return nil }
-                return (student.fullName.lowercased(), id)
-            })
-
-            return (response.groupingSuggestions ?? []).compactMap { apiGroup in
-                let lesson = allLessons.first { $0.name.lowercased() == apiGroup.lessonName.lowercased() }
-                guard let lessonID = lesson?.id else { return nil }
-
-                let studentIDs = apiGroup.studentNames.compactMap { name -> UUID? in
-                    studentNameMap[name.lowercased()]
-                }
-
-                return GroupingSuggestion(
-                    lessonID: lessonID,
-                    lessonName: lesson?.name ?? apiGroup.lessonName,
-                    studentIDs: studentIDs,
-                    studentNames: apiGroup.studentNames,
-                    rationale: apiGroup.rationale
-                )
-            }
-        } catch {
-            return []
-        }
-    }
-
     func parseSummary(from jsonString: String) -> String {
         guard let data = jsonString.data(using: .utf8) else { return "" }
 

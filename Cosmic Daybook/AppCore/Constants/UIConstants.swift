@@ -146,7 +146,7 @@ nonisolated enum UIConstants {
     ///
     /// One case per value the app draws with; a site keeps the case that
     /// matches its radius exactly (see
-    /// `Documentation/Implementation/design-system-migration.md`).
+    /// `Documentation/Implementation/Archive/design-system-migration.md`).
     enum CornerRadius {
         /// 1pt - Hairline accent bars (the 3 × 14 strip beside a checklist area name)
         nonisolated static let hairline: CGFloat = 1

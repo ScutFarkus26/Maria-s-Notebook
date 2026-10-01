@@ -34,7 +34,6 @@ struct StudentDeletionReport: Equatable {
     var documentFiles: [URL] = []
 
     var deletedTotal: Int { deleted.values.reduce(0, +) }
-    var detachedTotal: Int { detached.values.reduce(0, +) }
 
     fileprivate mutating func countDeleted(_ entity: String, _ count: Int = 1) {
         guard count > 0 else { return }

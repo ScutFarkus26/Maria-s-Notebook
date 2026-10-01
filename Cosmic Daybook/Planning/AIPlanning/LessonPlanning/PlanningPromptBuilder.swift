@@ -136,64 +136,6 @@ struct PlanningPromptBuilder {
         """
     }
     
-    // MARK: - Step 4: Week Optimization (Deep)
-    
-    /// Builds the week optimization prompt for whole-class planning.
-    /// - Parameters:
-    ///   - studentPlansJSON: JSON of per-student plan data
-    ///   - constraints: Any scheduling constraints
-    /// - Returns: Prompt string for the week optimization API call
-    static func buildWeekOptimizationPrompt(
-        studentPlansJSON: String,
-        constraints: String?
-    ) -> String {
-        var prompt = """
-        Review this complete weekly lesson plan and optimize it:
-        
-        \(studentPlansJSON)
-        """
-        
-        if let constraints, !constraints.isEmpty {
-            prompt += "\n\nCONSTRAINTS: \(constraints)"
-        }
-        
-        prompt += """
-        
-        
-        TASK: Optimize the weekly plan for the whole class:
-        1. Minimize context switching - cluster related areas
-        2. Ensure equitable attention across all students
-        3. Identify opportunities to combine presentations for efficiency
-        4. Flag any students who are overloaded or underserved
-        5. Suggest any schedule swaps that improve the plan
-        
-        Return your response as JSON matching this schema:
-        {
-          "recommendations": [
-            {
-              "lessonName": "exact lesson name",
-              "area": "area name",
-              "sequence": "sequence name",
-              "studentNames": ["student names"],
-              "reasoning": "optimization rationale",
-              "priority": 1,
-              "suggestedDay": "day name"
-            }
-          ],
-          "groupingSuggestions": [
-            {
-              "lessonName": "lesson name",
-              "studentNames": ["students"],
-              "rationale": "grouping rationale"
-            }
-          ],
-          "summary": "Summary of optimizations made and overall weekly balance"
-        }
-        """
-        
-        return prompt
-    }
-    
     // MARK: - Follow-Up Conversation
     
     /// Builds a follow-up prompt for conversational questions.

@@ -24,12 +24,3 @@ nonisolated public class CDProjectRole: NSManagedObject {
         self.instructions = ""
     }
 }
-
-// MARK: - Computed Properties
-
-nonisolated extension CDProjectRole {
-    var projectIDUUID: UUID? {
-        get { UUID(uuidString: projectID) }
-        set { projectID = newValue?.uuidString ?? "" }
-    }
-}

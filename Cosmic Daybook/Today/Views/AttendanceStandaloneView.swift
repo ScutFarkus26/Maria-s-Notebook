@@ -23,8 +23,6 @@ struct AttendanceStandaloneView: View {
     /// anchor — a deliberately chosen date is kept.
     @State private var todayAnchor: Date?
     @State private var toastMessage: String?
-    @State private var showingTardyReport = false
-    @State private var showingAbsenceReport = false
     /// "Day 37", from the roll (`AttendanceDayLabelKey`).
     @State private var dayLabel: String?
 
@@ -84,12 +82,6 @@ struct AttendanceStandaloneView: View {
             #if os(iOS)
             .toolbar { toolbarContent }
             #endif
-            .sheet(isPresented: $showingTardyReport) {
-                AttendanceTardyReport()
-            }
-            .sheet(isPresented: $showingAbsenceReport) {
-                AttendanceAbsenceReport()
-            }
         }
     }
 

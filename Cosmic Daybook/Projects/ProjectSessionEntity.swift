@@ -42,16 +42,6 @@ nonisolated public class CDProjectSession: NSManagedObject {
 // MARK: - Computed Properties
 
 nonisolated extension CDProjectSession {
-    var projectIDUUID: UUID? {
-        get { UUID(uuidString: projectID) }
-        set { projectID = newValue?.uuidString ?? "" }
-    }
-
-    var templateWeekIDUUID: UUID? {
-        get { templateWeekID.flatMap { UUID(uuidString: $0) } }
-        set { templateWeekID = newValue?.uuidString }
-    }
-
     /// Type-safe access to assignment mode
     var assignmentMode: SessionAssignmentMode {
         get { SessionAssignmentMode(rawValue: assignmentModeRaw) ?? .uniform }

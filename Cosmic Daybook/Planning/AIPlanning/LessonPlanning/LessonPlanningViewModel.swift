@@ -13,7 +13,6 @@ final class LessonPlanningViewModel {
 
     var messages: [PlanningMessage] = []
     var recommendations: [LessonRecommendation] = []
-    var weekPlan: WeekPlan?
     var isLoading = false
     var currentStep: PipelineStep = .idle
     var selectedDepth: PlanningDepth = .standard
@@ -30,8 +29,6 @@ final class LessonPlanningViewModel {
     var modeTitle: String {
         switch mode {
         case .singleStudent: return "Student Plan"
-        case .wholeClass: return "Class Plan"
-        case .quickSuggest: return "Quick Suggest"
         }
     }
     
@@ -48,18 +45,10 @@ final class LessonPlanningViewModel {
     init(mode: PlanningMode) {
         self.mode = mode
         
-        // Read saved default depth, fallback to mode-appropriate default
+        // Read saved default depth, fallback to standard
         let savedDepth = UserDefaults.standard.string(forKey: UserDefaultsKeys.lessonPlanningDefaultDepth)
             .flatMap { PlanningDepth(rawValue: $0) }
-        
-        switch mode {
-        case .quickSuggest:
-            selectedDepth = .quick
-        case .singleStudent:
-            selectedDepth = savedDepth ?? .standard
-        case .wholeClass:
-            selectedDepth = savedDepth ?? .deep
-        }
+        selectedDepth = savedDepth?.effective ?? .standard
     }
     
     /// Configure with dependencies (called from view's onAppear)
@@ -86,10 +75,6 @@ final class LessonPlanningViewModel {
                 switch mode {
                 case .singleStudent(let studentID):
                     try await planForStudent(studentID, service: service, context: context)
-                case .wholeClass:
-                    try await planForClass(service: service, context: context)
-                case .quickSuggest(let studentIDs):
-                    try await quickSuggest(studentIDs, service: service, context: context)
                 }
             } catch {
                 Self.logger.warning("Planning failed: \(error)")
@@ -177,18 +162,8 @@ final class LessonPlanningViewModel {
         isLoading = true
         currentStep = .creatingAssignments
         
-        // Build scheduled dates map from week plan
-        var scheduledDates: [UUID: Date] = [:]
-        if let plan = weekPlan {
-            for day in plan.days {
-                for rec in day.recommendations where toApply.contains(where: { $0.id == rec.id }) {
-                    scheduledDates[rec.id] = day.date
-                }
-            }
-        }
-        
         do {
-            let created = try service.applyRecommendations(toApply, scheduledDates: scheduledDates)
+            let created = try service.applyRecommendations(toApply)
             
             messages.append(PlanningMessage(
                 role: .assistant,
@@ -236,70 +211,6 @@ final class LessonPlanningViewModel {
         self.currentStep = .presentingPlan
     }
     
-    private func planForClass(service: LessonPlanningService, context: NSManagedObjectContext) async throws {
-        let students = fetchStudents(context: context)
-        guard !students.isEmpty else {
-            throw PlanningError.noStudents
-        }
-        
-        currentStep = .gatheringEvidence
-        messages.append(PlanningMessage(
-            role: .system,
-            content: "Gathering curriculum and guide records for \(students.count) students..."
-        ))
-        
-        currentStep = .generatingPlan
-        
-        let (plan, session) = try await service.generateWeekPlan(students: students)
-        
-        self.currentSession = session
-        self.weekPlan = plan
-        self.recommendations = session.recommendations
-        self.messages = session.messages
-        self.currentStep = .presentingPlan
-    }
-    
-    private func quickSuggest(
-        _ studentIDs: [UUID],
-        service: LessonPlanningService,
-        context: NSManagedObjectContext
-    ) async throws {
-        let students = fetchStudents(context: context)
-        let filtered = students.filter { student in
-            guard let id = student.id else { return false }
-            return studentIDs.contains(id)
-        }
-        guard !filtered.isEmpty else {
-            throw PlanningError.noStudents
-        }
-        
-        currentStep = .gatheringEvidence
-        
-        // Quick mode: run individual quick plans and merge results
-        var allRecs: [LessonRecommendation] = []
-        var latestSession: PlanningSession?
-        
-        for student in filtered {
-            currentStep = .generatingPlan
-            let (recs, session) = try await service.suggestNextLessons(
-                for: student,
-                depth: .quick
-            )
-            allRecs.append(contentsOf: recs)
-            latestSession = session
-        }
-        
-        // Sort by priority
-        allRecs.sort { $0.priority < $1.priority }
-        
-        self.currentSession = latestSession
-        self.recommendations = allRecs
-        
-        let summary = "Found \(allRecs.count) suggestions for \(filtered.count) students."
-        messages.append(PlanningMessage(role: .assistant, content: summary, recommendationIDs: allRecs.map(\.id)))
-        self.currentStep = .presentingPlan
-    }
-    
     /// The visible roster by last name only (no first-name tiebreak).
     private func fetchStudents(context: NSManagedObjectContext) -> [CDStudent] {
         DataQueryService(context: context).fetchAllStudents(
@@ -313,14 +224,10 @@ final class LessonPlanningViewModel {
 
 enum PlanningError: Error, LocalizedError {
     case studentNotFound
-    case noStudents
-    case serviceNotConfigured
     
     var errorDescription: String? {
         switch self {
         case .studentNotFound: return "Student not found"
-        case .noStudents: return "No students available for planning"
-        case .serviceNotConfigured: return "Planning service not configured"
         }
     }
 }

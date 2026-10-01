@@ -22,9 +22,6 @@ final class PresentationsCoordinator {
     enum Sheet: Identifiable {
         case lessonAssignmentDetail(CDLessonAssignment)
         case schedulePresentationFor(CDLesson)
-        case postPresentation(CDLessonAssignment)
-        case unifiedWorkflow(CDLessonAssignment)
-        case lessonAssignmentHistory(CDLesson)
         case consolidatePresentations
 
         var id: String {
@@ -33,12 +30,6 @@ final class PresentationsCoordinator {
                 return "lessonAssignDetail-\(la.id?.uuidString ?? "nil")"
             case .schedulePresentationFor(let lesson):
                 return "schedulePres-\(lesson.id?.uuidString ?? "nil")"
-            case .postPresentation(let la):
-                return "postPres-\(la.id?.uuidString ?? "nil")"
-            case .unifiedWorkflow(let la):
-                return "workflow-\(la.id?.uuidString ?? "nil")"
-            case .lessonAssignmentHistory(let lesson):
-                return "lessonAssignHistory-\(lesson.id?.uuidString ?? "nil")"
             case .consolidatePresentations:
                 return "consolidatePresentations"
             }

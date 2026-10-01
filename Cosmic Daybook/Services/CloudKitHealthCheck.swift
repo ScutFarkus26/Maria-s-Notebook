@@ -57,17 +57,6 @@ final class CloudKitHealthCheck {
             case .unknown: return "icloud"
             }
         }
-        
-        var displayText: String {
-            switch self {
-            case .healthy: return "Synced"
-            case .syncing: return "Syncing..."
-            case .warning: return "Sync Delayed"
-            case .error: return "Sync Error"
-            case .offline: return "Offline"
-            case .unknown: return "Checking..."
-            }
-        }
     }
     
     // MARK: - Private State

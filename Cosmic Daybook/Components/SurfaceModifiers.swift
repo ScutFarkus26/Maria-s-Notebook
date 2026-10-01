@@ -10,7 +10,7 @@
 //
 // Only shapes that ten or more sites reproduce verbatim earn a modifier
 // here. Anything else stays hand-rolled and uses the radius token alone
-// (see Documentation/Implementation/design-system-migration.md).
+// (see Documentation/Implementation/Archive/design-system-migration.md).
 
 import SwiftUI
 

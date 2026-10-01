@@ -1,8 +1,6 @@
 // PresentationPlannerCard.swift
 // The presentation card inside the Presentations planner
-// (ReadyToPresentSection and WeekDayColumn). Named
-// `Planner` to avoid colliding with `Students/PresentationCard.swift` which
-// is the student-screen list cell.
+// (ReadyToPresentSection and WeekDayColumn).
 
 import SwiftUI
 import CoreData

@@ -118,9 +118,6 @@ extension PresentationsView {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             #endif
-
-        case .postPresentation, .unifiedWorkflow, .lessonAssignmentHistory:
-            Text("Sheet not yet implemented")
         }
     }
 

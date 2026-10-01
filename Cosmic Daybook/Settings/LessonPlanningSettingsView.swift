@@ -47,8 +47,9 @@ struct LessonPlanningSettingsView: View {
     }
 
     private var depthPicker: some View {
-        Picker("Default depth", selection: $defaultDepth) {
-            ForEach(PlanningDepth.allCases) { depth in
+        // A stored "Deep" (no longer offered) shows as Standard, which is how it plans.
+        Picker("Default depth", selection: Binding(get: { defaultDepth.effective }, set: { defaultDepth = $0 })) {
+            ForEach(PlanningDepth.offered) { depth in
                 Text(depth.displayName).tag(depth)
             }
         }

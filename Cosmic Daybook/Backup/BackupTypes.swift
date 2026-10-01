@@ -4,19 +4,6 @@ import Foundation
 nonisolated public enum BackupFile: Sendable {
     /// Marked as nonisolated to allow access from Sendable contexts (e.g., FileDocument static properties)
     nonisolated public static let fileExtension = "mtbbackup"
-    /// Format version 14: Adds CDMeetingWorkReview, CDStudentFocusItem, CDWorkModel.restingUntil
-    /// Format version 13: Adds CDClassroomMembership backup coverage
-    /// Format version 12: Adds CDGoingOut, CDClassroomJob, CDCalendarNote,
-    /// CDScheduledMeeting backup coverage
-    /// Format version 11: Adds CDWorkModel/CDPlanningRecommendation/CDResource/CDNoteStudentLink;
-    /// removes LegacyPresentation backward compatibility
-    /// Format version 10: Adds CDSampleWork/CDSampleWorkStep, CDWorkStep completionOutcome,
-    /// CDPracticeSession workStepID
-    /// Format version 8: Adds backup coverage for all entity types (Work, CDTrackEntity, CDSupply, Todo, etc.)
-    /// Format version 7: Removes legacy WorkPlanItem backup compatibility
-    /// Format version 6: Adds compression support (LZFSE)
-    /// Format version 5: Enforces checksum validation with deterministic JSON encoding (.sortedKeys)
-    nonisolated public static let formatVersion = 16
 }
 
 // MARK: - PreferencesDTO and PreferenceValueDTO

@@ -444,9 +444,9 @@ final class BackupRoundTripTests {
 @MainActor
 final class BackupRegistryCoverageTests {
 
-    @Test("Format version remains defined")
+    @Test("The app reads the format it writes")
     func formatVersionIsCurrent() {
-        #expect(BackupFile.formatVersion > 0)
+        #expect(BackupReader.supportedFormatVersions.contains(BackupWriter.formatVersion))
     }
 
     @Test("Registry contains the user-visible core entity types")

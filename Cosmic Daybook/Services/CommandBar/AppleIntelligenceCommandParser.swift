@@ -10,23 +10,6 @@ import FoundationModels
 // MARK: - Generable Struct
 
 @available(macOS 26.0, iOS 26.0, *)
-@Generable(description: "Parsed teacher command from natural language input")
-nonisolated struct ParsedTeacherCommand {
-    // swiftlint:disable:next line_length
-    @Guide(description: "The intent: recordPresentation (gave/showed a lesson), assignWork (assign practice/follow-up), addNote (observation about a student), or addTodo (reminder/task for the teacher)")
-    var intent: String
-
-    @Guide(description: "Student names mentioned in the command, matching the provided student list")
-    var studentNames: [String]
-
-    @Guide(description: "The lesson name mentioned, matching the provided lesson list, or empty if none")
-    var lessonName: String
-
-    @Guide(description: "Any remaining text not captured by intent, student, or lesson extraction")
-    var freeText: String
-}
-
-@available(macOS 26.0, iOS 26.0, *)
 @Generable(description: "A guide's explicitly stated next step for one child")
 nonisolated enum GeneratedCaptureFollowUp {
     case none

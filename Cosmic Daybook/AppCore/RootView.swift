@@ -487,13 +487,6 @@ struct RootView: View {
         _ oldValue: AppRouter.NavigationDestination?,
         _ destination: AppRouter.NavigationDestination?
     ) {
-        if case .openAttendance = destination {
-            if selectedNavItem != .attendance {
-                selectedNavItem = .attendance
-            }
-            self.appRouter.clearNavigation()
-        }
-
         #if os(macOS)
         if case .openStudentDetail(let studentID) = destination {
             openWindow(id: "StudentDetailWindow", value: studentID)

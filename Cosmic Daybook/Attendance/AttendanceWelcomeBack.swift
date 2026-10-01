@@ -65,9 +65,4 @@ enum AttendanceWelcomeBack {
         }
         return result
     }
-
-    /// "Back after 4 days", "Back after 15+ days".
-    static func phrase(daysAway: Int) -> String {
-        AttendanceRules.welcomeBackPhrase(daysAway: daysAway)
-    }
 }

@@ -26,10 +26,8 @@ final class AppRouter {
         case importStudents
         case createBackup
         case restoreBackup
-        case openAttendance
         case openStudentDetail(UUID)
         case backfillIsPresented
-        case quickActions
         
         var id: String {
             switch self {
@@ -39,10 +37,8 @@ final class AppRouter {
             case .importStudents: return "importStudents"
             case .createBackup: return "createBackup"
             case .restoreBackup: return "restoreBackup"
-            case .openAttendance: return "openAttendance"
             case .openStudentDetail(let id): return "openStudentDetail_\(id.uuidString)"
             case .backfillIsPresented: return "backfillIsPresented"
-            case .quickActions: return "quickActions"
             }
         }
         

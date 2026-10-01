@@ -139,7 +139,7 @@ private struct BackupSummaryViewPreview: View {
         BackupSummaryView(summary: BackupOperationSummary(
             kind: .export,
             fileName: "sample.mtbbackup",
-            formatVersion: BackupFile.formatVersion,
+            formatVersion: BackupWriter.formatVersion,
             encryptUsed: true,
             createdAt: Date(),
             entityCounts: ["students": 24, "lessons": 180],

@@ -21,21 +21,6 @@ enum BackupPreviewAnalyzer {
         var totalDeletes: Int { deletes.values.reduce(0, +) }
     }
 
-    /// Analyzes a whole backup payload; see `analyze(digest:…)`.
-    static func analyze(
-        payload: BackupPayload,
-        viewContext: NSManagedObjectContext,
-        mode: BackupService.RestoreMode,
-        entityExists: @escaping (NSManagedObject.Type, UUID) -> Bool
-    ) -> AnalysisResult {
-        analyze(
-            digest: BackupPreviewDigest(payload: payload),
-            viewContext: viewContext,
-            mode: mode,
-            entityExists: entityExists
-        )
-    }
-
     /// Analyzes a backup's digest to determine what changes would occur during restore.
     ///
     /// - Parameters:
