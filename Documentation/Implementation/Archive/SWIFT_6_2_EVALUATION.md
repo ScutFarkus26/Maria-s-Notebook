@@ -1,3 +1,5 @@
+> Archived 2026-09-30: complete — main-actor default isolation is adopted (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` on every target build configuration: the app, Daybook Assistant and both test targets).
+
 # Swift 6.2 Evaluation: Module-Level @MainActor Adoption
 
 **Date:** April 2026

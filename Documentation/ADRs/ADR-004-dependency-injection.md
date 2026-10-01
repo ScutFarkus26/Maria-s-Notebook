@@ -48,24 +48,17 @@ Centralize all dependencies in `AppDependencies` with **lazy initialization**.
 
 ```swift
 @Observable
-@MainActor
 final class AppDependencies {
-    let viewContext: NSManagedObjectContext
+    let coreDataStack: CoreDataStack
+    var viewContext: NSManagedObjectContext { coreDataStack.viewContext }
 
-    init(viewContext: NSManagedObjectContext) {
-        self.viewContext = viewContext
+    init(coreDataStack: CoreDataStack) {
+        self.coreDataStack = coreDataStack
     }
 
-    // Lazy initialization pattern for each service
-    private var _studentRepository: StudentRepository?
-    var studentRepository: StudentRepository {
-        if let repo = _studentRepository {
-            return repo
-        }
-        let repo = StudentRepository(context: viewContext)
-        _studentRepository = repo
-        return repo
-    }
+    // Lazy initialization pattern for each service (AppCore/AppDependencies.swift)
+    @ObservationIgnored lazy var roster = RosterStore(context: viewContext)
+    @ObservationIgnored lazy var lessonCatalog = LessonCatalog(context: viewContext)
 
     // × 38+ services...
 }
@@ -82,7 +75,7 @@ struct CosmicDaybookApp: App {
     init() {
         let coreDataStack = CoreDataStack.shared
         _dependencies = State(wrappedValue: AppDependencies(
-            viewContext: coreDataStack.viewContext
+            coreDataStack: coreDataStack
         ))
     }
 
@@ -99,9 +92,7 @@ struct FeatureView: View {
     @Environment(\.dependencies) private var dependencies
 
     var body: some View {
-        Button("Create") {
-            dependencies.studentRepository.createStudent(...)
-        }
+        Text("\(dependencies.roster.enrolled.count) enrolled")
     }
 }
 ```
@@ -184,8 +175,7 @@ var serviceName: ServiceType {
 - `lifecycleService`
 - `memoryPressureMonitor`
 
-**Repositories (14):**
-- `repositories` (container with 14 repo types)
+**Repositories:** none. The `repositories` container was removed on 2026-09-05 (`d9edf94f`); code builds the repository it needs from its own context (see ADR-003).
 
 **Data Services:**
 - `workCheckInService`
@@ -275,29 +265,14 @@ var incrementalBackupService: IncrementalBackupService {
 }
 ```
 
-### Pattern 4: Container of Related Services
+### Pattern 4: Repositories Are Not Held Here
+A repository is a cheap struct over a context, so `AppDependencies` no longer vends them (the `RepositoryContainer` was removed on 2026-09-05). Build one where it is used, from the view's own context — for example `Parsha/ParshaSuggestionsDetailView.swift`:
 ```swift
-struct RepositoryContainer {
-    let context: NSManagedObjectContext
-    let saveCoordinator: SaveCoordinator?
+@Environment(\.managedObjectContext) private var viewContext
+@Environment(SaveCoordinator.self) private var saveCoordinator
 
-    var students: StudentRepository {
-        StudentRepository(context: context, saveCoordinator: saveCoordinator)
-    }
-
-    var lessons: LessonRepository {
-        LessonRepository(context: context, saveCoordinator: saveCoordinator)
-    }
-    // ... 14 repositories
-}
-
-private var _repositories: RepositoryContainer?
-var repositories: RepositoryContainer {
-    if let container = _repositories { return container }
-    let container = RepositoryContainer(context: viewContext, saveCoordinator: nil)
-    _repositories = container
-    return container
-}
+let repo = LessonRepository(context: viewContext, saveCoordinator: saveCoordinator)
+_ = repo.save(reason: "Tag AI-suggested parsha lesson")
 ```
 
 ## Migration from Singletons
@@ -451,7 +426,7 @@ struct FeatureViewModel {
 ## Related Decisions
 
 - See [ADR-003](ADR-003-repository-pattern.md) for repository usage
-- See the [repository organization plan](../Implementation/REPOSITORY_ORGANIZATION_PLAN.md) for the current migration sequence.
+- See the [repository organization plan](../Implementation/Archive/REPOSITORY_ORGANIZATION_PLAN.md) for how the repository reorganization was carried out (archived).
 
 ## References
 
@@ -466,6 +441,7 @@ struct FeatureViewModel {
 |------|--------|--------|
 | 2026-02 | Architecture Migration | Phase 2: Consolidated singletons |
 | 2026-02-13 | Architecture Migration | Documented as ADR-004 |
+| 2026-09-30 | Docs refresh | Repository container removed (2026-09-05); samples now show real `AppDependencies` code |
 
 ---
 

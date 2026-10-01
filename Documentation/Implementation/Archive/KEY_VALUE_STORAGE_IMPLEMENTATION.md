@@ -1,3 +1,5 @@
+> Archived 2026-09-30: complete — iCloud KVS sync ships in `Cosmic Daybook/Utils/SyncedPreferencesStore.swift`, covered by `SyncedPreferencesStoreTests`.
+
 # Key-Value Storage Implementation
 
 ## Summary
@@ -158,6 +160,6 @@ Potential improvements:
 
 ## Related Documentation
 
-- [CloudKit Guide](../Architecture/CloudKit/CLOUDKIT_GUIDE.md) - CloudKit configuration and verification
-- [ARCHITECTURE.md](../Architecture/ARCHITECTURE.md) - App architecture overview
+- [CloudKit Guide](../../Architecture/CloudKit/CLOUDKIT_GUIDE.md) - CloudKit configuration and verification
+- [ARCHITECTURE.md](../../Architecture/ARCHITECTURE.md) - App architecture overview
 

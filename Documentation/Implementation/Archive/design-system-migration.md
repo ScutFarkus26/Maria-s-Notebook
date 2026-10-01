@@ -1,3 +1,5 @@
+> Archived 2026-09-30: complete — the `UIConstants.CornerRadius` tokens and `Components/SurfaceModifiers.swift` are adopted; small leftover: seven tokenizable literal `cornerRadius` values, six in Daybook Assistant (`AssistantWallpaperPicker`, `AssistantClassroomSheet`, `AssistantOnboardingView`) and one in `AttendanceTile`.
+
 # Design-system migration recipe (2026-09-22)
 
 Consolidation, not redesign: every migrated site renders exactly as before. A value stays the value it was; two sites that differ stay different. `Components/` and `Students/` are the reference; `DesignTokensTests` pins the tokens.
@@ -25,7 +27,7 @@ Rule: `cornerRadius: N` → `cornerRadius: UIConstants.CornerRadius.<token>` whe
 | `.clipShape(RoundedRectangle(cornerRadius: R[, style: .continuous]))` | `.clipRounded(R[, style: .continuous])` |
 | `.background(Capsule([style: .continuous]).fill(F))` | `.capsuleFill(F[, style: .continuous])` |
 
-`F` and `S` are any `ShapeStyle` (a `Color`, a ternary of colours, `.background.secondary`, a `LinearGradient`). `.stroke(S)` with no `lineWidth` maps to the default (1); keep an explicit `lineWidth: 1` when the site had one.
+`F` and `S` are any `ShapeStyle` (a `Color`, a ternary of colors, `.background.secondary`, a `LinearGradient`). `.stroke(S)` with no `lineWidth` maps to the default (1); keep an explicit `lineWidth: 1` when the site had one.
 
 **Does not map exactly → token only.** Leave the shape hand-rolled and just swap the literal when any of these holds:
 - `.background(F, in: RoundedRectangle(…))` / `.background(.ultraThinMaterial, in: …)` (a different modifier, not `_BackgroundModifier`).
@@ -38,13 +40,13 @@ Rule: `cornerRadius: N` → `cornerRadius: UIConstants.CornerRadius.<token>` whe
 
 - `StudentChip(_ label, tint:, isMissing:, leadingSystemImage:, foreground: .tint|.label, onRemove:) { accessory }` — the 16 pt continuous, footnote-semibold, 10 × 6 area chip. Folded: PresentationCard's inline chip (`foreground: .label`), StudentPillsSection (accessory + remove), WorkCard+Compact's `ParticipantChipView` (wrap in `Button … .buttonStyle(.plain)`), the never-called `StudentChip` view in PresentationDetailComponents. Kept apart: `QuickNoteStudentChip` (avatar, subheadline, clip-based capsule) and `DraggableStudentChip` (caption medium, 10 × 5, stroke, drag).
 - `StudentCapsuleChip(label:, tint:, isMissing:, isAbsent:, isDoubleBooked:, isHighlighted:, isWaiting:, onTap:)` — the caption2 capsule chip per child; was `ChipView` (Students/Selection) and WorkCard+Pill's `StudentChipView` (the absent-only subset).
-- `StatusPill(text:, color:, icon:, metrics:)` with `Metrics.standard | .compact | .emphasized | .mini` — folded `GoingOutStatusBadge` (`.compact`), `WorkflowBadge` (`.emphasized`), `SequenceRecapStateBadge` (`.mini`, label/colour now `SequenceRecapLessonEntry.stateLabel/stateColor`). Kept apart, each renders differently: `StatePill` (stroked, active state), `ProgressionStatusPill` (per-status fill/dash), `LevelBadge` (leading dot), `TagBadge` (rounded rect, tag colours), `ModelBadgeView` (clip-based), `StudentProgressComponents.StatusBadge` (a circle), `ProjectStatusPill` (no fill), `ProjectStandingBadge` (not a view).
+- `StatusPill(text:, color:, icon:, metrics:)` with `Metrics.standard | .compact | .emphasized | .mini` — folded `GoingOutStatusBadge` (`.compact`), `WorkflowBadge` (`.emphasized`), `SequenceRecapStateBadge` (`.mini`, label/color now `SequenceRecapLessonEntry.stateLabel/stateColor`). Kept apart, each renders differently: `StatePill` (stroked, active state), `ProgressionStatusPill` (per-status fill/dash), `LevelBadge` (leading dot), `TagBadge` (rounded rect, tag colors), `ModelBadgeView` (clip-based), `StudentProgressComponents.StatusBadge` (a circle), `ProjectStatusPill` (no fill), `ProjectStandingBadge` (not a view).
 - `FilterChip` moved verbatim to `Components/FilterChip.swift` (Lessons and Work bars share it). Kept apart: `TodoFilterChip` (solid fill when on, count slot), `StudentsScopeChips` (10 × 5, secondary tint, counts), `WorkspaceFilterPillRow` (solid fill + count capsule), `FilterMenuChipLabel` (rounded menu label).
 - Pill buttons: `AppPillButton` is canonical. `CanonicalPillButton` → `AppPillButton(…, metrics: .snug)` (or an inline `AppPill.Metrics` for custom font/padding); `PillButton` → `AppPillButton(…, metrics: .roomy)`. `SelectablePillButton` kept (solid tint, single 0.3 ring, 14 × 10). `FullWidthStatePillButton` kept (a plain full-width button, not a pill).
 
 ## Traps
 
-1. Style defaults: `Capsule()` and `RoundedRectangle(cornerRadius:)` are circular. Do not "normalise" to `.continuous`.
+1. Style defaults: `Capsule()` and `RoundedRectangle(cornerRadius:)` are circular. Do not "normalize" to `.continuous`.
 2. `.background(Capsule().fill(…))` in brace form or with a nested `.overlay` is not the capsule shape — leave it.
 3. A background whose fill has `.shadow(…)` chained is not a surface; token only.
 4. Wrapping: a migrated line over 120 columns is a new SwiftLint `line_length` violation — split the arguments one per line.

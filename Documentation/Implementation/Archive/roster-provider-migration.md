@@ -1,3 +1,5 @@
+> Archived 2026-09-30: complete — `RosterStore` and `LessonCatalog` are in use app-wide; small leftover: `TodayViewWatchingSection`, `TodayViewParentReportsSection` and `ParentReportsQueueView` still fetch students with their own `@FetchRequest`.
+
 # Roster and lesson-catalog migration (items #28/#29)
 
 **What the stores are.** `RosterStore` (`Students/Roster/`) and `LessonCatalog` (`Lessons/`) are

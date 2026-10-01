@@ -1,10 +1,10 @@
 # School Year Separation — Implementation Plan
 
-Status: **In progress** — Phases 0–2 landed on `feature/school-year-separation` · Owner: Danny · Created 2026-06-15
+Status: **Paused (2026-09-30)** — Phases 0–2 are on `main`. Phase 3 got only the attendance reports' "Match viewing" preset (`d49bb0bc`); year-scoped progress reports and exports were never built, nor was Phase 4 (the `schoolYearKey` stamp on activity records). `SchoolYearFilter` is currently used only by tests, and `TODO(phase-1)` (deriving the picker's lower bound from the earliest activity) is still open at `Cosmic Daybook/SchoolYear/SchoolYearStore.swift:112` · Owner: Danny · Created 2026-06-15
 
 ## Implementation status (2026-06-15)
 
-Landed and building green on `feature/school-year-separation`:
+Landed and building green on `feature/school-year-separation`, since merged to `main`:
 
 - **Phase 0 (engine)** — `SchoolYear` / `DateRange` / `SchoolYearSelection`, `SchoolYearStore`,
   `SchoolYearFilter` predicate factories, global picker + non-current-year banner, configurable

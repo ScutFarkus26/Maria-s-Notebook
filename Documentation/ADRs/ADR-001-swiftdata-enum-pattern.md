@@ -1,4 +1,4 @@
-# ADR-001: SwiftData Enum Raw Value Pattern
+# ADR-001: Core Data Enum Raw Value Pattern
 
 **Status:** ✅ Accepted
 **Date:** 2025-11 (Discovery), 2026-02 (Documented)

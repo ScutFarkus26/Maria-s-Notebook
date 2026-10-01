@@ -64,29 +64,43 @@ Cosmic Daybook/
 ├── Presentations/    # Presentation scheduling
 ├── Attendance/       # Attendance tracking
 ├── Planning/         # Planning & checklist tools
-├── Inbox/            # Follow-up inbox
+├── SmallSequencePlanner/ # Small-group planning by area and sequence
+├── Inbox/            # Inbox-status section of the presentation detail
 ├── Today/            # Daily hub views, view model, and support
 ├── Todos/            # Todo screens, forms, and presentation support
 ├── Notes/            # Observation browsing, editing, and quick capture
+├── ObservationMode/  # Developmental traits and observation quick tags
 │
 ├── Agenda/           # Calendar day/month grid views
+├── Albums/           # Teaching-album PDF library: reading, search, annotations
+├── BookClub/         # Book club packets, sessions, and meetings
 ├── Chat/             # AI chat features
+├── ClassroomJobs/    # Classroom jobs and job assignments
 ├── Community/        # Community topics & solutions
+├── CurriculumMap/    # Three-Year View: per-child grid, class heat map, the shared engine
 ├── GoingOut/         # Going Out planning
-├── Issues/           # Issue tracking
 ├── Logs/             # Application logging
+├── Orders/           # Links to request from the office, tracked to received
+├── ParentReports/    # Monthly parent reports and guardians
+├── Parsha/           # Weekly parsha calendar and lesson tagging
 ├── Procedures/       # Procedure documentation
+├── ProgressDashboard/# Class progress dashboard and sequence detail
 ├── Progression/      # Student progress tracking & analytics
 ├── Projects/         # Project management & sessions
 ├── Resources/        # Educational resources
 ├── Schedules/        # Schedule management
+├── Stories/          # Story library: import, analysis, covers
 ├── Supplies/         # Supply inventory
 ├── Topics/           # Educational topics
 ├── PerpetualCalendar/# Calendar notes
 │
+├── SchoolYear/       # School-year lens: store, picker, scoping
+├── Sharing/          # CloudKit sharing (classroom collaboration)
+├── Siri/             # App Intents, Siri attendance, Spotlight indexing
 ├── Backup/           # Backup & restore
 ├── Settings/         # App configuration
-├── Tests/            # In-app test suites
+├── AppIcon.icon/     # App icon
+├── Assets.xcassets/  # Asset catalog
 └── CosmicDaybook.xcdatamodeld/ # Core Data model
 
 Cosmic Daybook Tests/ # Feature-mirrored test target

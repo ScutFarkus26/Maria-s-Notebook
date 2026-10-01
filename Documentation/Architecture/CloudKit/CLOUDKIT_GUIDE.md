@@ -339,7 +339,7 @@ through `UbiquitousFile`:
 - writes, moves and deletes are coordinated.
 
 **Preferences.** `SyncedPreferencesStore` (see
-[KEY_VALUE_STORAGE_IMPLEMENTATION.md](../../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md)).
+[KEY_VALUE_STORAGE_IMPLEMENTATION.md](../../Implementation/Archive/KEY_VALUE_STORAGE_IMPLEMENTATION.md)).
 
 **The school year (2026-09-30).** The start month and day, and whether day
 counters start over on it, are one setting for the class, synced by
@@ -382,5 +382,5 @@ first download afterwards is gated (see §6). Nothing attaches or seeds during i
 ## Related Documentation
 
 - `Cosmic Daybook/CLAUDE.md`, CloudKit Notes: the rules in brief
-- [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../../Implementation/KEY_VALUE_STORAGE_IMPLEMENTATION.md): iCloud KVS preference sync
+- [KEY_VALUE_STORAGE_IMPLEMENTATION.md](../../Implementation/Archive/KEY_VALUE_STORAGE_IMPLEMENTATION.md): iCloud KVS preference sync
 - [ARCHITECTURE.md](../ARCHITECTURE.md): architecture guide

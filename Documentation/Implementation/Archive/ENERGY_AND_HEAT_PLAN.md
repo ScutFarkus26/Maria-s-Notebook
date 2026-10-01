@@ -1,3 +1,5 @@
+> Archived 2026-09-30: complete — all five phases merged to `main` on 2026-09-10.
+
 # Energy and Heat — Implementation Plan
 
 Status: **All five phases merged to `main` 2026-09-10** (phases 1–2 by the parent session, 3–5 by parallel agents; final verification on `main` recorded below) · Owner: Danny · Created 2026-09-10

@@ -186,7 +186,7 @@ struct MockStudentRepository: StudentRepositoryProtocol {
 
 ❌ **More Boilerplate**
 - Each repository ~150 lines
-- 14 repositories created so far
+- 11 repositories as of 2026-09-30 (14 when this ADR was written)
 - Repetitive CRUD methods
 
 ❌ **Migration Burden**
@@ -207,22 +207,9 @@ struct MockStudentRepository: StudentRepositoryProtocol {
 
 ## Implementation Status
 
-### Repositories Created (14)
+### Repositories (as of 2026-09-30)
 
-1. ✅ `StudentRepository`
-2. ✅ `LessonRepository`
-3. ✅ `WorkRepository`
-4. ✅ `AttendanceRepository`
-5. ✅ `NoteRepository`
-6. ✅ `PresentationRepository`
-7. ✅ `WorkStepRepository`
-8. ✅ `WorkCheckInRepository`
-9. ✅ `ProjectRepository`
-10. ✅ `TrackRepository`
-11. ✅ `ReminderRepository`
-12. ✅ `CalendarEventRepository`
-13. ✅ `SupplyRepository`
-14. ✅ `ProcedureRepository`
+Eleven remain after the 2026-09 dead-code sweeps. In `Repositories/`: `AttendanceRepository`, `DocumentRepository`, `LessonRepository`, `MeetingTemplateRepository`, `NoteRepository`, `NoteTemplateRepository`, `PresentationRepository`, `ResourceRepository`, `StudentRepository`. Beside their features: `WorkRepository` (`Work/Support/`) and `ClassroomRepository` (`Sharing/`). Of the original fourteen, `WorkStepRepository`, `WorkCheckInRepository`, `ProjectRepository`, `TrackRepository`, `ReminderRepository`, `CalendarEventRepository`, `SupplyRepository` and `ProcedureRepository` are gone.
 
 ### ViewModels Using Repositories
 
@@ -283,25 +270,14 @@ class FeatureViewModel {
 }
 ```
 
-### Pattern 3: Dependency Injection
+### Pattern 3: Construct Where Used
+`AppDependencies` no longer holds repositories (its `RepositoryContainer` was removed on 2026-09-05). A view builds the repository it needs from its own context — for example `Parsha/ParshaSuggestionsDetailView.swift`:
 ```swift
-// In AppDependencies
-struct RepositoryContainer {
-    let context: NSManagedObjectContext
-    let saveCoordinator: SaveCoordinator?
+@Environment(\.managedObjectContext) private var viewContext
+@Environment(SaveCoordinator.self) private var saveCoordinator
 
-    var students: StudentRepository {
-        StudentRepository(context: context, saveCoordinator: saveCoordinator)
-    }
-
-    var lessons: LessonRepository {
-        LessonRepository(context: context, saveCoordinator: saveCoordinator)
-    }
-}
-
-// Usage
-@Environment(\.dependencies) var dependencies
-let repository = dependencies.repositories.students
+let repo = LessonRepository(context: viewContext, saveCoordinator: saveCoordinator)
+_ = repo.save(reason: "Tag AI-suggested parsha lesson")
 ```
 
 ## SavingRepository Protocol
@@ -390,8 +366,7 @@ struct Repository<T: NSManagedObject> {
 
 - Code: `Repositories/` folder
 - Example: `Repositories/StudentRepository.swift`
-- Example: `Errors/StudentRepositoryExample.swift` (with domain errors)
-- Protocol: `Repositories/SavingRepository.swift`
+- Protocol: `Repositories/RepositoryProtocol.swift` (`Repository`, `SavingRepository`)
 
 ## Revision History
 
@@ -399,6 +374,7 @@ struct Repository<T: NSManagedObject> {
 |------|--------|--------|
 | 2026-01 | Team | Adopted pragmatic repository pattern |
 | 2026-02-13 | Architecture Migration | Documented as ADR-003 |
+| 2026-09-30 | Docs refresh | Pattern 3 now shows direct construction; the repository container was removed 2026-09-05 |
 
 ---
 

@@ -6,7 +6,7 @@ ADRs document significant architectural decisions, their context, rationale, and
 
 | # | Title | Status | Date | Tags |
 |---|-------|--------|------|------|
-| [001](ADR-001-swiftdata-enum-pattern.md) | SwiftData Enum Raw Value Pattern | Accepted | 2025-11 | `core-data`, `predicate`, `enum` |
+| [001](ADR-001-swiftdata-enum-pattern.md) | Core Data Enum Raw Value Pattern | Accepted | 2025-11 | `core-data`, `predicate`, `enum` |
 | [003](ADR-003-repository-pattern.md) | Repository Pattern Usage | Accepted | 2026-01 | `architecture`, `data-access` |
 | [004](ADR-004-dependency-injection.md) | Dependency Injection via AppDependencies | Accepted | 2026-02 | `architecture`, `di` |
 
@@ -41,4 +41,4 @@ What did we decide?
 What else was evaluated?
 ```
 
-**Last Updated:** 2026-03-05
+**Last Updated:** 2026-09-30

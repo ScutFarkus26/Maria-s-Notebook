@@ -1,3 +1,5 @@
+> Archived 2026-09-30: complete — nine of ten items shipped; the widget and Control Center item lives on in `../SIRI_WIDGETS_HANDOFF.md` (not started).
+
 # Siri & Apple Intelligence Improvements
 
 **Date:** 2026-06-24
@@ -18,7 +20,7 @@ After this work:
 - When something can't be done, Siri **says a real sentence** ("I couldn't find Maria in your students") instead of a generic error.
 - A new **"Siri & Shortcuts"** section in Settings → AI Features shows the available phrases.
 
-Two of the ten goals turned out to be **already satisfied** in the codebase (Writing Tools and on-device structured AI), so those were verified rather than changed. The last goal (home-screen widget + Control Center button) **requires a one-time Xcode step** that can't be done from code — there's a complete recipe in `SIRI_WIDGETS_HANDOFF.md`.
+Two of the ten goals turned out to be **already satisfied** in the codebase (Writing Tools and on-device structured AI), so those were verified rather than changed. The last goal (home-screen widget + Control Center button) **requires a one-time Xcode step** that can't be done from code — there's a complete recipe in `../SIRI_WIDGETS_HANDOFF.md`.
 
 ### Phrases you can now use with Siri
 
@@ -57,7 +59,7 @@ Two of the ten goals turned out to be **already satisfied** in the codebase (Wri
 | `LessonAppEntity.swift` | `LessonEntity: AppEntity, IndexedEntity` + `LessonEntityQuery: EntityStringQuery` | Same for lessons |
 | `LogObservationIntent.swift` | `AppIntent` (+ `LogObservationError`) | Creates a `CDNote` scoped to a student |
 | `MarkLessonPresentedIntent.swift` | `AppIntent` (+ error) | Find-or-create a `CDLessonAssignment`, then `markPresented()` |
-| `MarkAbsentIntent.swift` | `AppIntent` (+ error) | Marks today's attendance via `AttendanceRepository` |
+| `AttendanceIntents.swift` | `MarkAbsentIntent: AppIntent` (now beside `MarkHereIntent`, `MarkLateIntent` and `UndoAttendanceIntent`) | Marks today's attendance through `SiriAttendance` (the original `MarkAbsentIntent.swift`, which went through `AttendanceRepository`, was folded into this file) |
 | `OpenStudentIntent.swift` | `OpenIntent` | Deep-links to a student's detail screen |
 | `OpenLessonIntent.swift` | `OpenIntent` | Opens the Lessons library |
 | `SpotlightIndexer.swift` | `enum` | Indexes students + lessons into Core Spotlight |
@@ -119,7 +121,7 @@ Two of the ten goals turned out to be **already satisfied** in the codebase (Wri
 
 ## 6. Known limitations / future work
 
-- **#7 widgets + Control Center** require a Widget Extension target + App Group — see `SIRI_WIDGETS_HANDOFF.md`. The Todo widget UI already exists in `Services/TodoWidgetProvider.swift`.
+- **#7 widgets + Control Center** require a Widget Extension target + App Group — see `../SIRI_WIDGETS_HANDOFF.md`. The Todo widget UI already exists in `Services/TodoWidgetProvider.swift`.
 - **Background intent caveat:** action intents build the CloudKit stack via `AppBootstrapping.getSharedCoreDataStack()` without the app's `performInitialSetup()` having run. If background actions misbehave on-device, the one-line fallback is `openAppWhenRun = true` (still useful — it just opens the app).
 - **Per-lesson deep link:** `AppRouter` has no `openLessonDetail`, so `OpenLessonIntent` (and tapping a lesson in Spotlight) lands on the Lessons list rather than the specific lesson. Adding a `NavigationDestination.openLessonDetail(UUID)` + a `RootView` handler would complete this.
 - **More entities/verbs (optional):** `Note`/`WorkModel`/`RecallCheck` as `AppEntity`; a `LogPractice` intent; a Control Center "start observation" intent that triggers Quick Note capture.

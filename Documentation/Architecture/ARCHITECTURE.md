@@ -218,8 +218,6 @@ for (index, item) in items.enumerated() {
 
 | Target | Issue | Approach |
 |--------|-------|----------|
-| `PresentationsListView` | Unfiltered `@FetchRequest` | Repository with student-scoped fetch |
-| `PlanningWeekView` | Loads all lessons | Date range filter |
 | Heavy view body computations | Filtering in `body` | Move to ViewModel with caching |
 
 ### Anti-Patterns to Avoid

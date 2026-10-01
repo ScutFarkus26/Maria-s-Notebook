@@ -4,7 +4,13 @@ build/
 build_temp/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+**/xcuserdata/
 *.profraw
+*.xcresult
+
+# Python
+__pycache__/
+*.pyc
 
 # Claude
 # Keep Claude Code settings/worktrees private, but version the project skills.

@@ -1,3 +1,5 @@
+> Archived 2026-09-30: complete — every phase closed out on 2026-07-10 (`43d75271`), and `Scripts/check_repository_structure.sh` keeps the layout enforced.
+
 # Repository Organization Plan
 
 This log governs the incremental repository reorganization. The work is intentionally split into small, independently reversible commits. File moves must not include type renames, formatting sweeps, or behavior changes.

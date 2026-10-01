@@ -287,13 +287,15 @@ def md_to_flowables(md_text, styles):
     lines = md_text.split('\n')
     i = 0
 
+    # The manual's title is its first top-level heading; the title page is drawn separately.
+    title_index = next((n for n, text in enumerate(lines) if text.startswith('# ')), None)
     while i < len(lines):
         line = lines[i]
 
         # Skip the very first title and metadata block
-        if i == 0 and line.startswith('# Maria'):
+        if i == title_index:
             while i < len(lines):
-                if lines[i].startswith('# ') and not lines[i].startswith('# Maria'):
+                if lines[i].startswith('# ') and i != title_index:
                     break
                 if lines[i].strip() == '---' and i > 2:
                     i += 1

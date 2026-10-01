@@ -1,5 +1,7 @@
 # Widgets & Control Center — handoff (Siri top‑10, item #7)
 
+Status: **Not started (2026-09-30)** — no widget extension target exists (the project has only the two app targets and their two test targets) and nothing imports WidgetKit.
+
 Everything else in the Siri top‑10 shipped in the app target. **Widgets and
 Control Center controls cannot** — they must live in a **Widget Extension
 target**, and a new target can only be created in Xcode (it also needs an

@@ -53,6 +53,10 @@ Scripts/install_release.sh
 # Refuses uncommitted edits to tracked files. Upload from Xcode's Organizer. Run it outside the sandbox.
 Scripts/archive_assistant_testflight.sh
 
+# Re-render the Daybook Assistant's three flat appiconset PNGs (light, dark, tinted) from its .icon layer
+# SVGs (Check.svg, Rule.svg). Re-run after editing either SVG so both icon sets keep the same art.
+swift Scripts/render_assistant_icon.swift .
+
 # Clean-build timing baseline (compare against Documentation/Implementation/perf-baselines/).
 # Caching off, or a "clean" build of an already-built tree is a cache replay, not a compile; BUILD_NICE=0
 # so the number is not a low-priority one.
@@ -107,7 +111,6 @@ Cosmic Daybook/
 ├── Community/        # Community topics & solutions
 ├── GoingOut/         # Going Out planning
 ├── Albums/           # Teaching-album PDF library: reading, search, annotations
-├── Issues/           # Issue tracking
 ├── Logs/             # Application logging
 ├── Procedures/       # Procedure documentation
 ├── Progression/      # Student progress tracking & analytics

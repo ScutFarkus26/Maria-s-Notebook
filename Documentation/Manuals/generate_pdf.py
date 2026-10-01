@@ -291,11 +291,13 @@ def md_to_flowables(md_text, styles):
     i = 0
     # Skip the title block (first few lines with metadata)
     # We handle the title page separately
+    # The manual's title is its first top-level heading; the title page is drawn separately.
+    title_index = next((n for n, text in enumerate(lines) if text.startswith('# ')), None)
     while i < len(lines):
         line = lines[i]
 
         # Skip the very first title and metadata block
-        if i == 0 and line.startswith('# Maria'):
+        if i == title_index:
             # Skip until we hit the first "# Part"
             while i < len(lines) and not (lines[i].startswith('# Part') or lines[i].startswith('# Appendix')):
                 i += 1

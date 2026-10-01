@@ -4,6 +4,8 @@ Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit 
 
 **Decision on file:** The floating radial PieMenu quick-command button is **kept** (Danny's call). It is made HIG-compliant by adding parallel standard paths, not removed. See Phase 1.
 
+**Status (2026-09-30):** Phases 0–3 are done. Still open: the broader `.help()` tooltip sweep (Phase 1); tappable cards → `Button`s beyond the converted surfaces, sortable `Table` for Lessons and Logs, and native drag reorder for the student grid (Phase 4); the typography sweep, Undo for destructive deletes, the remaining Dark Mode contrast work and the optional MenuBarExtra / Dock / restoration extras (Phase 5).
+
 **Ground rules (every phase):** build both iOS and macOS, keep the test suite green, zero warnings, pass SwiftLint.
 
 ---
@@ -14,7 +16,7 @@ Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit 
 - [x] Add `SidebarCommands()` so View ▸ Show/Hide Sidebar (⌃⌘S) exists (`CosmicDaybookApp.swift`).
 - [x] Remove the hand-rolled ⌘W Close; rely on SwiftUI's automatic Close (`CosmicDaybookApp.swift`).
 - [x] Title the detail windows with their object (`StudentDetailWindowHost`/`WorkDetailWindowHost`/`LessonDetailWindowHost` → `.navigationTitle`).
-- [ ] Move the sync/database troubleshooting toggles out of the Help menu → **deferred to Phase 2** (folded into the Settings rebuild, with confirmation gating).
+- [x] Move the sync/database troubleshooting toggles out of the Help menu → **deferred to Phase 2** (folded into the Settings rebuild, with confirmation gating).
 - [x] Made default window size (1000×720) ≥ the enforced minimum so a new window isn't snapped wider. Full removal of the `EnsureResizableWindow` AppKit hack → **deferred to Phase 3** (window-chrome rework; keep `SheetWindowResizer`).
 - [x] Replaced "Tap" → platform-aware "Click" + `cursorarrow.click` glyph on macOS via new `Utils/PlatformVerb.swift`. Files: `SchoolCalendarSettingsView`, `GoingOutRootView`, `ClassroomSharingView` (×2), `ProcedureDetailView`, `PresentationNotesSectionUnified`.
 - [x] Set `NSHumanReadableCopyright` (About-window copyright) in both app build configs.
@@ -63,7 +65,7 @@ A 25-agent review of the five commits confirmed 13 findings; fixes applied:
 
 ## Phase 5 — Depth & ongoing polish
 - [ ] Typography sweep → semantic / `ScaledFont` tokens; raise sub-10pt labels (Dynamic Type).
-- [ ] Undo for destructive deletes (UndoManager + the unused `ToastService.undoAction`).
+- [ ] Undo for destructive deletes (UndoManager + `ToastService.undoAction`). *(`undoAction` is no longer unused: five call sites offer Undo after attendance marks, recording a presentation and week-plan balancing, but no delete offers it yet.)*
 - [~] Dark Mode / contrast color fixes: **amber status colors now adaptive** via new `Components/Color+Adaptive.swift` `Color(light:dark:)` helper — `AppColors.attention` + `.brewing` get a brighter Dark Mode variant (verified macOS + iOS, 0 warnings, 2026-06-29). **Deliberately skipped:** card shadows (naive `Color.primary` swap → white glow in Dark Mode; needs a material/separator approach), and the floating-button gradient (it's the button's visual identity — would change the look the user chose to keep).
 - [x] Misc polish landed: native `.controlSize(.small)` on the Auto-Backup toggle (was a blurry `.scaleEffect(0.8)`); real `ProgressView` for AppSearchView's "Building index…" (was a static empty-state); Return now submits the New Todo form (`.keyboardShortcut(.defaultAction)`). Verified macOS + iOS, 0 warnings (2026-06-30).
 - [ ] Optional: MenuBarExtra + Dock menu quick capture; window state restoration; background-work notifications/Dock badge; localization scaffolding.
