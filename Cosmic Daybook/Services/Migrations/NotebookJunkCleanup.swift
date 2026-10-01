@@ -188,6 +188,7 @@ nonisolated enum NotebookJunkCleanup {
             return (reason.isEmpty || reason == AbsenceReason.none.rawValue)
                 && (record.note ?? "").trimmed().isEmpty
                 && record.markedAt == nil && record.leftAt == nil && record.leavesAt == nil
+                && record.returnedAt == nil
         }
     }
 

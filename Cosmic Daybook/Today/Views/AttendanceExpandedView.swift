@@ -119,6 +119,11 @@ struct AttendanceExpandedView: View {
                 savePickup: { row, time in
                     viewModel.updatePickup(for: row, time: time, modelContext: viewContext)
                     saveCoordinator.save(viewContext, reason: "Update pickup time")
+                },
+                markBack: { row in
+                    viewModel.markBack(row, modelContext: viewContext)
+                    saved("Back in class")
+                    rang(after: row)
                 }
             ),
             onStepDay: onStepDay

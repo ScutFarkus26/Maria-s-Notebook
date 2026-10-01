@@ -28,9 +28,18 @@ nonisolated public class CDAttendanceRecord: NSManagedObject {
     /// one they're for. Written by `CDAttendanceStore` with the status.
     @NSManaged public var markedAt: Date?
     /// When a child marked Left Early went home: "8:02 → 1:15". `markedAt`
-    /// keeps the arrival. Nil for every other status, and for marks made on
-    /// any day but the one they're for. Written by `CDAttendanceStore`.
+    /// keeps the arrival. A child brought back (Back in Class) keeps it too,
+    /// as the start of the trip out. Nil for every other mark, and for marks
+    /// made on any day but the one they're for. Written by `CDAttendanceStore`.
     @NSManaged public var leftAt: Date?
+    /// When a child who left early came back: "out 11:15–12:40" with
+    /// `leftAt`. Set only by Back in Class; any other mark clears it.
+    /// Written by `CDAttendanceStore.markBack`.
+    @NSManaged public var returnedAt: Date?
+    /// The status a Left Early child left from, present or tardy, so Back in
+    /// Class returns them to it. Nil for every other status. Written by
+    /// `CDAttendanceStore` with the status.
+    @NSManaged public var statusBeforeLeavingRaw: String?
     /// When the child is due to be picked up early: "leaves 1:30". A plan,
     /// not a mark: set ahead from the tile's menu, it leaves the status alone,
     /// and `leftAt` still records when they actually went. Written by

@@ -21,7 +21,8 @@ extension AttendanceTile {
                 onMarkAbsent: onMarkAbsent,
                 onNote: onNote,
                 onPickup: onPickup,
-                leavesAt: row.leavesAt
+                leavesAt: row.leavesAt,
+                onBack: onBack
             )
         }
     }
@@ -34,12 +35,14 @@ extension AttendanceTile {
 
     // MARK: - Accessibility
 
-    /// "Maya Stone, birthday, back after 4 days, Present at 8:04, leaves 1:30".
+    /// "Maya Stone, birthday, back after 4 days, Present at 8:04, out
+    /// 11:15–12:40, leaves 1:30".
     var accessibilityName: String {
         let birthday = row.birthday.map { ", \($0.title.lowercased())" } ?? ""
         let away = row.daysAway.map { ", " + AttendanceRules.welcomeBackPhrase(daysAway: $0).lowercased() } ?? ""
+        let trip = tripText.map { ", \($0)" } ?? ""
         let pickup = AttendanceRules.pickupText(row).map { ", \($0)" } ?? ""
-        return "\(row.name)\(birthday)\(away), \(markSummary ?? row.status.displayName)\(pickup)"
+        return "\(row.name)\(birthday)\(away), \(markSummary ?? row.status.displayName)\(trip)\(pickup)"
     }
 
     /// "Present at 8:04", "Left Early 8:02 → 1:15", "Absent, Sick", or nil

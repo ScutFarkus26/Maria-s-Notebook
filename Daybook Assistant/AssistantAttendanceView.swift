@@ -318,6 +318,11 @@ struct AssistantAttendanceView: View {
             },
             onNote: { noteRow = row },
             onPickup: viewModel.allowsPickup(for: row) ? { pickupRow = row } : nil,
+            onBack: viewModel.canMark && AttendanceRules.allowsBack(for: row) ? {
+                lateUndo = nil
+                viewModel.markBack(row)
+                ring(for: row, in: viewModel)
+            } : nil,
             rippleTrigger: ripples,
             rippleDelay: rippleDelay(at: index)
         )

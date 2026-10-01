@@ -96,6 +96,8 @@ nonisolated extension DataCleanupService {
                     canonical.absenceReason = duplicate.absenceReason
                     canonical.markedAt = duplicate.markedAt
                     canonical.leftAt = duplicate.leftAt
+                    canonical.returnedAt = duplicate.returnedAt
+                    canonical.statusBeforeLeavingRaw = duplicate.statusBeforeLeavingRaw
                 }
 
                 // Keep a pickup time set on the duplicate (an assistant can

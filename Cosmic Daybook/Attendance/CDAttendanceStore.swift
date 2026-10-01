@@ -80,8 +80,10 @@ struct CDAttendanceStore {
 
     /// Sets the status and dates it. `markedAt` is when the status was set,
     /// except that Left Early keeps the arrival time from a present or tardy
-    /// mark and puts the time the child left in `leftAt`. Unmarked has
-    /// neither.
+    /// mark, remembers which of the two it was (for Back in Class), and puts
+    /// the time the child left in `leftAt`. Unmarked has neither. Any mark
+    /// but Back in Class (`markBack`) ends a trip out: a child who comes
+    /// back and leaves again shows when they last went.
     ///
     /// Only a mark made on the day it's for gets a time: correcting Monday
     /// on Wednesday would otherwise record Wednesday's clock as Monday's
@@ -89,20 +91,48 @@ struct CDAttendanceStore {
     private func mark(_ record: CDAttendanceRecord, as status: AttendanceStatus, at now: Date) {
         let previous = record.status
         record.status = status
-        let isToday = record.date.map { calendar.isDate($0, inSameDayAs: now) } ?? false
-        let time = isToday ? now : nil
+        let time = isToday(record, now) ? now : nil
+        record.returnedAt = nil
+        record.statusBeforeLeavingRaw = nil
         switch status {
         case .unmarked:
             record.markedAt = nil
             record.leftAt = nil
         case .leftEarly:
-            if previous != .present && previous != .tardy { record.markedAt = nil }
+            if previous == .present || previous == .tardy {
+                record.statusBeforeLeavingRaw = previous.rawValue
+            } else {
+                record.markedAt = nil
+            }
             record.leftAt = time
         case .present, .absent, .tardy:
             record.markedAt = time
             record.leftAt = nil
         }
         stamp(record)
+    }
+
+    private func isToday(_ record: CDAttendanceRecord, _ now: Date) -> Bool {
+        record.date.map { calendar.isDate($0, inSameDayAs: now) } ?? false
+    }
+
+    /// Back in Class: a child who left early has come back. They return to
+    /// present or late, whichever they left from (present if neither is
+    /// known), keeping their arrival (`markedAt`) and when they went
+    /// (`leftAt`); `returnedAt` says when they came back ("out
+    /// 11:15–12:40"), only on the day itself. The pickup that took them out
+    /// is done, so its time goes. Returns whether it changed: false unless
+    /// the child is marked Left Early.
+    @discardableResult
+    func markBack(_ record: CDAttendanceRecord, at now: Date = Date()) -> Bool {
+        guard canWrite(on: record.date), record.status == .leftEarly else { return false }
+        let before = record.statusBeforeLeavingRaw.flatMap(AttendanceStatus.init(rawValue:))
+        record.status = before == .tardy ? .tardy : .present
+        record.statusBeforeLeavingRaw = nil
+        record.returnedAt = isToday(record, now) ? now : nil
+        record.leavesAt = nil
+        stamp(record)
+        return true
     }
 
     // Fetch all records for a normalized date.

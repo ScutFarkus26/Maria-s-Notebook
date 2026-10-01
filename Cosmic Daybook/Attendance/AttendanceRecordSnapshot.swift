@@ -12,6 +12,8 @@ struct AttendanceRecordSnapshot {
     let markedAt: Date?
     let leftAt: Date?
     let leavesAt: Date?
+    let returnedAt: Date?
+    let statusBeforeLeavingRaw: String?
     let recordedBy: String?
     let recordedByID: String?
     let recordedByName: String?
@@ -24,6 +26,8 @@ struct AttendanceRecordSnapshot {
         markedAt = record.markedAt
         leftAt = record.leftAt
         leavesAt = record.leavesAt
+        returnedAt = record.returnedAt
+        statusBeforeLeavingRaw = record.statusBeforeLeavingRaw
         recordedBy = record.recordedBy
         recordedByID = record.recordedByID
         recordedByName = record.recordedByName
@@ -43,6 +47,8 @@ struct AttendanceRecordSnapshot {
         record.markedAt = markedAt
         record.leftAt = leftAt
         record.leavesAt = leavesAt
+        record.returnedAt = returnedAt
+        record.statusBeforeLeavingRaw = statusBeforeLeavingRaw
         record.recordedBy = recordedBy
         record.recordedByID = recordedByID
         record.recordedByName = recordedByName

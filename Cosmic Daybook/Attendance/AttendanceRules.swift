@@ -17,9 +17,12 @@ enum AttendanceRules {
     /// What a tap does in `phase`. During Arrival a tap marks present and a
     /// second tap unmarks; during Late a tap turns absent (or unmarked) into
     /// tardy and a second tap turns it back. A present child is left alone
-    /// during Late: the long-press menu changes that.
+    /// during Late, and a child who left early in either phase: the
+    /// long-press menu changes those (Back in Class for a child who
+    /// returns), so a stray tap can't wipe out the day's times.
     static func statusAfterTap(from status: AttendanceStatus, in phase: AttendancePhase) -> AttendanceStatus? {
         switch (phase, status) {
+        case (_, .leftEarly): return nil
         case (.arrival, .present): return .unmarked
         case (.arrival, _): return .present
         case (.late, .tardy): return .absent
@@ -98,6 +101,24 @@ enum AttendanceRules {
             break
         }
         return text
+    }
+
+    // MARK: - Back in Class
+
+    /// Whether the menu offers Back in Class: the child is marked Left Early.
+    static func allowsBack(for row: AttendanceRow) -> Bool {
+        row.status == .leftEarly
+    }
+
+    /// "out 11:15–12:40": a child who left early and came back, or "out at
+    /// 11:15" when the return has no time (brought back on a later day).
+    /// Nil for anyone who hasn't been out and back. A trip needs `leftAt` on
+    /// a present or late mark, which only Back in Class leaves; an older
+    /// build's mark clears `leftAt`, so a stale `returnedAt` never shows.
+    static func tripText(_ row: AttendanceRow) -> String? {
+        guard row.status == .present || row.status == .tardy, let left = row.leftAt else { return nil }
+        guard let back = row.returnedAt else { return "out at \(AttendanceClock.string(left))" }
+        return "out \(AttendanceClock.string(left))–\(AttendanceClock.string(back))"
     }
 
     /// "8:02 → 1:15", "left 1:15", or nil when neither time is known.

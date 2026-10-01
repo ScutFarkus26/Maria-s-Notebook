@@ -84,7 +84,10 @@ nonisolated public enum BackupWriter {
     ///   settings for them as the classroom share carries them. Purely additive.
     /// - v35: `AttendanceRecord` entries carry `leavesAt`, when a child is due
     ///   to be picked up early (schema 13). Purely additive.
-    public static let formatVersion: Int = 35
+    /// - v36: `AttendanceRecord` entries carry `returnedAt` and
+    ///   `statusBeforeLeavingRaw`, a child who left early and came back
+    ///   (schema 14). Purely additive.
+    public static let formatVersion: Int = 36
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

@@ -20,7 +20,8 @@ struct AssistantTileKey: View {
                 entry(.tardy, "Late", "Came in after arrival closed. Counts as here.")
                 entry(
                     .leftEarly, "Left early",
-                    "Went home before the end of the day, so no longer counted as here."
+                    "Went home before the end of the day, so no longer counted as here. "
+                        + "If they come back, hold the tile and choose Back in Class."
                 )
             } header: {
                 Text("Marks")

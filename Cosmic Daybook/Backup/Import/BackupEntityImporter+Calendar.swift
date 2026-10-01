@@ -63,6 +63,8 @@ extension BackupEntityImporter {
                 record.markedAt = dto.markedAt
                 record.leftAt = dto.leftAt
                 record.leavesAt = dto.leavesAt
+                record.returnedAt = dto.returnedAt
+                record.statusBeforeLeavingRaw = dto.statusBeforeLeavingRaw
                 return record
             }
         )

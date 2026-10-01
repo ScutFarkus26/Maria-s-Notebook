@@ -16,6 +16,8 @@ struct AttendanceTileGrid: View {
     let onNote: (AttendanceRow) -> Void
     /// Leaving Early… for a row, or nil where the day or mark allows none.
     let onPickup: (AttendanceRow) -> (() -> Void)?
+    /// Back in Class for a row, or nil unless it's marked Left Early.
+    let onBack: (AttendanceRow) -> (() -> Void)?
     var onStepDay: ((Bool) -> Void)?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -86,6 +88,7 @@ struct AttendanceTileGrid: View {
             },
             onNote: { onNote(row) },
             onPickup: onPickup(row),
+            onBack: onBack(row),
             rippleTrigger: viewModel.completions,
             rippleDelay: rippleDelay(at: index)
         )

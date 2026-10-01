@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The long-press (or right-click) menu on a child's attendance: any status
-/// directly, Absent with its reason in one step, clearing, the note, and
-/// Leaving Early… for a pickup time ahead of it.
+/// directly, Absent with its reason in one step, clearing, the note,
+/// Leaving Early… for a pickup time ahead of it, and Back in Class for a
+/// child who left early and has come back.
 /// Shared by the notebook's cards and both apps' phone tiles.
 ///
 /// The header carries what a tile has no room for ("Present at 8:02 · by
@@ -26,9 +27,19 @@ struct AttendanceStatusMenu: View {
     var onPickup: (() -> Void)?
     /// The pickup time already set, if any: the item reads Change Pickup Time….
     var leavesAt: Date?
+    /// Back in Class, first in the menu; nil unless the child is marked Left
+    /// Early (`AttendanceRules.allowsBack`).
+    var onBack: (() -> Void)?
 
     var body: some View {
         Section {
+            if let onBack {
+                Button("Back in Class", systemImage: "arrow.uturn.backward") {
+                    // Back is to present or late: the tile's "here" motion.
+                    willMark(.present)
+                    onBack()
+                }
+            }
             ForEach(statuses.filter { $0 != .absent && $0 != .unmarked }, id: \.self) { choice in
                 Button {
                     willMark(choice)
@@ -97,14 +108,16 @@ struct AttendanceStatusMenu: View {
         }
     }
 
-    /// "Birthday · Back after 4 days · Present at 8:02 · by you · leaves
-    /// 1:30", leaving out what isn't so.
+    /// "Birthday · Back after 4 days · Present at 8:02 · by you · out
+    /// 11:15–12:40 · leaves 1:30", leaving out what isn't so.
     static func header(for row: AttendanceRow, markedBy: String?) -> String? {
         let mark = AttendanceRules.markSummary(row).map { summary in
             markedBy.map { "\(summary) · by \($0)" } ?? summary
         }
         let away = row.daysAway.map(AttendanceRules.welcomeBackPhrase(daysAway:))
-        let parts = [row.birthday?.title, away, mark, AttendanceRules.pickupText(row)].compactMap(\.self)
+        let parts = [
+            row.birthday?.title, away, mark, AttendanceRules.tripText(row), AttendanceRules.pickupText(row)
+        ].compactMap(\.self)
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

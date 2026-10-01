@@ -90,7 +90,12 @@ extension CoreDataStack {
     ///   up early ("leaves 1:30"), set ahead from the tile's menu so the guide
     ///   and every assistant see it and the Assistant can remind. Additive
     ///   optional Date on the shared entity.
-    nonisolated static let currentSchemaVersion = 13
+    /// - `14` — `AttendanceRecord.returnedAt` and `statusBeforeLeavingRaw`: a
+    ///   child who left early and came back ("out 11:15–12:40"). Back in
+    ///   Class returns them to present or late, whichever they were, keeping
+    ///   the arrival and the trip. Additive optional attributes on the shared
+    ///   entity.
+    nonisolated static let currentSchemaVersion = 14
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

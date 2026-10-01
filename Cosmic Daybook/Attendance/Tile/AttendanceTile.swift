@@ -45,6 +45,8 @@ struct AttendanceTile: View {
     let onNote: () -> Void
     /// Leaving Early…, when the day and the mark allow a pickup time.
     var onPickup: (() -> Void)?
+    /// Back in Class, for a child marked Left Early.
+    var onBack: (() -> Void)?
     /// Bumped when everyone's marked, for the ripple across the grid.
     var rippleTrigger = 0
     /// How long after the ripple starts this tile's turn comes.
@@ -292,14 +294,18 @@ struct AttendanceTile: View {
                         .monospacedDigit()
                 default:
                     // A phone tile has room for one time: the pickup still
-                    // to come matters more than the arrival, which stays in
-                    // the menu's header.
-                    if usesShortName, let pickupText {
-                        Text(pickupText)
+                    // to come matters more than the arrival, and a trip out
+                    // and back too; the arrival stays in the menu's header.
+                    if usesShortName, let shown = pickupText ?? tripText {
+                        Text(shown)
                             .monospacedDigit()
                     } else {
                         Text(row.markedAt.map(AttendanceClock.string) ?? (isRoomy ? row.status.displayName : " "))
                             .monospacedDigit()
+                        if let tripText {
+                            Text("· \(tripText)")
+                                .monospacedDigit()
+                        }
                         if let pickupText {
                             Text("· \(pickupText)")
                                 .monospacedDigit()
@@ -325,6 +331,9 @@ struct AttendanceTile: View {
 
     /// "leaves 1:30", until the child is marked Left Early.
     var pickupText: String? { AttendanceRules.pickupText(row) }
+
+    /// "out 11:15–12:40", for a child who left early and came back.
+    var tripText: String? { AttendanceRules.tripText(row) }
 
     /// "8:02 → 1:15", "left 1:15", or nil when neither time is known.
     private var leftEarlyTimes: String? { AttendanceRules.leftEarlyTimes(row) }

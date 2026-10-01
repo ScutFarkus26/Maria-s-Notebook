@@ -158,6 +158,16 @@ final class AttendanceViewModel {
         if marked || reasoned { changed([record]) }
     }
 
+    /// Back in Class: a child who left early has come back, to present or
+    /// late as they were, with the trip out on the record
+    /// (`CDAttendanceStore.markBack`).
+    func markBack(_ row: AttendanceRow, modelContext: NSManagedObjectContext) {
+        guard AttendanceRules.allowsBack(for: row),
+              let record = record(for: row, modelContext: modelContext),
+              CDAttendanceStore(context: modelContext).markBack(record) else { return }
+        changed([record])
+    }
+
     /// "Welcome back" when a child back after days away is marked in.
     private func welcomeBack(_ row: AttendanceRow, to status: AttendanceStatus) {
         let comesIn = status == .present || status == .tardy || status == .leftEarly

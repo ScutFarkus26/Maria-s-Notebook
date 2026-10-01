@@ -25,8 +25,11 @@ struct AttendanceRow: Identifiable, Equatable {
     /// When the current mark was made (for Left Early, the arrival); nil
     /// while unmarked and for marks made on another day.
     let markedAt: Date?
-    /// When a Left Early child went home.
+    /// When a Left Early child went home, or, once back, when the trip
+    /// out began.
     let leftAt: Date?
+    /// When a child who left early came back (Back in Class).
+    let returnedAt: Date?
     /// When the child is due to be picked up early ("leaves 1:30").
     let leavesAt: Date?
     /// Who made the mark: role raw value, CloudKit user, and typed name
@@ -60,6 +63,7 @@ struct AttendanceRow: Identifiable, Equatable {
         self.note = record?.note ?? ""
         self.markedAt = record?.markedAt
         self.leftAt = record?.leftAt
+        self.returnedAt = record?.returnedAt
         self.leavesAt = record?.leavesAt
         self.recordedBy = record?.recordedBy
         self.recordedByID = record?.recordedByID

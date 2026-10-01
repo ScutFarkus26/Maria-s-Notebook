@@ -12,6 +12,8 @@ struct AttendanceGridActions {
     let saveNote: (AttendanceRow, String?) -> Void
     /// Leaving Early…: the pickup time on the day on screen, or nil to remove it.
     let savePickup: (AttendanceRow, Date?) -> Void
+    /// Back in Class: a child who left early has come back.
+    let markBack: (AttendanceRow) -> Void
 }
 
 /// The day's roll: cards on the Mac and iPad, the Daybook Assistant's tiles
@@ -66,6 +68,12 @@ struct AttendanceGrid: View {
         return { pickupRow = row }
     }
 
+    /// Back in Class for `row`, when it's marked Left Early.
+    private func backAction(_ row: AttendanceRow) -> (() -> Void)? {
+        guard isEditing, AttendanceRules.allowsBack(for: row) else { return nil }
+        return { actions.markBack(row) }
+    }
+
     @ViewBuilder
     private var layout: some View {
 #if os(iOS)
@@ -77,6 +85,7 @@ struct AttendanceGrid: View {
                 markedBy: markedBy,
                 onNote: { noteRow = $0 },
                 onPickup: pickupAction,
+                onBack: backAction,
                 onStepDay: onStepDay
             )
         } else {
@@ -113,7 +122,8 @@ struct AttendanceGrid: View {
                 if reason == .other { noteRow = row }
             },
             onNote: { noteRow = row },
-            onPickup: pickupAction(row)
+            onPickup: pickupAction(row),
+            onBack: backAction(row)
         )
     }
 

@@ -18,6 +18,8 @@ struct AttendanceCard: View {
     let onNote: () -> Void
     /// Leaving Early…, when the day and the mark allow a pickup time.
     var onPickup: (() -> Void)?
+    /// Back in Class, for a child marked Left Early.
+    var onBack: (() -> Void)?
 
     private var status: AttendanceStatus { row.status }
     private var absenceReason: AbsenceReason { row.absenceReason }
@@ -129,6 +131,15 @@ struct AttendanceCard: View {
                     .lineLimit(1)
             }
 
+            // Left early and came back: "out 11:15–12:40".
+            if let trip = AttendanceRules.tripText(row) {
+                Label(trip, systemImage: "arrow.uturn.backward")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+
             // Due to be picked up early: "leaves 1:30" until they go.
             if let pickup = AttendanceRules.pickupText(row) {
                 Label(pickup, systemImage: "figure.walk.departure")
@@ -214,7 +225,8 @@ struct AttendanceCard: View {
                         onMarkAbsent: onMarkAbsent,
                         onNote: onNote,
                         onPickup: onPickup,
-                        leavesAt: row.leavesAt
+                        leavesAt: row.leavesAt,
+                        onBack: onBack
                     )
                 }
             }
@@ -228,7 +240,9 @@ struct AttendanceCard: View {
     private var accessibilityLabel: String {
         let birthday = row.birthday.map { ", \($0.title.lowercased())" } ?? ""
         let away = row.daysAway.map { ", " + AttendanceRules.welcomeBackPhrase(daysAway: $0).lowercased() } ?? ""
+        let trip = AttendanceRules.tripText(row).map { ", \($0)" } ?? ""
         let pickup = AttendanceRules.pickupText(row).map { ", \($0)" } ?? ""
-        return "\(row.name)\(birthday)\(away), \(AttendanceRules.markSummary(row) ?? status.displayName)\(pickup)"
+        let mark = AttendanceRules.markSummary(row) ?? status.displayName
+        return "\(row.name)\(birthday)\(away), \(mark)\(trip)\(pickup)"
     }
 }
