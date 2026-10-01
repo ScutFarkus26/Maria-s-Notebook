@@ -109,6 +109,56 @@ enum AttendanceRules {
         }
     }
 
+    // MARK: - Early pickup
+
+    /// The pickup time still to come for `row`: its `leavesAt`, unless the
+    /// child is absent or has already been marked Left Early (then the plan
+    /// is moot, or the tile shows when they actually went).
+    static func pendingPickup(_ row: AttendanceRow) -> Date? {
+        switch row.status {
+        case .absent, .leftEarly: return nil
+        case .present, .tardy, .unmarked: return row.leavesAt
+        }
+    }
+
+    /// "leaves 1:30", while a pickup is still to come.
+    static func pickupText(_ row: AttendanceRow) -> String? {
+        pendingPickup(row).map { "leaves \(AttendanceClock.string($0))" }
+    }
+
+    /// Whether the menu offers Leaving Early… for `row` on `day`: today or a
+    /// day ahead (a parent's note for Friday), never a day gone by, and not
+    /// for a child absent or already gone home.
+    static func allowsPickup(for row: AttendanceRow, on day: Date, now: Date = Date()) -> Bool {
+        let calendar = Calendar.current
+        guard calendar.startOfDay(for: day) >= calendar.startOfDay(for: now) else { return false }
+        return row.status != .absent && row.status != .leftEarly
+    }
+
+    /// The time the pickup sheet starts on: the one already set, else the
+    /// next half hour today (noon on a day ahead), on `day`.
+    static func suggestedPickup(for row: AttendanceRow, on day: Date, now: Date = Date()) -> Date {
+        if let set = row.leavesAt { return set }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: day)
+        guard calendar.isDate(day, inSameDayAs: now) else {
+            return calendar.date(byAdding: .hour, value: 12, to: start) ?? start
+        }
+        let minutes = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
+        let rounded = (minutes / 30 + 1) * 30
+        return calendar.date(byAdding: .minute, value: rounded, to: start) ?? now
+    }
+
+    /// `time`'s hour and minute on `day`: a picker's answer, put on the
+    /// record's own day.
+    static func pickup(_ time: Date, on day: Date) -> Date {
+        let calendar = Calendar.current
+        let parts = calendar.dateComponents([.hour, .minute], from: time)
+        let start = calendar.startOfDay(for: day)
+        return calendar.date(byAdding: .minute, value: (parts.hour ?? 0) * 60 + (parts.minute ?? 0), to: start)
+            ?? time
+    }
+
     /// How far back a welcome back counts; a child away longer is "15+".
     static let welcomeBackLookback = 15
 
@@ -119,48 +169,38 @@ enum AttendanceRules {
             : "Back after \(daysAway) days"
     }
 
-    /// "19 here (1 late) · 2 absent · 1 not marked", leaving out what's
-    /// zero. Late and left early are children who came in, so they count as
-    /// here (marking a child late moves "here" up), and the brackets say how
-    /// many of those were.
-    static func tally(_ rows: [AttendanceRow]) -> String {
-        counts(rows, breakdown: true)
+    /// "17 here": who's in the room now, late arrivals included. A child
+    /// who left early is no longer counted in it. The count's large line
+    /// (`AttendanceHereCount`).
+    static func hereLine(_ rows: [AttendanceRow]) -> String {
+        "\(rows.count(where: \.isInRoom)) here"
     }
 
-    /// The tally when the full one won't fit: "3 here · 1 absent · 18 not
-    /// marked", without the late and left-early brackets, since the tiles
-    /// already say which.
-    static func shortTally(_ rows: [AttendanceRow]) -> String {
-        counts(rows, breakdown: false)
-    }
-
-    private static func counts(_ rows: [AttendanceRow], breakdown: Bool) -> String {
-        let count = { (status: AttendanceStatus) in rows.count { $0.status == status } }
-        var here = "\(rows.count(where: \.isHere)) here"
-        let ofThem = [(count(.tardy), "late"), (count(.leftEarly), "left early")]
-            .filter { $0.0 > 0 }
-            .map { "\($0.0) \($0.1)" }
-        if breakdown, !ofThem.isEmpty {
-            here += " (\(ofThem.joined(separator: ", ")))"
-        }
-        let parts = [
-            (rows.count(where: \.isHere), here),
-            (count(.absent), "\(count(.absent)) absent"),
-            (count(.unmarked), "\(count(.unmarked)) not marked")
+    /// "1 late · 1 left early · 2 absent · 1 not marked", leaving out what's
+    /// zero, or nil when there's nothing to add: the small line under
+    /// `hereLine`. Late is the part of here that came late.
+    static func detailLine(_ rows: [AttendanceRow]) -> String? {
+        let parts: [(AttendanceStatus, String)] = [
+            (.tardy, "late"), (.leftEarly, "left early"), (.absent, "absent"), (.unmarked, "not marked")
         ]
-        return parts.filter { $0.0 > 0 }.map(\.1).joined(separator: " · ")
+        let text = parts.compactMap { status, word in
+            let count = rows.count { $0.status == status }
+            return count > 0 ? "\(count) \(word)" : nil
+        }
+        return text.isEmpty ? nil : text.joined(separator: " · ")
     }
 
     /// The line once everyone's marked: "Everyone's here · 8:14" (the time
-    /// only today), or "All marked · 20 here, 2 home". `everyone` words the
-    /// first case ("Everyone's here for day 100").
+    /// only today), or "All marked · 17 here, 3 home", where home counts the
+    /// absent and anyone who has left early. `everyone` words the first case
+    /// ("Everyone's here for day 100").
     static func completionText(
         _ rows: [AttendanceRow],
         at time: Date?,
         everyone: String = "Everyone's here"
     ) -> String {
-        let here = rows.count(where: \.isHere)
-        let home = rows.count { $0.status == .absent }
+        let here = rows.count(where: \.isInRoom)
+        let home = rows.count { $0.status == .absent || $0.status == .leftEarly }
         guard home > 0 else {
             return time.map { "\(everyone) · \(AttendanceClock.string($0))" } ?? everyone
         }

@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 
 // The guide shares this school year only (`ClassroomShareScope` in the notebook), so the
 // grid pages no earlier than the share's first day with attendance, and a child the guide
@@ -24,5 +25,15 @@ extension AssistantAttendanceViewModel {
         guard row.studentIsGone else { return false }
         load()
         return true
+    }
+
+    /// Moves to the next (`forward`) or previous school day, skipping weekends
+    /// and the guide's days off. Stays put if none is found within a year.
+    /// Never back past the share's first day with attendance (`canStepBack`).
+    func step(forward: Bool) {
+        guard forward || canStepBack,
+              let next = SchoolDayChecker.schoolDay(from: date, forward: forward, using: context),
+              forward || isOnOrAfterEarliestDay(next) else { return }
+        load(next)
     }
 }

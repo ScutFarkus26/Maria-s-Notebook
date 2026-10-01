@@ -5,8 +5,8 @@ import UserNotifications
 
 /// The Assistant's one settings screen, behind the person button: whose
 /// classroom this is and since when, what the tiles mean, which way the grid
-/// runs, her name, the arrival and front-desk email reminders, the
-/// background, the bells, and the way out.
+/// runs, her name, the arrival, front-desk email and early-pickup reminders,
+/// the background, the bells, and the way out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -25,6 +25,7 @@ struct AssistantClassroomSheet: View {
     @AppStorage(ArrivalReminder.timeKey) private var reminderMinutes = ArrivalReminder.defaultMinutes
     @AppStorage(FrontDeskEmailReminder.enabledKey) private var frontDeskOn = FrontDeskEmailReminder.isOnByDefault
     @AppStorage(FrontDeskEmailReminder.leadKey) private var frontDeskLead = FrontDeskEmailReminder.defaultLeadMinutes
+    @AppStorage(EarlyPickupReminder.enabledKey) private var pickupOn = true
     @State private var notificationsDenied = false
     @AppStorage(AttendanceBells.enabledKey) private var bellsOn = false
     @AppStorage(AssistantGridOrder.key) private var gridOrderRaw = AssistantGridOrder.across.rawValue
@@ -92,7 +93,8 @@ struct AssistantClassroomSheet: View {
             Text("Classroom")
         } footer: {
             if classroomID != nil {
-                Text("If something looks wrong, read this ID to your guide. It tells them which class this iPhone is in.")
+                Text("If something looks wrong, read this ID to your guide. "
+                    + "It tells them which class this iPhone is in.")
             }
         }
     }
@@ -169,8 +171,9 @@ struct AssistantClassroomSheet: View {
                     }
                 }
             }
+            EarlyPickupReminderRows(context: bootstrapper.coreDataStack?.viewContext)
         } footer: {
-            if (reminderOn || frontDeskOn) && notificationsDenied {
+            if (reminderOn || frontDeskOn || pickupOn) && notificationsDenied {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Notifications are off for Daybook Assistant.")
                     Button("Turn On in Settings") {
@@ -203,6 +206,10 @@ struct AssistantClassroomSheet: View {
             } else {
                 lines.append("The front desk needs attendance emailed by \(dueAt).")
             }
+        }
+        if pickupOn {
+            lines.append("When someone is being picked up early, you'll get a reminder before their time. "
+                + "Hold a child's name and choose Leaving Early… to set it.")
         }
         return lines.isEmpty ? "Turn on a reminder to get a nudge on school days." : lines.joined(separator: " ")
     }

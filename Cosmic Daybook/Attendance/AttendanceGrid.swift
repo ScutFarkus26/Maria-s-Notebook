@@ -10,6 +10,8 @@ struct AttendanceGridActions {
     let setStatus: (AttendanceStatus, AttendanceRow) -> Void
     let markAbsent: (AbsenceReason, AttendanceRow) -> Void
     let saveNote: (AttendanceRow, String?) -> Void
+    /// Leaving Early…: the pickup time on the day on screen, or nil to remove it.
+    let savePickup: (AttendanceRow, Date?) -> Void
 }
 
 /// The day's roll: cards on the Mac and iPad, the Daybook Assistant's tiles
@@ -24,6 +26,8 @@ struct AttendanceGrid: View {
 
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var noteRow: AttendanceRow?
+    /// The child whose pickup time is being set (Leaving Early…).
+    @State private var pickupRow: AttendanceRow?
 
     // Layout constants
     private let horizontalPadding: CGFloat = UIConstants.AttendanceGrid.horizontalPadding
@@ -43,6 +47,23 @@ struct AttendanceGrid: View {
                     onSave: { actions.saveNote(row, $0) }
                 )
             }
+            .sheet(item: $pickupRow) { row in
+                AttendancePickupSheet(
+                    studentName: row.student.shortName,
+                    day: viewModel.selectedDate,
+                    current: row.leavesAt,
+                    suggested: AttendanceRules.suggestedPickup(for: row, on: viewModel.selectedDate),
+                    sharedWith: "Anyone you share your classroom with sees this too, "
+                        + "and the Daybook Assistant reminds them before it.",
+                    onSave: { actions.savePickup(row, $0) }
+                )
+            }
+    }
+
+    /// Leaving Early… for `row`, when this day and its mark allow a pickup time.
+    private func pickupAction(_ row: AttendanceRow) -> (() -> Void)? {
+        guard isEditing, AttendanceRules.allowsPickup(for: row, on: viewModel.selectedDate) else { return nil }
+        return { pickupRow = row }
     }
 
     @ViewBuilder
@@ -55,6 +76,7 @@ struct AttendanceGrid: View {
                 actions: actions,
                 markedBy: markedBy,
                 onNote: { noteRow = $0 },
+                onPickup: pickupAction,
                 onStepDay: onStepDay
             )
         } else {
@@ -90,7 +112,8 @@ struct AttendanceGrid: View {
                 // "Other" is only as good as the note that says what.
                 if reason == .other { noteRow = row }
             },
-            onNote: { noteRow = row }
+            onNote: { noteRow = row },
+            onPickup: pickupAction(row)
         )
     }
 

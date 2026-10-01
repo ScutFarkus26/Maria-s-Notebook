@@ -41,6 +41,8 @@
 		DDF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift */; };
 		DD03529481808C8C9F50FCC2 /* AttendanceClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC03529481808C8C9F50FCC2 /* AttendanceClock.swift */; };
 		DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */; };
+		DA5E1A7C0F3B4D2E9C8A6B41 /* AttendancePickupSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5E1A7C0F3B4D2E9C8A6B42 /* AttendancePickupSheet.swift */; };
+		DA5E1A7C0F3B4D2E9C8A6B43 /* AttendanceHereCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5E1A7C0F3B4D2E9C8A6B44 /* AttendanceHereCount.swift */; };
 		DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4C4B2353AC01D418062C7F /* UIConstants.swift */; };
 		DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */; };
 		DA3F9E61C2B84D07A5E10F02 /* PersistentHistoryProcessor+StoreHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3F9E61C2B84D07A5E10F01 /* PersistentHistoryProcessor+StoreHistory.swift */; };
@@ -198,6 +200,8 @@
 		DCF0358DE6115F5BAB492BCC /* AttendanceBirthday.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceBirthday.swift"; path = "Cosmic Daybook/Attendance/AttendanceBirthday.swift"; sourceTree = SOURCE_ROOT; };
 		DC03529481808C8C9F50FCC2 /* AttendanceClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AttendanceClock.swift"; path = "Cosmic Daybook/Attendance/AttendanceClock.swift"; sourceTree = SOURCE_ROOT; };
 		DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceNoteSheet.swift; path = "Cosmic Daybook/Attendance/AttendanceNoteSheet.swift"; sourceTree = SOURCE_ROOT; };
+		DA5E1A7C0F3B4D2E9C8A6B42 /* AttendancePickupSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendancePickupSheet.swift; path = "Cosmic Daybook/Attendance/AttendancePickupSheet.swift"; sourceTree = SOURCE_ROOT; };
+		DA5E1A7C0F3B4D2E9C8A6B44 /* AttendanceHereCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceHereCount.swift; path = "Cosmic Daybook/Attendance/AttendanceHereCount.swift"; sourceTree = SOURCE_ROOT; };
 		DB1A0C5E7F20A4B3C9D81E03 /* Daybook Assistant Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Daybook Assistant Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA78AF6D99DF99878361E70F /* StudentAppEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentAppEntity.swift; path = "Cosmic Daybook/Siri/StudentAppEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DB5D0A1E2C3F4B5A6978C803 /* StudentEntity+CoreData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StudentEntity+CoreData.swift"; path = "Cosmic Daybook/Siri/StudentEntity+CoreData.swift"; sourceTree = SOURCE_ROOT; };
@@ -366,6 +370,8 @@
 				DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */,
 				DA49ED404EAA378986A743F9 /* SchoolDayOverrideEntity.swift */,
 				DA970BCFBAD099E0BC5F95DD /* AttendanceNoteSheet.swift */,
+				DA5E1A7C0F3B4D2E9C8A6B42 /* AttendancePickupSheet.swift */,
+				DA5E1A7C0F3B4D2E9C8A6B44 /* AttendanceHereCount.swift */,
 				DB2A0C5E7F20A4B3C9D82E02 /* AttendanceRoster.swift */,
 				DCB3A07161C605469391E73F /* SeededRandom.swift */,
 				DCB083A413102361A9AFA9CC /* AttendanceBells.swift */,
@@ -645,6 +651,8 @@
 				DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */,
 				DA90F0C9A40AF72728F46271 /* SchoolDayOverrideEntity.swift in Sources */,
 				DA6FD37D81563D0AE05C6110 /* AttendanceNoteSheet.swift in Sources */,
+				DA5E1A7C0F3B4D2E9C8A6B41 /* AttendancePickupSheet.swift in Sources */,
+				DA5E1A7C0F3B4D2E9C8A6B43 /* AttendanceHereCount.swift in Sources */,
 				DB2A0C5E7F20A4B3C9D82E01 /* AttendanceRoster.swift in Sources */,
 				DDB3A07161C605469391E73F /* SeededRandom.swift in Sources */,
 				DDB083A413102361A9AFA9CC /* AttendanceBells.swift in Sources */,

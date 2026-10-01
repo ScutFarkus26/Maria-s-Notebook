@@ -31,6 +31,11 @@ nonisolated public class CDAttendanceRecord: NSManagedObject {
     /// keeps the arrival. Nil for every other status, and for marks made on
     /// any day but the one they're for. Written by `CDAttendanceStore`.
     @NSManaged public var leftAt: Date?
+    /// When the child is due to be picked up early: "leaves 1:30". A plan,
+    /// not a mark: set ahead from the tile's menu, it leaves the status alone,
+    /// and `leftAt` still records when they actually went. Written by
+    /// `CDAttendanceStore.updateLeavesAt`.
+    @NSManaged public var leavesAt: Date?
     /// The day's attendance note ("dentist, back by 11"). It lives on the
     /// record, not in the private notes, so the guide and an assistant share
     /// it; write it through `CDAttendanceStore.updateNote`.

@@ -7,8 +7,8 @@ extension AttendanceExpandedView {
 
     // MARK: - Tally (Mac and iPad)
 
-    /// "19 here (1 late) · 2 absent" over the cards, with Close Arrival
-    /// beside it; the iPhone has its strip.
+    /// "17 here" large over the cards with "1 late · 2 absent" small under
+    /// it, and Close Arrival beside them; the iPhone has its strip.
     @ViewBuilder
     var tallyLine: some View {
         if !isCompact, !viewModel.rows.isEmpty {
@@ -21,9 +21,7 @@ extension AttendanceExpandedView {
                         Label(welcomeLine, systemImage: "hand.wave.fill")
                             .foregroundStyle(.primary)
                     } else {
-                        Text(AttendanceRules.tally(viewModel.rows))
-                            .monospacedDigit()
-                            .contentTransition(.numericText())
+                        AttendanceHereCount(rows: viewModel.rows)
                     }
                 }
                 .font(AppTheme.ScaledFont.caption)

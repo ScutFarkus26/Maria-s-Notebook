@@ -151,15 +151,10 @@ struct AssistantArrivalBar: View {
                 }
                 .transition(.opacity)
             } else {
-                // The full tally, or beside the arrival button when that
-                // won't fit, the short one.
-                ViewThatFits(in: .horizontal) {
-                    tallyText(AssistantAttendanceViewModel.tally(viewModel.rows))
-                        .fixedSize()
-                    tallyText(AssistantAttendanceViewModel.shortTally(viewModel.rows))
-                        .minimumScaleFactor(0.8)
-                }
-                .transition(.opacity)
+                // "17 here" large, the rest small under it; to the left
+                // beside the arrival button, centered otherwise.
+                AttendanceHereCount(rows: viewModel.rows, alignment: showsArrivalControl ? .leading : .center)
+                    .transition(.opacity)
             }
         }
         .font(.footnote)
@@ -183,35 +178,31 @@ struct AssistantArrivalBar: View {
             .fixedSize()
     }
 
-    /// The class filling up along the bar's top edge: green for here, gray
-    /// for absent, nothing yet for the rest.
+    /// The class filling up along the bar's top edge: green for here, purple
+    /// for left early, gray for absent, nothing yet for the rest.
     @ViewBuilder
     private var fillLine: some View {
         let rows = viewModel.rows
         if viewModel.dayOff == nil, !rows.isEmpty {
-            let here = rows.count { [.present, .tardy, .leftEarly].contains($0.status) }
+            let here = rows.count(where: \.isInRoom)
+            let gone = rows.count { $0.status == .leftEarly }
             let away = rows.count { $0.status == .absent }
             GeometryReader { proxy in
                 let unit = proxy.size.width / CGFloat(rows.count)
                 HStack(spacing: 0) {
                     Rectangle().fill(Color.green).frame(width: unit * CGFloat(here))
+                    Rectangle().fill(Color.purple).frame(width: unit * CGFloat(gone))
                     Rectangle().fill(Color(.tertiaryLabel)).frame(width: unit * CGFloat(away))
                     Spacer(minLength: 0)
                 }
             }
             .frame(height: 3)
             .animation(.smooth(duration: 0.35), value: here)
+            .animation(.smooth(duration: 0.35), value: gone)
             .animation(.smooth(duration: 0.35), value: away)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
-    }
-
-    private func tallyText(_ text: String) -> some View {
-        Text(text)
-            .monospacedDigit()
-            .contentTransition(.numericText())
-            .animation(.smooth, value: text)
     }
 
     /// Close Arrival while anyone's unmarked; "Late" once closed. Nothing

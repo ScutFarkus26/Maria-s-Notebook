@@ -90,17 +90,32 @@ struct AttendanceRulesTests {
         #expect(AttendanceRules.markerName(for: mine, myRecordName: "guide", myName: nil, guideName: "you") == "you")
     }
 
-    @Test("The tally leaves out what's zero")
+    @Test("The count's small line leaves out what's zero")
     func tally() throws {
         let rows = [try row(.present), try row(.present), try row(.absent), try row(.unmarked)]
-        #expect(AttendanceRules.tally(rows) == "2 here · 1 absent · 1 not marked")
+        #expect(AttendanceRules.hereLine(rows) == "2 here")
+        #expect(AttendanceRules.detailLine(rows) == "1 absent · 1 not marked")
+        #expect(AttendanceRules.detailLine([try row(.present)]) == nil)
     }
 
-    @Test("Late and left early count as here, with the brackets saying how many")
-    func tallyCountsLateAsHere() throws {
+    @Test("Here is who's in the room: late counts, left early doesn't")
+    func leftEarlyLeavesTheCount() throws {
+        // 18 came in; one has gone home.
+        let rows = try (0..<17).map { _ in try row(.present) } + [try row(.leftEarly)]
+        #expect(AttendanceRules.hereLine(rows) == "17 here")
+        #expect(AttendanceRules.detailLine(rows) == "1 left early")
+        #expect(AttendanceRules.completionText(rows, at: nil) == "All marked · 17 here, 1 home")
+
+        let withLate = try [row(.present), row(.tardy), row(.leftEarly), row(.absent)]
+        #expect(AttendanceRules.hereLine(withLate) == "2 here")
+        #expect(AttendanceRules.detailLine(withLate) == "1 late · 1 left early · 1 absent")
+    }
+
+    @Test("Late counts as here, so marking a child late moves here up")
+    func lateCountsAsHere() throws {
         let rows = [try row(.present), try row(.tardy), try row(.tardy), try row(.leftEarly), try row(.unmarked)]
-        #expect(AttendanceRules.tally(rows) == "4 here (2 late, 1 left early) · 1 not marked")
-        #expect(AttendanceRules.tally([try row(.tardy), try row(.absent)]) == "1 here (1 late) · 1 absent")
-        #expect(AttendanceRules.shortTally(rows) == "4 here · 1 not marked")
+        #expect(AttendanceRules.hereLine(rows) == "3 here")
+        #expect(AttendanceRules.detailLine(rows) == "2 late · 1 left early · 1 not marked")
+        #expect(AttendanceRules.hereLine([try row(.tardy), try row(.absent)]) == "1 here")
     }
 }

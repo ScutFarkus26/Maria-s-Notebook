@@ -58,5 +58,25 @@ extension AttendanceTile {
             shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
         }
     }
+
+    /// One-line tiles have no detail line, so a note and a pickup still to
+    /// come show in the other corner (the time itself is in the menu header).
+    @ViewBuilder
+    var phoneNoteGlyph: some View {
+        if isOneLine && (!row.note.isEmpty || pickupText != nil) {
+            HStack(spacing: 3) {
+                if pickupText != nil {
+                    Image(systemName: "figure.walk.departure")
+                }
+                if !row.note.isEmpty {
+                    Image(systemName: "text.alignleft")
+                }
+            }
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(nameStyle.opacity(0.7))
+            .padding(6)
+            .accessibilityHidden(true)
+        }
+    }
 }
 #endif

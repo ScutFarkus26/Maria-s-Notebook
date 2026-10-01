@@ -86,7 +86,11 @@ extension CoreDataStack {
     ///   (a day's email went: when, and who sent it) and `AttendanceEmailSettings`
     ///   (the guide's recipients and report format, so an assistant's email
     ///   matches), both in the classroom share. Additive entities.
-    nonisolated static let currentSchemaVersion = 12
+    /// - `13` — `AttendanceRecord.leavesAt`: when a child is due to be picked
+    ///   up early ("leaves 1:30"), set ahead from the tile's menu so the guide
+    ///   and every assistant see it and the Assistant can remind. Additive
+    ///   optional Date on the shared entity.
+    nonisolated static let currentSchemaVersion = 13
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

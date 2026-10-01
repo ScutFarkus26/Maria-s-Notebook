@@ -12,6 +12,22 @@ extension AssistantAttendanceViewModel {
         let name: String
     }
 
+    /// The children still unmarked, by the names on their tiles: Close
+    /// Arrival's list.
+    var unmarkedNames: [String] {
+        rows.filter { $0.status == .unmarked }.map(\.shortName)
+    }
+
+    /// Whether the bar offers Close Arrival (someone still unmarked) or shows
+    /// Late. Never on a locked day or a day ahead.
+    var showsArrivalControl: Bool {
+        guard canMark, !isFuture else { return false }
+        switch phase {
+        case .arrival: return !unmarkedNames.isEmpty
+        case .late: return true
+        }
+    }
+
     static func statusAfterTap(from status: AttendanceStatus, in phase: Phase) -> AttendanceStatus? {
         AttendanceRules.statusAfterTap(from: status, in: phase)
     }
@@ -48,9 +64,9 @@ extension AssistantAttendanceViewModel {
         return .weekend
     }
 
-    static func tally(_ rows: [Row]) -> String { AttendanceRules.tally(rows) }
+    static func hereLine(_ rows: [Row]) -> String { AttendanceRules.hereLine(rows) }
 
-    static func shortTally(_ rows: [Row]) -> String { AttendanceRules.shortTally(rows) }
+    static func detailLine(_ rows: [Row]) -> String? { AttendanceRules.detailLine(rows) }
 
     /// The line in the bar once everyone's marked: "Everyone's here · 8:14"
     /// (the time only today; "for day 100" on that day), or "All marked · 20

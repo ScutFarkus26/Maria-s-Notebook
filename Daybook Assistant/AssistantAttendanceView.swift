@@ -39,6 +39,8 @@ struct AssistantAttendanceView: View {
     @State var showingClassroom = false
     @State var showingDatePicker = false
     @State private var noteRow: AssistantAttendanceViewModel.Row?
+    /// The child whose pickup time is being set (Leaving Early…).
+    @State private var pickupRow: AssistantAttendanceViewModel.Row?
     /// The "Marked 3 absent · Undo" line after closing arrival. It stays
     /// until the next mark, a phase or day change, or the app leaving the
     /// foreground.
@@ -180,6 +182,7 @@ struct AssistantAttendanceView: View {
                 onSave: { viewModel?.setNote($0, for: row) }
             )
         }
+        .modifier(AssistantPickupSheet(row: $pickupRow, viewModel: viewModel))
         .task {
             if viewModel == nil { startDay() }
             // The class, the guide's marks and locked days all arrive by
@@ -314,6 +317,7 @@ struct AssistantAttendanceView: View {
                 if reason == .other { noteRow = row }
             },
             onNote: { noteRow = row },
+            onPickup: viewModel.allowsPickup(for: row) ? { pickupRow = row } : nil,
             rippleTrigger: ripples,
             rippleDelay: rippleDelay(at: index)
         )

@@ -141,6 +141,8 @@ nonisolated public struct AttendanceRecordDTO: Codable, Sendable {
     public var markedAt: Date?
     /// When a Left Early child went home (v33+; absent in older backups).
     public var leftAt: Date?
+    /// When the child is due to be picked up early (v35+; absent in older backups).
+    public var leavesAt: Date?
 
     public init(
         id: UUID,
@@ -154,7 +156,8 @@ nonisolated public struct AttendanceRecordDTO: Codable, Sendable {
         modifiedAt: Date? = nil,
         note: String? = nil,
         markedAt: Date? = nil,
-        leftAt: Date? = nil
+        leftAt: Date? = nil,
+        leavesAt: Date? = nil
     ) {
         self.id = id
         self.studentID = studentID
@@ -168,5 +171,6 @@ nonisolated public struct AttendanceRecordDTO: Codable, Sendable {
         self.note = note
         self.markedAt = markedAt
         self.leftAt = leftAt
+        self.leavesAt = leavesAt
     }
 }

@@ -18,7 +18,10 @@ struct AssistantTileKey: View {
                     "Closing arrival marks everyone not yet here absent. Hold a tile to mark absent with a reason."
                 )
                 entry(.tardy, "Late", "Came in after arrival closed. Counts as here.")
-                entry(.leftEarly, "Left early", "Went home before the end of the day. Counts as here.")
+                entry(
+                    .leftEarly, "Left early",
+                    "Went home before the end of the day, so no longer counted as here."
+                )
             } header: {
                 Text("Marks")
             } footer: {
@@ -41,6 +44,10 @@ struct AssistantTileKey: View {
                     "A summer birthday, when school is out, is celebrated six months on instead."
                 )
                 entry(.present, note: true, "Note", "Someone left a note about the day. Hold the tile to read it.")
+                entry(
+                    .present, pickup: true, "Leaving early",
+                    "Being picked up early today. Hold the tile to see when; mark Left Early when they go."
+                )
             }
 
             Section("Around the grid") {
@@ -52,7 +59,8 @@ struct AssistantTileKey: View {
                 row(
                     Capsule().fill(Color.green).frame(width: 44, height: 4),
                     "Green line",
-                    "Along the top of the bottom bar: how much of the class is here so far."
+                    "Along the top of the bottom bar: how much of the class is here so far, "
+                        + "and in purple, anyone who has left early."
                 )
                 row(
                     Label("Late", systemImage: "clock.fill")
@@ -79,11 +87,14 @@ struct AssistantTileKey: View {
         cornerColor: Color = .primary,
         party: Bool = false,
         note: Bool = false,
+        pickup: Bool = false,
         _ title: String,
         _ detail: String
     ) -> some View {
         row(
-            AssistantKeyTile(status: status, corner: corner, cornerColor: cornerColor, party: party, note: note),
+            AssistantKeyTile(
+                status: status, corner: corner, cornerColor: cornerColor, party: party, note: note, pickup: pickup
+            ),
             title,
             detail
         )
@@ -119,6 +130,8 @@ struct AssistantKeyTile: View {
     var cornerColor: Color = .primary
     var party = false
     var note = false
+    /// A pickup time set with Leaving Early….
+    var pickup = false
 
     private var isHere: Bool { [.present, .tardy, .leftEarly].contains(status) }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 10, style: .continuous) }
@@ -147,11 +160,14 @@ struct AssistantKeyTile: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                if note {
-                    Image(systemName: "text.alignleft")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color.black.opacity(0.7))
-                        .padding(5)
+                if note || pickup {
+                    HStack(spacing: 3) {
+                        if pickup { Image(systemName: "figure.walk.departure") }
+                        if note { Image(systemName: "text.alignleft") }
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.black.opacity(0.7))
+                    .padding(5)
                 }
             }
     }

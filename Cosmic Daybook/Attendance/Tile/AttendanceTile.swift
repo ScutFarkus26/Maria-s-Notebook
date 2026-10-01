@@ -5,7 +5,8 @@ import SwiftUI
 /// shape, not in color alone: a solid tile is a child who is here, an outlined
 /// one isn't marked yet, a dashed one is absent, and a small corner glyph says
 /// late or left early. Tap to mark (what a tap means depends on the phase and
-/// the day); long-press for every status, Absent with its reason, and a note.
+/// the day); long-press for every status, Absent with its reason, a note, and
+/// Leaving Early… for a pickup time ("leaves 1:30" on the tile until they go).
 /// A child with a note shows it, in full, above that menu. On a child's
 /// birthday (or a summer child's half-birthday) the tile gets a party-colored
 /// edge and a cake, and sparkles when they're marked in. A child back after
@@ -42,6 +43,8 @@ struct AttendanceTile: View {
     /// Absent with a reason (`.none` for no reason), in one step.
     let onMarkAbsent: (AbsenceReason) -> Void
     let onNote: () -> Void
+    /// Leaving Early…, when the day and the mark allow a pickup time.
+    var onPickup: (() -> Void)?
     /// Bumped when everyone's marked, for the ripple across the grid.
     var rippleTrigger = 0
     /// How long after the ripple starts this tile's turn comes.
@@ -94,7 +97,7 @@ struct AttendanceTile: View {
 
     /// One-line phone tiles: no detail line, so the hint and a note glyph
     /// take the name's line and a corner instead.
-    private var isOneLine: Bool { usesShortName && !isRoomy }
+    var isOneLine: Bool { usesShortName && !isRoomy }
 
     var body: some View {
         cardWithMenu
@@ -276,14 +279,32 @@ struct AttendanceTile: View {
                     Text("Absent")
                 case .unmarked:
                     // Holds a wider screen's row height; a roomy tile only
-                    // gets here with a note, whose glyph starts the line.
-                    if !isRoomy { Text(" ") }
+                    // gets here with a note or a pickup, whose glyph or time
+                    // starts the line.
+                    if let pickupText {
+                        Text(pickupText)
+                            .monospacedDigit()
+                    } else if !isRoomy {
+                        Text(" ")
+                    }
                 case .leftEarly:
                     Text(leftEarlyTimes ?? "Left early")
                         .monospacedDigit()
                 default:
-                    Text(row.markedAt.map(AttendanceClock.string) ?? (isRoomy ? row.status.displayName : " "))
-                        .monospacedDigit()
+                    // A phone tile has room for one time: the pickup still
+                    // to come matters more than the arrival, which stays in
+                    // the menu's header.
+                    if usesShortName, let pickupText {
+                        Text(pickupText)
+                            .monospacedDigit()
+                    } else {
+                        Text(row.markedAt.map(AttendanceClock.string) ?? (isRoomy ? row.status.displayName : " "))
+                            .monospacedDigit()
+                        if let pickupText {
+                            Text("· \(pickupText)")
+                                .monospacedDigit()
+                        }
+                    }
                 }
                 if !row.note.isEmpty {
                     Image(systemName: "text.alignleft")
@@ -299,8 +320,11 @@ struct AttendanceTile: View {
     /// Whether the detail line has anything to say: on a roomy tile, any
     /// mark does (its glyph, at least).
     private var hasDetail: Bool {
-        showsHoldHint || !row.note.isEmpty || row.status != .unmarked
+        showsHoldHint || !row.note.isEmpty || row.status != .unmarked || pickupText != nil
     }
+
+    /// "leaves 1:30", until the child is marked Left Early.
+    var pickupText: String? { AttendanceRules.pickupText(row) }
 
     /// "8:02 → 1:15", "left 1:15", or nil when neither time is known.
     private var leftEarlyTimes: String? { AttendanceRules.leftEarlyTimes(row) }
@@ -329,19 +353,6 @@ struct AttendanceTile: View {
                 .font((isRoomy ? Font.footnote : .caption2).weight(.bold))
                 .foregroundStyle(isHere ? nameStyle : .teal)
                 .padding(isRoomy ? 8 : 6)
-                .accessibilityHidden(true)
-        }
-    }
-
-    /// One-line tiles have no detail line, so a note shows in the other
-    /// corner.
-    @ViewBuilder
-    private var phoneNoteGlyph: some View {
-        if isOneLine && !row.note.isEmpty {
-            Image(systemName: "text.alignleft")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(nameStyle.opacity(0.7))
-                .padding(6)
                 .accessibilityHidden(true)
         }
     }

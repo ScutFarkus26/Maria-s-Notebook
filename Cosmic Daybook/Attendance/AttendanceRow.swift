@@ -27,6 +27,8 @@ struct AttendanceRow: Identifiable, Equatable {
     let markedAt: Date?
     /// When a Left Early child went home.
     let leftAt: Date?
+    /// When the child is due to be picked up early ("leaves 1:30").
+    let leavesAt: Date?
     /// Who made the mark: role raw value, CloudKit user, and typed name
     /// (assistants only; the guide's marks carry none).
     let recordedBy: String?
@@ -58,6 +60,7 @@ struct AttendanceRow: Identifiable, Equatable {
         self.note = record?.note ?? ""
         self.markedAt = record?.markedAt
         self.leftAt = record?.leftAt
+        self.leavesAt = record?.leavesAt
         self.recordedBy = record?.recordedBy
         self.recordedByID = record?.recordedByID
         self.recordedByName = record?.recordedByName
@@ -76,5 +79,11 @@ struct AttendanceRow: Identifiable, Equatable {
         case .present, .tardy, .leftEarly: return true
         case .absent, .unmarked: return false
         }
+    }
+
+    /// In the room now: present or late. A child who left early came in but
+    /// has gone, so the counts ("17 here") leave them out.
+    var isInRoom: Bool {
+        status == .present || status == .tardy
     }
 }

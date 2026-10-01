@@ -5,8 +5,8 @@ import SwiftUI
 
 extension AttendanceTile {
 
-    /// Every status, Absent with its reasons, clearing and the note
-    /// (`AttendanceStatusMenu`), when the day can be marked.
+    /// Every status, Absent with its reasons, clearing, the note and the
+    /// pickup time (`AttendanceStatusMenu`), when the day can be marked.
     @ViewBuilder
     var menu: some View {
         if canMark {
@@ -19,7 +19,9 @@ extension AttendanceTile {
                 willMark: { marked($0) },
                 onSetStatus: onSetStatus,
                 onMarkAbsent: onMarkAbsent,
-                onNote: onNote
+                onNote: onNote,
+                onPickup: onPickup,
+                leavesAt: row.leavesAt
             )
         }
     }
@@ -32,11 +34,12 @@ extension AttendanceTile {
 
     // MARK: - Accessibility
 
-    /// "Maya Stone, birthday, back after 4 days, Present at 8:04".
+    /// "Maya Stone, birthday, back after 4 days, Present at 8:04, leaves 1:30".
     var accessibilityName: String {
         let birthday = row.birthday.map { ", \($0.title.lowercased())" } ?? ""
         let away = row.daysAway.map { ", " + AttendanceRules.welcomeBackPhrase(daysAway: $0).lowercased() } ?? ""
-        return "\(row.name)\(birthday)\(away), \(markSummary ?? row.status.displayName)"
+        let pickup = AttendanceRules.pickupText(row).map { ", \($0)" } ?? ""
+        return "\(row.name)\(birthday)\(away), \(markSummary ?? row.status.displayName)\(pickup)"
     }
 
     /// "Present at 8:04", "Left Early 8:02 → 1:15", "Absent, Sick", or nil

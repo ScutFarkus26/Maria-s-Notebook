@@ -207,8 +207,8 @@ struct AssistantAttendanceRulesTests {
         #expect(model.dayOff == nil)
     }
 
-    @Test("Both tallies count late and left early as here")
-    func shortTally() throws {
+    @Test("Here counts late arrivals, not a child who left early; the rest go on the small line")
+    func hereCount() throws {
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
         let names = [("Ari", "Cedar"), ("Maya", "Stone"), ("Noah", "Linden"), ("Leah", "Hart"), ("Eli", "Moss")]
@@ -222,7 +222,7 @@ struct AssistantAttendanceRulesTests {
         model.setStatus(.leftEarly, for: try row("Noah"))
         model.markAbsent(reason: .none, for: try row("Leah"))
 
-        #expect(Model.tally(model.rows) == "3 here (1 late, 1 left early) · 1 absent · 1 not marked")
-        #expect(Model.shortTally(model.rows) == "3 here · 1 absent · 1 not marked")
+        #expect(Model.hereLine(model.rows) == "2 here")
+        #expect(Model.detailLine(model.rows) == "1 late · 1 left early · 1 absent · 1 not marked")
     }
 }

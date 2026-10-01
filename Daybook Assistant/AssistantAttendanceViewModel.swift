@@ -38,13 +38,17 @@ final class AssistantAttendanceViewModel {
     /// Bumped by every full load (a day change, an import), for work that
     /// follows the roll as a whole: rescheduling the arrival reminder.
     private(set) var loadGeneration = 0
+    /// Bumped when she sets or removes a pickup time here (`setPickup`), for
+    /// the pickup reminders (`EarlyPickupReminder`); other devices' arrive by
+    /// import, which reloads.
+    var pickupEdits = 0
 
     var unmarkedCount: Int { rows.count { $0.status == .unmarked } }
-    /// How much of the class is here (late and left early count), 0 to 1:
-    /// the Cosmic background's stars.
+    /// How much of the class is in the room (late counts, left early
+    /// doesn't), 0 to 1: the Cosmic background's stars.
     var hereFraction: Double {
         guard !rows.isEmpty else { return 0 }
-        return Double(rows.count { Self.isHere($0.status) }) / Double(rows.count)
+        return Double(rows.count(where: \.isInRoom)) / Double(rows.count)
     }
     /// Bumped when her own mark (or closing arrival) leaves no one unmarked
     /// on a day that has arrived: the grid's ripple and the bar's "Everyone's
@@ -93,7 +97,7 @@ final class AssistantAttendanceViewModel {
 
     /// The day on screen (start of day).
     private(set) var date: Date
-    private let context: NSManagedObjectContext
+    let context: NSManagedObjectContext
     private let container: NSPersistentCloudKitContainer?
     private let store: CDAttendanceStore
     /// Records created since the last save, to put into the classroom share
@@ -145,22 +149,6 @@ final class AssistantAttendanceViewModel {
     /// A day after today: only absences (a known vacation, an appointment)
     /// and notes can be marked ahead.
     var isFuture: Bool { date > Calendar.current.startOfDay(for: Date()) }
-
-    /// The children still unmarked, by the names on their tiles: Close
-    /// Arrival's list.
-    var unmarkedNames: [String] {
-        rows.filter { $0.status == .unmarked }.map(\.shortName)
-    }
-
-    /// Whether the bar offers Close Arrival (someone still unmarked) or shows
-    /// Late. Never on a locked day or a day ahead.
-    var showsArrivalControl: Bool {
-        guard canMark, !isFuture else { return false }
-        switch phase {
-        case .arrival: return !unmarkedNames.isEmpty
-        case .late: return true
-        }
-    }
 
     /// The statuses the long-press menu offers on the day on screen.
     var menuStatuses: [AttendanceStatus] {
@@ -330,35 +318,38 @@ final class AssistantAttendanceViewModel {
     /// Writes the day's note for a student, creating the record if there is
     /// none yet. Empty text removes the note.
     func setNote(_ text: String?, for row: Row) {
-        guard !reloadIfGone(row) else { return }
-        guard canMark else { return }
-        do {
-            guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
-            let isNew = record.isInserted
-            guard store.updateNote(record, to: text) else {
-                // Saving an empty note on an unmarked child isn't a mark:
-                // leave no blank record waiting for the next save.
-                if isNew { context.delete(record) }
-                return
-            }
-            if isNew { createdSinceSave.append(record) }
-            persist(updating: [record])
-        } catch {
-            Self.logger.error("Saving a note failed: \(error.localizedDescription, privacy: .public)")
-            saveError = "Couldn't save that note. Try again."
+        editRecord(for: row, failure: "Couldn't save that note. Try again.") { store, record in
+            store.updateNote(record, to: text)
         }
     }
 
-    // MARK: - Moving between days
-
-    /// Moves to the next (`forward`) or previous school day, skipping weekends
-    /// and the guide's days off. Stays put if none is found within a year.
-    /// Never back past the share's first day with attendance (`canStepBack`).
-    func step(forward: Bool) {
-        guard forward || canStepBack,
-              let next = SchoolDayChecker.schoolDay(from: date, forward: forward, using: context),
-              forward || isOnOrAfterEarliestDay(next) else { return }
-        load(next)
+    /// Writes one of a record's values that isn't its mark (the note, the
+    /// pickup time), creating the record if there is none yet. `update`
+    /// returns whether it changed anything; when it didn't, a record made
+    /// just for it is dropped rather than left blank for the next save.
+    /// Returns whether it saved.
+    @discardableResult
+    func editRecord(
+        for row: Row,
+        failure: String,
+        _ update: (CDAttendanceStore, CDAttendanceRecord) -> Bool
+    ) -> Bool {
+        guard !reloadIfGone(row), canMark else { return false }
+        do {
+            guard let record = try store.ensureRecord(for: row.student, on: date) else { return false }
+            let isNew = record.isInserted
+            guard update(store, record) else {
+                if isNew { context.delete(record) }
+                return false
+            }
+            if isNew { createdSinceSave.append(record) }
+            persist(updating: [record])
+            return saveError == nil
+        } catch {
+            Self.logger.error("Saving a record failed: \(error.localizedDescription, privacy: .public)")
+            saveError = failure
+            return false
+        }
     }
 
     /// Saves, puts new records into the classroom share, and redraws the

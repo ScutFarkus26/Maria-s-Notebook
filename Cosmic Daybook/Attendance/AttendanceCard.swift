@@ -16,6 +16,8 @@ struct AttendanceCard: View {
     let onSetStatus: (AttendanceStatus) -> Void
     let onMarkAbsent: (AbsenceReason) -> Void
     let onNote: () -> Void
+    /// Leaving Early…, when the day and the mark allow a pickup time.
+    var onPickup: (() -> Void)?
 
     private var status: AttendanceStatus { row.status }
     private var absenceReason: AbsenceReason { row.absenceReason }
@@ -126,6 +128,15 @@ struct AttendanceCard: View {
                     .monospacedDigit()
                     .lineLimit(1)
             }
+
+            // Due to be picked up early: "leaves 1:30" until they go.
+            if let pickup = AttendanceRules.pickupText(row) {
+                Label(pickup, systemImage: "figure.walk.departure")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.purple)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
         }
 
         markedByLabel
@@ -201,7 +212,9 @@ struct AttendanceCard: View {
                         statuses: menuStatuses,
                         onSetStatus: onSetStatus,
                         onMarkAbsent: onMarkAbsent,
-                        onNote: onNote
+                        onNote: onNote,
+                        onPickup: onPickup,
+                        leavesAt: row.leavesAt
                     )
                 }
             }
@@ -215,6 +228,7 @@ struct AttendanceCard: View {
     private var accessibilityLabel: String {
         let birthday = row.birthday.map { ", \($0.title.lowercased())" } ?? ""
         let away = row.daysAway.map { ", " + AttendanceRules.welcomeBackPhrase(daysAway: $0).lowercased() } ?? ""
-        return "\(row.name)\(birthday)\(away), \(AttendanceRules.markSummary(row) ?? status.displayName)"
+        let pickup = AttendanceRules.pickupText(row).map { ", \($0)" } ?? ""
+        return "\(row.name)\(birthday)\(away), \(AttendanceRules.markSummary(row) ?? status.displayName)\(pickup)"
     }
 }

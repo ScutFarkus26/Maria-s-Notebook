@@ -98,6 +98,10 @@ nonisolated extension DataCleanupService {
                     canonical.leftAt = duplicate.leftAt
                 }
 
+                // Keep a pickup time set on the duplicate (an assistant can
+                // plan one on a copy made before the guide's mark arrived).
+                if canonical.leavesAt == nil { canonical.leavesAt = duplicate.leavesAt }
+
                 // Keep the duplicate's note: two devices can each have written
                 // one on their own copy of the day.
                 canonical.note = AttendanceNoteMove.merged(canonical.note, duplicate.note)

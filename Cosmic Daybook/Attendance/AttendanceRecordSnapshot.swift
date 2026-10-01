@@ -2,7 +2,8 @@ import Foundation
 import CoreData
 
 /// A record's mark as it stood before Reset Day cleared it, so the reset can
-/// be undone: the status, reason and note, the times, and who made it.
+/// be undone: the status, reason and note, the times (the pickup time too),
+/// and who made it.
 struct AttendanceRecordSnapshot {
     let objectID: NSManagedObjectID
     let status: AttendanceStatus
@@ -10,6 +11,7 @@ struct AttendanceRecordSnapshot {
     let note: String?
     let markedAt: Date?
     let leftAt: Date?
+    let leavesAt: Date?
     let recordedBy: String?
     let recordedByID: String?
     let recordedByName: String?
@@ -21,6 +23,7 @@ struct AttendanceRecordSnapshot {
         note = record.note
         markedAt = record.markedAt
         leftAt = record.leftAt
+        leavesAt = record.leavesAt
         recordedBy = record.recordedBy
         recordedByID = record.recordedByID
         recordedByName = record.recordedByName
@@ -28,7 +31,7 @@ struct AttendanceRecordSnapshot {
 
     /// Whether `record` holds nothing a reset would clear.
     static func isBlank(_ record: CDAttendanceRecord) -> Bool {
-        record.status == .unmarked && record.absenceReason == .none && record.note == nil
+        record.status == .unmarked && record.absenceReason == .none && record.note == nil && record.leavesAt == nil
     }
 
     /// Writes the snapshot back onto `record`. `modifiedAt` moves on, so the
@@ -39,6 +42,7 @@ struct AttendanceRecordSnapshot {
         record.note = note
         record.markedAt = markedAt
         record.leftAt = leftAt
+        record.leavesAt = leavesAt
         record.recordedBy = recordedBy
         record.recordedByID = recordedByID
         record.recordedByName = recordedByName

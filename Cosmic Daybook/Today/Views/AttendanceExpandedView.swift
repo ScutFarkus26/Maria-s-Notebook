@@ -115,6 +115,10 @@ struct AttendanceExpandedView: View {
                 saveNote: { row, note in
                     viewModel.updateNote(for: row, note: note, modelContext: viewContext)
                     saveCoordinator.save(viewContext, reason: "Update note")
+                },
+                savePickup: { row, time in
+                    viewModel.updatePickup(for: row, time: time, modelContext: viewContext)
+                    saveCoordinator.save(viewContext, reason: "Update pickup time")
                 }
             ),
             onStepDay: onStepDay

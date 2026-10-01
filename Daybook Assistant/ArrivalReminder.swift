@@ -170,6 +170,8 @@ final class ArrivalReminderTaps: NSObject, UNUserNotificationCenterDelegate {
 /// guide's calendar) and whenever today's unmarked count moves, so today's
 /// goes once everyone's marked. The front-desk email reminder follows the
 /// same loads, and a send recorded here, so today's goes once the email has.
+/// The early-pickup reminders follow the loads too, and her own pickup edits
+/// and marks (a child marked Left Early or absent loses theirs).
 ///
 /// A modifier of its own, like `AssistantReloadOnReturn`: read in the
 /// attendance screen's body, `loadGeneration` would redraw the whole grid on
@@ -181,7 +183,14 @@ struct ArrivalReminderFollower: ViewModifier {
     private var signature: String {
         guard let viewModel else { return "" }
         let today = viewModel.isToday ? viewModel.unmarkedCount : -1
-        return "\(viewModel.loadGeneration)|\(today)|\(viewModel.frontDesk.sendsRecorded)"
+        return "\(viewModel.loadGeneration)|\(today)|\(viewModel.frontDesk.sendsRecorded)|\(pickupSignature)"
+    }
+
+    /// Changes only when a pickup or the mark of a child with one does.
+    private var pickupSignature: String {
+        guard let viewModel else { return "" }
+        let marks = viewModel.rows.filter { $0.leavesAt != nil }.map { "\($0.id)\($0.status.rawValue)" }
+        return "\(viewModel.pickupEdits)|" + marks.joined(separator: ",")
     }
 
     func body(content: Content) -> some View {
@@ -194,6 +203,7 @@ struct ArrivalReminderFollower: ViewModifier {
                 _ = await FrontDeskEmailReminder.requestPermission()
             }
             await FrontDeskEmailReminder.reschedule(in: context)
+            await EarlyPickupReminder.reschedule(in: context)
         }
     }
 }

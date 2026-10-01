@@ -14,6 +14,8 @@ struct AttendanceTileGrid: View {
     let actions: AttendanceGridActions
     let markedBy: (AttendanceRow) -> String?
     let onNote: (AttendanceRow) -> Void
+    /// Leaving Early… for a row, or nil where the day or mark allows none.
+    let onPickup: (AttendanceRow) -> (() -> Void)?
     var onStepDay: ((Bool) -> Void)?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -83,6 +85,7 @@ struct AttendanceTileGrid: View {
                 if reason == .other { onNote(row) }
             },
             onNote: { onNote(row) },
+            onPickup: onPickup(row),
             rippleTrigger: viewModel.completions,
             rippleDelay: rippleDelay(at: index)
         )

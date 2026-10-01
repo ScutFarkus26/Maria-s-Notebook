@@ -177,6 +177,19 @@ final class AttendanceViewModel {
         changed([record])
     }
 
+    /// Sets when the child is due to be picked up early, or with nil removes
+    /// it, creating the record if there is none yet. Marks nothing, and
+    /// leaves no blank record behind.
+    func updatePickup(for row: AttendanceRow, time: Date?, modelContext: NSManagedObjectContext) {
+        guard let record = record(for: row, modelContext: modelContext) else { return }
+        let isNew = record.isInserted
+        guard CDAttendanceStore(context: modelContext).updateLeavesAt(record, to: time) else {
+            if isNew { forget(record, in: modelContext) }
+            return
+        }
+        changed([record])
+    }
+
     /// Marks the whole roll present. Not ahead of the day.
     func markAllPresent(modelContext: NSManagedObjectContext) {
         guard !isFuture else { return }

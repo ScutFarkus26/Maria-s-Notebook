@@ -195,6 +195,20 @@ struct CDAttendanceStore {
         return true
     }
 
+    /// Sets when the child is due to be picked up early, or with nil clears
+    /// it, and returns whether it changed. A plan, not a mark: the status is
+    /// left alone, so a child can be present and "leaves 1:30" at once, and
+    /// can have a pickup time on a day ahead. Like the note, it's on the
+    /// shared record, so the guide and every assistant see it.
+    @discardableResult
+    func updateLeavesAt(_ record: CDAttendanceRecord, to time: Date?) -> Bool {
+        guard canWrite(on: record.date) else { return false }
+        guard record.leavesAt != time else { return false }
+        record.leavesAt = time
+        stamp(record)
+        return true
+    }
+
     /// Update a record's absence reason and return whether it changed.
     @discardableResult
     func updateAbsenceReason(_ record: CDAttendanceRecord, to newReason: AbsenceReason) -> Bool {
@@ -273,8 +287,8 @@ struct CDAttendanceStore {
         return true
     }
 
-    /// Resets the date's existing records to unmarked and clears their reasons
-    /// and notes. Students without a record are left alone — no record already
+    /// Resets the date's existing records to unmarked and clears their reasons,
+    /// notes and pickup times. Students without a record are left alone — no record already
     /// reads as unmarked. Returns what each record it cleared held before, for
     /// `restore(_:)`. Callers save immediately afterwards.
     @discardableResult
@@ -292,6 +306,7 @@ struct CDAttendanceStore {
             cleared.append(AttendanceRecordSnapshot(rec))
             rec.absenceReason = .none
             rec.note = nil
+            rec.leavesAt = nil
             mark(rec, as: .unmarked, at: Date())
         }
         return cleared

@@ -226,6 +226,7 @@ final class AssistantBootstrapper {
         AssistantClassroomLocalState.forget()
         await ArrivalReminder.cancelAll()
         await FrontDeskEmailReminder.cancelAll()
+        await EarlyPickupReminder.cancelAll()
         refreshMembership()
     }
 

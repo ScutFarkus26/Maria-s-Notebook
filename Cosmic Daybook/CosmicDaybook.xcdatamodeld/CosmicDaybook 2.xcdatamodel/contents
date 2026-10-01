@@ -724,6 +724,7 @@
         <attribute name="recordedByName" optional="YES" attributeType="String"/>
         <attribute name="markedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="leftAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="leavesAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="note" optional="YES" attributeType="String"/>
         <fetchIndex name="byDate">

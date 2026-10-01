@@ -219,6 +219,10 @@ struct AssistantDelightTests {
 
         model.markAbsent(reason: .none, for: model.rows[1])
         #expect(Model.completionText(model.rows, at: eight) == "All marked · 1 here, 1 home")
+
+        // Leaving early takes a child out of here and sends them home.
+        model.setStatus(.leftEarly, for: model.rows[0])
+        #expect(Model.completionText(model.rows, at: eight) == "All marked · 0 here, 2 home")
     }
 
     // MARK: - Bells
