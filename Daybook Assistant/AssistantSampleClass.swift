@@ -2,14 +2,16 @@ import Foundation
 import CoreData
 
 /// A made-up class for looking at the attendance screen without joining a
-/// real one: an in-memory store (no iCloud, nothing on disk) filled with a
-/// roster of invented names.
+/// real one: a local store (no iCloud) filled with a roster of invented names.
 ///
-/// Two ways in. The join screen's **Try a Sample Class** opens it for this
-/// session, which is how App Review (and anyone curious before their guide's
-/// invitation arrives) sees the app; Leave Sample Class or a relaunch goes
-/// back to joining. And in Debug builds, launching with `-AssistantSampleClass`
-/// skips joining altogether.
+/// Two ways in. The join screen's **Try a Sample Class** opens it, which is
+/// how App Review (and anyone curious before their guide's invitation
+/// arrives) sees the app. That sample is kept on this iPhone for the day:
+/// closing the app and coming back, or leaving and trying it again, finds the
+/// marks where she left them, and a relaunch reopens it if it was open. The
+/// next day it starts fresh. Leave Sample Class goes back to joining. And in
+/// Debug builds, launching with `-AssistantSampleClass` skips joining
+/// altogether, with a fresh sample in memory each launch.
 ///
 /// Its marks go nowhere: no share attach, no Siri, no reminders but the early
 /// pickup one (trying Leaving Early… should ring), and the Late phase is kept
@@ -38,9 +40,81 @@ enum AssistantSampleClass {
     /// class's (`.standard`).
     static let defaults = UserDefaults(suiteName: "Assistant.sampleClass") ?? .standard
 
+    /// The day the saved sample was filled, as `AppCalendar.dayID`.
+    static let seededDayKey = "Assistant.sampleClass.seededDay"
+    /// The sample was open when the app last closed, so a relaunch reopens it.
+    private static let wasOpenKey = "Assistant.sampleClass.wasOpen"
+
+    /// Whether a relaunch should reopen the join screen's sample.
+    static var wasOpen: Bool {
+        get { defaults.bool(forKey: wasOpenKey) }
+        set { defaults.set(newValue, forKey: wasOpenKey) }
+    }
+
+    /// Whether the real class, open underneath the sample, has a membership
+    /// row: a classroom arrived while she was looking at the sample.
+    static func realClassHasMembership() -> Bool {
+        guard AssistantStack.isOpen, let stack = try? AssistantStack.shared() else { return false }
+        let request = CDClassroomMembership.ownRowsRequest()
+        request.fetchLimit = 1
+        return stack.viewContext.safeFetchFirst(request) != nil
+    }
+
+    /// The join screen's sample, open for as long as the app runs, so leaving
+    /// it and trying it again finds the same store.
+    private static var saved: (stack: CoreDataStack, day: String)?
+
+    /// The join screen's sample: today's saved one, or a fresh one filled now
+    /// if there's none from today.
+    static func savedStack() throws -> CoreDataStack {
+        let today = AppCalendar.dayID(Date())
+        if let saved, saved.day == today { return saved.stack }
+        if let old = saved?.stack {
+            // Yesterday's, still open: let go of its file before replacing it.
+            close(old)
+            saved = nil
+        }
+        let stack = try openSaved(at: CoreDataStack.sampleClassroomStoreURL(), today: today, defaults: defaults)
+        saved = (stack, today)
+        return stack
+    }
+
+    /// Opens the sample at `url` if it was filled `today`; otherwise (another
+    /// day, no file, or a file that won't open) replaces it with a fresh one.
+    static func openSaved(at url: URL, today: String, defaults: UserDefaults) throws -> CoreDataStack {
+        if defaults.string(forKey: seededDayKey) == today,
+           FileManager.default.fileExists(atPath: url.path),
+           let stack = try? CoreDataStack(enableCloudKit: false, localStoreURL: url) {
+            if stack.viewContext.safeFetchFirst(CDFetchRequest(CDStudent.self)) != nil { return stack }
+            close(stack)
+        }
+        try destroyStore(at: url)
+        let stack = try CoreDataStack(enableCloudKit: false, localStoreURL: url)
+        fill(stack.viewContext, defaults: defaults)
+        defaults.set(today, forKey: seededDayKey)
+        return stack
+    }
+
+    private static func close(_ stack: CoreDataStack) {
+        let coordinator = stack.container.persistentStoreCoordinator
+        for store in coordinator.persistentStores { try? coordinator.remove(store) }
+    }
+
+    private static func destroyStore(at url: URL) throws {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let coordinator = NSPersistentStoreCoordinator(managedObjectModel: try CoreDataStack.sharedModel())
+        try coordinator.destroyPersistentStore(at: url, type: .sqlite)
+    }
+
+    /// A fresh sample in memory: the Debug launch argument's, and the tests'.
     static func makeStack() throws -> CoreDataStack {
         let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
-        let context = stack.viewContext
+        fill(stack.viewContext, defaults: defaults)
+        return stack
+    }
+
+    /// The roster, the front desk and the past marks, into an empty store.
+    private static func fill(_ context: NSManagedObjectContext, defaults: UserDefaults) {
         let calendar = Calendar.current
         for (index, (first, last)) in names.enumerated() {
             let student = CDStudent(context: context)
@@ -71,7 +145,6 @@ enum AssistantSampleClass {
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
         AttendanceLatePhase.forget(defaults: defaults)
-        return stack
     }
 
     /// Past marks, so the school-day count and a welcome back show: everyone

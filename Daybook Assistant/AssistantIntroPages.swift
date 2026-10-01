@@ -44,7 +44,7 @@ struct SampleClassButton: View {
     var body: some View {
         VStack(spacing: 0) {
             OnboardingSecondaryButton("Try a Sample Class") { bootstrapper.openSampleClass() }
-            Text("Made-up names. Nothing is saved or sent.")
+            Text("Made-up names. Nothing is sent.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -68,8 +68,10 @@ final class AssistantBootstrapper {
             return
         }
 
-        // A sample class's pickup reminders outlive it across a relaunch.
-        await EarlyPickupReminder.cancelSample()
+        // The sample was open when the app closed: it opens again below, with
+        // its pickup reminders. Otherwise they outlive it, and come off.
+        let reopenSample = AssistantSampleClass.wasOpen
+        if !reopenSample { await EarlyPickupReminder.cancelSample() }
 
         do {
             // Shared with Siri, which may have opened it already.
@@ -78,6 +80,7 @@ final class AssistantBootstrapper {
             observeAcceptance()
             observeRemoteChanges()
             observeAccountChanges()
+            if reopenSample { await resumeSample() }
         } catch {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
@@ -111,6 +114,7 @@ final class AssistantBootstrapper {
         try? await Task.sleep(for: .milliseconds(300))
         do {
             install(try AssistantStack.rebuild())
+            await resumeSample()
         } catch {
             Self.logger.error("Assistant rebuild failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(AssistantStartupProblem(error, storesOpen: AssistantStack.isOpen))
@@ -167,32 +171,6 @@ final class AssistantBootstrapper {
         if let stack = coreDataStack {
             AssistantShareAttacher.shared.flush(container: stack.container, context: stack.viewContext)
         }
-    }
-
-    /// The join screen's Try a Sample Class: a made-up class in memory for
-    /// this session. The real stack stays open underneath (Siri and joining
-    /// still use it); only the screens switch.
-    func openSampleClass() {
-        guard case .needsClassroom = phase else { return }
-        do {
-            let sample = try AssistantSampleClass.makeStack()
-            AssistantSampleClass.isChosen = true
-            coreDataStack = sample
-            phase = .ready
-        } catch {
-            Self.logger.error("Sample class failed: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    /// Back from the sample class to the real stack, and to joining unless a
-    /// classroom arrived meanwhile.
-    func leaveSampleClass() {
-        guard AssistantSampleClass.isChosen else { return }
-        AssistantSampleClass.isChosen = false
-        Task { await EarlyPickupReminder.cancelSample() }
-        coreDataStack = AssistantStack.isOpen ? try? AssistantStack.shared() : nil
-        refreshMembership()
-        if coreDataStack == nil { phase = .needsClassroom }
     }
 
     /// Leaves the classroom: the class comes off this iPhone and the screen
@@ -338,6 +316,15 @@ final class AssistantBootstrapper {
                 .map { _ in () }
             for await _ in changes {
                 guard let self else { return }
+                if AssistantSampleClass.isChosen {
+                    // The sample has no membership row of its own, so reading
+                    // it here took every import (the real class's on coming
+                    // back to the app, or the sample's own saves) for a Leave
+                    // elsewhere and threw her back to joining. Only a
+                    // classroom arriving underneath matters now.
+                    if AssistantSampleClass.realClassHasMembership() { leaveSampleClass() }
+                    continue
+                }
                 switch phase {
                 case .needsClassroom: refreshMembership()
                 case .ready: await followLeaveElsewhere()
@@ -362,5 +349,50 @@ final class AssistantBootstrapper {
                 self?.refreshMembership()
             }
         }
+    }
+}
+
+// MARK: - Sample class
+
+extension AssistantBootstrapper {
+    /// The join screen's Try a Sample Class: a made-up class kept on this
+    /// iPhone for the day, so its marks are still there when she comes back.
+    /// The real stack stays open underneath (Siri and joining still use it);
+    /// only the screens switch.
+    func openSampleClass() {
+        guard case .needsClassroom = phase else { return }
+        do {
+            let sample = try AssistantSampleClass.savedStack()
+            AssistantSampleClass.isChosen = true
+            AssistantSampleClass.wasOpen = true
+            coreDataStack = sample
+            phase = .ready
+        } catch {
+            Self.logger.error("Sample class failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Back into the sample after a relaunch or a rebuild if it was open,
+    /// unless a classroom arrived meanwhile: the real class wins then.
+    private func resumeSample() async {
+        guard AssistantSampleClass.wasOpen else { return }
+        if case .needsClassroom = phase {
+            openSampleClass()
+        } else {
+            AssistantSampleClass.wasOpen = false
+            await EarlyPickupReminder.cancelSample()
+        }
+    }
+
+    /// Back from the sample class to the real stack, and to joining unless a
+    /// classroom arrived meanwhile.
+    func leaveSampleClass() {
+        guard AssistantSampleClass.isChosen else { return }
+        AssistantSampleClass.isChosen = false
+        AssistantSampleClass.wasOpen = false
+        Task { await EarlyPickupReminder.cancelSample() }
+        coreDataStack = AssistantStack.isOpen ? try? AssistantStack.shared() : nil
+        refreshMembership()
+        if coreDataStack == nil { phase = .needsClassroom }
     }
 }

@@ -245,8 +245,8 @@ struct AssistantClassroomSheet: View {
                 bootstrapper.leaveSampleClass()
             }
         } footer: {
-            Text("This is a sample class with made-up names. Nothing you mark here is saved. "
-                + "To take real attendance, open your guide's invitation.")
+            Text("This is a sample class with made-up names. Your marks stay on this iPhone "
+                + "for today and go nowhere else. To take real attendance, open your guide's invitation.")
         }
     }
 

@@ -150,7 +150,7 @@ struct AssistantSyncStatusView: View {
         return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
     }
 
-    /// The sample class lives in memory with no iCloud behind it, so "sent"
+    /// The sample class has no iCloud behind it, so "sent"
     /// would be untrue.
     private var isSampleClass: Bool { AssistantSampleClass.isActive }
 

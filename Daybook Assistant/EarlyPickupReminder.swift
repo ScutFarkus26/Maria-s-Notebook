@@ -17,7 +17,7 @@ import OSLog
 ///
 /// The sample class rings too, the one reminder it does, so Leaving Early…
 /// can be tried there. Its requests carry their own prefix: leaving the
-/// sample, or a relaunch (the sample lives in memory), takes them off.
+/// sample, or a relaunch that doesn't reopen it, takes them off.
 @MainActor
 enum EarlyPickupReminder {
 
@@ -104,7 +104,7 @@ enum EarlyPickupReminder {
     }
 
     /// Removes the sample class's pickup reminders only: when she leaves the
-    /// sample, and at launch, since the sample they came from is gone.
+    /// sample, and at a launch that doesn't reopen it.
     static func cancelSample() async {
         await cancel(prefix: sampleIDPrefix)
     }
