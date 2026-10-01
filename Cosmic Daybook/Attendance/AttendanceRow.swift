@@ -18,6 +18,9 @@ struct AttendanceRow: Identifiable, Equatable {
     let id: UUID
     /// The student's full name when the day loaded.
     let name: String
+    /// The student's level when the day loaded (the Assistant's grid can
+    /// group by it).
+    let level: CDStudent.Level
     let status: AttendanceStatus
     let absenceReason: AbsenceReason
     /// The day's note, shared between the guide and the assistants.
@@ -58,6 +61,7 @@ struct AttendanceRow: Identifiable, Equatable {
         self.daysAway = daysAway
         self.id = student.id ?? UUID()
         self.name = student.fullName
+        self.level = student.level
         self.status = record?.status ?? .unmarked
         self.absenceReason = record?.absenceReason ?? .none
         self.note = record?.note ?? ""

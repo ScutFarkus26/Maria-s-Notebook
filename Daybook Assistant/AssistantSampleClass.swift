@@ -120,6 +120,9 @@ enum AssistantSampleClass {
             let student = CDStudent(context: context)
             student.firstName = first
             student.lastName = last
+            // Upper Elementary and Adolescent, like the real class, so Group
+            // by Level has two blocks to show.
+            student.level = index % 3 == 2 ? .adolescent : .upper
             // Nine-to-twelve-year-olds born through the year, and Maya's
             // birthday today, so the cake shows.
             let age = 9 + index % 4

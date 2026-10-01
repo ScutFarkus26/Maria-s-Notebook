@@ -62,13 +62,19 @@ struct AttendanceTile: View {
     static let roomyHeight: CGFloat = 70
 
     /// The phone tile height that fills `visibleHeight` with the class, in
-    /// whole points, between `phoneHeight` (a longer class scrolls) and
-    /// `tallestPhoneHeight`.
-    static func fittedPhoneHeight(visibleHeight: CGFloat, columns: Int, count: Int, spacing: CGFloat) -> CGFloat {
+    /// whole points, between `minimum` (a longer class scrolls; `phoneHeight`
+    /// unless the caller needs room for more) and `tallestPhoneHeight`.
+    static func fittedPhoneHeight(
+        visibleHeight: CGFloat,
+        columns: Int,
+        count: Int,
+        spacing: CGFloat,
+        minimum: CGFloat = phoneHeight
+    ) -> CGFloat {
         guard columns > 0, count > 0 else { return phoneHeight }
         let rows = (count + columns - 1) / columns
         let fitted = ((visibleHeight - spacing * CGFloat(rows - 1)) / CGFloat(rows)).rounded(.down)
-        return min(max(fitted, phoneHeight), tallestPhoneHeight)
+        return min(max(fitted, minimum), tallestPhoneHeight)
     }
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize

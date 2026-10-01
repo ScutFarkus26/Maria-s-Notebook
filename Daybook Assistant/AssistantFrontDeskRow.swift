@@ -8,7 +8,7 @@ import SwiftUI
 /// - from half an hour before the due time, even with children still
 ///   unmarked, **Close Arrival & Email**, which marks them absent (after
 ///   asking, naming them) and opens the email in one step, with "Due 9:00 AM"
-///   beside it;
+///   beside it (a small button, so the grid keeps its room);
 /// - after the due time, the same in amber, saying it's late.
 ///
 /// Once anyone has sent it (here, on another assistant's phone or the
@@ -25,9 +25,7 @@ struct AssistantFrontDeskRow: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
 
     private var frontDesk: AssistantFrontDesk { viewModel.frontDesk }
-    private var deadlineMinutes: Int {
-        frontDesk.settings?.deadlineMinutes ?? AttendanceEmailLog.defaultDeadlineMinutes
-    }
+    private var deadlineMinutes: Int { frontDesk.deadlineMinutes }
 
     var body: some View {
         if frontDesk.isOffered(by: viewModel) {
@@ -35,19 +33,11 @@ struct AssistantFrontDeskRow: View {
             // before the due time, and at it. The clock is read, not the
             // entry's date: before the first entry an explicit timeline
             // hands the view that first entry, not now.
-            TimelineView(.explicit(changeTimes)) { _ in
+            TimelineView(.explicit(frontDesk.changeTimes(on: viewModel.date))) { _ in
                 content(urgency: AttendanceEmailLog.urgency(for: viewModel.date, deadlineMinutes: deadlineMinutes))
             }
             .animation(.smooth(duration: 0.3), value: frontDesk.latestSend)
         }
-    }
-
-    private var changeTimes: [Date] {
-        let calendar = Calendar.current
-        guard let deadline = calendar.date(
-            byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: viewModel.date)
-        ) else { return [] }
-        return [deadline.addingTimeInterval(-Double(AttendanceEmailLog.dueWindowMinutes) * 60), deadline]
     }
 
     @ViewBuilder
@@ -56,16 +46,32 @@ struct AssistantFrontDeskRow: View {
             if let send = frontDesk.latestSend {
                 sentLine(send)
             } else if viewModel.unmarkedCount == 0 {
-                sendButton("Email the Front Desk", urgency: urgency, action: onSend)
-                dueLine(urgency)
-            } else if urgency != .none, viewModel.canMark, viewModel.phase == .arrival {
-                sendButton("Close Arrival & Email", urgency: urgency, action: onCloseAndSend)
-                dueLine(urgency)
+                buttonAndDueLine("Email the Front Desk", urgency: urgency, action: onSend)
+            } else if frontDesk.offersCloseAndEmail(by: viewModel) {
+                buttonAndDueLine("Close Arrival & Email", urgency: urgency, action: onCloseAndSend)
             }
             if let error = frontDesk.errorMessage {
                 Text(error)
                     .font(.footnote)
                     .foregroundStyle(.red)
+            }
+        }
+    }
+
+    /// A small button with the due time beside it, so the bar takes no more
+    /// room than it must and the grid's last row stays in sight on an SE;
+    /// stacked when the text is too large for one line.
+    private func buttonAndDueLine(
+        _ title: String, urgency: AttendanceEmailLog.Urgency, action: @escaping () -> Void
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                sendButton(title, urgency: urgency, action: action)
+                dueLine(urgency, short: true)
+            }
+            VStack(spacing: 4) {
+                sendButton(title, urgency: urgency, action: action)
+                dueLine(urgency, short: false)
             }
         }
     }
@@ -79,6 +85,7 @@ struct AssistantFrontDeskRow: View {
         }
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.capsule)
+        .controlSize(.small)
         .tint(isOverdue(urgency) ? Color.lateAmber : nil)
         .contextMenu {
             Button("Mark as Sent", systemImage: "checkmark.circle") {
@@ -89,19 +96,25 @@ struct AssistantFrontDeskRow: View {
         .transition(.opacity)
     }
 
+    /// When it's due, or that it's late. `short` is the version beside the
+    /// button ("Due 9:00 AM", "Late · due 9:00 AM").
     @ViewBuilder
-    private func dueLine(_ urgency: AttendanceEmailLog.Urgency) -> some View {
+    private func dueLine(_ urgency: AttendanceEmailLog.Urgency, short: Bool) -> some View {
         switch urgency {
         case .none:
             EmptyView()
         case .due(let deadline):
-            Text("Due at the front desk by \(deadline.formatted(date: .omitted, time: .shortened))")
+            let time = deadline.formatted(date: .omitted, time: .shortened)
+            Text(short ? "Due \(time)" : "Due at the front desk by \(time)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .fixedSize()
         case .overdue(let deadline):
-            Text("Late: it was due by \(deadline.formatted(date: .omitted, time: .shortened))")
+            let time = deadline.formatted(date: .omitted, time: .shortened)
+            Text(short ? "Late · due \(time)" : "Late: it was due by \(time)")
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(Color.lateAmber)
+                .fixedSize()
         }
     }
 

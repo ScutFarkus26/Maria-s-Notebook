@@ -67,9 +67,9 @@ extension AssistantAttendanceView {
             } label: {
                 // One line: "Today  Tue, Sep 29 · Day 37", and on a milestone
                 // "Day 100" or "First Day" in Today's place. An SE never has
-                // room for the day number beside its clock (the greeting
-                // has it); the toolbar doesn't limit the title's width, so
-                // `ViewThatFits` can't tell.
+                // room for the day number beside its clock; the toolbar
+                // doesn't limit the title's width, so `ViewThatFits` can't
+                // tell.
                 ViewThatFits(in: .horizontal) {
                     dayLine(viewModel, detail: hidesStatusBar ? .milestone : .full)
                     dayLine(viewModel, detail: .milestone)

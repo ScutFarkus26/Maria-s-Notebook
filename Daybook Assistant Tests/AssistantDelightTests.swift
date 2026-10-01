@@ -68,34 +68,6 @@ struct AssistantDelightTests {
         #expect(Model.Row(student: ari, record: nil, shortName: "Ari", day: day).birthday == nil)
     }
 
-    // MARK: - Greeting
-
-    @Test("The greeting is to the assistant, by first name, for the time of day")
-    func greeting() throws {
-        let day = try AssistantTestSupport.day("2026-09-29")
-        let calendar = Calendar.current
-        let eight = try #require(calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day))
-        let one = try #require(calendar.date(bySettingHour: 13, minute: 0, second: 0, of: day))
-        let six = try #require(calendar.date(bySettingHour: 18, minute: 0, second: 0, of: day))
-
-        #expect(AssistantGreeting.text(at: eight, name: "Rivka Cohen") == "Good morning, Rivka")
-        #expect(AssistantGreeting.text(at: one, name: "Rivka") == "Good afternoon, Rivka")
-        #expect(AssistantGreeting.text(at: six, name: nil) == "Good evening")
-        #expect(AssistantGreeting.text(at: eight, name: "   ") == "Good morning")
-    }
-
-    @Test("The greeting counts the school day, and the first and hundredth get their own words")
-    func greetingWithDayNumber() throws {
-        let day = try AssistantTestSupport.day("2026-09-29")
-        let eight = try #require(Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: day))
-
-        #expect(AssistantGreeting.text(at: eight, name: "Rivka", dayNumber: 37) == "Good morning, Rivka · Day 37")
-        #expect(AssistantGreeting.text(at: eight, name: nil, dayNumber: 37) == "Good morning · Day 37")
-        #expect(AssistantGreeting.text(at: eight, name: "Rivka", dayNumber: 1) == "Welcome to a new year, Rivka")
-        #expect(AssistantGreeting.text(at: eight, name: nil, dayNumber: 100) == "Happy 100th day!")
-        #expect(AssistantGreeting.text(at: eight, name: "Rivka", dayNumber: 100) == "Happy 100th day, Rivka!")
-    }
-
     // MARK: - Sky
 
     @Test("The sky holds at the ends of the day and blends between")

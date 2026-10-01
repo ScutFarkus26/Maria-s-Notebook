@@ -46,3 +46,25 @@ struct AssistantGridOrderTests {
         #expect(AssistantGridOrder.resolved("down") == .down)
     }
 }
+
+// Group by Level: one block per level, in the front-desk email's order.
+@Suite("Assistant level groups")
+struct AssistantLevelGroupsTests {
+
+    @Test("Blocks run Upper, Adolescent, Lower, each keeping its order")
+    func order() {
+        let children: [(String, CDStudent.Level)] = [
+            ("Ari", .lower), ("Ben", .adolescent), ("Cal", .upper), ("Dov", .adolescent), ("Eli", .upper)
+        ]
+        let groups = AssistantLevelGroups.grouped(children) { $0.1 }
+        #expect(groups.map(\.level) == [.upper, .adolescent, .lower])
+        #expect(groups.map { $0.items.map(\.0) } == [["Cal", "Eli"], ["Ben", "Dov"], ["Ari"]])
+    }
+
+    @Test("Empty levels are left out")
+    func emptyLevels() {
+        let groups = AssistantLevelGroups.grouped([("Ari", CDStudent.Level.upper)]) { $0.1 }
+        #expect(groups.map(\.level) == [.upper])
+        #expect(AssistantLevelGroups.grouped([(String, CDStudent.Level)]()) { $0.1 }.isEmpty)
+    }
+}

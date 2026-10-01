@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// The bar under the grid: the count (or the Undo for closing arrival), the
-/// arrival control, the front-desk email once everyone's marked, and the
-/// iCloud line. The lines are centered; while the
-/// arrival control shows, the count moves to the left beside it.
+/// The bar under the grid: the Undo for closing arrival, the arrival
+/// control, the front-desk email, and the iCloud line. The lines are
+/// centered; while the arrival control shows, its neighbor moves to the left
+/// beside it. The day's count is at the top of the grid
+/// (`AssistantClassCount`).
 ///
 /// Closing arrival marks everyone still unmarked absent, so it's a button
 /// that asks first, naming exactly who, not a switch. On 2026-09-29 a tap
@@ -13,14 +14,13 @@ import SwiftUI
 /// does, and its menu reopens arrival.
 ///
 /// Its top edge fills green as children come in (gray for the absent), so
-/// how close the class is shows without reading. Before the first mark of
-/// the day the count's place greets her (with the school day, "Day 37");
-/// a child back after days away gets "Welcome back, Maya" there for a few
+/// how close the class is shows without reading. A child back after days
+/// away gets "Welcome back, Maya" beside the arrival control for a few
 /// seconds; when everyone's marked it says so for a few seconds.
 struct AssistantArrivalBar: View {
     let viewModel: AssistantAttendanceViewModel
     let coreDataStack: CoreDataStack
-    /// "Marked 4 absent · Undo", in the count's place until the next mark.
+    /// "Marked 4 absent · Undo", beside the Late capsule until the next mark.
     @Binding var undo: ArrivalUndo?
     /// Email the Front Desk (and Send Again): opens the ready email.
     var onEmailFrontDesk: () -> Void = {}
@@ -32,6 +32,8 @@ struct AssistantArrivalBar: View {
     @State private var finishedLine: String?
     /// "Welcome back, Maya", for a few seconds after she marks them in.
     @State private var welcomeLine: String?
+    /// Bumped at the moments the email falls due and goes late.
+    @State private var dueTicks = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Side by side normally; stacked at accessibility sizes, where the count
@@ -45,19 +47,21 @@ struct AssistantArrivalBar: View {
     var body: some View {
         VStack(spacing: 6) {
             if viewModel.dayOff == nil, !viewModel.rows.isEmpty {
-                rowLayout {
-                    if showsArrivalControl {
-                        // The button takes its width first; the count gets
+                let showsControl = showsArrivalControl && !emailClosesArrival
+                if showsControl {
+                    rowLayout {
+                        // The button takes its width first; the line gets
                         // what's left, so it knows when to shorten.
-                        countOrUndo
+                        barLine
                             .frame(maxWidth: .infinity, alignment: .leading)
                         arrivalControl
                             .fixedSize()
-                    } else {
-                        countOrUndo
                     }
+                    .frame(minHeight: 32)
+                } else if hasBarLine {
+                    barLine
+                        .frame(minHeight: 32)
                 }
-                .frame(minHeight: 32)
             }
             AssistantFrontDeskRow(viewModel: viewModel, onSend: onEmailFrontDesk) {
                 emailAfterClose = true
@@ -92,13 +96,25 @@ struct AssistantArrivalBar: View {
             finishedLine = nil
             welcomeLine = nil
         }
+        .task(id: viewModel.date) {
+            // Redraws the bar as the email falls due and as it goes late.
+            // A TimelineView around the row did this too, but the Close
+            // Arrival question stopped appearing from a button inside one.
+            for time in viewModel.frontDesk.changeTimes(on: viewModel.date) where time > Date() {
+                guard (try? await Task.sleep(for: .seconds(time.timeIntervalSinceNow))) != nil else { return }
+                dueTicks += 1
+            }
+        }
         .confirmationDialog(closeTitle, isPresented: $confirmingClose, titleVisibility: .visible) {
-            Button(
-                emailAfterClose ? "Mark \(unmarkedNames.count) Absent & Email" : "Mark \(unmarkedNames.count) Absent",
-                role: .destructive
-            ) {
+            if emailAfterClose {
+                Button("Mark \(unmarkedNames.count) Absent & Email", role: .destructive) {
+                    closeArrival()
+                    onEmailFrontDesk()
+                }
+            }
+            // From the email button too, for a day someone else sends it.
+            Button("Mark \(unmarkedNames.count) Absent", role: .destructive) {
                 closeArrival()
-                if emailAfterClose { onEmailFrontDesk() }
             }
         } message: {
             Text("\(unmarkedNames.formatted(.list(type: .and))). After this, a tap marks a child late.")
@@ -110,7 +126,14 @@ struct AssistantArrivalBar: View {
 
     // MARK: - Pieces
 
-    private var countOrUndo: some View {
+    /// Whether `barLine` has anything to say.
+    private var hasBarLine: Bool {
+        (undo != nil && viewModel.canMark) || welcomeLine != nil
+            || (finishedLine != nil && viewModel.unmarkedCount == 0)
+    }
+
+    /// The Undo, a welcome back, or everyone being marked; nothing otherwise.
+    private var barLine: some View {
         Group {
             if let undo, viewModel.canMark {
                 HStack(spacing: 12) {
@@ -138,23 +161,6 @@ struct AssistantArrivalBar: View {
                     .fontWeight(.medium)
                     .minimumScaleFactor(0.8)
                     .transition(.opacity)
-            } else if showsGreeting {
-                // Her name before the day number, and the day number before
-                // nothing; a milestone's own words always stay.
-                let name = ClassroomIdentity.displayName
-                let day = viewModel.dayNumber
-                ViewThatFits(in: .horizontal) {
-                    greetingText(name, day: day)
-                    greetingText(name, day: viewModel.milestone == nil ? nil : day)
-                    greetingText(nil, day: day)
-                    greetingText(nil, day: nil)
-                }
-                .transition(.opacity)
-            } else {
-                // "17 here" large, the rest small under it; to the left
-                // beside the arrival button, centered otherwise.
-                AttendanceHereCount(rows: viewModel.rows, alignment: showsArrivalControl ? .leading : .center)
-                    .transition(.opacity)
             }
         }
         .font(.footnote)
@@ -163,19 +169,6 @@ struct AssistantArrivalBar: View {
         .animation(.smooth(duration: 0.3), value: undo?.id)
         .animation(.smooth(duration: 0.3), value: finishedLine)
         .animation(.smooth(duration: 0.3), value: welcomeLine)
-        .animation(.smooth(duration: 0.3), value: showsGreeting)
-    }
-
-    /// Today, before anyone's marked.
-    private var showsGreeting: Bool {
-        viewModel.isToday && viewModel.dayOff == nil && viewModel.rows.allSatisfy { $0.status == .unmarked }
-    }
-
-    private func greetingText(_ name: String?, day: Int?) -> some View {
-        Text(AssistantGreeting.text(at: Date(), name: name, dayNumber: day))
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.primary)
-            .fixedSize()
     }
 
     /// The class filling up along the bar's top edge: green for here, purple
@@ -206,8 +199,16 @@ struct AssistantArrivalBar: View {
     }
 
     /// Close Arrival while anyone's unmarked; "Late" once closed. Nothing
-    /// ahead of the day (there's no arrival yet) or on a locked day.
+    /// ahead of the day (there's no arrival yet) or on a locked day, and no
+    /// Close Arrival while the email button below offers it
+    /// (`AssistantFrontDesk.offersCloseAndEmail`).
     private var showsArrivalControl: Bool { viewModel.showsArrivalControl }
+
+    /// The email button below closes arrival now, so the plain one steps aside.
+    private var emailClosesArrival: Bool {
+        _ = dueTicks
+        return viewModel.frontDesk.offersCloseAndEmail(by: viewModel)
+    }
 
     @ViewBuilder
     private var arrivalControl: some View {
@@ -215,7 +216,7 @@ struct AssistantArrivalBar: View {
             switch viewModel.phase {
             case .arrival:
                 if !unmarkedNames.isEmpty {
-                    Button("Close Arrival…") { confirmingClose = true }
+                    Button("Close Arrival") { confirmingClose = true }
                         .font(.subheadline.weight(.semibold))
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.capsule)

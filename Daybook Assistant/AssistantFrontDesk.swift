@@ -46,6 +46,31 @@ final class AssistantFrontDesk {
         settings?.canSend == true && viewModel.dayOff == nil && !viewModel.rows.isEmpty && !viewModel.isFuture
     }
 
+    /// The guide's due time, in minutes after midnight.
+    var deadlineMinutes: Int {
+        settings?.deadlineMinutes ?? AttendanceEmailLog.defaultDeadlineMinutes
+    }
+
+    /// The two moments on `day` the bar's email line changes: half an hour
+    /// before the due time, and at it.
+    func changeTimes(on day: Date) -> [Date] {
+        let calendar = Calendar.current
+        guard let deadline = calendar.date(
+            byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: day)
+        ) else { return [] }
+        return [deadline.addingTimeInterval(-Double(AttendanceEmailLog.dueWindowMinutes) * 60), deadline]
+    }
+
+    /// Whether the bar offers Close Arrival & Email: the email is due or
+    /// late, nobody has sent it, and children are still unmarked during
+    /// arrival on a day she can mark. The plain Close Arrival steps aside
+    /// then, and the email button's question offers closing without it.
+    func offersCloseAndEmail(by viewModel: AssistantAttendanceViewModel, now: Date = Date()) -> Bool {
+        isOffered(by: viewModel) && latestSend == nil && viewModel.unmarkedCount > 0
+            && viewModel.canMark && viewModel.phase == .arrival
+            && AttendanceEmailLog.urgency(for: viewModel.date, deadlineMinutes: deadlineMinutes, now: now) != .none
+    }
+
     /// The day's email in the guide's format: on time, tardy, left early and
     /// absent, as the notebook writes it.
     func draft(for rows: [AssistantAttendanceViewModel.Row]) -> AttendanceEmailDraft? {

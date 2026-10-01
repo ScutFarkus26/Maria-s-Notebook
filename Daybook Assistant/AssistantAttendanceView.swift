@@ -3,12 +3,13 @@ import CoreData
 
 /// The whole app, once you've joined: one day's class, one tile each.
 ///
-/// During arrival a tap marks a child present. **Close Arrival…** asks, naming
+/// During arrival a tap marks a child present. **Close Arrival** asks, naming
 /// them, before marking everyone still unmarked absent; after that a tap marks
 /// tardy. Every mark made on its own day carries its time.
 ///
-/// The count, the arrival control and the iCloud line sit in the bottom bar
-/// (`AssistantArrivalBar`), in thumb reach. On a phone, three columns of
+/// The day's count sits above the grid (`AssistantClassCount`); the arrival
+/// control and the iCloud line in the bottom bar (`AssistantArrivalBar`), in
+/// thumb reach. On a phone, three columns of
 /// one-line tiles fit a class of 22 on an SE: on a phone with a home button
 /// the status bar steps aside and the top bar shows its own clock, which gives
 /// the grid those 20 points. A taller phone (a Pro Max, say) grows the tiles
@@ -67,6 +68,8 @@ struct AssistantAttendanceView: View {
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
     /// Alphabetical across the rows or down the columns.
     @AppStorage(AssistantGridOrder.key) private var gridOrderRaw = AssistantGridOrder.across.rawValue
+    /// One block per level, each with its heading (`AssistantLevelGroups`).
+    @AppStorage(AssistantLevelGroups.key) private var groupsByLevel = false
 
     /// Sky or Plain: tiles as they are. Anything else frosts them.
     private var backdropIsQuiet: Bool { AssistantWallpaper.resolved(wallpaperRaw).isQuiet }
@@ -99,26 +102,61 @@ struct AssistantAttendanceView: View {
         return max(1, Int((gridSpace.width + gridSpacing) / (columnWidth + gridSpacing)))
     }
 
-    /// The day's rows in the order the grid shows them. Down waits for the
-    /// grid's width, so it never arranges for one column.
-    private func gridRows(_ viewModel: AssistantAttendanceViewModel) -> [AssistantAttendanceViewModel.Row] {
-        guard gridSpace.width > 0 else { return viewModel.rows }
-        return AssistantGridOrder.resolved(gridOrderRaw).arranged(viewModel.rows, columns: gridColumnCount)
+    /// `rows` in the order the grid shows them. Down waits for the grid's
+    /// width, so it never arranges for one column.
+    private func arranged(_ rows: [AssistantAttendanceViewModel.Row]) -> [AssistantAttendanceViewModel.Row] {
+        guard gridSpace.width > 0 else { return rows }
+        return AssistantGridOrder.resolved(gridOrderRaw).arranged(rows, columns: gridColumnCount)
+    }
+
+    /// The level blocks, when Group by Level is on and the class has more
+    /// than one level; otherwise empty, and the grid is one block.
+    private func levelGroups(
+        _ viewModel: AssistantAttendanceViewModel
+    ) -> [AssistantLevelGroups.Group<AssistantAttendanceViewModel.Row>] {
+        guard groupsByLevel else { return [] }
+        let groups = AssistantLevelGroups.grouped(viewModel.rows, level: \.level)
+        return groups.count > 1 ? groups : []
+    }
+
+    /// A level heading, slimmer on a phone so the class still fits.
+    private var levelHeaderHeight: CGFloat { usesShortNames ? 20 : 26 }
+    private var levelHeaderSpacing: CGFloat { usesShortNames ? 4 : 6 }
+    /// How far phone tiles may shrink to make room for the level headings:
+    /// still a full tap target.
+    static let smallestGroupedTileHeight: CGFloat = 44
+
+    /// How many lines of tiles the grid takes: each level block starts its
+    /// own line.
+    private func tileLines(_ viewModel: AssistantAttendanceViewModel, columns: Int) -> Int {
+        let groups = levelGroups(viewModel)
+        let counts = groups.isEmpty ? [viewModel.rows.count] : groups.map(\.items.count)
+        return counts.reduce(0) { $0 + ($1 + columns - 1) / columns }
     }
 
     /// The SE keeps its fixed tiles; any other phone fills the room it has.
+    /// Grouped by level, any phone (the SE too) may shrink its tiles to
+    /// `smallestGroupedTileHeight` so the headings don't push children out
+    /// of sight; the SE's never grow past their usual size.
     private func phoneTileHeight(_ viewModel: AssistantAttendanceViewModel) -> CGFloat {
-        guard usesShortNames, !hidesStatusBar, !dynamicTypeSize.isAccessibilitySize else {
+        let blocks = CGFloat(levelGroups(viewModel).count)
+        guard usesShortNames, !hidesStatusBar || blocks > 0, !dynamicTypeSize.isAccessibilitySize else {
             return AttendanceTile.phoneHeight
         }
         let columns = gridColumnCount
-        let notices = AssistantDayNotices.shows(for: viewModel) ? noticesHeight + 12 : 0
-        return AttendanceTile.fittedPhoneHeight(
-            visibleHeight: gridSpace.height - notices,
+        let notices = (AssistantDayNotices.shows(for: viewModel) ? noticesHeight + 12 : 0)
+            + Self.classTotalHeight + Self.classTotalSpacing
+        // Each block's heading, and the wider gap between blocks.
+        let headings = blocks == 0 ? 0
+            : blocks * (levelHeaderHeight + levelHeaderSpacing) + (blocks - 1) * (12 - gridSpacing)
+        let height = AttendanceTile.fittedPhoneHeight(
+            visibleHeight: gridSpace.height - notices - headings,
             columns: columns,
-            count: viewModel.rows.count,
-            spacing: gridSpacing
+            count: tileLines(viewModel, columns: columns) * columns,
+            spacing: gridSpacing,
+            minimum: blocks > 0 ? Self.smallestGroupedTileHeight : AttendanceTile.phoneHeight
         )
+        return hidesStatusBar ? min(height, AttendanceTile.phoneHeight) : height
     }
 
     var body: some View {
@@ -245,24 +283,26 @@ struct AssistantAttendanceView: View {
             let tileHeight = phoneTileHeight(viewModel)
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    AssistantDayNotices(viewModel: viewModel)
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { noticesHeight = $0 }
-                    LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
-                        ForEach(Array(gridRows(viewModel).enumerated()), id: \.element.id) { index, row in
-                            tile(row, viewModel: viewModel, height: tileHeight, index: index)
-                        }
+                    // Only while shown: an empty one still took the spacing.
+                    if AssistantDayNotices.shows(for: viewModel) {
+                        AssistantDayNotices(viewModel: viewModel)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { noticesHeight = $0 }
+                    }
+                    VStack(alignment: .leading, spacing: Self.classTotalSpacing) {
+                        classTotal(viewModel)
+                        grid(viewModel, tileHeight: tileHeight)
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.top, 2)
                 .padding(.bottom, 12)
                 .id(viewModel.date)
                 .transition(.push(from: stepEdge))
             }
             .onGeometryChange(for: CGSize.self) { proxy in
                 // The scroll view already sits between the bars; less the
-                // grid's padding: 16 each side, 8 above, 12 below.
-                CGSize(width: proxy.size.width - 32, height: proxy.size.height - 20)
+                // grid's padding: 16 each side, 2 above, 12 below.
+                CGSize(width: proxy.size.width - 32, height: proxy.size.height - 14)
             } action: { gridSpace = $0 }
             .mask { fadeAboveBar }
             .background {
@@ -275,6 +315,58 @@ struct AssistantAttendanceView: View {
             }
             .refreshable { viewModel.load() }
             .simultaneousGesture(daySwipe(viewModel))
+        }
+    }
+
+    static let classTotalHeight: CGFloat = 20
+    static let classTotalSpacing: CGFloat = 8
+
+    /// "17 of 22 here", above the grid in the room the top padding had.
+    private func classTotal(_ viewModel: AssistantAttendanceViewModel) -> some View {
+        AssistantClassCount(rows: viewModel.rows, isFuture: viewModel.isFuture)
+            .frame(height: Self.classTotalHeight)
+            .modifier(AssistantGridLabelStyle(isCompact: usesShortNames))
+    }
+
+    /// One block of tiles, or one per level with its heading.
+    @ViewBuilder
+    private func grid(_ viewModel: AssistantAttendanceViewModel, tileHeight: CGFloat) -> some View {
+        let groups = levelGroups(viewModel)
+        if groups.isEmpty {
+            tileGrid(arranged(viewModel.rows), viewModel: viewModel, height: tileHeight, firstIndex: 0)
+        } else {
+            // Where each block's ripple starts: after the lines above it.
+            let columns = gridColumnCount
+            let starts = groups.reduce(into: [0]) { starts, group in
+                starts.append(starts.last! + (group.items.count + columns - 1) / columns * columns)
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(groups.enumerated()), id: \.element.level) { position, group in
+                    VStack(alignment: .leading, spacing: levelHeaderSpacing) {
+                        AssistantLevelHeader(
+                            level: group.level, rows: group.items, isFuture: viewModel.isFuture,
+                            height: levelHeaderHeight, isCompact: usesShortNames
+                        )
+                        tileGrid(
+                            arranged(group.items), viewModel: viewModel, height: tileHeight,
+                            firstIndex: starts[position]
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func tileGrid(
+        _ rows: [AssistantAttendanceViewModel.Row],
+        viewModel: AssistantAttendanceViewModel,
+        height: CGFloat,
+        firstIndex: Int
+    ) -> some View {
+        LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                tile(row, viewModel: viewModel, height: height, index: firstIndex + index)
+            }
         }
     }
 

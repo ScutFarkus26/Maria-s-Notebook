@@ -5,8 +5,9 @@ import UserNotifications
 
 /// The Assistant's one settings screen, behind the person button: whose
 /// classroom this is and since when, what the tiles mean, which way the grid
-/// runs, her name, the arrival, front-desk email and early-pickup reminders,
-/// the background, the bells, and the way out.
+/// runs and whether it's split by level, her name, the arrival, front-desk
+/// email and early-pickup reminders, the background, the bells, and the way
+/// out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -29,6 +30,7 @@ struct AssistantClassroomSheet: View {
     @State private var notificationsDenied = false
     @AppStorage(AttendanceBells.enabledKey) private var bellsOn = false
     @AppStorage(AssistantGridOrder.key) private var gridOrderRaw = AssistantGridOrder.across.rawValue
+    @AppStorage(AssistantLevelGroups.key) private var groupsByLevel = false
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
 
     var body: some View {
@@ -313,10 +315,14 @@ extension AssistantClassroomSheet {
                     Text(order.title).tag(order.rawValue)
                 }
             }
+            Toggle("Group by Level", isOn: $groupsByLevel)
         } footer: {
-            Text(AssistantGridOrder.resolved(gridOrderRaw) == .across
-                ? "Names go A to Z across each row, then on to the next row. It only changes this iPhone."
-                : "Names go A to Z down each column, then on to the next column. It only changes this iPhone.")
+            let order = AssistantGridOrder.resolved(gridOrderRaw) == .across
+                ? "Names go A to Z across each row, then on to the next row."
+                : "Names go A to Z down each column, then on to the next column."
+            Text(groupsByLevel
+                ? "Upper Elementary, Adolescent and Lower Elementary each get their own block. \(order) It only changes this iPhone."
+                : "\(order) It only changes this iPhone.")
         }
     }
 }
