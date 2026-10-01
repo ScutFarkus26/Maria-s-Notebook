@@ -238,15 +238,18 @@ struct MCPRecentWritesToolTests {
         let directory = Journal.temporaryDirectory()
         defer { Journal.remove(directory) }
         let journal = MCPWriteJournal(directory: directory)
-        await journal.record(Journal.record(tool: "update_todo", minutesAgo: 30))
+        let first = Journal.record(tool: "update_todo", minutesAgo: 30)
+        await journal.record(first)
         await journal.record(Journal.record(tool: "create_observation", minutesAgo: 30))
 
         let filtered = try await tool(journal: journal).handler(["tool": "update_todo"])
         #expect(filtered.hasPrefix("1 write(s) over MCP by update_todo in the last 7 days:"))
 
-        let today = MCPNotebookTools.isoDay.string(from: Date())
-        let windowed = try await tool(journal: journal).handler(["since": .string(today)])
-        #expect(windowed.hasPrefix("2 write(s) over MCP since \(today):"))
+        // The day the records carry, not today's: in the half hour after midnight
+        // "30 minutes ago" is yesterday, and a since-today window rightly skips it.
+        let seededDay = MCPNotebookTools.isoDay.string(from: first.timestamp)
+        let windowed = try await tool(journal: journal).handler(["since": .string(seededDay)])
+        #expect(windowed.hasPrefix("2 write(s) over MCP since \(seededDay):"))
 
         let old = MCPNotebookTools.isoDay.string(
             from: Date().addingTimeInterval(-60 * 60 * 24 * 30)
