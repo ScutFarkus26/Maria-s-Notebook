@@ -66,30 +66,10 @@ struct AssistantWallpaperPicker: View {
                 .disabled(isImporting)
             }
         } else {
-            PhotosPicker(selection: $photoItem, matching: .images) {
-                VStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.secondarySystemGroupedBackground))
-                        .frame(height: WallpaperPreview.height)
-                        .overlay {
-                            if isImporting {
-                                ProgressView()
-                            } else {
-                                VStack(spacing: 6) {
-                                    Image(systemName: "photo.on.rectangle")
-                                        .font(.title2)
-                                    Text(importError ?? "Choose Photo…")
-                                        .font(.footnote.weight(.medium))
-                                        .multilineTextAlignment(.center)
-                                        .padding(.horizontal, 8)
-                                }
-                                .foregroundStyle(importError == nil ? Color.accentColor : .red)
-                            }
-                        }
-                    Text("Photo")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
-                }
+            // The label closure isn't main-actor isolated, so it gets the
+            // state as values instead of reading it.
+            PhotosPicker(selection: $photoItem, matching: .images) { [isImporting, importError] in
+                ChoosePhotoLabel(isImporting: isImporting, importError: importError)
             }
             .buttonStyle(.plain)
             .disabled(isImporting)
@@ -118,6 +98,39 @@ struct AssistantWallpaperPicker: View {
         photo.remove()
         if current == .photo || wallpaperRaw == AssistantWallpaper.photo.rawValue {
             wallpaperRaw = AssistantWallpaper.standard.rawValue
+        }
+    }
+}
+
+/// The empty photo cell: a blank page with "Choose Photo…", a spinner while
+/// a pick imports, or the import error in red.
+private struct ChoosePhotoLabel: View {
+    let isImporting: Bool
+    let importError: String?
+
+    var body: some View {
+        VStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .frame(height: WallpaperPreview.height)
+                .overlay {
+                    if isImporting {
+                        ProgressView()
+                    } else {
+                        VStack(spacing: 6) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.title2)
+                            Text(importError ?? "Choose Photo…")
+                                .font(.footnote.weight(.medium))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 8)
+                        }
+                        .foregroundStyle(importError == nil ? Color.accentColor : .red)
+                    }
+                }
+            Text("Photo")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
         }
     }
 }

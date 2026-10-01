@@ -1,7 +1,7 @@
 # Cosmic Daybook — Developer Technical Reference Manual
 
 **Version:** March 2026
-**Platform:** iOS 26+ / macOS 26+
+**Platform:** iOS 27+ / macOS 27+
 **Framework:** SwiftUI + Core Data
 **Language:** Swift 6.0+
 
@@ -986,7 +986,7 @@ Tabbed interface:
 
 ### AI Analysis
 
-`StudentAnalysisService` sends student data to Claude for analysis — progress trends, patterns, recommendations.
+`StudentAnalysisService` sends student data to Apple Intelligence (through `AIClientRouter`) for analysis — progress trends, patterns, recommendations.
 
 ## Lessons Module
 
@@ -1147,7 +1147,7 @@ Teacher task management with:
 | Age Levels | Lower/upper elementary configuration |
 | Reminders | EventKit sync (macOS) |
 | Calendar | Calendar display settings |
-| AI/Chat | API key, model selection, temperature |
+| AI/Chat | Private Cloud Compute opt-in; lesson-planning prompt, temperature and timeout |
 | CloudKit | Sync enable/disable, status, deduplication |
 | Data | Statistics, export, import, test student filtering |
 | Templates | Meeting and note templates |
@@ -1172,7 +1172,7 @@ Teacher task management with:
 
 **Directory:** `Chat/` (`Chat/Services/` contains chat orchestration)
 
-Chat with Claude about classroom data. The system:
+Chat with Apple Intelligence about classroom data (see `AIClientRouter` above). The system:
 
 1. Builds a classroom snapshot (student names, lesson counts, recent activity)
 2. Enriches each question with relevant context (Tier 2)
@@ -1183,7 +1183,6 @@ Additional AI services:
 - `StudentAnalysisService` — progress analysis per student
 - `LessonPlanningService` — AI-assisted lesson planning
 - `ReportGeneratorService` — generate progress reports
-- `DatabaseAnalysisService` — database statistics and insights
 
 ---
 
@@ -1253,7 +1252,6 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 | `Double+Formatting.swift` | Number formatting |
 | `View+ConditionalModifiers.swift` | Platform-specific view modifiers |
 | `View+PlatformStyles.swift` | iOS vs macOS styling |
-| `KeychainStore.swift` | Secure storage for API keys |
 | `SyncedPreferencesStore.swift` | iCloud-synced preferences |
 | `Logger+Extensions.swift` | Structured logging categories |
 | `PerformanceLogger.swift` | Stutter detection (>100ms frames) |

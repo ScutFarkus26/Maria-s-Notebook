@@ -228,11 +228,11 @@ def title_page(canvas, doc):
     canvas.setFillColor(TEXT_COLOR)
     canvas.setFont('Helvetica', 11)
     specs = [
-        ("Platform", "iOS 26+ / macOS 26+"),
+        ("Platform", "iOS 27+ / macOS 27+"),
         ("Framework", "SwiftUI + Core Data"),
         ("Language", "Swift 6.0+"),
         ("Sync", "CloudKit (optional)"),
-        ("AI", "Anthropic Claude API"),
+        ("AI", "Apple Intelligence (on-device + Private Cloud Compute)"),
     ]
     for label, value in specs:
         canvas.setFont('Helvetica-Bold', 11)
