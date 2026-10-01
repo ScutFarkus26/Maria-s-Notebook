@@ -34,16 +34,8 @@ struct NewProjectSessionSheet: View {
         }
     }
 
-    // Performance: Filter roles by projectID at query level
-    @FetchRequest private var roles: FetchedResults<CDProjectRole>
-
     init(club: CDProject) {
         self.club = club
-        let projectIDString = (club.id ?? UUID()).uuidString
-        _roles = FetchRequest(
-            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectRole.createdAt, ascending: true)],
-            predicate: NSPredicate(format: "projectID == %@", projectIDString)
-        )
     }
 
     var body: some View {

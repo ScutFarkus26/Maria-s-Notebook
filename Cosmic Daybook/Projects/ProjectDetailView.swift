@@ -13,20 +13,11 @@ struct ProjectDetailView: View {
 
     @FetchRequest(sortDescriptors: []) private var allWorkModels: FetchedResults<CDWorkModel>
 
-    // Performance: Filter roles by projectID at query level
-    @FetchRequest private var roles: FetchedResults<CDProjectRole>
-
     @State var showNewSession: Bool = false
     @State var showEditClub: Bool = false
-    @State private var showManageRoles: Bool = false
 
     init(club: CDProject) {
         self.club = club
-        let projectIDString = (club.id ?? UUID()).uuidString
-        _roles = FetchRequest(
-            sortDescriptors: [NSSortDescriptor(keyPath: \CDProjectRole.createdAt, ascending: true)],
-            predicate: NSPredicate(format: "projectID == %@", projectIDString)
-        )
     }
 
     var students: [CDStudent] {
@@ -128,12 +119,6 @@ struct ProjectDetailView: View {
         }
         .sheet(isPresented: $showEditClub) {
             ProjectEditorSheet(club: club)
-        }
-        .sheet(isPresented: $showManageRoles) {
-            NavigationStack { ProjectRolesEditorView(club: club) }
-            #if os(macOS)
-            .frame(minWidth: 520, minHeight: 360)
-            #endif
         }
     }
 
