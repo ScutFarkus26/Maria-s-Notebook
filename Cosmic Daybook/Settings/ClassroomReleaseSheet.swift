@@ -22,7 +22,9 @@ struct ClassroomReleaseSheet: View {
             footer
         }
         .padding(AppTheme.Spacing.large)
+        #if os(macOS)
         .frame(minWidth: 520, idealWidth: 560, minHeight: 440)
+        #endif
         .interactiveDismissDisabled(model?.isWorking == true)
         .task {
             let restore = restoreCoordinator

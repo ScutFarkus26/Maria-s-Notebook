@@ -31,6 +31,12 @@ nonisolated extension ClassroomShareRelease {
         var sleep: @Sendable (Duration) async throws -> Void
         /// How long one step may wait for the server before the run stops.
         var patience: Duration
+        /// Waits until no CloudKit export of the notebook is running. A save made while one
+        /// runs can be left out of it with no export scheduled after (seen in the 2026-09-30
+        /// rehearsal: the last batch's deletes sat unsent until the app was relaunched).
+        var exportIdle: @Sendable () async -> Void = {}
+        /// Whether an export of the notebook started after `date`, waiting a little for one.
+        var exportStarted: @Sendable (_ after: Date) async -> Bool = { _ in true }
         /// Called after each step of each batch (tests).
         var afterStep: @Sendable (Step, Batch) async -> Void = { _, _ in }
     }
@@ -173,7 +179,10 @@ nonisolated extension ClassroomShareRelease {
         let context = container.newBackgroundContext()
 
         // 1. The private copies (or the ones an earlier run made).
+        await env.exportIdle()
+        var saved = Date()
         let keepers = try await makeCopies(batch, context: context, storeID: storeID)
+        try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
         await env.afterStep(.copied, batch)
 
         // 2. iCloud has every copy, outside any share.
@@ -181,8 +190,11 @@ nonisolated extension ClassroomShareRelease {
         await env.afterStep(.copiesConfirmed, batch)
 
         // 3. Each copy is still here; anything the original changed since is brought over.
+        await env.exportIdle()
+        saved = Date()
         let changed = try await checkCopies(keepers, context: context)
         if !changed.isEmpty {
+            try await makeSureItExports(after: saved, nudging: changed.first, context: context, environment: env)
             try await waitForNewerCopies(changed, than: confirmed, environment: env)
         }
         await env.afterStep(.copiesChecked, batch)
@@ -191,7 +203,10 @@ nonisolated extension ClassroomShareRelease {
         let originals = batch.moves.flatMap(\.sharedRows)
         let originalRecords = await env.recordIDs(originals)
         guard originalRecords.count == originals.count else { throw RunError.originalNotMirrored }
+        await env.exportIdle()
+        saved = Date()
         try await deleteOriginals(originals, context: context)
+        try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
         await env.afterStep(.originalsDeleted, batch)
 
         // 5. iCloud no longer has them.
@@ -202,6 +217,32 @@ nonisolated extension ClassroomShareRelease {
     }
 
     // MARK: - The steps
+
+    /// Makes sure what was saved after `saved` goes to iCloud: when no export starts, one
+    /// harmless change (a private copy's `modifiedAt`, a millisecond on) is saved to schedule
+    /// one. Without it, a save that landed while an export ran could wait for the next launch.
+    private static func makeSureItExports(
+        after saved: Date,
+        nudging keeper: NSManagedObjectID?,
+        context: NSManagedObjectContext,
+        environment env: Environment
+    ) async throws {
+        if await env.exportStarted(saved) { return }
+        guard let keeper else { return }
+        logger.notice("No export started after the save; nudging one")
+        await env.exportIdle()
+        let nudged = Date()
+        try await context.perform {
+            guard let object = try? context.existingObject(with: keeper),
+                  object.entity.attributesByName["modifiedAt"] != nil else { return }
+            let stamp = (object.value(forKey: "modifiedAt") as? Date) ?? Date()
+            object.setValue(stamp.addingTimeInterval(0.001), forKey: "modifiedAt")
+            if context.hasChanges { try context.save() }
+        }
+        if !(await env.exportStarted(nudged)) {
+            logger.error("Still no export after the nudge; the server checks will wait for one")
+        }
+    }
 
     /// Source → the private copy that stays.
     private static func makeCopies(
@@ -306,7 +347,12 @@ nonisolated extension ClassroomShareRelease {
         var pause = Duration.seconds(2)
         while true {
             if let reason = await env.stopReason() { throw RunError.stopped(reason) }
-            if let value = try await attempt() { return value }
+            do {
+                if let value = try await attempt() { return value }
+            } catch let error where CloudKitServerCheck.isTransient(error) {
+                // A dropped connection, throttling or a slow answer: ask again.
+                logger.notice("Waiting for \(what, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
             guard clock.now < deadline else { throw RunError.timedOut(what) }
             try await env.sleep(pause)
             pause = min(pause * 2, .seconds(15))

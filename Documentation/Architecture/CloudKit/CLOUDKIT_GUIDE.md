@@ -200,6 +200,20 @@ A run stopped anywhere leaves at most both copies; the next run finds the
 private copy ("twin") and only deletes. A copy that disappears (a device on an
 old build deduplicating it away) stops the run with the original kept.
 
+Each save waits until no export of the notebook is running, and the run checks an export
+starts after it (`ClassroomShareExportActivity`); if none does, one harmless change (a
+private copy's `modifiedAt`, a millisecond on) schedules one. In the 2026-09-30 rehearsal a
+save made mid-export was left out of it with nothing scheduled after, and the batch's deletes
+sat unsent until the app was relaunched. A server check that fails on the network, is
+throttled, or doesn't answer in 90 s is asked again until the step's 10-minute limit.
+
+**Rehearsed 2026-09-30** on two simulators signed into a test account (a pretend class of 25
+students and 2,532 marks across two school years): both runs moved 3 departed children and
+2,034 old marks; a force-quit mid-run was finished by the next press; the other device,
+reopened every 35 s mid-run, held up to 500 marks on both sides of the share at once and its
+dedup kept both every time, then settled on every record exactly once with the share holding
+this year only. Putting last year back (start date earlier, "Add Them to the Share") worked.
+
 Two guards make the in-between safe on the guide's other devices, and must be
 on every device before any release: **dedup never deletes either copy of a
 record held both in and out of a share** (`DedupShareBoundary`), and **the

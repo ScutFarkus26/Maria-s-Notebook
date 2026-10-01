@@ -4,76 +4,6 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// The fake iCloud for the release tests: it "syncs" instantly — the server holds whatever
-/// the store holds, and the share zone holds whatever is marked shared.
-nonisolated final class FakeReleaseCloud: @unchecked Sendable {
-    static let shareZone = "com.apple.coredata.cloudkit.share.TEST"
-    static let defaultZone = "com.apple.coredata.cloudkit.zone"
-
-    let container: NSPersistentCloudKitContainer
-    private let lock = NSLock()
-    private var shared = Set<NSManagedObjectID>()
-    var serverLags = false
-    var stop: String?
-
-    init(container: NSPersistentCloudKitContainer) { self.container = container }
-
-    func share(_ ids: [NSManagedObjectID]) {
-        lock.lock(); defer { lock.unlock() }
-        shared.formUnion(ids)
-    }
-
-    func isShared(_ id: NSManagedObjectID) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        return shared.contains(id)
-    }
-
-    func exists(_ id: NSManagedObjectID) -> Bool {
-        let context = container.newBackgroundContext()
-        return context.performAndWait { (try? context.existingObject(with: id)) != nil }
-    }
-
-    typealias StepHook = @Sendable (ClassroomShareRelease.Step, ClassroomShareRelease.Batch) async -> Void
-
-    func environment(afterStep: @escaping StepHook = { _, _ in }) -> ClassroomShareRelease.Environment {
-        ClassroomShareRelease.Environment(
-            shareZones: { ids in
-                let zone = FakeReleaseCloud.shareZone
-                return Dictionary(uniqueKeysWithValues: ids.filter(self.isShared).map { ($0, zone) })
-            },
-            recordIDs: { ids in
-                var records: [NSManagedObjectID: CKRecord.ID] = [:]
-                for id in ids where !id.isTemporaryID {
-                    let zone = self.isShared(id)
-                        ? FakeReleaseCloud.shareZone
-                        : FakeReleaseCloud.defaultZone
-                    records[id] = CKRecord.ID(
-                        recordName: id.uriRepresentation().absoluteString,
-                        zoneID: CKRecordZone.ID(zoneName: zone, ownerName: CKCurrentUserDefaultName)
-                    )
-                }
-                return records
-            },
-            serverRecords: { records in
-                if self.serverLags { return [:] }
-                let coordinator = self.container.persistentStoreCoordinator
-                var found: [CKRecord.ID: Date] = [:]
-                for record in records {
-                    guard let url = URL(string: record.recordName),
-                          let id = coordinator.managedObjectID(forURIRepresentation: url),
-                          self.exists(id) else { continue }
-                    found[record] = Date()
-                }
-                return found
-            },
-            stopReason: { self.stop },
-            sleep: { _ in try await Task.sleep(for: .milliseconds(1)) },
-            patience: .milliseconds(300),
-            afterStep: afterStep
-        )
-    }
-}
-
 /// `ClassroomShareRelease`: last year leaves the share by copy → confirm → delete → confirm.
 @Suite("Classroom share release")
 @MainActor
@@ -305,6 +235,28 @@ struct ClassroomShareReleaseTests {
         #expect(count("Student", in: fix) == 2) // one copy of each child, not three
     }
 
+    @Test("A dropped connection while waiting on iCloud is asked again, not a stop")
+    func networkFailureRetried() async throws {
+        let fix = try fixture()
+        fix.cloud.networkFailuresLeft = 3
+        let report = try await release(fix, fix.cloud.environment())
+        #expect(report.stoppedBecause == nil)
+        #expect(report.batchesDone == report.batchesPlanned)
+    }
+
+    @Test("When no export follows a save, one harmless change nudges it, and the run finishes")
+    func missingExportNudged() async throws {
+        let fix = try fixture()
+        // The first save (the copies) is followed by no export; the nudge's is.
+        fix.cloud.exportStartAnswers = [false]
+        let report = try await release(fix, fix.cloud.environment())
+        #expect(report.stoppedBecause == nil)
+        #expect(fix.cloud.exportStartQuestions >= 3) // the save, the nudge, and later saves
+        // The nudge moved one private copy's modifiedAt by a millisecond and changed nothing else.
+        let marks = count("AttendanceRecord", in: fix)
+        #expect(marks == 6)
+    }
+
     @Test("A copy carries every attribute the model has")
     func copyFidelity() throws {
         let ctx = try CoreDataTestHelpers.makeContext()
@@ -312,7 +264,7 @@ struct ClassroomShareReleaseTests {
             let entity = try #require(ctx.persistentStoreCoordinator?.managedObjectModel.entitiesByName[entityName])
             let original = NSManagedObject(entity: entity, insertInto: ctx)
             for (name, attribute) in entity.attributesByName {
-                original.setValue(Self.sample(for: attribute, name: name), forKey: name)
+                original.setValue(ReleaseTestValues.sample(for: attribute, name: name), forKey: name)
             }
             let copy = NSManagedObject(entity: entity, insertInto: ctx)
             ClassroomShareRelease.copyAttributes(from: original, to: copy)
@@ -331,36 +283,11 @@ struct ClassroomShareReleaseTests {
             for object in fix.stack.viewContext.safeFetch(request) {
                 let id = (object.value(forKey: "id") as? UUID)?.uuidString ?? "?"
                 let values = object.entity.attributesByName.keys.sorted().map { key in
-                    "\(key)=\(Self.text(object.value(forKey: key)))"
+                    "\(key)=\(ReleaseTestValues.text(object.value(forKey: key)))"
                 }
                 result["\(entity)|\(id)"] = values.joined(separator: ";")
             }
         }
         return result
-    }
-
-    /// A value as text, without object addresses.
-    private static func text(_ value: Any?) -> String {
-        switch value {
-        case let uuid as UUID: return uuid.uuidString
-        case let list as [Any]: return list.map { text($0) }.joined(separator: ",")
-        case let date as Date: return String(date.timeIntervalSinceReferenceDate)
-        case .some(let other): return String(describing: other)
-        case .none: return "nil"
-        }
-    }
-
-    private static func sample(for attribute: NSAttributeDescription, name: String) -> Any? {
-        switch attribute.attributeType {
-        case .stringAttributeType: return "value of \(name)"
-        case .UUIDAttributeType: return UUID()
-        case .dateAttributeType: return Date(timeIntervalSinceReferenceDate: Double(name.count) * 1_000)
-        case .integer16AttributeType, .integer32AttributeType, .integer64AttributeType: return name.count
-        case .doubleAttributeType, .floatAttributeType: return Double(name.count) / 2
-        case .booleanAttributeType: return true
-        case .transformableAttributeType: return ["a", name] as NSArray
-        case .binaryDataAttributeType: return Data(name.utf8)
-        default: return nil
-        }
     }
 }

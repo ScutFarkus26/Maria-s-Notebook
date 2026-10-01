@@ -174,7 +174,11 @@ extension ClassroomShareRelease {
 nonisolated extension ClassroomShareRelease.Environment {
     /// The app's: CloudKit's own answers, and the sync status for reasons to stop.
     static func live(container: NSPersistentCloudKitContainer) -> Self {
-        Self(
+        let privateStore = container.persistentStoreCoordinator.persistentStores.first {
+            $0.configurationName == CoreDataStack.privateConfiguration
+        }
+        let exports = ClassroomShareExportActivity(storeIdentifier: privateStore?.identifier)
+        return Self(
             // Both read the mirroring metadata, which can wait on an export: off the main actor.
             shareZones: { ids in
                 try await Task.detached {
@@ -211,7 +215,9 @@ nonisolated extension ClassroomShareRelease.Environment {
                 }
             },
             sleep: { try await Task.sleep(for: $0) },
-            patience: .seconds(10 * 60)
+            patience: .seconds(10 * 60),
+            exportIdle: { await exports.waitUntilIdle() },
+            exportStarted: { await exports.waitForStart(after: $0) }
         )
     }
 }
