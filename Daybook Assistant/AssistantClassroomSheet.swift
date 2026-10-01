@@ -67,7 +67,7 @@ struct AssistantClassroomSheet: View {
                     Task { await leave() }
                 }
             } message: {
-                Text("The class is removed from this iPhone. The attendance you took stays with your guide. "
+                Text("This takes the class off this iPhone. The attendance you've taken stays with your guide. "
                     + "To come back, open your guide's invitation again.")
             }
         }
@@ -92,7 +92,7 @@ struct AssistantClassroomSheet: View {
             Text("Classroom")
         } footer: {
             if classroomID != nil {
-                Text("If something looks wrong, the classroom ID tells your guide which class this iPhone is in.")
+                Text("If something looks wrong, read this ID to your guide. It tells them which class this iPhone is in.")
             }
         }
     }
@@ -106,7 +106,7 @@ struct AssistantClassroomSheet: View {
             }
             .foregroundStyle(.primary)
         } footer: {
-            Text("Shown beside the attendance you take.")
+            Text("Your guide sees this name next to each child you mark.")
         }
     }
 
@@ -134,7 +134,7 @@ struct AssistantClassroomSheet: View {
                 }
             }
         } footer: {
-            Text("What's behind the class. Only on this iPhone.")
+            Text("The color or photo behind the children's names. It only changes this iPhone.")
         }
     }
 
@@ -142,9 +142,9 @@ struct AssistantClassroomSheet: View {
         Section {
             Toggle("Bells", isOn: $bellsOn)
         } footer: {
-            Text("The Montessori bells as you mark: each child here rings the next bell up the scale "
-                + "and back down, an absence is the low C damped, and everyone marked runs up the scale. "
-                + "The ringer switch silences them.")
+            Text("Plays the Montessori bells as you mark. Each child you mark here rings the next note "
+                + "up the scale, then back down. An absence plays a soft low C. When every child is marked, "
+                + "the bells run up the whole scale. Silent mode turns them off.")
         }
         .onChange(of: bellsOn) { _, isOn in
             if isOn { AttendanceBells.shared.play(.here(count: 1)) }
@@ -188,11 +188,23 @@ struct AssistantClassroomSheet: View {
         }
     }
 
+    /// Says what will actually happen with the switches as they are now.
     private var reminderFooter: String {
-        let arrival = "On school days, a reminder to close arrival, unless everyone's already marked."
-        guard let dueAt = frontDeskDueAt else { return arrival }
-        return arrival + " The front desk needs attendance by \(dueAt): that one comes before then, "
-            + "and again at \(dueAt), if nobody has emailed it yet."
+        var lines: [String] = []
+        if reminderOn {
+            let at = FrontDeskEmailReminder.timeString(reminderMinutes)
+            lines.append("On school days at \(at), you'll get a reminder to close arrival. "
+                + "If every child is already marked, it stays quiet.")
+        }
+        if let dueAt = frontDeskDueAt {
+            if frontDeskOn {
+                lines.append("The front desk needs attendance emailed by \(dueAt). If no one has sent it yet, "
+                    + "you'll get a reminder \(frontDeskLead) minutes before, and another at \(dueAt).")
+            } else {
+                lines.append("The front desk needs attendance emailed by \(dueAt).")
+            }
+        }
+        return lines.isEmpty ? "Turn on a reminder to get a nudge on school days." : lines.joined(separator: " ")
     }
 
     /// The guide's due time ("9:00 AM"), once the guide has set up the
@@ -283,21 +295,21 @@ extension AssistantClassroomSheet {
         Section {
             NavigationLink("What the Tiles Mean") { AssistantTileKey() }
         } footer: {
-            Text("The colors and little symbols on the tiles, like the waving hand and the clock.")
+            Text("What the colors and small symbols on each child's tile mean.")
         }
     }
 
     var orderSection: some View {
         Section {
-            Picker("Alphabetical", selection: $gridOrderRaw) {
+            Picker("Name order", selection: $gridOrderRaw) {
                 ForEach(AssistantGridOrder.allCases) { order in
                     Text(order.title).tag(order.rawValue)
                 }
             }
         } footer: {
             Text(AssistantGridOrder.resolved(gridOrderRaw) == .across
-                ? "A to Z along each row, then the next row down. Only on this iPhone."
-                : "A to Z down each column, then the next column over. Only on this iPhone.")
+                ? "Names go A to Z across each row, then on to the next row. It only changes this iPhone."
+                : "Names go A to Z down each column, then on to the next column. It only changes this iPhone.")
         }
     }
 }
