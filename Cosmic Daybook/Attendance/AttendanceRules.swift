@@ -119,30 +119,36 @@ enum AttendanceRules {
             : "Back after \(daysAway) days"
     }
 
-    /// "18 here · 2 absent · 1 late", leaving out what's zero.
+    /// "19 here (1 late) · 2 absent · 1 not marked", leaving out what's
+    /// zero. Late and left early are children who came in, so they count as
+    /// here (marking a child late moves "here" up), and the brackets say how
+    /// many of those were.
     static func tally(_ rows: [AttendanceRow]) -> String {
-        let counts = Dictionary(grouping: rows, by: \.status).mapValues(\.count)
-        let parts: [(AttendanceStatus, String)] = [
-            (.present, "here"), (.tardy, "late"), (.absent, "absent"),
-            (.leftEarly, "left early"), (.unmarked, "not marked")
-        ]
-        let text = parts.compactMap { status, word in
-            counts[status].map { "\($0) \(word)" }
-        }
-        return text.joined(separator: " · ")
+        counts(rows, breakdown: true)
     }
 
-    /// The tally when the full one won't fit: late and left early count as
-    /// here ("3 here · 1 absent · 18 not marked"), since the tiles already
-    /// say which.
+    /// The tally when the full one won't fit: "3 here · 1 absent · 18 not
+    /// marked", without the late and left-early brackets, since the tiles
+    /// already say which.
     static func shortTally(_ rows: [AttendanceRow]) -> String {
-        let here = rows.count(where: \.isHere)
-        let absent = rows.count { $0.status == .absent }
-        let unmarked = rows.count { $0.status == .unmarked }
-        let parts = [(here, "here"), (absent, "absent"), (unmarked, "not marked")]
+        counts(rows, breakdown: false)
+    }
+
+    private static func counts(_ rows: [AttendanceRow], breakdown: Bool) -> String {
+        let count = { (status: AttendanceStatus) in rows.count { $0.status == status } }
+        var here = "\(rows.count(where: \.isHere)) here"
+        let ofThem = [(count(.tardy), "late"), (count(.leftEarly), "left early")]
             .filter { $0.0 > 0 }
             .map { "\($0.0) \($0.1)" }
-        return parts.joined(separator: " · ")
+        if breakdown, !ofThem.isEmpty {
+            here += " (\(ofThem.joined(separator: ", ")))"
+        }
+        let parts = [
+            (rows.count(where: \.isHere), here),
+            (count(.absent), "\(count(.absent)) absent"),
+            (count(.unmarked), "\(count(.unmarked)) not marked")
+        ]
+        return parts.filter { $0.0 > 0 }.map(\.1).joined(separator: " · ")
     }
 
     /// The line once everyone's marked: "Everyone's here · 8:14" (the time

@@ -4,8 +4,9 @@ import CoreData
 import UserNotifications
 
 /// The Assistant's one settings screen, behind the person button: whose
-/// classroom this is and since when, her name, the arrival and front-desk
-/// email reminders, the background, the bells, and the way out.
+/// classroom this is and since when, what the tiles mean, which way the grid
+/// runs, her name, the arrival and front-desk email reminders, the
+/// background, the bells, and the way out.
 ///
 /// The guide's name comes from the share's owner identity at display time.
 /// Apple's terms allow showing it to participants but never storing it, and
@@ -26,12 +27,15 @@ struct AssistantClassroomSheet: View {
     @AppStorage(FrontDeskEmailReminder.leadKey) private var frontDeskLead = FrontDeskEmailReminder.defaultLeadMinutes
     @State private var notificationsDenied = false
     @AppStorage(AttendanceBells.enabledKey) private var bellsOn = false
+    @AppStorage(AssistantGridOrder.key) private var gridOrderRaw = AssistantGridOrder.across.rawValue
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
 
     var body: some View {
         NavigationStack {
             Form {
                 classroomSection
+                keySection
+                orderSection
                 nameSection
                 reminderSection
                 backgroundSection
@@ -280,5 +284,32 @@ struct AssistantClassroomSheet: View {
             leaveError = "Couldn't leave the classroom. Check that this iPhone is online, then try again."
         }
         isLeaving = false
+    }
+}
+
+// MARK: - The grid
+
+extension AssistantClassroomSheet {
+
+    var keySection: some View {
+        Section {
+            NavigationLink("What the Tiles Mean") { AssistantTileKey() }
+        } footer: {
+            Text("The colors and little symbols on the tiles, like the waving hand and the clock.")
+        }
+    }
+
+    var orderSection: some View {
+        Section {
+            Picker("Alphabetical", selection: $gridOrderRaw) {
+                ForEach(AssistantGridOrder.allCases) { order in
+                    Text(order.title).tag(order.rawValue)
+                }
+            }
+        } footer: {
+            Text(AssistantGridOrder.resolved(gridOrderRaw) == .across
+                ? "A to Z along each row, then the next row down. Only on this iPhone."
+                : "A to Z down each column, then the next column over. Only on this iPhone.")
+        }
     }
 }

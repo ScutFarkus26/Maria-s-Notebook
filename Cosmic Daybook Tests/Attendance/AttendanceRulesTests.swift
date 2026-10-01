@@ -95,4 +95,12 @@ struct AttendanceRulesTests {
         let rows = [try row(.present), try row(.present), try row(.absent), try row(.unmarked)]
         #expect(AttendanceRules.tally(rows) == "2 here · 1 absent · 1 not marked")
     }
+
+    @Test("Late and left early count as here, with the brackets saying how many")
+    func tallyCountsLateAsHere() throws {
+        let rows = [try row(.present), try row(.tardy), try row(.tardy), try row(.leftEarly), try row(.unmarked)]
+        #expect(AttendanceRules.tally(rows) == "4 here (2 late, 1 left early) · 1 not marked")
+        #expect(AttendanceRules.tally([try row(.tardy), try row(.absent)]) == "1 here (1 late) · 1 absent")
+        #expect(AttendanceRules.shortTally(rows) == "4 here · 1 not marked")
+    }
 }

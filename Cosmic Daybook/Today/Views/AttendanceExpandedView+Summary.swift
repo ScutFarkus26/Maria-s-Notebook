@@ -7,7 +7,7 @@ extension AttendanceExpandedView {
 
     // MARK: - Tally (Mac and iPad)
 
-    /// "18 here · 2 absent · 1 late" over the cards, with Close Arrival
+    /// "19 here (1 late) · 2 absent" over the cards, with Close Arrival
     /// beside it; the iPhone has its strip.
     @ViewBuilder
     var tallyLine: some View {

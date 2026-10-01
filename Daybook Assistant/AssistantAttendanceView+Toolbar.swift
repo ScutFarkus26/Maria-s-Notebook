@@ -35,7 +35,7 @@ extension AssistantAttendanceView {
                 Label("Classroom", systemImage: "person.crop.circle")
                     .labelStyle(.iconOnly)
             }
-            .accessibilityHint("Your guide, your name, and leaving the classroom")
+            .accessibilityHint("Your guide, what the tiles mean, your name, and leaving the classroom")
         }
     }
 

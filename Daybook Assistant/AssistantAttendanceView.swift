@@ -64,6 +64,8 @@ struct AssistantAttendanceView: View {
     @State private var noticesHeight: CGFloat = 0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
+    /// Alphabetical across the rows or down the columns.
+    @AppStorage(AssistantGridOrder.key) private var gridOrderRaw = AssistantGridOrder.across.rawValue
 
     /// Sky or Plain: tiles as they are. Anything else frosts them.
     private var backdropIsQuiet: Bool { AssistantWallpaper.resolved(wallpaperRaw).isQuiet }
@@ -88,12 +90,27 @@ struct AssistantAttendanceView: View {
         return [GridItem(.adaptive(minimum: usesShortNames ? Self.phoneColumnWidth : 150), spacing: gridSpacing)]
     }
 
+    /// How many columns the grid lays out: the adaptive grid's own count for
+    /// its width, or two at accessibility text sizes.
+    private var gridColumnCount: Int {
+        if dynamicTypeSize.isAccessibilitySize { return 2 }
+        let columnWidth = usesShortNames ? Self.phoneColumnWidth : 150
+        return max(1, Int((gridSpace.width + gridSpacing) / (columnWidth + gridSpacing)))
+    }
+
+    /// The day's rows in the order the grid shows them. Down waits for the
+    /// grid's width, so it never arranges for one column.
+    private func gridRows(_ viewModel: AssistantAttendanceViewModel) -> [AssistantAttendanceViewModel.Row] {
+        guard gridSpace.width > 0 else { return viewModel.rows }
+        return AssistantGridOrder.resolved(gridOrderRaw).arranged(viewModel.rows, columns: gridColumnCount)
+    }
+
     /// The SE keeps its fixed tiles; any other phone fills the room it has.
     private func phoneTileHeight(_ viewModel: AssistantAttendanceViewModel) -> CGFloat {
         guard usesShortNames, !hidesStatusBar, !dynamicTypeSize.isAccessibilitySize else {
             return AttendanceTile.phoneHeight
         }
-        let columns = max(1, Int((gridSpace.width + gridSpacing) / (Self.phoneColumnWidth + gridSpacing)))
+        let columns = gridColumnCount
         let notices = AssistantDayNotices.shows(for: viewModel) ? noticesHeight + 12 : 0
         return AttendanceTile.fittedPhoneHeight(
             visibleHeight: gridSpace.height - notices,
@@ -240,7 +257,7 @@ struct AssistantAttendanceView: View {
                     AssistantDayNotices(viewModel: viewModel)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { noticesHeight = $0 }
                     LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
-                        ForEach(Array(viewModel.rows.enumerated()), id: \.element.id) { index, row in
+                        ForEach(Array(gridRows(viewModel).enumerated()), id: \.element.id) { index, row in
                             tile(row, viewModel: viewModel, height: tileHeight, index: index)
                         }
                     }
@@ -321,10 +338,7 @@ struct AssistantAttendanceView: View {
 
     /// The ripple runs row by row, and left to right within a row.
     private func rippleDelay(at index: Int) -> Double {
-        let columnWidth = usesShortNames ? Self.phoneColumnWidth : 150
-        let columns = dynamicTypeSize.isAccessibilitySize
-            ? 2
-            : max(1, Int((gridSpace.width + gridSpacing) / (columnWidth + gridSpacing)))
+        let columns = gridColumnCount
         return Double(index / columns) * 0.07 + Double(index % columns) * 0.035
     }
 }
