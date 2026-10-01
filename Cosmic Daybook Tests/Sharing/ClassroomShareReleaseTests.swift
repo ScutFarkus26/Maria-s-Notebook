@@ -196,7 +196,7 @@ struct ClassroomShareReleaseTests {
     func serverNeverConfirms() async throws {
         let fix = try fixture()
         fix.cloud.serverLags = true
-        let env = fix.cloud.environment()
+        let env = fix.cloud.environment(patience: .milliseconds(300)) // gives up on purpose
         let report = try await release(fix, env)
         #expect(report.batchesDone == 0)
         #expect(fix.cloud.exists(fix.departed.objectID))

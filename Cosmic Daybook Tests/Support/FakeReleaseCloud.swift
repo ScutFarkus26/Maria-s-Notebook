@@ -52,7 +52,32 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
 
     typealias StepHook = @Sendable (ClassroomShareRelease.Step, ClassroomShareRelease.Batch) async -> Void
 
-    func environment(afterStep: @escaping StepHook = { _, _ in }) -> ClassroomShareRelease.Environment {
+    /// The give-up for a run that is meant to finish: a number of waits, not a clock. The
+    /// product's give-up is a wall-clock deadline, and on 2026-10-01 a loaded parallel run
+    /// took longer than 300 ms to get past three network failures. With this, load can slow
+    /// such a run but never fail it; a regression that keeps it waiting still fails fast.
+    static let finishingWaits = 100
+
+    /// The waits a run made, for the attempt limit.
+    private var waits = 0
+
+    struct GaveUp: LocalizedError {
+        var errorDescription: String? { "The fake iCloud's attempt limit ran out." }
+    }
+
+    func countWait(limit: Int?) throws {
+        lock.lock(); defer { lock.unlock() }
+        waits += 1
+        if let limit, waits > limit { throw GaveUp() }
+    }
+
+    /// `patience` nil (a run meant to finish): no clock deadline, give up after
+    /// `finishingWaits` waits. A test that times out on purpose (`serverLags`) passes a short
+    /// patience so the product's own deadline is what stops it.
+    func environment(
+        patience: Duration? = nil,
+        afterStep: @escaping StepHook = { _, _ in }
+    ) -> ClassroomShareRelease.Environment {
         ClassroomShareRelease.Environment(
             shareZones: { ids in
                 let zone = FakeReleaseCloud.shareZone
@@ -85,8 +110,11 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
                 return found
             },
             stopReason: { self.stop },
-            sleep: { _ in try await Task.sleep(for: .milliseconds(1)) },
-            patience: .milliseconds(300),
+            sleep: { _ in
+                try self.countWait(limit: patience == nil ? FakeReleaseCloud.finishingWaits : nil)
+                try await Task.sleep(for: .milliseconds(1))
+            },
+            patience: patience ?? .seconds(3_600),
             exportStarted: { _ in self.nextExportStartAnswer() },
             afterStep: afterStep
         )
