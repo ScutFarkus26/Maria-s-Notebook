@@ -1,271 +1,66 @@
 import SwiftUI
 import CoreData
 
-/// A dedicated workflow view for conducting weekly student meetings.
-/// Provides a queue of students, context pane, and meeting form in a focused layout.
+/// A dedicated workflow view for conducting weekly student meetings: a queue
+/// sorted by need beside the meeting itself.
+///
+/// The queue reads `MeetingQueueModel`'s per-child signals, rebuilt only when a
+/// meeting, booking, work item, focus item or attendance mark changes; the
+/// meeting fetches for its own child (`MeetingSessionView`).
 struct MeetingsWorkflowView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.calendar) private var calendar
     @Environment(\.dependencies) private var dependencies
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
 
-    // MARK: - Queries
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDStudentMeeting.date, ascending: false)])
-    private var allMeetings: FetchedResults<CDStudentMeeting>
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDWorkModel.createdAt, ascending: false)])
-    private var allWorkModels: FetchedResults<CDWorkModel>
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDLessonAssignment.presentedAt, ascending: false)])
-    private var allLessonAssignments: FetchedResults<CDLessonAssignment>
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDMeetingTemplate.sortOrder, ascending: true)])
-    private var meetingTemplates: FetchedResults<CDMeetingTemplate>
-
-    // Test student filtering
     @TestStudentVisibility private var testStudents
 
-    /// Enrolled students from the workspace's live roster, test students
-    /// hidden when the setting is off.
-    private var students: [CDStudent] {
-        testStudents.visible(dependencies.roster.enrolled)
-    }
-
-    // MARK: - State
-
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CDScheduledMeeting.date, ascending: true)])
-    private var scheduledMeetingsQuery: FetchedResults<CDScheduledMeeting>
-
+    @State private var queueModel = MeetingQueueModel()
     @State private var selectedStudentID: UUID?
-    @State private var searchText: String = ""
-    @State private var showCompletedThisWeek: Bool = false
-    @State private var orderedStudentIDs: [UUID] = []
-    @State private var requeueStore = MeetingQueueRequeueStore()
+    @State private var searchText = ""
     @State private var selectedAgeRanges: Set<AgeRange> = []
+    @State private var customOrder: [UUID] = []
+    @State private var requeueStore = MeetingQueueRequeueStore()
+    @State private var isAbsentExpanded = false
+    @State private var isMetExpanded = false
     @State private var studentForMeetingDatePicker: CDStudent?
 
-    // Meeting frequency threshold (persisted)
-    @AppStorage(UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold) private var daysSinceThreshold: Int = 7
+    @AppStorage(UserDefaultsKeys.meetingsWorkflowDaysSinceThreshold) private var cadenceDays: Int = 7
+    @AppStorage(Self.orderKey) private var orderRaw: String = MeetingQueueOrder.need.rawValue
+    @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = WorkAgeDefaults.overdueDays
 
-    // Work age threshold for overdue
-    @SyncedAppStorage("WorkAge.overdueDays") private var workOverdueDays: Int = 14
-
-    // UserDefaults key for persisting custom order
     private static let customOrderKey = "MeetingsWorkflow.customStudentOrder"
+    private static let orderKey = "MeetingsWorkflow.queueOrder"
 
-    // MARK: - Computed Properties
+    // MARK: - Derived
 
-    private var absentTodayIDs: Set<UUID> {
-        let ids = students.compactMap(\.id)
-        let statuses = viewContext.attendanceStatuses(for: ids, on: Date())
-        return Set(statuses.compactMap { $0.value == .absent ? $0.key : nil })
+    private var order: MeetingQueueOrder { MeetingQueueOrder(rawValue: orderRaw) ?? .need }
+
+    /// Enrolled children (test students hidden when the setting is off), age filter applied.
+    private var classStudents: [CDStudent] {
+        let enrolled = testStudents.visible(dependencies.roster.enrolled)
+        guard !selectedAgeRanges.isEmpty else { return enrolled }
+        return enrolled.filter { AgeRange.matchesAny($0.birthday ?? Date(), in: selectedAgeRanges) }
     }
 
-    private var scheduledMeetingDates: [UUID: Date] {
-        var result: [UUID: Date] = [:]
-        for sm in scheduledMeetingsQuery {
-            for studentIDString in sm.allStudentIDs {
-                if let sid = UUID(uuidString: studentIDString) {
-                    if let existing = result[sid] {
-                        result[sid] = min(existing, sm.date ?? .distantFuture)
-                    } else {
-                        result[sid] = sm.date
-                    }
-                }
-            }
-        }
-        return result
+    private var rules: MeetingQueueRules {
+        MeetingQueueRules(
+            cadenceDays: cadenceDays,
+            requeued: requeueStore.activeIDs { queueModel.signals[$0]?.lastMet },
+            order: order,
+            customOrder: customOrder
+        )
     }
 
-    private var selectedStudent: CDStudent? {
-        guard let id = selectedStudentID else { return nil }
-        return students.first { $0.id == id }
+    private func arrangement(of students: [CDStudent]) -> MeetingQueueArrangement {
+        MeetingQueueArrangement.arrange(ids: students.compactMap(\.id), signals: queueModel.signals, rules: rules)
     }
 
-    private var thresholdDate: Date {
-        calendar.date(byAdding: .day, value: -daysSinceThreshold, to: Date()) ?? Date()
-    }
-
-    /// Requeued students whose requeue is still live: no meeting has been
-    /// completed since they were put back in the queue.
-    private var activeRequeuedIDs: Set<UUID> {
-        requeueStore.activeIDs(lastMeetingDate: lastMeetingDate)
-    }
-
-    /// `allMeetings` is sorted by date descending, so the first hit is the latest.
-    private func lastMeetingDate(for id: UUID) -> Date? {
-        let string = id.uuidString
-        return allMeetings.first { $0.studentID == string }?.date
-    }
-
-    /// Students who haven't had a meeting within the threshold, plus anyone put
-    /// back in the queue by hand.
-    private var studentsNeedingMeetingSet: Set<UUID> {
-        let requeued = activeRequeuedIDs
-        let needsMeeting = students.filter { student in
-            if let id = student.id, requeued.contains(id) { return true }
-            let studentMeetings = meetingsFor(student)
-            let hasRecentMeeting = studentMeetings.contains { ($0.date ?? .distantPast) >= thresholdDate }
-            return !hasRecentMeeting
-        }
-        return Set(needsMeeting.compactMap(\.id))
-    }
-
-    /// Ordered list of students needing meetings
-    private var studentsNeedingMeeting: [CDStudent] {
-        // Start with ordered IDs that are still valid
-        var result: [CDStudent] = []
-        var addedIDs = Set<UUID>()
-
-        for id in orderedStudentIDs where studentsNeedingMeetingSet.contains(id) {
-            if let student = students.first(where: { $0.id == id }) {
-                result.append(student)
-                addedIDs.insert(id)
-            }
-        }
-
-        // Add any students not yet in the ordered list (alphabetically)
-        for student in students
-        where student.id.map({ studentsNeedingMeetingSet.contains($0) && !addedIDs.contains($0) }) ?? false {
-            result.append(student)
-        }
-
-        return result
-    }
-
-    /// Students who have had a meeting within the threshold and haven't been
-    /// put back in the queue.
-    private var studentsWithRecentMeeting: [CDStudent] {
-        let queued = studentsNeedingMeetingSet
-        return students.filter { student in
-            guard let id = student.id else { return false }
-            return !queued.contains(id)
-        }
-    }
-
-    /// Filter students based on search and age.
-    /// Search brings matching students to the top rather than hiding non-matches.
-    private var filteredStudentsNeedingMeeting: [CDStudent] {
-        var result = studentsNeedingMeeting
-
-        // Age filter
-        if !selectedAgeRanges.isEmpty {
-            result = result.filter { AgeRange.matchesAny($0.birthday ?? Date(), in: selectedAgeRanges) }
-        }
-
-        // Search: bring matching students to the top
-        if !searchText.isEmpty {
-            let search = searchText.lowercased()
-            let (matching, rest) = result.partitioned { student in
-                student.firstName.lowercased().contains(search) ||
-                student.lastName.lowercased().contains(search)
-            }
-            result = matching + rest
-        }
-
-        return result
-    }
-
-    private var filteredStudentsCompleted: [CDStudent] {
-        var result = studentsWithRecentMeeting
-
-        // Age filter
-        if !selectedAgeRanges.isEmpty {
-            result = result.filter { AgeRange.matchesAny($0.birthday ?? Date(), in: selectedAgeRanges) }
-        }
-
-        // Search: bring matching students to the top
-        if !searchText.isEmpty {
-            let search = searchText.lowercased()
-            let (matching, rest) = result.partitioned { student in
-                student.firstName.lowercased().contains(search) ||
-                student.lastName.lowercased().contains(search)
-            }
-            result = matching + rest
-        }
-
-        return result
-    }
-
-    private var filteredStudentsNeedingMeetingPresent: [CDStudent] {
-        let absent = absentTodayIDs
-        return filteredStudentsNeedingMeeting.filter { student in
-            guard let id = student.id else { return true }
-            return !absent.contains(id)
-        }
-    }
-
-    private var filteredStudentsAbsentToday: [CDStudent] {
-        let absent = absentTodayIDs
-        return filteredStudentsNeedingMeeting.filter { student in
-            guard let id = student.id else { return false }
-            return absent.contains(id)
-        }
-    }
-
-    private func meetingsFor(_ student: CDStudent) -> [CDStudentMeeting] {
-        let studentIDString = student.id?.uuidString ?? ""
-        return allMeetings.filter { $0.studentID == studentIDString }
-    }
-
-    private func lastMeetingFor(_ student: CDStudent) -> CDStudentMeeting? {
-        meetingsFor(student).first
-    }
-
-    // MARK: - Body
-
-    var body: some View {
-        Group {
-            if isCompact {
-                // A phone has no room for the queue beside the meeting: the
-                // queue fills the screen and a child's meeting pushes over it.
-                queueSidebar
-                    .navigationDestination(item: $selectedStudentID) { studentID in
-                        if let student = students.first(where: { $0.id == studentID }) {
-                            sessionView(for: student)
-                                .navigationTitle(student.fullName)
-                        }
-                    }
-            } else {
-                HStack(spacing: 0) {
-                    queueSidebar
-                        .frame(width: 250)
-
-                    Divider()
-
-                    if let student = selectedStudent {
-                        sessionView(for: student)
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        MeetingsEmptyState(
-                            canStart: !filteredStudentsNeedingMeetingPresent.isEmpty,
-                            onStart: { selectedStudentID = filteredStudentsNeedingMeetingPresent.first?.id }
-                        )
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-            }
-        }
-        .navigationTitle("Meetings")
-        .inlineNavigationTitle()
-        .onAppear {
-            loadCustomOrder()
-            requeueStore = .load()
-        }
-        .sheet(item: $studentForMeetingDatePicker) { student in
-            MeetingDatePickerSheet(studentName: student.fullName) { date in
-                if let studentID = student.id {
-                    MeetingScheduler.scheduleMeeting(
-                        studentID: studentID,
-                        date: date,
-                        context: viewContext
-                    )
-                }
-            }
-        }
+    private func matchesSearch(_ student: CDStudent) -> Bool {
+        let search = searchText.trimmed().lowercased()
+        guard !search.isEmpty else { return true }
+        return student.firstName.lowercased().contains(search) || student.lastName.lowercased().contains(search)
     }
 
     private var isCompact: Bool {
@@ -276,106 +71,226 @@ struct MeetingsWorkflowView: View {
         #endif
     }
 
-    private var queueSidebar: some View {
-        MeetingsQueueSidebar(
-            studentsNeedingMeeting: filteredStudentsNeedingMeetingPresent,
-            studentsAbsentToday: filteredStudentsAbsentToday,
-            studentsCompleted: filteredStudentsCompleted,
-            selectedStudentID: $selectedStudentID,
-            searchText: $searchText,
-            showCompletedThisWeek: $showCompletedThisWeek,
-            daysSinceThreshold: $daysSinceThreshold,
-            selectedAgeRanges: $selectedAgeRanges,
-            lastMeetingFor: lastMeetingFor,
-            onMove: moveStudent,
-            onRequeue: requeueStudent,
-            scheduledMeetingDates: scheduledMeetingDates,
-            onScheduleMeeting: handleScheduleMeeting,
-            onPickMeetingDate: { student in
-                studentForMeetingDatePicker = student
-            }
+    // MARK: - Body
+
+    /// Its own stack, so the iPad (which gives a sidebar tab no navigation
+    /// bar) shows the title, the filter menu and search, and a phone can push
+    /// a child's meeting.
+    var body: some View {
+        PageNavigationStack { page }
+    }
+
+    @ViewBuilder
+    private var page: some View {
+        let students = classStudents
+        let byID = Dictionary(
+            students.compactMap { student in student.id.map { ($0, student) } },
+            uniquingKeysWith: { first, _ in first }
         )
+        let queue = arrangement(of: students)
+        let rows = { (ids: [UUID]) in ids.compactMap { byID[$0] }.filter(matchesSearch) }
+
+        content(queue: queue, byID: byID, rows: rows)
+            .navigationTitle("Meetings")
+            .navigationSubtitle("\(queue.met.count) of \(queue.total) met · every \(cadenceDays) days")
+            .inlineNavigationTitle()
+            .searchable(text: $searchText, prompt: "Search")
+            .toolbar { toolbarContent }
+            .onAppear {
+                loadCustomOrder()
+                requeueStore = .load()
+                refreshQueue()
+            }
+            .onReceiveWhenVisible(MeetingQueueModel.changes(), catchUpOnAppear: false) {
+                queueModel.requestRefresh(context: viewContext, workOverdueDays: workOverdueDays)
+            }
+            // A meeting completed, a decision made, a booking changed: the
+            // change flag is already set, so this rebuilds only if one moved.
+            .onChange(of: selectedStudentID) { _, _ in refreshQueue() }
+            .onReceive(NotificationCenter.default.publisher(for: .meetingDraftsDidChange)) { _ in
+                queueModel.refreshDrafts()
+            }
+            .onChange(of: workOverdueDays) { _, _ in refreshQueue() }
+            .sheet(item: $studentForMeetingDatePicker) { student in
+                MeetingDatePickerSheet(studentName: student.fullName) { date in
+                    schedule(student, on: date)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func content(
+        queue: MeetingQueueArrangement,
+        byID: [UUID: CDStudent],
+        rows: ([UUID]) -> [CDStudent]
+    ) -> some View {
+        let sidebar = MeetingsQueueSidebar(
+            upNext: rows(queue.upNext),
+            absent: rows(queue.absent),
+            met: rows(queue.met),
+            metCount: queue.met.count,
+            totalCount: queue.total,
+            signals: queueModel.signals,
+            draftIDs: queueModel.draftIDs,
+            cadenceDays: cadenceDays,
+            canReorder: order == .custom && searchText.trimmed().isEmpty,
+            selectedStudentID: $selectedStudentID,
+            isAbsentExpanded: $isAbsentExpanded,
+            isMetExpanded: $isMetExpanded,
+            onMove: { moveStudent(from: $0, to: $1, upNext: queue.upNext) },
+            onRequeue: { requeueStudent($0, at: $1, upNext: queue.upNext) },
+            onScheduleMeeting: schedule,
+            onPickMeetingDate: { studentForMeetingDatePicker = $0 }
+        )
+
+        if isCompact {
+            // A phone has no room for the queue beside the meeting: the
+            // queue fills the screen and a child's meeting pushes over it.
+            sidebar
+                .navigationDestination(item: $selectedStudentID) { studentID in
+                    if let student = byID[studentID] {
+                        sessionView(for: student)
+                    }
+                }
+        } else {
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 280)
+                Divider()
+                Group {
+                    if let id = selectedStudentID, let student = byID[id] {
+                        sessionView(for: student)
+                    } else {
+                        let first = queue.upNext.first.flatMap { byID[$0] }
+                        MeetingsEmptyState(
+                            firstName: first?.shortName,
+                            remaining: queue.upNext.count + queue.absent.count,
+                            onStart: { selectedStudentID = first?.id }
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
     }
 
     private func sessionView(for student: CDStudent) -> some View {
-        MeetingSessionView(
+        let id = student.id
+        let upNext = arrangement(of: classStudents).upNext
+        let index = id.flatMap { upNext.firstIndex(of: $0) }
+        // Someone else is waiting: Complete moves on, and Skip is offered.
+        let othersWaiting = upNext.contains { $0 != id }
+        let hasPrevious = (index ?? 0) > 0
+        let hasNext = index.map { $0 + 1 < upNext.count } ?? !upNext.isEmpty
+        return MeetingSessionView(
             student: student,
-            allWorkModels: Array(allWorkModels),
-            allLessonAssignments: Array(allLessonAssignments),
-            lessons: dependencies.lessonCatalog.all,
-            meetings: meetingsFor(student),
-            meetingTemplates: Array(meetingTemplates),
-            workOverdueDays: workOverdueDays,
-            onComplete: {
-                moveToNextStudent()
-            }
+            actions: MeetingSessionActions(
+                completeLabel: othersWaiting ? "Complete & Next" : "Complete",
+                onComplete: { advance(from: id) },
+                onSkip: othersWaiting ? { advance(from: id) } : nil,
+                onPrevious: hasPrevious ? { step(from: id, by: -1) } : nil,
+                onNext: hasNext ? { step(from: id, by: 1) } : nil,
+                scheduledDate: id.flatMap { queueModel.signals[$0]?.scheduled },
+                onSchedule: { schedule(student, on: $0) }
+            )
         )
+        .id(student.objectID)
     }
 
-    // MARK: - Actions
+    // MARK: - Toolbar
 
-    private func moveToNextStudent() {
-        let absent = absentTodayIDs
-        let queue = studentsNeedingMeeting.filter { student in
-            guard let id = student.id else { return true }
-            return !absent.contains(id)
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            MeetingsFilterMenu(
+                cadenceDays: $cadenceDays,
+                selectedAgeRanges: $selectedAgeRanges,
+                orderRaw: $orderRaw,
+                iconOnly: isCompact
+            )
         }
-        if let currentIndex = queue.firstIndex(where: { $0.id == selectedStudentID }) {
-            let nextIndex = currentIndex + 1
-            if nextIndex < queue.count {
-                selectedStudentID = queue[nextIndex].id
-            } else if let first = queue.first, first.id != selectedStudentID {
-                selectedStudentID = first.id
-            } else {
-                selectedStudentID = nil
-            }
-        } else if let first = queue.first {
-            selectedStudentID = first.id
+        #if os(iOS)
+        if order == .custom && isCompact {
+            ToolbarItem(placement: .topBarLeading) { EditButton() }
         }
+        #endif
     }
 
-    // MARK: - Meeting Scheduling
+    // MARK: - Refresh
 
-    private func handleScheduleMeeting(student: CDStudent, date: Date?) {
+    private func refreshQueue() {
+        queueModel.refreshIfNeeded(context: viewContext, workOverdueDays: workOverdueDays)
+    }
+
+    // MARK: - Moving through the queue
+
+    /// After Complete or Skip: the next child in Up Next after this one,
+    /// wrapping to the top, or none when the queue is done.
+    /// The next child is chosen from the queue as it stood, then the queue
+    /// is refreshed so the child just met moves to Met.
+    private func advance(from id: UUID?) {
+        let upNext = arrangement(of: classStudents).upNext
+        defer { refreshQueue() }
+        guard let id, let index = upNext.firstIndex(of: id) else {
+            selectedStudentID = upNext.first
+            return
+        }
+        let others = upNext.filter { $0 != id }
+        selectedStudentID = index + 1 < upNext.count ? upNext[index + 1] : others.first
+    }
+
+    private func step(from id: UUID?, by offset: Int) {
+        let upNext = arrangement(of: classStudents).upNext
+        guard let id, let index = upNext.firstIndex(of: id) else {
+            selectedStudentID = upNext.first
+            return
+        }
+        let target = index + offset
+        guard upNext.indices.contains(target) else { return }
+        selectedStudentID = upNext[target]
+    }
+
+    // MARK: - Scheduling
+
+    private func schedule(_ student: CDStudent, on date: Date?) {
         guard let studentID = student.id else { return }
         if let date {
             MeetingScheduler.scheduleMeeting(studentID: studentID, date: date, context: viewContext)
         } else {
             MeetingScheduler.clearMeetings(studentID: studentID, context: viewContext)
         }
+        refreshQueue()
     }
 
     // MARK: - Custom Order
 
     private func loadCustomOrder() {
         if let saved = UserDefaults.standard.array(forKey: Self.customOrderKey) as? [String] {
-            orderedStudentIDs = saved.compactMap { UUID(uuidString: $0) }
+            customOrder = saved.compactMap { UUID(uuidString: $0) }
         }
     }
 
     private func saveCustomOrder() {
-        let strings = orderedStudentIDs.map(\.uuidString)
-        UserDefaults.standard.set(strings, forKey: Self.customOrderKey)
+        UserDefaults.standard.set(customOrder.map(\.uuidString), forKey: Self.customOrderKey)
     }
 
-    private func moveStudent(from source: IndexSet, to destination: Int) {
-        var ids = filteredStudentsNeedingMeeting.compactMap(\.id)
+    /// Rows hidden by a filter keep their place after the dragged ones.
+    private func moveStudent(from source: IndexSet, to destination: Int, upNext: [UUID]) {
+        var ids = upNext
         ids.move(fromOffsets: source, toOffset: destination)
-        orderedStudentIDs = ids
+        customOrder = ids + customOrder.filter { !ids.contains($0) }
         saveCustomOrder()
     }
 
-    /// Puts a recently-met student back into the Needs Meeting queue at
-    /// `position` (an index into the visible queue; nil means the top).
-    /// The rest of the saved order (rows hidden by filters) keeps its place after it.
-    private func requeueStudent(_ id: UUID, at position: Int?) {
-        guard students.contains(where: { $0.id == id }) else { return }
-        requeueStore.requeue(id, lastMeetingDate: lastMeetingDate)
+    /// Puts a recently-met child back into Up Next. In custom order she lands
+    /// at `position` (nil = the top); by need she sorts by her wait like anyone.
+    private func requeueStudent(_ id: UUID, at position: Int?, upNext: [UUID]) {
+        requeueStore.requeue(id) { queueModel.signals[$0]?.lastMet }
         requeueStore.save()
-        var ids = filteredStudentsNeedingMeetingPresent.compactMap(\.id).filter { $0 != id }
+        guard order == .custom else { return }
+        var ids = upNext.filter { $0 != id }
         ids.insert(id, at: min(position ?? 0, ids.count))
-        ids += orderedStudentIDs.filter { !ids.contains($0) }
-        orderedStudentIDs = ids
+        customOrder = ids + customOrder.filter { !ids.contains($0) }
         saveCustomOrder()
     }
 }

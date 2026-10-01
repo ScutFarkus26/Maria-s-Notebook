@@ -4,7 +4,7 @@
 //
 //  Meeting entries, and the "what is open right now" listing that reads
 //  across todos, goals and flagged notes. Entries follow the same save path
-//  as the in-app meeting form (MeetingFormPane.saveAndContinue): build the
+//  as the in-app meeting form (MeetingDraftModel.complete): build the
 //  CDStudentMeeting, create focus items through FocusItemService, snapshot
 //  the focus text, and save through safeSave.
 //

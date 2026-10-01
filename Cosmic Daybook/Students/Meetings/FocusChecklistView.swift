@@ -1,187 +1,189 @@
 import SwiftUI
 import CoreData
 
-/// A pending focus item that hasn't been persisted yet (created during this meeting session).
-struct PendingFocusItem: Identifiable {
-    let id = UUID()
-    var text: String
-}
-
-/// Structured focus checklist that replaces the free-text focus field.
-/// Shows active carry-forward items with resolve/drop controls and allows adding new items.
+/// Last week's focus items, ticked off or dropped, and new ones for next week.
+/// The meeting opens here because it starts by looking back at what the
+/// child set out to do.
 struct FocusChecklistView: View {
-    let existingItems: [CDStudentFocusItem]
-    @Binding var pendingNewItems: [PendingFocusItem]
-    @Binding var resolvedItemIDs: Set<UUID>
-    @Binding var droppedItemIDs: Set<UUID>
+    @Bindable var draft: MeetingDraftModel
 
     @State private var newItemText: String = ""
     @FocusState private var isNewItemFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Focus Items")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Last Week's Focus")
+                .font(.headline)
+                .padding(.bottom, 4)
 
-            VStack(alignment: .leading, spacing: 2) {
-                // Carry-forward items from previous meetings
-                ForEach(existingItems) { item in
-                    if let itemID = item.id {
-                        existingItemRow(item, itemID: itemID)
-                    }
-                }
-
-                // New items added in this session
-                ForEach(pendingNewItems) { item in
-                    pendingItemRow(itemID: item.id)
-                }
-
-                // Add new item row
-                addItemRow
+            if draft.activeFocusItems.isEmpty && draft.pendingFocus.isEmpty {
+                Text("Nothing carried over.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .padding(8)
-            .surface(
-                UIConstants.CornerRadius.control,
-                fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
-                stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
-                style: .continuous
-            )
+
+            ForEach(draft.activeFocusItems) { item in
+                if let itemID = item.id {
+                    existingItemRow(item, itemID: itemID)
+                }
+            }
+
+            ForEach(draft.pendingFocus) { item in
+                pendingItemRow(itemID: item.id)
+            }
+
+            addItemRow
         }
     }
 
     // MARK: - Existing Item Row
 
     private func existingItemRow(_ item: CDStudentFocusItem, itemID: UUID) -> some View {
-        let isResolved = resolvedItemIDs.contains(itemID)
-        let isDropped = droppedItemIDs.contains(itemID)
+        let isResolved = draft.resolvedFocusIDs.contains(itemID)
+        let isDropped = draft.droppedFocusIDs.contains(itemID)
 
-        return HStack(spacing: 8) {
-            // Checkbox
+        return HStack(spacing: 10) {
             Button {
                 adaptiveWithAnimation {
                     if isResolved {
-                        resolvedItemIDs.remove(itemID)
+                        draft.resolvedFocusIDs.remove(itemID)
                     } else {
-                        droppedItemIDs.remove(itemID)
-                        resolvedItemIDs.insert(itemID)
+                        draft.droppedFocusIDs.remove(itemID)
+                        draft.resolvedFocusIDs.insert(itemID)
                     }
                 }
             } label: {
-                Image(systemName: isResolved ? "checkmark.circle.fill" : "circle")
+                Image(systemName: isResolved ? "checkmark.square.fill" : "square")
                     .foregroundStyle(isResolved ? AppColors.success : .secondary)
-                    .font(.body)
+                    .font(.title3)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(isResolved ? "Done" : "Mark done")
 
-            // Text
             Text(item.text)
-                .font(.body)
                 .strikethrough(isResolved || isDropped)
                 .foregroundStyle(isResolved || isDropped ? .secondary : .primary)
 
             Spacer()
 
-            // Carried weeks badge
-            if let createdAt = item.createdAt {
-                let weeks = weeksCarried(since: createdAt)
-                if weeks > 0 {
-                    Text("\(weeks)w")
-                        .font(.caption2)
-                        .foregroundStyle(weeks >= 4 ? AppColors.warning : Color.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.light))
-                }
-            }
+            statusBadge(item, isResolved: isResolved, isDropped: isDropped)
 
-            // Drop button
             if !isResolved {
-                Button {
-                    adaptiveWithAnimation {
-                        if isDropped {
-                            droppedItemIDs.remove(itemID)
-                        } else {
-                            resolvedItemIDs.remove(itemID)
-                            droppedItemIDs.insert(itemID)
-                        }
-                    }
-                } label: {
-                    Image(systemName: isDropped ? "arrow.uturn.backward" : "xmark")
-                        .font(.caption)
-                        .foregroundStyle(isDropped ? Color.accentColor : Color.secondary)
-                }
-                .buttonStyle(.plain)
+                dropButton(itemID: itemID, isDropped: isDropped)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
+    }
+
+    @ViewBuilder
+    private func statusBadge(_ item: CDStudentFocusItem, isResolved: Bool, isDropped: Bool) -> some View {
+        if isResolved {
+            badge("done today", warn: false)
+        } else if isDropped {
+            badge("dropped", warn: false)
+        } else if let createdAt = item.createdAt {
+            let weeks = weeksCarried(since: createdAt)
+            if weeks > 0 {
+                badge("\(weeks) week\(weeks == 1 ? "" : "s")", warn: weeks >= 4)
+            }
+        }
+    }
+
+    private func dropButton(itemID: UUID, isDropped: Bool) -> some View {
+        Button {
+            adaptiveWithAnimation {
+                if isDropped {
+                    draft.droppedFocusIDs.remove(itemID)
+                } else {
+                    draft.resolvedFocusIDs.remove(itemID)
+                    draft.droppedFocusIDs.insert(itemID)
+                }
+            }
+        } label: {
+            Image(systemName: isDropped ? "arrow.uturn.backward" : "xmark")
+                .font(.caption)
+                .foregroundStyle(isDropped ? Color.accentColor : Color.secondary)
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isDropped ? "Keep" : "Drop")
+    }
+
+    private func badge(_ text: String, warn: Bool) -> some View {
+        Text(text)
+            .font(.caption.weight(warn ? .semibold : .regular))
+            .foregroundStyle(warn ? AppColors.warning : Color.secondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .capsuleFill(
+                warn ? AppColors.warning.opacity(0.14) : Color.primary.opacity(UIConstants.OpacityConstants.light)
+            )
     }
 
     // MARK: - Pending Item Row
 
     private func pendingItemRow(itemID: UUID) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "circle")
+        HStack(spacing: 10) {
+            Image(systemName: "square")
                 .foregroundStyle(.secondary)
-                .font(.body)
+                .font(.title3)
 
-            TextField("Focus item...",
-                      text: $pendingNewItems.element(id: itemID, default: "", \.text))
-                .font(.body)
+            TextField("Focus item…", text: $draft.pendingFocus.element(id: itemID, default: "", \.text))
                 .textFieldStyle(.plain)
 
-            Spacer()
+            badge("new", warn: false)
 
             Button {
                 adaptiveWithAnimation {
-                    pendingNewItems.removeAll { $0.id == itemID }
+                    draft.pendingFocus.removeAll { $0.id == itemID }
                 }
             } label: {
                 Image(systemName: "trash")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Remove")
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
     }
 
     // MARK: - Add Item Row
 
     private var addItemRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Button {
                 addNewItem(refocus: true)
             } label: {
-                Image(systemName: "plus.circle")
+                Image(systemName: "plus")
                     .foregroundStyle(.accent)
-                    .font(.body)
+                    .font(.body.weight(.medium))
+                    .frame(width: 20)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Add focus")
 
-            TextField("Add focus item...", text: $newItemText)
-                .font(.body)
+            TextField("Add a focus for next week", text: $newItemText)
                 .textFieldStyle(.plain)
                 .submitLabel(.done)
                 .focused($isNewItemFocused)
-                .onSubmit {
-                    addNewItem(refocus: true)
-                }
+                .onSubmit { addNewItem(refocus: true) }
                 .onChange(of: isNewItemFocused) { _, isFocused in
-                    if !isFocused {
-                        addNewItem(refocus: false)
-                    }
+                    if !isFocused { addNewItem(refocus: false) }
                 }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
     }
 
     // MARK: - Helpers
 
     private func addNewItem(refocus: Bool) {
-        let trimmed = newItemText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newItemText.trimmed()
         guard !trimmed.isEmpty else { return }
-        pendingNewItems.append(PendingFocusItem(text: trimmed))
+        draft.pendingFocus.append(PendingFocusItem(text: trimmed))
         newItemText = ""
         if refocus {
             isNewItemFocused = true
@@ -189,8 +191,7 @@ struct FocusChecklistView: View {
     }
 
     private func weeksCarried(since date: Date) -> Int {
-        let calendar = AppCalendar.shared
-        let components = calendar.dateComponents([.weekOfYear], from: date, to: Date())
+        let components = AppCalendar.shared.dateComponents([.weekOfYear], from: date, to: Date())
         return max(0, components.weekOfYear ?? 0)
     }
 }

@@ -2,104 +2,89 @@ import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
 
-// MARK: - Queue Sidebar (Separate View)
+// MARK: - Queue Sidebar
 
+/// The children waiting for a meeting, sorted by need, with this cycle's
+/// progress on top and the absent and met children folded away below.
 struct MeetingsQueueSidebar: View {
-    let studentsNeedingMeeting: [CDStudent]
-    var studentsAbsentToday: [CDStudent] = []
-    let studentsCompleted: [CDStudent]
+    let upNext: [CDStudent]
+    let absent: [CDStudent]
+    let met: [CDStudent]
+    /// Progress counts the whole class (age filter applied, search not).
+    let metCount: Int
+    let totalCount: Int
+    let signals: [UUID: MeetingQueueSignals]
+    let draftIDs: Set<UUID>
+    let cadenceDays: Int
+    /// Rows can be dragged into a custom order (custom order, no search).
+    let canReorder: Bool
     @Binding var selectedStudentID: UUID?
-    @Binding var searchText: String
-    @Binding var showCompletedThisWeek: Bool
-    @Binding var daysSinceThreshold: Int
-    @Binding var selectedAgeRanges: Set<AgeRange>
-    let lastMeetingFor: (CDStudent) -> CDStudentMeeting?
+    @Binding var isAbsentExpanded: Bool
+    @Binding var isMetExpanded: Bool
     let onMove: (IndexSet, Int) -> Void
-    /// Puts a recently-met student back into the queue at the given index
-    /// (nil = top). Nil disables dragging Met Recently rows into the queue.
+    /// Puts a recently-met child back into the queue at the given index (nil = top).
     var onRequeue: (@MainActor (UUID, Int?) -> Void)?
-    var scheduledMeetingDates: [UUID: Date] = [:]
     var onScheduleMeeting: ((CDStudent, Date?) -> Void)?
     var onPickMeetingDate: ((CDStudent) -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
-                TextField("Search students", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.subheadline)
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(8)
-            .surface(
-                UIConstants.CornerRadius.medium,
-                fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
-                style: .continuous
-            )
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-
+            MeetingsProgressHeader(metCount: metCount, totalCount: totalCount)
+            Divider()
             List(selection: $selectedStudentID) {
-                filtersSection
-                needsMeetingSection
-                if !studentsAbsentToday.isEmpty {
-                    absentTodaySection
+                upNextSection
+                if !absent.isEmpty {
+                    Section(isExpanded: $isAbsentExpanded) {
+                        ForEach(absent) { studentRow($0, isMet: false) }
+                    } header: {
+                        Text("Absent Today · \(absent.count)")
+                    }
                 }
-                if showCompletedThisWeek {
-                    completedSection
+                if !met.isEmpty {
+                    Section(isExpanded: $isMetExpanded) {
+                        ForEach(met) { student in
+                            if onRequeue != nil, let id = student.id {
+                                studentRow(student, isMet: true)
+                                    .onDrag { NSItemProvider(object: id.uuidString as NSString) }
+                            } else {
+                                studentRow(student, isMet: true)
+                            }
+                        }
+                    } header: {
+                        Text("Met This Cycle · \(met.count)")
+                    }
                 }
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
-        }
-        .toolbar {
-            #if os(iOS)
-            ToolbarItem(placement: .navigationBarTrailing) {
-                EditButton()
-            }
-            #endif
+            .quickCaptureButtonClearance()
         }
     }
 
-    private var filtersSection: some View {
+    private var upNextSection: some View {
         Section {
-            MeetingThresholdPicker(days: $daysSinceThreshold, showCompleted: $showCompletedThisWeek)
-            AgeFilterPicker(selectedAgeRanges: $selectedAgeRanges)
+            if upNext.isEmpty {
+                Text(totalCount == 0 ? "No children to show" : "Everyone has met this cycle")
+                    .foregroundStyle(.secondary)
+                    .selectionDisabled()
+            }
+            ForEach(upNext) { studentRow($0, isMet: false) }
+                .onMove(perform: canReorder ? onMove : nil)
+                .onInsert(of: [Self.dragType]) { index, providers in
+                    insertDroppedStudents(providers, at: index)
+                }
+        } header: {
+            Text("Up Next · \(upNext.count)")
         }
     }
 
-    private var needsMeetingSection: some View {
-        Section("Needs Meeting (\(studentsNeedingMeeting.count))") {
-            ForEach(studentsNeedingMeeting) { student in
-                studentRow(student, showCheckmark: false)
-            }
-            .onMove(perform: searchText.isEmpty ? onMove : nil)
-            .onInsert(of: [Self.dragType]) { index, providers in
-                insertDroppedStudents(providers, at: index)
-            }
-        }
-    }
-
-    /// Met Recently rows are dragged as their student id, so a drop into
-    /// Needs Meeting can name the student without carrying the object.
+    /// Met rows are dragged as their student id, so a drop into Up Next can
+    /// name the child without carrying the object.
     private static let dragType = UTType.plainText
 
     private func insertDroppedStudents(_ providers: [NSItemProvider], at index: Int) {
         guard let onRequeue else { return }
-        let droppable = Set(studentsCompleted.compactMap(\.id))
+        let droppable = Set(met.compactMap(\.id))
         for provider in providers {
             _ = provider.loadObject(ofClass: NSString.self) { object, _ in
                 guard let string = object as? String,
@@ -112,42 +97,20 @@ struct MeetingsQueueSidebar: View {
         }
     }
 
-    private var absentTodaySection: some View {
-        Section("Absent Today (\(studentsAbsentToday.count))") {
-            ForEach(studentsAbsentToday) { student in
-                studentRow(student, showCheckmark: false)
-            }
-        }
-    }
-
-    private var completedSection: some View {
-        Section("Met Recently (\(studentsCompleted.count))") {
-            ForEach(studentsCompleted) { student in
-                if onRequeue != nil, let id = student.id {
-                    studentRow(student, showCheckmark: true)
-                        .onDrag { NSItemProvider(object: id.uuidString as NSString) }
-                } else {
-                    studentRow(student, showCheckmark: true)
-                }
-            }
-        }
-    }
-
     // The tag must be a non-optional UUID: List(selection: Binding<UUID?>) only
     // matches tags of exactly UUID, so tagging with the optional `student.id`
     // makes every row silently unselectable.
     @ViewBuilder
-    private func studentRow(_ student: CDStudent, showCheckmark: Bool) -> some View {
-        let row = StudentQueueRow(
+    private func studentRow(_ student: CDStudent, isMet: Bool) -> some View {
+        let signal = student.id.flatMap { signals[$0] } ?? MeetingQueueSignals()
+        let row = MeetingQueueRow(
             student: student,
-            lastMeeting: lastMeetingFor(student),
-            isSelected: selectedStudentID == student.id,
-            showCheckmark: showCheckmark,
-            scheduledDate: student.id.flatMap { scheduledMeetingDates[$0] }
+            signal: signal,
+            isLate: MeetingQueueArrangement.isLate(signal, cadenceDays: cadenceDays),
+            hasDraft: student.id.map(draftIDs.contains) ?? false,
+            isMet: isMet
         )
-        .contextMenu {
-            scheduleMeetingMenu(for: student)
-        }
+        .contextMenu { rowMenu(for: student, scheduledDate: signal.scheduled, isMet: isMet) }
         if let id = student.id {
             row.tag(id)
         } else {
@@ -155,153 +118,135 @@ struct MeetingsQueueSidebar: View {
         }
     }
 
-    // MARK: - Schedule Meeting Context Menu
+    // MARK: - Row Menu
 
     @ViewBuilder
-    private func scheduleMeetingMenu(for student: CDStudent) -> some View {
-        let scheduledDate = student.id.flatMap { scheduledMeetingDates[$0] }
-
+    private func rowMenu(for student: CDStudent, scheduledDate: Date?, isMet: Bool) -> some View {
         Button {
             selectedStudentID = student.id
         } label: {
             Label("Start Meeting", systemImage: "play.fill")
         }
 
-        if let onRequeue, let id = student.id, studentsCompleted.contains(where: { $0.id == id }) {
+        if let onRequeue, let id = student.id, isMet {
             Button {
                 onRequeue(id, nil)
             } label: {
-                Label("Move to Needs Meeting", systemImage: "arrow.up.to.line")
+                Label("Move to Up Next", systemImage: "arrow.up.to.line")
             }
         }
 
         if let onScheduleMeeting {
             Divider()
-            scheduleSubmenu(for: student, scheduledDate: scheduledDate, onScheduleMeeting: onScheduleMeeting)
-        }
-    }
-
-    @ViewBuilder
-    private func scheduleSubmenu(
-        for student: CDStudent,
-        scheduledDate: Date?,
-        onScheduleMeeting: @escaping (CDStudent, Date?) -> Void
-    ) -> some View {
-        Menu {
-            Button {
-                onScheduleMeeting(student, AppCalendar.startOfDay(Date()))
-            } label: {
-                Label("Today", systemImage: "calendar")
-            }
-
-            Button {
-                onScheduleMeeting(student, AppCalendar.addingDays(1, to: Date()))
-            } label: {
-                Label("Tomorrow", systemImage: "calendar.badge.clock")
-            }
-
-            if let onPickDate = onPickMeetingDate {
-                Button {
-                    onPickDate(student)
-                } label: {
-                    Label("Pick a Day\u{2026}", systemImage: "calendar.badge.plus")
-                }
-            }
-
-            if scheduledDate != nil {
-                Divider()
-
-                Button(role: .destructive) {
-                    onScheduleMeeting(student, nil)
-                } label: {
-                    Label("Clear", systemImage: "calendar.badge.minus")
-                }
-            }
-        } label: {
-            if let date = scheduledDate {
-                Label(
-                    "Meeting \(MeetingsQueueSidebar.scheduledDateLabel(date))",
-                    systemImage: "person.crop.circle.badge.clock"
-                )
-            } else {
-                Label("Schedule Meeting", systemImage: "person.crop.circle.badge.clock")
-            }
-        }
-    }
-
-    private static func scheduledDateLabel(_ date: Date) -> String {
-        if AppCalendar.isSameDay(date, Date()) {
-            return "(Today)"
-        } else if AppCalendar.isSameDay(date, AppCalendar.addingDays(1, to: Date())) {
-            return "(Tomorrow)"
-        } else {
-            return "(\(DateFormatters.mediumDate.string(from: date)))"
+            MeetingMoreMenuItems(
+                scheduledDate: scheduledDate,
+                onSchedule: { onScheduleMeeting(student, $0) },
+                canClear: false,
+                onPickDay: { onPickMeetingDate?(student) },
+                onClear: nil
+            )
         }
     }
 }
 
-// MARK: - CDStudent Queue Row
+// MARK: - Progress
 
-struct StudentQueueRow: View {
-    let student: CDStudent
-    let lastMeeting: CDStudentMeeting?
-    var isSelected: Bool = false
-    var showCheckmark: Bool = false
-    var scheduledDate: Date?
+/// "13 to go · 10 of 23 met" with a bar.
+struct MeetingsProgressHeader: View {
+    let metCount: Int
+    let totalCount: Int
 
-    private var daysSinceLastMeeting: Int? {
-        guard let lastMeeting else { return nil }
-        // Clamped to the school-year counter epoch so last spring's meeting doesn't read
-        // "104 days ago" on the first morning of the new year.
-        let from = SchoolYearCounters.countFrom(lastMeeting.date ?? Date())
-        return AppCalendar.shared.dateComponents([.day], from: from, to: Date()).day
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(totalCount - metCount == 0 ? "All met" : "\(totalCount - metCount) to go")
+                    .font(.title3.weight(.semibold))
+                Text("\(metCount) of \(totalCount) met")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            ProgressView(value: Double(metCount), total: Double(max(totalCount, 1)))
+                .tint(.accentColor)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .accessibilityElement(children: .combine)
     }
+}
+
+// MARK: - Queue Row
+
+struct MeetingQueueRow: View {
+    let student: CDStudent
+    let signal: MeetingQueueSignals
+    var isLate = false
+    var hasDraft = false
+    var isMet = false
 
     var body: some View {
         HStack(spacing: 10) {
-            StudentAvatarView(student: student, size: 36)
+            StudentAvatarView(student: student, size: 30)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(student.shortName)
                     .font(.subheadline.weight(.medium))
-
-                if let days = daysSinceLastMeeting {
-                    Text("\(days) days ago")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("No prior meetings")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 0) {
+                    Text(waitText)
+                        .fontWeight(isLate ? .semibold : .regular)
+                        .foregroundStyle(isLate ? AppColors.warning : .secondary)
+                    if let extra = extraText {
+                        Text(" · \(extra)")
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .font(.caption)
+                .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 4)
 
-            if let date = scheduledDate {
-                Text(Self.shortDateLabel(date))
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
+            if hasDraft {
+                Image(systemName: "pencil")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Draft in progress")
+            }
+
+            if let date = signal.scheduled {
+                Text(Self.dayLabel(date))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 7)
                     .padding(.vertical, 2)
-                    .capsuleFill(Color.teal)
+                    .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
+                    .accessibilityLabel("Booked \(Self.dayLabel(date))")
             }
 
-            if showCheckmark {
+            if isMet {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(AppColors.success)
+                    .accessibilityLabel("Met")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
-    private static func shortDateLabel(_ date: Date) -> String {
-        if AppCalendar.isSameDay(date, Date()) {
-            return "Today"
-        } else if AppCalendar.isSameDay(date, AppCalendar.addingDays(1, to: Date())) {
-            return "Tomorrow"
-        } else {
-            return DateFormatters.shortMonthDay.string(from: date)
-        }
+    private var waitText: String {
+        guard let days = signal.daysWaiting() else { return "New · never met" }
+        return days == 1 ? "1 day" : "\(days) days"
+    }
+
+    private var extraText: String? {
+        var parts: [String] = []
+        if signal.stuckWork > 0 { parts.append("\(signal.stuckWork) stuck") }
+        if signal.focusCarried > 0 { parts.append("\(signal.focusCarried) focus") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "Today", "Tomorrow", or "Oct 8".
+    static func dayLabel(_ date: Date) -> String {
+        if AppCalendar.isSameDay(date, Date()) { return "Today" }
+        if AppCalendar.isSameDay(date, AppCalendar.addingDays(1, to: Date())) { return "Tomorrow" }
+        return DateFormatters.shortMonthDay.string(from: date)
     }
 }

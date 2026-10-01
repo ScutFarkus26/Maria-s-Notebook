@@ -83,4 +83,42 @@ enum MeetingWorkSnapshotHelper {
             return false
         }
     }
+
+    // MARK: - One child's meeting (Meetings workflow)
+
+    /// The meeting's two work lists, from the child's own work rows.
+    struct SessionWork {
+        /// Open work older than the overdue setting: each needs a decision.
+        let stuck: [CDWorkModel]
+        let open: [CDWorkModel]
+    }
+
+    /// Splits a child's work into stuck and open. An item reviewed in this
+    /// meeting stays in its list after its status closes it, so the card
+    /// shows the choice that was made.
+    static func sessionWork(
+        _ work: [CDWorkModel],
+        workOverdueDays: Int,
+        reviewed: Set<UUID>,
+        now: Date = Date()
+    ) -> SessionWork {
+        let overdueBefore = AppCalendar.shared.date(byAdding: .day, value: -workOverdueDays, to: now) ?? .distantPast
+        let shown = work.filter { $0.status.isOpen || ($0.id.map(reviewed.contains) ?? false) }
+        let stuck = shown.filter { ($0.createdAt ?? now) < overdueBefore }
+        let stuckIDs = Set(stuck.compactMap(\.id))
+        return SessionWork(
+            stuck: stuck,
+            open: shown.filter { work in work.id.map { !stuckIDs.contains($0) } ?? true }
+        )
+    }
+
+    /// The fetch for presentations given after `cutoff`, the same rule as
+    /// `lessonsSinceLastMeeting`; who was in them is checked in memory
+    /// (`studentIDs` is an encoded list a predicate can't read).
+    static func lessonsSincePredicate(cutoff: Date) -> NSPredicate {
+        NSPredicate(
+            format: "presentedAt > %@ OR (presentedAt == nil AND stateRaw == %@ AND createdAt > %@)",
+            cutoff as NSDate, LessonAssignmentState.presented.rawValue, cutoff as NSDate
+        )
+    }
 }

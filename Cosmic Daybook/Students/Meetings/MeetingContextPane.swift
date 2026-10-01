@@ -1,80 +1,60 @@
 // MeetingContextPane.swift
-// Interactive context pane showing student work snapshot, lessons, and meeting history
+// What happened since the last meeting: work needing a decision, open work,
+// lessons given, and past meetings.
 
 import SwiftUI
 import CoreData
 
-// MARK: - Context Pane
-
 struct MeetingContextPane: View {
-    let student: CDStudent
+    let stuckWork: [CDWorkModel]
     let openWork: [CDWorkModel]
-    let overdueWork: [CDWorkModel]
-    let recentCompleted: [CDWorkModel]
-    let lessonsSinceLastMeeting: [CDLessonAssignment]
+    let lessonsSince: [CDLessonAssignment]
     let meetings: [CDStudentMeeting]
-    let lessonsByID: [UUID: CDLesson]
-    var isCompact: Bool = false
+    let lastMeetingDate: Date?
+    @Bindable var draft: MeetingDraftModel
+    let workTitle: (CDWorkModel) -> String
+    let lessonName: (CDLessonAssignment) -> String
+    let lessonArea: (CDLessonAssignment) -> String?
+    var sections: Sections = .all
 
-    // Work review bindings from MeetingSessionView
-    @Binding var workReviewDrafts: [UUID: String]
-    @Binding var reviewedWorkIDs: Set<UUID>
+    /// Which parts to draw; a phone's sheets show one part at a time.
+    struct Sections: OptionSet {
+        let rawValue: Int
+        static let decisions = Sections(rawValue: 1)
+        static let openWork = Sections(rawValue: 2)
+        static let lessons = Sections(rawValue: 4)
+        static let meetings = Sections(rawValue: 8)
+        static let all: Sections = [.decisions, .openWork, .lessons, .meetings]
+    }
 
     @Environment(\.managedObjectContext) private var viewContext
 
-    @State private var selectedWorkID: UUID?
-    @State private var isContextCollapsed: Bool = false
-    @State private var popoverMeeting: CDStudentMeeting?
-    @State private var showAllMeetings: Bool = false
-    @State private var meetingToDelete: CDStudentMeeting?
+    @State private var detailWorkID: UUID?
     @State private var expandedWorkID: UUID?
-    @State private var restingDatePickerWorkID: UUID?
-    @State private var restingDate: Date =
-        AppCalendar.shared.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
+    @State private var meetingToShow: CDStudentMeeting?
+    @State private var meetingToDelete: CDStudentMeeting?
+    @State private var showAllMeetings = false
+
+    private var decidedCount: Int {
+        stuckWork.filter { $0.id.map(draft.reviewedWorkIDs.contains) ?? false }.count
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // Header
-                if isCompact {
-                    Button {
-                        adaptiveWithAnimation { isContextCollapsed.toggle() }
-                    } label: {
-                        HStack {
-                            Text("Student Context")
-                                .font(.headline)
-                            Spacer()
-                            Image(systemName: isContextCollapsed ? "chevron.down" : "chevron.up")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                if !isCompact || !isContextCollapsed {
-                    // Work Snapshot
-                    workSnapshotSection
-
-                    // Lessons Since Last Meeting
-                    lessonsSinceSection
-
-                    // Meeting History Preview
-                    meetingHistorySection
-                }
+        VStack(alignment: .leading, spacing: 22) {
+            if sections.contains(.decisions) && !stuckWork.isEmpty {
+                decisionsSection
             }
-            .padding()
+            if sections.contains(.openWork) { openWorkSection }
+            if sections.contains(.lessons) { lessonsSection }
+            if sections.contains(.meetings) { meetingsSection }
         }
         .sheet(item: Binding(
-            get: { selectedWorkID.map { WorkIDWrapper(id: $0) } },
-            set: { selectedWorkID = $0?.id }
+            get: { detailWorkID.map(WorkIDWrapper.init) },
+            set: { detailWorkID = $0?.id }
         )) { wrapper in
-            WorkDetailView(
-                workID: wrapper.id,
-                onDone: { selectedWorkID = nil },
-                showRepresentButton: true
-            )
+            WorkDetailView(workID: wrapper.id, onDone: { detailWorkID = nil }, showRepresentButton: true)
         }
-        .sheet(item: $popoverMeeting) { meeting in
+        .sheet(item: $meetingToShow) { meeting in
             MeetingDetailSheet(meeting: meeting)
         }
         .confirmationDialog(
@@ -87,440 +67,174 @@ struct MeetingContextPane: View {
         ) {
             Button("Delete", role: .destructive) {
                 if let meeting = meetingToDelete {
-                    deleteMeeting(meeting)
+                    adaptiveWithAnimation {
+                        viewContext.delete(meeting)
+                        viewContext.safeSave()
+                    }
                 }
             }
         }
     }
-
-    // MARK: - Helper for sheet binding
 
     private struct WorkIDWrapper: Identifiable {
         let id: UUID
     }
 
-    // MARK: - Work Snapshot Section
+    // MARK: - Sections
 
-    private var workSnapshotSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Work Snapshot", icon: "tray.full")
-
-            HStack(spacing: 16) {
-                statBox(title: "Open", count: openWork.count, color: .blue)
-                statBox(title: "Overdue", count: overdueWork.count, color: .orange)
-                statBox(title: "Completed", count: recentCompleted.count, color: .green)
-            }
-
-            if !overdueWork.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Overdue/Stuck")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(AppColors.warning)
-
-                    ForEach(overdueWork) { work in
-                        workCard(work)
-                    }
-                }
-            }
-
-            if !openWork.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Open Work")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    ForEach(openWork) { work in
-                        workCard(work)
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .surface(
-            UIConstants.CornerRadius.control,
-            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
-            style: .continuous
-        )
-    }
-
-    private func statBox(title: String, count: Int, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text("\(count)")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(count > 0 ? color : .secondary)
-
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(color.opacity(UIConstants.OpacityConstants.light))
-        .clipRounded(UIConstants.CornerRadius.medium, style: .continuous)
-    }
-
-    // MARK: - Interactive Work Card
-
-    private func workCard(_ work: CDWorkModel) -> some View {
-        let workID = work.id ?? UUID()
-        let isExpanded = expandedWorkID == workID
-        let isReviewed = reviewedWorkIDs.contains(workID)
-
-        return VStack(alignment: .leading, spacing: 0) {
-            // Collapsed header — always visible
-            Button {
-                adaptiveWithAnimation {
-                    expandedWorkID = isExpanded ? nil : workID
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    if isReviewed {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(AppColors.success)
-                    } else {
-                        Image(systemName: "circle.fill")
-                            .font(.system(size: 6))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Text(workDisplayTitle(work))
-                        .font(.footnote)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    if work.isResting {
-                        Text("resting")
-                            .font(.caption2)
-                            .foregroundStyle(.purple)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .capsuleFill(Color.purple.opacity(0.15))
-                    }
-
-                    Spacer()
-
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.vertical, 4)
-
-            // Expanded inline review controls
-            if isExpanded {
-                expandedWorkControls(work, workID: workID)
-                    .padding(.leading, 14)
-                    .padding(.bottom, 8)
+    private var decisionsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("Needs a Decision · \(decidedCount) of \(stuckWork.count) done")
+            ForEach(stuckWork) { work in
+                WorkDecisionCard(
+                    work: work,
+                    title: workTitle(work),
+                    draft: draft,
+                    onDetails: work.id.map { id in { detailWorkID = id } }
+                )
             }
         }
     }
 
-    // MARK: - Expanded Work Controls
+    private var openWorkSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Open Work · \(openWork.count)")
+                .padding(.bottom, 6)
+            if openWork.isEmpty {
+                emptyLine("No open work")
+            }
+            ForEach(openWork) { work in
+                if expandedWorkID != nil, expandedWorkID == work.id {
+                    WorkDecisionCard(
+                        work: work,
+                        title: workTitle(work),
+                        draft: draft,
+                        onDetails: work.id.map { id in { detailWorkID = id } }
+                    )
+                    .padding(.vertical, 4)
+                } else {
+                    openWorkRow(work)
+                }
+            }
+        }
+    }
 
-    private func expandedWorkControls(_ work: CDWorkModel, workID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Status picker
+    private func openWorkRow(_ work: CDWorkModel) -> some View {
+        let reviewed = work.id.map(draft.reviewedWorkIDs.contains) ?? false
+        return Button {
+            adaptiveWithAnimation { expandedWorkID = work.id }
+        } label: {
             HStack(spacing: 8) {
-                Text("Status")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Picker("Status", selection: Binding(
-                    get: { work.status },
-                    set: { newStatus in
-                        do {
-                            try WorkLogService.log(
-                                [.init(work: work, status: newStatus)], context: viewContext, saveImmediately: false
-                            )
-                        } catch { return }
-                        markReviewed(workID, touching: work)
-                        trySave()
-                    }
-                )) {
-                    ForEach(WorkStatus.pickable) { status in
-                        Text(status.displayName).tag(status)
-                    }
-                    if work.status == .done {
-                        Text(WorkStatus.done.displayName).tag(WorkStatus.done)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-            }
-
-            // Review note
-            HStack(spacing: 6) {
-                Image(systemName: "note.text")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                TextField("Note...", text: Binding(
-                    get: { workReviewDrafts[workID] ?? "" },
-                    set: { newValue in
-                        workReviewDrafts[workID] = newValue
-                        markReviewed(workID, touching: work)
-                    }
-                ))
-                .font(.caption)
-                .textFieldStyle(.roundedBorder)
-
-                if !(workReviewDrafts[workID] ?? "").trimmed().isEmpty {
+                if reviewed {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(AppColors.success)
-                        .accessibilityLabel("Saved")
                 }
-            }
-
-            // Quick actions
-            HStack(spacing: 12) {
-                // Rest / Un-rest
-                if work.isResting {
-                    Button {
-                        MeetingReviewService.clearWorkResting(work)
-                        markReviewed(workID, touching: work)
-                        trySave()
-                    } label: {
-                        Label("Wake Up", systemImage: "sun.max")
-                            .font(.caption2)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                } else {
-                    Button {
-                        restingDatePickerWorkID = workID
-                        restingDate = AppCalendar.shared.date(byAdding: .weekOfYear, value: 2, to: Date()) ?? Date()
-                    } label: {
-                        Label("Let Rest", systemImage: "moon.zzz")
-                            .font(.caption2)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .popover(isPresented: Binding(
-                        get: { restingDatePickerWorkID == workID },
-                        set: { if !$0 { restingDatePickerWorkID = nil } }
-                    )) {
-                        VStack(spacing: 12) {
-                            Text("Rest until...")
-                                .font(.subheadline.weight(.medium))
-                            DatePicker("", selection: $restingDate, in: Date()..., displayedComponents: .date)
-                                .datePickerStyle(.graphical)
-                                .frame(maxWidth: 300)
-                            Button("Confirm") {
-                                MeetingReviewService.setWorkResting(work, until: restingDate)
-                                markReviewed(workID, touching: work)
-                                trySave()
-                                restingDatePickerWorkID = nil
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .padding()
-                    }
-                }
-
-                // Open full detail
-                Button {
-                    selectedWorkID = workID
-                } label: {
-                    Label("Details", systemImage: "arrow.up.right.square")
-                        .font(.caption2)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-        }
-    }
-
-    private func markReviewed(_ workID: UUID, touching work: CDWorkModel? = nil) {
-        reviewedWorkIDs.insert(workID)
-        if let work {
-            work.lastTouchedAt = Date()
-        }
-    }
-
-    private func trySave() {
-        viewContext.safeSave()
-    }
-
-    private func workDisplayTitle(_ work: CDWorkModel) -> String {
-        let title = work.title.trimmed()
-        if !title.isEmpty { return title }
-        return lessonsByID[uuidString: work.lessonID]?.name ?? "Lesson"
-    }
-
-    // MARK: - Lessons Since Section
-
-    private var lessonsSinceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Lessons Since Last Meeting", icon: "book")
-
-            if lessonsSinceLastMeeting.isEmpty {
-                Text("No lessons since last meeting")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
-            } else {
-                ForEach(lessonsSinceLastMeeting.prefix(8)) { la in
-                    lessonRow(la)
-                }
-
-                if lessonsSinceLastMeeting.count > 8 {
-                    Text("+ \(lessonsSinceLastMeeting.count - 8) more")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .padding(12)
-        .surface(
-            UIConstants.CornerRadius.control,
-            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
-            style: .continuous
-        )
-    }
-
-    private func lessonRow(_ la: CDLessonAssignment) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "book.fill")
-                .font(.system(size: 8))
-                .foregroundStyle(.secondary)
-
-            if let lesson = la.lesson {
-                Text(lesson.name)
-                    .font(.footnote)
+                Text(workTitle(work))
                     .foregroundStyle(.primary)
-            } else if let lesson = lessonsByID[uuidString: la.lessonID] {
-                Text(lesson.name)
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
-            } else {
-                Text("Lesson")
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text(statusText(work))
+                    .font(.caption)
+                    .foregroundStyle(work.isResting ? Color.purple : (work.status == .review ? Color.blue : .secondary))
             }
-
-            Spacer()
-
-            if let presentedAt = la.presentedAt {
-                Text(presentedAt.formatted(date: .abbreviated, time: .omitted))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    // MARK: - Meeting History Section
-
-    private var meetingHistorySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                sectionHeader("Recent Meetings", icon: "clock")
-
-                Spacer()
-
-                if meetings.count > 3 {
-                    Button {
-                        adaptiveWithAnimation {
-                            showAllMeetings.toggle()
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(showAllMeetings ? "Show Less" : "Show All (\(meetings.count))")
-                                .font(.caption)
-                            Image(systemName: showAllMeetings ? "chevron.up" : "chevron.down")
-                                .font(.caption2)
-                        }
-                        .foregroundStyle(.accent)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            if meetings.isEmpty {
-                Text("No prior meetings")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
-            } else {
-                let visibleMeetings = showAllMeetings ? meetings : Array(meetings.prefix(3))
-                ForEach(visibleMeetings) { meeting in
-                    meetingHistoryRow(meeting)
-                }
-            }
-        }
-        .padding(12)
-        .surface(
-            UIConstants.CornerRadius.control,
-            fill: Color.primary.opacity(UIConstants.OpacityConstants.trace),
-            style: .continuous
-        )
-    }
-
-    private func meetingHistoryRow(_ meeting: CDStudentMeeting) -> some View {
-        Button {
-            popoverMeeting = meeting
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text((meeting.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
-                            .font(.footnote.weight(.medium))
-
-                        if meeting.completed {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(AppColors.success)
-                        }
-                    }
-
-                    if !meeting.focus.trimmed().isEmpty {
-                        Text(meeting.focus)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-
-                    // Show work review count if any
-                    let reviewCount = (meeting.workReviews?.count ?? 0)
-                    if reviewCount > 0 {
-                        Text("\(reviewCount) work item\(reviewCount == 1 ? "" : "s") reviewed")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .contentShape(Rectangle())
-        .padding(.vertical, 4)
-        .contextMenu {
-            Button("Delete", systemImage: "trash", role: .destructive) {
-                meetingToDelete = meeting
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private var lessonsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            sectionHeader(lessonsHeader)
+            if lessonsSince.isEmpty {
+                emptyLine("No lessons since the last meeting")
+            }
+            ForEach(lessonsSince) { assignment in
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(lessonArea(assignment).map(AppColors.color(forArea:)) ?? Color.secondary)
+                        .frame(width: 8, height: 8)
+                    Text(lessonName(assignment))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    if let date = assignment.presentedAt ?? assignment.createdAt {
+                        Text(DateFormatters.shortMonthDay.string(from: date))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private var lessonsHeader: String {
+        guard let lastMeetingDate else { return "Lessons This Year · \(lessonsSince.count)" }
+        return "Lessons Since \(DateFormatters.shortMonthDay.string(from: lastMeetingDate)) · \(lessonsSince.count)"
+    }
+
+    private var meetingsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                sectionHeader("Past Meetings")
+                Spacer()
+                if meetings.count > 3 {
+                    Button(showAllMeetings ? "Show Less" : "Show All (\(meetings.count))") {
+                        adaptiveWithAnimation { showAllMeetings.toggle() }
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                }
+            }
+            if meetings.isEmpty {
+                emptyLine("No meetings yet")
+            }
+            ForEach(showAllMeetings ? meetings : Array(meetings.prefix(3))) { meeting in
+                Button {
+                    meetingToShow = meeting
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(DateFormatters.shortMonthDay.string(from: meeting.date ?? Date()))
+                            .font(.caption.weight(.semibold))
+                            .frame(width: 48, alignment: .leading)
+                        Text(meeting.focus.trimmed().isEmpty ? "No focus recorded" : meeting.focus)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Delete", systemImage: "trash", role: .destructive) {
+                        meetingToDelete = meeting
+                    }
+                }
             }
         }
     }
 
     // MARK: - Helpers
 
-    private func sectionHeader(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon)
-            .font(.subheadline.weight(.bold))
-            .foregroundStyle(.primary)
+    private func statusText(_ work: CDWorkModel) -> String {
+        if work.isResting, let until = work.restingUntil {
+            return "Resting till \(DateFormatters.shortMonthDay.string(from: until))"
+        }
+        return work.status.displayName
     }
 
-    private func deleteMeeting(_ meeting: CDStudentMeeting) {
-        adaptiveWithAnimation {
-            viewContext.delete(meeting)
-            viewContext.safeSave()
-        }
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+    }
+
+    private func emptyLine(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
     }
 }
