@@ -77,4 +77,27 @@ struct EarlyPickupReminderTests {
         let later = EarlyPickupReminder.pendingPickups(in: context, now: clock(14, 0))
         #expect(later.map(\.name) == [etty.shortName])
     }
+
+    @Test("The sample class's pickups are found, under their own prefix")
+    func sampleClassPickups() throws {
+        let stack = try AssistantSampleClass.makeStack()
+        let context = stack.viewContext
+        let students = context.safeFetch(CDFetchRequest(CDStudent.self))
+        let maya = try #require(students.first { $0.firstName == "Maya" })
+        let store = CDAttendanceStore(context: context, role: .assistant)
+        let record = try #require(try store.ensureRecord(for: maya, on: today))
+        store.updateLeavesAt(record, to: clock(13, 30))
+        _ = context.safeSave()
+
+        let pickups = EarlyPickupReminder.pendingPickups(in: context, now: clock(9, 0))
+        #expect(pickups.map(\.name) == [maya.shortName])
+
+        let id = try #require(maya.id?.uuidString)
+        let sampleID = EarlyPickupReminder.requestID(studentID: id, leavesAt: clock(13, 30), isSample: true)
+        let realID = EarlyPickupReminder.requestID(studentID: id, leavesAt: clock(13, 30), isSample: false)
+        // Clearing the sample's leaves the real class's alone; clearing all takes both.
+        #expect(sampleID.hasPrefix("pickup-sample-"))
+        #expect(!realID.hasPrefix("pickup-sample-"))
+        #expect(realID.hasPrefix("pickup-") && sampleID.hasPrefix("pickup-"))
+    }
 }

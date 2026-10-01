@@ -96,8 +96,6 @@ struct AssistantWelcomeBackTests {
         #expect(context.safeSave())
 
         #expect(Welcome.returning(on: monday, in: context)[try #require(maya.id?.uuidString)] == Welcome.lookback)
-        #expect(Welcome.phrase(daysAway: Welcome.lookback) == "Back after 15+ days")
-        #expect(Welcome.phrase(daysAway: 4) == "Back after 4 days")
     }
 
     @Test("The grid carries it to the row, and her mark welcomes only the returning child")

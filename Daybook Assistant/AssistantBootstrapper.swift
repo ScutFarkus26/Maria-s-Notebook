@@ -68,6 +68,9 @@ final class AssistantBootstrapper {
             return
         }
 
+        // A sample class's pickup reminders outlive it across a relaunch.
+        await EarlyPickupReminder.cancelSample()
+
         do {
             // Shared with Siri, which may have opened it already.
             install(try AssistantStack.shared())
@@ -186,6 +189,7 @@ final class AssistantBootstrapper {
     func leaveSampleClass() {
         guard AssistantSampleClass.isChosen else { return }
         AssistantSampleClass.isChosen = false
+        Task { await EarlyPickupReminder.cancelSample() }
         coreDataStack = AssistantStack.isOpen ? try? AssistantStack.shared() : nil
         refreshMembership()
         if coreDataStack == nil { phase = .needsClassroom }

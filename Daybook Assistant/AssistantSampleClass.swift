@@ -11,8 +11,9 @@ import CoreData
 /// back to joining. And in Debug builds, launching with `-AssistantSampleClass`
 /// skips joining altogether.
 ///
-/// Its marks go nowhere: no share attach, no reminders, no Siri, and the Late
-/// phase is kept in its own defaults suite so it can't touch the real class's.
+/// Its marks go nowhere: no share attach, no Siri, no reminders but the early
+/// pickup one (trying Leaving Early… should ring), and the Late phase is kept
+/// in its own defaults suite so it can't touch the real class's.
 enum AssistantSampleClass {
     /// Launched with `-AssistantSampleClass`. Always false in Release, so
     /// callers need no `#if` of their own (a Release-only branch is one no

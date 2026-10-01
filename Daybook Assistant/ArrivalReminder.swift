@@ -196,14 +196,16 @@ struct ArrivalReminderFollower: ViewModifier {
     func body(content: Content) -> some View {
         content.task(id: signature) {
             await ArrivalReminder.update(hasClass: viewModel?.rows.isEmpty == false, in: context)
-            // The sample class schedules nothing.
-            guard !AssistantSampleClass.isActive, viewModel?.rows.isEmpty == false else { return }
+            guard viewModel?.rows.isEmpty == false else { return }
+            // The sample class rings its pickups, so Leaving Early… can be
+            // tried there, and schedules nothing else.
+            await EarlyPickupReminder.reschedule(in: context)
+            guard !AssistantSampleClass.isActive else { return }
             if AssistantOnboarding.setupDone(), FrontDeskEmailReminder.isEnabled(),
                AttendanceEmailLog.settings(in: context)?.canSend == true {
                 _ = await FrontDeskEmailReminder.requestPermission()
             }
             await FrontDeskEmailReminder.reschedule(in: context)
-            await EarlyPickupReminder.reschedule(in: context)
         }
     }
 }

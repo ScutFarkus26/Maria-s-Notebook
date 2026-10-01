@@ -14,6 +14,10 @@ import OSLog
 /// day change, coming back to the app, an import that brings someone else's
 /// pickup), her own pickup edits and marks, and the setting. A child marked
 /// absent or Left Early, or whose time is removed, loses theirs.
+///
+/// The sample class rings too, the one reminder it does, so Leaving Early…
+/// can be tried there. Its requests carry their own prefix: leaving the
+/// sample, or a relaunch (the sample lives in memory), takes them off.
 @MainActor
 enum EarlyPickupReminder {
 
@@ -25,6 +29,7 @@ enum EarlyPickupReminder {
     static let leadChoices = [5, 10, 15, 20, 30]
     nonisolated static let daysAhead = 10
     nonisolated private static let idPrefix = "pickup-"
+    nonisolated private static let sampleIDPrefix = "pickup-sample-"
 
     private static let logger = Logger.app(category: "reminder")
 
@@ -86,19 +91,38 @@ enum EarlyPickupReminder {
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
     }
 
-    /// Removes every pending pickup reminder: before rescheduling, and when
-    /// she leaves the classroom.
+    /// A pickup's request identifier, one per child and day; the sample
+    /// class's under their own prefix. Pure, for the tests.
+    nonisolated static func requestID(studentID: String, leavesAt: Date, isSample: Bool) -> String {
+        (isSample ? sampleIDPrefix : idPrefix) + studentID + "-" + AppCalendar.dayID(leavesAt)
+    }
+
+    /// Removes every pending pickup reminder, the sample class's included:
+    /// before rescheduling, and when she leaves the classroom.
     static func cancelAll() async {
+        await cancel(prefix: idPrefix)
+    }
+
+    /// Removes the sample class's pickup reminders only: when she leaves the
+    /// sample, and at launch, since the sample they came from is gone.
+    static func cancelSample() async {
+        await cancel(prefix: sampleIDPrefix)
+    }
+
+    private static func cancel(prefix: String) async {
         let center = UNUserNotificationCenter.current()
-        let ours = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(idPrefix) }
+        let ours = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
         center.removePendingNotificationRequests(withIdentifiers: ours)
     }
 
     /// Replaces this app's pending pickup reminders with the ones that should
-    /// be there now. The sample class schedules nothing.
+    /// be there now.
     static func reschedule(in context: NSManagedObjectContext, now: Date = Date()) async {
+        // Read once: leaving the sample mid-loop mustn't file its children
+        // under the real class's prefix.
+        let isSample = AssistantSampleClass.isActive
         await cancelAll()
-        guard isEnabled(), !AssistantSampleClass.isActive else { return }
+        guard isEnabled() else { return }
         let pickups = pendingPickups(in: context, now: now)
         guard !pickups.isEmpty else { return }
         await requestPermissionIfNeeded()
@@ -118,7 +142,7 @@ enum EarlyPickupReminder {
             content.sound = .default
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let id = idPrefix + pickup.studentID + "-" + AppCalendar.dayID(pickup.leavesAt)
+            let id = requestID(studentID: pickup.studentID, leavesAt: pickup.leavesAt, isSample: isSample)
             // A newer reschedule has started: it decides now, and adding
             // after its removal would bring back a reminder it meant to drop.
             guard !Task.isCancelled else { return }
