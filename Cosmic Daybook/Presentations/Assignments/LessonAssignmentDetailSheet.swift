@@ -369,23 +369,16 @@ struct LessonAssignmentDetailSheet: View, Identifiable {
         }
     }
     
+    /// The presentation sheet itself: its details, or How It Went for one
+    /// still being followed.
     @ViewBuilder
     private var editPresentationSheet: some View {
-        if let la = assignment, let lessonIDString = la.lessonIDUUID {
-            UnifiedPresentationWorkflowSheet(
-                students: studentList(for: la),
-                lessonName: title(for: la),
-                lessonID: lessonIDString,
-                presentationID: la.id ?? assignmentID,
-                onComplete: {
-                    // Work items are created by the workflow sheet
-                    showingEditSheet = false
-                    reloadNotes()
-                },
-                onCancel: {
-                    showingEditSheet = false
-                }
-            )
+        if let la = assignment {
+            PresentationDetailView(lessonAssignment: la) {
+                showingEditSheet = false
+                reloadNotes()
+                reloadWorkSummary()
+            }
         }
     }
 

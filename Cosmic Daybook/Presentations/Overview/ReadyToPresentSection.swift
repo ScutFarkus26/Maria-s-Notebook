@@ -15,6 +15,8 @@ import CoreData
 struct ReadyToPresentSection: View {
     // Not private: the extensions in their own files read it.
     @Environment(\.managedObjectContext) var viewContext
+    @Environment(SaveCoordinator.self) var saveCoordinator
+    @Environment(\.dependencies) var dependencies
     #if os(iOS)
     // Not private, for the same reason: the rows stack on a compact width.
     @Environment(\.horizontalSizeClass) var horizontalSizeClass

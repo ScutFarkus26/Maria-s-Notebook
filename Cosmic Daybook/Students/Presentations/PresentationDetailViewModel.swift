@@ -4,8 +4,7 @@
 // Extensions:
 // - PresentationDetailViewModel+NotesAutosave.swift    (scheduleNotesAutosave, flush)
 // - PresentationDetailViewModel+MasteryTracking.swift  (loadProficiencyState, updateProficiencyState)
-// - PresentationDetailViewModel+StudentActions.swift   (moveStudentsToInbox, handleNeedsAnotherChange,
-//                                                       scheduleNextLessonToInbox)
+// - PresentationDetailViewModel+StudentActions.swift   (moveStudentsToInbox)
 
 import Foundation
 import SwiftUI
@@ -58,7 +57,6 @@ final class PresentationDetailViewModel {
 
     // MARK: - UI State
     var showLessonPicker: Bool = false
-    var showAssignmentComposer: Bool = false
     var showingAddStudentSheet: Bool = false
     var showingStudentPickerPopover: Bool = false
     var showDeleteAlert: Bool = false
@@ -67,10 +65,6 @@ final class PresentationDetailViewModel {
     var pendingWorkRetraction: [WorkRemovalPlan] = []
     var showingMoveStudentsSheet: Bool = false
     var showingFindStudentsSheet: Bool = false
-
-    // MARK: - Workflow Panel State (for embedded presentation workflow)
-    var showWorkflowPanel: Bool = false
-    var presentationViewModel: PostPresentationFormViewModel?
 
     // MARK: - Move Students UI State
     var studentsToMove: Set<UUID> = []
@@ -155,9 +149,6 @@ final class PresentationDetailViewModel {
         )
     }
 
-    // Saves changes to the database and handles presentation lifecycle events.
-    // Planning the next lesson only happens after an explicit choice in the
-    // post-presentation workflow.
     /// Work already generated from this presentation for children the edit
     /// removes from it. Empty when nothing downstream would disagree.
     func workRetractionPlans() -> [WorkRemovalPlan] {
@@ -297,19 +288,5 @@ final class PresentationDetailViewModel {
             }
             PresentationDetailUtilities.notifyInboxRefresh()
         }
-    }
-
-    // MARK: - Workflow Panel Management
-
-    /// Enters workflow mode by initializing the presentation view model
-    func enterWorkflowMode(students: [CDStudent]) {
-        presentationViewModel = PostPresentationFormViewModel(students: students)
-        showWorkflowPanel = true
-    }
-
-    /// Exits workflow mode and cleans up the presentation view model
-    func exitWorkflowMode() {
-        presentationViewModel = nil
-        showWorkflowPanel = false
     }
 }

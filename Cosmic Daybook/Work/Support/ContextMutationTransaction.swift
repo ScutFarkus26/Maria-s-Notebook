@@ -9,7 +9,7 @@ import Foundation
 /// leaving the context's earlier pending changes alone.
 ///
 /// Shared by the services that mutate work in several steps and must land all
-/// of them or none: `PresentationFollowUpWorkService` and `WorkDeletionService`.
+/// of them or none: `PresentationSessionCommit` and `WorkDeletionService`.
 final class ContextMutationTransaction {
     private let context: NSManagedObjectContext
     private let previousUndoManager: UndoManager?

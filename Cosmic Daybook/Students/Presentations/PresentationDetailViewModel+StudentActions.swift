@@ -47,35 +47,4 @@ extension PresentationDetailViewModel {
             showMovedBanner = false
         }
     }
-
-    // MARK: - Needs Another Presentation
-
-    /// Reacts to changes in "Needs Another Presentation" toggle
-    func handleNeedsAnotherChange(
-        newValue: Bool,
-        studentsAll: [CDStudent],
-        lessonAssignmentsAll: [CDLessonAssignment],
-        lessons: [CDLesson]
-    ) {
-        guard newValue else { return }
-        guard !selectedStudentIDs.isEmpty else { return }
-
-        // If toggled ON, ensure we create a fresh draft entry if one doesn't exist
-        let sameStudents = Set(selectedStudentIDs)
-        let exists = lessonAssignmentsAll.contains { la in
-            la.resolvedLessonID == editingLessonID &&
-            la.scheduledFor == nil &&
-            !la.isPresented &&
-            Set(la.resolvedStudentIDs) == sameStudents
-        }
-
-        if !exists {
-            _ = PresentationFactory.makeDraft(
-                lessonID: editingLessonID,
-                studentIDs: Array(sameStudents),
-                context: viewContext
-            )
-        }
-    }
-
 }

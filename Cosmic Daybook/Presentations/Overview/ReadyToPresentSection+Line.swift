@@ -30,6 +30,9 @@ extension ReadyToPresentSection {
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .hoverableRow(cornerRadius: UIConstants.CornerRadius.medium)
+            .modifier(QuickPresentedHover(isEnabled: canQuickRecord(la, context: context)) {
+                quickRecord(la)
+            })
             // Command-click extends the selection instead of opening the
             // line, so one click never both selects and navigates away.
             .onTapGesture {
@@ -42,6 +45,9 @@ extension ReadyToPresentSection {
             .accessibilityLabel(accessibilityLabel(for: la, chips: chips, groupLabel: groupLabel, context: context))
             .accessibilityAddTraits(.isButton)
             .accessibilityActions {
+                if canQuickRecord(la, context: context) {
+                    Button("Presented Today") { quickRecord(la) }
+                }
                 if let readiness {
                     Button("Move Ready") { splitReadyToInbox(la, result: readiness.result) }
                 }
@@ -53,22 +59,35 @@ extension ReadyToPresentSection {
                 selection.contains(la.id),
                 cornerRadius: UIConstants.CornerRadius.medium
             )
-            .contextMenu {
-                lessonMenuItems(for: la)
-                if groupCount > 1 {
-                    Button("Merge Groups…", systemImage: "arrow.triangle.merge") {
-                        coordinator.showMergeGroups(forLesson: la.resolvedLessonID)
-                    }
-                }
-                if context.state == .waitingForWork {
-                    Button("Unlock Lesson", systemImage: "lock.open") {
-                        unlockBrewingLesson(la)
-                    }
-                    .disabled(la.manuallyUnblocked)
-                }
-                Divider()
-                deleteButton(for: la)
+            .contextMenu { lineMenu(for: la, groupCount: groupCount, context: context) }
+    }
+
+    @ViewBuilder
+    private func lineMenu(
+        for la: CDLessonAssignment,
+        groupCount: Int,
+        context: BacklogRenderContext
+    ) -> some View {
+        if canQuickRecord(la, context: context) {
+            Button("Presented Today", systemImage: "checkmark.circle") {
+                quickRecord(la)
             }
+            Divider()
+        }
+        lessonMenuItems(for: la)
+        if groupCount > 1 {
+            Button("Merge Groups…", systemImage: "arrow.triangle.merge") {
+                coordinator.showMergeGroups(forLesson: la.resolvedLessonID)
+            }
+        }
+        if context.state == .waitingForWork {
+            Button("Unlock Lesson", systemImage: "lock.open") {
+                unlockBrewingLesson(la)
+            }
+            .disabled(la.manuallyUnblocked)
+        }
+        Divider()
+        deleteButton(for: la)
     }
 
     /// A line with no id cannot be resolved by any drop handler, and the drop

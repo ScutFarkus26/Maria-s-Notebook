@@ -5,8 +5,8 @@
 //  The work a presentation already generated for a child who is being taken
 //  off it.
 //
-//  `PresentationFollowUpWorkService` creates work from the presentation's
-//  participant list. Editing that list afterwards changes the presentation
+//  The presentation sheet's Done (`PresentationSessionCommit`) creates work
+//  from the presentation's participant list. Editing that list afterwards changes the presentation
 //  and nothing downstream, so the work rows go on naming a child the
 //  presentation no longer does. Rather than leave the two records
 //  disagreeing, removal from a presentation names the affected work rows and

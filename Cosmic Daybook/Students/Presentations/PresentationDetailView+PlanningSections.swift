@@ -5,16 +5,65 @@ import CoreData
 
 extension PresentationDetailContentView {
 
-    // MARK: - Sections
+    // MARK: - Header
 
-    var lessonHeaderSection: some View {
-        PresentationHeaderView(
-            lessonName: currentLesson?.name ?? "Lesson",
+    var headerBand: some View {
+        PresentationHeaderBand(
+            lessonName: currentLesson?.name ?? "Choose a Lesson",
             area: currentLesson?.area ?? "",
             sequence: currentLesson?.sequence ?? "",
             areaColor: AppColors.color(forArea: currentLesson?.area ?? ""),
+            statusLine: statusLine,
             onTapTitle: lessonHasFile ? ({ openLessonFile() }) : nil
-        )
+        ) {
+            headerMenuItems
+        }
+    }
+
+    /// When it is planned, or when it was given.
+    var statusLine: String {
+        if vm.isPresented {
+            guard let givenAt = vm.givenAt else { return "Given earlier, date not recorded" }
+            if calendar.isDateInToday(givenAt) { return "Given today" }
+            return "Given " + givenAt.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        }
+        guard let scheduled = vm.scheduledFor else {
+            return "On Deck, not yet scheduled"
+        }
+        let half = calendar.component(.hour, from: scheduled) < 12 ? "morning" : "afternoon"
+        if calendar.isDateInToday(scheduled) { return "Planned for today, \(half)" }
+        if calendar.isDateInTomorrow(scheduled) { return "Planned for tomorrow, \(half)" }
+        return "Planned for " + scheduled.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()) + ", \(half)"
+    }
+
+    @ViewBuilder
+    var headerMenuItems: some View {
+        Button("Change Lesson…", systemImage: "book") {
+            vm.showLessonPicker = true
+            lessonPickerFocused = true
+        }
+        if !vm.isPresented {
+            Button("Reschedule…", systemImage: "calendar") {
+                showRescheduleSheet = true
+            }
+        }
+        Button("Find Students…", systemImage: "person.badge.plus") {
+            vm.showingFindStudentsSheet = true
+        }
+        if selectedStudentsList.count > 1 && !vm.isPresented {
+            Button("Move Students…", systemImage: "arrow.right.square") {
+                openMoveStudentsSheet()
+            }
+        }
+        if lessonHasFile {
+            Button("Open Lesson File", systemImage: "doc.richtext") {
+                openLessonFile()
+            }
+        }
+        Divider()
+        Button("Delete Presentation…", systemImage: "trash", role: .destructive) {
+            vm.showDeleteAlert = true
+        }
     }
 
     var lessonHasFile: Bool {
@@ -29,68 +78,39 @@ extension PresentationDetailContentView {
         }
     }
 
-    var studentPillsSection: some View {
-        let lesson: CDLesson? = currentLesson
-        let areaColor: Color = AppColors.color(forArea: lesson?.area ?? "")
-        return StudentPillsSection(
-            students: selectedStudentsList,
-            lessonOnRecord: lesson,
-            areaColor: areaColor,
-            onRemove: { id in vm.selectedStudentIDs.remove(id) },
-            onOpenPicker: { vm.showingStudentPickerPopover = true },
-            onOpenMove: openMoveStudentsSheet,
-            canMoveStudents: selectedStudentsList.count > 1 && !vm.isPresented,
-            onOpenFindStudents: { vm.showingFindStudentsSheet = true },
-            onOpenMoveAbsent: openMoveAbsentStudents,
-            canMoveAbsentStudents: canMoveAbsentStudents
-        )
-        .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
-            StudentPickerPopover(
-                students: studentsAll,
-                selectedIDs: $vm.selectedStudentIDs,
-                onDone: { vm.showingStudentPickerPopover = false },
-                lessonOnRecord: currentLesson,
-                // The roster may already hold a child who has since left; she
-                // stays visible here, disabled, so she can be taken off.
-                formerStudents: .shownBlocked
+    // MARK: - Lesson picker
+
+    @ViewBuilder
+    var lessonPickerIfNeeded: some View {
+        if currentLesson == nil || vm.showLessonPicker {
+            LessonPickerSection(
+                viewModel: lessonPickerVM,
+                resolvedLesson: lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? currentLesson,
+                isFocused: $lessonPickerFocused
             )
-            .padding(12)
-            .frame(minWidth: 320)
         }
-        .sheet(isPresented: $vm.showingFindStudentsSheet) {
-            LiveLessonAssignments { allLessonAssignments in
-                FindStudentsSheet(
-                    lessonID: vm.editingLessonID,
-                    existingStudentIDs: vm.selectedStudentIDs,
-                    allStudents: studentsAll,
-                    allLessonAssignments: allLessonAssignments,
-                    onAdd: { newIDs in
-                        vm.selectedStudentIDs.formUnion(newIDs)
-                        vm.showingFindStudentsSheet = false
-                    },
-                    onCancel: { vm.showingFindStudentsSheet = false }
-                )
+    }
+
+    // MARK: - Sequence
+
+    /// The sequence recap folded to one line; it opens to the full grid.
+    @ViewBuilder
+    var sequenceLine: some View {
+        if let recap = vm.groupRecap, !recap.lessonsInSequence.isEmpty {
+            DisclosureGroup {
+                groupRecapSection
+                    .padding(.top, 8)
+            } label: {
+                Label(recap.sequenceName, systemImage: "list.bullet.indent")
+                    .font(AppTheme.ScaledFont.calloutSemibold)
+                    .foregroundStyle(.secondary)
             }
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
+            .padding(12)
+            .background(
+                Color.primary.opacity(UIConstants.OpacityConstants.whisper),
+                in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large, style: .continuous)
+            )
         }
-    }
-
-    func openMoveStudentsSheet() {
-        vm.studentsToMove = []
-        vm.showingMoveStudentsSheet = true
-    }
-
-    var inboxStatusSection: some View {
-        InboxStatusSection(scheduledFor: $vm.scheduledFor)
-    }
-
-    var notesSection: some View {
-        PresentationNotesSectionUnified(
-            lessonAssignment: vm.lessonAssignment,
-            legacyNotes: $vm.notes,
-            onLegacyNotesChange: { vm.notes = $0 }
-        )
     }
 
     @ViewBuilder
@@ -132,42 +152,104 @@ extension PresentationDetailContentView {
         }
     }
 
-    @ViewBuilder
-    func lessonPickerOrChangeControl(horizontalPadding: CGFloat) -> some View {
-        if currentLesson == nil || vm.showLessonPicker {
-            VStack(alignment: .leading, spacing: 8) {
-                LessonPickerSection(
-                    viewModel: lessonPickerVM,
-                    resolvedLesson: lessons.first(where: { $0.id == lessonPickerVM.selectedLessonID }) ?? currentLesson,
-                    isFocused: $lessonPickerFocused
-                )
-            }
-            .padding(.horizontal, horizontalPadding)
-            .padding(.top, 16)
-        } else {
-            ChangeLessonControl(showLessonPicker: $vm.showLessonPicker)
-                .padding(.horizontal, horizontalPadding)
-                .padding(.top, 8)
+    // MARK: - Children
+
+    var whoWasThereSection: some View {
+        PresentationWhoWasThereSection(
+            students: selectedStudentsList,
+            presentIDs: session.presentIDs,
+            attendance: attendance,
+            isToday: calendar.isDateInToday(session.presentedDay),
+            onToggle: { session.togglePresent($0) },
+            onRemove: { vm.selectedStudentIDs.remove($0) },
+            addButton: { addChildrenButton }
+        )
+        .sheet(isPresented: $vm.showingFindStudentsSheet) {
+            findStudentsSheet
         }
     }
 
-    var progressButtonsRow: some View {
-        ProgressStateRow(
-            onJustPresented: selectJustPresented,
-            onPreviouslyPresented: selectPreviouslyPresented,
-            isJustPresentedActive: isJustPresentedActive,
-            isPreviouslyPresentedActive: isPreviouslyPresentedActive
+    var addChildrenButton: some View {
+        Button {
+            vm.showingStudentPickerPopover = true
+        } label: {
+            Label("Add or Remove Children", systemImage: "person.2.badge.gearshape")
+        }
+        .buttonStyle(.borderless)
+        .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
+            studentPickerPopover
+        }
+    }
+
+    var studentPillsSection: some View {
+        let lesson: CDLesson? = currentLesson
+        let areaColor: Color = AppColors.color(forArea: lesson?.area ?? "")
+        return StudentPillsSection(
+            students: selectedStudentsList,
+            lessonOnRecord: lesson,
+            areaColor: areaColor,
+            onRemove: { id in vm.selectedStudentIDs.remove(id) },
+            onOpenPicker: { vm.showingStudentPickerPopover = true },
+            onOpenMove: openMoveStudentsSheet,
+            canMoveStudents: false,
+            onOpenFindStudents: { vm.showingFindStudentsSheet = true },
+            onOpenMoveAbsent: {},
+            canMoveAbsentStudents: false
+        )
+        .popover(isPresented: $vm.showingStudentPickerPopover, arrowEdge: .top) {
+            studentPickerPopover
+        }
+        .sheet(isPresented: $vm.showingFindStudentsSheet) {
+            findStudentsSheet
+        }
+    }
+
+    var studentPickerPopover: some View {
+        StudentPickerPopover(
+            students: studentsAll,
+            selectedIDs: $vm.selectedStudentIDs,
+            onDone: { vm.showingStudentPickerPopover = false },
+            lessonOnRecord: currentLesson,
+            // The roster may already hold a child who has since left; she
+            // stays visible here, disabled, so she can be taken off.
+            formerStudents: .shownBlocked
+        )
+        .padding(12)
+        .frame(minWidth: 320)
+    }
+
+    var findStudentsSheet: some View {
+        LiveLessonAssignments { allLessonAssignments in
+            FindStudentsSheet(
+                lessonID: vm.editingLessonID,
+                existingStudentIDs: vm.selectedStudentIDs,
+                allStudents: studentsAll,
+                allLessonAssignments: allLessonAssignments,
+                onAdd: { newIDs in
+                    vm.selectedStudentIDs.formUnion(newIDs)
+                    vm.showingFindStudentsSheet = false
+                },
+                onCancel: { vm.showingFindStudentsSheet = false }
+            )
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    func openMoveStudentsSheet() {
+        vm.studentsToMove = []
+        vm.showingMoveStudentsSheet = true
+    }
+
+    var notesSection: some View {
+        PresentationNotesSectionUnified(
+            lessonAssignment: vm.lessonAssignment,
+            legacyNotes: $vm.notes,
+            onLegacyNotesChange: { vm.notes = $0 }
         )
     }
 
-    var bottomBar: some View {
-        PresentationBottomBar(
-            onDelete: { vm.showDeleteAlert = true },
-            onCancel: handleCancelWithCleanup,
-            onSave: handleSaveAndDone,
-            isSaveDisabled: vm.selectedStudentIDs.isEmpty
-        )
-    }
+    // MARK: - Sheets
 
     var moveStudentsSheet: some View {
         MoveStudentsSheet(
@@ -184,6 +266,27 @@ extension PresentationDetailContentView {
         #endif
     }
 
+    var rescheduleSheet: some View {
+        NavigationStack {
+            Form {
+                InboxStatusSection(scheduledFor: $vm.scheduledFor)
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Reschedule")
+            .inlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showRescheduleSheet = false }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 320)
+        #else
+        .presentationDetents([.medium])
+        #endif
+    }
+
     func handleMoveStudents() {
         vm.moveStudentsToInbox(
             studentsAll: studentsAll,
@@ -196,151 +299,5 @@ extension PresentationDetailContentView {
     func cancelMoveStudents() {
         vm.studentsToMove = []
         vm.showingMoveStudentsSheet = false
-    }
-
-    // MARK: - Mastery Status Row
-
-    var proficiencyStatusRow: some View {
-        ProficiencyStateRow(proficiencyState: $vm.proficiencyState)
-    }
-
-    // MARK: - Progress State Logic
-
-    var isJustPresentedActive: Bool {
-        PresentationProgressHelper.isJustPresentedActive(
-            isPresented: vm.isPresented,
-            givenAt: vm.givenAt,
-            calendar: calendar
-        )
-    }
-
-    var isPreviouslyPresentedActive: Bool {
-        PresentationProgressHelper.isPreviouslyPresentedActive(
-            isPresented: vm.isPresented,
-            givenAt: vm.givenAt,
-            calendar: calendar
-        )
-    }
-
-    func selectJustPresented() {
-        let presentedDay = calendar.startOfDay(for: Date())
-
-        guard currentLesson != nil else {
-            presentationRecordErrorMessage = "Choose the lesson before recording this presentation."
-            return
-        }
-        guard !vm.selectedStudentIDs.isEmpty else {
-            presentationRecordErrorMessage = "Choose at least one child before recording this presentation."
-            return
-        }
-
-        // Apply lesson and roster edits before either recording or reopening the
-        // optional reflection, so its fixed context always matches the assignment.
-        vm.applyEditsToModel(studentsAll: studentsAll, lessons: lessons, calendar: calendar)
-
-        // Reopening a presentation already recorded today should return to the
-        // optional reflection without creating another lifecycle event.
-        if vm.lessonAssignment.isPresented,
-           let existingDate = vm.lessonAssignment.presentedAt,
-           calendar.isDate(existingDate, inSameDayAs: presentedDay) {
-            guard vm.saveCoordinator.save(
-                viewContext,
-                reason: "Saving edits before reopening presentation reflection"
-            ) else {
-                presentationRecordErrorMessage = vm.saveCoordinator.lastSaveErrorMessage
-                    ?? "The lesson or roster changes could not be saved."
-                return
-            }
-            setPresentationState(isPresented: true, givenAt: presentedDay, needsAnother: false)
-            presentationUndoToken = nil
-            postPresentationFlow.beginReflection()
-            showPostPresentationCapture = true
-            return
-        }
-
-        do {
-            let undoToken = try ImmediatePresentationRecordingService.record(
-                assignment: vm.lessonAssignment,
-                presentedOn: presentedDay,
-                context: viewContext,
-                saveCoordinator: vm.saveCoordinator
-            )
-            presentationUndoToken = undoToken
-            setPresentationState(isPresented: true, givenAt: presentedDay, needsAnother: false)
-            postPresentationFlow.beginReflection()
-
-            dependencies.toastService.show(
-                "Presentation recorded",
-                type: .success,
-                duration: 5,
-                undoAction: {
-                    Task { _ = undoJustPresented() }
-                }
-            )
-            showPostPresentationCapture = true
-        } catch {
-            presentationRecordErrorMessage = error.localizedDescription
-        }
-    }
-
-    func undoJustPresented() -> String? {
-        guard let presentationUndoToken else { return nil }
-        do {
-            try ImmediatePresentationRecordingService.undo(
-                presentationUndoToken,
-                context: viewContext,
-                saveCoordinator: vm.saveCoordinator
-            )
-            self.presentationUndoToken = nil
-            vm.isPresented = vm.lessonAssignment.isPresented
-            vm.givenAt = vm.lessonAssignment.presentedAt
-            vm.needsAnotherPresentation = vm.lessonAssignment.needsAnotherPresentation
-            postPresentationFlow.undoPresentation()
-            showPostPresentationCapture = false
-            dependencies.toastService.showInfo("Presentation recording undone")
-            return nil
-        } catch {
-            presentationRecordErrorMessage = error.localizedDescription
-            return error.localizedDescription
-        }
-    }
-
-    func selectPreviouslyPresented() {
-        let givenAt = vm.givenAt.flatMap { calendar.isDateInToday($0) ? nil : $0 }
-        setPresentationState(isPresented: true, givenAt: givenAt, needsAnother: false)
-        vm.enterWorkflowMode(students: selectedStudentsList)
-        vm.showAssignmentComposer = true
-    }
-
-    func setPresentationState(isPresented: Bool, givenAt: Date?, needsAnother: Bool) {
-        vm.isPresented = isPresented
-        vm.givenAt = givenAt
-        vm.needsAnotherPresentation = needsAnother
-    }
-
-    // MARK: - Absent Logic
-
-    var scheduledAttendanceDay: Date { AppCalendar.startOfDay(Date()) }
-
-    var absentStudentIDs: Set<UUID> {
-        PresentationAbsentHelper.computeAbsentStudentIDs(
-            selectedStudentIDs: vm.selectedStudentIDs,
-            scheduledDay: scheduledAttendanceDay,
-            context: viewContext
-        )
-    }
-
-    var canMoveAbsentStudents: Bool {
-        PresentationAbsentHelper.canMoveAbsentStudents(
-            studentCount: selectedStudentsList.count,
-            isPresented: vm.isPresented,
-            absentStudentIDs: absentStudentIDs
-        )
-    }
-
-    func openMoveAbsentStudents() {
-        guard !absentStudentIDs.isEmpty else { return }
-        vm.studentsToMove = absentStudentIDs
-        vm.showingMoveStudentsSheet = true
     }
 }

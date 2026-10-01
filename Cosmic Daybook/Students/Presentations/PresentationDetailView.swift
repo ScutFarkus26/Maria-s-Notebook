@@ -29,8 +29,9 @@ struct PresentationDetailView: View {
     let autoFocusLessonPicker: Bool
     var onDone: (() -> Void)?
 
-    // ViewModel is optional and initialized in onAppear
+    // ViewModel and session are created in onAppear
     @State private var vm: PresentationDetailViewModel?
+    @State private var session: PresentationSession?
 
     // Child ViewModel (LessonPicker)
     // We initialize it with a dummy state; it will be configured in onAppear
@@ -44,10 +45,11 @@ struct PresentationDetailView: View {
 
     var body: some View {
         Group {
-            if let vm {
-                // Pass non-optional VM to the content view to enable Bindings
+            if let vm, let session {
+                // Pass non-optional models to the content view to enable Bindings
                 PresentationDetailContentView(
                     vm: vm,
+                    session: session,
                     lessonPickerVM: lessonPickerVM,
                     lessons: lessons,
                     studentsAll: studentsAll,
@@ -67,6 +69,7 @@ struct PresentationDetailView: View {
                     autoFocusLessonPicker: autoFocusLessonPicker
                 )
                 self.vm = newVM
+                self.session = PresentationSession(presentationID: lessonAssignment.id ?? UUID())
 
                 // Configure Picker VM
                 lessonPickerVM.configure(lessons: lessons, students: studentsAll)
@@ -83,24 +86,17 @@ struct PresentationDetailView: View {
                 vm.showLessonPicker = false
             }
         }
-        .onChange(of: vm?.needsAnotherPresentation) { _, newValue in
-            // Sync Main VM -> Logic
-            if let val = newValue, let vm = vm {
-                vm.handleNeedsAnotherChange(
-                    newValue: val,
-                    studentsAll: studentsAll,
-                    lessonAssignmentsAll: LessonAssignmentTable.fetchAll(in: viewContext),
-                    lessons: lessons
-                )
-            }
-        }
     }
 }
 
 // MARK: - Content Subview
-/// Extracts the content so `vm` can be treated as non-optional for Bindings
+/// Extracts the content so `vm` can be treated as non-optional for Bindings.
+///
+/// One sheet, two beats: the planning view says who was there and records it;
+/// the same sheet then turns into How It Went (`PresentationHowItWentView`).
 struct PresentationDetailContentView: View {
     @Bindable var vm: PresentationDetailViewModel
+    @Bindable var session: PresentationSession
     @Bindable var lessonPickerVM: LessonPickerViewModel
 
     let lessons: [CDLesson]
@@ -112,13 +108,12 @@ struct PresentationDetailContentView: View {
     @Environment(\.calendar) var calendar
     @Environment(\.dependencies) var dependencies
     @State var lessonPickerFocused: Bool = false
-    @State var showUnsavedChangesAlert: Bool = false
-    @State var showIndependentWorkflowWindow: Bool = false
-    @State var triggerWorkflowCompletion: Bool = false
-    @State var showPostPresentationCapture: Bool = false
-    @State var presentationUndoToken: ImmediatePresentationRecordingService.UndoToken?
-    @State var presentationRecordErrorMessage: String?
-    @State var postPresentationFlow = PostPresentationFlowState()
+    @State var attendance: [UUID: AttendanceStatus] = [:]
+    @State var showRescheduleSheet = false
+    @State var showRecordDayPicker = false
+    @State var recordPickedDay = AppCalendar.startOfDay(Date())
+    @State var isSavingSession = false
+    @State var errorMessage: String?
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
@@ -126,60 +121,17 @@ struct PresentationDetailContentView: View {
 
     var body: some View {
         Group {
-            if postPresentationFlow.phase == .followUp {
-                postPresentationFollowUpContent
-            } else if vm.showWorkflowPanel {
-                threePanelLayout
+            if session.phase == .howItWent, let lesson = currentLesson {
+                howItWentContent(lesson: lesson)
             } else {
                 planningView
             }
         }
-        .adaptiveAnimation(.easeInOut(duration: 0.3), value: vm.showWorkflowPanel)
+        .adaptiveAnimation(.easeInOut(duration: 0.25), value: session.phase)
         #if os(macOS)
-        .frame(
-            minWidth: vm.showWorkflowPanel ? 1400 : 720,
-            idealWidth: vm.showWorkflowPanel ? 1600 : 720,
-            minHeight: vm.showWorkflowPanel ? 700 : (postPresentationFlow.phase == .followUp ? 620 : 800),
-            idealHeight: vm.showWorkflowPanel ? 800 : (postPresentationFlow.phase == .followUp ? 760 : 900)
-        )
-        .background(
-            SheetWindowResizer(
-                targetSize: vm.showWorkflowPanel
-                    ? NSSize(width: 1600, height: 800)
-                    : NSSize(
-                        width: 720,
-                        height: postPresentationFlow.phase == .followUp ? 760 : 900
-                    )
-            )
-        )
+        .frame(minWidth: 680, idealWidth: 720, minHeight: 640, idealHeight: 860)
+        .background(SheetWindowResizer(targetSize: NSSize(width: 720, height: 860)))
         #endif
-        #if os(macOS)
-        .sheet(isPresented: $showIndependentWorkflowWindow) {
-            if let presentationVM = vm.presentationViewModel {
-                IndependentWorkflowWindow(
-                    presentationViewModel: presentationVM,
-                    students: selectedStudentsList,
-                    lessonName: currentLessonName,
-                    lessonID: currentLessonID,
-                    presentationID: vm.lessonAssignment.id,
-                    onComplete: {
-                        handleWorkflowComplete()
-                        showIndependentWorkflowWindow = false
-                    },
-                    onCancel: {
-                        showIndependentWorkflowWindow = false
-                    }
-                )
-                .frame(minWidth: 1400, idealWidth: 1600, minHeight: 700, idealHeight: 800)
-            }
-        }
-        #endif
-        .sheet(
-            isPresented: $showPostPresentationCapture,
-            onDismiss: postPresentationCaptureDidDismiss
-        ) {
-            postPresentationCaptureContent
-        }
         .workRetractionAlert(
             isPresented: workRetractionAlertIsPresented,
             message: workRetractionMessage,
@@ -194,59 +146,47 @@ struct PresentationDetailContentView: View {
             },
             onCancel: { vm.pendingWorkRetraction = [] }
         )
-        .alert("Couldn’t Record Presentation", isPresented: presentationRecordErrorIsPresented) {
-            Button("OK") { presentationRecordErrorMessage = nil }
+        .alert("Couldn’t Save Presentation", isPresented: errorIsPresented) {
+            Button("OK") { errorMessage = nil }
         } message: {
-            Text(presentationRecordErrorMessage ?? "The presentation could not be recorded.")
+            Text(errorMessage ?? "The presentation could not be saved.")
         }
         .onAppear {
-            if postPresentationFlow.phase == .lesson,
-               PresentationFollowUpService.hasOpenFollowUps(
-                for: vm.lessonAssignment.id,
-                in: viewContext
-               ) {
-                postPresentationFlow.showFollowUp()
+            reopenHowItWentIfFollowing()
+        }
+        .onDisappear {
+            // Closing the sheet mid-way acts as Later: nothing is lost, so
+            // nothing needs confirming.
+            if session.phase == .howItWent, !session.isFinished {
+                saveLater(closing: false)
             }
         }
     }
 
-    // MARK: - Planning View (Single Column)
+    // MARK: - Planning View (beat one)
 
     private var planningView: some View {
         VStack(spacing: 0) {
+            headerBand
+            Divider()
             ScrollView {
-                VStack(spacing: 0) {
-                    // 0. Group recap (shown when the lesson belongs to a sequence with data)
-                    groupRecapSection
-                        .padding(.horizontal, 32)
-                        .padding(.top, 16)
-
-                    PlanningContentSections(
-                        horizontalPadding: 32,
-                        lessonHeader: { lessonHeaderSection },
-                        lessonPicker: { lessonPickerOrChangeControl(horizontalPadding: 32) },
-                        studentPills: { studentPillsSection },
-                        inboxStatus: { inboxStatusSection },
-                        notes: { notesSection }
-                    )
-
-                    // 6. Progress buttons row
-                    progressButtonsRow
-                        .padding(.horizontal, progressButtonsHorizontalPadding)
-                        .padding(.top, 16)
-
-                    // 7. Mastery status row (only shown when presented)
+                VStack(alignment: .leading, spacing: 22) {
+                    lessonPickerIfNeeded
+                    sequenceLine
                     if vm.isPresented {
-                        proficiencyStatusRow
-                            .padding(.horizontal, progressButtonsHorizontalPadding)
-                            .padding(.top, 16)
-                            .padding(.bottom, 24)
+                        studentPillsSection
+                    } else {
+                        whoWasThereSection
                     }
+                    notesSection
                 }
+                .padding(.horizontal, contentPadding)
+                .padding(.vertical, 22)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .dismissKeyboardOnScroll()
         }
-        .safeAreaInset(edge: .bottom) { bottomBar }
+        .safeAreaInset(edge: .bottom) { footer }
         .alert("Delete Presentation?", isPresented: $vm.showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 // Closed on the next turn, not inside the alert's own action:
@@ -268,6 +208,9 @@ struct PresentationDetailContentView: View {
         .sheet(isPresented: $vm.showingMoveStudentsSheet) {
             moveStudentsSheet
         }
+        .sheet(isPresented: $showRescheduleSheet) {
+            rescheduleSheet
+        }
         .sheet(item: $vm.recapWorkSheetID) { workID in
             WorkDetailView(workID: workID) {
                 vm.recapWorkSheetID = nil
@@ -285,12 +228,18 @@ struct PresentationDetailContentView: View {
         .onAppear {
             if vm.showLessonPicker { lessonPickerFocused = true }
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            refreshAttendance()
         }
         .onChange(of: vm.editingLessonID) { _, _ in
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
         }
         .onChange(of: vm.selectedStudentIDs) { _, _ in
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            refreshAttendance()
+        }
+        .onChange(of: session.presentedDay) { _, _ in
+            session.resetTouches()
+            refreshAttendance()
         }
         .onDisappear {
             vm.flushNotesAutosaveIfNeeded()
@@ -317,15 +266,20 @@ struct PresentationDetailContentView: View {
             .sorted(by: StudentSortComparator.byFirstName)
     }
 
-    #if os(iOS)
-    var progressButtonsHorizontalPadding: CGFloat {
-        horizontalSizeClass == .compact ? 16 : 32
+    var contentPadding: CGFloat {
+        #if os(iOS)
+        horizontalSizeClass == .compact ? 16 : 28
+        #else
+        28
+        #endif
     }
-    #else
-    var progressButtonsHorizontalPadding: CGFloat {
-        32
+
+    var errorIsPresented: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )
     }
-    #endif
 
     // MARK: - Helpers & Logic
 
@@ -337,79 +291,6 @@ struct PresentationDetailContentView: View {
         }
     }
 
-    @ViewBuilder
-    var postPresentationCaptureContent: some View {
-        if let lesson = currentLesson,
-           let presentationID = vm.lessonAssignment.id {
-            PostPresentationCaptureSheet(
-                students: selectedStudentsList,
-                lesson: lesson,
-                presentationID: presentationID,
-                presentedAt: vm.lessonAssignment.presentedAt ?? Date(),
-                onUndoPresentation: postPresentationUndoAction,
-                onDetailsSaved: {
-                    presentationUndoToken = nil
-                    dependencies.toastService.dismiss()
-                }
-            )
-        } else {
-            ContentUnavailableView(
-                "Presentation Unavailable",
-                systemImage: "exclamationmark.triangle",
-                description: Text("Close this window and try recording the presentation again.")
-            )
-            .frame(minWidth: 420, minHeight: 300)
-        }
-    }
-
-    @ViewBuilder
-    var postPresentationFollowUpContent: some View {
-        if let lesson = currentLesson {
-            LiveLessonAssignments { lessonAssignments in
-                PostPresentationFollowUpView(
-                    assignment: vm.lessonAssignment,
-                    lesson: lesson,
-                    students: selectedStudentsList,
-                    lessons: lessons,
-                    lessonAssignments: lessonAssignments,
-                    onReturnToLesson: { postPresentationFlow.returnToLesson() },
-                    onClose: {
-                        postPresentationFlow.close()
-                        handleDone()
-                    }
-                )
-            }
-        } else {
-            ContentUnavailableView(
-                "Follow-Up Unavailable",
-                systemImage: "exclamationmark.triangle",
-                description: Text("Return to the lesson and choose it again.")
-            )
-        }
-    }
-
-    var postPresentationUndoAction: (() -> String?)? {
-        guard presentationUndoToken != nil else { return nil }
-        return { undoJustPresented() }
-    }
-
-    var presentationRecordErrorIsPresented: Binding<Bool> {
-        Binding(
-            get: { presentationRecordErrorMessage != nil },
-            set: { if !$0 { presentationRecordErrorMessage = nil } }
-        )
-    }
-
-    func postPresentationCaptureDidDismiss() {
-        postPresentationFlow.reflectionDidDismiss(
-            presentationIsRecorded: vm.lessonAssignment.isPresented,
-            hasOpenFollowUp: PresentationFollowUpService.hasOpenFollowUps(
-                for: vm.lessonAssignment.id,
-                in: viewContext
-            )
-        )
-    }
-
     func handleCancelWithCleanup() {
         // Cleanup empty drafts if cancelling
         if vm.lessonAssignment.studentIDs.isEmpty {
@@ -419,4 +300,14 @@ struct PresentationDetailContentView: View {
         handleDone()
     }
 
+    /// Ticks follow the day's attendance; a hand-made tick stays.
+    func refreshAttendance() {
+        guard !vm.isPresented else { return }
+        attendance = viewContext.attendanceStatuses(
+            for: Array(vm.selectedStudentIDs),
+            on: session.presentedDay
+        )
+        let absent = Set(attendance.compactMap { $0.value == .absent ? $0.key : nil })
+        session.syncRoster(planned: vm.selectedStudentIDs, absent: absent)
+    }
 }

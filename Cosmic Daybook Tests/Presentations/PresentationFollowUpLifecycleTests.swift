@@ -65,39 +65,6 @@ final class PresentationFollowUpLifecycleTests {
         )
     }
 
-    @Test("Dismissing reflection continues to follow-up and only Close dismisses the lesson")
-    func reflectionDismissalDoesNotCloseDetail() {
-        var state = PostPresentationFlowState()
-        state.beginReflection()
-
-        state.reflectionDidDismiss(
-            presentationIsRecorded: true,
-            hasOpenFollowUp: true
-        )
-
-        #expect(state.phase == .followUp)
-        #expect(!state.shouldDismissDetail)
-
-        state.close()
-
-        #expect(state.phase == .closed)
-        #expect(state.shouldDismissDetail)
-    }
-
-    @Test("Dismissing reflection without an open follow-up returns to the lesson instead of closing")
-    func reflectionDismissalWithoutOpenFollowUpReturnsToLesson() {
-        var state = PostPresentationFlowState()
-        state.beginReflection()
-
-        state.reflectionDidDismiss(
-            presentationIsRecorded: true,
-            hasOpenFollowUp: false
-        )
-
-        #expect(state.phase == .lesson)
-        #expect(!state.shouldDismissDetail)
-    }
-
     @Test("Resolving one child leaves the other child's responsibility open")
     func resolutionIsPerChild() throws {
         let fixture = try makeFixture()

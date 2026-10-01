@@ -54,12 +54,10 @@ struct SequenceRecapLessonRow: View {
             || !(entry.perStudentLessonNotes ?? "").isEmpty
     }
 
-    /// Non-current rows are always expandable so the user can reach the status picker
-    /// even on lessons with no prior history. The current lesson row keeps its existing
-    /// gating — that lesson is edited via the main form's ProficiencyStateRow.
-    private var isExpandable: Bool {
-        entry.isCurrentLesson ? hasDetails : true
-    }
+    /// Every row is expandable so the status picker is always in reach, the
+    /// current lesson's too: it is where one child's mastery of this lesson is
+    /// set (the sheet has no group-wide mastery control).
+    private var isExpandable: Bool { true }
 
     private var summaryRow: some View {
         HStack(spacing: 8) {

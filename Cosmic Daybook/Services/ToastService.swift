@@ -89,17 +89,20 @@ final class ToastService {
     ///   - type: The type of toast (affects styling)
     ///   - duration: How long to show the toast (default 2 seconds)
     ///   - undoAction: Optional closure to execute if user taps Undo
+    ///   - action: Optional second button (e.g. "Details…")
     func show(
         _ message: String, type: ToastType = .info,
         duration: TimeInterval = 2.0,
-        undoAction: (() -> Void)? = nil
+        undoAction: (() -> Void)? = nil,
+        action: ToastAction? = nil
     ) {
-        let effectiveDuration = undoAction != nil
+        let effectiveDuration = undoAction != nil || action != nil
             ? max(duration, 4.0) : duration
         let toast = ToastMessage(
             message, type: type,
             duration: effectiveDuration,
-            undoAction: undoAction
+            undoAction: undoAction,
+            action: action
         )
         enqueue(toast)
     }

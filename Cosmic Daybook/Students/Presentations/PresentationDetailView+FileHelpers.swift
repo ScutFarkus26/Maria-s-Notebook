@@ -4,68 +4,6 @@ import CoreData
 
 nonisolated private let logger = Logger.students
 
-// MARK: - Independent Workflow Window
-
-#if os(macOS)
-struct IndependentWorkflowWindow: View {
-    @Bindable var presentationViewModel: PostPresentationFormViewModel
-    let students: [CDStudent]
-    let lessonName: String
-    let lessonID: UUID
-    let presentationID: UUID?
-    let onComplete: () -> Void
-    let onCancel: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var triggerCompletion: Bool = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("\(lessonName) Presentation Workflow")
-                    .font(AppTheme.ScaledFont.titleMedium)
-
-                Spacer()
-
-                Button("Close") {
-                    dismiss()
-                    onCancel()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Complete & Save") {
-                    triggerCompletion = true
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
-            .background(.bar)
-
-            Divider()
-
-            // Workflow panel (just presentation + work items)
-            UnifiedPresentationWorkflowPanel(
-                presentationViewModel: presentationViewModel,
-                students: students,
-                lessonName: lessonName,
-                lessonID: lessonID,
-                presentationID: presentationID,
-                onComplete: {
-                    onComplete()
-                    dismiss()
-                },
-                onCancel: {
-                    dismiss()
-                    onCancel()
-                },
-                triggerCompletion: $triggerCompletion
-            )
-        }
-    }
-}
-#endif
-
 // MARK: - File Management Helpers
 
 extension PresentationDetailContentView {

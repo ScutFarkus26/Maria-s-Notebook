@@ -277,19 +277,17 @@ There are several ways to record a presentation:
 3. **From the Today View** — Tap a scheduled lesson to open and record it
 4. **From the Command Bar** — Type something like "Gave Emma long division"
 
-## After Just Presented
+## Recording It and What Comes Next
 
-Choosing **Just Presented** records the exact lesson, children, and date immediately. You can optionally add a factual **What Happened?** reflection, then use **Follow This Presentation** to keep watching, plan a work check, plan support, plan a related or next lesson, or record the exact work offered to each child.
+Open a planned presentation and the sheet asks **Who was there?** Each child is ticked from today's attendance; a child marked absent starts unticked and stays on the plan for next time. Tap a child to change it, choose the day if it wasn't today, and press **Record Presentation** (⌘↩ on the Mac).
 
-The presentation stays open until you choose **Close**. Closing never discards the saved next step; it takes you directly to the relevant view in **Lessons & Work**:
+The same sheet then turns into **How it went**:
 
-- **Needs Attention** when any child still has an open guide follow-up;
-- **Children Working** when the guide follow-up is complete and the presentation has linked work; or
-- **History** when the guide follow-up is complete and there is no linked work.
+- **What did you notice?** One note for the group, typed or dictated. **Split by Child** files the parts about each child on that child's row.
+- **What's next for each child**: Practice, Follow-up work, Re-present, Ready for next, or Keep watching. Set it once on the **Everyone** row, then tap only the children who differ. Choose when to check the work if you want a date.
+- **When you press Done** says exactly what will be created. **Done** saves it all; **Later** saves your notes and keeps the decisions waiting in **Following Presentations**. **Undo** in the header takes the recording back.
 
-**Needs Attention** focuses the presentation you just handled, and **Children Working** focuses its linked work. **Back to Lesson** returns to the lesson detail instead, while preserving everything you recorded.
-
-If you have typed a work invitation but have not chosen **Add Work**, Close, Back to Lesson, and Review Work ask before discarding it. Choose **Keep Editing** to return and add the work. If a Mac window closes unexpectedly, reopening the same follow-up restores the unfinished invitation for that child or group; it still does not become real work until you choose **Add Work**.
+For the everyday case, use **Presented Today** on a Ready lesson in **Lessons & Work** (the button appears on hover on the Mac, or long-press the row). It records the lesson for the children who are here and adds their usual next step; the message that follows has **Undo** and **Details…**.
 
 ## The Presentation Form
 
