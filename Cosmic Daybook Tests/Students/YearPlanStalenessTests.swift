@@ -153,8 +153,11 @@ struct YearPlanStalenessTests {
         YearPlanStaleness.invalidateCache()
         let cold = YearPlanStaleness.currentYearStart()
         let warm = YearPlanStaleness.currentYearStart()
+        // The start the app reads, not a hard-coded September 1: it is the synced
+        // setting, so a simulator's defaults may hold another (August 25, say).
+        let (month, startDay) = SchoolYearSync.resolvedStart(in: .standard)
         let direct = SchoolYear.containing(
-            Date(), startMonth: 9, startDay: 1, calendar: AppCalendar.shared
+            Date(), startMonth: month, startDay: startDay, calendar: AppCalendar.shared
         ).start
         #expect(cold == warm)
         #expect(cold == direct)
