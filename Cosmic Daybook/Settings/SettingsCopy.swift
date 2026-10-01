@@ -43,6 +43,7 @@ enum SettingsCopy {
         // Troubleshooting
         case syncHistory
         case maintenance
+        case cleanUp
         case notebookStats
         case testStudents
 
@@ -61,7 +62,7 @@ enum SettingsCopy {
             case .appleCalendar, .reminders, .claudeDesktop: return .connections
             case .appleIntelligence, .lessonPlanning, .siri: return .intelligence
             case .iCloud, .backups, .settingsTransfer: return .syncBackup
-            case .syncHistory, .maintenance, .notebookStats, .testStudents: return .troubleshooting
+            case .syncHistory, .maintenance, .cleanUp, .notebookStats, .testStudents: return .troubleshooting
             }
         }
 
@@ -90,6 +91,7 @@ enum SettingsCopy {
             case .settingsTransfer: return "Move settings to another device"
             case .syncHistory: return "Sync history"
             case .maintenance: return "If sync gets stuck"
+            case .cleanUp: return "Clean up old records"
             case .notebookStats: return "Notebook at a glance"
             case .testStudents: return "Test students"
             }
@@ -120,6 +122,7 @@ enum SettingsCopy {
             case .settingsTransfer: return "arrow.left.arrow.right"
             case .syncHistory: return "clock.arrow.circlepath"
             case .maintenance: return "wrench.and.screwdriver.fill"
+            case .cleanUp: return "sparkles"
             case .notebookStats: return "chart.bar.xaxis"
             case .testStudents: return "person.2.slash"
             }
@@ -181,6 +184,8 @@ enum SettingsCopy {
                 return ["Sync", "Sync details", "Sync problems", "Send changes now", "Errors", "Conflicts"]
             case .maintenance:
                 return ["Reset local cache", "Re-download from iCloud", "Maintenance", "Repair"]
+            case .cleanUp:
+                return ["Junk", "Leftovers", "Orphaned records", "Duplicates", "Wasted space", "Clean up"]
             case .notebookStats:
                 return ["Records", "Statistics", "Database", "Counts", "Students", "Lessons", "Presentations",
                         "Orders", "Album marks", "Stories", "Going-outs", "Supply history"]
@@ -192,7 +197,7 @@ enum SettingsCopy {
         /// Whether this build shows the card: Claude Desktop is Mac-only, test students debug-only.
         var isAvailable: Bool {
             switch self {
-            case .claudeDesktop:
+            case .claudeDesktop, .cleanUp:
                 #if os(macOS)
                 return true
                 #else

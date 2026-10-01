@@ -59,6 +59,12 @@ extension ClassroomShareRelease {
         if FirstDownloadGate.isPending() { return "This Mac is still downloading the notebook from iCloud." }
         if let reason = syncBlocker() { return reason }
         if CDClassroomMembership.pinnedZoneName(in: context) == nil { return "There's no classroom share." }
+        return anotherCopyBlocker()
+    }
+
+    /// Another instance of the app on this Mac (a hidden one opened for Claude, say) holds the
+    /// same store; a run that changes many records waits until it's quit.
+    static func anotherCopyBlocker() -> String? {
         #if os(macOS)
         let running = NSRunningApplication.runningApplications(
             withBundleIdentifier: Bundle.main.bundleIdentifier ?? ""
@@ -72,7 +78,7 @@ extension ClassroomShareRelease {
 
     /// Sync must be healthy, online and caught up: the release waits on iCloud at every step.
     @MainActor
-    private static func syncBlocker() -> String? {
+    static func syncBlocker() -> String? {
         let sync = CloudKitSyncStatusService.shared
         if sync.mirroringDelegateFailed { return "iCloud sync has stopped on this Mac. Quit and reopen first." }
         if let failure = sync.storeHealth.mostSevereFailure, failure.severity == .stopped { return failure.message }

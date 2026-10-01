@@ -155,6 +155,10 @@ extension SettingsView {
 
             DatabaseMaintenanceCard()
 
+            #if os(macOS)
+            NotebookCleanupCard()
+            #endif
+
             SettingsNotebookStatsView(statsViewModel: statsViewModel)
 
             #if DEBUG
