@@ -84,10 +84,10 @@ struct SettingsCatalogTests {
     @Test("Claude Desktop is listed only where it exists")
     func claudeDesktopIsMacOnly() {
         #if os(macOS)
-        #expect(SettingsCategory.connections.groups.contains(.claudeDesktop))
+        #expect(SettingsCategory.intelligence.groups.contains(.claudeDesktop))
         #else
-        #expect(!SettingsCategory.connections.groups.contains(.claudeDesktop))
-        #expect(!SettingsCategory.connections.matches("claude"))
+        #expect(!SettingsCategory.intelligence.groups.contains(.claudeDesktop))
+        #expect(!SettingsCategory.intelligence.matches("claude"))
         #endif
     }
 }

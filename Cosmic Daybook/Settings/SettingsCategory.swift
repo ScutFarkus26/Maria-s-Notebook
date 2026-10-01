@@ -86,13 +86,13 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .lookAndFeel: return "Age colors, quick capture"
         case .messages: return "Attendance email, parent reports, orders"
         case .templates: return "Note, meeting and to-do templates"
-        case .connections:
+        case .connections: return "Calendar and Reminders"
+        case .intelligence:
             #if os(macOS)
-            return "Calendar, Reminders, Claude Desktop"
+            return "Apple Intelligence, Siri, Claude Desktop"
             #else
-            return "Calendar and Reminders"
+            return "Apple Intelligence and Siri"
             #endif
-        case .intelligence: return "Apple Intelligence and Siri"
         case .syncBackup: return "iCloud, backups, moving settings"
         case .troubleshooting: return "Sync history and repairs"
         }

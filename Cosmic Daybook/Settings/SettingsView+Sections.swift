@@ -101,13 +101,6 @@ extension SettingsView {
                 ReminderSyncSettingsView()
                     .frame(maxWidth: .infinity)
             }
-
-            #if os(macOS)
-            SettingsGroup(.claudeDesktop) {
-                ClaudeDesktopSettingsView()
-                    .frame(maxWidth: .infinity)
-            }
-            #endif
         }
     }
 

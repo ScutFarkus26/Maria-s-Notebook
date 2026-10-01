@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - Intelligence Pane
 
 /// Settings › Intelligence: Apple Intelligence (with the Private Cloud choice),
-/// lesson planning, and Siri; debug builds add a Developer card.
+/// lesson planning, Siri, and on the Mac Claude Desktop; debug builds add a Developer card.
 struct SettingsIntelligencePane: View {
     var body: some View {
         VStack(spacing: SettingsStyle.groupSpacing) {
@@ -25,6 +25,13 @@ struct SettingsIntelligencePane: View {
             SettingsGroup(.siri, footer: siriFooter) {
                 siriShortcutsTips
             }
+
+            #if os(macOS)
+            SettingsGroup(.claudeDesktop) {
+                ClaudeDesktopSettingsView()
+                    .frame(maxWidth: .infinity)
+            }
+            #endif
 
             #if DEBUG
             // Not teacher settings: release builds use AIConfigurationResolver's defaults.

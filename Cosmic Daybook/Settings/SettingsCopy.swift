@@ -31,11 +31,11 @@ enum SettingsCopy {
         // Connections
         case appleCalendar
         case reminders
-        case claudeDesktop
         // Intelligence
         case appleIntelligence
         case lessonPlanning
         case siri
+        case claudeDesktop
         // Sync and backup
         case iCloud
         case backups
@@ -59,8 +59,8 @@ enum SettingsCopy {
             case .ageIndicators, .quickCapture: return .lookAndFeel
             case .attendanceEmail, .parentReports, .orderRequests: return .messages
             case .noteTemplates, .meetingTemplates, .todoTemplates: return .templates
-            case .appleCalendar, .reminders, .claudeDesktop: return .connections
-            case .appleIntelligence, .lessonPlanning, .siri: return .intelligence
+            case .appleCalendar, .reminders: return .connections
+            case .appleIntelligence, .lessonPlanning, .siri, .claudeDesktop: return .intelligence
             case .iCloud, .backups, .settingsTransfer: return .syncBackup
             case .syncHistory, .maintenance, .cleanUp, .notebookStats, .testStudents: return .troubleshooting
             }
