@@ -215,7 +215,25 @@ private struct DataManagementPanel: View {
             document: viewModel.exportData.map { BackupPackageDocument(data: $0) },
             contentType: UTType(exportedAs: "com.cosmic-daybook.backup"),
             defaultFilename: viewModel.defaultBackupFilename()
-        ) { _ in }
+        ) { result in
+            switch result {
+            case .success:
+                viewModel.setLastBackupNow()
+                viewModel.resultSummary = BackupResultNote(text: "Saved the backup.", tone: .success)
+            case .failure(let error as CocoaError) where error.code == .userCancelled:
+                viewModel.resultSummary = BackupResultNote(text: "Backup canceled.", tone: .neutral)
+            case .failure(let error):
+                viewModel.importError = AppErrorMessages.backupMessage(for: error, operation: "save the backup")
+            }
+            viewModel.exportData = nil
+        }
+        #if os(iOS)
+        // `performExport` hands over the file this way when the backup folder
+        // can't be written (macOS shows its own Save panel instead).
+        .onChange(of: viewModel.exportData) { _, data in
+            showingExporter = data != nil
+        }
+        #endif
         .fileImporter(
             isPresented: $showingFolderImporter,
             allowedContentTypes: [.folder],
