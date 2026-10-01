@@ -185,7 +185,9 @@ extension MCPNotebookTools {
                 // so rather than printing it as an unassigned plan.
                 let who = work.map { workStudentNames(for: $0, in: modelContext) }
                     ?? "orphaned check-in, its work no longer exists"
-                let purpose = nonEmpty(checkIn.purpose).map { " — \($0)" } ?? ""
+                // The title, not the stored spelling: see CheckInReason.displayName.
+                let purpose = nonEmpty(checkIn.purpose)
+                    .map { " — \(CheckInReason.displayName(forStoredPurpose: $0))" } ?? ""
                 return "    - [work id=\(id)] \(title) — \(who) (\(checkIn.status.rawValue.lowercased()))\(purpose)"
             })
         }

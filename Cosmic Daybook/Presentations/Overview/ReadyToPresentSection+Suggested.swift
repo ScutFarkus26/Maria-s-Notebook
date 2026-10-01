@@ -1,11 +1,14 @@
 // ReadyToPresentSection+Suggested.swift
-// The Suggested Next pill.
+// The Suggest flag.
 //
-// Every other pill is a slice, and its own name is the whole explanation: a
-// card under Overdue is there because it is overdue. Suggested Next is the one
-// pill whose contents come out of a score, so it is the one pill that has to
-// show its work — a ranking a guide cannot account for is one they have to
+// Every other flag is a filter, and its own name is the whole explanation: a
+// row under Overdue is there because it is overdue. Suggest is the one flag
+// whose contents come out of a score, so it is the one that has to show its
+// work — a ranking a guide cannot account for is one they have to
 // second-guess, and second-guessing it is slower than not having it.
+//
+// Its rows are presentations, not lessons: the score ranks each group on its
+// own merits, so two groups of one lesson can sit at different ranks.
 
 import SwiftUI
 import CoreData
@@ -20,43 +23,38 @@ extension ReadyToPresentSection {
         """
 
     @ViewBuilder
-    func suggestedNextContent(ready: [CDLessonAssignment]) -> some View {
-        let suggestions = suggestedNextSlice(among: ready)
+    func suggestedNextContent(_ slices: ReadyToPresentSlices) -> some View {
+        let suggestions = suggestedNextSlice(among: slices.ready)
         if suggestions.isEmpty {
-            ContentUnavailableView(
-                "No suggestions", systemImage: "sparkles",
-                description: Text("No ready presentations match the current filters.")
+            emptyState(
+                "No Suggestions", systemImage: "sparkles",
+                description: "No ready presentations match the current filters."
             )
-            .padding(.top, AppTheme.Spacing.large + AppTheme.Spacing.medium)
         } else {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                Text(Self.rankingExplanation)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, AppTheme.Spacing.compact)
-
-                LazyVGrid(columns: [
-                    GridItem(.flexible(), spacing: AppTheme.Spacing.small, alignment: .topLeading),
-                    GridItem(.flexible(), spacing: AppTheme.Spacing.small, alignment: .topLeading),
-                    GridItem(.flexible(), spacing: AppTheme.Spacing.small, alignment: .topLeading)
-                ], alignment: .leading, spacing: AppTheme.Spacing.medium) {
+            let context = renderContext(state: .suggestedNext, slices: slices)
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
+                stateExplanation(Self.rankingExplanation)
+                // Not lazy, so a deep link can scroll to any row (see `backlogList`).
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
-                        suggestedCard(rank: index + 1, suggestion: suggestion)
+                        suggestedRow(rank: index + 1, suggestion: suggestion, context: context)
+                        Divider()
+                            .padding(.leading, AppTheme.Spacing.small)
                     }
                 }
-                .padding(.horizontal, AppTheme.Spacing.compact)
+                .padding(.horizontal, AppTheme.Spacing.small)
             }
-            .padding(.top, AppTheme.Spacing.compact)
         }
     }
 
-    /// The card, and under it the reason it sits where it sits. The rank is
-    /// spelled out because five cards wrap across three columns, and reading
-    /// order alone stops carrying the order once it wraps.
-    private func suggestedCard(rank: Int, suggestion: SuggestedPresentation) -> some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-            readyGridItem(suggestion.assignment)
+    /// The row, and under it the reason it sits where it sits.
+    private func suggestedRow(
+        rank: Int,
+        suggestion: SuggestedPresentation,
+        context: BacklogRenderContext
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            singleLessonRow(suggestion.assignment, context: context)
 
             HStack(alignment: .firstTextBaseline, spacing: AppTheme.Spacing.xxsmall) {
                 Text("\(rank).")
@@ -68,7 +66,8 @@ extension ReadyToPresentSection {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, AppTheme.Spacing.verySmall)
+            .padding(.horizontal, AppTheme.Spacing.small + AppTheme.Spacing.small)
+            .padding(.bottom, AppTheme.Spacing.verySmall)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Suggestion \(rank). \(suggestion.rationale.summary)")
         }

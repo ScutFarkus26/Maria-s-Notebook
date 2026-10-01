@@ -74,7 +74,7 @@ struct WaitingStudentsStrip: View {
                 coordinator.clearStudentFilter()
             } else {
                 coordinator.filterByStudent(id)
-                filterState.selectedChip = .all
+                filterState.selectedChip = .ready
             }
         }
     }

@@ -1,15 +1,15 @@
 // StudentAgePalette.swift
-// How long a child has waited, turned into a colour.
+// How long a child has waited, turned into a color.
 //
-// The thresholds and the three colours are the guide's settings, keyed by the
+// The thresholds and the three colors are the guide's settings, keyed by the
 // list's vocabulary. Both lists read them once per list rather than once per
-// row — five store lookups per chip or row was too much to spend on colour, and
+// row — five store lookups per chip or row was too much to spend on color, and
 // the phone's dots were being drawn from the shipped defaults instead. One
 // reader means the phone's dots and the Mac's bars agree.
 
 import SwiftUI
 
-/// The age thresholds and colours, resolved once for a whole list.
+/// The age thresholds and colors, resolved once for a whole list.
 struct StudentAgePalette {
     let warningDays: Int
     let overdueDays: Int
@@ -34,8 +34,16 @@ struct StudentAgePalette {
         }
     }
 
+    /// The grouped style's rule: color only for a child in the long-wait
+    /// group, decided by the same test that puts them there, and nothing for
+    /// anyone else. Shared by the rail and the phone's bar so they agree.
+    func longWaitColor(forDays days: Int?) -> Color? {
+        let band = WaitingStudentBands.band(forDays: days, longWaitThreshold: overdueDays)
+        return band == .longWait ? overdue : nil
+    }
+
     /// The metadata line stays secondary until the child is actually late, so
-    /// the colour means something when it arrives.
+    /// the color means something when it arrives.
     func detailTint(forDays days: Int?) -> Color {
         switch status(forDays: days) {
         case .fresh: .secondary

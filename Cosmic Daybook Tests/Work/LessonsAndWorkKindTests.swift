@@ -91,26 +91,38 @@ struct LessonsAndWorkKindTests {
         #expect(request.preferredKind == .presentations)
     }
 
-    // MARK: - Which presentation pill can reveal a deep-linked record
+    // MARK: - Which presentation state can reveal a deep-linked record
 
     @Test("A given presentation is revealed by Follow Up, not the planning inbox")
     func presentedRecordRevealsUnderFollowUp() {
-        #expect(
-            PresentationsView.chipRevealing(isPresented: true, scheduledFor: nil) == .followUp
-        )
-        #expect(
-            PresentationsView.chipRevealing(isPresented: true, scheduledFor: Date()) == .followUp
-        )
+        for isBrewing in [false, true] {
+            #expect(
+                PresentationsView.chipRevealing(
+                    isPresented: true, scheduledFor: nil, isBrewing: isBrewing
+                ) == .followUp
+            )
+            #expect(
+                PresentationsView.chipRevealing(
+                    isPresented: true, scheduledFor: Date(), isBrewing: isBrewing
+                ) == .followUp
+            )
+        }
     }
 
-    @Test("An unscheduled presentation is revealed by All; a scheduled one by no pill")
-    func unscheduledRevealsUnderAll() {
+    @Test("An unscheduled presentation is revealed by Ready or Brewing; a scheduled one by no state")
+    func unscheduledRevealsUnderItsState() {
         #expect(
-            PresentationsView.chipRevealing(isPresented: false, scheduledFor: nil) == .all
+            PresentationsView.chipRevealing(isPresented: false, scheduledFor: nil, isBrewing: false) == .ready
         )
-        // It is on the calendar pinned below, so no pill in this half holds it.
+        // Ready no longer draws brewing lessons, so a brewing deep link has
+        // to land on Brewing or it points at a list without its record.
         #expect(
-            PresentationsView.chipRevealing(isPresented: false, scheduledFor: Date()) == nil
+            PresentationsView.chipRevealing(isPresented: false, scheduledFor: nil, isBrewing: true)
+                == .waitingForWork
+        )
+        // It is on the calendar pinned below, so no state in this half holds it.
+        #expect(
+            PresentationsView.chipRevealing(isPresented: false, scheduledFor: Date(), isBrewing: false) == nil
         )
     }
 }

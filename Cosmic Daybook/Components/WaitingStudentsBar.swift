@@ -31,7 +31,7 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
 
     @State private var isShowingAll = false
 
-    // One read for the whole bar. The chips used to be coloured from the shipped
+    // One read for the whole bar. The chips used to be colored from the shipped
     // defaults rather than the guide's settings, because five store lookups per
     // chip was too much to spend here — reading them once means the phone's dots
     // and the Mac's bars can finally agree.
@@ -116,6 +116,19 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
         .accessibilityLabel("Show every child on this list")
     }
 
+    /// The age bars color every dot on all three thresholds. The grouped
+    /// style keeps color for the overdue alone, as its column does, so the
+    /// phone and the Mac never disagree about which children are late.
+    private func dotColor(forDays days: Int?, palette: StudentAgePalette) -> Color {
+        switch vocabulary.listStyle {
+        case .ageBars:
+            palette.color(forDays: days)
+        case .waitBands:
+            palette.longWaitColor(forDays: days)
+                ?? Color.secondary.opacity(UIConstants.OpacityConstants.muted)
+        }
+    }
+
     private func chip(_ entry: WaitingStudent, palette: StudentAgePalette) -> some View {
         let isSelected = selectedStudentID == entry.student.id
         return Button {
@@ -123,9 +136,9 @@ struct WaitingStudentsBar<ScopeMenu: View, Expanded: View>: View {
         } label: {
             HStack(spacing: AppTheme.Spacing.verySmall) {
                 // A capsule has no leading edge to run a bar down, so the same
-                // urgency colour becomes a dot.
+                // urgency color becomes a dot.
                 Circle()
-                    .fill(palette.color(forDays: entry.daysWaiting))
+                    .fill(dotColor(forDays: entry.daysWaiting, palette: palette))
                     .frame(width: 6, height: 6)
                 Text(entry.student.shortName)
                     .font(AppTheme.ScaledFont.caption)

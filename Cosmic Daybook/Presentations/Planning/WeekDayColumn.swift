@@ -1,20 +1,23 @@
 // WeekDayColumn.swift
 // One day in the merged Lessons & Work calendar.
 //
-// Two lanes side by side, and the split is deliberate. Presentations are
-// ordered — dragging one above another sets the sequence they will be given in,
-// and dropping one onto a same-lesson pill merges the two. Check-ins sit in
-// their own lane, unordered and grouped, because "sometime today" is all their
-// position ever meant.
+// One stacked list: the day's presentations, banded "Morning" and "Afternoon",
+// then its work checks under a "Checks" label. Presentations are ordered —
+// dragging one above another sets the sequence they will be given in, and
+// dropping one onto a same-lesson card merges the two. Checks are unordered and
+// grouped, because "sometime today" is all their position ever meant, so they
+// follow the ordered part rather than sit inside it.
 //
-// They used to be stacked bands in one scrolling lane, which meant a day with
-// six presentations hid its work checks below the fold — the two things a guide
-// compares when planning a day were the two things he could not see at once.
+// For a while they were two lanes side by side, so a long morning could not
+// push the checks below the fold. That made every day about 730 points wide,
+// and on a 1,500-point window the guide saw a day and a half of the week he
+// was planning. One lane at a fifth of the pane shows the whole week, and a
+// check is one line now, so a day's checks stay short under its lessons.
 //
-// The whole day is still ONE drop zone. Splitting the drop target as well would
-// invent a new way to fail: a presentation dropped on the work side would have
-// to be either refused or silently re-aimed. Instead the lanes are layout only,
-// and the delegate keeps routing by what was dragged, not by where it landed.
+// The whole day is ONE drop zone, and the bands are labels, not targets.
+// Splitting the drop target would invent a way to fail: a presentation dropped
+// among the checks would have to be either refused or silently re-aimed.
+// Instead the delegate routes by what was dragged, not by where it landed.
 
 import SwiftUI
 import CoreData
@@ -50,6 +53,10 @@ struct WeekDayColumn: View {
     let onDropWork: (UUID, Date) -> Void
     /// What a check-in pill's right-click menu can do — see WeekDayColumn+Bands.
     let pillActions: WorkCheckPillActions
+    /// The column's width, an equal share of the strip — see
+    /// `WeekPlanSection.columnWidth(forStripWidth:dayCount:)`. Defaulted so a
+    /// column can be built on its own, as the menu tests do.
+    var columnWidth: CGFloat = WeekPlanSection.minimumColumnWidth
 
     /// Card frames, written after every layout pass but read only by the drop
     /// delegate and the mid-drag insertion bar. Kept in a reference box rather
@@ -86,49 +93,42 @@ struct WeekDayColumn: View {
         )
     }
 
-    /// One lane's width: exactly what a card had before the day split, so the
-    /// pills read the same as they always did. The day is therefore about twice
-    /// as wide and fewer of them fit on screen at once — the trade this split
-    /// is worth, and the reason `WeekPlanSection.visibleDayCount` came down
-    /// with it. Narrowing the cards instead was the first attempt and it made
-    /// them unreadable.
-    static let laneWidth: CGFloat = singleLaneWidth - zonePadding * 2
-    static let laneGutter: CGFloat = 10
-    /// What the column measured before it split, and what it goes back to when
-    /// the Show filter leaves only one kind on screen.
-    static let singleLaneWidth: CGFloat = 360
     static let zonePadding: CGFloat = 8
 
-    /// Both lanes only when the Show filter is letting both kinds through —
-    /// filtering to Presentations should not leave half the day permanently
-    /// empty.
-    var showsBothLanes: Bool {
-        visibleKinds.showsPresentations && visibleKinds.showsWork
+    /// The width the day's cards get: the column less the drop zone's padding.
+    /// The insertion bar spans exactly this.
+    var contentWidth: CGFloat { max(columnWidth - Self.zonePadding * 2, 0) }
+
+    var isToday: Bool { calendar.isDateInToday(day) }
+
+    private var checkCount: Int {
+        visibleCheckInGroups.reduce(0) { $0 + $1.checkIns.count }
     }
 
-    /// The presentation lane's own width, which the insertion indicator has to
-    /// match: full width when it is the only lane, one lane when it is not.
-    var presentationLaneWidth: CGFloat {
-        showsBothLanes ? Self.laneWidth : Self.singleLaneWidth - Self.zonePadding * 2
-    }
-
-    private var columnWidth: CGFloat {
-        showsBothLanes
-            ? Self.laneWidth * 2 + Self.laneGutter + Self.zonePadding * 2
-            : Self.singleLaneWidth
-    }
-
+    /// "5 · 2 checks": presentations bare, since they are most of what a
+    /// column holds, and checks named so the two numbers are not read as one.
     private var headerCountLabel: String {
         var parts: [String] = []
         let presentations = scheduledLessonsForDay.count
         if presentations > 0 {
-            parts.append("\(presentations) pres")
+            parts.append("\(presentations)")
         }
-        let checkIns = visibleCheckInGroups.reduce(0) { $0 + $1.checkIns.count }
-        if checkIns > 0 {
-            parts.append("\(checkIns) check\(checkIns == 1 ? "" : "s")")
+        if checkCount > 0 {
+            parts.append(checkCount == 1 ? "1 check" : "\(checkCount) checks")
         }
         return parts.joined(separator: " · ")
+    }
+
+    private var headerCountAccessibilityLabel: String {
+        var parts: [String] = []
+        let presentations = scheduledLessonsForDay.count
+        if presentations > 0 {
+            parts.append(presentations == 1 ? "1 presentation" : "\(presentations) presentations")
+        }
+        if checkCount > 0 {
+            parts.append(checkCount == 1 ? "1 work check" : "\(checkCount) work checks")
+        }
+        return parts.joined(separator: ", ")
     }
 
     var body: some View {
@@ -146,9 +146,9 @@ struct WeekDayColumn: View {
                 }
                 .contentShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control))
                 .onDrop(of: [UTType.text], delegate: dropDelegate)
-                .frame(width: columnWidth)
                 .frame(maxHeight: .infinity)
         }
+        .frame(width: columnWidth)
     }
 
     private var dayHeader: some View {
@@ -165,6 +165,8 @@ struct WeekDayColumn: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .accessibilityLabel(headerCountAccessibilityLabel)
             }
         }
         .padding(.horizontal, 6)
@@ -200,19 +202,17 @@ struct WeekDayColumn: View {
             if isTargeted {
                 RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
                     .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.prominent), lineWidth: 2)
+            } else if isToday {
+                // Today, found at a glance across the week; faint enough that
+                // the drop highlight above still reads as the louder thing.
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
+                    .stroke(Color.accentColor.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 1)
             }
 
             ScrollViewReader { scrollProxy in
                 ScrollView(.vertical, showsIndicators: true) {
-                    HStack(alignment: .top, spacing: Self.laneGutter) {
-                        if visibleKinds.showsPresentations {
-                            presentationLane
-                        }
-                        if visibleKinds.showsWork {
-                            checkInLane
-                        }
-                    }
-                    .padding(Self.zonePadding)
+                    dayList
+                        .padding(Self.zonePadding)
                 }
                 .task(id: focusScrollTrigger) {
                     guard let focusedPresentationID,

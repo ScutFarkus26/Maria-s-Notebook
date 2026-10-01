@@ -1,96 +1,98 @@
 // WeekDayColumn+Bands.swift
-// The two lanes a day column draws, side by side: ordered presentations on the
-// left, grouped work check-ins on the right. Split out because the column is at
+// What a day column draws, top to bottom: its presentations in order, banded
+// by half of the day, then its work checks. Split out because the column is at
 // SwiftLint's type-length limit — see WeekDayColumn.swift for the state they
-// read.
-//
-// Each lane keeps its header and its own placeholder even when empty. A lane
-// that vanished when it had nothing in it would make the day reflow every time
-// the last check-in was cleared, and would leave no target to aim a drag at.
+// read, and for why this is one list and not two lanes.
 
 import SwiftUI
 import CoreData
 
 extension WeekDayColumn {
-    var presentationLane: some View {
-        // One walk over the day for the whole lane. It used to be recomputed
+    /// The day's whole content. An empty day is a single dashed placeholder
+    /// rather than an empty "Morning" and an empty "Checks": one obvious place
+    /// to aim a drag, and no headings over nothing.
+    @ViewBuilder
+    var dayList: some View {
+        let hasPresentations = !scheduledLessonsForDay.isEmpty
+        let hasChecks = !visibleCheckInGroups.isEmpty
+        VStack(alignment: .leading, spacing: 10) {
+            if !hasPresentations && !hasChecks {
+                emptyDayPlaceholder
+            }
+            if hasPresentations {
+                presentationList
+            }
+            if hasChecks {
+                checksSection
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The day's presentations as one ordered list, with "Morning" and
+    /// "Afternoon" printed above the first card of each half.
+    ///
+    /// The labels are only print. The list is still the single ordered run the
+    /// drop delegate reorders and the half is still read off each card's time,
+    /// so a card dropped under the last morning card is a morning lesson even
+    /// though the "Afternoon" label is right beneath it — and the insertion bar
+    /// is drawn above that label to say so (`insertionBarY`). A label appears
+    /// only where the half changes, so only halves with cards get one.
+    var presentationList: some View {
+        // One walk over the day for the whole list. It used to be recomputed
         // inside every card, which meant walking the day once per card on it.
         let clashes = clashingStudentIDs
-        return lane(
-            title: "Presenting",
-            count: scheduledLessonsForDay.count,
-            placeholder: "Drag a presentation here"
-        ) {
-            ForEach(scheduledLessonsForDay, id: \.objectID) { la in
+        let rows = Array(scheduledLessonsForDay.enumerated())
+        let halves = scheduledLessonsForDay.map { half(of: $0) ?? .morning }
+        // Lazy because a day can carry a classroom's worth of presentations
+        // and every visible day builds its list.
+        return LazyVStack(alignment: .leading, spacing: 6) {
+            ForEach(rows, id: \.element.objectID) { index, la in
+                if index == 0 || halves[index] != halves[index - 1] {
+                    sectionLabel(halves[index].label)
+                        .padding(.top, index == 0 ? 0 : 4)
+                }
                 presentationCard(la, clashing: clashes)
             }
         }
     }
 
-    var checkInLane: some View {
-        lane(
-            title: "Checking work",
-            count: visibleCheckInGroups.reduce(0) { $0 + $1.checkIns.count },
-            placeholder: "Drag work here"
-        ) {
-            ForEach(visibleCheckInGroups) { group in
-                checkInPill(group)
-            }
-        }
-    }
-
-    /// One lane: a header that stays put, then whatever the lane holds.
-    ///
-    /// Lazy inside, because a day can carry a classroom's worth of either kind
-    /// and both lanes are built for every visible day.
-    @ViewBuilder
-    func lane<Content: View>(
-        title: String,
-        count: Int,
-        placeholder: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            laneHeader(title, count: count)
-            if count == 0 {
-                // Given shape rather than a bare line of text: the lanes are
-                // top-aligned, so an empty one next to a full one would
-                // otherwise be a sentence floating beside a column of cards,
-                // with nothing that reads as somewhere to drop.
-                Text(placeholder)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
-                            .strokeBorder(
-                                Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
-                                style: StrokeStyle(lineWidth: 1, dash: [4, 3])
-                            )
-                    )
-            } else {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    content()
+    /// The day's work checks, one line each, after the presentations.
+    var checksSection: some View {
+        let count = visibleCheckInGroups.reduce(0) { $0 + $1.checkIns.count }
+        return VStack(alignment: .leading, spacing: 6) {
+            sectionLabel("Checks", count: count)
+            LazyVStack(alignment: .leading, spacing: 4) {
+                ForEach(visibleCheckInGroups) { group in
+                    checkInPill(group)
                 }
             }
         }
-        // Fixed when the lanes share the day, so the two halves line up down
-        // the whole strip; free when a lane is alone, so it keeps the full
-        // width the column always had.
-        .frame(
-            width: showsBothLanes ? WeekDayColumn.laneWidth : nil,
-            alignment: .leading
-        )
-        .frame(maxWidth: showsBothLanes ? WeekDayColumn.laneWidth : .infinity, alignment: .leading)
     }
 
-    func laneHeader(_ text: String, count: Int) -> some View {
+    /// Given shape rather than a bare line of text, so it reads as somewhere
+    /// to drop. It sits inside the column's one drop zone like everything else.
+    var emptyDayPlaceholder: some View {
+        Text("Drop a lesson or work here")
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .padding(8)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
+                    .strokeBorder(
+                        Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
+                        style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                    )
+            )
+    }
+
+    func sectionLabel(_ text: String, count: Int? = nil) -> some View {
         HStack(spacing: 4) {
             Text(text.uppercased())
                 .font(.caption2.weight(.semibold))
                 .tracking(0.6)
-            if count > 0 {
+            if let count, count > 0 {
                 Text("\(count)")
                     .font(.caption2.weight(.semibold))
                     .monospacedDigit()
@@ -98,6 +100,7 @@ extension WeekDayColumn {
         }
         .foregroundStyle(.tertiary)
         .padding(.horizontal, 4)
+        .accessibilityAddTraits(.isHeader)
     }
 
     func presentationCard(
@@ -116,7 +119,9 @@ extension WeekDayColumn {
             cachedStudents: students,
             blockingWork: [:],
             doubleBookedStudentIDs: dayDoubleBooked,
-            period: period
+            period: period,
+            // The Morning / Afternoon labels above the cards say it already.
+            showsPeriodBadge: false
         )
         .id(laID)
         .overlay {
@@ -128,20 +133,7 @@ extension WeekDayColumn {
         }
         .onTapGesture { onSelect(la) }
         .draggable(UnifiedCalendarDragPayload.presentation(laID).stringRepresentation) {
-            PresentationPlannerCard(
-                snapshot: la.snapshot(),
-                day: day,
-                cachedLessons: [],
-                cachedStudents: [],
-                blockingWork: [:],
-                doubleBookedStudentIDs: dayDoubleBooked,
-                period: period
-            )
-            .opacity(UIConstants.OpacityConstants.nearSolid)
-            // Drag previews don't inherit the app environment, and the card
-            // still reads the context for the lesson's age and the day's
-            // attendance — without one it traps at drag lift.
-            .environment(\.managedObjectContext, viewContext)
+            dragPreview(la, doubleBooked: dayDoubleBooked, period: period)
         }
         .contextMenu {
             halfPicker(for: la)
@@ -161,6 +153,31 @@ extension WeekDayColumn {
         )
     }
 
+    /// What follows the pointer while a card is dragged: the card at the
+    /// column's width, so it does not change size on lift.
+    func dragPreview(
+        _ la: CDLessonAssignment,
+        doubleBooked: Set<UUID>,
+        period: DayPeriod?
+    ) -> some View {
+        PresentationPlannerCard(
+            snapshot: la.snapshot(),
+            day: day,
+            cachedLessons: [],
+            cachedStudents: [],
+            blockingWork: [:],
+            doubleBookedStudentIDs: doubleBooked,
+            period: period,
+            showsPeriodBadge: false
+        )
+        .frame(width: contentWidth)
+        .opacity(UIConstants.OpacityConstants.nearSolid)
+        // Drag previews don't inherit the app environment, and the card
+        // still reads the context for the lesson's age and the day's
+        // attendance — without one it traps at drag lift.
+        .environment(\.managedObjectContext, viewContext)
+    }
+
     @ViewBuilder
     func checkInPill(_ group: CalendarCheckInGroup) -> some View {
         // Every check-in under the pill, not just the one it is keyed on — see
@@ -178,6 +195,7 @@ extension WeekDayColumn {
                 }
                 .draggable(payload) {
                     GroupedWorkCheckInPill(sequence: group)
+                        .frame(width: contentWidth)
                         .opacity(UIConstants.OpacityConstants.almostOpaque)
                 }
             } else {
@@ -188,6 +206,7 @@ extension WeekDayColumn {
                 }
                 .draggable(payload) {
                     WorkCheckInPill(group: group, isDulled: false)
+                        .frame(width: contentWidth)
                         .opacity(UIConstants.OpacityConstants.almostOpaque)
                 }
             }
@@ -244,36 +263,25 @@ extension WeekDayColumn {
         // live in an unobserved box).
         // swiftlint:disable:next redundant_discardable_let
         let _ = itemFrameRevision
-        // Nothing to insert into when the Show filter has hidden presentations,
-        // and the bar would otherwise draw across the work lane.
+        // Nothing to insert into when the Show filter has hidden presentations.
         if let idx = insertionIndex, visibleKinds.showsPresentations {
-            // Still a GeometryReader, though the width now comes from the lane
+            // Still a GeometryReader, though the width comes from the column
             // rather than the proxy: it is what gives the bar a full-size
             // container to be `.position`ed inside.
             GeometryReader { _ in
-                let sortedFrames = scheduledLessonsForDay
-                    .compactMap { la -> CGRect? in la.id.flatMap { itemFrames[$0] } }
-                    .sorted { $0.minY < $1.minY }
-
-                let indicatorY: CGFloat = {
-                    if sortedFrames.isEmpty {
-                        return 16
-                    } else if idx < sortedFrames.count {
-                        return sortedFrames[idx].minY - 3
-                    } else if let lastFrame = sortedFrames.last {
-                        return lastFrame.maxY + 3
-                    } else {
-                        return 16
+                // Each card's frame with the half it is in, in drawn order —
+                // the same frames, sorted the same way, that the delegate turns
+                // into `idx`, so the bar and the drop agree on the slot.
+                let placed = scheduledLessonsForDay
+                    .compactMap { la -> PlacedCard? in
+                        guard let id = la.id, let frame = itemFrames[id] else { return nil }
+                        return PlacedCard(frame: frame, half: half(of: la) ?? .morning)
                     }
-                }()
+                    .sorted { $0.frame.minY < $1.frame.minY }
 
-                // Over the presentation lane only — the ordering it previews
-                // has no meaning on the work side, and a full-width bar would
-                // claim it does.
-                let laneWidth = presentationLaneWidth
                 insertionBar(half: insertionHalf(at: idx))
-                    .frame(width: max(laneWidth - 8, 0))
-                    .position(x: 8 + laneWidth / 2, y: indicatorY)
+                    .frame(width: contentWidth)
+                    .position(x: columnWidth / 2, y: Self.insertionBarY(at: idx, among: placed))
             }
             .allowsHitTesting(false)
         }

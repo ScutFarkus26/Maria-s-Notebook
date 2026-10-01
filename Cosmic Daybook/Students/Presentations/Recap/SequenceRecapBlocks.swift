@@ -432,7 +432,7 @@ struct SequenceRecapCheckInBlock: View {
                 Spacer(minLength: 0)
             }
             if !checkIn.purpose.isEmpty {
-                Text(checkIn.purpose)
+                Text(CheckInReason.displayName(forStoredPurpose: checkIn.purpose))
                     .font(AppTheme.ScaledFont.captionSmall)
                     .foregroundStyle(.primary)
                     .padding(.leading, 18)

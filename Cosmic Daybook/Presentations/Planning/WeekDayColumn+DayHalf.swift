@@ -4,7 +4,8 @@
 // The day stays a single ordered list and a single drop zone — splitting it
 // into an AM stack and a PM stack would double the targets a drag can miss, for
 // a distinction the guide changes with one right-click. So the half is read off
-// each card, shown on it, and inherited by whatever is dropped beneath it.
+// each card, printed as a "Morning" / "Afternoon" label above the first card of
+// each run, and inherited by whatever is dropped beneath a card.
 
 import SwiftUI
 
@@ -65,6 +66,31 @@ extension WeekDayColumn {
             insertingAt: index,
             into: scheduledLessonsForDay.map { half(of: $0) ?? .morning }
         )
+    }
+
+    /// A card's measured frame and the half it is in, for placing the bar.
+    struct PlacedCard: Equatable {
+        let frame: CGRect
+        let half: DayPeriod
+    }
+
+    /// Where the insertion bar is drawn for a drop at `index`, given the day's
+    /// cards sorted top to bottom.
+    ///
+    /// Normally just above the card the drop lands in front of. The exception
+    /// is the seam between the halves, where the "Afternoon" label sits between
+    /// the last morning card and the first afternoon one: a drop there takes
+    /// the morning (the half of the card above, see `insertionHalf`), so the
+    /// bar goes under the morning card, above the label. Drawn below the label
+    /// it would sit in the afternoon band while its tag said AM.
+    static func insertionBarY(at index: Int, among cards: [PlacedCard]) -> CGFloat {
+        let gap: CGFloat = 3
+        guard let last = cards.last else { return 16 }
+        guard index < cards.count else { return last.frame.maxY + gap }
+        if index > 0, cards[index - 1].half != cards[index].half {
+            return cards[index - 1].frame.maxY + gap
+        }
+        return cards[max(index, 0)].frame.minY - gap
     }
 
     /// Morning or afternoon, offered as a ticked pair rather than a single

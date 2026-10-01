@@ -16,65 +16,62 @@ struct GroupedWorkCheckInPill: View {
     let sequence: CalendarCheckInGroup
     var onTap: (() -> Void)?
 
-    private var purposeIcon: String {
-        let purpose = sequence.purpose.lowercased()
-        if purpose.contains("progress") || purpose.contains("check") {
-            return "checkmark.circle"
-        } else if purpose.contains("due") {
-            return "calendar.badge.exclamationmark"
-        } else if purpose.contains("assessment") {
-            return "chart.bar"
-        } else if purpose.contains("follow") {
-            return "arrow.turn.down.right"
-        } else {
-            return "calendar"
-        }
-    }
-
     private var studentNamesDisplay: String {
         sequence.studentNames.joined(separator: ", ")
     }
 
+    private var purposeTitle: String {
+        CheckInReason.displayName(forStoredPurpose: sequence.purpose)
+    }
+
+    /// "Progress Check: Golden Beads, for Maya S, Leo B, Ana R" — everything
+    /// the one-line row has to truncate.
+    private var helpText: String {
+        let what = "\(sequence.lessonTitle), for \(studentNamesDisplay)"
+        return purposeTitle.isEmpty ? what : "\(purposeTitle): \(what)"
+    }
+
+    /// One line, like the single pill (see `WorkCheckInPill.body` for why):
+    /// the purpose's icon first so every check in a day lines up on it, how
+    /// many children, the lesson, then as many of their names as fit.
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                // CDStudent count badge
-                Text("\(sequence.checkIns.count)")
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .capsuleFill(Color.accentColor)
-                Text(sequence.lessonTitle)
-                    .font(AppTheme.ScaledFont.captionSemibold)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
+        HStack(spacing: 6) {
+            Image(systemName: CheckInReason.iconName(forStoredPurpose: sequence.purpose))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text("\(sequence.checkIns.count)")
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.white)
+                .monospacedDigit()
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .capsuleFill(Color.accentColor)
+            Text(sequence.lessonTitle)
+                .font(AppTheme.ScaledFont.captionSemibold)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .layoutPriority(1)
             Text(studentNamesDisplay)
                 .font(AppTheme.ScaledFont.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
-            if !sequence.purpose.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: purposeIcon)
-                        .foregroundStyle(.secondary)
-                    Text(sequence.purpose)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
+                .lineLimit(1)
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, AppTheme.Spacing.small)
-        .padding(.vertical, AppTheme.Spacing.sm)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .surface(
-            UIConstants.CornerRadius.large,
+            UIConstants.CornerRadius.medium,
             fill: Color.accentColor.opacity(UIConstants.OpacityConstants.faint),
             stroke: Color.accentColor.opacity(UIConstants.OpacityConstants.light),
             lineWidth: UIConstants.StrokeWidth.thin
         )
         .contentShape(Rectangle())
         .onTapGesture { onTap?() }
+        .help(helpText)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(helpText)
     }
 }
 

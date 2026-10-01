@@ -1,6 +1,6 @@
 // WeekPlanSection.swift
-// The merged Lessons & Work calendar: a horizontally scrolling strip of school
-// days carrying both presentations and work check-ins.
+// The merged Lessons & Work calendar: a school week of day columns sharing the
+// pane's width, each carrying both presentations and work check-ins.
 //
 // Replaces two calendars that each drew the same days from opposite ends —
 // `WeekPlanSection` showed presentations with a checkbox for work, and
@@ -49,10 +49,13 @@ struct WeekPlanSection: View {
     @State var showClearAllConfirmation = false
     @State var selectedGroup: CalendarCheckInGroup?
     @State var prompt: WorkCheckInPlanPrompt?
+    /// The strip's measured width, which the day columns share between them.
+    /// Zero until the first layout, which reads as the minimum column width.
+    @State var stripWidth: CGFloat = 0
 
-    /// Days built into the strip at once. Halved when the day columns split in
-    /// two: at roughly twice the width, ten of them made a strip you scrolled
-    /// through rather than read, and the arrows already page the window.
+    /// Days built into the strip at once: one school week, which is what the
+    /// guide plans and what the columns divide the pane's width between. The
+    /// arrows page the window.
     static let visibleDayCount = 5
 
     var visibleKinds: CalendarKindFilter {
@@ -148,7 +151,8 @@ struct WeekPlanSection: View {
     private var header: some View {
         WeekPlanHeader(
             dateRangeLabel: dateRangeLabel,
-            visibleKinds: visibleKindsBinding,
+            visibleKinds: visibleKinds,
+            onShowEverything: { visibleKindsRaw = CalendarKindFilter.everything.rawValue },
             onToday: { startDate = AppCalendar.startOfDay(Date()) },
             onEarlier: { moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) },
             onLater: { moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) },
@@ -158,6 +162,18 @@ struct WeekPlanSection: View {
 
     private var bulkActionsMenu: some View {
         Menu {
+            // Here rather than on the header: the workspace above already has
+            // a Presentations / Work switch, and two of them side by side read
+            // as one control that did two different things.
+            Picker(selection: visibleKindsBinding) {
+                ForEach(CalendarKindFilter.allCases) { kind in
+                    Text(kind.title).tag(kind)
+                }
+            } label: {
+                Label("Show", systemImage: "line.3.horizontal.decrease.circle")
+            }
+            .pickerStyle(.menu)
+            Divider()
             // The day columns each carry their own clash button; this is the
             // same gesture for a guide looking at the whole strip at once.
             Button {
@@ -183,7 +199,7 @@ struct WeekPlanSection: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("Bulk scheduling actions")
+        .help("What to show, and bulk scheduling actions")
         .confirmationDialog(
             "Clear all scheduled presentations?",
             isPresented: $showClearAllConfirmation,
@@ -198,26 +214,26 @@ struct WeekPlanSection: View {
         }
     }
 
-    /// Human-readable range covering the currently visible school days.
+    /// The first and last of the days the strip holds — read off `days`, the
+    /// same array the columns are built from, so the two cannot disagree.
     private var dateRangeLabel: String {
         guard let first = days.first, let last = days.last else { return "" }
-        let format = Date.FormatStyle().month(.abbreviated).day().year()
-        let shortFormat = Date.FormatStyle().month(.abbreviated).day()
-        if calendar.isDate(first, inSameDayAs: last) {
-            return first.formatted(format)
-        }
-        let sameYear = calendar.component(.year, from: first) == calendar.component(.year, from: last)
-        let startText = sameYear ? first.formatted(shortFormat) : first.formatted(format)
-        return "\(startText) – \(last.formatted(format))"
+        return Self.rangeLabel(first: first, last: last, calendar: calendar)
     }
 
     // MARK: - Day strip
 
+    /// The week, five equal columns across the pane. Still a horizontal scroll
+    /// view: when the pane is too narrow for five at the minimum width, it
+    /// scrolls, and it is also what the Today and deep-link reveals scroll.
+    /// When they fit, the content is exactly as wide as the pane and there is
+    /// nothing to scroll or bounce.
     private var dayStrip: some View {
         let assignments = Array(lessonAssignments)
         let byDay = Self.scheduledByDay(assignments, days: days, calendar: calendar)
+        let columnWidth = Self.columnWidth(forStripWidth: stripWidth, dayCount: Self.visibleDayCount)
         return ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .top, spacing: 12) {
+            LazyHStack(alignment: .top, spacing: Self.columnSpacing) {
                 ForEach(days, id: \.self) { day in
                     WeekDayColumn(
                         day: day,
@@ -233,13 +249,20 @@ struct WeekPlanSection: View {
                         onOpenCheckInGroup: openCheckInGroup,
                         onDropWorkCheckIns: rescheduleCheckIns,
                         onDropWork: beginPlanningWork,
-                        pillActions: pillActions
+                        pillActions: pillActions,
+                        columnWidth: columnWidth
                     )
                     .id(day)
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, Self.stripPadding)
             .padding(.vertical, 8)
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            stripWidth = width
         }
     }
 

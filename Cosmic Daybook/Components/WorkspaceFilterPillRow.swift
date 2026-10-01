@@ -8,7 +8,10 @@
 // at two different levels.
 //
 // Now that kind is the top-level axis (`WorkspaceKind`), state is a pill row
-// on both sides. This is that row, written once, so the two cannot drift.
+// inside each half. The Work half filters with this row; Presentations has
+// since moved to `ReadyToPresentFilterBar`, a segmented control of its three
+// states with toggles for the flags on Ready, because its pills overlapped
+// and their counts could not add up.
 
 import SwiftUI
 

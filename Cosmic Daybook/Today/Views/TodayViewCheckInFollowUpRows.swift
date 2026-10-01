@@ -204,8 +204,7 @@ extension TodayView {
     }
 
     private func followUpDetail(for item: WorkCheckInFollowUp) -> String {
-        let purposeRaw = item.checkIn.purpose.trimmed()
-        let purpose = CheckInReason(rawValue: purposeRaw)?.purpose ?? purposeRaw
+        let purpose = CheckInReason.displayName(forStoredPurpose: item.checkIn.purpose)
         let name = resolveLessonName(for: item.work)
         return purpose.isEmpty ? name : "\(name) · \(purpose)"
     }

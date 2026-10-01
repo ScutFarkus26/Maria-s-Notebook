@@ -110,8 +110,8 @@ extension PresentationsView {
                 onCancel: { coordinator.dismissSheet() }
             )
 
-        case .consolidatePresentations:
-            ConsolidatePresentationsSheet(onDismiss: { coordinator.dismissSheet() })
+        case .consolidatePresentations(let lessonID):
+            ConsolidatePresentationsSheet(lessonID: lessonID, onDismiss: { coordinator.dismissSheet() })
             #if os(macOS)
             .presentationSizingFitted()
             #else
@@ -183,7 +183,6 @@ extension PresentationsView {
             viewModel: viewModel,
             blockingResults: viewModel.blockingResults,
             getBlockingWork: getBlockingWork,
-            filteredSnapshot: filteredSnapshot,
             coordinator: coordinator,
             filterState: filterState,
             focusedLessonID: focusedPresentationID,
@@ -221,10 +220,13 @@ extension PresentationsView {
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "id == %@", focusedPresentationID as CVarArg)
         request.fetchLimit = 1
+        // Before the view model's first load nothing is known to be brewing;
+        // the section moves a brewing deep link to Brewing once it is.
         guard let assignment = viewContext.safeFetch(request).first,
               let chip = PresentationsView.chipRevealing(
                   isPresented: assignment.isPresented,
-                  scheduledFor: assignment.scheduledFor
+                  scheduledFor: assignment.scheduledFor,
+                  isBrewing: viewModel.blockedLessons.contains { $0.id == focusedPresentationID }
               ) else {
             return
         }
@@ -274,30 +276,6 @@ extension PresentationsView {
         if serialized != inboxOrderRaw {
             inboxOrderRaw = serialized
         }
-    }
-
-    private func filteredSnapshot(_ la: CDLessonAssignment) -> LessonAssignmentSnapshot {
-        let snap = la.snapshot()
-        let allStudents = viewModel.cachedStudents
-        let hiddenIDs = TestStudentsFilter.hiddenIDs(
-            from: allStudents, show: testStudents.show, namesRaw: testStudents.namesRaw
-        )
-        let enrolledVisibleIDs = Set(allStudents.compactMap(\.id))
-        let visibleIDs = snap.studentIDs.filter { enrolledVisibleIDs.contains($0) && !hiddenIDs.contains($0) }
-        return LessonAssignmentSnapshot(
-            id: snap.id,
-            lessonID: snap.lessonID,
-            studentIDs: visibleIDs,
-            createdAt: snap.createdAt,
-            scheduledFor: snap.scheduledFor,
-            presentedAt: snap.presentedAt,
-            state: snap.state,
-            notes: snap.notes,
-            needsPractice: snap.needsPractice,
-            needsAnotherPresentation: snap.needsAnotherPresentation,
-            followUpWork: snap.followUpWork,
-            manuallyUnblocked: snap.manuallyUnblocked
-        )
     }
 
 }

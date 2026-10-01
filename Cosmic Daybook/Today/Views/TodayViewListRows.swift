@@ -161,7 +161,7 @@ struct ScheduledWorkListRow: View {
     var onTap: () -> Void
 
     private var accessibilityLabelText: String {
-        let reasonLabel = item.checkIn.purpose
+        let reasonLabel = CheckInReason.displayName(forStoredPurpose: item.checkIn.purpose)
         var label = "\(reasonLabel) for \(studentName), \(lessonName)"
         label += ", scheduled for \(DateFormatters.mediumDate.string(from: item.checkIn.date ?? Date()))"
         if !item.checkIn.latestUnifiedNoteText.isEmpty {

@@ -315,7 +315,9 @@ extension MCPNotebookTools {
             .sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
         guard !all.isEmpty else { return [] }
         return ["  Check-ins:"] + all.map { checkIn in
-            let purpose = nonEmpty(checkIn.purpose).map { " — \($0)" } ?? ""
+            // The title, not the stored spelling: see CheckInReason.displayName.
+            let purpose = nonEmpty(checkIn.purpose)
+                .map { " — \(CheckInReason.displayName(forStoredPurpose: $0))" } ?? ""
             let who = checkIn.studentInitiated ? " (student asked for it)" : ""
             let status = checkIn.status.rawValue.lowercased()
             return "    - \(dayString(checkIn.date)) \(status)\(purpose)\(who)"

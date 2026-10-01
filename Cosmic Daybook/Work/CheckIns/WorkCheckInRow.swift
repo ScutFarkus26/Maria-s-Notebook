@@ -78,7 +78,7 @@ struct WorkCheckInRow: View {
             Text((checkIn.date ?? Date()).formatted(date: .abbreviated, time: .omitted))
                 .font(AppTheme.ScaledFont.bodySemibold)
             
-            let purposeText = checkIn.purpose.trimmed()
+            let purposeText = CheckInReason.displayName(forStoredPurpose: checkIn.purpose)
             if !purposeText.isEmpty {
                 Text("|")
                     .foregroundStyle(.secondary)

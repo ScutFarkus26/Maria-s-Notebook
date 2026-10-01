@@ -5,7 +5,7 @@
 // It sits next to the ready presentations rather than replacing them, because
 // the guide's question is three things at once: who has waited, what could they
 // have, and which day does it go on. Tapping a name narrows the lessons beside
-// it; the calendar is pinned below. Left, then centre, then down.
+// it; the calendar is pinned below. Left, then center, then down.
 //
 // Replaces two earlier lists that answered the same question in two places and
 // disagreed about who belonged on it.
@@ -13,6 +13,10 @@
 // The chrome is `WaitingStudentsColumn`, shared with the Work half's
 // `QuietStudentsRail`. Only what is genuinely about lessons stays here: which
 // children the scope hides, and what tapping one does to the cards beside it.
+//
+// The lessons vocabulary draws this column grouped, one line per child
+// (`WaitingStudentBands`), so the scope control here is a small menu in the
+// header rather than a segmented control on a band of its own.
 
 import SwiftUI
 
@@ -55,19 +59,41 @@ struct WaitingStudentsRail: View {
             vocabulary: .lessons,
             entries: entries,
             selectedStudentID: coordinator.selectedStudentFilter,
+            isSearching: !filterState.debouncedSearchText.trimmed().isEmpty,
             onSelect: select
         ) {
+            scopeMenu
+        } emptyState: {
+            emptyStateMessage
+        }
+    }
+
+    /// Everyone or Unscheduled, as an icon in the header. The icon fills and
+    /// takes the accent color while it is narrowing the list, the way a
+    /// filter control does elsewhere on the platform, so a shorter list is
+    /// never a mystery.
+    private var scopeMenu: some View {
+        Menu {
             Picker("Show", selection: scopeBinding) {
                 ForEach(WaitingStudentsScope.allCases) { option in
                     Text(option.title).tag(option)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .help("Everyone, or only children with no lesson on the calendar")
-        } emptyState: {
-            emptyStateMessage
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: scope == .everyone
+                ? "line.3.horizontal.decrease.circle"
+                : "line.3.horizontal.decrease.circle.fill")
+                .foregroundStyle(scope == .everyone ? Color.secondary : Color.accentColor)
         }
+        .menuStyle(.button)
+        .buttonStyle(.borderless)
+        .menuIndicator(.hidden)
+        .help(scope == .everyone
+            ? "Showing everyone. Choose Unscheduled for only children with no lesson on the calendar."
+            : "Showing only children with no lesson on the calendar")
+        .accessibilityLabel("Show")
+        .accessibilityValue(scope.title)
     }
 
     @ViewBuilder
@@ -100,7 +126,7 @@ struct WaitingStudentsRail: View {
             } else {
                 coordinator.filterByStudent(id)
                 // A stale chip could otherwise hide every lesson this child has.
-                filterState.selectedChip = .all
+                filterState.selectedChip = .ready
             }
         }
     }

@@ -1,14 +1,14 @@
 // WaitingStudentRow.swift
 // One child in a waiting list, with how long they have gone without the guide.
 //
-// The urgency signal is the app's existing one — the 3pt coloured bar down the
+// The urgency signal is the app's existing one — the 3pt colored bar down the
 // leading edge that already marks an aging work card and an aging presentation
 // pill, on the same guide-configurable thresholds. A guide who has learned to
 // read that bar reads this list for free.
 //
-// The row is told its colour and its wording rather than working them out. Both
+// The row is told its color and its wording rather than working them out. Both
 // columns that use it — lessons on the left of Presentations, work on the left
-// of Work — read five settings to colour that bar, and reading them here meant
+// of Work — read five settings to color that bar, and reading them here meant
 // five store lookups per child per body pass. `WaitingStudentsColumn` reads
 // them once for the whole list instead.
 
@@ -21,7 +21,7 @@ struct WaitingStudentRow: View {
     let ageColor: Color
     /// The line under the name: "Never taught", "12 school days ago".
     let detail: String
-    /// Secondary while the child is fresh, the urgency colour once they are not.
+    /// Secondary while the child is fresh, the urgency color once they are not.
     let detailTint: Color
     /// What tapping this row does, for VoiceOver.
     let selectionHint: String
@@ -64,18 +64,23 @@ struct WaitingStudentRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(selectionBackground)
+        .background(WaitingStudentSelectionBackground(isSelected: isSelected))
         .hoverableRow()
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .accessibilityHint(selectionHint)
     }
+}
 
-    /// Selection is the accent colour, never the urgency colour — otherwise
-    /// picking a child would read as that child becoming urgent.
-    @ViewBuilder
-    private var selectionBackground: some View {
+/// The highlight behind a selected child, in either style of waiting list.
+///
+/// Selection is the accent color, never the urgency color — otherwise
+/// picking a child would read as that child becoming urgent.
+struct WaitingStudentSelectionBackground: View {
+    let isSelected: Bool
+
+    var body: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: UIConstants.CornerRadius.medium, style: .continuous)
                 .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))

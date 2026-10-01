@@ -11,6 +11,11 @@
 // What varies is passed in: the wording (`StudentWaitVocabulary`), the two
 // controls that only make sense to one half (its scope picker and its empty
 // state), and what tapping a child does.
+//
+// The vocabulary also picks the list's style. The Presentations rail draws its
+// children one line each, grouped by wait (`WaitingStudentBandsList`), with its
+// scope control folded into the header; the Work column keeps the two-line
+// rows with age bars and the scope control in a band of its own.
 
 import CoreData
 import SwiftUI
@@ -26,12 +31,14 @@ struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
     let vocabulary: StudentWaitVocabulary
     let entries: [WaitingStudent]
     let selectedStudentID: UUID?
+    /// Only the grouped style uses it: a search never folds a match away.
+    let isSearching: Bool
     let onSelect: (CDStudent) -> Void
     private let scopePicker: Scope
     private let emptyState: Empty
 
     // Read here, once per list, rather than in each row. The keys come from the
-    // vocabulary, so the bar down a row is coloured by the same settings as the
+    // vocabulary, so the bar down a row is colored by the same settings as the
     // cards beside it.
     private var ageSettings: StudentAgePaletteReader
 
@@ -39,6 +46,7 @@ struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
         vocabulary: StudentWaitVocabulary,
         entries: [WaitingStudent],
         selectedStudentID: UUID?,
+        isSearching: Bool = false,
         onSelect: @escaping (CDStudent) -> Void,
         @ViewBuilder scopePicker: () -> Scope,
         @ViewBuilder emptyState: () -> Empty
@@ -46,6 +54,7 @@ struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
         self.vocabulary = vocabulary
         self.entries = entries
         self.selectedStudentID = selectedStudentID
+        self.isSearching = isSearching
         self.onSelect = onSelect
         self.scopePicker = scopePicker()
         self.emptyState = emptyState()
@@ -58,33 +67,48 @@ struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
         VStack(spacing: 0) {
             header
             Divider()
-            scopePicker
-                .padding(.horizontal, AppTheme.Spacing.small)
-                .padding(.vertical, AppTheme.Spacing.verySmall)
-            Divider()
+            if vocabulary.listStyle == .ageBars {
+                scopePicker
+                    .padding(.horizontal, AppTheme.Spacing.small)
+                    .padding(.vertical, AppTheme.Spacing.verySmall)
+                Divider()
+            }
             content
         }
-        // The column sits in an HStack that would otherwise centre a short list,
+        // The column sits in an HStack that would otherwise center a short list,
         // so an empty one must not float the header down the page.
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Color.primary.opacity(UIConstants.OpacityConstants.trace))
     }
 
     private var header: some View {
-        HStack(spacing: AppTheme.Spacing.small) {
-            Label(vocabulary.title, systemImage: vocabulary.systemImage)
-                .font(.headline)
-                .labelStyle(.titleAndIcon)
-            Spacer()
-            Text("\(entries.count)")
-                .font(AppTheme.SemanticFont.metadata)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+        HStack(spacing: AppTheme.Spacing.xsmall) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                // One line, always: in the grouped style the scope control
+                // shares this row, and a wrapped title would make the header
+                // twice as tall to save a few points.
+                Label(vocabulary.title, systemImage: vocabulary.systemImage)
+                    .font(.headline)
+                    .labelStyle(.titleAndIcon)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text("\(entries.count)")
+                    .font(AppTheme.SemanticFont.metadata)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(vocabulary.title), \(entries.count) children")
+
+            // The grouped style hands the header's spare width to the scope
+            // control rather than spending a whole band of the rail on it.
+            if vocabulary.listStyle == .waitBands {
+                scopePicker
+                    .fixedSize()
+            }
         }
         .padding(.horizontal, AppTheme.Spacing.compact)
         .padding(.vertical, AppTheme.Spacing.small)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(vocabulary.title), \(entries.count) children")
     }
 
     @ViewBuilder
@@ -94,6 +118,15 @@ struct WaitingStudentsColumn<Scope: View, Empty: View>: View {
                 // Claim the height the list would have had, so the header and
                 // the scope picker stay pinned where they were a moment ago.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if vocabulary.listStyle == .waitBands {
+            WaitingStudentBandsList(
+                vocabulary: vocabulary,
+                entries: entries,
+                palette: palette,
+                selectedStudentID: selectedStudentID,
+                isSearching: isSearching,
+                onSelect: onSelect
+            )
         } else {
             // Resolved once for the whole list, not once per row.
             let palette = palette

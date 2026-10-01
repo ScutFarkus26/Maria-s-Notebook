@@ -22,7 +22,9 @@ final class PresentationsCoordinator {
     enum Sheet: Identifiable {
         case lessonAssignmentDetail(CDLessonAssignment)
         case schedulePresentationFor(CDLesson)
-        case consolidatePresentations
+        /// Merge the presentations of one lesson (or, with nil, of every
+        /// lesson that has more than one).
+        case consolidatePresentations(lessonID: UUID?)
 
         var id: String {
             switch self {
@@ -30,8 +32,8 @@ final class PresentationsCoordinator {
                 return "lessonAssignDetail-\(la.id?.uuidString ?? "nil")"
             case .schedulePresentationFor(let lesson):
                 return "schedulePres-\(lesson.id?.uuidString ?? "nil")"
-            case .consolidatePresentations:
-                return "consolidatePresentations"
+            case .consolidatePresentations(let lessonID):
+                return "consolidatePresentations-\(lessonID?.uuidString ?? "all")"
             }
         }
     }
@@ -55,6 +57,11 @@ final class PresentationsCoordinator {
     /// Present lesson assignment detail sheet
     func showLessonAssignmentDetail(_ lessonAssignment: CDLessonAssignment) {
         activeSheet = .lessonAssignmentDetail(lessonAssignment)
+    }
+
+    /// Present the merge sheet for one lesson's presentations.
+    func showMergeGroups(forLesson lessonID: UUID) {
+        activeSheet = .consolidatePresentations(lessonID: lessonID)
     }
 
     /// Dismiss currently active sheet

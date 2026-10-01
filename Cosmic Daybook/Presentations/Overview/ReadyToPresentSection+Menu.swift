@@ -20,13 +20,12 @@ extension ReadyToPresentSection {
         guard let id = assignment.id, selection.contains(id), selection.count > 1 else {
             return [assignment]
         }
-        let visible = filteredAndSortedReadyLessons + filteredAndSortedBlockedLessons
-        return visible.filter { selection.contains($0.id) }
+        return currentlyVisibleAssignments.filter { selection.contains($0.id) }
     }
 
     /// The items every presentation card offers, whatever state it is in:
     /// where the lesson sits in the checklist, and who is already working on
-    /// it. Written once so the Ready and On Deck cards cannot drift apart.
+    /// it. Written once so the Ready and Brewing rows cannot drift apart.
     @ViewBuilder
     func lessonMenuItems(for assignment: CDLessonAssignment) -> some View {
         ShowInChecklistButton(lessonID: assignment.resolvedLessonID, context: viewContext)
@@ -82,8 +81,7 @@ extension ReadyToPresentSection {
         // Drop only what was destroyed — right-clicking an unselected card while
         // a selection is live must not throw the rest of the selection away.
         let deleted = Set(pendingDeletion.compactMap(\.id))
-        let remaining = filteredAndSortedReadyLessons + filteredAndSortedBlockedLessons
-        selection.retain(Set(remaining.compactMap(\.id)).subtracting(deleted))
+        selection.retain(Set(currentlyVisibleAssignments.compactMap(\.id)).subtracting(deleted))
         pendingDeletion = []
     }
 }

@@ -35,6 +35,11 @@ struct PresentationPlannerCard: View {
     /// Nil where the question does not arise — the inbox, and the drag preview
     /// of something on its way out of it.
     var period: DayPeriod?
+    /// Whether `period` is drawn as an AM/PM badge. The week calendar turns it
+    /// off because its day columns already say "Morning" and "Afternoon" above
+    /// each run of cards, and a badge repeating that on every card was noise.
+    /// The half is still spoken in the accessibility label either way.
+    var showsPeriodBadge = true
 
     @State private var attendanceCache: [UUID: AttendanceStatus] = [:]
     @State private var lastAttendanceDay: Date?
@@ -152,11 +157,11 @@ struct PresentationPlannerCard: View {
 
     /// A scheduled presentation has no time, so AM/PM is the whole of what the
     /// card can say about when — kept monochrome deliberately: the card already
-    /// spends colour on the subject area, the age strip and the two warnings,
-    /// and a fourth colour language would make none of them read.
+    /// spends color on the subject area, the age strip and the two warnings,
+    /// and a fourth color language would make none of them read.
     @ViewBuilder
     private var periodBadge: some View {
-        if let period {
+        if let period, showsPeriodBadge {
             Text(period.abbreviation)
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(.secondary)
@@ -191,17 +196,29 @@ struct PresentationPlannerCard: View {
             return nil
         }()
 
-        return Text(name)
-            .font(AppTheme.ScaledFont.captionSmallSemibold)
-            .foregroundStyle(isAbsent ? .secondary : .primary)
-            .lineLimit(1)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
-            .overlay(
-                Capsule()
-                    .stroke(indicator ?? .clear, lineWidth: indicator == nil ? 0 : 1.5)
-            )
+        // A clash says so with a glyph as well as the ring, so it still reads
+        // to a guide who can't tell the attention color from the absent red.
+        // The glyph is the legend's and the status icon's, so all three agree.
+        return HStack(spacing: 3) {
+            if isDoubleBooked {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption2.weight(.bold))
+                    .imageScale(.small)
+                    .foregroundStyle(AppColors.attention)
+                    .accessibilityLabel("Twice in one half")
+            }
+            Text(name)
+                .font(AppTheme.ScaledFont.captionSmallSemibold)
+                .foregroundStyle(isAbsent ? .secondary : .primary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
+        .overlay(
+            Capsule()
+                .stroke(indicator ?? .clear, lineWidth: indicator == nil ? 0 : 1.5)
+        )
     }
 
     // MARK: - Readiness footer
@@ -248,7 +265,8 @@ struct PresentationPlannerCard: View {
                     .accessibilityLabel("Student absent")
             }
             if hasDoubleBookedStudent {
-                Image(systemName: "calendar.badge.exclamationmark")
+                // The legend's glyph for a clash, and the one on the chip.
+                Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(AppColors.attention)
                     .accessibilityLabel("Two lessons in the same half of the day")

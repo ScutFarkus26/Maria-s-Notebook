@@ -115,19 +115,22 @@ struct PresentationsView: View {
         !isPresented && scheduledFor == nil
     }
 
-    /// Which pill can show this presentation, or nil when none can.
+    /// Which state can show this presentation, or nil when none can.
     ///
-    /// A given one carries its unresolved responsibility, which is what the
-    /// Follow Up pill holds; an unscheduled one is in the planning inbox; a
-    /// scheduled one belongs to the Scheduled calendar pinned below, so no pill
-    /// here claims it.
+    /// A given one carries its unresolved responsibility, which is what Follow
+    /// Up holds; an unscheduled one is in the planning inbox, under Brewing
+    /// while the children's work still holds it back and Ready otherwise; a
+    /// scheduled one belongs to the Scheduled calendar pinned below, so no
+    /// state here claims it.
     static func chipRevealing(
         isPresented: Bool,
-        scheduledFor: Date?
+        scheduledFor: Date?,
+        isBrewing: Bool
     ) -> PresentationsFilterChip? {
         if isPresented { return .followUp }
-        return canRevealInReadyList(isPresented: isPresented, scheduledFor: scheduledFor)
-            ? .all
-            : nil
+        guard canRevealInReadyList(isPresented: isPresented, scheduledFor: scheduledFor) else {
+            return nil
+        }
+        return isBrewing ? .waitingForWork : .ready
     }
 }

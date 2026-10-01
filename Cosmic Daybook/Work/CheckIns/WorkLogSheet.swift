@@ -118,7 +118,7 @@ struct WorkLogSheet: View {
                 .font(.title2.weight(.semibold))
             HStack(spacing: 6) {
                 if !group.purpose.isEmpty {
-                    Label(group.purpose, systemImage: "checkmark.circle")
+                    Label(CheckInReason.displayName(forStoredPurpose: group.purpose), systemImage: "checkmark.circle")
                         .foregroundStyle(.secondary)
                     Text("·").foregroundStyle(.tertiary)
                 }

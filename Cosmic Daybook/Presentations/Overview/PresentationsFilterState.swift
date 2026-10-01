@@ -13,9 +13,9 @@ final class PresentationsFilterState {
     /// Debounced search text — what the grid actually filters against.
     var debouncedSearchText: String = ""
 
-    /// Active filter chip for the Ready-to-Present section. `.all` is the default
-    /// (unfiltered) state and is what we land on after re-tapping the active chip.
-    var selectedChip: PresentationsFilterChip = .all
+    /// What the Ready-to-Present section shows: a state segment, or a flag on
+    /// Ready. `.ready` is the default, and where turning a flag off lands.
+    var selectedChip: PresentationsFilterChip = .ready
 
     private var debounceTask: Task<Void, Never>?
 

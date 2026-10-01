@@ -8,28 +8,37 @@ import CoreData
 import UniformTypeIdentifiers
 
 struct ConsolidatePresentationsSheet: View {
+    /// The one lesson to merge, from that lesson's "Merge Groups…" button in
+    /// the backlog; nil lists every lesson with more than one presentation.
+    let lessonID: UUID?
     let onDismiss: () -> Void
 
-    @FetchRequest(
-        sortDescriptors: [
-            NSSortDescriptor(key: "scheduledFor", ascending: true),
-            NSSortDescriptor(key: "createdAt", ascending: true)
-        ],
-        predicate: NSPredicate(
-            format: "stateRaw IN %@",
-            [
-                LessonAssignmentState.draft.rawValue,
-                LessonAssignmentState.scheduled.rawValue
-            ]
+    @FetchRequest private var activeAssignments: FetchedResults<CDLessonAssignment>
+
+    init(lessonID: UUID? = nil, onDismiss: @escaping () -> Void) {
+        self.lessonID = lessonID
+        self.onDismiss = onDismiss
+        let states = [LessonAssignmentState.draft.rawValue, LessonAssignmentState.scheduled.rawValue]
+        // Scoped to the lesson in the store rather than after the fetch, so a
+        // one-lesson sheet does not fault in every active presentation.
+        let predicate = lessonID.map {
+            NSPredicate(format: "stateRaw IN %@ AND lessonID == %@", states, $0.uuidString)
+        } ?? NSPredicate(format: "stateRaw IN %@", states)
+        _activeAssignments = FetchRequest(
+            sortDescriptors: [
+                NSSortDescriptor(key: "scheduledFor", ascending: true),
+                NSSortDescriptor(key: "createdAt", ascending: true)
+            ],
+            predicate: predicate
         )
-    ) private var activeAssignments: FetchedResults<CDLessonAssignment>
+    }
 
     @Environment(\.dependencies) private var dependencies
 
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Consolidate")
+                .navigationTitle(lessonID == nil ? "Consolidate" : "Merge Groups")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
@@ -45,9 +54,11 @@ struct ConsolidatePresentationsSheet: View {
     private var content: some View {
         if duplicateGroups.isEmpty {
             ContentUnavailableView(
-                "No Duplicates",
+                lessonID == nil ? "No Duplicates" : "One Group",
                 systemImage: "rectangle.stack.badge.minus",
-                description: Text("Every lesson has at most one active presentation.")
+                description: Text(lessonID == nil
+                    ? "Every lesson has at most one active presentation."
+                    : "Every child on this lesson is in one presentation now.")
             )
         } else {
             ScrollView {
@@ -259,7 +270,7 @@ private struct ConsolidateLessonCard: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         } else {
-            FlowChipLayout(spacing: 6) {
+            FlowLayout(spacing: 6) {
                 ForEach(ids, id: \.self) { id in
                     DraggableStudentChip(
                         student: students[id],
@@ -363,49 +374,5 @@ private struct DraggableStudentChip: View {
             }
         }
         .accessibilityLabel(isDuplicate ? "\(label), also in another presentation" : label)
-    }
-}
-
-// MARK: - FlowChipLayout
-
-/// Simple wrapping layout for the student chips inside a card.
-private struct FlowChipLayout: Layout {
-    var spacing: CGFloat = 6
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        var currentRowWidth: CGFloat = 0
-        var totalHeight: CGFloat = 0
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if currentRowWidth + size.width > maxWidth, currentRowWidth > 0 {
-                totalHeight += rowHeight + spacing
-                currentRowWidth = 0
-                rowHeight = 0
-            }
-            currentRowWidth += size.width + (currentRowWidth > 0 ? spacing : 0)
-            rowHeight = max(rowHeight, size.height)
-        }
-        totalHeight += rowHeight
-        return CGSize(width: maxWidth.isFinite ? maxWidth : currentRowWidth, height: totalHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var origin = CGPoint(x: bounds.minX, y: bounds.minY)
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if origin.x + size.width > bounds.maxX, origin.x > bounds.minX {
-                origin.x = bounds.minX
-                origin.y += rowHeight + spacing
-                rowHeight = 0
-            }
-            subview.place(at: origin, proposal: ProposedViewSize(size))
-            origin.x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
     }
 }

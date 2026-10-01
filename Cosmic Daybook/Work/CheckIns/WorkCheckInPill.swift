@@ -30,44 +30,44 @@ struct WorkCheckInPill: View {
         self.onTap = onTap
     }
 
+    /// One line: the purpose as an icon, the child, then the lesson. The
+    /// grouped pill has the same shape, so a day's checks line up.
+    ///
+    /// It was two rows, with the purpose spelled out underneath, when checks
+    /// had a lane of their own beside the presentations. They now sit under
+    /// the presentations in a day a fifth of the strip wide, and a day of a
+    /// dozen checks at two rows each pushed the lessons off the top. The
+    /// purpose is still there, spelled out, in the tooltip and to VoiceOver.
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Top row: Name first, then lesson title
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if !studentName.trimmed().isEmpty {
-                    Text(studentName)
-                        .font(AppTheme.ScaledFont.captionSemibold)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                }
-                Text(workTitle)
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                if checkIn.studentInitiated {
-                    Spacer(minLength: 4)
-                    Image(systemName: "person.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Student requested")
-                }
+        HStack(spacing: 6) {
+            Image(systemName: CheckInReason.iconName(forStoredPurpose: checkIn.purpose))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            if !studentName.trimmed().isEmpty {
+                Text(studentName)
+                    .font(AppTheme.ScaledFont.captionSemibold)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .layoutPriority(1)
             }
-            // Second row: purpose (e.g., Progress Check, Due Date)
-            if !checkIn.purpose.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: purposeIcon)
-                        .foregroundStyle(.secondary)
-                    Text(checkIn.purpose)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+            Text(workTitle)
+                .font(AppTheme.ScaledFont.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            if checkIn.studentInitiated {
+                Image(systemName: "person.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Student requested")
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .surface(
-            UIConstants.CornerRadius.large,
+            UIConstants.CornerRadius.medium,
             fill: Color.primary.opacity(UIConstants.OpacityConstants.veryFaint),
             stroke: Color.primary.opacity(UIConstants.OpacityConstants.subtle),
             lineWidth: 1
@@ -77,22 +77,22 @@ struct WorkCheckInPill: View {
         .onTapGesture {
             onTap?()
         }
+        .help(helpText)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(helpText)
     }
 
     // MARK: - Data Helpers
 
-    private var purposeIcon: String {
-        let purpose = checkIn.purpose.lowercased()
-        if purpose.contains("progress") || purpose.contains("check") {
-            return "checkmark.circle"
-        } else if purpose.contains("due") {
-            return "calendar.badge.exclamationmark"
-        } else if purpose.contains("assessment") {
-            return "chart.bar"
-        } else if purpose.contains("follow") {
-            return "arrow.turn.down.right"
-        } else {
-            return "calendar"
-        }
+    private var purposeTitle: String {
+        CheckInReason.displayName(forStoredPurpose: checkIn.purpose)
+    }
+
+    /// "Progress Check: Maya S, Golden Beads" — the row with nothing cut off.
+    private var helpText: String {
+        let who = [studentName.trimmed(), workTitle]
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+        return purposeTitle.isEmpty ? who : "\(purposeTitle): \(who)"
     }
 }
