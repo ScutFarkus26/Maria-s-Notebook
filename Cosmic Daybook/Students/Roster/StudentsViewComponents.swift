@@ -26,17 +26,6 @@ struct NoStudentsEmptyState: View {
     }
 }
 
-/// Reusable empty state for when no student is selected
-struct SelectStudentEmptyState: View {
-    var body: some View {
-        ContentUnavailableView {
-            Label("Select a Student", systemImage: "person.circle")
-        } description: {
-            Text("Choose a student from the list to view their details.")
-        }
-    }
-}
-
 /// Shown when the "Here" filter is active but no attendance has been taken today.
 struct NoAttendanceEmptyState: View {
     let onShowAll: () -> Void

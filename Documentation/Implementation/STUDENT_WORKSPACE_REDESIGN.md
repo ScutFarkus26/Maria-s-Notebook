@@ -84,8 +84,10 @@ The old stored detail values map without losing context:
 | Files | Overview, with Documents opened on demand |
 
 The Mac roster no longer has a Cards/Table choice. Its table sorting is visible
-view state only, so the saved manual classroom order remains unchanged. iPad
-and iPhone retain their existing List/Grid preference.
+view state only, so the saved manual classroom order remains unchanged. Since
+2026-10-01 iPad and iPhone have no List/Grid preference either: the card grid
+that filled the iPad's empty detail pane became Class at a Glance, and the
+`StudentsView.viewStyle` key was dropped from settings and backups.
 
 ## Completion Checks
 

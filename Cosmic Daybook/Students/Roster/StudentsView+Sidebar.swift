@@ -1,103 +1,24 @@
 import SwiftUI
 import CoreData
 
-// MARK: - Sidebar (Roster List)
+// MARK: - Sidebar (Roster List, iPhone and iPad)
 
 extension StudentsView {
 
-    #if os(macOS)
-    /// The first column in the Mac workspace is a real collection sidebar, not
-    /// a second copy of the roster. The adjacent roster/table and record panes
-    /// make browsing and comparison feel at home on a desktop.
-    var workspaceSidebarColumn: some View {
-        List {
-            Section("Students") {
-                workspaceScopeRow(.all, count: enrolledCount, systemImage: "person.3")
-                workspaceScopeRow(.presentNow, count: presentNowCount, systemImage: "checkmark.circle")
-            }
-
-            Section("Level") {
-                workspaceScopeRow(.lower, systemImage: "circle.fill")
-                workspaceScopeRow(.upper, systemImage: "circle.fill")
-                workspaceScopeRow(.adolescent, systemImage: "circle.fill")
-            }
-
-            if !withdrawnStudents.isEmpty {
-                Section("Records") {
-                    Button {
-                        isShowingWithdrawnRoster = true
-                        selectedStudentID = nil
-                    } label: {
-                        Label("Former Students (\(withdrawnStudents.count))", systemImage: "archivebox")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(isShowingWithdrawnRoster ? Color.accentColor : .primary)
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .frame(minWidth: 190, idealWidth: 230, maxWidth: 300)
-        .searchable(text: $searchText, placement: .toolbar, prompt: "Search students")
-        .onSubmit(of: .search) {
-            if let first = macRosterStudents.first {
-                selectedStudentID = first.id
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) { addStudentMenu }
-        }
-        .overlay {
-            ParsingOverlay(isParsing: $isParsing) {
-                parsingTask?.cancel()
-            }
-        }
-        .background {
-            Button("") { showingAddStudent = true }
-                .keyboardShortcut("n", modifiers: [.command])
-                .hidden()
-        }
-    }
-
-    private func workspaceScopeRow(
-        _ filter: StudentsFilter,
-        count: Int? = nil,
-        systemImage: String
-    ) -> some View {
-        let isSelected = !isShowingWithdrawnRoster && selectedFilter == filter
-        return Button {
-            isShowingWithdrawnRoster = false
-            studentsFilterRaw = filter.storageValue
-        } label: {
-            HStack {
-                Label(filter.chipTitle, systemImage: systemImage)
-                Spacer()
-                if let count {
-                    Text("\(count)")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? Color.accentColor : .primary)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-    #endif
-
-    var sidebarColumn: some View {
-        rosterList
+    func sidebarColumn(_ snapshot: RosterSnapshot) -> some View {
+        rosterList(snapshot)
             .navigationTitle("Students")
             .inlineNavigationTitle()
-            .navigationSplitViewColumnWidth(min: 300, ideal: 360)
+            .navigationSplitViewColumnWidth(min: 320, ideal: 380)
             .searchable(text: $searchText, placement: .sidebar, prompt: "Search students")
             .onSubmit(of: .search) {
-                if let first = filteredStudents.first {
+                if let first = snapshot.shown.first {
                     selectedStudentID = first.id
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 if !uniqueStudents.isEmpty {
-                    chipsHeader
+                    chipsHeader(snapshot)
                 }
             }
             .toolbar { sidebarToolbar }
@@ -114,68 +35,99 @@ extension StudentsView {
             }
     }
 
-    private var chipsHeader: some View {
-        VStack(spacing: 0) {
+    private func chipsHeader(_ snapshot: RosterSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             StudentsScopeChips(
+                scopes: snapshot.scopes,
                 selectedFilter: selectedFilter,
-                allCount: enrolledCount,
-                hereCount: presentNowCount,
                 onSelect: { filter in studentsFilterRaw = filter.storageValue }
             )
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            Divider()
+            if viewModel.showsAttendanceNotTaken {
+                Label("Attendance not taken yet", systemImage: "checklist")
+                    .font(AppTheme.ScaledFont.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     @ViewBuilder
-    private var rosterList: some View {
+    private func rosterList(_ snapshot: RosterSnapshot) -> some View {
         if uniqueStudents.isEmpty {
             NoStudentsEmptyState { showingAddStudent = true }
-        } else if filteredStudents.isEmpty && withdrawnStudents.isEmpty {
+        } else if snapshot.shown.isEmpty && snapshot.former.isEmpty {
             emptyFilterState
         } else {
-            studentsList
-        }
-    }
-
-    private var studentsList: some View {
-        List(selection: $selectedStudentID) {
-            enrolledSection
-            withdrawnSection
-        }
-        .quickCaptureButtonClearance()
-    }
-
-    @ViewBuilder
-    private var enrolledSection: some View {
-        if !filteredStudents.isEmpty {
-            Section {
-                ForEach(filteredStudents, id: \.objectID) { student in
-                    listRow(for: student)
+            List(selection: $selectedStudentID) {
+                ForEach(levelSections(of: snapshot.shown), id: \.level) { section in
+                    Section {
+                        ForEach(section.students, id: \.objectID) { student in
+                            listRow(for: student)
+                        }
+                        .onMove(perform: manualMoveHandler(for: section.students))
+                    } header: {
+                        Text("\(section.title) · \(section.students.count)")
+                    }
                 }
-                .onMove(perform: manualMoveHandler)
+                withdrawnSection(snapshot.former)
+            }
+            .quickCaptureButtonClearance()
+        }
+    }
+
+    private struct LevelSection {
+        let level: CDStudent.Level
+        let students: [CDStudent]
+
+        var title: String {
+            switch level {
+            case .lower: return "Lower Elementary"
+            case .upper: return "Upper Elementary"
+            case .adolescent: return "Adolescent"
             }
         }
     }
 
-    /// Reordering is only available in manual sort; passing nil disables the move affordance.
-    private var manualMoveHandler: ((IndexSet, Int) -> Void)? {
+    /// The shown children grouped by level, youngest level first, each group
+    /// keeping the active sort.
+    private func levelSections(of students: [CDStudent]) -> [LevelSection] {
+        let byLevel = Dictionary(grouping: students, by: \.level)
+        return CDStudent.Level.allCases.compactMap { level in
+            guard let group = byLevel[level], !group.isEmpty else { return nil }
+            return LevelSection(level: level, students: group)
+        }
+    }
+
+    /// Reordering is only available in manual sort; nil disables the move affordance.
+    private func manualMoveHandler(for subset: [CDStudent]) -> ((IndexSet, Int) -> Void)? {
         guard sortOrder == .manual else { return nil }
         return { source, destination in
-            handleManualReorder(from: source, to: destination)
+            handleManualReorder(from: source, to: destination, in: subset)
         }
     }
 
     @ViewBuilder
     private var emptyFilterState: some View {
-        if selectedFilter == .presentNow && presentNowIDs.isEmpty {
+        if selectedFilter == .presentNow && !viewModel.attendanceTaken {
             NoAttendanceEmptyState {
                 studentsFilterRaw = StudentsFilter.all.storageValue
             }
         } else if !searchText.isEmpty {
             ContentUnavailableView.search(text: searchText)
+        } else if selectedFilter == .dueForLesson {
+            ContentUnavailableView {
+                Label("No One Is Due", systemImage: "checkmark.circle")
+            } description: {
+                Text("Everyone has had a lesson in the last \(RosterSignalRules.dueSchoolDays) school days.")
+            } actions: {
+                Button("Show All Students") {
+                    studentsFilterRaw = StudentsFilter.all.storageValue
+                }
+            }
         } else {
             ContentUnavailableView {
                 Label("No Students Match", systemImage: "line.3.horizontal.decrease.circle")
@@ -197,9 +149,26 @@ extension StudentsView {
         let row = StudentListRow(
             student: student,
             sortOrder: withdrawn ? .alphabetical : sortOrder,
-            daysSinceLastLesson: withdrawn ? nil : student.id.flatMap { daysSinceLastLessonByStudent[$0] },
-            isPresentToday: !withdrawn && (student.id.map { presentNowIDs.contains($0) } ?? false)
+            signals: withdrawn ? nil : viewModel.signals(for: student.id),
+            onAddObservation: withdrawn ? nil : { addObservation(for: student) },
+            onGiveLesson: withdrawn ? nil : { giveLesson(to: student) }
         )
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if !withdrawn {
+                Button {
+                    giveLesson(to: student)
+                } label: {
+                    Label("Lesson", systemImage: "book")
+                }
+                .tint(.orange)
+                Button {
+                    addObservation(for: student)
+                } label: {
+                    Label("Observe", systemImage: "square.and.pencil")
+                }
+                .tint(.blue)
+            }
+        }
         if let id = student.id {
             row.tag(id)
         } else {
@@ -208,11 +177,11 @@ extension StudentsView {
     }
 
     @ViewBuilder
-    private var withdrawnSection: some View {
-        if !withdrawnStudents.isEmpty {
+    private func withdrawnSection(_ former: [CDStudent]) -> some View {
+        if !former.isEmpty {
             Section {
                 if isWithdrawnExpanded {
-                    ForEach(withdrawnStudents, id: \.objectID) { student in
+                    ForEach(former, id: \.objectID) { student in
                         listRow(for: student, withdrawn: true)
                     }
                 }
@@ -221,7 +190,7 @@ extension StudentsView {
                     withAnimation { isWithdrawnExpanded.toggle() }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("Former Students (\(withdrawnStudents.count))")
+                        Text("Former Students (\(former.count))")
                         Image(systemName: "chevron.right")
                             .font(.system(size: 10, weight: .semibold))
                             .rotationEffect(.degrees(isWithdrawnExpanded ? 90 : 0))

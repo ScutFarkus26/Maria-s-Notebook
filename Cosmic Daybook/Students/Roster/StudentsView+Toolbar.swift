@@ -15,16 +15,8 @@ extension StudentsView {
                 EditButton()
             }
         }
-        #endif
 
-        #if os(iOS)
         ToolbarItem(placement: .automatic) { sortMenu }
-
-        if showsViewStyleToggle {
-            ToolbarItem(placement: .automatic) {
-                viewStylePicker
-            }
-        }
         #endif
 
         ToolbarItem(placement: .primaryAction) {
@@ -32,56 +24,52 @@ extension StudentsView {
         }
     }
 
-    /// Sort menu with radio-style selection. The chosen sort also drives the
-    /// row accessory (birthday countdown, age, or days since last lesson).
+    /// Sort menu with a checkmark on the active sort. Its label names that
+    /// sort, so the order of the list is never a mystery.
+    ///
+    /// Buttons rather than an inline `Picker`: with the label naming the
+    /// active sort, a String-tagged inline picker here crashed the iPhone app
+    /// as the Students tab opened (iOS 27 simulator, 2026-10-01: EXC_BAD_ACCESS
+    /// in `initializeWithCopy for Picker`, the tag's bytes retained as an
+    /// object). The iPad never crashed; the old static "Sort" label never did.
     var sortMenu: some View {
         Menu {
-            Picker("Sort", selection: sortSelection) {
-                Label("A–Z", systemImage: "textformat.abc")
-                    .tag("alphabetical")
-                Label("Manual", systemImage: "arrow.up.arrow.down")
-                    .tag("manual")
-                Label("Age", systemImage: "calendar")
-                    .tag("age")
-                Label("Next Birthday", systemImage: "gift")
-                    .tag("birthday")
+            ForEach(Self.sortOptions, id: \.raw) { option in
+                Button {
+                    adaptiveWithAnimation { studentsSortOrderRaw = option.raw }
+                } label: {
+                    if studentsSortOrderRaw == option.raw
+                        || (option.raw == "alphabetical" && sortOrder == .alphabetical) {
+                        Label(option.title, systemImage: "checkmark")
+                    } else {
+                        Text(option.title)
+                    }
+                }
             }
-            .pickerStyle(.inline)
         } label: {
-            Label("Sort", systemImage: "arrow.up.arrow.down")
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.up.arrow.down")
+                Text(sortTitle)
+            }
         }
         .help("Sort students")
+        .accessibilityLabel("Sort: \(sortTitle)")
     }
 
-    private var sortSelection: Binding<String> {
-        Binding(
-            get: { studentsSortOrderRaw },
-            set: { newValue in
-                adaptiveWithAnimation { studentsSortOrderRaw = newValue }
-            }
-        )
-    }
+    private static let sortOptions: [(raw: String, title: String)] = [
+        ("alphabetical", "A–Z"),
+        ("manual", "Manual"),
+        ("age", "Age"),
+        ("birthday", "Next Birthday")
+    ]
 
-    /// List/grid toggle for the mobile detail-area browser (regular widths only).
-    var viewStylePicker: some View {
-        Picker("View Style", selection: viewStyleSelection) {
-            Label("List", systemImage: "list.bullet")
-                .tag(StudentsViewStyle.list)
-            Label("Grid", systemImage: "square.grid.2x2")
-                .tag(StudentsViewStyle.grid)
+    private var sortTitle: String {
+        switch sortOrder {
+        case .alphabetical: return "A–Z"
+        case .manual: return "Manual"
+        case .age: return "Age"
+        case .birthday: return "Birthday"
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .help("Switch between cards and table")
-    }
-
-    private var viewStyleSelection: Binding<StudentsViewStyle> {
-        Binding(
-            get: { viewStyle },
-            set: { newValue in
-                adaptiveWithAnimation { studentsViewStyleRaw = newValue.rawValue }
-            }
-        )
     }
 
     var addStudentMenu: some View {

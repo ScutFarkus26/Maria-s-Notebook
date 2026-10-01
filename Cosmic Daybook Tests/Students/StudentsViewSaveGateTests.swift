@@ -3,28 +3,31 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// The Students roster refreshes three change tokens after each burst of saves
-/// while it is on screen. It used to do that after a save of anything; the gate
-/// drops saves that touch none of the tables the tokens are read from, which
-/// cannot move a token.
+/// The Students roster refreshes its signals after each burst of saves while
+/// it is on screen. The gate drops saves that touch none of the tables a
+/// signal is read from, which cannot move one.
 @Suite("Students roster save gate")
 @MainActor
 struct StudentsViewSaveGateTests {
 
-    @Test("The gate watches exactly the tables refreshChangeTokens reads")
-    func watchesTheTokenTables() throws {
+    @Test("The gate watches the tables the signals read: the table caches plus attendance")
+    func watchesTheSignalTables() throws {
         // A stack first, so `CDFetchRequest` resolves names from the app's model.
         _ = try CoreDataTestHelpers.makeContext()
-        let tokenTables = Set([
+        let names = Set([
             CDFetchRequest(CDAttendanceRecord.self).entityName,
             CDFetchRequest(CDLessonAssignment.self).entityName,
-            CDFetchRequest(CDLesson.self).entityName
+            CDFetchRequest(CDLesson.self).entityName,
+            CDFetchRequest(CDStudent.self).entityName,
+            CDFetchRequest(CDNote.self).entityName
         ].compactMap { $0 })
-        #expect(tokenTables.count == 3)
-        #expect(StudentsView.changeTokenEntityNames == tokenTables)
+        #expect(names.count == 5)
+        #expect(names.isSubset(of: StudentsViewModel.signalInputEntities))
+        #expect(StudentsViewModel.signalInputEntities
+            == StudentsViewModel.tableCacheInputEntities.union(["AttendanceRecord"]))
     }
 
-    @Test("Saves of other tables are dropped; a save touching a token table passes")
+    @Test("Saves of other tables are dropped; a save touching a signal table passes")
     func gateOnPayloads() throws {
         let context = try CoreDataTestHelpers.makeContext()
         let attendance = CoreDataTestHelpers.seedAttendance(in: context)
@@ -34,29 +37,31 @@ struct StudentsViewSaveGateTests {
         let work = CoreDataTestHelpers.seedWorkModel(in: context)
         let note = CoreDataTestHelpers.seedNote(in: context)
 
-        #expect(StudentsView.saveTouchesChangeTokens([
-            NSInsertedObjectsKey: Set<NSManagedObject>([student, work, note])
+        #expect(StudentsView.saveTouchesSignals([
+            NSInsertedObjectsKey: Set<NSManagedObject>([work])
         ]) == false)
-        #expect(StudentsView.saveTouchesChangeTokens([
-            NSUpdatedObjectsKey: Set<NSManagedObject>([note]),
+        #expect(StudentsView.saveTouchesSignals([
             NSDeletedObjectsKey: Set<NSManagedObject>([work])
         ]) == false)
-        #expect(StudentsView.saveTouchesChangeTokens([
+        #expect(StudentsView.saveTouchesSignals([
             NSUpdatedObjectsKey: Set<NSManagedObject>([attendance])
         ]) == true)
-        #expect(StudentsView.saveTouchesChangeTokens([
+        #expect(StudentsView.saveTouchesSignals([
             NSInsertedObjectsKey: Set<NSManagedObject>([assignment])
         ]) == true)
-        #expect(StudentsView.saveTouchesChangeTokens([
+        #expect(StudentsView.saveTouchesSignals([
             NSDeletedObjectsKey: Set<NSManagedObject>([lesson])
         ]) == true)
-        #expect(StudentsView.saveTouchesChangeTokens([
-            NSInsertedObjectsKey: Set<NSManagedObject>([note]),
-            NSUpdatedObjectsKey: Set<NSManagedObject>([lesson])
+        // A note is an observation, and a student's next-lesson pick lives on her row.
+        #expect(StudentsView.saveTouchesSignals([
+            NSInsertedObjectsKey: Set<NSManagedObject>([note])
+        ]) == true)
+        #expect(StudentsView.saveTouchesSignals([
+            NSUpdatedObjectsKey: Set<NSManagedObject>([student])
         ]) == true)
         // Unknown shapes fail open, as the unscoped listener did.
-        #expect(StudentsView.saveTouchesChangeTokens(nil) == true)
-        #expect(StudentsView.saveTouchesChangeTokens([:]) == true)
+        #expect(StudentsView.saveTouchesSignals(nil) == true)
+        #expect(StudentsView.saveTouchesSignals([:]) == true)
     }
 
     @Test("Real save notifications are judged by what each save wrote")
@@ -66,13 +71,12 @@ struct StudentsViewSaveGateTests {
         let token = NotificationCenter.default.addObserver(
             forName: .NSManagedObjectContextDidSave, object: context, queue: nil
         ) { note in
-            verdicts.values.append(StudentsView.saveTouchesChangeTokens(note.userInfo))
+            verdicts.values.append(StudentsView.saveTouchesSignals(note.userInfo))
         }
         defer { NotificationCenter.default.removeObserver(token) }
 
-        // A note and a new child: nothing the tokens count.
-        CoreDataTestHelpers.seedNote(in: context, body: "Unrelated")
-        CoreDataTestHelpers.seedStudent(in: context)
+        // Work alone: nothing a signal reads.
+        CoreDataTestHelpers.seedWorkModel(in: context)
         #expect(CoreDataTestHelpers.save(context))
         // A new attendance row, then a status flip on it.
         let attendance = CoreDataTestHelpers.seedAttendance(in: context)
@@ -80,9 +84,8 @@ struct StudentsViewSaveGateTests {
         attendance.statusRaw = AttendanceStatus.present.rawValue
         attendance.modifiedAt = Date()
         #expect(CoreDataTestHelpers.save(context))
-        // A presentation next to an unrelated edit.
-        CoreDataTestHelpers.seedNote(in: context, body: "Also unrelated")
-        _ = CDLessonAssignment(context: context)
+        // An observation.
+        CoreDataTestHelpers.seedNote(in: context, body: "Counted to 100")
         #expect(CoreDataTestHelpers.save(context))
 
         #expect(verdicts.values == [false, true, true, true])

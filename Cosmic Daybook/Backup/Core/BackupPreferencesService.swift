@@ -95,7 +95,6 @@ nonisolated enum BackupPreferencesService {
         // View preferences
         UserDefaultsKeys.studentsViewSortOrder,
         UserDefaultsKeys.studentsViewSelectedFilter,
-        UserDefaultsKeys.studentsViewStyle,
         UserDefaultsKeys.studentPickerSortOrder,
         UserDefaultsKeys.studentDetailViewActiveTab,
         UserDefaultsKeys.checklistSelectedArea,

@@ -199,11 +199,11 @@ struct FormerStudentRosterTests {
         )
         CoreDataTestHelpers.save(ctx)
 
-        let viewModel = StudentsViewModel()
-        let active = viewModel.filteredStudents(viewContext: ctx, filter: .all, sortOrder: .alphabetical)
+        let all = ctx.safeFetch(CDFetchRequest(CDStudent.self))
+        let active = StudentsViewModel.filteredStudents(all, filter: .all, sortOrder: .alphabetical)
         #expect(active.map(\.firstName) == ["Active"])
 
-        let former = viewModel.filteredStudents(viewContext: ctx, filter: .withdrawn, sortOrder: .alphabetical)
+        let former = StudentsViewModel.filteredStudents(all, filter: .withdrawn, sortOrder: .alphabetical)
         #expect(Set(former.map(\.firstName)) == ["Trans", "With"])
     }
 
@@ -215,8 +215,8 @@ struct FormerStudentRosterTests {
         CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Naomi", lastName: "L", level: .upper)
         CoreDataTestHelpers.save(ctx)
 
-        let viewModel = StudentsViewModel()
-        let adolescents = viewModel.filteredStudents(viewContext: ctx, filter: .adolescent, sortOrder: .alphabetical)
+        let all = ctx.safeFetch(CDFetchRequest(CDStudent.self))
+        let adolescents = StudentsViewModel.filteredStudents(all, filter: .adolescent, sortOrder: .alphabetical)
         #expect(adolescents.map(\.firstName) == ["Sarah"])
     }
 

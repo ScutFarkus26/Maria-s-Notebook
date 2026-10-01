@@ -117,7 +117,6 @@ nonisolated enum UserDefaultsKeys {
     static let meetingsWorkflowRequeuedStudents = "MeetingsWorkflow.requeuedStudents"
     static let studentsViewSortOrder = "StudentsView.sortOrder"
     static let studentsViewSelectedFilter = "StudentsView.selectedFilter"
-    static let studentsViewStyle = "StudentsView.viewStyle"
     static let studentPickerSortOrder = "StudentPicker.sortOrder"
 
     // MARK: - Onboarding

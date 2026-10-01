@@ -2,61 +2,97 @@
 import AppKit
 import SwiftUI
 
+/// The Mac roster: one row per child, the open child highlighted, so the
+/// arrow keys walk the class and the record beside the table follows.
+///
+/// The visible columns are the signals a guide scans for (lesson age, last
+/// observed, next lesson); Age and Birthday are there too, hidden until chosen
+/// from the header's context menu, and every column sorts.
 struct StudentsTableView: View {
     let students: [CDStudent]
-    let nextLessonNames: [UUID: String]
-    let lastObservationDates: [UUID: Date]
-    let presentNowIDs: Set<UUID>
+    let signals: (UUID) -> StudentSignals
+    /// False for the former-students list, whose rows carry no signals.
+    let showsSignals: Bool
     @Binding var selectedStudentID: UUID?
+    let onAddObservation: (CDStudent) -> Void
+    let onGiveLesson: (CDStudent) -> Void
 
-    @State private var selection: Set<UUID> = []
+    @Environment(\.calendar) private var calendar
     @State private var sortOrder = [KeyPathComparator(\StudentTableRow.name)]
+    @SceneStorage("StudentsTable.columns") private var columnCustomization: TableColumnCustomization<StudentTableRow>
 
     private var rows: [StudentTableRow] {
         students.compactMap { student in
             guard let id = student.id else { return nil }
+            let s = signals(id)
             return StudentTableRow(
                 id: id,
                 student: student,
                 name: student.fullName,
-                level: student.level.rawValue,
-                age: Self.ageString(for: student),
+                level: student.level,
+                presence: showsSignals ? s.presence : .unmarked,
+                schoolDaysSinceLesson: s.schoolDaysSinceLesson,
+                isDue: showsSignals && s.isDueForLesson,
+                lastObserved: s.lastObserved,
+                isObservationStale: showsSignals && s.isObservationStale(calendar: calendar),
+                nextLesson: s.nextLessonName ?? "—",
+                age: student.birthday.map { AgeUtils.quarterGlyphAgeString(for: $0) } ?? "—",
                 ageSortValue: student.birthday?.timeIntervalSinceReferenceDate ?? .greatestFiniteMagnitude,
                 birthdayLabel: student.birthday.map { DateFormatters.shortMonthDay.string(from: $0) },
                 daysUntilBirthday: student.birthday.flatMap { AgeUtils.daysUntilNextBirthday(for: $0) },
-                nextLesson: nextLessonNames[id] ?? "—",
-                lastObservation: lastObservationDates[id]
+                soonBirthdayDays: showsSignals
+                    ? RosterSignalRules.daysUntilSoonBirthday(student.birthday, calendar: calendar)
+                    : nil
             )
         }
         .sorted(using: sortOrder)
     }
 
     var body: some View {
-        Table(rows, selection: $selection, sortOrder: $sortOrder) {
+        Table(rows, selection: $selectedStudentID, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
             TableColumn("Student", value: \.name) { row in
-                HStack(spacing: 8) {
-                    StudentAvatarView(student: row.student, size: 28)
-                        .overlay(alignment: .bottomTrailing) {
-                            if presentNowIDs.contains(row.id) {
-                                Circle()
-                                    .fill(.green)
-                                    .frame(width: 8, height: 8)
-                                    .overlay(Circle().stroke(.background, lineWidth: 1))
-                            }
-                        }
-                    Text(row.name)
-                        .lineLimit(1)
-                }
-                .contextMenu { contextMenu(for: row) }
+                studentCell(row)
             }
-            .width(min: 170, ideal: 220)
+            .width(min: 170, ideal: 230)
+            .customizationID("student")
+            .disabledCustomizationBehavior(.visibility)
 
-            TableColumn("Level", value: \.level)
-                .width(min: 80, ideal: 110)
+            TableColumn("Level", value: \.levelSortValue) { row in
+                LevelBadge(level: row.level)
+            }
+            .width(min: 80, ideal: 96)
+            .customizationID("level")
+
+            TableColumn("Last Lesson", value: \.lessonSortValue) { row in
+                if showsSignals {
+                    Text(RosterSignalText.lessonShort(row.schoolDaysSinceLesson))
+                        .foregroundStyle(row.isDue ? Color.orange : Color.primary)
+                        .fontWeight(row.isDue ? .semibold : .regular)
+                }
+            }
+            .width(min: 80, ideal: 100)
+            .customizationID("lastLesson")
+
+            TableColumn("Observed", value: \.lastObservedSortValue) { row in
+                if showsSignals {
+                    Text(RosterSignalText.observedShort(row.lastObserved, calendar: calendar))
+                        .foregroundStyle(row.isObservationStale ? Color.orange : Color.primary)
+                }
+            }
+            .width(min: 90, ideal: 110)
+            .customizationID("observed")
+
+            TableColumn("Next Lesson", value: \.nextLesson)
+                .width(min: 120, ideal: 170)
+                .customizationID("nextLesson")
+
             TableColumn("Age", value: \.ageSortValue) { row in
                 Text(row.age)
             }
             .width(min: 55, ideal: 70)
+            .customizationID("age")
+            .defaultVisibility(.hidden)
+
             TableColumn("Birthday", value: \.birthdaySortValue) { row in
                 if let label = row.birthdayLabel, let days = row.daysUntilBirthday {
                     HStack(spacing: 6) {
@@ -71,22 +107,13 @@ struct StudentsTableView: View {
                 }
             }
             .width(min: 120, ideal: 160)
-            TableColumn("Next Lesson", value: \.nextLesson)
-                .width(min: 140, ideal: 210)
-            TableColumn("Last Observation", value: \.lastObservationSortValue) { row in
-                if let date = row.lastObservation {
-                    Text(date, format: .relative(presentation: .named))
-                } else {
-                    Text("Never")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .width(min: 120, ideal: 150)
+            .customizationID("birthday")
+            .defaultVisibility(.hidden)
         }
-        .onChange(of: selection) { _, newSelection in
-            guard let id = newSelection.first else { return }
-            selectedStudentID = id
-            selection.removeAll()
+        .contextMenu(forSelectionType: UUID.self) { ids in
+            if let id = ids.first, let row = rows.first(where: { $0.id == id }) {
+                contextMenu(for: row)
+            }
         }
         .overlay {
             if rows.isEmpty {
@@ -95,39 +122,74 @@ struct StudentsTableView: View {
         }
     }
 
+    private func studentCell(_ row: StudentTableRow) -> some View {
+        let isAway = row.presence == .absent || row.presence == .leftEarly
+        return HStack(spacing: 8) {
+            StudentAvatarView(student: row.student, size: 24)
+                .opacity(isAway ? 0.55 : 1)
+                .overlay(alignment: .bottomTrailing) {
+                    if row.presence == .here {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 8, height: 8)
+                            .overlay(Circle().stroke(.background, lineWidth: 1))
+                    }
+                }
+            Text(row.name)
+                .lineLimit(1)
+            if row.presence == .absent {
+                RosterTag(text: "Absent", tint: .secondary)
+            } else if row.presence == .leftEarly {
+                RosterTag(text: "Left Early", tint: .secondary)
+            }
+            if let days = row.soonBirthdayDays {
+                RosterTag(text: RosterSignalText.birthday(inDays: days, calendar: calendar), tint: .orange)
+            }
+        }
+    }
+
     @ViewBuilder
     private func contextMenu(for row: StudentTableRow) -> some View {
-        Button("View Details", systemImage: "person.text.rectangle") {
-            selectedStudentID = row.id
+        if showsSignals {
+            Button("Add Observation", systemImage: "square.and.pencil") {
+                onAddObservation(row.student)
+            }
+            Button("Give Lesson…", systemImage: "book") {
+                onGiveLesson(row.student)
+            }
+            Divider()
         }
         Button("Open in New Window", systemImage: "uiwindow.split.2x1") {
             openStudentInNewWindow(row.id)
         }
-        Divider()
         Button("Copy Name", systemImage: "doc.on.doc") {
             Pasteboard.copy(row.name)
         }
     }
-
-    private static func ageString(for student: CDStudent) -> String {
-        guard let birthday = student.birthday else { return "—" }
-        return AgeUtils.quarterGlyphAgeString(for: birthday)
-    }
 }
 
-nonisolated private struct StudentTableRow: Identifiable {
+nonisolated struct StudentTableRow: Identifiable {
     let id: UUID
     let student: CDStudent
     let name: String
-    let level: String
+    let level: CDStudent.Level
+    let presence: StudentSignals.Presence
+    let schoolDaysSinceLesson: Int?
+    let isDue: Bool
+    let lastObserved: Date?
+    let isObservationStale: Bool
+    let nextLesson: String
     let age: String
     let ageSortValue: TimeInterval
     let birthdayLabel: String?
     let daysUntilBirthday: Int?
-    let nextLesson: String
-    let lastObservation: Date?
+    let soonBirthdayDays: Int?
 
-    var lastObservationSortValue: Date { lastObservation ?? .distantPast }
+    /// Youngest level first, the order the iPhone and iPad sections use.
+    var levelSortValue: Int { CDStudent.Level.allCases.firstIndex(of: level) ?? 0 }
+    /// Longest without a lesson last when ascending; none at all after that.
+    var lessonSortValue: Int { schoolDaysSinceLesson ?? .max }
+    var lastObservedSortValue: Date { lastObserved ?? .distantPast }
     /// Soonest birthday first; students without one sort to the end.
     var birthdaySortValue: Int { daysUntilBirthday ?? .max }
 }

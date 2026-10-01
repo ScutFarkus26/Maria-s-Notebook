@@ -138,16 +138,19 @@ A collapsed section at the bottom showing everything you've finished today — c
 
 ## Viewing Your Roster
 
-Tap **Students** in the navigation to see your full student list. Each student card shows their name, level (Lower Elementary, Upper Elementary, or Adolescent), and a summary of their recent activity.
+Tap **Students** in the navigation to see your class, grouped by level (Lower Elementary, Upper Elementary, Adolescent). Every row reads the same way whatever the order:
 
-You can sort the list by:
+- **Name**, with **Absent** or **Left Early** beside it when today's attendance says so, and **Birthday today** or **Birthday Tue** when a birthday falls in the coming week. A green dot on the picture means the child is here.
+- **Lesson … days ago**: school days since the child's last lesson. It turns orange at 7 school days, the same rule Today uses for "need a lesson".
+- **Observed …**: when you last wrote an observation about the child. It turns orange after two weeks.
 
-- Alphabetical order
-- Last lesson given
-- Age or grade level
-- Upcoming birthdays
+The chips above the list narrow it, and each shows how many children it holds: **All**, **Here**, **Due** (due for a lesson), and one per level that has children this year. Until attendance is taken on a school day, a line under the chips says so.
 
-Use the search bar at the top to find a student quickly.
+The sort button names the active order: **A–Z**, **Manual**, **Age** (each row adds the child's age), or **Next Birthday** (each row adds the date). Use the search bar to find a student quickly.
+
+On iPhone, swipe a row left to **Observe** (a quick note for that child) or start a **Lesson** with the child already on it. On iPad and Mac the same actions are in the row's context menu.
+
+On iPad and Mac, when no child is open, the right side shows **Class at a Glance**: who's absent, who's due for a lesson, who hasn't been observed lately, and whose birthday is this week. Tap any name to open the record. On the Mac the roster is a table: the selected child stays highlighted, the arrow keys move through the class, every column sorts, and **Age** and **Birthday** columns can be shown from the column header's menu. **Former** above the table lists students who have left.
 
 ## Adding a Student
 

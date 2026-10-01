@@ -967,9 +967,10 @@ The feature is organized by subdomain: `Roster/`, `Detail/`, `Models/`, `Files/`
 
 ### Student Roster
 
-- List view with filtering by level and enrollment status
-- Sorting by name, manual order, or level
-- Search by name (fuzzy matching)
+- `StudentsView` filters and sorts the workspace's live roster (`RosterStore.all`) in memory (`StudentsViewModel.filteredStudents`, pure and static); it never fetches the Student table itself. Each body pass builds one `RosterSnapshot` (visible enrolled children, the shown rows, former students, the scope chips with counts) and every pane reads it.
+- Every row shows the same signals in every sort (`RosterSignals.swift`: `StudentSignals`, `RosterSignalRules`, `RosterSignalText`): presence today, school days since the last lesson (due at 7, Today's rule), last observed (stale at 14 days), birthday within 6 days. The sort only adds a labeled age or date.
+- `StudentsViewModel` caches today's attendance and the lesson/observation facts (`StudentsViewModel+Caches.swift`) and rebuilds each only when its own inputs change: two `ManagedObjectChangeFlag`s (attendance; the table-cache entities) plus day turnover, checked by `refreshIfNeeded` after a debounced save or import that touches `signalInputEntities`. Count tokens are gone: they missed edits that left a count unchanged.
+- iPhone/iPad: level sections, scope chips (All, Here, Due, levels with children), swipe actions Observe / Lesson. iPad and Mac show `ClassGlanceView` when no child is selected. Mac: scope bar + `StudentsTableView` (selection bound, column customization with Age/Birthday hidden by default) beside the record.
 
 ### Student Detail View
 
@@ -1554,7 +1555,7 @@ Cosmic Daybook/
 |
 +-- Students/
 |   +-- Models/StudentEntity.swift       Student entity (CDStudent)
-|   +-- Roster/                           Student list and cards
+|   +-- Roster/                           Student roster, signals, class at a glance
 |   +-- Detail/                           Student detail tabs and state
 |   +-- Files/                            Student documents
 |   +-- Import/                           CSV import workflow

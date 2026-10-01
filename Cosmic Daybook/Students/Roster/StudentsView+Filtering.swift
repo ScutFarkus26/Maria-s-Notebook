@@ -1,8 +1,20 @@
-import OSLog
 import SwiftUI
 import CoreData
 
-// MARK: - Filtering & Sorting Computed Properties
+// MARK: - The roster, derived once per render
+
+/// Everything the Students screen draws from, built once per body pass from
+/// the live roster and the view model's signals.
+struct RosterSnapshot {
+    /// Enrolled, visible children in the selected school year, in the active sort.
+    let enrolled: [CDStudent]
+    /// `enrolled` narrowed by the active scope and the search.
+    let shown: [CDStudent]
+    /// Former students (withdrawn or transferred) matching the search.
+    let former: [CDStudent]
+    /// The scope chips, each with its count.
+    let scopes: [RosterScope]
+}
 
 extension StudentsView {
 
@@ -21,6 +33,7 @@ extension StudentsView {
         case "lower": return .lower
         case "adolescent": return .adolescent
         case "presentNow", "presentToday": return .presentNow
+        case "dueForLesson": return .dueForLesson
         default:
             // Includes the legacy "withdrawn" value — withdrawn students now
             // live in their own list section instead of behind a filter.
@@ -28,97 +41,51 @@ extension StudentsView {
         }
     }
 
-    var viewStyle: StudentsViewStyle {
-        #if os(macOS)
-        // A Mac roster is always a table. Keep the stored preference for the
-        // separate iPhone/iPad experience, but do not let it alter the desktop
-        // workspace or create a second visual language there.
-        return .table
-        #else
-        // A former Mac-only table choice should never strand a mobile user in
-        // an unsupported view after switching devices.
-        return StudentsViewStyle(rawValue: studentsViewStyleRaw) == .grid ? .grid : .list
-        #endif
-    }
+    func makeSnapshot() -> RosterSnapshot {
+        let all = uniqueStudents
+        let show = testStudents.show
+        let names = testStudents.namesRaw
 
-    /// Whether the list/grid view-style toggle is shown (regular widths only —
-    /// on iPhone the detail column is only visible when a student is pushed).
-    var showsViewStyleToggle: Bool {
-        #if os(iOS)
-        horizontalSizeClass == .regular
-        #else
-        false
-        #endif
-    }
-
-    var hiddenTestStudentIDs: Set<UUID> {
-        viewModel.hiddenTestStudentIDs(
-            students: uniqueStudents,
-            show: testStudents.show,
-            namesRaw: testStudents.namesRaw
+        // School-year lens: scope the roster to students active in the selected
+        // year (no-op when the lens is "All years"). Former students are unaffected.
+        var enrolled = StudentsViewModel.filteredStudents(
+            all, filter: .all, sortOrder: sortOrder, showTestStudents: show, testStudentNames: names
         )
-    }
-
-    var presentNowIDs: Set<UUID> {
-        viewModel.presentNowIDs(
-            from: viewModel.cachedAttendanceRecords,
-            calendar: calendar
-        )
-    }
-
-    var presentNowCount: Int { presentNowIDs.count }
-
-    /// Count of enrolled (non-withdrawn) students, respecting the test-student toggle.
-    var enrolledCount: Int {
-        let hidden = hiddenTestStudentIDs
-        return uniqueStudents.filter { student in
-            guard student.isEnrolled else { return false }
-            guard let id = student.id else { return true }
-            return !hidden.contains(id)
-        }.count
-    }
-
-    // OPTIMIZATION: Use cached version instead of recomputing on every view update
-    var daysSinceLastLessonByStudent: [UUID: Int] { viewModel.cachedDaysSinceLastLesson }
-
-    /// Memoized per query until a Student changes (`StudentsViewModel+Memo`):
-    /// the sidebar and grid read this four to six times per render.
-    var filteredStudents: [CDStudent] {
-        let base = viewModel.memoizedFilteredStudents(
-            viewContext: viewContext,
-            filter: selectedFilter,
-            sortOrder: sortOrder,
-            searchString: searchText,
-            presentNowIDs: presentNowIDs,
-            showTestStudents: testStudents.show,
-            testStudentNames: testStudents.namesRaw
-        )
-
-        // School-year lens: scope the roster to students active in the selected year
-        // (no-op when the lens is "All years"). The withdrawn section is unaffected.
-        let scoped: [CDStudent]
         if let range = dependencies.schoolYearStore.activeRange {
-            scoped = base.filter { $0.isActive(in: range) }
-        } else {
-            scoped = base
+            enrolled = enrolled.filter { $0.isActive(in: range) }
         }
 
-        // DEDUPLICATION: CloudKit sync can create duplicate records with the same ID.
-        // Use uniqueByID to prevent SwiftUI crash on "Duplicate values for key"
-        return scoped.uniqueByID
-    }
+        let presentIDs = viewModel.presentNowIDs
+        let dueIDs = viewModel.dueIDs(among: enrolled)
+        let shown = StudentsViewModel.filteredStudents(
+            enrolled, filter: selectedFilter, sortOrder: sortOrder, searchString: searchText,
+            presentNowIDs: presentIDs, dueIDs: dueIDs
+        )
+        let former = StudentsViewModel.filteredStudents(
+            all, filter: .withdrawn, sortOrder: .alphabetical, searchString: searchText,
+            showTestStudents: show, testStudentNames: names
+        )
 
-    /// Former students (withdrawn or transferred) for the collapsible section at the
-    /// bottom of the roster. Searching the roster also matches former students.
-    var withdrawnStudents: [CDStudent] {
-        viewModel.memoizedFilteredStudents(
-            viewContext: viewContext,
-            filter: .withdrawn,
-            sortOrder: .alphabetical,
-            searchString: searchText,
-            presentNowIDs: nil,
-            showTestStudents: testStudents.show,
-            testStudentNames: testStudents.namesRaw
-        ).uniqueByID
+        var levelCounts: [CDStudent.Level: Int] = [:]
+        var hereCount = 0
+        for student in enrolled {
+            levelCounts[student.level, default: 0] += 1
+            if let id = student.id, presentIDs.contains(id) { hereCount += 1 }
+        }
+        var scopes = [
+            RosterScope(filter: .all, count: enrolled.count),
+            RosterScope(filter: .presentNow, count: hereCount),
+            RosterScope(filter: .dueForLesson, count: dueIDs.count)
+        ]
+        // A level with no children this year has no chip, unless it is the
+        // one selected (so the selection can be seen and changed).
+        for level in CDStudent.Level.allCases {
+            let count = levelCounts[level] ?? 0
+            if count > 0 || selectedFilter.level == level {
+                scopes.append(RosterScope(filter: .level(level), count: count))
+            }
+        }
+
+        return RosterSnapshot(enrolled: enrolled, shown: shown, former: former, scopes: scopes)
     }
 }

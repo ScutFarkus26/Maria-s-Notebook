@@ -144,17 +144,11 @@ struct DetailLine: View {
 /// A reusable level badge component
 struct LevelBadge: View {
     let level: CDStudent.Level
-    let backgroundColor: Color
-    let useWhiteBackground: Bool
 
-    init(level: CDStudent.Level, backgroundColor: Color? = nil, useWhiteBackground: Bool = false) {
-        self.level = level
-        self.backgroundColor = backgroundColor ?? AppColors.color(forLevel: level)
-        self.useWhiteBackground = useWhiteBackground
-    }
+    private var backgroundColor: Color { AppColors.color(forLevel: level) }
 
     private var bgColor: Color {
-        useWhiteBackground ? Color.white.opacity(0.18) : backgroundColor.opacity(UIConstants.OpacityConstants.medium)
+        backgroundColor.opacity(UIConstants.OpacityConstants.medium)
     }
 
     var body: some View {

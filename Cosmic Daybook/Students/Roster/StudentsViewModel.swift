@@ -2,130 +2,130 @@ import Foundation
 import CoreData
 import SwiftUI
 
+/// The roster screen's per-child signals and its filter/sort rules.
+///
+/// The students themselves come from `RosterStore` (already live and
+/// observable), so this model never fetches the Student table: it filters and
+/// sorts the store's array in memory. What it caches is what the store does
+/// not know: today's attendance, and the lesson and observation facts behind
+/// each row's signals (`StudentsViewModel+Caches`). Each is rebuilt only when
+/// one of its own inputs changed, or the day turned over.
 @Observable
 final class StudentsViewModel {
-    // MARK: - Cache State
-    var cachedAttendanceRecords: [CDAttendanceRecord] = []
-    var cachedLessonAssignments: [CDLessonAssignment] = []
-    var cachedLessons: [UUID: CDLesson] = [:]
+    // MARK: - Caches
+
+    /// Today's mark per child, from today's attendance rows.
+    private(set) var presenceByStudent: [UUID: StudentSignals.Presence] = [:]
+    /// True once anyone has a mark today; until then the roster says
+    /// attendance hasn't been taken instead of showing everyone unmarked.
+    private(set) var attendanceTaken = false
+    /// Whether today is a school day, read with today's attendance.
+    private(set) var isSchoolDayToday = true
+    /// True on a school day before anyone has a mark.
+    var showsAttendanceNotTaken: Bool { isSchoolDayToday && !attendanceTaken }
+    /// School days since the last presented lesson; -1 when there is none in a year.
     var cachedDaysSinceLastLesson: [UUID: Int] = [:]
     var cachedNextLessonNames: [UUID: String] = [:]
     var cachedLastObservationDates: [UUID: Date] = [:]
-    
-    // MARK: - Change Detection
-    private var lastLoadTimestamp: Date = .distantPast
 
-    // MARK: - Memo State (see StudentsViewModel+Memo.swift)
-    /// Flips when a Student changes; the roster lists are refetched only then.
-    @ObservationIgnored var studentChanges: ManagedObjectChangeFlag?
-    @ObservationIgnored var studentGeneration = 0
-    @ObservationIgnored var rosterMemo: [RosterQuery: RosterMemoEntry] = [:]
-    /// Roster fetches actually run (for tests pinning the memo).
-    @ObservationIgnored var rosterFetchCount = 0
+    // MARK: - Change Detection (see StudentsViewModel+Caches.swift)
+
+    /// Flips when an attendance row changes.
+    @ObservationIgnored var attendanceInputs: ManagedObjectChangeFlag?
+    /// The day today's attendance was last loaded for.
+    @ObservationIgnored var attendanceLoadedFor: Date?
+    /// Attendance loads actually run (for tests pinning the gate).
+    @ObservationIgnored var attendanceLoadCount = 0
     /// Flips when anything the table caches read changes (see `tableCacheInputEntities`).
     @ObservationIgnored var tableCacheInputs: ManagedObjectChangeFlag?
     /// The day and counter epoch the table caches were last built under.
     @ObservationIgnored var tableCachesBuiltFor: TableCacheStamp?
     /// Full table-cache builds actually run (for tests pinning the gate).
     @ObservationIgnored var tableCacheBuildCount = 0
-    
+
+    // MARK: - Signals
+
+    func signals(for studentID: UUID?) -> StudentSignals {
+        guard let studentID else { return StudentSignals() }
+        let days = cachedDaysSinceLastLesson[studentID]
+        return StudentSignals(
+            presence: presenceByStudent[studentID] ?? .unmarked,
+            schoolDaysSinceLesson: days.flatMap { $0 >= 0 ? $0 : nil },
+            lastObserved: cachedLastObservationDates[studentID],
+            nextLessonName: cachedNextLessonNames[studentID]
+        )
+    }
+
+    /// Children marked here today (present or tardy; left-early children have gone home).
+    var presentNowIDs: Set<UUID> {
+        Set(presenceByStudent.compactMap { $0.value == .here ? $0.key : nil })
+    }
+
+    /// Children due for a lesson among `students`.
+    func dueIDs(among students: [CDStudent]) -> Set<UUID> {
+        Set(students.compactMap { student in
+            guard let id = student.id, signals(for: id).isDueForLesson else { return nil }
+            return id
+        })
+    }
+
     // MARK: - Filtering & Sorting
-    func filteredStudents(
-        viewContext: NSManagedObjectContext,
+
+    /// The roster narrowed and ordered for display. Pure: `students` is the
+    /// workspace roster (`RosterStore.all`), filtered and sorted in memory.
+    static func filteredStudents(
+        _ students: [CDStudent],
         filter: StudentsFilter,
         sortOrder: SortOrder,
         searchString: String = "",
         today: Date = Date(),
-        presentNowIDs: Set<UUID>? = nil,
+        presentNowIDs: Set<UUID> = [],
+        dueIDs: Set<UUID> = [],
         showTestStudents: Bool = true,
         testStudentNames: String = ""
     ) -> [CDStudent] {
-        // CDNote: level and presentNow filtering are done in-memory;
-        // levelRaw is private and Core Data NSPredicate can't capture local Set variables.
-        let descriptor = CDFetchRequest(CDStudent.self)
-        descriptor.sortDescriptors = buildStudentSortDescriptors(for: sortOrder)
-        var fetched = viewContext.safeFetch(descriptor)
-
         let query = searchString.trimmed().isEmpty ? nil : searchString.normalizedForComparison()
-        let testFilter = TestStudentsFilter.buildTestStudentFilter(
+        let isVisible = TestStudentsFilter.buildTestStudentFilter(
             showTestStudents: showTestStudents, testStudentNames: testStudentNames
         )
-        fetched = applyStudentFilters(
-            to: fetched, filter: filter, query: query,
-            testFilter: testFilter, presentNowIDs: presentNowIDs
-        )
-        return applySortToFetched(fetched, sortOrder: sortOrder, today: today)
-    }
-
-    private func buildStudentSortDescriptors(for sortOrder: SortOrder) -> [NSSortDescriptor] {
-        switch sortOrder {
-        case .manual:
-            return [NSSortDescriptor(key: "manualOrder", ascending: true)]
-        case .alphabetical:
-            return [
-                NSSortDescriptor(key: "firstName", ascending: true),
-                NSSortDescriptor(key: "lastName", ascending: true),
-                NSSortDescriptor(key: "manualOrder", ascending: true)
-            ]
-        case .age:
-            return [
-                NSSortDescriptor(key: "birthday", ascending: false),
-                NSSortDescriptor(key: "manualOrder", ascending: true)
-            ]
-        case .birthday:
-            return [NSSortDescriptor(key: "manualOrder", ascending: true)]
-        }
-    }
-
-    // swiftlint:disable:next cyclomatic_complexity
-    private func applyStudentFilters(
-        to students: [CDStudent],
-        filter: StudentsFilter,
-        query: String?,
-        testFilter: (CDStudent) -> Bool,
-        presentNowIDs: Set<UUID>?
-    ) -> [CDStudent] {
-        students.filter { student in
-            // When showing former students, only show former (withdrawn or transferred);
-            // otherwise exclude them from the active roster.
-            if filter == .withdrawn {
-                if student.isEnrolled { return false }
-            } else {
-                if !student.isEnrolled { return false }
+        let matching = students.filter { student in
+            // Former students (withdrawn or transferred) only in their own list.
+            guard student.isEnrolled == (filter != .withdrawn) else { return false }
+            if let level = filter.level, student.level != level { return false }
+            if filter == .presentNow || filter == .dueForLesson {
+                guard let id = student.id else { return false }
+                let ids = filter == .presentNow ? presentNowIDs : dueIDs
+                if !ids.contains(id) { return false }
             }
-
-            switch filter {
-            case .all, .withdrawn: break
-            case .upper: if student.level != .upper { return false }
-            case .lower: if student.level != .lower { return false }
-            case .adolescent: if student.level != .adolescent { return false }
-            case .presentNow:
-                if let ids = presentNowIDs, !ids.isEmpty {
-                    guard let studentID = student.id else { return false }
-                    if !ids.contains(studentID) { return false }
-                } else {
-                    return false
-                }
-            }
-            if !testFilter(student) { return false }
+            guard isVisible(student) else { return false }
             if let query {
-                let fn = student.firstName.lowercased()
-                let ln = student.lastName.lowercased()
-                let full = student.fullName.lowercased()
-                if !fn.contains(query) && !ln.contains(query) && !full.contains(query) { return false }
+                let names = [student.firstName, student.lastName, student.fullName].map { $0.lowercased() }
+                if !names.contains(where: { $0.contains(query) }) { return false }
             }
             return true
         }
+        return sorted(matching.uniqueByID, by: sortOrder, today: today)
     }
 
-    private func applySortToFetched(_ students: [CDStudent], sortOrder: SortOrder, today: Date) -> [CDStudent] {
+    private static func sorted(_ students: [CDStudent], by sortOrder: SortOrder, today: Date) -> [CDStudent] {
         switch sortOrder {
-        case .manual, .age:
-            return students
-        case .alphabetical:
+        case .manual:
             return students.sorted { lhs, rhs in
-                let order = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
-                return order == .orderedSame ? lhs.manualOrder < rhs.manualOrder : order == .orderedAscending
+                lhs.manualOrder == rhs.manualOrder
+                    ? byName(lhs, rhs)
+                    : lhs.manualOrder < rhs.manualOrder
+            }
+        case .alphabetical:
+            return students.sorted(by: byName)
+        case .age:
+            // Youngest first; children with no birthday on file last.
+            return students.sorted { lhs, rhs in
+                switch (lhs.birthday, rhs.birthday) {
+                case let (l?, r?) where l != r: return l > r
+                case (.some, nil): return true
+                case (nil, .some): return false
+                default: return lhs.manualOrder < rhs.manualOrder
+                }
             }
         case .birthday:
             let todayStart = AppCalendar.shared.startOfDay(for: today)
@@ -136,6 +136,17 @@ final class StudentsViewModel {
             }
         }
     }
+
+    private static func byName(_ lhs: CDStudent, _ rhs: CDStudent) -> Bool {
+        let order = lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName)
+        return order == .orderedSame ? lhs.manualOrder < rhs.manualOrder : order == .orderedAscending
+    }
+
+    private static func nextBirthday(from birthday: Date, relativeTo today: Date) -> Date {
+        AgeUtils.nextBirthday(for: birthday, today: today, calendar: AppCalendar.shared) ?? .distantFuture
+    }
+
+    // MARK: - Manual Order
 
     func ensureInitialManualOrderIfNeeded(_ students: [CDStudent]) -> Bool {
         let all = students
@@ -210,6 +221,8 @@ final class StudentsViewModel {
     }
 
     // MARK: - Data Loading
+
+    /// Rebuilds everything now (first appearance, tests).
     func loadDataOnDemand(
         viewContext: NSManagedObjectContext,
         calendar: Calendar,
@@ -219,27 +232,64 @@ final class StudentsViewModel {
         buildTableCaches(viewContext: viewContext, calendar: calendar, students: students)
     }
 
-    /// Only today's attendance — what an attendance change can move. The
-    /// table caches are rebuilt too only when one of their own inputs changed
-    /// since the last build, or the day (or counter epoch) turned over.
-    func reloadAfterAttendanceChange(
+    /// Reloads only what moved since the last call: today's attendance when an
+    /// attendance row changed or the day turned over; the lesson and
+    /// observation caches when one of their inputs changed, or the day (or
+    /// counter epoch) turned over. An attendance tap rebuilds nothing else.
+    func refreshIfNeeded(
         viewContext: NSManagedObjectContext,
         calendar: Calendar,
         students: [CDStudent]
     ) {
-        loadAttendance(viewContext: viewContext, calendar: calendar)
+        let stamp = TableCacheStamp(calendar: calendar)
+        let attendanceMoved = attendanceFlag(for: viewContext).consume(pendingIn: viewContext)
+        if attendanceMoved || attendanceLoadedFor != stamp.day {
+            loadAttendance(viewContext: viewContext, calendar: calendar)
+        }
         let inputsMoved = tableCacheFlag(for: viewContext).consume(pendingIn: viewContext)
-        guard inputsMoved || tableCachesBuiltFor != TableCacheStamp(calendar: calendar) else { return }
-        buildTableCaches(viewContext: viewContext, calendar: calendar, students: students)
+        if inputsMoved || tableCachesBuiltFor != stamp {
+            buildTableCaches(viewContext: viewContext, calendar: calendar, students: students)
+        }
     }
 
     private func loadAttendance(viewContext: NSManagedObjectContext, calendar: Calendar) {
-        // Load today's attendance records for the present-now filter and row indicators
+        // Cleared before the load, so a change that lands during it counts.
+        _ = attendanceFlag(for: viewContext).consume(pendingIn: viewContext)
+        attendanceLoadCount += 1
         let today = calendar.startOfDay(for: Date())
+        attendanceLoadedFor = today
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
-        let descriptor = CDFetchRequest(CDAttendanceRecord.self)
-        descriptor.predicate = NSPredicate(format: "date >= %@ AND date < %@", today as CVarArg, tomorrow as CVarArg)
-        cachedAttendanceRecords = viewContext.safeFetch(descriptor)
+        let request = CDFetchRequest(CDAttendanceRecord.self)
+        request.predicate = NSPredicate(format: "date >= %@ AND date < %@", today as CVarArg, tomorrow as CVarArg)
+        let (presence, taken) = Self.presence(from: viewContext.safeFetch(request))
+        if presence != presenceByStudent { presenceByStudent = presence }
+        if taken != attendanceTaken { attendanceTaken = taken }
+        let schoolDay = SchoolDayChecker.isSchoolDay(today, using: viewContext)
+        if schoolDay != isSchoolDayToday { isSchoolDayToday = schoolDay }
+    }
+
+    /// Today's mark per child. A child with two rows for the day (a CloudKit
+    /// duplicate) takes the marked one.
+    static func presence(
+        from records: [CDAttendanceRecord]
+    ) -> (byStudent: [UUID: StudentSignals.Presence], taken: Bool) {
+        var byStudent: [UUID: StudentSignals.Presence] = [:]
+        var taken = false
+        for record in records {
+            guard let id = UUID(uuidString: record.studentID) else { continue }
+            let presence: StudentSignals.Presence
+            switch record.status {
+            case .present, .tardy: presence = .here
+            case .absent: presence = .absent
+            case .leftEarly: presence = .leftEarly
+            case .unmarked: presence = .unmarked
+            }
+            if presence != .unmarked { taken = true }
+            if byStudent[id] == nil || byStudent[id] == .unmarked {
+                byStudent[id] = presence
+            }
+        }
+        return (byStudent, taken)
     }
 
     private func buildTableCaches(viewContext: NSManagedObjectContext, calendar: Calendar, students: [CDStudent]) {
@@ -247,236 +297,26 @@ final class StudentsViewModel {
         _ = tableCacheFlag(for: viewContext).consume(pendingIn: viewContext)
         tableCachesBuiltFor = TableCacheStamp(calendar: calendar)
         tableCacheBuildCount += 1
-        // Days-since-last-lesson feeds the row accessory in A–Z/manual sort
-        cachedDaysSinceLastLesson = computeDaysSinceLastLessonCache(
-            for: students, using: viewContext, calendar: calendar
-        )
-        loadTableCaches(students: students, viewContext: viewContext)
-        lastLoadTimestamp = Date()
-    }
+        let days = computeDaysSinceLastLessonCache(for: students, using: viewContext, calendar: calendar)
+        if days != cachedDaysSinceLastLesson { cachedDaysSinceLastLesson = days }
 
-    private func loadTableCaches(students: [CDStudent], viewContext: NSManagedObjectContext) {
-        let studentIDs = Set(students.compactMap(\.id))
-
-        // Only the lessons some student names as next — the only ones read below.
         let lessons = Self.nextLessons(for: students, in: viewContext)
-        cachedLessons = Dictionary(
-            lessons.compactMap { lesson in lesson.id.map { ($0, lesson) } },
+        let lessonNames: [UUID: String] = Dictionary(
+            lessons.compactMap { lesson in lesson.id.map { ($0, lesson.name) } },
             uniquingKeysWith: { first, _ in first }
         )
-        cachedNextLessonNames = Dictionary(
-            uniqueKeysWithValues: students.compactMap { student in
+        let nextNames = Dictionary(
+            students.compactMap { student -> (UUID, String)? in
                 guard let studentID = student.id,
-                      let lessonName = student.nextLessonUUIDs.lazy.compactMap({ self.cachedLessons[$0]?.name }).first
+                      let name = student.nextLessonUUIDs.lazy.compactMap({ lessonNames[$0] }).first
                 else { return nil }
-                return (studentID, lessonName)
-            }
+                return (studentID, name)
+            },
+            uniquingKeysWith: { first, _ in first }
         )
+        if nextNames != cachedNextLessonNames { cachedNextLessonNames = nextNames }
 
-        let latest = Self.latestObservationDates(for: studentIDs, in: viewContext)
-        cachedLastObservationDates = latest
-    }
-    
-    // MARK: - Computed Helpers
-    /// Students marked in the room today. Tardy counts as here — a late arrival is
-    /// still present — so this matches the Today header's "in" count. Left-early
-    /// students have gone home and are not counted.
-    func presentNowIDs(from cachedRecords: [CDAttendanceRecord], calendar: Calendar) -> Set<UUID> {
-        let today = calendar.startOfDay(for: Date())
-        let filtered = cachedRecords.filter {
-            guard let recDate = $0.date else { return false }
-            let recordDay = calendar.startOfDay(for: recDate)
-            return recordDay == today && ($0.status == .present || $0.status == .tardy)
-        }
-        return Set(filtered.compactMap { UUID(uuidString: $0.studentID) })
-    }
-    
-    func hiddenTestStudentIDs(
-        students: [CDStudent],
-        show: Bool,
-        namesRaw: String
-    ) -> Set<UUID> {
-        guard !show else { return [] }
-        
-        let testNames = namesRaw
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
-        
-        guard !testNames.isEmpty else { return [] }
-        
-        return Set(students
-            .filter { student in
-                let firstName = student.firstName.lowercased()
-                let lastName = student.lastName.lowercased()
-                let fullName = student.fullName.lowercased()
-                return testNames.contains(where: { testName in
-                    firstName.contains(testName) || 
-                    lastName.contains(testName) || 
-                    fullName.contains(testName)
-                })
-            }
-            .compactMap(\.id))
-    }
-    
-    // MARK: - Helpers
-    private func nextBirthday(from birthday: Date, relativeTo today: Date = Date()) -> Date {
-        AgeUtils.nextBirthday(for: birthday, today: today, calendar: AppCalendar.shared) ?? .distantFuture
-    }
-
-}
-
-// MARK: - CDLesson Age Cache
-// Computes days since last lesson for multiple students efficiently.
-// Reads the presented assignments of the last year once — as five columns, not
-// as objects — and folds them into one date per student.
-
-extension StudentsViewModel {
-
-    /// One presented assignment reduced to the three facts the day count needs.
-    private struct PresentedAssignment {
-        let lessonID: UUID?
-        let studentIDs: [UUID]
-        let when: Date
-    }
-
-    /// The presented assignments of the last year, minus the ones for Parsha lessons.
-    ///
-    /// Both queries are shaped to read as little as the answer needs. The lesson
-    /// query asks the store for the Parsha rows instead of folding every lesson
-    /// name in Swift; the assignment query filters on `stateRaw` in SQL and reads
-    /// dictionaries rather than faulting a year of objects — the old object path
-    /// also read `resolvedLessonID` per row, which is a separate `SELECT` each.
-    private struct LessonQueryContext {
-        let presentedAssignments: [PresentedAssignment]
-
-        init(viewContext: NSManagedObjectContext, calendar: Calendar) {
-            // PERFORMANCE: Limit query to recent lessons (1 year) to avoid loading entire history
-            let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date())
-                ?? Date().addingTimeInterval(-365 * 24 * 3600)
-
-            let excluded = Self.parshaLessonIDs(in: viewContext)
-            // A row whose `lessonID` doesn't parse used to compare against a fresh
-            // UUID, which is never in the excluded set — so it was kept. Keep it.
-            presentedAssignments = Self.presentedRows(since: oneYearAgo, in: viewContext)
-                .filter { row in
-                    guard let lessonID = row.lessonID else { return true }
-                    return !excluded.contains(lessonID)
-                }
-        }
-
-        /// IDs of the lessons the day count ignores.
-        ///
-        /// `normalizedForComparison()` is trim + lowercase, which no predicate can
-        /// express, so the store narrows to the rows that could possibly match and
-        /// Swift makes the same decision it always did on that handful. `[c]` only —
-        /// the fold is case-insensitive but *not* diacritic-insensitive.
-        private static func parshaLessonIDs(in context: NSManagedObjectContext) -> Set<UUID> {
-            let request = CDFetchRequest(CDLesson.self)
-            request.predicate = NSPredicate(
-                format: "area CONTAINS[c] %@ OR sequence CONTAINS[c] %@", "parsha", "parsha"
-            )
-            let candidates = context.safeFetch(request).filter {
-                $0.area.normalizedForComparison() == "parsha"
-                    || $0.sequence.normalizedForComparison() == "parsha"
-            }
-            return Set(candidates.compactMap(\.id))
-        }
-
-        private static func presentedRows(
-            since cutoff: Date,
-            in context: NSManagedObjectContext
-        ) -> [PresentedAssignment] {
-            let predicate = NSPredicate(
-                format: "createdAt >= %@ AND stateRaw == %@",
-                cutoff as CVarArg, LessonAssignmentState.presented.rawValue
-            )
-            // A dictionary-result fetch can't see unsaved inserts, so a dirty
-            // context still takes the object path — the answer has to be identical.
-            if !context.hasChanges, let rows = dictionaryRows(matching: predicate, in: context) {
-                return rows
-            }
-            let request = CDFetchRequest(CDLessonAssignment.self)
-            request.predicate = predicate
-            request.returnsObjectsAsFaults = false
-            request.fetchBatchSize = 200
-            return context.safeFetch(request).map {
-                PresentedAssignment(
-                    lessonID: $0.lessonIDUUID,
-                    studentIDs: $0.resolvedStudentIDs,
-                    when: $0.presentedAt ?? $0.scheduledFor ?? $0.createdAt ?? Date()
-                )
-            }
-        }
-
-        /// `nil` when the fetch fails, so the caller falls back to the object path.
-        private static func dictionaryRows(
-            matching predicate: NSPredicate,
-            in context: NSManagedObjectContext
-        ) -> [PresentedAssignment]? {
-            let request = NSFetchRequest<NSDictionary>(entityName: "LessonAssignment")
-            request.resultType = .dictionaryResultType
-            request.predicate = predicate
-            request.propertiesToFetch = [
-                "presentedAt", "scheduledFor", "createdAt", "lessonID", "_studentIDsData"
-            ]
-            guard let rows = try? context.fetch(request) else { return nil }
-            return rows.map { row in
-                let when = (row["presentedAt"] as? Date)
-                    ?? (row["scheduledFor"] as? Date)
-                    ?? (row["createdAt"] as? Date)
-                    ?? Date()
-                // Same decoding the `studentIDs` accessor does, straight off the blob.
-                let ids = CloudKitStringArrayStorage.decode(from: row["_studentIDsData"] as? Data)
-                return PresentedAssignment(
-                    lessonID: (row["lessonID"] as? String).flatMap { UUID(uuidString: $0) },
-                    studentIDs: ids.compactMap { UUID(uuidString: $0) },
-                    when: when
-                )
-            }
-        }
-    }
-
-    func computeDaysSinceLastLessonCache(
-        for students: [CDStudent],
-        using viewContext: NSManagedObjectContext,
-        calendar: Calendar
-    ) -> [UUID: Int] {
-        // Build shared query context once
-        let context = LessonQueryContext(viewContext: viewContext, calendar: calendar)
-
-        // Build a map of student ID to most recent lesson date
-        var lastDateByStudent: [UUID: Date] = [:]
-        for assignment in context.presentedAssignments {
-            let when = assignment.when
-            for sid in assignment.studentIDs {
-                // Update if this is the first date or a more recent date
-                if let existing = lastDateByStudent[sid] {
-                    if when > existing {
-                        lastDateByStudent[sid] = when
-                    }
-                } else {
-                    lastDateByStudent[sid] = when
-                }
-            }
-        }
-
-        // Compute days since last lesson for each student
-        var result: [UUID: Int] = [:]
-        for student in students {
-            guard let studentID = student.id else { continue }
-            if let lastDate = lastDateByStudent[studentID] {
-                // Use LessonAgeHelper to compute school days since last lesson
-                result[studentID] = LessonAgeHelper.schoolDaysSinceCreation(
-                    createdAt: lastDate,
-                    asOf: Date(),
-                    using: viewContext
-                )
-            } else {
-                // No lesson found - return -1 to indicate no lesson
-                result[studentID] = -1
-            }
-        }
-        
-        return result
+        let latest = Self.latestObservationDates(for: Set(students.compactMap(\.id)), in: viewContext)
+        if latest != cachedLastObservationDates { cachedLastObservationDates = latest }
     }
 }

@@ -9,13 +9,6 @@ enum SortOrder: Hashable {
     case birthday
 }
 
-// View style for the students roster detail area (list+detail vs. card grid browser)
-enum StudentsViewStyle: String {
-    case list
-    case grid
-    case table
-}
-
 // Shared logical filter for the students list (used by StudentsView and StudentsViewModel)
 enum StudentsFilter: Hashable {
     case all
@@ -23,6 +16,9 @@ enum StudentsFilter: Hashable {
     case lower
     case adolescent
     case presentNow
+    /// Due for a lesson: never given one, or `RosterSignalRules.dueSchoolDays`
+    /// or more school days since the last.
+    case dueForLesson
     case withdrawn
 
     var title: String {
@@ -37,6 +33,8 @@ enum StudentsFilter: Hashable {
             return "Adolescent"
         case .presentNow:
             return "Present Now"
+        case .dueForLesson:
+            return "Due for a Lesson"
         case .withdrawn:
             return "Former Students"
         }
@@ -47,6 +45,8 @@ enum StudentsFilter: Hashable {
         switch self {
         case .presentNow:
             return "Here"
+        case .dueForLesson:
+            return "Due"
         default:
             return title
         }
@@ -60,7 +60,27 @@ enum StudentsFilter: Hashable {
         case .lower: return "lower"
         case .adolescent: return "adolescent"
         case .presentNow: return "presentNow"
+        case .dueForLesson: return "dueForLesson"
         case .withdrawn: return "withdrawn"
+        }
+    }
+
+    /// The level this filter narrows to, if it is a level filter.
+    var level: CDStudent.Level? {
+        switch self {
+        case .lower: return .lower
+        case .upper: return .upper
+        case .adolescent: return .adolescent
+        default: return nil
+        }
+    }
+
+    /// The filter for one level.
+    static func level(_ level: CDStudent.Level) -> StudentsFilter {
+        switch level {
+        case .lower: return .lower
+        case .upper: return .upper
+        case .adolescent: return .adolescent
         }
     }
 }

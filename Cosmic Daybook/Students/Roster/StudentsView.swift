@@ -4,15 +4,17 @@ import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
-nonisolated private let logger = Logger.students
-
 // Top-level view for managing and browsing students.
 //
-// One NavigationSplitView spine on every platform:
-// - Sidebar: roster list with search, scope chips, sort-contextual rows,
-//   and a collapsible Withdrawn section.
-// - Detail: the selected student inline on iPhone, or the mobile grid browser
-//   when no student is selected.
+// - iPhone and iPad: a NavigationSplitView. The sidebar is the roster (search,
+//   scope chips with counts, rows grouped by level, a collapsible Former
+//   Students section); the detail is the selected child's record, or on iPad
+//   the class at a glance when nobody is selected.
+// - Mac: a resizable two-pane workspace — the roster table under a scope bar,
+//   and beside it the record or the class at a glance.
+//
+// Every row shows the same signals in every sort (`RosterSignals`); the sort
+// only orders.
 struct StudentsView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.appRouter) private var appRouter
@@ -27,19 +29,11 @@ struct StudentsView: View {
     var uniqueStudents: [CDStudent] { dependencies.roster.all }
     var uniqueStudentIDs: [UUID] { uniqueStudents.compactMap(\.id) }
 
-    // PERF: Use lightweight count-based change detection instead of loading full tables.
-    // SwiftData @Query always materializes full objects, so we use fetchCount() instead.
-    @State private var attendanceChangeToken: Int = 0
-    @State private var presentationChangeToken: Int = 0
-    @State private var lessonChangeToken: Int = 0
-
-    // OPTIMIZATION: Cache data loaded on-demand based on filters (moved to ViewModel)
     @State var viewModel = StudentsViewModel()
 
     // MARK: - Persisted Display Options
     @AppStorage(UserDefaultsKeys.studentsViewSortOrder) var studentsSortOrderRaw: String = "alphabetical"
     @AppStorage(UserDefaultsKeys.studentsViewSelectedFilter) var studentsFilterRaw: String = "all"
-    @AppStorage(UserDefaultsKeys.studentsViewStyle) var studentsViewStyleRaw: String = "grid"
     @TestStudentVisibility var testStudents
 
     // MARK: - State
@@ -48,11 +42,13 @@ struct StudentsView: View {
     @State var showingRollover = false
     @State var selectedStudentID: UUID?
     @State var isWithdrawnExpanded = false
+    @State var rosterSheet: RosterSheet?
+    /// The sheet `rosterSheet` held, for its `onDismiss` (which runs after it is cleared).
+    @State private var lastRosterSheet: RosterSheet?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     #if os(macOS)
-    /// The Mac workspace treats withdrawn students as a collection, not an
-    /// afterthought at the bottom of a roster list. iPhone and iPad retain the
-    /// existing collapsible section.
+    /// The Mac table shows former students in place of the class, chosen
+    /// from the scope bar. iPhone and iPad keep a collapsible section.
     @State var isShowingWithdrawnRoster = false
     #endif
 
@@ -67,17 +63,32 @@ struct StudentsView: View {
     @State var isParsing: Bool = false
     @State var parsingTask: Task<Void, Never>?
 
+    /// A quick action started from a roster row.
+    enum RosterSheet: Identifiable {
+        case observe(UUID)
+        case lessonDraft(UUID)
+
+        var id: String {
+            switch self {
+            case .observe(let id): return "observe-\(id)"
+            case .lessonDraft(let id): return "lesson-\(id)"
+            }
+        }
+    }
+
     // MARK: - Body
 
     var body: some View {
+        // Derived once per render; every pane reads this one snapshot.
+        let snapshot = makeSnapshot()
         Group {
             #if os(macOS)
-            macWorkspace
+            macWorkspace(snapshot)
             #else
             NavigationSplitView(columnVisibility: $columnVisibility) {
-                sidebarColumn
+                sidebarColumn(snapshot)
             } detail: {
-                detailColumn
+                detailColumn(snapshot)
             }
             .navigationSplitViewStyle(.balanced)
             #endif
@@ -91,6 +102,15 @@ struct StudentsView: View {
                 #if os(macOS)
                 .frame(minWidth: 640, minHeight: 560)
                 #endif
+        }
+        .sheet(item: $rosterSheet, onDismiss: discardEmptyLessonDraft) { sheet in
+            switch sheet {
+            case .observe(let studentID):
+                QuickNoteSheet(initialStudentID: studentID)
+            case .lessonDraft(let draftID):
+                PresentationDraftSheet(id: draftID) { rosterSheet = nil }
+                    .largeSheetSizing()
+            }
         }
         .alert(item: $importAlert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
@@ -116,51 +136,21 @@ struct StudentsView: View {
         .onChange(of: appRouter.navigationDestination) { _, destination in
             handleNavigationDestinationChange(destination)
         }
-        .task {
-            refreshChangeTokens()
+        .onAppear {
             ensureInitialManualOrderIfNeeded()
-            loadDataOnDemand()
+            refreshSignals()
             // A request made before this tab first appeared (a Handoff from
             // another device switches to it and asks in one step).
             handleNavigationDestinationChange(appRouter.navigationDestination)
         }
-        .onChange(of: studentsSortOrderRaw) { _, _ in
-            reloadDataAsync()
-        }
-        .onChange(of: studentsFilterRaw) { _, _ in
-            reloadDataAsync()
-        }
-        .onChange(of: attendanceChangeToken) { _, _ in
-            // Attendance moves only the present-now records; the table
-            // caches rebuild too only if their own inputs changed.
-            Task {
-                viewModel.reloadAfterAttendanceChange(
-                    viewContext: viewContext, calendar: calendar, students: uniqueStudents
-                )
-            }
-        }
-        .onChange(of: presentationChangeToken) { _, _ in
-            reloadDataAsync()
-        }
-        .onChange(of: lessonChangeToken) { _, _ in
-            reloadDataAsync()
-        }
-        // Debounce: many saves can fire in bursts (bulk edits, CloudKit merge
-        // batches). Coalesce them so the three count() fetches in
-        // refreshChangeTokens run once the dust settles, not per save.
-        // Saves touching none of the tables the tokens count (notes, work,
-        // todos, sync bookkeeping) are dropped first: they cannot move a
-        // token.
+        // Debounce: saves arrive in bursts (bulk edits, CloudKit merge
+        // batches). Saves touching nothing a signal is read from (work,
+        // todos, sync bookkeeping) are dropped first. The view model then
+        // reloads only what moved: an attendance tap reloads attendance alone.
         // Only while on screen: a TabView keeps this tab alive behind the
-        // others, and the `.task` above refreshes the tokens on reappear.
-        .onReceiveWhenVisible(
-            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-                // @Sendable: runs on the saving context's queue (see onPresentationDataChange).
-                .filter { @Sendable note in Self.saveTouchesChangeTokens(note.userInfo) }
-                .debounce(for: .milliseconds(300), scheduler: RunLoop.main),
-            catchUpOnAppear: false
-        ) {
-            refreshChangeTokens()
+        // others, and `onAppear` catches up on return.
+        .onReceiveWhenVisible(Self.signalChanges(), catchUpOnAppear: false) {
+            refreshSignals()
         }
         .onChange(of: uniqueStudentIDs) { _, _ in
             ensureInitialManualOrderIfNeeded()
@@ -170,178 +160,131 @@ struct StudentsView: View {
         }
     }
 
-    // MARK: - Detail Column
+    // MARK: - Detail Column (iPhone, iPad)
 
-    private var selectedStudent: CDStudent? {
+    var selectedStudent: CDStudent? {
         guard let id = selectedStudentID else { return nil }
-        return uniqueStudents.first { $0.id == id }
+        return dependencies.roster.student(id: id)
     }
 
     @ViewBuilder
-    private var detailColumn: some View {
+    private func detailColumn(_ snapshot: RosterSnapshot) -> some View {
         if let student = selectedStudent {
-            StudentDetailView(student: student, isInline: true, onDone: { selectedStudentID = nil })
-                // The object, not the UUID: when a student leaves the classroom share her
-                // row is replaced by a copy with the same id (`ClassroomShareRelease`), and a
-                // view kept for the old object would read a deleted row.
-                .id(student.objectID)
+            studentRecord(student)
                 .navigationTitle(student.fullName)
                 .inlineNavigationTitle()
-                .toolbar { detailToolbar }
+                .toolbar {
+                    // On iPhone the record is pushed, and Back already does this.
+                    if showsGlance {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button {
+                                selectedStudentID = nil
+                            } label: {
+                                Label("Class at a Glance", systemImage: "rectangle.grid.1x2")
+                            }
+                            .help("Back to the class at a glance")
+                        }
+                    }
+                }
         } else {
-            rosterBrowser
-        }
-    }
-
-    #if os(macOS)
-    /// The app already supplies the outer navigation split view. Using a
-    /// second NavigationSplitView here makes macOS apply that outer sidebar's
-    /// safe-area inset again, leaving a false blank column before the table.
-    /// HSplitView provides the same user-resizable Mac workspace without
-    /// nesting navigation containers.
-    private var macWorkspace: some View {
-        HSplitView {
-            workspaceSidebarColumn
-
-            macRosterColumn
-
-            if selectedStudent != nil {
-                macDetailColumn
-                    .frame(minWidth: 480, idealWidth: 720)
-            }
-        }
-        .navigationTitle(isShowingWithdrawnRoster ? "Former Students" : "Student Roster")
-        .inlineNavigationTitle()
-    }
-
-    @ViewBuilder
-    private var macRosterColumn: some View {
-        StudentsTableView(
-            students: macRosterStudents,
-            nextLessonNames: viewModel.cachedNextLessonNames,
-            lastObservationDates: viewModel.cachedLastObservationDates,
-            presentNowIDs: presentNowIDs,
-            selectedStudentID: $selectedStudentID
-        )
-        .frame(minWidth: 340, idealWidth: 520)
-    }
-
-    @ViewBuilder
-    private var macDetailColumn: some View {
-        if let student = selectedStudent {
-            StudentDetailView(student: student, isInline: true, onDone: { selectedStudentID = nil })
-                // The object, not the UUID: when a student leaves the classroom share her
-                // row is replaced by a copy with the same id (`ClassroomShareRelease`), and a
-                // view kept for the old object would read a deleted row.
-                .id(student.objectID)
-                .navigationTitle(student.fullName)
-                .inlineNavigationTitle()
-        } else {
-            SelectStudentEmptyState()
-                .navigationTitle("Student Record")
+            classGlance(snapshot)
+                .navigationTitle("Class at a Glance")
                 .inlineNavigationTitle()
         }
     }
 
-    var macRosterStudents: [CDStudent] {
-        isShowingWithdrawnRoster ? withdrawnStudents : filteredStudents
-    }
-
-    #endif
-
-    @ViewBuilder
-    private var rosterBrowser: some View {
+    /// Whether the detail column can show the class at a glance (regular width).
+    private var showsGlance: Bool {
         #if os(iOS)
-        if viewStyle == .grid {
-            gridBrowser
-        } else {
-            SelectStudentEmptyState()
-        }
+        horizontalSizeClass == .regular
         #else
-        EmptyView()
+        true
         #endif
     }
 
-    /// Full-width card grid shown in the compact detail area when nothing is
-    /// selected. Sorting changes order, never the visual language of a child
-    /// card; this keeps the roster calm and easy to scan.
-    private var gridBrowser: some View {
-        StudentsCardsGridView(
-            students: filteredStudents,
-            isBirthdayMode: false,
-            isAgeMode: false,
-            isManualMode: false,
-            onTapStudent: { student in selectedStudentID = student.id },
-            onReorder: { _, _, _, _ in }
-        )
-        .navigationTitle("Students")
-        .inlineNavigationTitle()
+    func studentRecord(_ student: CDStudent) -> some View {
+        StudentDetailView(student: student, isInline: true, onDone: { selectedStudentID = nil })
+            // The object, not the UUID: when a student leaves the classroom share her
+            // row is replaced by a copy with the same id (`ClassroomShareRelease`), and a
+            // view kept for the old object would read a deleted row.
+            .id(student.objectID)
     }
 
-    @ToolbarContentBuilder
-    private var detailToolbar: some ToolbarContent {
-        if viewStyle == .grid {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    selectedStudentID = nil
-                } label: {
-                    Label("All Students", systemImage: "square.grid.2x2")
-                }
-                .help("Back to all students")
+    func classGlance(_ snapshot: RosterSnapshot) -> some View {
+        ClassGlanceView(
+            glance: ClassGlance.make(
+                students: snapshot.enrolled,
+                signals: { viewModel.signals(for: $0) },
+                attendanceTaken: viewModel.attendanceTaken,
+                calendar: calendar
+            ),
+            onSelect: { selectedStudentID = $0 },
+            onShowScope: { filter in
+                #if os(macOS)
+                isShowingWithdrawnRoster = false
+                #endif
+                studentsFilterRaw = filter.storageValue
             }
-        }
-    }
-
-    // MARK: - On-Demand Data Loading
-
-    /// Loads attendance and lesson-age caches based on current filters
-    private func loadDataOnDemand() {
-        viewModel.loadDataOnDemand(
-            viewContext: viewContext,
-            calendar: calendar,
-            students: uniqueStudents
         )
     }
 
-    /// Helper to reload data asynchronously (reduces duplication in onChange handlers)
-    private func reloadDataAsync() {
-        Task {
-            loadDataOnDemand()
+    // MARK: - Signals
+
+    /// Saves and imports that can move a roster signal.
+    private static func signalChanges() -> some Publisher<Void, Never> {
+        let center = NotificationCenter.default
+        let saves = center.publisher(for: .NSManagedObjectContextDidSave)
+            // @Sendable: runs on the saving context's queue (see onPresentationDataChange).
+            .filter { @Sendable note in saveTouchesSignals(note.userInfo) }
+            .map { @Sendable _ in () }
+        let imports = center.publisher(for: .presentationDataDidChange)
+            .filter { @Sendable note in
+                let key = PersistentHistoryProcessor.changedEntityNamesKey
+                guard let changed = note.userInfo?[key] as? Set<String> else { return true }
+                return !changed.isDisjoint(with: StudentsViewModel.signalInputEntities)
+            }
+            .map { @Sendable _ in () }
+        return saves.merge(with: imports)
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+    }
+
+    func refreshSignals() {
+        viewModel.refreshIfNeeded(viewContext: viewContext, calendar: calendar, students: uniqueStudents)
+    }
+
+    // MARK: - Row Actions
+
+    func addObservation(for student: CDStudent) {
+        guard let id = student.id else { return }
+        rosterSheet = .observe(id)
+    }
+
+    /// Opens a new presentation with this child already on it, the lesson
+    /// picker focused — the same draft the toolbar's New Presentation makes.
+    func giveLesson(to student: CDStudent) {
+        guard let studentID = student.id else { return }
+        let draft = PresentationFactory.makeDraft(lessonID: UUID(), studentIDs: [studentID], context: viewContext)
+        dependencies.saveCoordinator.save(viewContext, reason: "Create presentation draft")
+        if let draftID = draft.id {
+            rosterSheet = .lessonDraft(draftID)
+            lastRosterSheet = rosterSheet
         }
     }
 
-    /// PERF: Lightweight change detection using fetchCount() instead of loading full tables.
-    /// Called when SwiftData saves, so we detect inserts/deletes without materializing objects.
-    private func refreshChangeTokens() {
-        do {
-            // Marking attendance usually edits an existing row (unmarked → present),
-            // which leaves the count unchanged. Fold in the latest modifiedAt so a
-            // status flip also reloads the Here filter.
-            let attendanceCount = try viewContext.count(
-                for: CDFetchRequest(CDAttendanceRecord.self)
-            )
-            let latestRequest = CDFetchRequest(CDAttendanceRecord.self)
-            latestRequest.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
-            latestRequest.fetchLimit = 1
-            let latestModified = try viewContext.fetch(latestRequest).first?.modifiedAt ?? .distantPast
-            let attendanceToken = attendanceCount &+ Int(latestModified.timeIntervalSince1970 * 1000)
-            if attendanceToken != attendanceChangeToken {
-                attendanceChangeToken = attendanceToken
-            }
-            let presentationCount = try viewContext.count(
-                for: CDFetchRequest(CDLessonAssignment.self)
-            )
-            if presentationCount != presentationChangeToken {
-                presentationChangeToken = presentationCount
-            }
-            let lessonCount = try viewContext.count(for: CDFetchRequest(CDLesson.self))
-            if lessonCount != lessonChangeToken {
-                lessonChangeToken = lessonCount
-            }
-        } catch {
-            logger.warning("Failed to refresh change tokens: \(error)")
-        }
+    /// The draft closed before a lesson was picked is removed. The draft
+    /// sheet only removes one with no children, and this one starts with a child.
+    private func discardEmptyLessonDraft() {
+        guard case .lessonDraft(let draftID)? = lastRosterSheet else { return }
+        lastRosterSheet = nil
+        let request = CDFetchRequest(CDLessonAssignment.self)
+        request.predicate = NSPredicate(format: "id == %@", draftID as CVarArg)
+        guard let draft = viewContext.safeFetch(request).first,
+              draft.state == .draft, draft.lesson == nil else { return }
+        viewContext.delete(draft)
+        dependencies.saveCoordinator.save(viewContext, reason: "Discard empty presentation draft")
     }
+
+    // MARK: - Manual Order
 
     private func ensureInitialManualOrderIfNeeded() {
         if viewModel.ensureInitialManualOrderIfNeeded(uniqueStudents) {
@@ -351,20 +294,19 @@ struct StudentsView: View {
 
     private func assignManualOrder(from orderedIDs: [UUID]) {
         for (idx, id) in orderedIDs.enumerated() {
-            if let s = uniqueStudents.first(where: { $0.id == id }) {
-                s.manualOrder = Int64(idx)
-            }
+            dependencies.roster.student(id: id)?.manualOrder = Int64(idx)
         }
     }
 
-    func handleManualReorder(from source: IndexSet, to destination: Int) {
-        guard sortOrder == .manual, let fromIndex = source.first else { return }
-        let movingStudent = filteredStudents[fromIndex]
+    /// Moves a child within `subset`, the rows of one level section.
+    func handleManualReorder(from source: IndexSet, to destination: Int, in subset: [CDStudent]) {
+        guard sortOrder == .manual, let fromIndex = source.first, subset.indices.contains(fromIndex) else { return }
+        let movingStudent = subset[fromIndex]
         let newAllIDs = viewModel.mergeReorderedSubsetIntoAll(
             movingID: movingStudent.id ?? UUID(),
             from: fromIndex,
             to: destination,
-            current: filteredStudents,
+            current: subset,
             allStudents: uniqueStudents
         )
         assignManualOrder(from: newAllIDs)
