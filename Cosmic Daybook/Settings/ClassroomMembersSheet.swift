@@ -25,6 +25,8 @@ struct ClassroomMembersSheet: View {
     @State private var linkCopied = false
     /// Puts "Copy link" back a moment after a copy; replaced by each new copy.
     @State private var linkCopiedReset: Task<Void, Never>?
+    /// Contacts whose name matches what's typed in the address field.
+    @State private var suggestions: [ContactAddressSuggestion] = []
 
     private static let loseAccessMessage =
         "They'll lose access to your students, attendance and school calendar. You can add them again later."
@@ -54,6 +56,12 @@ struct ClassroomMembersSheet: View {
             }
 
             addForm
+            if !suggestions.isEmpty {
+                ContactSuggestionList(suggestions: suggestions) { suggestion in
+                    address = suggestion.address
+                    suggestions = []
+                }
+            }
             memberList
             linkRow
 
@@ -108,6 +116,17 @@ struct ClassroomMembersSheet: View {
             Text(Self.loseAccessMessage)
         }
         .onDisappear { linkCopiedReset?.cancel() }
+        .task {
+            // Ask here, where the reason is on screen, rather than mid-typing.
+            _ = await ContactAddressBook.requestAccess()
+        }
+        .task(id: address) {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            let found = await ContactAddressBook.suggestions(matching: address)
+            guard !Task.isCancelled else { return }
+            suggestions = found
+        }
     }
 
     // MARK: - Add
@@ -117,6 +136,11 @@ struct ClassroomMembersSheet: View {
             TextField("Email or phone number", text: $address)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(add)
+            ContactPickerButton { picked in
+                address = picked
+                suggestions = []
+            }
+            .fixedSize()
             Picker("Permission", selection: $permission) {
                 Text("Can make changes").tag(CKShare.ParticipantPermission.readWrite)
                 Text("View only").tag(CKShare.ParticipantPermission.readOnly)
