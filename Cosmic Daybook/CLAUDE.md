@@ -241,7 +241,9 @@ At the start of each conversation, before writing or modifying any code, search 
   which lists its false positives here. Confirm a hit by deleting it and building both platforms plus a Release
   build: no Debug build compiles `#if !DEBUG` or the non-Foundation-Models `#else`, so neither the index nor a
   Debug build sees code used only there. Periphery can also miss dead code (2026-09-25 it kept two unreachable
-  view clusters alive).
+  view clusters alive). The script builds without the shared compilation cache on purpose: its prefix mapping
+  records index paths as `/^src/…`, which Periphery can't match, and from 2026-09-27 to 2026-09-30 that made
+  every scan print `[]`. Treat an empty report with suspicion.
 - Follow Swift 6.0 strict concurrency rules — no shortcuts, no `@unchecked Sendable` unless absolutely necessary and documented.
 - Follow Apple Core Data + CloudKit conventions.
 - Use platform-appropriate APIs for the deployment target. Do not use availability checks (`if #available`) for APIs that are baseline at iOS 27.0+.
