@@ -13,7 +13,6 @@
 		DAC981E4D451662AE6834EBF /* AttendanceEmailSettingsEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9FBBE074540600EBA950C6 /* AttendanceEmailSettingsEntity.swift */; };
 		DAB306EA1A8AFF297FDA05F6 /* AttendanceEmailSendEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA2063ED6D053DB24D69F916 /* AttendanceEmailSendEntity.swift */; };
 		DA1C2BA2B4668F28BBD1641B /* StudentEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */; };
-		DA1CECBB03D8A407B1467D98 /* SharingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABF8694226D7807EB46BC77 /* SharingPreferences.swift */; };
 		DA252003A84AA445F1A97E95 /* ClassroomRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */; };
 		DA273C50CFBB1468B5E697F9 /* AttendanceDeduplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */; };
 		DAE83A3102417A909C03DD3A /* SchoolDayChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1C34F891F5B082744719A9 /* SchoolDayChecker.swift */; };
@@ -80,7 +79,6 @@
 		DAC35684943F20A84D48BF91 /* AppCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA010CEBEF3C199A6C0EDD30 /* AppCalendar.swift */; };
 		DAC4E37F5533862799AABE6C /* Logger+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA00DE26D80F5C93EDE8FD24 /* Logger+Extensions.swift */; };
 		DAC74BFE466A3805601FD363 /* DocumentEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF33D02953B353B5F308309 /* DocumentEntity.swift */; };
-		DACBA8C62DE44A77DAB1FFAB /* SharingPermissionCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA69F3C2FED434EB4E6553C6 /* SharingPermissionCategory.swift */; };
 		DACD857BDD87609889048B24 /* ShareAcceptanceAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA51475AF1912DCF6E6D515 /* ShareAcceptanceAppDelegate.swift */; };
 		DAD27BA7186AA8858E25DD43 /* RepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */; };
 		DAE1A32F8081BE03784E8A02 /* CloudKitConfigurationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1A46BC25E7671E6710BDA4 /* CloudKitConfigurationService.swift */; };
@@ -152,7 +150,6 @@
 		DA5A11C0A3F4B2E9C7D60002 /* LaunchSignposts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LaunchSignposts.swift; path = "Cosmic Daybook/Utils/LaunchSignposts.swift"; sourceTree = SOURCE_ROOT; };
 		DA5B1C7E2A9F4D3E8B6C1F01 /* CoreDataStack+PrimaryKeyRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+PrimaryKeyRepair.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+PrimaryKeyRepair.swift"; sourceTree = SOURCE_ROOT; };
 		DA6503C3D85AC2C51E58119B /* CosmicDaybook 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "CosmicDaybook 2.xcdatamodel"; sourceTree = "<group>"; };
-		DA69F3C2FED434EB4E6553C6 /* SharingPermissionCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharingPermissionCategory.swift; path = "Cosmic Daybook/Sharing/SharingPermissionCategory.swift"; sourceTree = SOURCE_ROOT; };
 		DA6F1B2C3D4E5A7B8C9D0E01 /* CoreDataStack+Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Model.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+Model.swift"; sourceTree = SOURCE_ROOT; };
 		DA6F1B2C3D4E5A7B8C9D0E03 /* CoreDataStack+Stores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Stores.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+Stores.swift"; sourceTree = SOURCE_ROOT; };
 		DA6F1B2C3D4E5A7B8C9D0E05 /* CoreDataStack+Contexts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Contexts.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+Contexts.swift"; sourceTree = SOURCE_ROOT; };
@@ -165,7 +162,6 @@
 		DAA80B8AE6F5033A02C3BFB1 /* CoreDataStack+SchemaVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+SchemaVersion.swift"; path = "Cosmic Daybook/AppCore/CoreDataStack+SchemaVersion.swift"; sourceTree = SOURCE_ROOT; };
 		DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentEntity.swift; path = "Cosmic Daybook/Students/Models/StudentEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceRecordEntity.swift; path = "Cosmic Daybook/Attendance/AttendanceRecordEntity.swift"; sourceTree = SOURCE_ROOT; };
-		DABF8694226D7807EB46BC77 /* SharingPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharingPreferences.swift; path = "Cosmic Daybook/Sharing/SharingPreferences.swift"; sourceTree = SOURCE_ROOT; };
 		DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomPermissions.swift; path = "Cosmic Daybook/Sharing/ClassroomPermissions.swift"; sourceTree = SOURCE_ROOT; };
 		DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RepositoryProtocol.swift; path = "Cosmic Daybook/Repositories/RepositoryProtocol.swift"; sourceTree = SOURCE_ROOT; };
 		DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomIdentity.swift; path = "Cosmic Daybook/Sharing/ClassroomIdentity.swift"; sourceTree = SOURCE_ROOT; };
@@ -399,8 +395,6 @@
 				DAD984C48AB59380BA0782CA /* ClassroomRepository.swift */,
 				DA2E02B9BE132A52523B4794 /* ClassroomSharingService.swift */,
 				DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */,
-				DA69F3C2FED434EB4E6553C6 /* SharingPermissionCategory.swift */,
-				DABF8694226D7807EB46BC77 /* SharingPreferences.swift */,
 				DA010CEBEF3C199A6C0EDD30 /* AppCalendar.swift */,
 				DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */,
 				DA11A2430630D5E6426CD0F8 /* SaveCoordinator.swift */,
@@ -680,8 +674,6 @@
 				DA252003A84AA445F1A97E95 /* ClassroomRepository.swift in Sources */,
 				DA7BAB76B78FE330CB3240BB /* ClassroomSharingService.swift in Sources */,
 				DA7D2FCC78D048AAA0D915E2 /* ClassroomPermissions.swift in Sources */,
-				DACBA8C62DE44A77DAB1FFAB /* SharingPermissionCategory.swift in Sources */,
-				DA1CECBB03D8A407B1467D98 /* SharingPreferences.swift in Sources */,
 				DAC35684943F20A84D48BF91 /* AppCalendar.swift in Sources */,
 				DAD27BA7186AA8858E25DD43 /* RepositoryProtocol.swift in Sources */,
 				DAFD1BD1FBEBC51F5948EA8A /* SaveCoordinator.swift in Sources */,

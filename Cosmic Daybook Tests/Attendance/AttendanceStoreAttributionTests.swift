@@ -56,26 +56,17 @@ struct AttendanceStoreAttributionTests {
         #expect(record.modifiedAt == markedStamp)
     }
 
-    @Test("An assistant can write attendance only while the category is enabled")
-    func assistantPermissionGate() throws {
+    @Test("An assistant writes attendance, and the record says so")
+    func assistantWritesAttendance() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
         let student = makeStudent(in: context)
         let day = AppCalendar.startOfDay(Date())
         let store = CDAttendanceStore(context: context, role: .assistant)
 
-        let saved = SharingPreferences.assistantWritableCategories()
-        defer { SharingPreferences.setAssistantWritableCategories(saved) }
-
-        SharingPreferences.setAssistantWritableCategories([.attendance])
         let record = try #require(try store.ensureRecord(for: student, on: day))
         #expect(store.updateStatus(record, to: .present))
         #expect(record.recordedBy == CDClassroomMembership.ClassroomRole.assistant.rawValue)
-
-        SharingPreferences.setAssistantWritableCategories([])
-        #expect(!store.updateStatus(record, to: .absent))
-        #expect(record.status == .present)
-        #expect(try store.ensureRecord(for: student, on: AppCalendar.addingDays(1, to: day)) == nil)
     }
 
     @Test("markAllPresent stamps only the records it actually changes")
