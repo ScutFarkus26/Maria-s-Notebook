@@ -36,7 +36,6 @@ struct AssistantAttendanceView: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
 
     @State var viewModel: AssistantAttendanceViewModel?
-    @State private var showingNameSheet = false
     @State var showingClassroom = false
     @State var showingDatePicker = false
     @State private var noteRow: AssistantAttendanceViewModel.Row?
@@ -162,9 +161,7 @@ struct AssistantAttendanceView: View {
         }
         .overlay { HundredthDayConfetti(trigger: confettiBursts) }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
-        .sheet(isPresented: $showingNameSheet) {
-            AssistantNameSheet(isRequired: true)
-        }
+        .modifier(AssistantFirstRunPrompts())
         .sheet(isPresented: $showingClassroom) {
             AssistantClassroomSheet()
         }
@@ -184,9 +181,6 @@ struct AssistantAttendanceView: View {
             )
         }
         .task {
-            // Ask once, on the first run after joining, rather than letting a
-            // term's marks accumulate under no name at all.
-            if asksForName { showingNameSheet = true }
             if viewModel == nil { startDay() }
             // The class, the guide's marks and locked days all arrive by
             // import; without this the screen shows them only when reloaded.
@@ -214,12 +208,6 @@ struct AssistantAttendanceView: View {
             // The undo line goes when the app leaves the foreground.
             if lateUndo != nil { lateUndo = nil }
         })
-    }
-
-    /// The sample class marks under no one's name, so it doesn't ask.
-    private var asksForName: Bool {
-        if AssistantSampleClass.isActive { return false }
-        return ClassroomIdentity.displayName == nil
     }
 
     // MARK: - Content

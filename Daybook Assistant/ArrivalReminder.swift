@@ -23,6 +23,9 @@ enum ArrivalReminder {
     static let timeKey = "Assistant.arrivalReminder.minutes"
     static let defaultMinutes = 8 * 60 + 15
     static let daysAhead = 10
+    /// The notification's words, which setup's reminder page shows too.
+    static let notificationTitle = "Arrival closes"
+    static let notificationBody = "Close arrival to mark anyone not here yet absent."
     private static let idPrefix = "arrival-"
 
     private static let logger = Logger.app(category: "reminder")
@@ -58,7 +61,9 @@ enum ArrivalReminder {
     static func update(hasClass: Bool, in context: NSManagedObjectContext) async {
         if AssistantSampleClass.isActive { return }
         guard hasClass else { return }
-        await requestPermissionIfNeeded()
+        // Setup's reminder page asks, in its own words. Until setup is done
+        // the alert would land on top of it instead.
+        if AssistantOnboarding.setupDone() { await requestPermissionIfNeeded() }
         await reschedule(in: context)
     }
 
@@ -103,8 +108,8 @@ enum ArrivalReminder {
         )
         for date in dates {
             let content = UNMutableNotificationContent()
-            content.title = "Arrival closes"
-            content.body = "Close arrival to mark anyone not here yet absent."
+            content.title = notificationTitle
+            content.body = notificationBody
             content.sound = .default
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
@@ -184,10 +189,27 @@ struct ArrivalReminderFollower: ViewModifier {
             await ArrivalReminder.update(hasClass: viewModel?.rows.isEmpty == false, in: context)
             // The sample class schedules nothing.
             guard !AssistantSampleClass.isActive, viewModel?.rows.isEmpty == false else { return }
-            if FrontDeskEmailReminder.isEnabled(), AttendanceEmailLog.settings(in: context)?.canSend == true {
+            if AssistantOnboarding.setupDone(), FrontDeskEmailReminder.isEnabled(),
+               AttendanceEmailLog.settings(in: context)?.canSend == true {
                 _ = await FrontDeskEmailReminder.requestPermission()
             }
             await FrontDeskEmailReminder.reschedule(in: context)
         }
+    }
+}
+
+extension ArrivalReminder {
+    /// Minutes after midnight, as the time a picker shows.
+    static func timeOfDay(_ minutes: Binding<Int>, calendar: Calendar = .current) -> Binding<Date> {
+        Binding(
+            get: {
+                let midnight = calendar.startOfDay(for: Date())
+                return calendar.date(byAdding: .minute, value: minutes.wrappedValue, to: midnight) ?? Date()
+            },
+            set: { date in
+                let parts = calendar.dateComponents([.hour, .minute], from: date)
+                minutes.wrappedValue = (parts.hour ?? 8) * 60 + (parts.minute ?? 15)
+            }
+        )
     }
 }

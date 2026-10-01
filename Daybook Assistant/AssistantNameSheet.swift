@@ -7,10 +7,12 @@ import SwiftUI
 /// device cannot look up who she is, and with two assistants "assistant" stops
 /// being an answer.
 ///
-/// On the first run after joining it can't be swiped away: a term's marks
-/// under no name at all is what asking up front is for.
+/// The first run after joining asks in setup (`AssistantSetupNamePage`).
+/// This sheet asks when a name is missing after that, and then it can't be
+/// swiped away: a term's marks under no name at all is what asking up front
+/// is for.
 struct AssistantNameSheet: View {
-    /// First run: no Cancel, and no dismissing without a name.
+    /// Asked for a missing name: no Cancel, and no dismissing without one.
     var isRequired = false
 
     @Environment(\.dismiss) private var dismiss

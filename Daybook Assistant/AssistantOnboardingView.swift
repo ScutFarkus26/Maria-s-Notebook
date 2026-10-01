@@ -2,107 +2,58 @@ import SwiftUI
 
 /// Shown until the guide's invitation has been accepted on this device.
 ///
-/// There is nothing to configure here — joining happens by opening the link the
-/// guide sends, which iOS routes to this app. So the screen says that plainly,
-/// shows the join while it's under way, and names the two things that commonly
-/// go wrong: iCloud not being available, and a join that failed.
+/// Four pages, swiped or stepped through with Continue: Welcome, a practice
+/// grid that marks the way the real one does, an iCloud check, and the
+/// invitation page, which is where this screen rests. There is nothing to
+/// configure for joining: it happens by opening the link the guide sends,
+/// which iOS routes to this app. So the invitation page says that plainly,
+/// shows the join while it's under way, and names the two things that
+/// commonly go wrong: iCloud not being available, and a join that failed.
+///
+/// Once she has reached the invitation page, a relaunch opens on it, with
+/// the intro a swipe back (`AssistantOnboarding.introSeen`). Opening the link
+/// from any page jumps there to show the join.
 struct AssistantOnboardingView: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
 
+    enum Page: Hashable {
+        case welcome, practice, iCloud, invitation
+    }
+
+    @State private var page: Page = AssistantOnboarding.introSeen() ? .invitation : .welcome
+
     private var isJoining: Bool { bootstrapper.sharingService?.isJoining ?? false }
     private var joinError: String? { bootstrapper.sharingService?.shareError }
-    private var iCloudProblem: String? { bootstrapper.accountStatus?.assistantProblem }
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            Image(systemName: "person.2.badge.key")
-                .font(.system(size: 56))
-                .foregroundStyle(.tint)
-
-            if isJoining {
-                joining
-            } else {
-                instructions
-            }
-
-            Spacer()
-
-            if !isJoining {
-                Button("Check Again") {
-                    bootstrapper.refreshMembership()
-                    Task { await bootstrapper.refreshAccountStatus() }
-                }
-                .buttonStyle(.bordered)
-
-                // No invitation yet (or App Review, which never gets one):
-                // the attendance screen with made-up names.
-                VStack(spacing: 4) {
-                    Button("Try a Sample Class") { bootstrapper.openSampleClass() }
-                    Text("Made-up names. Nothing is saved or sent.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+        TabView(selection: $page) {
+            AssistantWelcomePage(onStart: { go(to: .practice) })
+                .tag(Page.welcome)
+            AssistantPracticePage(onContinue: { go(to: .iCloud) })
+                .tag(Page.practice)
+            AssistantICloudPage(onContinue: { go(to: .invitation) })
+                .tag(Page.iCloud)
+            AssistantInvitationPage()
+                .tag(Page.invitation)
         }
-        .padding(28)
-        .animation(.smooth, value: isJoining)
-    }
-
-    private var joining: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Joining your classroom…")
-                .font(.title3.weight(.semibold))
-            Text("This can take a minute. Keep the app open.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .onChange(of: page) { _, page in
+            if page == .invitation { AssistantOnboarding.markIntroSeen() }
         }
-        .multilineTextAlignment(.center)
-    }
-
-    private var instructions: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 10) {
-                Text("Join a Classroom")
-                    .font(.title2.weight(.semibold))
-
-                Text("Your guide will send you an invitation link. "
-                    + "Open it on this iPhone and it will bring you straight back here.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            if let joinError {
-                problem(
-                    "\(joinError) Ask your guide to send the invitation again, then open it here.",
-                    systemImage: "exclamationmark.triangle"
-                )
-            } else if let iCloudProblem {
-                problem(iCloudProblem, systemImage: "icloud.slash")
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                if iCloudProblem == nil {
-                    Label("Make sure you're signed in to iCloud in Settings", systemImage: "icloud")
-                }
-                Label("Open the guide's link from Messages or Mail", systemImage: "link")
-                Label("The class list appears here once you've joined", systemImage: "checklist")
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        // The link was opened, or a join failed, while she was on another
+        // page: the invitation page is where both show.
+        .onChange(of: isJoining) { _, joining in
+            if joining { go(to: .invitation) }
+        }
+        .onChange(of: joinError) { _, error in
+            if error != nil { go(to: .invitation) }
+        }
+        .onAppear {
+            if isJoining || joinError != nil { page = .invitation }
         }
     }
 
-    private func problem(_ text: String, systemImage: String) -> some View {
-        Label(text, systemImage: systemImage)
-            .font(.callout)
-            .foregroundStyle(.orange)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    private func go(to next: Page) {
+        withAnimation(.smooth) { page = next }
     }
 }

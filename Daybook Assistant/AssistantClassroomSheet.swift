@@ -155,7 +155,9 @@ struct AssistantClassroomSheet: View {
         Section {
             Toggle("Arrival reminder", isOn: $reminderOn)
             if reminderOn {
-                DatePicker("Time", selection: time($reminderMinutes), displayedComponents: .hourAndMinute)
+                DatePicker(
+                    "Time", selection: ArrivalReminder.timeOfDay($reminderMinutes), displayedComponents: .hourAndMinute
+                )
             }
             if let dueAt = frontDeskDueAt {
                 Toggle("Front desk email reminder", isOn: $frontDeskOn)
@@ -202,20 +204,6 @@ struct AssistantClassroomSheet: View {
     }
 
     private var frontDeskIsSetUp: Bool { frontDeskDueAt != nil }
-
-    /// Minutes after midnight, as the time the picker shows.
-    private func time(_ minutes: Binding<Int>) -> Binding<Date> {
-        Binding(
-            get: {
-                let midnight = Calendar.current.startOfDay(for: Date())
-                return Calendar.current.date(byAdding: .minute, value: minutes.wrappedValue, to: midnight) ?? Date()
-            },
-            set: { date in
-                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                minutes.wrappedValue = (parts.hour ?? 8) * 60 + (parts.minute ?? 15)
-            }
-        )
-    }
 
     private func applyReminderSetting() async {
         // The sample class schedules nothing, so it doesn't ask either.

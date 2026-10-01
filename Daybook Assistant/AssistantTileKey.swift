@@ -83,7 +83,7 @@ struct AssistantTileKey: View {
         _ detail: String
     ) -> some View {
         row(
-            KeyTile(status: status, corner: corner, cornerColor: cornerColor, party: party, note: note),
+            AssistantKeyTile(status: status, corner: corner, cornerColor: cornerColor, party: party, note: note),
             title,
             detail
         )
@@ -109,9 +109,12 @@ struct AssistantTileKey: View {
 }
 
 /// A small tile drawn the way the grid draws one: solid green for here, an
-/// outline for not marked, dashes for absent, and the corner glyph.
-private struct KeyTile: View {
+/// outline for not marked, dashes for absent, and the corner glyph. The key
+/// draws them, and so do onboarding's practice grid and symbols page.
+struct AssistantKeyTile: View {
     let status: AttendanceStatus
+    var name = "Maya"
+    var height: CGFloat = 40
     var corner: String?
     var cornerColor: Color = .primary
     var party = false
@@ -121,12 +124,12 @@ private struct KeyTile: View {
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 10, style: .continuous) }
 
     var body: some View {
-        Text("Maya")
+        Text(name)
             .font(.subheadline.weight(.medium))
             .foregroundStyle(isHere ? Color.black : status == .absent ? Color(.secondaryLabel) : .primary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 9)
-            .frame(height: 40)
+            .frame(height: height)
             .background {
                 if isHere {
                     shape.fill(Color.green)

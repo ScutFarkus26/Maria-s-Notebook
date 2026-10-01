@@ -305,7 +305,7 @@ final class AssistantBootstrapper {
     }
 
     /// Her name from iCloud on a new iPhone, now or when key-value storage
-    /// catches up, so the first-run name sheet isn't needed.
+    /// catches up, so setup's name page is already filled in.
     private func restoreName() {
         AssistantNameStore.restoreIfNeeded()
         guard nameObserver == nil else { return }
