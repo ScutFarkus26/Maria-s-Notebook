@@ -147,6 +147,6 @@ All paths below are under `Cosmic Daybook/`.
 | 2 Mac layout | | |
 | 3 Lesson & meeting rows | | |
 | 4 Gone quiet + linking | | |
-| 5 Header/toolbar/band | | |
-| 6 Floating button | | |
+| 5 Header/toolbar/band | Built (claude/today-header); Mac UI unseen | |
+| 6 Floating button | Built (claude/today-header); Mac UI unseen | |
 | 7 iPhone/iPad | | |

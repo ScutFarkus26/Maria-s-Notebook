@@ -55,6 +55,9 @@ struct TodayView: View {
 
     // MARK: - Attendance State
     @State var isAttendanceExpanded = false
+    @State var lateStudentNames: [String] = [] // the band's late children
+    @State var isDatePickerPresented = false // the Mac's Go to Date popover
+    @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible) var isQuickCaptureButtonVisible = true
 
     // MARK: - Toast State
     @State var toastMessage: String?
@@ -89,7 +92,7 @@ struct TodayView: View {
     // MARK: - Computed Properties
 
     /// Returns true if we're on iPhone compact layout where attendance has its own tab
-    private var isIPhoneCompact: Bool {
+    var isIPhoneCompact: Bool {
         #if os(iOS)
         return horizontalSizeClass == .compact
         #else
@@ -208,9 +211,11 @@ struct TodayView: View {
                     attendanceSection
                 }
                 listContent
+                    .safeAreaPadding(.bottom, quickCaptureClearance)
             }
             .navigationTitle("Today")
             #if os(macOS)
+            .navigationSubtitle(TodayHeaderText.subtitle(for: viewModel.date))
             .toolbar { macOSTodayToolbarContent }
             #else
             .toolbar { toolbarContent }
@@ -266,11 +271,7 @@ struct TodayView: View {
         ToolbarSpacer(.flexible, placement: .topBarTrailing)
 
         ToolbarItem(placement: .topBarTrailing) {
-            Button("Today") {
-                let today = Date()
-                let coerced = nearestSchoolDaySync(to: today)
-                viewModel.date = AppCalendar.startOfDay(coerced)
-            }
+            todayButton
         }
 
         ToolbarSpacer(.fixed, placement: .topBarTrailing)

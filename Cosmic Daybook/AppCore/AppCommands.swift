@@ -24,6 +24,7 @@ import SwiftUI
 final class QuickCaptureActions {
     struct Handlers {
         let newPresentation: () -> Void
+        let newWork: () -> Void
         let recordPractice: () -> Void
         let newTodo: () -> Void
         let newNote: () -> Void
@@ -36,6 +37,7 @@ final class QuickCaptureActions {
     }
 
     func newPresentation() { handlers?.newPresentation() }
+    func newWork() { handlers?.newWork() }
     func recordPractice() { handlers?.recordPractice() }
     func newTodo() { handlers?.newTodo() }
     func newNote() { handlers?.newNote() }
@@ -91,15 +93,19 @@ struct FileNewCommands: Commands {
             Button("New Student…") { AppRouter.shared.requestNewStudent() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
 
-            Button("New Work…") { AppRouter.shared.requestNewWork() }
-                .keyboardShortcut("n", modifiers: [.command, .option])
-
             Divider()
 
-            // Quick-capture — same actions as the floating radial menu. Disabled
-            // when no main window is key (the closures live on RootView).
+            // Quick-capture — the floating button's five create actions, in its
+            // radial menu's order. Disabled when no main window is key (the
+            // closures live on RootView), so each acts on exactly one window.
             Button("New Presentation…") { quickCapture?.newPresentation() }
                 .keyboardShortcut("p", modifiers: [.command, .control])
+                .disabled(quickCapture == nil)
+
+            // Went through AppRouter's shared trigger, which every main window
+            // observes; now it targets the key window like the other four.
+            Button("New Work…") { quickCapture?.newWork() }
+                .keyboardShortcut("n", modifiers: [.command, .option])
                 .disabled(quickCapture == nil)
 
             Button("Record Practice…") { quickCapture?.recordPractice() }

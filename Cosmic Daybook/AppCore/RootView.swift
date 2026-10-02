@@ -241,6 +241,7 @@ struct RootView: View {
     private func installQuickCaptureHandlers() {
         quickCaptureActions.setHandlers(QuickCaptureActions.Handlers(
             newPresentation: { createPresentationDraft() },
+            newWork: { activeSheet = .newWorkItem(lessonID: nil, studentIDs: []) },
             recordPractice: { activeSheet = .recordPractice },
             newTodo: { activeSheet = .newTodo(initialTitle: "") },
             newNote: { activeSheet = .quickNote(QuickNoteParams()) }
@@ -360,7 +361,9 @@ struct RootView: View {
     private var searchAndSyncOverlay: some View {
         HStack(spacing: 8) {
             ClassroomWorkspacePicker(workspaceStore: classroomWorkspace)
-            SchoolYearPicker()
+            if selectedNavItem != .today {
+                SchoolYearPicker()
+            }
             Button {
                 activeSheet = .search
             } label: {
@@ -446,9 +449,13 @@ struct RootView: View {
             ClassroomWorkspacePicker(workspaceStore: classroomWorkspace)
         }
 
+        // Hidden on Today, never removed: an `if` here would change the item
+        // list, which AppKit replays across toolbars sharing the identifier
+        // (the album window's family-desync crash). See SyncStatusToolbarItem.
         ToolbarItem(id: "schoolYear", placement: .primaryAction) {
             SchoolYearPicker()
         }
+        .hidden(selectedNavItem == .today)
 
         ToolbarItem(id: "search", placement: .primaryAction) {
             Button {
@@ -459,11 +466,7 @@ struct RootView: View {
             .help("Search notes, lessons, students, and todos (⌘F)")
         }
 
-        if !classroomWorkspace.isShowingSampleClass {
-            ToolbarItem(id: "syncStatus", placement: .primaryAction) {
-                CompactSyncStatusIndicator(compact: true)
-            }
-        }
+        SyncStatusToolbarItem(isSampleClass: classroomWorkspace.isShowingSampleClass)
     }
     #endif
 

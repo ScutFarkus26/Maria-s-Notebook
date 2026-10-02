@@ -24,6 +24,7 @@ struct FocusedMenuActionsTests {
         func install(_ tag: String) {
             actions.setHandlers(QuickCaptureActions.Handlers(
                 newPresentation: { calls.names.append("\(tag)newPresentation") },
+                newWork: { calls.names.append("\(tag)newWork") },
                 recordPractice: { calls.names.append("\(tag)recordPractice") },
                 newTodo: { calls.names.append("\(tag)newTodo") },
                 newNote: { calls.names.append("\(tag)newNote") }
@@ -31,6 +32,7 @@ struct FocusedMenuActionsTests {
         }
         install("")
         actions.newPresentation()
+        actions.newWork()
         actions.recordPractice()
         actions.newTodo()
         actions.newNote()
@@ -38,7 +40,7 @@ struct FocusedMenuActionsTests {
         actions.newNote()
 
         #expect(calls.names == [
-            "newPresentation", "recordPractice", "newTodo", "newNote", "refilled.newNote"
+            "newPresentation", "newWork", "recordPractice", "newTodo", "newNote", "refilled.newNote"
         ])
     }
 
