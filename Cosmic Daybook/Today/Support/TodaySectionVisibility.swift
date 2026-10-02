@@ -32,6 +32,7 @@ enum TodaySection: String, CaseIterable, Sendable {
     case dayCards
     case agenda
     case meetings
+    case goneQuiet
     case todos
     case watching
     case readyForNext
@@ -64,6 +65,10 @@ enum TodaySectionVisibility {
     /// The day's scheduled meetings, in a small section of their own after
     /// the lessons — gone on a day with none.
     static func showsMeetings(count: Int) -> Bool { count > 0 }
+
+    /// Open work nobody has touched in a while, after the meetings — gone
+    /// when every piece of open work has been seen recently.
+    static func showsGoneQuiet(count: Int) -> Bool { count > 0 }
 
     /// The retrospective roll-up (lessons presented, work checked, meetings held).
     static func showsDoneToday(total: Int) -> Bool { total > 0 }
@@ -112,7 +117,8 @@ enum TodaySectionVisibility {
     // MARK: - Orderings
 
     /// iPhone and iPad, top to bottom: what is in front of her now (Right Now,
-    /// the day's banners, the day's plan and its meetings, her todo list),
+    /// the day's banners, the day's plan, its meetings and the work gone
+    /// quiet, her todo list),
     /// then what she is watching (ready-for-next, following presentations,
     /// observations), then the external feeds, then the monthly nudge, the
     /// pad, and last the retrospective.
@@ -126,6 +132,7 @@ enum TodaySectionVisibility {
         .dayCards,
         .agenda,
         .meetings,
+        .goneQuiet,
         .todos,
         .watching,
         .readyForNext,
@@ -139,9 +146,8 @@ enum TodaySectionVisibility {
     ]
 
     /// macOS left column, the wide one: the day's plan, full height — the
-    /// lessons, then the meetings. Gone quiet joins it after the meetings
-    /// when it gets a section of its own.
-    static let macLeftColumnOrder: [TodaySection] = [.agenda, .meetings]
+    /// lessons, then the meetings, then the work gone quiet.
+    static let macLeftColumnOrder: [TodaySection] = [.agenda, .meetings, .goneQuiet]
 
     /// macOS right column, 340 pt: the phone ordering minus the plan, and
     /// minus Right Now. On the Mac the plan's own first row is the next thing

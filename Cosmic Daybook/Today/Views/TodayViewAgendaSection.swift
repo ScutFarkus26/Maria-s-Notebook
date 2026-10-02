@@ -1,8 +1,9 @@
 // TodayViewAgendaSection.swift
-// The Lessons section for TodayView — the day's lessons and quiet work in one
-// reorderable list, its first lesson not yet given drawn as the Next card
-// (TodayViewNextCard.swift). Scheduled meetings have their own section
-// (TodayViewMeetingsSection.swift). The header and the absent-children move
+// The Lessons section for TodayView — the day's lessons in one reorderable
+// list, its first lesson not yet given drawn as the Next card
+// (TodayViewNextCard.swift). Scheduled meetings and quiet work have sections
+// of their own (TodayViewMeetingsSection.swift,
+// TodayViewGoneQuietSection.swift). The header and the absent-children move
 // live in TodayView+AbsentMove.swift. The retrospective halves it used to
 // carry (Lessons Presented, Work Checked) live in
 // TodayViewDoneTodaySection.swift, beside the disclosure that shows them.
@@ -82,9 +83,8 @@ extension TodayView {
         switch item {
         case .lesson(let sl): agendaLessonRow(sl, isNext: isNext)
         case .scheduledWork(let scheduled): agendaScheduledWorkRow(scheduled)
-        case .followUp(let followUp): agendaFollowUpRow(followUp)
         case .groupedScheduledWork(let items): agendaGroupedScheduledWorkRow(items)
-        case .groupedFollowUp(let items): agendaGroupedFollowUpRow(items)
+        case .followUp, .groupedFollowUp: goneQuietRow(for: item, checkInDay: nextSchoolDaySync(after: Date()))
         }
     }
 
@@ -120,45 +120,8 @@ extension TodayView {
     }
 
     @ViewBuilder
-    private func agendaFollowUpRow(_ followUp: FollowUpWorkItem) -> some View {
-        FollowUpWorkListRow(
-            item: followUp,
-            studentName: resolveStudentName(for: followUp.work),
-            lessonName: resolveLessonName(for: followUp.work),
-            onTap: { selectedWorkID = followUp.work.id }
-        )
-        .contextMenu {
-            Button {
-                selectedWorkID = followUp.work.id
-            } label: {
-                Label("Open Detail", systemImage: "doc.text.magnifyingglass")
-            }
-            Button {
-                quickNoteAboutWork(followUp.work)
-            } label: {
-                Label("Add Note", systemImage: "square.and.pencil")
-            }
-            Divider()
-            WorkLogStatusMenu(targets: [followUp.work]) { rows, status in
-                logWorkStatus(rows, as: status)
-            }
-        }
-    }
-
-    @ViewBuilder
     private func agendaGroupedScheduledWorkRow(_ items: [ScheduledWorkItem]) -> some View {
         GroupedScheduledWorkListRow(
-            items: items,
-            studentNames: items.map { resolveStudentName(for: $0.work) },
-            lessonName: items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson",
-            isFlexible: items.first?.work.checkInStyle == .flexible,
-            onTap: { workID in selectedWorkID = workID }
-        )
-    }
-
-    @ViewBuilder
-    private func agendaGroupedFollowUpRow(_ items: [FollowUpWorkItem]) -> some View {
-        GroupedFollowUpWorkListRow(
             items: items,
             studentNames: items.map { resolveStudentName(for: $0.work) },
             lessonName: items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson",

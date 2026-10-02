@@ -88,6 +88,12 @@ final class TodayViewModel {
     /// Every stale work item; `staleFollowUps` keeps only the top
     /// `TodayScheduleBuilder.staleRowLimit`.
     var staleTotalCount = 0
+    /// Gone quiet's rows: `staleFollowUps`, a group or flexible lesson's
+    /// children sharing one row, most quiet first.
+    var goneQuietItems: [AgendaItem] = []
+    /// Open todos linked to work with a row on Today (Gone quiet, and the
+    /// due check-ins in the Todos list), folded onto those rows.
+    var linkedTodos: TodayLinkedTodos = .empty
 
     // Unified agenda (lessons + work items, user-orderable)
     var agendaItems: [AgendaItem] = []
@@ -331,12 +337,21 @@ final class TodayViewModel {
             cacheManager.enrolledStudents(ids: missingStudentIDs, context: context)
         ) { _, new in new }
 
+        // 7b. Open todos linked to work on screen, folded onto those rows
+        let workIDsOnScreen = Set(workResult.staleFollowUps.compactMap(\.work.id))
+            .union(followUps.compactMap(\.work.id))
+        let linked = TodayLinkedTodosLoader.load(
+            workIDsOnScreen: workIDsOnScreen, day: day, calendar: calendar, context: context
+        )
+
         // BATCH UPDATE: Apply all @Published changes together to minimize view re-renders
         todaysLessons = filteredLessons
         overdueSchedule = workResult.overdueSchedule
         todaysSchedule = workResult.todaysSchedule
         staleFollowUps = workResult.staleFollowUps
         staleTotalCount = workResult.staleTotalCount
+        goneQuietItems = TodayAgendaBuilder.groupFollowUpWork(workResult.staleFollowUps)
+        linkedTodos = linked
         completedWork = filteredCompletedWork
         overdueReminders = remindersResult.overdue
         todaysReminders = remindersResult.today
@@ -355,13 +370,13 @@ final class TodayViewModel {
         departedStudentsByID = departed
 
         // 8. Build unified agenda. Due check-ins live in the todo list now
-        // (followUpCheckIns), so the agenda is built without them; the
-        // overdueSchedule/todaysSchedule outputs stay for Right Now's count.
+        // (followUpCheckIns), and quiet work in Gone quiet (goneQuietItems),
+        // so the agenda is built without them; the overdueSchedule/
+        // todaysSchedule outputs stay for Right Now's count.
         agendaItems = TodayAgendaBuilder.buildAgenda(
             lessons: filteredLessons,
             overdueSchedule: [],
             todaysSchedule: [],
-            staleFollowUps: workResult.staleFollowUps,
             day: day,
             context: context
         )

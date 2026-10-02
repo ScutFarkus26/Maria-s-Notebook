@@ -8,8 +8,9 @@
 // entry: the row takes its status, a closing status stamps `completedAt` and
 // writes a `CDWorkCompletionRecord`, the day's check-in is marked completed
 // (which is what takes the pill off the Scheduled strip), later check-ins on
-// a closed row are skipped, and any note lands on the row as a dated note.
-// The whole thing hands back a token the caller can Undo with.
+// a closed row are skipped, any note lands on the row as a dated note, and
+// the open todos linked to the row are completed (`linkedWorkItemID`). The
+// whole thing hands back a token the caller can Undo with.
 
 import CoreData
 import Foundation
@@ -96,6 +97,11 @@ enum WorkLogService {
                 }
             }
             work.lastTouchedAt = now
+            // The work has been seen, so the follow-ups about it are done.
+            if let workID = work.id {
+                let completed = TodoCompletionService.completeTodosLinked(toWork: workID, in: context)
+                token.completedTodos += completed.map(\.objectID)
+            }
             settled += settleCheckIns(of: work, on: logDay, closing: work.status.isClosed, token: &token, in: context)
             if let note = entry.note?.trimmed(), !note.isEmpty {
                 addNote(note, to: work, for: students, on: logDay, in: context)

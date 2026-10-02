@@ -144,38 +144,7 @@ struct ScheduledWorkListRow: View {
     }
 }
 
-struct FollowUpWorkListRow: View {
-    let item: FollowUpWorkItem
-    let studentName: String
-    let lessonName: String
-    var onTap: () -> Void
-
-    private var accessibilityLabelText: String {
-        "Follow-up needed for \(studentName), \(lessonName), \(item.daysSinceTouch) days since last update"
-    }
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(studentName)
-                        .font(AppTheme.ScaledFont.callout)
-                        .foregroundStyle(.primary)
-                    Text(lessonName)
-                        .font(AppTheme.ScaledFont.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-                Text("\(item.daysSinceTouch)d ago")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .buttonStyle(.subtleRow)
-        .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint("Views work details for adding a follow-up")
-    }
-}
+// `FollowUpWorkListRow` lives in TodayGoneQuietRows.swift, with Gone quiet's other pieces.
 
 struct CompletionListRow: View {
     let studentName: String

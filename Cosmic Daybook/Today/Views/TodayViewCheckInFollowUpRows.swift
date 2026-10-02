@@ -17,6 +17,8 @@ struct WorkCheckInFollowUpRow: View {
     let names: [(name: String, departed: Bool)]
     /// Work title or lesson name, plus the check-in's purpose when it has one.
     let detail: String
+    /// The work's open linked todos; the Todos list leaves them out for this row.
+    var linkedTodos: TodayLinkedTodos.WorkTodos?
     var onComplete: () -> Void
     var onOpen: () -> Void
     var onReschedule: (Date) -> Void
@@ -43,6 +45,9 @@ struct WorkCheckInFollowUpRow: View {
                             dateChip
                             if item.hasDepartedParticipant {
                                 departedMark
+                            }
+                            if let linkedTodos {
+                                TodayLinkedTodosLabel(todos: linkedTodos)
                             }
                             Text(detail)
                                 .font(AppTheme.ScaledFont.caption)
@@ -140,6 +145,7 @@ struct WorkCheckInFollowUpRow: View {
         label += ", due \(DateFormatters.mediumDate.string(from: item.dueDay))"
         if item.isOverdue { label += ", overdue" }
         if item.hasDepartedParticipant { label += ", includes a withdrawn or transferred student" }
+        if let linkedTodos { label += ", \(linkedTodos.summary)" }
         return label
     }
 }
@@ -147,9 +153,12 @@ struct WorkCheckInFollowUpRow: View {
 // MARK: - Day picker presentation
 
 /// The picker as a popover on the Mac and a sheet on iOS, dismissed before
-/// the write so the row it hangs off can leave the list.
-private struct DayPickerPresentation: ViewModifier {
+/// the write so the row it hangs off can leave the list. Gone quiet's
+/// Schedule check-in opens it on the next school day (`initialDay`).
+struct DayPickerPresentation: ViewModifier {
     @Binding var isPresented: Bool
+    var count: Int = 1
+    var initialDay: Date?
     let onPick: (Date) -> Void
 
     func body(content: Content) -> some View {
@@ -163,7 +172,7 @@ private struct DayPickerPresentation: ViewModifier {
     }
 
     private var picker: some View {
-        WorkCheckDayPicker(count: 1) { day in
+        WorkCheckDayPicker(count: count, initialDay: initialDay) { day in
             isPresented = false
             onPick(day)
         } onCancel: {
@@ -181,6 +190,7 @@ extension TodayView {
             item: item,
             names: followUpStudentNames(for: item),
             detail: followUpDetail(for: item),
+            linkedTodos: item.work.id.flatMap { viewModel.linkedTodos.byWork[$0] },
             onComplete: { completeCheckInFollowUp(item) },
             onOpen: { selectedWorkID = item.work.id },
             onReschedule: { day in rescheduleCheckInFollowUp(item, to: day) },

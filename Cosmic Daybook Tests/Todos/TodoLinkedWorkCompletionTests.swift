@@ -70,4 +70,53 @@ struct TodoLinkedWorkCompletionTests {
         #expect(completed.isEmpty)
         #expect(done.completedAt == stamp)
     }
+
+    // MARK: - Wired completion
+
+    /// Open work with one open linked todo, saved.
+    private func seedLinkedWork(
+        in context: NSManagedObjectContext, recurrence: RecurrencePattern = .none
+    ) -> (CDWorkModel, CDTodoItem) {
+        let work = CoreDataTestHelpers.seedWorkModel(in: context, title: "Stamp Game")
+        work.id = UUID()
+        work.status = .active
+        let todo = CDTodoItem(context: context)
+        todo.title = "Check the stamp game"
+        todo.dueDate = Date()
+        todo.recurrence = recurrence
+        todo.linkedWorkItemID = work.id?.uuidString
+        CoreDataTestHelpers.save(context)
+        return (work, todo)
+    }
+
+    @Test("Recording a check-in completes the work's linked todos")
+    func checkInCompletesLinkedTodos() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let (work, todo) = seedLinkedWork(in: context)
+        let checkIn = CDWorkCheckIn.make(for: work, on: Date(), purpose: "progressCheck", in: context)
+
+        try WorkCheckInService(context: context).markCompleted(checkIn)
+
+        #expect(checkIn.status == .completed)
+        #expect(todo.isCompleted)
+    }
+
+    @Test("Logging the work completes its linked todos, and Undo reopens them and removes the next occurrence")
+    func workLogCompletesAndUndoRestores() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let (work, todo) = seedLinkedWork(in: context, recurrence: .weekly)
+
+        let receipt = try WorkLogService.log([.init(work: work)], context: context)
+
+        #expect(todo.isCompleted)
+        #expect(receipt.token.completedTodos == [todo.objectID])
+        #expect(context.safeFetch(CDFetchRequest(CDTodoItem.self)).count == 2)
+
+        try WorkLogService.undo(receipt.token, context: context)
+
+        let all = context.safeFetch(CDFetchRequest(CDTodoItem.self))
+        #expect(all.map(\.objectID) == [todo.objectID])
+        #expect(!todo.isCompleted)
+        #expect(todo.completedAt == nil)
+    }
 }

@@ -7,6 +7,9 @@ import SwiftUI
 
 struct TodoTodayRow: View {
     let todo: CDTodoItem
+    /// The roster's short names by full name (`RosterStore.shortNamesByFullName`),
+    /// so a `Students/<Full Name>` tag reads "Naomi F" without a fetch per draw.
+    var studentShortNames: [String: String] = [:]
     var onToggle: () -> Void
     var onTap: () -> Void
 
@@ -115,7 +118,9 @@ struct TodoTodayRow: View {
                             }
 
                             if !todo.tagsArray.isEmpty {
-                                let firstName = TagHelper.displayName(todo.tagsArray[0], contextOf: todo)
+                                let firstName = TodoTagHelper.displayName(
+                                    todo.tagsArray[0], studentShortNames: studentShortNames
+                                )
                                 let firstColor = TodoTagHelper.tagColor(todo.tagsArray[0])
                                 Text(firstName)
                                     .font(AppTheme.ScaledFont.captionSmallSemibold)

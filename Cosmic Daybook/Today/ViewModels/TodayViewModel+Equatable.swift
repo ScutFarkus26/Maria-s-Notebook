@@ -30,6 +30,7 @@ extension TodayViewModel: Equatable {
             && lhs.listIDsMatch(rhs)
             && lhs.listCountsMatch(rhs)
             && lhs.followUpIDsMatch(rhs)
+            && lhs.goneQuietMatches(rhs)
             && lhs.attendanceMatches(rhs)
         // Cache internals (studentsByID, lessonsByID, workByID, etc.) are intentionally
         // not compared — they don't directly affect rendering.
@@ -87,6 +88,13 @@ extension TodayViewModel: Equatable {
         followUpCheckIns.count == other.followUpCheckIns.count
             && followUpCheckIns.map(\.id) == other.followUpCheckIns.map(\.id)
             && followUpCheckIns.map(\.dueDay) == other.followUpCheckIns.map(\.dueDay)
+    }
+
+    /// Gone quiet's rows, its true count, and the todos folded onto work rows.
+    private func goneQuietMatches(_ other: TodayViewModel) -> Bool {
+        goneQuietItems.map(\.id) == other.goneQuietItems.map(\.id)
+            && staleTotalCount == other.staleTotalCount
+            && linkedTodos == other.linkedTodos
     }
 
     /// Attendance summary affecting the header.

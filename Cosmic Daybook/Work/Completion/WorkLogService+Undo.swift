@@ -58,7 +58,11 @@ extension WorkLogService {
         var rows: [RowSnapshot] = []
         var participants: [ParticipantSnapshot] = []
         var checkIns: [CheckInSnapshot] = []
-        /// Completion records, notes and their student links made by the call.
+        /// Linked todos the call completed; each was open before it. A
+        /// repeating one's next occurrence is in `createdObjectIDs`.
+        var completedTodos: [NSManagedObjectID] = []
+        /// Completion records, notes, their student links, and the next
+        /// occurrences of completed repeating todos, made by the call.
         var createdObjectIDs: [NSManagedObjectID] = []
 
         init(day: Date) {
@@ -68,8 +72,8 @@ extension WorkLogService {
 
     // MARK: - Undo
 
-    /// Puts every touched row, participant and check-in back and deletes what
-    /// the call created, then saves.
+    /// Puts every touched row, participant, check-in and linked todo back and
+    /// deletes what the call created, then saves.
     static func undo(
         _ token: UndoToken,
         context: NSManagedObjectContext,
@@ -103,6 +107,11 @@ extension WorkLogService {
             if let checkIn = context.existing(CDWorkCheckIn.self, snapshot.objectID) {
                 checkIn.statusRaw = snapshot.statusRaw
                 checkIn.date = snapshot.date
+            }
+        }
+        for objectID in token.completedTodos {
+            if let todo = context.existing(CDTodoItem.self, objectID) {
+                TodoCompletionService.reopen(todo)
             }
         }
         for objectID in token.createdObjectIDs {

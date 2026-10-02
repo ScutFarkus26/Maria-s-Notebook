@@ -34,12 +34,16 @@ struct WorkCheckInService {
 
     // MARK: - Updates
 
-    /// Mark a check-in as completed and persist immediately.
+    /// Mark a check-in as completed, and complete the open todos linked to
+    /// its work: the check-in is the follow-up they were about. Does not save.
     func markCompleted(_ checkIn: CDWorkCheckIn, note: String? = nil, at date: Date = Date()) throws {
         checkIn.status = .completed
         checkIn.date = date
         if let note {
             checkIn.setLegacyNoteText(note, in: context)
+        }
+        if let workID = checkIn.work?.id ?? UUID(uuidString: checkIn.workID) {
+            TodoCompletionService.completeTodosLinked(toWork: workID, in: context)
         }
     }
 

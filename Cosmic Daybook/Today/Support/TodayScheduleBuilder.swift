@@ -102,7 +102,7 @@ enum TodayScheduleBuilder {
             }
 
             // --- Stale/Follow-Up Logic ---
-            if !isOverdueOrToday {
+            if !isOverdueOrToday && !hasUpcomingCheckIn(checkIns + workCheckIns, after: startToday) {
                 if WorkAgingPolicy.isStale(work, using: context, checkIns: checkIns, notes: workNotes) {
                     let days = WorkAgingPolicy.daysSinceLastTouch(
                         for: work, using: context,
@@ -119,5 +119,13 @@ enum TodayScheduleBuilder {
             stale: Array(newStale.sorted { $0.daysSinceTouch > $1.daysSinceTouch }.prefix(staleRowLimit)),
             staleTotalCount: newStale.count
         )
+    }
+
+    /// A check-in still ahead is a plan, not silence: scheduling one from a
+    /// Gone quiet row takes the row off the list.
+    private static func hasUpcomingCheckIn(_ checkIns: [CDWorkCheckIn], after startToday: Date) -> Bool {
+        checkIns.contains { checkIn in
+            checkIn.status == .scheduled && (checkIn.date ?? .distantPast).startOfDay > startToday
+        }
     }
 }

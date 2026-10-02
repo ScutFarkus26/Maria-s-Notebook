@@ -41,6 +41,8 @@ extension TodayView {
         TodayTodosSectionView(
             date: viewModel.date,
             followUps: followUpPartition,
+            hiddenTodoIDs: viewModel.linkedTodos.hiddenTodoIDs,
+            studentShortNames: dependencies.roster.shortNamesByFullName,
             onToggle: { toggleTodoItem($0) },
             onOpen: { selectedTodoItem = $0 },
             onNewTodo: { activeSheet = .newTodo },
@@ -53,12 +55,18 @@ extension TodayView {
 
 /// Today's todo list: open todos scheduled or due on the selected day, overdue,
 /// or high priority, interleaved with the due work check-ins the parent passes in.
+/// A todo linked to work with a row on Today is left out (`hiddenTodoIDs`):
+/// that row shows it ("3 todos · Sep 18"), so it is not listed twice.
 struct TodayTodosSectionView<FollowUpRow: View>: View {
     typealias TodosPartition = TodayView.TodosPartition
     typealias FollowUpPartition = TodayView.FollowUpPartition
 
     let date: Date
     let followUps: FollowUpPartition
+    /// Linked todos whose work row is on Today (`TodayLinkedTodos.hiddenTodoIDs`).
+    let hiddenTodoIDs: Set<UUID>
+    /// The roster's short names by full name, for student tag chips.
+    let studentShortNames: [String: String]
     let onToggle: (CDTodoItem) -> Void
     let onOpen: (CDTodoItem) -> Void
     let onNewTodo: () -> Void
@@ -73,6 +81,8 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     init(
         date: Date,
         followUps: FollowUpPartition,
+        hiddenTodoIDs: Set<UUID>,
+        studentShortNames: [String: String],
         onToggle: @escaping (CDTodoItem) -> Void,
         onOpen: @escaping (CDTodoItem) -> Void,
         onNewTodo: @escaping () -> Void,
@@ -80,6 +90,8 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     ) {
         self.date = date
         self.followUps = followUps
+        self.hiddenTodoIDs = hiddenTodoIDs
+        self.studentShortNames = studentShortNames
         self.onToggle = onToggle
         self.onOpen = onOpen
         self.onNewTodo = onNewTodo
@@ -106,7 +118,7 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     }
 
     var body: some View {
-        let partition = Self.partition(Array(todoItems), date: date, calendar: calendar)
+        let partition = Self.partition(Array(todoItems), date: date, calendar: calendar, hiding: hiddenTodoIDs)
         let count = partition.all.count + followUps.count
         if TodaySectionVisibility.showsTodos(count: count) {
             Section {
@@ -145,14 +157,19 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
         return lhs.priority.sortOrder < rhs.priority.sortOrder
     }
 
-    static func partition(_ todoItems: [CDTodoItem], date: Date, calendar: Calendar) -> TodosPartition {
+    static func partition(
+        _ todoItems: [CDTodoItem], date: Date, calendar: Calendar, hiding hidden: Set<UUID> = []
+    ) -> TodosPartition {
         // Compute date boundaries once — todayTodos and the partition sub-filters all need them.
         let selectedDay = AppCalendar.startOfDay(date)
         let nextDay = calendar.date(byAdding: .day, value: 1, to: selectedDay) ?? selectedDay
 
         // Filter and sort the raw fetch results in a single pass.
         let todos = todoItems
-            .filter { isShown($0, selectedDay: selectedDay, nextDay: nextDay) }
+            .filter { todo in
+                !(todo.id.map(hidden.contains) ?? false)
+                    && isShown(todo, selectedDay: selectedDay, nextDay: nextDay)
+            }
             .sorted { precedes($0, $1, selectedDay: selectedDay, nextDay: nextDay) }
 
         // Partition the already-sorted list — reuses the pre-computed dates.
@@ -260,18 +277,20 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
             .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 4, trailing: 20))
     }
 
+    private func todoRow(_ todo: CDTodoItem) -> some View {
+        TodoTodayRow(
+            todo: todo,
+            studentShortNames: studentShortNames,
+            onToggle: { onToggle(todo) },
+            onTap: { onOpen(todo) }
+        )
+        .id(todo.id)
+        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+    }
+
+    /// A completable row, plus Edit on the trailing swipe.
     private func overdueTodoRow(_ todo: CDTodoItem) -> some View {
-        TodoTodayRow(todo: todo, onToggle: { onToggle(todo) }, onTap: { onOpen(todo) })
-            .id(todo.id)
-            .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-            .swipeActions(edge: .leading) {
-                Button {
-                    onToggle(todo)
-                } label: {
-                    Label("Complete", systemImage: "checkmark")
-                }
-                .tint(.green)
-            }
+        completableTodoRow(todo)
             .swipeActions(edge: .trailing) {
                 Button {
                     onOpen(todo)
@@ -283,9 +302,7 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
     }
 
     private func completableTodoRow(_ todo: CDTodoItem) -> some View {
-        TodoTodayRow(todo: todo, onToggle: { onToggle(todo) }, onTap: { onOpen(todo) })
-            .id(todo.id)
-            .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+        todoRow(todo)
             .swipeActions(edge: .leading) {
                 Button {
                     onToggle(todo)

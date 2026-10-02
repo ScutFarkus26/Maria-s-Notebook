@@ -1,6 +1,8 @@
 // TodayAgendaBuilder.swift
 // Builds the unified agenda by merging lessons and work items with persisted ordering.
 // Scheduled meetings are not on it: they have a Meetings section of their own.
+// Neither is quiet work: Gone quiet groups it here (`groupFollowUpWork`) and
+// lists it in its own section, most quiet first.
 
 import Foundation
 import CoreData
@@ -11,25 +13,21 @@ enum TodayAgendaBuilder {
     // Items with a saved position appear first (in position order).
     // New items (not in saved order) are appended at the end in default order.
     // Work items with group/flexible check-in styles are merged into grouped rows.
-    // swiftlint:disable:next function_parameter_count
     static func buildAgenda(
         lessons: [CDLessonAssignment],
         overdueSchedule: [ScheduledWorkItem],
         todaysSchedule: [ScheduledWorkItem],
-        staleFollowUps: [FollowUpWorkItem],
         day: Date,
         context: NSManagedObjectContext
     ) -> [AgendaItem] {
         // 1. Group scheduled work by checkInStyle + lessonID
         let allScheduled = overdueSchedule + todaysSchedule
         let groupedScheduledItems = groupScheduledWork(allScheduled)
-        let groupedFollowUpItems = groupFollowUpWork(staleFollowUps)
 
         // 2. Build the complete set in default order (exclude presented lessons — they appear in the left column)
         var allItems: [AgendaItem] = []
         allItems += lessons.filter { !$0.isPresented }.map { .lesson($0) }
         allItems += groupedScheduledItems
-        allItems += groupedFollowUpItems
 
         // 3. Fetch saved order
         let savedOrder = fetchSavedOrder(for: day, context: context)
@@ -94,34 +92,36 @@ enum TodayAgendaBuilder {
         return result
     }
 
-    /// Groups follow-up work items by check-in style and lessonID.
-    private static func groupFollowUpWork(_ items: [FollowUpWorkItem]) -> [AgendaItem] {
-        var individualItems: [AgendaItem] = []
+    /// Groups quiet work by check-in style and lessonID, for Gone quiet: a
+    /// group or flexible lesson's children share one row. Rows keep the order
+    /// of the items given (most quiet first); a group sits where its most
+    /// quiet child first appears.
+    static func groupFollowUpWork(_ items: [FollowUpWorkItem]) -> [AgendaItem] {
+        // Each slot is one row: an individual item, or a lesson's group key.
+        enum Slot { case single(FollowUpWorkItem), group(String) }
+        var slots: [Slot] = []
         var groupBuckets: [String: [FollowUpWorkItem]] = [:]
-        var groupOrder: [String] = []
 
         for item in items {
-            let style = item.work.checkInStyle
-            if style == .individual {
-                individualItems.append(.followUp(item))
+            if item.work.checkInStyle == .individual {
+                slots.append(.single(item))
             } else {
                 let key = item.work.lessonID
-                if groupBuckets[key] == nil { groupOrder.append(key) }
+                if groupBuckets[key] == nil { slots.append(.group(key)) }
                 groupBuckets[key, default: []].append(item)
             }
         }
 
-        var result: [AgendaItem] = []
-        for key in groupOrder {
-            guard let bucket = groupBuckets[key] else { continue }
-            if bucket.count == 1 {
-                result.append(.followUp(bucket[0]))
-            } else {
-                result.append(.groupedFollowUp(bucket))
+        return slots.compactMap { slot in
+            switch slot {
+            case .single(let item):
+                return .followUp(item)
+            case .group(let key):
+                guard let bucket = groupBuckets[key], let first = bucket.first else { return nil }
+                // A lone child of a group lesson needs no group row.
+                return bucket.count == 1 ? .followUp(first) : .groupedFollowUp(bucket)
             }
         }
-        result += individualItems
-        return result
     }
 
     /// Persists the current agenda order for a day.

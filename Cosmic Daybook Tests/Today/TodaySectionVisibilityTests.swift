@@ -134,12 +134,13 @@ struct TodaySectionVisibilityTests {
 
     // MARK: - Orderings
 
-    @Test("The agenda and its meetings are in the phone ordering and own the macOS left column")
+    @Test("The agenda, its meetings and Gone quiet are in the phone ordering and own the macOS left column")
     func agendaPlacement() {
         #expect(TodaySectionVisibility.phoneOrder.contains(.agenda))
-        #expect(TodaySectionVisibility.macLeftColumnOrder == [.agenda, .meetings])
+        #expect(TodaySectionVisibility.macLeftColumnOrder == [.agenda, .meetings, .goneQuiet])
         #expect(TodaySectionVisibility.macRightColumnOrder.contains(.agenda) == false)
         #expect(TodaySectionVisibility.macRightColumnOrder.contains(.meetings) == false)
+        #expect(TodaySectionVisibility.macRightColumnOrder.contains(.goneQuiet) == false)
     }
 
     @Test("Meetings follow the lessons directly on the phone")
@@ -147,6 +148,20 @@ struct TodaySectionVisibilityTests {
         let order = TodaySectionVisibility.phoneOrder
         let agenda = try #require(order.firstIndex(of: .agenda))
         #expect(order[agenda + 1] == .meetings)
+    }
+
+    @Test("Gone quiet follows the meetings on the phone, ahead of the todos")
+    func goneQuietFollowsTheMeetingsOnThePhone() throws {
+        let order = TodaySectionVisibility.phoneOrder
+        let meetings = try #require(order.firstIndex(of: .meetings))
+        #expect(order[meetings + 1] == .goneQuiet)
+        #expect(order[meetings + 2] == .todos)
+    }
+
+    @Test("Gone quiet shows only when some open work has gone quiet")
+    func goneQuietNeedsQuietWork() {
+        #expect(TodaySectionVisibility.showsGoneQuiet(count: 0) == false)
+        #expect(TodaySectionVisibility.showsGoneQuiet(count: 1))
     }
 
     @Test("The Meetings section shows only on a day with a scheduled meeting")
@@ -160,7 +175,7 @@ struct TodaySectionVisibilityTests {
         #expect(
             TodaySectionVisibility.macRightColumnOrder
                 == TodaySectionVisibility.phoneOrder.filter {
-                    $0 != .agenda && $0 != .meetings && $0 != .rightNow
+                    $0 != .agenda && $0 != .meetings && $0 != .goneQuiet && $0 != .rightNow
                 }
         )
     }

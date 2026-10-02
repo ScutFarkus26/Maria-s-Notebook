@@ -22,9 +22,25 @@ struct WorkCheckDayPicker: View {
     let onPick: (Date) -> Void
     var onCancel: () -> Void = {}
 
-    /// Opens on tomorrow. Today already has a button of its own a click away,
-    /// so the first day this picker is *for* is the one after it.
-    @State private var day: Date = AppCalendar.addingDays(1, to: AppCalendar.startOfDay(Date()))
+    /// Opens on tomorrow, or on `initialDay` when the caller knows better
+    /// (Today's Gone quiet passes the next school day, so a Friday opens on
+    /// Monday). Today already has a button of its own a click away, so the
+    /// first day this picker is *for* is the one after it.
+    @State private var day: Date
+
+    init(
+        count: Int,
+        initialDay: Date? = nil,
+        onPick: @escaping (Date) -> Void,
+        onCancel: @escaping () -> Void = {}
+    ) {
+        self.count = count
+        self.onPick = onPick
+        self.onCancel = onCancel
+        let today = AppCalendar.startOfDay(Date())
+        let opening = initialDay.map { AppCalendar.startOfDay($0) } ?? AppCalendar.addingDays(1, to: today)
+        _day = State(initialValue: max(opening, today))
+    }
 
     /// Nothing earlier than today: a check scheduled into the past arrives
     /// already overdue, which is a state to fix, never one to choose.

@@ -94,6 +94,25 @@ nonisolated struct TodayLinkedTodos: Equatable, Sendable {
         return TodayLinkedTodos(byWork: byWork, hiddenTodoIDs: hidden)
     }
 
+    /// What one row shows when it stands for several works — a group
+    /// lesson's children on one Gone quiet row: their linked todos together,
+    /// the soonest due date among them, or nil when none has any.
+    func rowTodos(for workIDs: [UUID], calendar: Calendar) -> WorkTodos? {
+        let parts = workIDs.compactMap { byWork[$0] }
+        guard let first = parts.first else { return nil }
+        guard parts.count > 1 else { return first }
+        let earliest = parts.compactMap(\.earliestDueDate).min()
+        let todoIDs = parts.flatMap(\.todoIDs)
+        return WorkTodos(
+            workID: first.workID,
+            todoIDs: todoIDs,
+            earliestDueDate: earliest,
+            // The soonest date decides, so any overdue part makes the row overdue.
+            isOverdue: parts.contains(where: \.isOverdue),
+            summary: Self.summary(count: todoIDs.count, earliestDue: earliest, calendar: calendar)
+        )
+    }
+
     /// "1 todo", "3 todos", "3 todos · Sep 18".
     static func summary(count: Int, earliestDue: Date?, calendar: Calendar) -> String {
         let noun = count == 1 ? "1 todo" : "\(count) todos"

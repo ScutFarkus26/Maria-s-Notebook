@@ -32,17 +32,19 @@ struct TodoTagDisplayNameTests {
         #expect(TodoTagHelper.displayName("Students/Naomi Fisher|Green", studentShortNames: roster) == "Naomi F")
     }
 
-    @Test("The context lookup matches a student by exact full name")
-    func contextLookupMatchesExactFullName() throws {
+    @Test("Today's todo rows resolve student tags through the roster map, by exact full name")
+    func rosterMapMatchesExactFullName() throws {
         let context = try CoreDataTestHelpers.makeContext()
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana", lastName: "De Leon")
         CoreDataTestHelpers.seedStudent(in: context, firstName: "Ana Maria", lastName: "Soto")
         CoreDataTestHelpers.save(context)
+        // What `TodoTodayRow` is handed: the store's map, not a fetch per draw.
+        let names = RosterStore(context: context).shortNamesByFullName
 
-        #expect(TodoTagHelper.displayName("Students/Ana De Leon|Green", in: context) == "Ana D")
-        #expect(TodoTagHelper.displayName("Students/Ana Maria Soto|Green", in: context) == "Ana Maria S")
-        #expect(TodoTagHelper.displayName("Students/Ana Lopez|Green", in: context) == "Ana L")
-        #expect(TodoTagHelper.displayName("Urgent|Red", in: context) == "Urgent")
+        #expect(TodoTagHelper.displayName("Students/Ana De Leon|Green", studentShortNames: names) == "Ana D")
+        #expect(TodoTagHelper.displayName("Students/Ana Maria Soto|Green", studentShortNames: names) == "Ana Maria S")
+        #expect(TodoTagHelper.displayName("Students/Ana Lopez|Green", studentShortNames: names) == "Ana L")
+        #expect(TodoTagHelper.displayName("Urgent|Red", studentShortNames: names) == "Urgent")
     }
 
     @Test("The roster store files each child's short name under her tag's full name")

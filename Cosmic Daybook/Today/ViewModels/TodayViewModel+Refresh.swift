@@ -13,13 +13,12 @@ import OSLog
 
 extension TodayViewModel {
 
-    /// The entities whose edits elsewhere should reload Today. Not
-    /// "TodoItem": nothing `reload()` builds reads a todo (the Todos section
-    /// keeps its own fetch, which follows every save), and a reload on each
-    /// todo tick is what the ready queue's gate was built to avoid. Add it
-    /// when the model starts reading todos (the work rows' linked todos).
+    /// The entities whose edits elsewhere should reload Today. "TodoItem"
+    /// since the work rows carry their linked todos (`linkedTodos`): a todo
+    /// linked, completed or redated elsewhere changes a row. The ready queue
+    /// keeps its own gate, so a todo tick does not rebuild it.
     nonisolated static let reloadInputEntities: Set<String> = [
-        "WorkModel", "LessonAssignment", "WorkCheckIn"
+        "WorkModel", "LessonAssignment", "WorkCheckIn", "TodoItem"
     ]
 
     /// `reload()` as an Instruments interval ("Today" category).

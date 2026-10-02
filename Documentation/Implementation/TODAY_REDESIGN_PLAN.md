@@ -144,9 +144,9 @@ All paths below are under `Cosmic Daybook/`.
 | Phase | State | Commit |
 |---|---|---|
 | 1 Engine | Done. Fetches per reload 18–20 → 13; refresh after edits in other windows | 26b7b1b1 (merged) |
-| 2 Mac layout | Done: plan on the left, 340-pt right column, todo inspector, Needs-a-lesson card with named buttons; Mac UI unseen | (this commit) |
-| 3 Lesson & meeting rows | Done: chips + "N of M here", Next card (Present ⌘↩, off while the attendance grid is open), `TodayAbsentMover` with Undo, Meetings section; Mac UI unseen | (uncommitted) |
-| 4 Gone quiet + linking | Non-UI done: MCP `work_id`, `TodayLinkedTodos`, `completeTodosLinked`, tag short names | 26f17f31 |
+| 2 Mac layout | Done: plan on the left, 340-pt right column, todo inspector, Needs-a-lesson card with named buttons; Mac UI unseen | 65bdf678 |
+| 3 Lesson & meeting rows | Done: chips + "N of M here", Next card (Present ⌘↩, off while the attendance grid is open), `TodayAbsentMover` with Undo, Meetings section; Mac UI unseen | b3446ddf |
+| 4 Gone quiet + linking | Done: Gone quiet section (title + chips, "19d quiet", Schedule check-in on the next school day, "See all N"), linked todos on work rows and out of Todos, completion on check-in and work log (with Undo), roster tag names; non-UI 26f17f31; Mac UI unseen | 26f17f31 + (phase 4 UI commit) |
 | 5 Header/toolbar/band | Done; Mac UI unseen | 669ded92 |
 | 6 Floating button | Done (File ▸ New already had all five; New Work now targets the front window); Mac UI unseen | 669ded92 |
 | 7 iPhone/iPad | | |
@@ -167,3 +167,13 @@ All paths below are under `Cosmic Daybook/`.
 - **Agents:** a session guard blocks writes outside the session's own worktree. Run UI agents in this worktree
   (one at a time) or with `isolation: "worktree"` (then `git merge --ff-only claude/today-view-analysis-275c3c` first).
 - The `today-engine`, `today-header` and `today-mcp` worktrees and branches are merged or abandoned; remove them.
+
+## Handoff notes for phase 7 (after phase 4 UI)
+
+- The completion wiring, the `"TodoItem"` refresh trigger and the roster tag names above are done.
+- Gone quiet is in `phoneOrder` after Meetings, so the phone already draws it. iPhone's Right Now still shows "Open
+  work to check" (`openWorkToCheckCount`, scheduled + quiet), which now repeats Gone quiet's header; decide there.
+- Gone quiet rows are no longer reorderable (sorted most quiet first). Schedule check-in opens `WorkCheckDayPicker`
+  (popover on the Mac, sheet on iOS, `DayPickerPresentation`) on the next school day.
+- Work with a scheduled check-in still ahead is no longer counted as quiet (`TodayScheduleBuilder`), so scheduling
+  one takes the row off; `staleTotalCount` follows.
