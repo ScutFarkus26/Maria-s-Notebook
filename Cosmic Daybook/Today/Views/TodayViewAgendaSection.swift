@@ -135,7 +135,9 @@ extension TodayView {
         // Decided once per reload (TodayLessonsLoader.lessonIDsWithPlan).
         let hasPlan = viewModel.lessonIDsWithPlan.contains(sl.resolvedLessonID)
         let attendance = TodayLessonAttendance(
-            studentIDs: sl.resolvedStudentIDs, absent: viewModel.absentStudentIDs
+            studentIDs: sl.resolvedStudentIDs,
+            absent: viewModel.absentStudentIDs,
+            here: viewModel.hereStudentIDs
         )
         let movesAbsent = attendance.hasAbsent && !sl.isPresented
         LessonListRow(

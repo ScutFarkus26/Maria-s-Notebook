@@ -20,15 +20,27 @@ struct TodayLessonAttendanceTests {
 
     @Test("Some absent reads \"N of M here\"")
     func someAbsent() {
-        let attendance = TodayLessonAttendance(studentIDs: [maya, theo, ava, leo], absent: [theo])
+        let attendance = TodayLessonAttendance(
+            studentIDs: [maya, theo, ava, leo], absent: [theo], here: [maya, ava, leo]
+        )
         #expect(attendance.hereText == "3 of 4 here")
     }
 
     @Test("Everyone present reads \"all N here\"")
     func everyonePresent() {
-        let attendance = TodayLessonAttendance(studentIDs: [maya, theo, ava, leo], absent: [])
+        let attendance = TodayLessonAttendance(
+            studentIDs: [maya, theo, ava, leo], absent: [], here: [maya, theo, ava, leo]
+        )
         #expect(attendance.hereText == "all 4 here")
         #expect(attendance.hasAbsent == false)
+    }
+
+    @Test("A child not marked yet isn't counted as here")
+    func unmarkedIsNotHere() {
+        let attendance = TodayLessonAttendance(studentIDs: [maya, theo, ava], absent: [theo], here: [maya])
+        #expect(attendance.hereText == "1 of 3 here")
+        #expect(attendance.children.map(\.isAbsent) == [false, true, false])
+        #expect(TodayLessonAttendance(studentIDs: [leo], absent: [], here: []).hereText == "0 of 1 here")
     }
 
     @Test("Everyone absent reads \"0 of N here\"")
@@ -39,7 +51,7 @@ struct TodayLessonAttendanceTests {
 
     @Test("A lesson of one says \"here\"; a lesson of none says nothing")
     func smallLessons() {
-        #expect(TodayLessonAttendance(studentIDs: [maya], absent: []).hereText == "here")
+        #expect(TodayLessonAttendance(studentIDs: [maya], absent: [], here: [maya]).hereText == "here")
         #expect(TodayLessonAttendance(studentIDs: [maya], absent: [maya]).hereText == "0 of 1 here")
         #expect(TodayLessonAttendance(studentIDs: [], absent: [maya]).hereText == nil)
     }
@@ -58,8 +70,8 @@ struct TodayLessonAttendanceTests {
 
     @Test("Before attendance is taken a lesson says nothing about who is here")
     func hiddenUntilAttendanceIsTaken() {
-        let attendance = TodayLessonAttendance(studentIDs: [maya, theo, ava, leo], absent: [])
+        let attendance = TodayLessonAttendance(studentIDs: [maya, theo], absent: [], here: [])
         #expect(attendance.hereText(attendanceTaken: false) == nil)
-        #expect(attendance.hereText(attendanceTaken: true) == "all 4 here")
+        #expect(attendance.hereText(attendanceTaken: true) == "0 of 2 here")
     }
 }

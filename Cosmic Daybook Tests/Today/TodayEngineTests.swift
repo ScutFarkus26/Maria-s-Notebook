@@ -183,6 +183,24 @@ struct TodayEngineTests {
         #expect(TodayAttendanceLoader.absentStudentIDs(in: records) == [maya])
     }
 
+    @Test("Here is every child marked present or late; absent, left early and unmarked are not")
+    func hereStudentIDs() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let (day, next) = AppCalendar.dayRange(for: Date())
+        let present = UUID()
+        let late = UUID()
+        let statuses: [(UUID, AttendanceStatus)] = [
+            (present, .present), (late, .tardy), (UUID(), .absent), (UUID(), .leftEarly), (UUID(), .unmarked)
+        ]
+        for (id, status) in statuses {
+            CoreDataTestHelpers.seedAttendance(in: context, studentID: id, date: day).status = status
+        }
+        #expect(CoreDataTestHelpers.save(context))
+
+        let records = TodayDataFetcher.fetchAttendance(day: day, nextDay: next, context: context).records
+        #expect(TodayAttendanceLoader.hereStudentIDs(in: records) == [present, late])
+    }
+
     @Test("Attendance counts as taken once any child has a mark, not before")
     func attendanceTaken() throws {
         let context = try CoreDataTestHelpers.makeContext()

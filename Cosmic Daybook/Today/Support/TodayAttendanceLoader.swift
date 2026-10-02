@@ -79,6 +79,16 @@ enum TodayAttendanceLoader {
         records.contains { $0.status != .unmarked }
     }
 
+    /// Every child in the room: marked present or late (`AttendanceRow.isInRoom`;
+    /// a child who left early is out). Read like `absentStudentIDs`.
+    static func hereStudentIDs(in records: [CDAttendanceRecord]) -> Set<UUID> {
+        var result = Set<UUID>()
+        for record in records where record.status == .present || record.status == .tardy {
+            if let id = record.studentID.asUUID { result.insert(id) }
+        }
+        return result
+    }
+
     /// Every child the day's records mark absent, whatever the level filter
     /// or the roster cache says: what `PresentationRecorder.absentStudentIDs`
     /// answers for a lesson's children, read from the records `reload()`

@@ -119,6 +119,9 @@ final class TodayViewModel {
     /// Every child marked absent on the selected day, whatever the level
     /// filter (`absentToday` is filtered) — for the lesson rows.
     var absentStudentIDs: Set<UUID> = []
+    /// Every child marked present or late on the selected day — who lesson
+    /// rows count as here.
+    var hereStudentIDs: Set<UUID> = []
     /// Whether any child has an attendance mark today; lesson rows say
     /// "6 of 7 here" only once it is.
     var attendanceTaken = false
@@ -362,6 +365,7 @@ final class TodayViewModel {
         absentToday = processedAttendance.absentStudentIDs
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs
         absentStudentIDs = TodayAttendanceLoader.absentStudentIDs(in: attendanceResult.records)
+        hereStudentIDs = TodayAttendanceLoader.hereStudentIDs(in: attendanceResult.records)
         attendanceTaken = TodayAttendanceLoader.isTaken(in: attendanceResult.records)
         lessonIDsWithPlan = TodayLessonsLoader.lessonIDsWithPlan(for: filteredLessons, lessonsByID: lessonsByID)
         recentNotes = notesResult.notes
