@@ -2,11 +2,14 @@ import SwiftUI
 
 /// "Who was there?": one tile per child on the plan, ticked from the day's
 /// attendance. A child left unticked keeps her place on the plan when the
-/// presentation is recorded for the others.
+/// presentation is recorded for the others. A child who already has a mastery
+/// mark for the lesson says so quietly after her attendance ("Here · mastered Sep 12").
 struct PresentationWhoWasThereSection<AddButton: View>: View {
     let students: [CDStudent]
     let presentIDs: Set<UUID>
     let attendance: [UUID: AttendanceStatus]
+    /// Children with a mastery mark on the lesson → the day it was marked (nil: no date).
+    var masteredOn: [UUID: Date?] = [:]
     let isToday: Bool
     let onToggle: (UUID) -> Void
     let onRemove: (UUID) -> Void
@@ -48,9 +51,8 @@ struct PresentationWhoWasThereSection<AddButton: View>: View {
                     Text(student.shortName)
                         .font(AppTheme.ScaledFont.bodySemibold)
                         .foregroundStyle(.primary)
-                    Text(statusText(isPresent: isPresent, status: status))
+                    statusLine(isPresent: isPresent, status: status, masteryNote: masteryNote(id))
                         .font(.caption)
-                        .foregroundStyle(isPresent ? AppColors.success : PresentationDecisionChip.differsColor)
                 }
                 Spacer(minLength: 4)
                 Image(systemName: isPresent ? "checkmark.circle.fill" : "circle")
@@ -75,13 +77,29 @@ struct PresentationWhoWasThereSection<AddButton: View>: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(student.shortName)
-        .accessibilityValue(isPresent ? "Was there" : "Not there, stays on the plan")
+        .accessibilityValue(
+            [isPresent ? "Was there" : "Not there, stays on the plan", masteryNote(id)]
+                .compactMap { $0 }.joined(separator: ", ")
+        )
         .accessibilityAddTraits(isPresent ? .isSelected : [])
         .contextMenu {
             Button("Remove from This Presentation", systemImage: "person.badge.minus", role: .destructive) {
                 onRemove(id)
             }
         }
+    }
+
+    private func masteryNote(_ id: UUID) -> String? {
+        masteredOn[id].map { PresentationMasteryNote.text(masteredOn: $0) }
+    }
+
+    private func statusLine(isPresent: Bool, status: AttendanceStatus, masteryNote: String?) -> Text {
+        let attendance = Text(statusText(isPresent: isPresent, status: status))
+            .foregroundStyle(isPresent ? AppColors.success : PresentationDecisionChip.differsColor)
+        guard let masteryNote else { return attendance }
+        // No-break spaces keep "mastered Sep 12" together when a narrow tile wraps.
+        let note = masteryNote.replacingOccurrences(of: " ", with: "\u{00A0}")
+        return Text("\(attendance)\(Text(" · \(note)").foregroundStyle(.secondary))")
     }
 
     private func statusText(isPresent: Bool, status: AttendanceStatus) -> String {

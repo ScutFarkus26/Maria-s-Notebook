@@ -109,6 +109,7 @@ struct PresentationDetailContentView: View {
     @Environment(\.dependencies) var dependencies
     @State var lessonPickerFocused: Bool = false
     @State var attendance: [UUID: AttendanceStatus] = [:]
+    @State var masteredOn: [UUID: Date?] = [:]
     @State var showRescheduleSheet = false
     @State var showRecordDayPicker = false
     @State var recordPickedDay = AppCalendar.startOfDay(Date())
@@ -229,13 +230,16 @@ struct PresentationDetailContentView: View {
             if vm.showLessonPicker { lessonPickerFocused = true }
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
             refreshAttendance()
+            refreshMasteryNotes()
         }
         .onChange(of: vm.editingLessonID) { _, _ in
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
+            refreshMasteryNotes()
         }
         .onChange(of: vm.selectedStudentIDs) { _, _ in
             vm.recomputeSequenceRecap(currentLesson: currentLesson, students: selectedStudentsList)
             refreshAttendance()
+            refreshMasteryNotes()
         }
         .onChange(of: session.presentedDay) { _, _ in
             session.resetTouches()
@@ -309,5 +313,17 @@ struct PresentationDetailContentView: View {
         )
         let absent = Set(attendance.compactMap { $0.value == .absent ? $0.key : nil })
         session.syncRoster(planned: vm.selectedStudentIDs, absent: absent)
+    }
+
+    /// Which of the children already have a mastery mark on the lesson, for the tiles' note.
+    func refreshMasteryNotes() {
+        let dates = PresentationRecordIndex.masteryDates(
+            lessonID: vm.editingLessonID.uuidString,
+            studentIDs: vm.selectedStudentIDs.map(\.uuidString),
+            in: viewContext
+        )
+        masteredOn = Dictionary(uniqueKeysWithValues: dates.compactMap { key, date in
+            UUID(uuidString: key).map { ($0, date) }
+        })
     }
 }

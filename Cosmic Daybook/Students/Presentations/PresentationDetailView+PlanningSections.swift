@@ -159,6 +159,7 @@ extension PresentationDetailContentView {
             students: selectedStudentsList,
             presentIDs: session.presentIDs,
             attendance: attendance,
+            masteredOn: masteredOn,
             isToday: calendar.isDateInToday(session.presentedDay),
             onToggle: { session.togglePresent($0) },
             onRemove: { vm.selectedStudentIDs.remove($0) },
