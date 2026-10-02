@@ -63,7 +63,7 @@ struct AttendanceDayLockTests {
         #expect(!store.updateStatus(record, to: .absent))
         #expect(!store.updateNote(record, to: "late bus"))
         #expect(try store.ensureRecord(for: CoreDataTestHelpers.seedStudent(in: ctx), on: monday) == nil)
-        #expect(try store.markAllPresent(for: monday, students: [student]).isEmpty)
+        #expect(try store.markUnmarkedPresent(for: monday, students: [student]).isEmpty)
         #expect(record.status == .present)
 
         // Another day is unaffected.

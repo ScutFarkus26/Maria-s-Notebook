@@ -113,9 +113,9 @@ struct AssistantAttendanceView: View {
     /// than one level; otherwise empty, and the grid is one block.
     private func levelGroups(
         _ viewModel: AssistantAttendanceViewModel
-    ) -> [AssistantLevelGroups.Group<AssistantAttendanceViewModel.Row>] {
+    ) -> [AttendanceLevelGroups.Group<AssistantAttendanceViewModel.Row>] {
         guard groupsByLevel else { return [] }
-        let groups = AssistantLevelGroups.grouped(viewModel.rows, level: \.level)
+        let groups = AttendanceLevelGroups.grouped(viewModel.rows, level: \.level)
         return groups.count > 1 ? groups : []
     }
 

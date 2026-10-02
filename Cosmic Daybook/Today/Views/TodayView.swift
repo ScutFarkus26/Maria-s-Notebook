@@ -332,7 +332,7 @@ struct TodayView: View {
     }
 
     /// Rolls `viewModel.date` forward when the calendar day changes so agenda
-    /// and attendance actions (e.g. "Mark All Present") never target a stale
+    /// and attendance actions (e.g. "Mark N Present") never target a stale
     /// "today" after an overnight suspension. Idempotent — called at midnight,
     /// on scene activation, and on appear.
     private func handleDayChange() {

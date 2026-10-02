@@ -56,15 +56,15 @@ struct AssistantLevelGroupsTests {
         let children: [(String, CDStudent.Level)] = [
             ("Ari", .lower), ("Ben", .adolescent), ("Cal", .upper), ("Dov", .adolescent), ("Eli", .upper)
         ]
-        let groups = AssistantLevelGroups.grouped(children) { $0.1 }
+        let groups = AttendanceLevelGroups.grouped(children) { $0.1 }
         #expect(groups.map(\.level) == [.upper, .adolescent, .lower])
         #expect(groups.map { $0.items.map(\.0) } == [["Cal", "Eli"], ["Ben", "Dov"], ["Ari"]])
     }
 
     @Test("Empty levels are left out")
     func emptyLevels() {
-        let groups = AssistantLevelGroups.grouped([("Ari", CDStudent.Level.upper)]) { $0.1 }
+        let groups = AttendanceLevelGroups.grouped([("Ari", CDStudent.Level.upper)]) { $0.1 }
         #expect(groups.map(\.level) == [.upper])
-        #expect(AssistantLevelGroups.grouped([(String, CDStudent.Level)]()) { $0.1 }.isEmpty)
+        #expect(AttendanceLevelGroups.grouped([(String, CDStudent.Level)]()) { $0.1 }.isEmpty)
     }
 }

@@ -69,25 +69,28 @@ struct AttendanceStoreAttributionTests {
         #expect(record.recordedBy == CDClassroomMembership.ClassroomRole.assistant.rawValue)
     }
 
-    @Test("markAllPresent stamps only the records it actually changes")
-    func markAllPresentStampsChanges() throws {
+    @Test("markUnmarkedPresent marks only the unmarked and leaves every other mark alone")
+    func markUnmarkedPresentLeavesMarks() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
         let studentA = makeStudent(in: context)
         let studentB = makeStudent(in: context)
+        let studentC = makeStudent(in: context)
         let day = AppCalendar.startOfDay(Date())
         let store = CDAttendanceStore(context: context)
 
-        let existing = try #require(try store.ensureRecord(for: studentA, on: day))
-        #expect(store.updateStatus(existing, to: .present))
-        let priorStamp = existing.modifiedAt
+        let late = try #require(try store.ensureRecord(for: studentA, on: day))
+        #expect(store.updateStatus(late, to: .tardy))
+        let absent = try #require(try store.ensureRecord(for: studentB, on: day))
+        #expect(store.updateStatus(absent, to: .absent))
+        let priorStamp = late.modifiedAt
 
-        let records = try store.markAllPresent(for: day, students: [studentA, studentB])
-        #expect(records.count == 2)
-        #expect(records.allSatisfy { $0.status == .present })
-        // Already-present record untouched; the new one stamped.
-        #expect(existing.modifiedAt == priorStamp)
-        let created = try #require(records.first { $0 !== existing })
-        #expect(created.modifiedAt != nil)
+        let records = try store.markUnmarkedPresent(for: day, students: [studentA, studentB, studentC])
+        #expect(records.count == 1)
+        #expect(records.first?.studentID == studentC.cloudKitKey)
+        #expect(records.first?.status == .present)
+        // The late and absent marks are untouched.
+        #expect(late.status == .tardy && absent.status == .absent)
+        #expect(late.modifiedAt == priorStamp)
     }
 }

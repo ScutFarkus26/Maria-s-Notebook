@@ -57,21 +57,6 @@ struct AttendanceWatchListEntry: Sendable, Identifiable, Equatable {
     let recentPattern: [AttendanceStatus]
 }
 
-/// One notable event within a recent-activity day (one student's status change).
-struct AttendanceActivityEvent: Sendable, Identifiable, Equatable {
-    let id: String
-    let studentName: String
-    let status: AttendanceStatus
-    let reason: AbsenceReason
-}
-
-/// One day in the recent activity card.
-struct AttendanceRecentActivityEntry: Sendable, Identifiable, Equatable {
-    let id: String
-    let date: Date
-    let events: [AttendanceActivityEvent]
-}
-
 // MARK: - Service
 
 enum AttendanceInsightsService {
@@ -247,95 +232,6 @@ extension AttendanceInsightsService {
         let rhsScore = rhs.absentCount * 2 + rhs.tardyCount
         if lhsScore != rhsScore { return lhsScore > rhsScore }
         return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-    }
-}
-
-// MARK: - Recent Activity
-
-extension AttendanceInsightsService {
-    /// Builds a compact log of the last `dayCount` school days (skipping days with no notable events).
-    static func recentActivity(
-        endingAt endDate: Date,
-        dayCount: Int = 5,
-        students: [CDStudent],
-        context: NSManagedObjectContext
-    ) -> [AttendanceRecentActivityEntry] {
-        let schoolDays = recentSchoolDays(endingAt: endDate, count: dayCount, context: context)
-        guard let earliest = schoolDays.last, let latest = schoolDays.first else { return [] }
-        let records = fetchRecords(in: earliest...latest, context: context, fetchLabel: "recentActivity")
-        return recentActivity(schoolDays: schoolDays, records: records, students: students)
-    }
-
-    /// `recentActivity(endingAt:…)` over the school days and the records already read for them.
-    static func recentActivity(
-        schoolDays: [Date],
-        records: [CDAttendanceRecord],
-        students: [CDStudent]
-    ) -> [AttendanceRecentActivityEntry] {
-        guard !schoolDays.isEmpty else { return [] }
-        let nameByID: [String: String] = students.reduce(into: [:]) { acc, student in
-            acc[student.cloudKitKey] = student.fullName
-        }
-
-        var byDay: [Date: [CDAttendanceRecord]] = [:]
-        for record in records {
-            guard let date = record.date else { continue }
-            byDay[AppCalendar.startOfDay(date), default: []].append(record)
-        }
-
-        var entries: [AttendanceRecentActivityEntry] = []
-        for day in schoolDays {
-            let dayRecords = byDay[day] ?? []
-            let events = buildDayEvents(records: dayRecords, nameByID: nameByID)
-            guard !events.isEmpty else { continue }
-            entries.append(AttendanceRecentActivityEntry(id: AppCalendar.dayID(day), date: day, events: events))
-        }
-        return entries
-    }
-
-    static func recentSchoolDays(
-        endingAt endDate: Date,
-        count: Int,
-        context: NSManagedObjectContext
-    ) -> [Date] {
-        let calendar = SchoolCalendarService.shared
-        var schoolDays: [Date] = []
-        var cursor = AppCalendar.startOfDay(endDate)
-        var safety = 0
-        while schoolDays.count < count && safety < 365 {
-            if !calendar.isNonSchoolDaySync(cursor, using: context) {
-                schoolDays.append(cursor)
-            }
-            cursor = AppCalendar.addingDays(-1, to: cursor)
-            safety += 1
-        }
-        return schoolDays
-    }
-
-    private static func buildDayEvents(
-        records: [CDAttendanceRecord],
-        nameByID: [String: String]
-    ) -> [AttendanceActivityEvent] {
-        var absent: [AttendanceActivityEvent] = []
-        var tardy: [AttendanceActivityEvent] = []
-        var leftEarly: [AttendanceActivityEvent] = []
-        for record in records {
-            guard let name = nameByID[record.studentID] else { continue }
-            let firstName = name.components(separatedBy: " ").first ?? name
-            let event = AttendanceActivityEvent(
-                id: record.studentID + ":" + record.statusRaw,
-                studentName: firstName,
-                status: record.status,
-                reason: record.absenceReason
-            )
-            switch record.status {
-            case .absent: absent.append(event)
-            case .tardy: tardy.append(event)
-            case .leftEarly: leftEarly.append(event)
-            default: break
-            }
-        }
-        return absent + tardy + leftEarly
     }
 }
 

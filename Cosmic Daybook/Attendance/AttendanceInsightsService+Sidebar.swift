@@ -1,5 +1,5 @@
 // AttendanceInsightsService+Sidebar.swift
-// The Mac insights sidebar's four aggregations from one attendance read.
+// The Mac insights sidebar's aggregations from one attendance read.
 
 import Foundation
 import CoreData
@@ -61,30 +61,27 @@ struct AttendanceRecordPool {
 struct AttendanceSidebarInsights {
     let summary: AttendanceClassSummary
     let priorSummary: AttendanceClassSummary
-    let watchList: [AttendanceWatchListEntry]
-    let recentActivity: [AttendanceRecentActivityEntry]
+    /// Children with absences or late arrivals, siblings gathered.
+    let patterns: [AttendancePattern]
 }
 
 extension AttendanceInsightsService {
-    /// The sidebar's four aggregations from a single fetch over the union of
-    /// the ranges they need (it was five fetches per attendance tap, the
-    /// current range read twice). Each aggregation sees exactly the records
-    /// its own fetch returned.
+    /// The sidebar's aggregations from a single fetch over the union of the
+    /// ranges they need (it was five fetches per attendance tap, the current
+    /// range read twice). Each aggregation sees exactly the records its own
+    /// fetch returned.
     static func sidebarInsights(
         range: ClosedRange<Date>,
         priorRange: ClosedRange<Date>,
         students: [CDStudent],
         context: NSManagedObjectContext,
-        watchListLimit: Int = 5,
-        recentDayCount: Int = 5
+        patternLimit: Int = 5
     ) -> AttendanceSidebarInsights {
         let end = AppCalendar.startOfDay(range.upperBound)
         let patternDays = patternDayRange(endingAt: end, count: 10, context: context)
-        let recentDays = recentSchoolDays(endingAt: range.upperBound, count: recentDayCount, context: context)
 
         var ranges = [range, priorRange]
         if let first = patternDays.first, let last = patternDays.last { ranges.append(first...last) }
-        if let earliest = recentDays.last, let latest = recentDays.first { ranges.append(earliest...latest) }
         let raw = fetchRawRecords(in: ranges, context: context, fetchLabel: "sidebarInsights")
         let pool = AttendanceRecordPool(raw: raw)
 
@@ -92,18 +89,24 @@ extension AttendanceInsightsService {
         let patternRecords = patternDays.first.flatMap { first in
             patternDays.last.map { pool.records(in: first...$0) }
         } ?? []
-        let recentRecords = recentDays.last.flatMap { earliest in
-            recentDays.first.map { pool.records(in: earliest...$0) }
-        } ?? []
 
+        // Every child on the list, so a family's whole count is known
+        // before the list is cut to `patternLimit`.
+        let everyone = watchList(
+            records: current, students: students,
+            patternDays: patternDays, patternRecords: patternRecords, limit: .max
+        )
+        let keys = familyKeys(for: students, context: context)
+        let lastNames = Dictionary(
+            students.compactMap { student in student.id.map { ($0, student.lastName) } },
+            uniquingKeysWith: { first, _ in first }
+        )
         return AttendanceSidebarInsights(
             summary: classSummary(records: current, students: students),
             priorSummary: classSummary(records: pool.records(in: priorRange), students: students),
-            watchList: watchList(
-                records: current, students: students,
-                patternDays: patternDays, patternRecords: patternRecords, limit: watchListLimit
-            ),
-            recentActivity: recentActivity(schoolDays: recentDays, records: recentRecords, students: students)
+            patterns: patterns(
+                everyone, familyKey: { keys[$0] }, familyName: { lastNames[$0] ?? "" }, limit: patternLimit
+            )
         )
     }
 }

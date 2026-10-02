@@ -1,44 +1,9 @@
 // AttendanceExpandedView+Summary.swift
-// The day's counts: the tally over the Mac and iPad cards, the iPhone's strip.
+// The iPhone's strip of the day's counts. (The Mac and iPad have the band.)
 
 import SwiftUI
 
 extension AttendanceExpandedView {
-
-    // MARK: - Tally (Mac and iPad)
-
-    /// "17 here" large over the cards with "1 late · 2 absent" small under
-    /// it, and Close Arrival beside them; the iPhone has its strip.
-    @ViewBuilder
-    var tallyLine: some View {
-        if !isCompact, !viewModel.rows.isEmpty {
-            HStack(spacing: AppTheme.Spacing.small) {
-                Group {
-                    if let finishedLine {
-                        Label(finishedLine, systemImage: "sparkles")
-                            .foregroundStyle(.primary)
-                    } else if let welcomeLine {
-                        Label(welcomeLine, systemImage: "hand.wave.fill")
-                            .foregroundStyle(.primary)
-                    } else {
-                        AttendanceHereCount(rows: viewModel.rows)
-                    }
-                }
-                .font(AppTheme.ScaledFont.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-                Spacer(minLength: 0)
-
-                arrivalControl
-            }
-            .frame(minHeight: 28)
-            .padding(.bottom, AppTheme.Spacing.small)
-            .animation(.smooth, value: viewModel.rows.map(\.status))
-            .animation(.smooth(duration: 0.3), value: finishedLine)
-            .animation(.smooth(duration: 0.3), value: welcomeLine)
-        }
-    }
 
     var isCompact: Bool {
 #if os(iOS)

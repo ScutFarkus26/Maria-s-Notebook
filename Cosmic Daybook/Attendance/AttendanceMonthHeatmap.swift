@@ -1,12 +1,13 @@
 // AttendanceMonthHeatmap.swift
-// Compact month calendar that tints each school day by absence/tardy load.
-// Click a day to jump to that day's roll.
+// The Insights month: school weeks Monday to Friday, each day tinted by its
+// absences, with a dot for late arrivals. Click a day to open its roll.
 
 import SwiftUI
 import CoreData
 
-/// A month calendar with heatmap shading, built around `DayAttendanceCounts` from
-/// `AttendanceInsightsService`.
+/// A compact month of weekdays for the Insights column, built around
+/// `DayAttendanceCounts` from `AttendanceInsightsService`. Weekends aren't
+/// drawn (no school), and days outside the month are left blank.
 struct AttendanceMonthHeatmap: View {
     let visibleMonth: Date
     let selectedDate: Date
@@ -15,186 +16,119 @@ struct AttendanceMonthHeatmap: View {
     let onSelectDate: (Date) -> Void
     let onChangeMonth: (Date) -> Void
 
-    private var monthLabel: String {
-        DateFormatters.monthYear.string(from: visibleMonth)
-    }
+    private static let weekdaySymbols = ["M", "T", "W", "T", "F"]
+    private static let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 5)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             header
-            weekdayHeader
-            grid
+            LazyVGrid(columns: Self.columns, spacing: 4) {
+                ForEach(Self.weekdaySymbols.indices, id: \.self) { index in
+                    Text(Self.weekdaySymbols[index])
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(Array(weekdayCells.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        cell(for: day)
+                    } else {
+                        Color.clear.frame(height: 26)
+                    }
+                }
+            }
+            Text("Tint shows absences · a dot shows late arrivals")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, AppTheme.Spacing.medium)
-        .padding(.vertical, AppTheme.Spacing.compact)
+        .padding(AppTheme.Spacing.medium)
+        .background(
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.control, style: .continuous)
+                .fill(Color.secondary.opacity(0.06))
+        )
     }
 
     // MARK: Header
 
     private var header: some View {
-        HStack(spacing: AppTheme.Spacing.compact) {
-            Button {
-                onChangeMonth(addMonths(-1, to: visibleMonth))
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help("Previous month")
-
-            Text(monthLabel)
+        HStack(spacing: 6) {
+            Text(visibleMonth.formatted(.dateTime.month(.wide).year()))
                 .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                .frame(minWidth: 130, alignment: .center)
-
-            Button {
-                onChangeMonth(addMonths(1, to: visibleMonth))
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help("Next month")
-
             Spacer()
-
-            heatLegend
-        }
-    }
-
-    private var heatLegend: some View {
-        HStack(spacing: 4) {
-            Text("Absences")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            ForEach(0..<5, id: \.self) { idx in
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(absenceTint(forIntensity: Double(idx) / 4.0))
-                    .frame(width: 10, height: 10)
+            Button("Previous Month", systemImage: "chevron.left") {
+                onChangeMonth(addMonths(-1, to: visibleMonth))
+            }
+            Button("Next Month", systemImage: "chevron.right") {
+                onChangeMonth(addMonths(1, to: visibleMonth))
             }
         }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.borderless)
+        .controlSize(.small)
     }
 
-    // MARK: Weekday header
+    // MARK: Cells
 
-    private var weekdayHeader: some View {
-        HStack(spacing: 4) {
-            ForEach(weekdaySymbols, id: \.self) { sym in
-                Text(sym)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    private var weekdaySymbols: [String] {
-        // Ordered to match the calendar's firstWeekday.
-        let cal = AppCalendar.shared
-        let symbols = cal.veryShortStandaloneWeekdaySymbols // Sun, Mon, ...
-        let firstIdx = cal.firstWeekday - 1
-        let rotated = Array(symbols[firstIdx...]) + Array(symbols[..<firstIdx])
-        return rotated
-    }
-
-    // MARK: Grid
-
-    private var grid: some View {
-        let weeks = monthWeeks(for: visibleMonth)
-        return VStack(spacing: 4) {
-            ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
-                HStack(spacing: 4) {
-                    ForEach(week, id: \.self) { day in
-                        cell(for: day)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
     private func cell(for day: Date) -> some View {
-        let inMonth = AppCalendar.shared.isDate(day, equalTo: visibleMonth, toGranularity: .month)
         let isSelected = AppCalendar.isSameDay(day, selectedDate)
         let isToday = AppCalendar.isSameDay(day, Date())
         let nonSchool = isNonSchoolDay(day)
         let dayCount = counts[AppCalendar.startOfDay(day)] ?? DayAttendanceCounts()
 
-        Button {
+        return Button {
             onSelectDate(AppCalendar.startOfDay(day))
         } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(cellFill(dayCount: dayCount, inMonth: inMonth, nonSchool: nonSchool))
-
-                if dayCount.tardy > 0 && !nonSchool {
+            Text(dayNumber(for: day))
+                .font(.system(size: 11, weight: isToday || isSelected ? .bold : .regular, design: .rounded))
+                .foregroundStyle(nonSchool ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                .frame(maxWidth: .infinity, minHeight: 26)
+                .background(
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .strokeBorder(Color.blue.opacity(0.55), lineWidth: 1.2)
+                        .fill(cellFill(dayCount: dayCount, nonSchool: nonSchool, day: day))
+                )
+                .overlay(alignment: .topTrailing) {
+                    if dayCount.tardy > 0 && !nonSchool {
+                        Circle().fill(Color.lateAmber).frame(width: 5, height: 5).padding(3)
+                    }
                 }
-
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                .overlay {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .strokeBorder(Color.accentColor, lineWidth: 2)
+                    }
                 }
-
-                Text(dayNumber(for: day))
-                    .font(.system(size: 11, weight: isToday ? .bold : .regular, design: .rounded))
-                    .foregroundStyle(textColor(inMonth: inMonth, nonSchool: nonSchool))
-            }
-            .frame(height: 28)
-            .opacity(inMonth ? 1.0 : 0.35)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!inMonth)
         .help(helpText(for: day, dayCount: dayCount, nonSchool: nonSchool))
+        .accessibilityLabel(helpText(for: day, dayCount: dayCount, nonSchool: nonSchool))
     }
 
-    private func cellFill(dayCount: DayAttendanceCounts, inMonth: Bool, nonSchool: Bool) -> Color {
-        if !inMonth {
-            return Color.gray.opacity(0.05)
+    private func cellFill(dayCount: DayAttendanceCounts, nonSchool: Bool, day: Date) -> Color {
+        if nonSchool { return Color.secondary.opacity(0.05) }
+        guard dayCount.hasAnyMarked else {
+            return day > Date() ? Color.clear : Color.secondary.opacity(0.08)
         }
-        if nonSchool {
-            return Color.gray.opacity(0.10)
-        }
-        let absent = dayCount.absent + dayCount.leftEarly
-        guard absent > 0 else {
-            return Color.green.opacity(0.10)
-        }
-        // Cap intensity at 5 absences for the gradient.
+        let absent = dayCount.absent
+        guard absent > 0 else { return Color.green.opacity(0.12) }
+        // Light red to deep red, capped at five absences.
         let intensity = min(Double(absent) / 5.0, 1.0)
-        return absenceTint(forIntensity: intensity)
-    }
-
-    private func absenceTint(forIntensity intensity: Double) -> Color {
-        // Light red → deep red.
-        let clamped = max(0.05, min(intensity, 1.0))
-        let opacity = 0.10 + clamped * 0.55
-        return Color.red.opacity(opacity)
-    }
-
-    private func textColor(inMonth: Bool, nonSchool: Bool) -> Color {
-        if !inMonth { return .secondary }
-        if nonSchool { return .secondary.opacity(0.6) }
-        return .primary
+        return Color.red.opacity(0.12 + intensity * 0.5)
     }
 
     private func dayNumber(for day: Date) -> String {
-        let comp = AppCalendar.shared.component(.day, from: day)
-        return "\(comp)"
+        "\(AppCalendar.shared.component(.day, from: day))"
     }
 
     private func helpText(for day: Date, dayCount: DayAttendanceCounts, nonSchool: Bool) -> String {
         let dateLabel = DateFormatters.fullDate.string(from: day)
-        if nonSchool { return "\(dateLabel) — non-school day" }
-        if !dayCount.hasAnyMarked { return "\(dateLabel) — no attendance recorded" }
+        if nonSchool { return "\(dateLabel): no school" }
+        if !dayCount.hasAnyMarked { return "\(dateLabel): no attendance recorded" }
         var parts: [String] = []
         if dayCount.present > 0 { parts.append("\(dayCount.present) present") }
-        if dayCount.tardy > 0 { parts.append("\(dayCount.tardy) tardy") }
+        if dayCount.tardy > 0 { parts.append("\(dayCount.tardy) late") }
         if dayCount.absent > 0 { parts.append("\(dayCount.absent) absent") }
         if dayCount.leftEarly > 0 { parts.append("\(dayCount.leftEarly) left early") }
-        return "\(dateLabel) — " + parts.joined(separator: ", ")
+        return "\(dateLabel): " + parts.joined(separator: ", ")
     }
 
     // MARK: Date math
@@ -203,31 +137,23 @@ struct AttendanceMonthHeatmap: View {
         AppCalendar.shared.date(byAdding: .month, value: months, to: date) ?? date
     }
 
-    /// Returns calendar weeks of the month, padded with leading/trailing days from neighboring months
-    /// so every week is a full 7 cells.
-    private func monthWeeks(for date: Date) -> [[Date]] {
+    /// The month's weekdays in Monday-to-Friday rows, with nil for the
+    /// days of the first and last rows that fall outside the month.
+    private var weekdayCells: [Date?] {
         let cal = AppCalendar.shared
-        guard let monthInterval = cal.dateInterval(of: .month, for: date) else { return [] }
-        let firstOfMonth = monthInterval.start
-
-        // Step back to the start of the week containing the first of the month.
-        let firstWeekday = cal.firstWeekday
-        let weekday = cal.component(.weekday, from: firstOfMonth)
-        let leadingOffset = (weekday - firstWeekday + 7) % 7
-        guard let gridStart = cal.date(byAdding: .day, value: -leadingOffset, to: firstOfMonth) else { return [] }
-
-        // Always show 6 weeks for layout stability.
-        var weeks: [[Date]] = []
-        for week in 0..<6 {
-            var row: [Date] = []
-            for dayOffset in 0..<7 {
-                let offset = week * 7 + dayOffset
-                if let day = cal.date(byAdding: .day, value: offset, to: gridStart) {
-                    row.append(AppCalendar.startOfDay(day))
-                }
-            }
-            weeks.append(row)
+        guard let interval = cal.dateInterval(of: .month, for: visibleMonth),
+              let lastDay = cal.date(byAdding: .day, value: -1, to: interval.end) else { return [] }
+        var cells: [Date?] = []
+        var day = AppCalendar.startOfDay(interval.start)
+        // Monday is weekday 2; pad the first row up to the month's first weekday.
+        let firstWeekday = cal.component(.weekday, from: day)
+        if (2...6).contains(firstWeekday) {
+            cells += Array(repeating: nil, count: firstWeekday - 2)
         }
-        return weeks
+        while day <= lastDay {
+            if (2...6).contains(cal.component(.weekday, from: day)) { cells.append(day) }
+            day = AppCalendar.addingDays(1, to: day)
+        }
+        return cells
     }
 }

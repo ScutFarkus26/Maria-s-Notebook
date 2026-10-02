@@ -40,16 +40,6 @@ enum AttendanceRules {
         return status == .absent || status == .unmarked
     }
 
-    /// The Mac's click: the next status in the cycle that `day` allows, so a
-    /// day ahead goes unmarked ↔ absent.
-    static func cycle(from status: AttendanceStatus, on day: Date, now: Date = Date()) -> AttendanceStatus {
-        var next = status.next()
-        while !allows(next, on: day, now: now), next != status {
-            next = next.next()
-        }
-        return next
-    }
-
     /// The statuses a menu offers on `day`.
     static func menuStatuses(on day: Date, now: Date = Date()) -> [AttendanceStatus] {
         [.present, .absent, .tardy, .leftEarly, .unmarked].filter { allows($0, on: day, now: now) }

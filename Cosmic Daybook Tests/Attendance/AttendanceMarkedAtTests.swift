@@ -144,10 +144,9 @@ struct AttendanceMarkedAtTests {
         #expect(closed.contains { $0 === pending })
         #expect(try store.loadRecords(for: day).count == 2)
 
-        let present = try store.markAllPresent(for: day, students: [maya, sarah, maya])
-        #expect(present.count == 3)
-        #expect(Set(present.map(\.objectID)).count == 2)
-        #expect(present.allSatisfy { $0.status == .present })
+        // Both are marked (absent) now, so no one is left to mark present.
+        let present = try store.markUnmarkedPresent(for: day, students: [maya, sarah, maya])
+        #expect(present.isEmpty)
         #expect(try store.loadRecords(for: day).count == 2)
     }
 

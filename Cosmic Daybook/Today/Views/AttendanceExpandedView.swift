@@ -17,11 +17,15 @@ struct AttendanceExpandedView: View {
     var onStepDay: ((Bool) -> Void)?
     /// The Attendance screen's own title shows "Day 37"; Today keeps its own.
     var showsDayInTitle = false
+    /// The Attendance screen puts View, the lock and More in its toolbar;
+    /// inside Today they sit at the band's edge.
+    var hostsToolbar = false
 
     @Environment(\.managedObjectContext) var viewContext
     @Environment(\.horizontalSizeClass) var hSizeClass
     @Environment(SaveCoordinator.self) var saveCoordinator
     @Environment(\.dependencies) var dependencies
+    @Environment(\.undoManager) var undoManager
 
     /// Reload when the class itself changes. (Not the day's roll, which the
     /// load decides: watching that would load every day twice.)
@@ -41,6 +45,10 @@ struct AttendanceExpandedView: View {
     @State var showingTardyReport = false
     @State var showingAbsenceReport = false
     @State var confirmingReset = false
+    @State var confirmingClose = false
+    @State var confirmingCloseAndEmail = false
+    /// Group by Level, from the View menu (`AttendanceGrid`).
+    @SyncedAppStorage(AttendanceGrid.groupsByLevelKey) var groupsByLevel = true
     @State var isEditing: Bool = true
     @State var localSortKey: AttendanceViewModel.SortKey = AttendanceViewModel.storedSortKey()
     @State var activeChipPopover: AttendanceStatus?
@@ -93,36 +101,30 @@ struct AttendanceExpandedView: View {
             viewModel: viewModel,
             isEditing: isEditing,
             actions: AttendanceGridActions(
-                cycle: { row in
-                    viewModel.cycleStatus(for: row, modelContext: viewContext)
-                    saved("Update status")
-                },
                 tap: { row in
-                    viewModel.tap(row, modelContext: viewContext)
-                    saved("Update status")
+                    undoably("Mark", row) { viewModel.tap($0, modelContext: viewContext) }
                     rang(after: row)
                 },
                 setStatus: { status, row in
-                    viewModel.setStatus(status, for: row, modelContext: viewContext)
-                    saved("Update status")
+                    undoably("Mark", row) { viewModel.setStatus(status, for: $0, modelContext: viewContext) }
                     rang(after: row)
                 },
                 markAbsent: { reason, row in
-                    viewModel.markAbsent(reason: reason, for: row, modelContext: viewContext)
-                    saved("Update reason")
+                    undoably("Mark Absent", row) {
+                        viewModel.markAbsent(reason: reason, for: $0, modelContext: viewContext)
+                    }
                     rang(after: row)
                 },
                 saveNote: { row, note in
-                    viewModel.updateNote(for: row, note: note, modelContext: viewContext)
-                    saveCoordinator.save(viewContext, reason: "Update note")
+                    undoably("Note", row) { viewModel.updateNote(for: $0, note: note, modelContext: viewContext) }
                 },
                 savePickup: { row, time in
-                    viewModel.updatePickup(for: row, time: time, modelContext: viewContext)
-                    saveCoordinator.save(viewContext, reason: "Update pickup time")
+                    undoably("Pickup Time", row) {
+                        viewModel.updatePickup(for: $0, time: time, modelContext: viewContext)
+                    }
                 },
                 markBack: { row in
-                    viewModel.markBack(row, modelContext: viewContext)
-                    saved("Back in class")
+                    undoably("Back in Class", row) { viewModel.markBack($0, modelContext: viewContext) }
                     rang(after: row)
                 }
             ),
@@ -146,23 +148,31 @@ struct AttendanceExpandedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Divider()
-
-            actionBar
-
-            attendanceSummaryStrip
-
-            compactFrontDeskRow
-
-            if isNonSchoolDay {
-                nonSchoolDayWarning
+            if isCompact {
+                Divider()
+                actionBar
+                attendanceSummaryStrip
+                compactFrontDeskRow
+                if isNonSchoolDay { nonSchoolDayWarning }
+            } else {
+                arrivalBand
             }
 
-            tallyLine
-
             attendanceGrid
+
+            hintFooter
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Faintly amber once arrival closes, as on the Daybook Assistant.
+        .background {
+            if !isCompact, viewModel.phase == .late, !viewModel.isFuture {
+                Color.lateAmber.opacity(0.05)
+            }
+        }
+        .toolbar {
+            if hostsToolbar, !isCompact { rollToolbar }
+        }
+        .modifier(closeArrivalDialogs)
         .onAppear {
             loadData()
         }

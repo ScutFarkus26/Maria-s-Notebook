@@ -5,7 +5,7 @@ import Foundation
 ///
 /// `anchor` is the school day that stood for today when the screen last
 /// looked. When today moves on, the screen follows only if it was still
-/// showing that day, so "Mark All Present" after an overnight sleep lands
+/// showing that day, so "Mark N Present" after an overnight sleep lands
 /// on the new day instead of overwriting yesterday.
 enum AttendanceDayRollover {
     static func advance(

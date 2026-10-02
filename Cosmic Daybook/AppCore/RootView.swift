@@ -117,7 +117,8 @@ struct RootView: View {
         }
         #endif
         .overlay(alignment: .bottomTrailing) {
-            if isQuickCaptureButtonVisible {
+            // Not over Attendance, where it sat on Insights and the tiles.
+            if isQuickCaptureButtonVisible, selectedNavItem != .attendance {
                 QuickNoteGlassButton(
                     isShowingCommandBar: isPresenting(.commandBar),
                     onNewPresentation: { createPresentationDraft() },

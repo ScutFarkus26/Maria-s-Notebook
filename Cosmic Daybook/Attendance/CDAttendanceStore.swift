@@ -271,18 +271,23 @@ struct CDAttendanceStore {
         try loadRecords(for: date).contains(where: AttendanceDeduplication.isAutomaticAbsence)
     }
 
-    /// Convenience: Mark all students present for the date, creating missing records.
-    /// Callers save immediately afterwards — this is a deliberate bulk action, not a
-    /// screen-open side effect.
+    /// Marks every student still unmarked on `date` present, creating records
+    /// for those without one. Anyone already marked (late, absent, left
+    /// early) keeps their mark: this used to overwrite them all. Returns only
+    /// the records it changed, so the caller can undo exactly those. Callers
+    /// save afterwards.
     @discardableResult
-    func markAllPresent(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
+    func markUnmarkedPresent(for date: Date, students: [CDStudent]) throws -> [CDAttendanceRecord] {
         guard canWrite(on: date) else { return [] }
         let now = Date()
-        let records = try ensureRecords(for: students, on: date)
-        for rec in records where rec.status != .present {
+        var changed: [CDAttendanceRecord] = []
+        // As in `markUnmarkedAbsent`: a status this build doesn't know isn't unmarked.
+        for rec in try ensureRecords(for: students, on: date)
+        where rec.status == .unmarked && (rec.statusRaw.isEmpty || AttendanceStatus(rawValue: rec.statusRaw) != nil) {
             mark(rec, as: .present, at: now)
+            changed.append(rec)
         }
-        return records
+        return changed
     }
 
     /// Marks every student still unmarked on `date` absent, creating records
@@ -307,6 +312,17 @@ struct CDAttendanceStore {
     }
 
     #if !ASSISTANT_APP
+
+    /// Puts `record` back to `snapshot`, but only while it still holds
+    /// `current`: a mark made since (here or on another device) wins. Nothing
+    /// on a locked day. Returns whether it did. Callers save afterwards.
+    @discardableResult
+    func revert(_ record: CDAttendanceRecord, to snapshot: AttendanceRecordSnapshot,
+                ifStill current: AttendanceRecordSnapshot) -> Bool {
+        guard !record.isDeleted, canWrite(on: record.date), current.matches(record) else { return false }
+        snapshot.apply(to: record)
+        return true
+    }
 
     /// Deletes a record, unless this role can't write or its day is locked.
     /// Returns whether it did. The caller saves.

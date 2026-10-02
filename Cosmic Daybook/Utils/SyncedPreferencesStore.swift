@@ -57,6 +57,7 @@ public final class SyncedPreferencesStore {
 
         // Attendance
         "Attendance.sortKey",
+        "Attendance.groupsByLevel",
 
         // Order requests
         "Orders.recipientName",

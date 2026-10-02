@@ -19,7 +19,7 @@ extension AttendanceExpandedView {
 
     /// The two moments the control changes: half an hour before the due
     /// time, and at it. A timeline redraws it then and at no other time.
-    private var frontDeskChangeTimes: [Date] {
+    var frontDeskChangeTimes: [Date] {
         let calendar = Calendar.current
         guard let deadline = calendar.date(
             byAdding: .minute, value: deadlineMinutes, to: calendar.startOfDay(for: date)

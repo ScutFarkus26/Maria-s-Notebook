@@ -3,9 +3,8 @@ import CoreData
 
 /// What the roll's cards and tiles do. The expanded view saves after each.
 struct AttendanceGridActions {
-    /// A card's click: the next status in the cycle.
-    let cycle: (AttendanceRow) -> Void
-    /// A phone tile's tap: present during arrival, late after it closes.
+    /// A tile's tap or a card's click: present during arrival, late after
+    /// it closes.
     let tap: (AttendanceRow) -> Void
     let setStatus: (AttendanceStatus, AttendanceRow) -> Void
     let markAbsent: (AbsenceReason, AttendanceRow) -> Void
@@ -16,8 +15,12 @@ struct AttendanceGridActions {
     let markBack: (AttendanceRow) -> Void
 }
 
-/// The day's roll: cards on the Mac and iPad, the Daybook Assistant's tiles
-/// on the iPhone (tap anywhere on a child; long-press for everything else).
+/// The day's roll: tiles in the Daybook Assistant's language on every
+/// device. The iPhone draws the Assistant's own (`AttendanceTileGrid`); the
+/// Mac and iPad draw `AttendanceCard`, in one block per level when Group by
+/// Level is on (and the class has more than one), with the keyboard's
+/// selection: arrow keys move it, Space marks as a click does, Delete clears
+/// the mark, Escape lets go, and typing a name jumps to that child.
 struct AttendanceGrid: View {
     let viewModel: AttendanceViewModel
     /// When false (e.g. the day is locked), cards render read-only and taps no longer mark.
@@ -26,18 +29,27 @@ struct AttendanceGrid: View {
     /// A sideways swipe across the iPhone tiles: true for the next school day.
     var onStepDay: ((Bool) -> Void)?
 
+    /// Group by Level, from the View menu; synced across the guide's devices.
+    static let groupsByLevelKey = "Attendance.groupsByLevel"
+    @SyncedAppStorage(AttendanceGrid.groupsByLevelKey) private var groupsByLevel = true
+
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var noteRow: AttendanceRow?
     /// The child whose pickup time is being set (Leaving Early…).
     @State private var pickupRow: AttendanceRow?
+    /// The child whose attendance history is open.
+    @State private var historyRow: AttendanceRow?
+    /// The keyboard's selection, by student id.
+    @State private var selectedID: UUID?
+    @FocusState private var isFocused: Bool
+    /// How many tiles fit across, for the up and down arrows.
+    @State private var columnCount = 1
+    /// Type-to-jump: what's been typed, and when the last key came.
+    @State private var typed = ""
+    @State private var typedAt = Date.distantPast
 
-    // Layout constants
-    private let horizontalPadding: CGFloat = UIConstants.AttendanceGrid.horizontalPadding
-    private let verticalPadding: CGFloat = UIConstants.AttendanceGrid.verticalPadding
-    private let cardSpacing: CGFloat = UIConstants.AttendanceGrid.cardSpacing
-    private let minCardWidth: CGFloat = UIConstants.AttendanceGrid.minCardWidth
-    private let maxCardWidth: CGFloat = UIConstants.AttendanceGrid.maxCardWidth
-    private let minCardHeight: CGFloat = UIConstants.AttendanceGrid.minCardHeight
+    static let minimumTileWidth: CGFloat = 132
+    static let spacing: CGFloat = 8
 
     var body: some View {
         layout
@@ -59,6 +71,9 @@ struct AttendanceGrid: View {
                         + "and the Daybook Assistant reminds them before it.",
                     onSave: { actions.savePickup(row, $0) }
                 )
+            }
+            .sheet(item: $historyRow) { row in
+                AttendanceStudentHistorySheet(studentID: row.id)
             }
     }
 
@@ -112,9 +127,15 @@ struct AttendanceGrid: View {
         AttendanceCard(
             row: row,
             isEditing: isEditing,
+            isFuture: viewModel.isFuture,
+            isSelected: isFocused && selectedID == row.id,
             markedBy: markedBy(row),
             menuStatuses: viewModel.menuStatuses,
-            onTap: { actions.cycle(row) },
+            onTap: {
+                selectedID = row.id
+                isFocused = true
+                actions.tap(row)
+            },
             onSetStatus: { actions.setStatus($0, row) },
             onMarkAbsent: { reason in
                 actions.markAbsent(reason, row)
@@ -122,63 +143,81 @@ struct AttendanceGrid: View {
                 if reason == .other { noteRow = row }
             },
             onNote: { noteRow = row },
+            onHistory: { historyRow = row },
             onPickup: pickupAction(row),
             onBack: backAction(row)
         )
     }
 
-    // MARK: - iPad/macOS: Card grid
+    // MARK: - Mac and iPad: tiles by level
+
+    /// One block of tiles, with its level when the roll is grouped.
+    private struct Block: Identifiable {
+        let level: AttendanceEmailLevel?
+        let rows: [AttendanceRow]
+        var id: String { level?.rawValue ?? "all" }
+    }
+
+    private var blocks: [Block] {
+        let rows = viewModel.rows
+        guard groupsByLevel else { return [Block(level: nil, rows: rows)] }
+        let groups = AttendanceLevelGroups.grouped(rows, level: \.level)
+        guard groups.count > 1 else { return [Block(level: nil, rows: rows)] }
+        return groups.map { Block(level: $0.level, rows: $0.items) }
+    }
 
     private var gridLayout: some View {
-        GeometryReader { geometry in
-            let availableWidth = geometry.size.width - (horizontalPadding * 2)
-            let availableHeight = geometry.size.height - (verticalPadding * 2)
-            let rows = viewModel.rows
-
-            // Calculate optimal grid layout
-            let layout = calculateLayout(
-                studentCount: rows.count,
-                availableWidth: availableWidth,
-                availableHeight: availableHeight
-            )
-
-            let gridItem = GridItem(
-                .fixed(layout.cardWidth),
-                spacing: cardSpacing
-            )
-            let columns = Array(
-                repeating: gridItem,
-                count: layout.columns
-            )
-
-            // Use ScrollView only when content doesn't fit
-            if layout.needsScrolling {
-                ScrollView {
-                    LazyVGrid(columns: columns, alignment: .center, spacing: cardSpacing) {
-                        ForEach(rows) { row in
-                            card(row)
-                                .frame(height: layout.cardHeight)
+        let blocks = blocks
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                ForEach(blocks) { block in
+                    VStack(alignment: .leading, spacing: Self.spacing) {
+                        if let level = block.level {
+                            AttendanceLevelHeading(level: level, rows: block.rows, isFuture: viewModel.isFuture)
+                        }
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: Self.minimumTileWidth), spacing: Self.spacing)],
+                            spacing: Self.spacing
+                        ) {
+                            ForEach(block.rows) { row in
+                                card(row).id(row.id)
+                            }
                         }
                     }
-                    .padding(.horizontal, horizontalPadding)
-                    .padding(.vertical, verticalPadding)
-                }
-            } else {
-                VStack(spacing: 0) {
-                    LazyVGrid(columns: columns, alignment: .center, spacing: cardSpacing) {
-                        ForEach(rows) { row in
-                            card(row)
-                                .frame(height: layout.cardHeight)
-                        }
-                    }
-                    .padding(.horizontal, horizontalPadding)
-                    .padding(.vertical, verticalPadding)
-
-                    Spacer(minLength: 0)
                 }
             }
+            .padding(.vertical, AppTheme.Spacing.small)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                columnCount = max(1, Int((width + Self.spacing) / (Self.minimumTileWidth + Self.spacing)))
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .scrollIndicators(.automatic)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+            move(press.key, in: blocks)
+        }
+        .onKeyPress(keys: [.space, .return]) { _ in
+            guard isEditing, let row = selectedRow else { return .ignored }
+            actions.tap(row)
+            return .handled
+        }
+        .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+            guard isEditing, let row = selectedRow, row.status != .unmarked else { return .ignored }
+            actions.setStatus(.unmarked, row)
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            guard selectedID != nil else { return .ignored }
+            selectedID = nil
+            return .handled
+        }
+        .onKeyPress(characters: .letters, phases: .down) { press in
+            guard press.modifiers.isDisjoint(with: [.command, .control, .option]) else { return .ignored }
+            return jump(typing: press.characters)
+        }
+        .onChange(of: viewModel.selectedDate) { selectedID = nil }
         .accessibilityRotor("Students") {
             ForEach(viewModel.rows) { row in
                 AccessibilityRotorEntry(row.name, id: row.id)
@@ -186,99 +225,78 @@ struct AttendanceGrid: View {
         }
     }
 
-    // Calculate the optimal grid layout to fill available space without scrolling
-    // swiftlint:disable:next function_body_length
-    private func calculateLayout(
-        studentCount: Int,
-        availableWidth: CGFloat,
-        availableHeight: CGFloat
-    ) -> GridLayout {
-        guard studentCount > 0, availableWidth > 0, availableHeight > 0 else {
-            return GridLayout(
-                columns: 1,
-                rows: 1,
-                cardWidth: minCardWidth,
-                cardHeight: minCardHeight,
-                needsScrolling: false
-            )
-        }
+    // MARK: - Keyboard
 
-        // Try different column counts and find the best fit
-        var bestLayout: GridLayout?
+    private var selectedRow: AttendanceRow? {
+        selectedID.flatMap { id in viewModel.rows.first { $0.id == id } }
+    }
 
-        // Calculate max possible columns based on minimum card width
-        let maxPossibleColumns = max(1, Int((availableWidth + cardSpacing) / (minCardWidth + cardSpacing)))
-
-        for cols in 1...maxPossibleColumns {
-            let rows = Int(ceil(Double(studentCount) / Double(cols)))
-
-            // Calculate card dimensions for this configuration
-            let totalHorizontalSpacing = cardSpacing * CGFloat(cols - 1)
-            let cardWidth = (availableWidth - totalHorizontalSpacing) / CGFloat(cols)
-
-            let totalVerticalSpacing = cardSpacing * CGFloat(rows - 1)
-            let cardHeight = (availableHeight - totalVerticalSpacing) / CGFloat(rows)
-
-            // Check if this configuration is valid
-            let isValidWidth = cardWidth >= minCardWidth && cardWidth <= maxCardWidth
-            let isValidHeight = cardHeight >= minCardHeight
-
-            if isValidWidth && isValidHeight {
-                let layout = GridLayout(
-                    columns: cols,
-                    rows: rows,
-                    cardWidth: cardWidth,
-                    cardHeight: cardHeight,
-                    needsScrolling: false
-                )
-
-                // Prefer layouts that use more columns (wider cards look better)
-                // but also consider height efficiency
-                if let best = bestLayout {
-                    // Prefer layout with more balanced aspect ratio and better space usage
-                    let currentAspect = layout.cardWidth / layout.cardHeight
-                    let bestAspect = best.cardWidth / best.cardHeight
-                    let idealAspect: CGFloat = 2.5 // Prefer wider cards
-
-                    let currentScore = abs(currentAspect - idealAspect)
-                    let bestScore = abs(bestAspect - idealAspect)
-
-                    if currentScore < bestScore {
-                        bestLayout = layout
-                    }
-                } else {
-                    bestLayout = layout
-                }
+    /// Arrow keys: left and right through the roll in order, up and down a
+    /// line, keeping the column, across the level blocks.
+    private func move(_ key: KeyEquivalent, in blocks: [Block]) -> KeyPress.Result {
+        let lines = blocks.flatMap { block in
+            stride(from: 0, to: block.rows.count, by: columnCount).map {
+                block.rows[$0..<min($0 + columnCount, block.rows.count)].map(\.id)
             }
         }
-
-        // Fallback: if no valid layout found, use minimum sizes with scrolling
-        if let bestLayout {
-            return bestLayout
+        let order = lines.flatMap(\.self)
+        guard let first = order.first else { return .ignored }
+        guard let current = selectedID,
+              let lineIndex = lines.firstIndex(where: { $0.contains(current) }),
+              let column = lines[lineIndex].firstIndex(of: current),
+              let position = order.firstIndex(of: current) else {
+            selectedID = first
+            return .handled
         }
+        switch key {
+        case .leftArrow: selectedID = order[max(position - 1, 0)]
+        case .rightArrow: selectedID = order[min(position + 1, order.count - 1)]
+        case .upArrow where lineIndex > 0:
+            selectedID = lines[lineIndex - 1][min(column, lines[lineIndex - 1].count - 1)]
+        case .downArrow where lineIndex < lines.count - 1:
+            selectedID = lines[lineIndex + 1][min(column, lines[lineIndex + 1].count - 1)]
+        default: break
+        }
+        return .handled
+    }
 
-        let cols = max(1, Int((availableWidth + cardSpacing) / (minCardWidth + cardSpacing)))
-        let rows = Int(ceil(Double(studentCount) / Double(cols)))
-        let totalHorizontalSpacing = cardSpacing * CGFloat(cols - 1)
-        let cardWidth = min(
-            maxCardWidth,
-            max(minCardWidth, (availableWidth - totalHorizontalSpacing) / CGFloat(cols))
-        )
-        return GridLayout(
-            columns: cols,
-            rows: rows,
-            cardWidth: cardWidth,
-            cardHeight: minCardHeight,
-            needsScrolling: true
-        )
+    /// Type-to-jump, as in a Finder list: letters typed within a second of
+    /// each other build a name, and the first child whose name starts with
+    /// it is selected.
+    private func jump(typing characters: String) -> KeyPress.Result {
+        let now = Date()
+        typed = now.timeIntervalSince(typedAt) < 1 ? typed + characters : characters
+        typedAt = now
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive, .anchored]
+        guard let match = viewModel.rows.first(where: {
+            $0.student.shortName.range(of: typed, options: options) != nil
+                || $0.name.range(of: typed, options: options) != nil
+        }) else { return .handled }
+        selectedID = match.id
+        return .handled
     }
 }
 
-/// Represents a calculated grid layout
-private struct GridLayout {
-    let columns: Int
-    let rows: Int
-    let cardWidth: CGFloat
-    let cardHeight: CGFloat
-    let needsScrolling: Bool
+/// A level block's heading on the Mac and iPad: "Upper Elementary" and how
+/// many of them are in the room ("12 of 16 here"), or just how many on a day
+/// ahead.
+private struct AttendanceLevelHeading: View {
+    let level: AttendanceEmailLevel
+    let rows: [AttendanceRow]
+    let isFuture: Bool
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(level.title)
+                .font(.subheadline.weight(.semibold))
+            Text(isFuture ? "\(rows.count)" : "\(rows.count(where: \.isInRoom)) of \(rows.count) here")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+        }
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
 }

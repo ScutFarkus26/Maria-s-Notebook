@@ -19,8 +19,9 @@ final class AttendanceViewModel {
     /// record that day (`AttendanceRoster`).
     private(set) var students: [CDStudent] = []
     private(set) var rows: [AttendanceRow] = []
-    /// The records behind the rows, by student id, for writing.
-    @ObservationIgnored private var recordsByStudentID: [String: CDAttendanceRecord] = [:]
+    /// The records behind the rows, by student id, for writing (the undo
+    /// extension reads it too).
+    @ObservationIgnored private(set) var recordsByStudentID: [String: CDAttendanceRecord] = [:]
 
     /// This device's phase for the day on screen (`AttendanceLatePhase`):
     /// after Close Arrival a tap on an iPhone tile marks late, and Siri's
@@ -120,16 +121,8 @@ final class AttendanceViewModel {
 
     // MARK: - Marking
 
-    /// The Mac's (and iPad's) click: the next status in the cycle this day
-    /// allows.
-    func cycleStatus(for row: AttendanceRow, modelContext: NSManagedObjectContext) {
-        let next = AttendanceRules.cycle(from: row.status, on: selectedDate)
-        if setStatus(next, for: row, modelContext: modelContext) {
-            HapticService.shared.selection()
-        }
-    }
-
-    /// An iPhone tile's tap (`statusAfterTap`). The tile plays its own tick.
+    /// A tile's tap or a card's click (`statusAfterTap`): present during
+    /// arrival, late after it closes, as on the Daybook Assistant.
     func tap(_ row: AttendanceRow, modelContext: NSManagedObjectContext) {
         guard let next = statusAfterTap(for: row) else { return }
         setStatus(next, for: row, modelContext: modelContext)
@@ -200,29 +193,12 @@ final class AttendanceViewModel {
         changed([record])
     }
 
-    /// Marks the whole roll present. Not ahead of the day.
-    func markAllPresent(modelContext: NSManagedObjectContext) {
-        guard !isFuture else { return }
-        do {
-            let store = CDAttendanceStore(context: modelContext)
-            changed(try store.markAllPresent(for: selectedDate, students: students))
-        } catch {
-            Self.logger.warning("Failed to mark all present: \(error)")
-        }
-    }
-
     // MARK: - Closing arrival
-
-    /// What a Close Arrival marked absent, for its Undo.
-    struct ArrivalUndo {
-        let day: Date
-        let records: [NSManagedObjectID]
-    }
 
     /// Closes arrival on this device: every child still unmarked is marked
     /// absent, and from then on a tile's tap (and Siri's "here") marks late.
     /// Returns what the Undo needs, or nil when it couldn't close.
-    func closeArrival(modelContext: NSManagedObjectContext) -> ArrivalUndo? {
+    func closeArrival(modelContext: NSManagedObjectContext) -> BulkMark? {
         guard !isFuture, phase == .arrival else { return nil }
         let store = CDAttendanceStore(context: modelContext)
         guard store.canWrite(on: selectedDate) else { return nil }
@@ -237,7 +213,7 @@ final class AttendanceViewModel {
             // arrival closed, so "Undo that" can't reach past this.
             SiriAttendanceChange.forget(ifOn: selectedDate, defaults: defaults)
             changed(marked)
-            return ArrivalUndo(day: selectedDate, records: marked.map(\.objectID))
+            return BulkMark(day: selectedDate, records: marked.map(\.objectID), status: .absent)
         } catch {
             Self.logger.warning("Failed to close arrival: \(error)")
             return nil
@@ -266,21 +242,10 @@ final class AttendanceViewModel {
     /// Undoes a Close Arrival: its day reopens, and the children it marked
     /// absent (and still are) go back to unmarked. Returns how many.
     @discardableResult
-    func undoCloseArrival(_ undo: ArrivalUndo, modelContext: NSManagedObjectContext) -> Int {
+    func undoCloseArrival(_ undo: BulkMark, modelContext: NSManagedObjectContext) -> Int {
         AttendanceLatePhase.setLate(false, on: undo.day, defaults: defaults)
-        let store = CDAttendanceStore(context: modelContext)
-        var reverted: [CDAttendanceRecord] = []
-        for id in undo.records {
-            guard let record = try? modelContext.existingObject(with: id) as? CDAttendanceRecord,
-                  record.status == .absent,
-                  store.updateStatus(record, to: .unmarked) else { continue }
-            reverted.append(record)
-        }
-        if undo.day == selectedDate {
-            phase = .arrival
-            updateRows(for: reverted)
-        }
-        return reverted.count
+        if undo.day == selectedDate { phase = .arrival }
+        return undoBulkMark(undo, modelContext: modelContext)
     }
 
     // MARK: - Reset
@@ -343,14 +308,14 @@ final class AttendanceViewModel {
 
     /// Redraws the rows for `records` and notes when a mark made here
     /// completes the roll.
-    private func changed(_ records: [CDAttendanceRecord]) {
+    func changed(_ records: [CDAttendanceRecord]) {
         let wasOpen = unmarkedCount > 0
         updateRows(for: records)
         if wasOpen, unmarkedCount == 0, !rows.isEmpty, !isFuture { completions += 1 }
     }
 
     /// Rebuilds the rows whose student's record is among `records`.
-    private func updateRows(for records: [CDAttendanceRecord]) {
+    func updateRows(for records: [CDAttendanceRecord]) {
         guard !records.isEmpty else { return }
         let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
         for (key, record) in byStudent { recordsByStudentID[key] = record }

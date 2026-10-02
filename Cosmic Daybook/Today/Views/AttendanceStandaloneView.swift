@@ -137,7 +137,7 @@ struct AttendanceStandaloneView: View {
 
     // MARK: - Day Rollover
 
-    /// Rolls `date` forward when the calendar day changes so "Mark All Present"
+    /// Rolls `date` forward when the calendar day changes so "Mark N Present"
     /// never overwrites a previous day's records after an overnight suspension.
     /// Idempotent — called at midnight, on scene activation, and on appear.
     private func handleDayChange() {

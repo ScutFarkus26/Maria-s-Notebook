@@ -3,8 +3,8 @@ import CoreData
 import Testing
 @testable import CosmicDaybook
 
-/// Pins that the sidebar's single-read `sidebarInsights` gives exactly what its
-/// four separate calls (five fetches) gave, for every timeframe.
+/// Pins that the sidebar's single-read `sidebarInsights` gives what its
+/// separate calls gave, for every timeframe.
 @MainActor
 struct AttendanceSidebarInsightsTests {
 
@@ -13,15 +13,6 @@ struct AttendanceSidebarInsightsTests {
         mutating func next(_ bound: Int) -> Int {
             state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
             return Int((state >> 33) % UInt64(bound))
-        }
-    }
-
-    /// Events within a day come out in a dictionary's order, which Swift seeds
-    /// per instance — so compare each day's events as a multiset.
-    private func normalized(_ entries: [AttendanceRecentActivityEntry]) -> [String] {
-        entries.map { entry in
-            let events = entry.events.map { "\($0.id)/\($0.studentName)/\($0.reason.rawValue)" }
-            return entry.id + ":" + events.sorted().joined(separator: ",")
         }
     }
 
@@ -71,19 +62,17 @@ struct AttendanceSidebarInsightsTests {
 
         let summary = AttendanceInsightsService.classSummary(in: range, students: students, context: context)
         let prior = AttendanceInsightsService.classSummary(in: priorRange, students: students, context: context)
-        let watch = AttendanceInsightsService.watchList(in: range, students: students, context: context, limit: 5)
-        let recent = AttendanceInsightsService.recentActivity(
-            endingAt: range.upperBound, dayCount: 5, students: students, context: context
-        )
+        let watch = AttendanceInsightsService.watchList(in: range, students: students, context: context, limit: .max)
+        // Every child on the patterns is on the separate read's list, with the same counts.
+        let children = insights.patterns.flatMap(\.members)
 
         #expect(insights.summary == summary)
         #expect(insights.priorSummary == prior)
-        #expect(insights.watchList == watch)
-        #expect(normalized(insights.recentActivity) == normalized(recent))
+        #expect(children.allSatisfy { child in watch.contains(child) })
 
         #expect(summary.totalStudentDays > 0)
         #expect(prior.totalStudentDays > 0)
         #expect(!watch.isEmpty)
-        #expect(!recent.isEmpty)
+        #expect(!insights.patterns.isEmpty)
     }
 }

@@ -83,14 +83,13 @@ struct AttendanceViewModelTests {
 
     // MARK: - Marking
 
-    @Test("A click marks and a second click moves on; the row changes each time")
-    func cycle() throws {
+    @Test("A click marks present during arrival and a second click takes it back; the row changes each time")
+    func click() throws {
         let roll = model(students: [student("Maya")])
-        let first = try #require(roll.rows.first)
-        roll.cycleStatus(for: first, modelContext: context)
+        roll.tap(try #require(roll.rows.first), modelContext: context)
         #expect(status(roll, "Maya") == .present)
-        roll.cycleStatus(for: try #require(roll.rows.first), modelContext: context)
-        #expect(status(roll, "Maya") == .absent)
+        roll.tap(try #require(roll.rows.first), modelContext: context)
+        #expect(status(roll, "Maya") == .unmarked)
     }
 
     @Test("Ahead of the day only absences, reasons and notes are taken")
@@ -101,7 +100,7 @@ struct AttendanceViewModelTests {
         #expect(status(roll, "Maya") == .unmarked)
         #expect(roll.statusAfterTap(for: row) == nil)
 
-        roll.markAllPresent(modelContext: context)
+        #expect(roll.markUnmarkedPresent(modelContext: context) == nil)
         #expect(status(roll, "Maya") == .unmarked)
 
         roll.markAbsent(reason: .vacation, for: row, modelContext: context)

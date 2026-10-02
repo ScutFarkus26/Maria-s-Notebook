@@ -1,9 +1,9 @@
 import Foundation
 import CoreData
 
-/// A record's mark as it stood before Reset Day cleared it, so the reset can
-/// be undone: the status, reason and note, the times (the pickup time too),
-/// and who made it.
+/// A record's mark as it stood before Reset Day cleared it, or before a mark
+/// changed it, so either can be undone: the status, reason and note, the
+/// times (the pickup time too), and who made it.
 struct AttendanceRecordSnapshot {
     let objectID: NSManagedObjectID
     let status: AttendanceStatus
@@ -31,6 +31,29 @@ struct AttendanceRecordSnapshot {
         recordedBy = record.recordedBy
         recordedByID = record.recordedByID
         recordedByName = record.recordedByName
+    }
+
+    /// A record with nothing on it: what a child's first mark started from.
+    init(blank objectID: NSManagedObjectID) {
+        self.objectID = objectID
+        status = .unmarked
+        absenceReason = .none
+        note = nil
+        markedAt = nil
+        leftAt = nil
+        leavesAt = nil
+        returnedAt = nil
+        statusBeforeLeavingRaw = nil
+        recordedBy = nil
+        recordedByID = nil
+        recordedByName = nil
+    }
+
+    /// Whether `record` still holds what the snapshot does: the mark, the
+    /// reason, the note and the times a person sets.
+    func matches(_ record: CDAttendanceRecord) -> Bool {
+        record.status == status && record.absenceReason == absenceReason && record.note == note
+            && record.leftAt == leftAt && record.leavesAt == leavesAt && record.returnedAt == returnedAt
     }
 
     /// Whether `record` holds nothing a reset would clear.

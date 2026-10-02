@@ -1,6 +1,6 @@
 // AttendanceMacView.swift
-// Standalone Mac/iPad attendance view that does not inherit TodayView's layout.
-// Combines a date header, month heatmap, the existing roll grid, and an insights sidebar.
+// The Mac and iPad Attendance screen: the day in the toolbar, the roll (its
+// band and tiles), and Insights beside it with the month.
 
 import SwiftUI
 import CoreData
@@ -27,9 +27,12 @@ struct AttendanceMacView: View {
     @State private var monthCounts: [Date: DayAttendanceCounts] = [:]
     @State private var historySheetStudentID: UUID?
     @State private var reloadToken: Int = 0
+    /// The pending refresh of the month and Insights after marks.
+    @State private var refreshTask: Task<Void, Never>?
     @State private var toastMessage: String?
     /// "Day 37", from the roll (`AttendanceDayLabelKey`).
     @State private var dayLabel: String?
+    @State private var showingDatePicker = false
 
     private static let logger = Logger.attendance
 
@@ -50,19 +53,18 @@ struct AttendanceMacView: View {
         .onCalendarDayChange {
             handleDayChange()
         }
-        .onChange(of: selectedDate) { _, _ in
-            reloadMonthCounts()
-            bumpReloadToken()
-        }
+        // A new day in the same month needs no new counts, and Insights
+        // follows the day itself; a new month reads its counts once.
         .onChange(of: visibleMonth) { _, _ in
             reloadMonthCounts()
         }
-        // Keeps the heatmap and insights current when another device marks.
+        // Keeps the month and Insights current when another device marks.
         .onPresentationDataChangeWhenVisible(
             of: ["AttendanceRecord"], in: viewContext, catchUpOnAppear: false
         ) {
-            bumpReloadToken()
+            scheduleRefresh()
         }
+        .onDisappear { refreshTask?.cancel() }
         .sheet(item: Binding(
             get: { historySheetStudentID.map { StudentIDBox(id: $0) } },
             set: { historySheetStudentID = $0?.id }
@@ -85,99 +87,78 @@ struct AttendanceMacView: View {
                 students: students,
                 referenceDate: selectedDate,
                 reloadToken: reloadToken,
+                month: AttendanceSidebarMonth(
+                    visibleMonth: visibleMonth,
+                    counts: monthCounts,
+                    onChangeMonth: { visibleMonth = $0 }
+                ),
                 onSelectStudent: { studentID in historySheetStudentID = studentID },
                 onSelectDate: { date in selectDate(date) }
             )
         }
         .navigationTitle("Attendance")
+        .navigationSubtitle(dayLabel ?? "")
+        .toolbar { dayNavigation }
         .onPreferenceChange(AttendanceDayLabelKey.self) { dayLabel = $0 }
     }
 
     private var mainColumn: some View {
-        VStack(spacing: 0) {
-            headerBar
-                .padding(.horizontal, AppTheme.Spacing.medium)
-                .padding(.vertical, AppTheme.Spacing.compact)
+        AttendanceExpandedView(
+            date: selectedDate,
+            isNonSchoolDay: SchoolCalendarService.shared.isNonSchoolDaySync(selectedDate, using: viewContext),
+            onChange: { scheduleRefresh() },
+            onToast: { message in toast(message) },
+            showsDayInTitle: true,
+            hostsToolbar: true
+        )
+        .padding(.horizontal, AppTheme.Spacing.large)
+    }
 
-            Divider()
+    // MARK: Day navigation
 
-            AttendanceMonthHeatmap(
-                visibleMonth: visibleMonth,
-                selectedDate: selectedDate,
-                counts: monthCounts,
-                isNonSchoolDay: { SchoolCalendarService.shared.isNonSchoolDaySync($0, using: viewContext) },
-                onSelectDate: { date in selectDate(date) },
-                onChangeMonth: { month in visibleMonth = month }
-            )
-
-            Divider()
-
-            AttendanceExpandedView(
-                date: selectedDate,
-                isNonSchoolDay: SchoolCalendarService.shared.isNonSchoolDaySync(selectedDate, using: viewContext),
-                onChange: { bumpReloadToken() },
-                onToast: { message in toast(message) },
-                showsDayInTitle: true
-            )
-            .padding(.horizontal, AppTheme.Spacing.medium)
+    /// ‹ Wednesday, Sep 23 › and Today, in the toolbar: the day appears
+    /// once. The date opens a calendar; the arrows step through school days.
+    @ToolbarContentBuilder
+    private var dayNavigation: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
+            Button("Previous School Day", systemImage: "chevron.left") {
+                selectDate(previousSchoolDay(before: selectedDate))
+            }
+            .help("Previous school day")
+            Button {
+                showingDatePicker = true
+            } label: {
+                Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                    .fontWeight(.semibold)
+                    .fixedSize()
+            }
+            .help("Go to a day")
+            .popover(isPresented: $showingDatePicker, arrowEdge: .bottom) { datePopover }
+            Button("Next School Day", systemImage: "chevron.right") {
+                selectDate(nextSchoolDay(after: selectedDate))
+            }
+            .help("Next school day")
+            Button("Today") { selectDate(nearestSchoolDay(to: Date())) }
+                .disabled(AppCalendar.isSameDay(selectedDate, nearestSchoolDay(to: Date())))
+                .help("Jump to today")
         }
     }
 
-    // MARK: Header
-
-    private var headerBar: some View {
-        HStack(spacing: AppTheme.Spacing.compact) {
-            Button {
-                let prev = previousSchoolDay(before: selectedDate)
-                selectDate(prev)
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-            .help("Previous school day")
-
-            DatePicker(
-                "Date",
-                selection: Binding(
-                    get: { selectedDate },
-                    set: { newValue in
-                        let coerced = nearestSchoolDay(to: newValue)
-                        selectDate(coerced)
-                    }
-                ),
-                displayedComponents: .date
-            )
-            .datePickerStyle(.compact)
-            .labelsHidden()
-
-            Button("Today") {
-                let today = nearestSchoolDay(to: Date())
-                selectDate(today)
-            }
-            .buttonStyle(.bordered)
-            .help("Jump to today")
-
-            Button {
-                let next = nextSchoolDay(after: selectedDate)
-                selectDate(next)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-            .help("Next school day")
-
-            Spacer()
-
-            // "Wednesday, September 30, 2026 · Day 23"
-            Text([DateFormatters.fullDate.string(from: selectedDate), dayLabel].compactMap(\.self)
-                .joined(separator: " · "))
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(.secondary)
-        }
+    private var datePopover: some View {
+        DatePicker(
+            "Day",
+            selection: Binding(
+                get: { selectedDate },
+                set: { newValue in
+                    selectDate(nearestSchoolDay(to: newValue))
+                    showingDatePicker = false
+                }
+            ),
+            displayedComponents: .date
+        )
+        .datePickerStyle(.graphical)
+        .labelsHidden()
+        .padding()
     }
 
     // MARK: Restoring + Toast
@@ -206,9 +187,16 @@ struct AttendanceMacView: View {
         monthCounts = AttendanceInsightsService.dayCounts(in: start...endInclusive, context: viewContext)
     }
 
-    private func bumpReloadToken() {
-        reloadToken &+= 1
-        reloadMonthCounts()
+    /// The month and Insights after marks, once the marking pauses: taking
+    /// the roll is a mark every second or two, and each refresh re-reads the
+    /// month and the whole Insights window (a year of records on Year).
+    private func scheduleRefresh() {
+        refreshTask?.cancel()
+        refreshTask = Task {
+            guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
+            reloadToken &+= 1
+            reloadMonthCounts()
+        }
     }
 
     // MARK: Selection helpers

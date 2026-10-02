@@ -18,18 +18,6 @@ nonisolated enum UIConstants {
     /// Used after navigation actions to allow UI transitions to complete
     static let navigationResetDelay: TimeInterval = 0.1
     
-    // MARK: - Attendance Grid Layout
-    
-    /// Layout constants for the attendance grid view
-    enum AttendanceGrid {
-        static let horizontalPadding: CGFloat = 16
-        static let verticalPadding: CGFloat = 16
-        static let cardSpacing: CGFloat = 12
-        static let minCardWidth: CGFloat = 120
-        static let maxCardWidth: CGFloat = 280
-        static let minCardHeight: CGFloat = 70
-    }
-
     // MARK: - Window Size (macOS)
 
     /// Minimum window size for the main application window

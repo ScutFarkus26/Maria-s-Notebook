@@ -48,16 +48,16 @@ struct AttendanceArrivalControl: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help("Arrival is closed")
-        .accessibilityLabel(isTileGrid ? "Arrival closed: a tap marks late" : "Arrival closed")
+        .accessibilityLabel("Arrival closed: \(markVerb) marks late")
         .accessibilityHint("Opens Reopen Arrival")
     }
 
-    /// The iPhone's tiles are the ones a tap marks late after closing.
-    private var isTileGrid: Bool {
+    /// "a tap" on the iPhone's tiles, "a click" on the Mac and iPad.
+    private var markVerb: String {
         #if os(iOS)
-        hSizeClass == .compact
+        hSizeClass == .compact ? "a tap" : "a click"
         #else
-        false
+        "a click"
         #endif
     }
 
@@ -67,6 +67,6 @@ struct AttendanceArrivalControl: View {
 
     private var message: String {
         let names = viewModel.unmarkedNames.formatted(.list(type: .and))
-        return isTileGrid ? "\(names). After this, a tap marks a child late." : "\(names)."
+        return "\(names). After this, \(markVerb) marks a child late."
     }
 }

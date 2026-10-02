@@ -1,5 +1,5 @@
 // AttendanceInsightsSidebar.swift
-// Right-column container that hosts the three insight cards plus a timeframe picker.
+// The column beside the roll: the month, the class's rates, and Patterns.
 
 import SwiftUI
 import CoreData
@@ -61,10 +61,18 @@ enum AttendanceInsightsTimeframe: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// The month the sidebar's calendar shows, and how to turn it.
+struct AttendanceSidebarMonth {
+    let visibleMonth: Date
+    let counts: [Date: DayAttendanceCounts]
+    let onChangeMonth: (Date) -> Void
+}
+
 struct AttendanceInsightsSidebar: View {
     let students: [CDStudent]
     let referenceDate: Date
     let reloadToken: Int
+    let month: AttendanceSidebarMonth
     let onSelectStudent: (UUID) -> Void
     let onSelectDate: (Date) -> Void
 
@@ -72,13 +80,21 @@ struct AttendanceInsightsSidebar: View {
     @State private var timeframe: AttendanceInsightsTimeframe = .last30
     @State private var summary: AttendanceClassSummary = .init()
     @State private var priorSummary: AttendanceClassSummary = .init()
-    @State private var watchList: [AttendanceWatchListEntry] = []
-    @State private var recentActivity: [AttendanceRecentActivityEntry] = []
+    @State private var patterns: [AttendancePattern] = []
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
                 timeframePicker
+
+                AttendanceMonthHeatmap(
+                    visibleMonth: month.visibleMonth,
+                    selectedDate: referenceDate,
+                    counts: month.counts,
+                    isNonSchoolDay: { SchoolCalendarService.shared.isNonSchoolDaySync($0, using: viewContext) },
+                    onSelectDate: onSelectDate,
+                    onChangeMonth: month.onChangeMonth
+                )
 
                 AttendanceClassSummaryCard(
                     summary: summary,
@@ -87,14 +103,9 @@ struct AttendanceInsightsSidebar: View {
                 )
 
                 AttendanceWatchListCard(
-                    entries: watchList,
+                    patterns: patterns,
                     timeframeLabel: timeframe.shortLabel,
                     onSelectStudent: onSelectStudent
-                )
-
-                AttendanceRecentActivityCard(
-                    entries: recentActivity,
-                    onSelectDate: onSelectDate
                 )
 
                 Spacer(minLength: 0)
@@ -103,17 +114,20 @@ struct AttendanceInsightsSidebar: View {
         }
         .frame(minWidth: 280, idealWidth: 300, maxWidth: 320)
         .background(Color(nsOrSystemBackground))
-        .onAppear { reloadAll() }
-        .onChange(of: timeframe) { _, _ in reloadAll() }
-        .onChange(of: referenceDate) { _, _ in reloadAll() }
-        .onChange(of: reloadToken) { _, _ in reloadAll() }
+        // One read per change of what it shows: the window, the day, or
+        // the roll after marks (each used to be its own reload, and a new
+        // day came with a token bump too, so it read twice).
+        .task(id: ReloadKey(timeframe: timeframe, referenceDate: referenceDate, token: reloadToken)) {
+            reloadAll()
+        }
     }
 
     private var timeframePicker: some View {
         HStack {
             Text("Insights")
                 .font(.system(.headline, design: .rounded))
-            Spacer()
+                .fixedSize()
+            Spacer(minLength: AppTheme.Spacing.small)
             Picker("Timeframe", selection: $timeframe) {
                 ForEach(AttendanceInsightsTimeframe.allCases) { tf in
                     Text(tf.shortLabel).tag(tf)
@@ -121,7 +135,7 @@ struct AttendanceInsightsSidebar: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 220)
+            .frame(maxWidth: 220)
         }
     }
 
@@ -131,21 +145,24 @@ struct AttendanceInsightsSidebar: View {
 
     // MARK: Reload
 
+    private struct ReloadKey: Hashable {
+        let timeframe: AttendanceInsightsTimeframe
+        let referenceDate: Date
+        let token: Int
+    }
+
     private func reloadAll() {
         let range = timeframe.range(endingAt: referenceDate)
         let priorRange = timeframe.priorRange(for: range)
-        // One read for all four cards (was five, the current range twice).
+        // One read for every card.
         let insights = AttendanceInsightsService.sidebarInsights(
             range: range,
             priorRange: priorRange,
             students: students,
-            context: viewContext,
-            watchListLimit: 5,
-            recentDayCount: 5
+            context: viewContext
         )
         summary = insights.summary
         priorSummary = insights.priorSummary
-        watchList = insights.watchList
-        recentActivity = insights.recentActivity
+        patterns = insights.patterns
     }
 }

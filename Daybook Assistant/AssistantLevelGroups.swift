@@ -1,32 +1,10 @@
 import SwiftUI
 
-/// The grid split into one block per level, chosen in the Classroom sheet
-/// (Group by Level): Upper Elementary, then Adolescent, then Lower, the
-/// order the front-desk email lists them in. Each block keeps the name
-/// order on its own. A class all of one level shows as one grid, with no
-/// heading. Only on this iPhone.
+/// Group by Level, chosen in the Classroom sheet: the grid split into one
+/// block per level (`AttendanceLevelGroups`). A class all of one level shows
+/// as one grid, with no heading. Only on this iPhone.
 enum AssistantLevelGroups {
     static let key = "Assistant.groupsByLevel"
-
-    struct Group<Item> {
-        let level: AttendanceEmailLevel
-        let items: [Item]
-    }
-
-    /// `items` in level blocks, in their order within each block; empty
-    /// levels left out, and a level the report doesn't know counted as Lower.
-    static func grouped<Item>(
-        _ items: [Item],
-        level: (Item) -> CDStudent.Level
-    ) -> [Group<Item>] {
-        let byLevel = Dictionary(grouping: items) {
-            AttendanceEmailLevel(rawValue: level($0).rawValue) ?? .lower
-        }
-        return AttendanceEmailLevel.allCases.compactMap { block in
-            guard let items = byLevel[block], !items.isEmpty else { return nil }
-            return Group(level: block, items: items)
-        }
-    }
 }
 
 /// A level block's heading: "Upper Elementary" and how many of them are in

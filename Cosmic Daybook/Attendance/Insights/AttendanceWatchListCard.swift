@@ -1,17 +1,18 @@
 // AttendanceWatchListCard.swift
-// Sidebar card listing students with the highest absence/tardy counts in the timeframe.
+// Sidebar card: Patterns, the children with the most absences and late
+// arrivals, siblings gathered into their family.
 
 import SwiftUI
 
 struct AttendanceWatchListCard: View {
-    let entries: [AttendanceWatchListEntry]
+    let patterns: [AttendancePattern]
     let timeframeLabel: String
     let onSelectStudent: (UUID) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             HStack {
-                Text("Students to Watch")
+                Text("Patterns")
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                 Spacer()
                 Text(timeframeLabel)
@@ -19,20 +20,19 @@ struct AttendanceWatchListCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            if entries.isEmpty {
-                Text("No concerning patterns this period.")
+            if patterns.isEmpty {
+                Text("No absences or late arrivals this period.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, AppTheme.Spacing.small)
             } else {
                 VStack(spacing: AppTheme.Spacing.small) {
-                    ForEach(entries) { entry in
-                        Button {
-                            onSelectStudent(entry.studentID)
-                        } label: {
-                            row(for: entry)
+                    ForEach(patterns) { pattern in
+                        if let family = pattern.familyName {
+                            familyBlock(family, pattern)
+                        } else if let child = pattern.members.first {
+                            childRow(child, showsName: true)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -41,42 +41,75 @@ struct AttendanceWatchListCard: View {
         .background(cardBackground)
     }
 
-    private func row(for entry: AttendanceWatchListEntry) -> some View {
-        HStack(alignment: .center, spacing: AppTheme.Spacing.small) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.fullName)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                statsLine(absent: entry.absentCount, tardy: entry.tardyCount)
-                patternStrip(pattern: entry.recentPattern)
+    /// "Fleischmann family (4) · 15 late · 3 absent", then each child.
+    private func familyBlock(_ family: String, _ pattern: AttendancePattern) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(family) family")
+                    .font(.callout.weight(.semibold))
+                Text("(\(pattern.members.count))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                statsLine(absent: pattern.absentCount, tardy: pattern.tardyCount)
             }
-            Spacer(minLength: 4)
-            Image(systemName: "chevron.right")
+            Text("Siblings: one conversation with the family covers them all.")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
+            ForEach(pattern.members) { child in
+                childRow(child, showsName: false)
+            }
         }
-        .contentShape(Rectangle())
+        .padding(10)
+        .background(Color.lateAmber.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(family) family")
     }
 
-    private func statsLine(absent: Int, tardy: Int) -> some View {
-        HStack(spacing: 6) {
-            if absent > 0 {
-                Text("\(absent) absent")
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-            }
-            if absent > 0 && tardy > 0 {
-                Text("·")
+    /// One child: the name and counts, and the last ten school days as dots.
+    /// Opens the child's attendance history.
+    private func childRow(_ entry: AttendanceWatchListEntry, showsName: Bool) -> some View {
+        Button {
+            onSelectStudent(entry.studentID)
+        } label: {
+            HStack(alignment: .center, spacing: AppTheme.Spacing.small) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(showsName ? entry.fullName : firstName(entry.fullName))
+                            .font(showsName ? .callout.weight(.medium) : .caption)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        if !showsName {
+                            Spacer(minLength: 4)
+                            statsLine(absent: entry.absentCount, tardy: entry.tardyCount)
+                        }
+                    }
+                    if showsName { statsLine(absent: entry.absentCount, tardy: entry.tardyCount) }
+                    patternStrip(pattern: entry.recentPattern)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
-            if tardy > 0 {
-                Text("\(tardy) tardy")
-                    .font(.caption2)
-                    .foregroundStyle(.blue)
-            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .help("Attendance history")
+    }
+
+    private func firstName(_ fullName: String) -> String {
+        fullName.components(separatedBy: " ").first ?? fullName
+    }
+
+    private func statsLine(absent: Int, tardy: Int) -> some View {
+        Text([
+            tardy > 0 ? "\(tardy) late" : nil,
+            absent > 0 ? "\(absent) absent" : nil
+        ].compactMap(\.self).joined(separator: " · "))
+        .font(.caption2.weight(.medium))
+        .foregroundStyle(absent > tardy ? Color.red : Color.lateAmber)
+        .monospacedDigit()
     }
 
     private func patternStrip(pattern: [AttendanceStatus]) -> some View {
@@ -88,13 +121,14 @@ struct AttendanceWatchListCard: View {
             }
         }
         .padding(.top, 2)
+        .accessibilityHidden(true)
     }
 
     private func dotColor(for status: AttendanceStatus) -> Color {
         switch status {
         case .present: return .green.opacity(0.85)
         case .absent: return .red.opacity(0.85)
-        case .tardy: return .blue.opacity(0.85)
+        case .tardy: return .lateAmber
         case .leftEarly: return .purple.opacity(0.85)
         case .unmarked: return .secondary.opacity(0.25)
         }

@@ -42,17 +42,8 @@ struct AttendanceRulesTests {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: today) ?? today
     }
 
-    @Test("A click cycles through every status today")
-    func cycleToday() {
-        #expect(AttendanceRules.cycle(from: .unmarked, on: today) == .present)
-        #expect(AttendanceRules.cycle(from: .present, on: today) == .absent)
-        #expect(AttendanceRules.cycle(from: .leftEarly, on: today) == .unmarked)
-    }
-
-    @Test("Ahead of the day a click goes between unmarked and absent")
-    func cycleAhead() {
-        #expect(AttendanceRules.cycle(from: .unmarked, on: tomorrow) == .absent)
-        #expect(AttendanceRules.cycle(from: .absent, on: tomorrow) == .unmarked)
+    @Test("Ahead of the day the menu offers only absent and unmarked")
+    func menuAhead() {
         #expect(AttendanceRules.menuStatuses(on: tomorrow) == [.absent, .unmarked])
         #expect(AttendanceRules.menuStatuses(on: today).count == 5)
     }

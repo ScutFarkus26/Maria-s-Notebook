@@ -1,5 +1,6 @@
 // AttendanceClassSummaryCard.swift
-// Sidebar card with class-wide attendance rate, on-time rate, and a trend delta.
+// Sidebar card with class-wide attendance rate, on-time rate, and each one's
+// change from the period before, in words.
 
 import SwiftUI
 
@@ -26,8 +27,10 @@ struct AttendanceClassSummaryCard: View {
                     .padding(.vertical, AppTheme.Spacing.small)
             } else {
                 metricsRow
-                divider
-                breakdownRow
+                Text(summary.schoolDays == 1 ? "1 school day" : "\(summary.schoolDays) school days")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
         }
         .padding(AppTheme.Spacing.medium)
@@ -39,13 +42,13 @@ struct AttendanceClassSummaryCard: View {
     private var metricsRow: some View {
         HStack(alignment: .top, spacing: AppTheme.Spacing.medium) {
             metric(
-                label: "Attendance",
+                label: "attended",
                 value: summary.attendanceRate.map(percentString) ?? "—",
                 trend: trend(current: summary.attendanceRate, prior: priorSummary?.attendanceRate),
                 tint: .green
             )
             metric(
-                label: "On-time",
+                label: "on time",
                 value: summary.onTimeRate.map(percentString) ?? "—",
                 trend: trend(current: summary.onTimeRate, prior: priorSummary?.onTimeRate),
                 tint: .blue
@@ -55,63 +58,21 @@ struct AttendanceClassSummaryCard: View {
 
     private func metric(label: String, value: String, trend: AttendanceTrendDelta?, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Text(value)
-                    .font(.system(.title2, design: .rounded).weight(.semibold))
-                    .foregroundStyle(tint)
-                if let trend {
-                    Image(systemName: trend.icon)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(trend.color)
-                }
-            }
+            Text(value)
+                .font(.system(.title2, design: .rounded).weight(.semibold))
+                .foregroundStyle(tint)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+            // "▲ 1 pt vs prior 30d": the change in words, not just an arrow.
+            if let trend {
+                Text(trend.phrase(vs: timeframeLabel))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(trend.color)
+                    .monospacedDigit()
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var divider: some View {
-        Rectangle()
-            .fill(Color.secondary.opacity(0.15))
-            .frame(height: 1)
-    }
-
-    // MARK: Breakdown
-
-    private var breakdownRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            chip(label: "Present", count: summary.presentCount, color: .green)
-            chip(label: "Tardy", count: summary.tardyCount, color: .blue)
-            chip(label: "Absent", count: summary.absentCount, color: .red)
-            if summary.leftEarlyCount > 0 {
-                chip(label: "Left Early", count: summary.leftEarlyCount, color: .purple)
-            }
-            HStack(spacing: 4) {
-                Text("\(summary.schoolDays)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                Text(summary.schoolDays == 1 ? "school day tracked" : "school days tracked")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, 2)
-        }
-    }
-
-    private func chip(label: String, count: Int, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 4)
-            Text("\(count)")
-                .font(.caption.weight(.medium))
-                .monospacedDigit()
-        }
     }
 
     private var cardBackground: some View {
@@ -138,11 +99,13 @@ private struct AttendanceTrendDelta {
     enum Direction { case up, down, flat }
     let direction: Direction
     let magnitude: Double
-    var icon: String {
+    /// "▲ 1 pt vs prior 30d", "no change vs prior 30d".
+    func phrase(vs timeframe: String) -> String {
+        let points = Int((magnitude * 100).rounded())
         switch direction {
-        case .up: return "arrow.up.right"
-        case .down: return "arrow.down.right"
-        case .flat: return "arrow.right"
+        case .flat: return "no change vs prior \(timeframe)"
+        case .up: return "▲ \(points) pt vs prior \(timeframe)"
+        case .down: return "▼ \(points) pt vs prior \(timeframe)"
         }
     }
     var color: Color {
