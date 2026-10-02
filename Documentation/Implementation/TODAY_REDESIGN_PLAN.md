@@ -177,3 +177,10 @@ All paths below are under `Cosmic Daybook/`.
   (popover on the Mac, sheet on iOS, `DayPickerPresentation`) on the next school day.
 - Work with a scheduled check-in still ahead is no longer counted as quiet (`TodayScheduleBuilder`), so scheduling
   one takes the row off; `staleTotalCount` follows.
+
+## After landing (2026-10-02, Danny's review)
+
+- Move absent children, Bump to Tomorrow (lessons and check-ins) land on the **next school day** from the school
+  calendar, and their labels name it ("Move them to Monday"; `TodayBumpDay`).
+- Meetings drag to reorder again: their order is saved as `.meeting` rows beside the agenda's
+  (`TodayAgendaBuilder.saveMeetingOrder` / `orderMeetings`), and saving one order leaves the other alone.

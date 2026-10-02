@@ -353,7 +353,7 @@ final class TodayViewModel {
         todaysReminders = remindersResult.today
         anytimeReminders = remindersResult.anytime
         todaysCalendarEvents = calendarEvents
-        scheduledMeetings = meetingsResult.meetings
+        scheduledMeetings = TodayAgendaBuilder.orderMeetings(meetingsResult.meetings, day: day, context: context)
         completedMeetings = completedMeetingsResult.meetings
         attendanceSummary = processedAttendance.summary
         absentToday = processedAttendance.absentStudentIDs
@@ -381,13 +381,4 @@ final class TodayViewModel {
             showFetchErrorToast(errorCollector)
         }
     }
-
-    // MARK: - Agenda Reordering
-
-    /// Moves agenda items and persists the new order.
-    func moveAgendaItem(from source: IndexSet, to destination: Int) {
-        agendaItems.move(fromOffsets: source, toOffset: destination)
-        TodayAgendaBuilder.saveOrder(items: agendaItems, day: date, context: context)
-    }
-
 }

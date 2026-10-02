@@ -105,7 +105,7 @@ extension TodayView {
             Button {
                 bumpCheckInToTomorrow(scheduled.checkIn)
             } label: {
-                Label("Bump to Tomorrow", systemImage: "calendar.badge.plus")
+                Label("Bump to \(bumpTargetTitle)", systemImage: "calendar.badge.plus")
             }
             Button {
                 quickNoteAboutWork(scheduled.work)
@@ -149,6 +149,7 @@ extension TodayView {
                 openLessonPlan(for: sl)
             } : nil,
             onMoveAbsent: movesAbsent ? { moveAbsentToTomorrow(from: [sl]) } : nil,
+            moveAbsentTitle: "Move absent to \(bumpTargetName)",
             onPresent: isNext ? { startNextAgendaItem(.lesson(sl)) } : nil,
             presentShortcut: nextCardShortcut
         )
@@ -167,13 +168,13 @@ extension TodayView {
             Button {
                 bumpLessonToTomorrow(sl)
             } label: {
-                Label("Bump to Tomorrow", systemImage: "calendar.badge.plus")
+                Label("Bump to \(bumpTargetTitle)", systemImage: "calendar.badge.plus")
             }
             if movesAbsent {
                 Button {
                     moveAbsentToTomorrow(from: [sl])
                 } label: {
-                    Label("Move Absent Children to Tomorrow", systemImage: "person.badge.clock")
+                    Label("Move Absent Children to \(bumpTargetTitle)", systemImage: "person.badge.clock")
                 }
             }
             Button {
@@ -201,15 +202,16 @@ extension TodayView {
     }
 
     func bumpLessonToTomorrow(_ sl: CDLessonAssignment) {
-        // "Tomorrow" is relative to today, not the item's own date — adding a day
-        // to an overdue item's old date would leave it in the past, still overdue.
+        // The next school day after today, not after the item's own date —
+        // adding a day to an overdue item's old date would leave it overdue.
         guard let tomorrow = bumpTargetDay() else { return }
         // A bump expresses a day, so it lands at the start of the morning
         // rather than ahead of everything already planned.
         sl.schedule(onDay: tomorrow)
+        let name = bumpTargetName
         if saveCoordinator.save(viewContext, reason: "Bump lesson to tomorrow") {
             viewModel.reload()
-            toast("Bumped to tomorrow")
+            toast("Bumped to \(name)")
         }
     }
 
@@ -220,13 +222,12 @@ extension TodayView {
     }
 
     func bumpCheckInToTomorrow(_ checkIn: CDWorkCheckIn) {
-        // "Tomorrow" is relative to today, not the check-in's own date — adding a
-        // day to a 5-day-old check-in moved it to 4 days ago, still overdue.
-        // Keep the original time of day so intra-day ordering stays stable.
+        // The next school day after today, not after the check-in's own date —
+        // adding a day to a 5-day-old check-in moved it to 4 days ago, still
+        // overdue. Keep the original time of day so intra-day ordering stays stable.
         let base = checkIn.date ?? viewModel.date
-        guard let startOfTomorrow = calendar.date(
-            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
-        ) else { return }
+        guard let startOfTomorrow = bumpTargetDay() else { return }
+        let name = bumpTargetName
         let time = calendar.dateComponents([.hour, .minute, .second], from: base)
         checkIn.date = calendar.date(
             bySettingHour: time.hour ?? 0,
@@ -236,7 +237,7 @@ extension TodayView {
         ) ?? startOfTomorrow
         if saveCoordinator.save(viewContext, reason: "Bump check-in to tomorrow") {
             viewModel.reload()
-            toast("Bumped to tomorrow")
+            toast("Bumped to \(name)")
         }
     }
 

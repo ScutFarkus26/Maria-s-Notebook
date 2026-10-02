@@ -1,6 +1,7 @@
 // TodayViewMeetingsSection.swift
 // The day's scheduled meetings, in a small section of their own after the
-// lessons (hidden on a day with none), plus the supporting functions
+// lessons (hidden on a day with none), dragged into whatever order the day
+// needs, plus the supporting functions
 // (start/clear meeting, lesson plan resolution).
 
 import SwiftUI
@@ -19,6 +20,9 @@ extension TodayView {
                     meetingRow(meeting)
                         .id(meeting.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                }
+                .onMove { source, destination in
+                    viewModel.moveMeeting(from: source, to: destination)
                 }
             } header: {
                 sectionHeader("Meetings")

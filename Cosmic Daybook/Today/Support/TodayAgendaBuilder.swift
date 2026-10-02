@@ -1,6 +1,7 @@
 // TodayAgendaBuilder.swift
 // Builds the unified agenda by merging lessons and work items with persisted ordering.
-// Scheduled meetings are not on it: they have a Meetings section of their own.
+// Scheduled meetings are not on it: they have a Meetings section of their own,
+// whose order is saved beside the agenda's (`saveMeetingOrder`).
 // Neither is quiet work: Gone quiet groups it here (`groupFollowUpWork`) and
 // lists it in its own section, most quiet first.
 
@@ -124,40 +125,90 @@ enum TodayAgendaBuilder {
         }
     }
 
-    /// Persists the current agenda order for a day.
+    /// Persists the current agenda order for a day. The Meetings section's
+    /// order shares the day's rows (`saveMeetingOrder`) and is left alone.
     static func saveOrder(
         items: [AgendaItem],
         day: Date,
         context: NSManagedObjectContext
     ) {
+        replaceOrder(
+            with: items.map { ($0.itemType, $0.id) },
+            replacing: { $0 != .meeting },
+            day: day,
+            context: context
+        )
+    }
+
+    /// Persists the Meetings section's order for a day, as `.meeting` rows
+    /// beside the agenda's. The agenda's own rows are left alone.
+    static func saveMeetingOrder(
+        meetingIDs: [UUID],
+        day: Date,
+        context: NSManagedObjectContext
+    ) {
+        replaceOrder(
+            with: meetingIDs.map { (.meeting, $0) },
+            replacing: { $0 == .meeting },
+            day: day,
+            context: context
+        )
+    }
+
+    /// The day's meetings in their saved order. Meetings with no saved
+    /// position follow, in the order given.
+    static func orderMeetings(
+        _ meetings: [CDScheduledMeeting],
+        day: Date,
+        context: NSManagedObjectContext
+    ) -> [CDScheduledMeeting] {
+        guard meetings.count > 1 else { return meetings }
+        let positions = Dictionary(
+            fetchSavedOrder(for: day, context: context)
+                .filter { $0.itemType == .meeting }
+                .compactMap { entry in entry.itemID.map { ($0, entry.position) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        guard !positions.isEmpty else { return meetings }
+        return meetings.enumerated().sorted { lhs, rhs in
+            let left = lhs.element.id.flatMap { positions[$0] }
+            let right = rhs.element.id.flatMap { positions[$0] }
+            switch (left, right) {
+            case let (left?, right?): return left == right ? lhs.offset < rhs.offset : left < right
+            case (.some, nil): return true
+            case (nil, .some): return false
+            case (nil, nil): return lhs.offset < rhs.offset
+            }
+        }.map(\.element)
+    }
+
+    // MARK: - Private
+
+    /// Rewrites the day's order rows of the kinds `replacing` picks out.
+    private static func replaceOrder(
+        with entries: [(AgendaItemType, UUID)],
+        replacing: (AgendaItemType) -> Bool,
+        day: Date,
+        context: NSManagedObjectContext
+    ) {
         let dayStart = AppCalendar.startOfDay(day)
 
-        // Delete existing entries for this day
-        do {
-            let request = CDFetchRequest(CDTodayAgendaOrder.self)
-            request.predicate = NSPredicate(format: "day == %@", dayStart as NSDate)
-            request.fetchLimit = 200
-            let existing = try context.fetch(request)
-            for entry in existing {
-                context.delete(entry)
-            }
-        } catch {
-            // Continue — we'll write new entries regardless
+        // Delete this kind's existing entries for the day
+        for entry in fetchSavedOrder(for: day, context: context) where replacing(entry.itemType) {
+            context.delete(entry)
         }
 
         // Write new entries
-        for (index, item) in items.enumerated() {
+        for (index, (type, id)) in entries.enumerated() {
             let entry = CDTodayAgendaOrder(context: context)
             entry.day = dayStart
-            entry.itemType = item.itemType
-            entry.itemID = item.id
+            entry.itemType = type
+            entry.itemID = id
             entry.position = Int64(index)
         }
 
         context.safeSave()
     }
-
-    // MARK: - Private
 
     private static func fetchSavedOrder(for day: Date, context: NSManagedObjectContext) -> [CDTodayAgendaOrder] {
         let dayStart = AppCalendar.startOfDay(day)

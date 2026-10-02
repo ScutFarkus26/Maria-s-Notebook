@@ -73,6 +73,8 @@ struct LessonListRow: View {
     var onTrailingAccessoryTap: (() -> Void)?
     /// Shown as an inline link when the lesson has absent children.
     var onMoveAbsent: (() -> Void)?
+    /// The link's words, naming the next school day ("Move absent to Monday").
+    var moveAbsentTitle = "Move absent to tomorrow"
     /// The Next card's Present button; nil on every other row.
     var onPresent: (() -> Void)?
     var presentShortcut: KeyboardShortcut?
@@ -156,10 +158,10 @@ struct LessonListRow: View {
     private var actionLine: some View {
         HStack(spacing: 8) {
             if let onMoveAbsent {
-                Button("Move absent to tomorrow", action: onMoveAbsent)
+                Button(moveAbsentTitle, action: onMoveAbsent)
                     .buttonStyle(.borderless)
                     .font(AppTheme.ScaledFont.caption)
-                    .help("Moves the children who are absent onto this lesson tomorrow; the others stay")
+                    .help("Moves the children who are absent onto this lesson on the next school day; the others stay")
             }
             Spacer(minLength: 0)
             if let onPresent {
