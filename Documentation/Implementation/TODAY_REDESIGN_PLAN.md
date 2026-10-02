@@ -149,7 +149,7 @@ All paths below are under `Cosmic Daybook/`.
 | 4 Gone quiet + linking | Done: Gone quiet section (title + chips, "19d quiet", Schedule check-in on the next school day, "See all N"), linked todos on work rows and out of Todos, completion on check-in and work log (with Undo), roster tag names; non-UI 26f17f31; Mac UI unseen | 26f17f31 + 9233c5bc |
 | 5 Header/toolbar/band | Done; Mac UI unseen | 669ded92 |
 | 6 Floating button | Done (File ▸ New already had all five; New Work now targets the front window); Mac UI unseen | 669ded92 |
-| 7 iPhone/iPad | Done: Right Now retired everywhere (view, `.rightNow`, dead `todaysSchedule`/`overdueSchedule` deleted; the check-in Next card now draws on iOS too); phone order Lessons (Next card first) · Meetings · Gone quiet · Needs-a-lesson · Todos · rest; iPad uses the same list under the band. iOS toolbar is ‹ Today › · Go to Date · + with the day as the large title's subtitle (the date field had pushed Today and + into •••); linked-todo date printed "M10 1" on AppCalendar (empty root locale), fixed. iPhone + iPad mini rendered | (uncommitted) |
+| 7 iPhone/iPad | Done: Right Now retired everywhere (view, `.rightNow`, dead `todaysSchedule`/`overdueSchedule` deleted; the check-in Next card now draws on iOS too); phone order Lessons (Next card first) · Meetings · Gone quiet · Needs-a-lesson · Todos · rest; iPad uses the same list under the band. iOS toolbar is ‹ Today › · Go to Date · + with the day as the large title's subtitle (the date field had pushed Today and + into •••); linked-todo date printed "M10 1" on AppCalendar (empty root locale), fixed. iPhone + iPad mini rendered | 81cd8b5d |
 
 ## Handoff notes for phases 2–4 UI
 
