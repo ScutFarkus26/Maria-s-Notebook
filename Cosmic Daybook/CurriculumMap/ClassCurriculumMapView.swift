@@ -247,7 +247,7 @@ private struct ClassCurriculumGrid: View {
             }
             .frame(minWidth: labelWidth + CGFloat(columns.count) * columnWidth, alignment: .leading)
         }
-        .coordinateSpace(name: "gridSpace")
+        .stickyLeftScrollTracking()
     }
 
     private var header: some View {

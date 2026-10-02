@@ -34,35 +34,34 @@ public enum BlockingReason: Sendable, Equatable {
         case .practiceAndConfirmation: return "exclamationmark.lock.fill"
         }
     }
-
-    public var color: SwiftUI.Color {
-        switch self {
-        case .none: return .clear
-        case .prerequisiteNotPresented: return .red
-        case .practiceRequired: return .orange
-        case .confirmationRequired: return .purple
-        case .practiceAndConfirmation: return .red
-        }
-    }
 }
 
-/// Resolved display status for a checklist cell, ordered by priority.
-public enum ChecklistDisplayStatus: Sendable {
-    case empty
-    case scheduled
+/// Where a child stands on a checklist cell: one rung of the ladder the cell's mark draws
+/// (`ChecklistMark`), lowest first. Blue rungs are started, green is done, orange is "act on it".
+public enum ChecklistDisplayStatus: Sendable, Hashable, CaseIterable {
+    /// Not presented, and the lesson before it still blocks it (`blockingReason != .none`).
+    case notReady
+    /// Not presented, not planned, nothing blocking it.
+    case ready
+    /// On a plan: the Inbox or a dated presentation.
+    case planned
     case presented
+    /// Open practice work.
     case practicing
+    /// Work in review, or work closed without a mastery mark.
     case reviewing
-    case proficient
+    /// A mastery mark: the child's `CDLessonPresentation` is proficient or has `masteredAt`.
+    case mastered
 
     public var label: String {
         switch self {
-        case .proficient:  return "Mastered"
-        case .reviewing:   return "Reviewing"
-        case .practicing:  return "Practicing"
-        case .presented:   return "Presented"
-        case .scheduled:   return "Scheduled"
-        case .empty:       return "Not Started"
+        case .notReady:   return "Not yet ready"
+        case .ready:      return "Ready"
+        case .planned:    return "Planned"
+        case .presented:  return "Presented"
+        case .practicing: return "Practicing"
+        case .reviewing:  return "Reviewing"
+        case .mastered:   return "Mastered"
         }
     }
 }
@@ -86,15 +85,24 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
     public let isStale: Bool
     public let isInboxPlan: Bool
     public let blockingReason: BlockingReason
+    /// The child has a mastery mark on the lesson (see `ChecklistDisplayStatus.mastered`).
+    public let isMastered: Bool
 
-    /// Resolved display status, priority: proficient > reviewing > practicing > presented > scheduled > empty
+    /// The highest rung reached: mastered > reviewing > practicing > presented > planned,
+    /// then ready or not yet ready by the blocking reason. Closed work counts as Reviewing
+    /// until the lesson carries a mastery mark; a mark is Mastered with or without work.
     public var displayStatus: ChecklistDisplayStatus {
-        if isComplete { return .proficient }
-        if isWorkReview { return .reviewing }
+        if isMastered { return .mastered }
+        if isWorkReview || isComplete { return .reviewing }
         if isWorkActive { return .practicing }
         if isPresented { return .presented }
-        if isScheduled { return .scheduled }
-        return .empty
+        if isScheduled { return .planned }
+        return blockingReason == .none ? .ready : .notReady
+    }
+
+    /// Open work that hasn't been touched in a while, on a lesson not yet mastered.
+    public var needsCheckIn: Bool {
+        isStale && !isMastered
     }
 
     public init(
@@ -111,7 +119,8 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         lastActivityDate: Date?,
         isStale: Bool,
         isInboxPlan: Bool = false,
-        blockingReason: BlockingReason = .none
+        blockingReason: BlockingReason = .none,
+        isMastered: Bool = false
     ) {
         self.lessonID = lessonID
         self.plannedItemID = plannedItemID
@@ -127,5 +136,6 @@ public struct StudentChecklistRowState: Identifiable, Equatable {
         self.isStale = isStale
         self.isInboxPlan = isInboxPlan
         self.blockingReason = blockingReason
+        self.isMastered = isMastered
     }
 }

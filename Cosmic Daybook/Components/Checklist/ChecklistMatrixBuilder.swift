@@ -7,6 +7,8 @@ import CoreData
 /// Computes status for each cell based on LessonAssignments and WorkModels.
 enum ChecklistMatrixBuilder {
 
+    typealias Matrix = [UUID: [UUID: StudentChecklistRowState]]
+
     // MARK: - Build Matrix
 
     /// Builds the matrix of states for all students and lessons.
@@ -20,106 +22,151 @@ enum ChecklistMatrixBuilder {
         students: [CDStudent],
         lessons: [CDLesson],
         context: NSManagedObjectContext
-    ) -> [UUID: [UUID: StudentChecklistRowState]] {
-        let lessonIDArray = Array(Set(lessons.compactMap { $0.id?.uuidString }))
-        guard !lessonIDArray.isEmpty else { return [:] }
-        let lasByLessonID = assignmentsByLesson(lessonIDs: lessonIDArray, context: context)
-        let worksByLessonID = worksByLesson(lessonIDs: lessonIDArray, context: context)
+    ) -> Matrix {
+        guard lessons.contains(where: { $0.id != nil }) else { return [:] }
+        let precedingLessonMap = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
+        var matrix: Matrix = [:]
+        for student in students {
+            guard let studentID = student.id else { continue }
+            matrix[studentID] = [:]
+        }
+        fillRows(
+            &matrix, rowLessons: lessons, students: students,
+            precedingLessonMap: precedingLessonMap, context: context
+        )
+        return matrix
+    }
 
-        var newMatrix: [UUID: [UUID: StudentChecklistRowState]] = [:]
+    // MARK: - Rebuild Rows
+
+    /// Recomputes, in place, the rows a change to `touchedLessonIDs` can reach: each touched
+    /// lesson's own row and the rows of the lessons that follow one in its sequence (their
+    /// blocking reason reads the touched lesson's records). Only those lessons and their
+    /// predecessors are fetched. The result is exactly what `buildMatrix` would give for those
+    /// rows; every other row is left as it was.
+    ///
+    /// - Parameter lessons: The whole area, so "preceding lesson" means what it does in a full build.
+    static func rebuildRows(
+        in matrix: inout Matrix,
+        touching touchedLessonIDs: Set<UUID>,
+        students: [CDStudent],
+        lessons: [CDLesson],
+        context: NSManagedObjectContext
+    ) {
+        guard !touchedLessonIDs.isEmpty else { return }
+        let precedingLessonMap = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
+        let rowLessons = lessons.filter { lesson in
+            guard let lessonID = lesson.id else { return false }
+            if touchedLessonIDs.contains(lessonID) { return true }
+            guard let precedingID = precedingLessonMap[lessonID]?.id else { return false }
+            return touchedLessonIDs.contains(precedingID)
+        }
+        guard !rowLessons.isEmpty else { return }
+        fillRows(
+            &matrix, rowLessons: rowLessons, students: students,
+            precedingLessonMap: precedingLessonMap, context: context
+        )
+    }
+
+    /// Writes one state per (student, row lesson) into `matrix`, fetching the row lessons'
+    /// records and their predecessors' (for the blocking reason) once, indexed by student,
+    /// plus the row lessons' mastery marks in one more fetch.
+    private static func fillRows(
+        _ matrix: inout Matrix,
+        rowLessons: [CDLesson],
+        students: [CDStudent],
+        precedingLessonMap: [UUID: CDLesson],
+        context: NSManagedObjectContext
+    ) {
+        let rowIDs = Set(rowLessons.compactMap { $0.id?.uuidString })
+        var fetchIDs = rowIDs
+        var rowPrecedingMap: [UUID: CDLesson] = [:]
+        for lesson in rowLessons {
+            guard let lessonID = lesson.id else { continue }
+            if let preceding = precedingLessonMap[lessonID] {
+                rowPrecedingMap[lessonID] = preceding
+                if let precedingID = preceding.id { fetchIDs.insert(precedingID.uuidString) }
+            }
+        }
+        guard !fetchIDs.isEmpty else { return }
+        let records = LessonRecordIndex(
+            assignments: assignmentsByLesson(lessonIDs: Array(fetchIDs), context: context),
+            works: worksByLesson(lessonIDs: Array(fetchIDs), context: context),
+            masteryMarks: PresentationRecordIndex.masteryMarks(lessonIDs: rowIDs, in: context)
+        )
+        let rulesMap = progressionRules(for: rowPrecedingMap, context: context)
 
         // Pre-compute staleness threshold date once instead of per-cell
         let calendar = AppCalendar.shared
         let today = calendar.startOfDay(for: Date())
 
-        // Pre-compute preceding lessons and progression rules for blocking reasons
-        let precedingLessonMap = BlockingAlgorithmEngine.buildPrecedingLessonCache(lessons)
-        let progressionRulesMap = progressionRules(for: precedingLessonMap, context: context)
-
         for student in students {
-            var studentRow: [UUID: StudentChecklistRowState] = [:]
+            guard let studentID = student.id else { continue }
             let studentKey = student.cloudKitKey
-            let studentUUID = student.id ?? UUID()
-
-            for lesson in lessons {
+            var studentRow = matrix[studentID] ?? [:]
+            for lesson in rowLessons {
                 guard let lessonID = lesson.id else { continue }
                 let lessonIDString = lessonID.uuidString
-                let studentLAs = (lasByLessonID[lessonIDString] ?? [])
-                    .filter { $0.studentKeys.contains(studentKey) }
-                    .map(\.assignment)
-                let studentWorks = (worksByLessonID[lessonIDString] ?? [])
-                    .filter { $0.participantKeys.contains(studentKey) }
-                    .map(\.work)
+                let studentLAs = records.assignments[lessonIDString]?[studentKey] ?? []
+                let studentWorks = records.works[lessonIDString]?[studentKey] ?? []
 
-                // Compute blocking reason for empty/scheduled cells
-                let blockingReason: BlockingReason
+                // Only a cell not yet presented can be blocked by the lesson before it.
                 let isPresented = studentLAs.contains { $0.isPresented }
-                if !isPresented, let precedingLesson = precedingLessonMap[lessonID] {
-                    blockingReason = computeBlockingReason(
-                        precedingLesson: precedingLesson,
-                        rules: progressionRulesMap[lessonID],
-                        studentID: studentUUID,
-                        studentKey: studentKey,
-                        lasByLessonID: lasByLessonID,
-                        worksByLessonID: worksByLessonID
-                    )
-                } else {
-                    blockingReason = .none
-                }
+                let blockingReason: BlockingReason = isPresented ? .none : computeBlockingReason(
+                    precedingLesson: rowPrecedingMap[lessonID], rules: rulesMap[lessonID],
+                    studentID: studentID, studentKey: studentKey, records: records
+                )
 
-                let state = buildCellState(
+                studentRow[lessonID] = buildCellState(
                     lesson: lesson,
                     studentLAs: studentLAs,
                     studentWorkModels: studentWorks,
                     calendar: calendar,
                     today: today,
-                    blockingReason: blockingReason
+                    blockingReason: blockingReason,
+                    isMastered: records.masteryMarks[lessonIDString]?.contains(studentKey) ?? false
                 )
-                studentRow[lessonID] = state
             }
-            guard let studentID = student.id else { continue }
-            newMatrix[studentID] = studentRow
+            matrix[studentID] = studentRow
         }
-
-        return newMatrix
     }
 
     // MARK: - Batched Reads
 
-    /// One fetch for the whole area (it used to be one per lesson). Rows are
-    /// grouped by lessonID in fetch order, so each lesson's list keeps the
-    /// order its own `lessonID ==` fetch returned; each assignment's students
-    /// are decoded once, not once per cell.
+    /// One fetch for the lessons asked for (it used to be one per lesson), indexed by
+    /// lesson and then by student key. Each student's list keeps fetch order — the order
+    /// its own `lessonID ==` fetch returned — so `.first` picks the same row as before;
+    /// each assignment's students are decoded once, and no cell filters a lesson's list.
     private static func assignmentsByLesson(
         lessonIDs: [String],
         context: NSManagedObjectContext
-    ) -> [String: [AssignmentEntry]] {
+    ) -> [String: [String: [CDLessonAssignment]]] {
         let request: NSFetchRequest<CDLessonAssignment> = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
-        var result: [String: [AssignmentEntry]] = [:]
+        var result: [String: [String: [CDLessonAssignment]]] = [:]
         for la in context.safeFetch(request) {
-            result[la.lessonID, default: []].append(
-                AssignmentEntry(assignment: la, studentKeys: Set(la.studentIDs))
-            )
+            for studentKey in Set(la.studentIDs) {
+                result[la.lessonID, default: [:]][studentKey, default: []].append(la)
+            }
         }
         return result
     }
 
-    /// Same for work, with participants prefetched so the per-cell participant
-    /// check doesn't fault a to-many relationship per work per student.
+    /// Same for work, with participants prefetched so indexing doesn't fault a
+    /// to-many relationship per work.
     private static func worksByLesson(
         lessonIDs: [String],
         context: NSManagedObjectContext
-    ) -> [String: [WorkEntry]] {
+    ) -> [String: [String: [CDWorkModel]]] {
         let request: NSFetchRequest<CDWorkModel> = CDFetchRequest(CDWorkModel.self)
         request.predicate = NSPredicate(format: "lessonID IN %@", lessonIDs)
         request.relationshipKeyPathsForPrefetching = ["participants"]
-        var result: [String: [WorkEntry]] = [:]
+        var result: [String: [String: [CDWorkModel]]] = [:]
         for work in context.safeFetch(request) {
             let participants = (work.participants?.allObjects as? [CDWorkParticipantEntity]) ?? []
-            result[work.lessonID, default: []].append(
-                WorkEntry(work: work, participantKeys: Set(participants.map(\.studentID)))
-            )
+            for studentKey in Set(participants.map(\.studentID)) {
+                result[work.lessonID, default: [:]][studentKey, default: []].append(work)
+            }
         }
         return result
     }
@@ -149,16 +196,12 @@ enum ChecklistMatrixBuilder {
 
     // MARK: - Private Helpers
 
-    /// An assignment with its decoded student keys.
-    private struct AssignmentEntry {
-        let assignment: CDLessonAssignment
-        let studentKeys: Set<String>
-    }
-
-    /// A work item with its participants' student keys.
-    private struct WorkEntry {
-        let work: CDWorkModel
-        let participantKeys: Set<String>
+    /// A batch's assignments and work, by lesson ID string and then by student key, and the
+    /// row lessons' mastery marks (lesson ID string → student keys).
+    private struct LessonRecordIndex {
+        let assignments: [String: [String: [CDLessonAssignment]]]
+        let works: [String: [String: [CDWorkModel]]]
+        let masteryMarks: [String: Set<String>]
     }
 
     /// Exact (case-preserving) area + sequence, the arguments `find` receives.
@@ -167,27 +210,21 @@ enum ChecklistMatrixBuilder {
         let sequence: String
     }
 
-    /// Staleness threshold: 14 weekdays (approx 2.8 calendar weeks)
-    private static let staleWeekdays = 14
-
     /// Computes why a student is blocked from a lesson based on the preceding lesson's state.
+    /// The first lesson of a sequence (no preceding lesson) is never blocked.
     private static func computeBlockingReason(
-        precedingLesson: CDLesson,
+        precedingLesson: CDLesson?,
         rules: LessonProgressionRules.ResolvedRules?,
         studentID: UUID,
         studentKey: String,
-        lasByLessonID: [String: [AssignmentEntry]],
-        worksByLessonID: [String: [WorkEntry]]
+        records: LessonRecordIndex
     ) -> BlockingReason {
-        guard let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else {
+        guard let precedingLesson, let rules, rules.requiresPractice || rules.requiresTeacherConfirmation else {
             return .none
         }
 
         let precedingIDStr = precedingLesson.id?.uuidString ?? ""
-        let precedingLAs = lasByLessonID[precedingIDStr] ?? []
-        let presentedLA = precedingLAs.first {
-            $0.assignment.isPresented && $0.studentKeys.contains(studentKey)
-        }?.assignment
+        let presentedLA = records.assignments[precedingIDStr]?[studentKey]?.first { $0.isPresented }
 
         guard let presentedLA else {
             // Preceding lesson hasn't been presented to this student
@@ -198,9 +235,8 @@ enum ChecklistMatrixBuilder {
         var needsConfirmation = false
 
         if rules.requiresPractice {
-            let precedingWorks = worksByLessonID[precedingIDStr] ?? []
-            let studentWorks = precedingWorks.filter { $0.participantKeys.contains(studentKey) }
-            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.work.status.isClosed }
+            let studentWorks = records.works[precedingIDStr]?[studentKey] ?? []
+            let allComplete = !studentWorks.isEmpty && studentWorks.allSatisfy { $0.status.isClosed }
             if studentWorks.isEmpty || !allComplete {
                 needsPractice = true
             }
@@ -229,7 +265,8 @@ enum ChecklistMatrixBuilder {
         studentWorkModels: [CDWorkModel],
         calendar: Calendar,
         today: Date,
-        blockingReason: BlockingReason = .none
+        blockingReason: BlockingReason = .none,
+        isMastered: Bool = false
     ) -> StudentChecklistRowState {
         let nonPresented = studentLAs.filter { !$0.isPresented }
         let plannedCandidate = nonPresented.first
@@ -245,23 +282,7 @@ enum ChecklistMatrixBuilder {
 
         // Compute staleness using pre-computed calendar & today (avoids per-cell allocation)
         let lastActivityDate = workModelForLesson?.lastTouchedAt ?? workModelForLesson?.createdAt
-        let isStale: Bool = {
-            guard !isComplete, let activity = lastActivityDate else { return false }
-            // Clamped to the school-year counter epoch (see `SchoolYearCounters`), so work
-            // resting since last spring isn't stale on the first day of school.
-            let activityDay = calendar.startOfDay(for: SchoolYearCounters.countFrom(activity))
-            let totalDays = calendar.dateComponents([.day], from: activityDay, to: today).day ?? 0
-            guard totalDays > 0 else { return false }
-            let fullWeeks = totalDays / 7
-            let remainingDays = totalDays % 7
-            var weekdays = fullWeeks * 5
-            let startWeekday = calendar.component(.weekday, from: activityDay)
-            for i in 0..<remainingDays {
-                let dayOfWeek = (startWeekday - 1 + i) % 7 + 1
-                if dayOfWeek != 1 && dayOfWeek != 7 { weekdays += 1 }
-            }
-            return weekdays >= staleWeekdays
-        }()
+        let isStale = !isComplete && isStale(lastActivity: lastActivityDate, calendar: calendar, today: today)
 
         return StudentChecklistRowState(
             lessonID: lesson.id ?? UUID(),
@@ -277,7 +298,8 @@ enum ChecklistMatrixBuilder {
             lastActivityDate: lastActivityDate,
             isStale: isStale,
             isInboxPlan: isInboxPlan,
-            blockingReason: blockingReason
+            blockingReason: blockingReason,
+            isMastered: isMastered
         )
     }
 }

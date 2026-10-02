@@ -2,117 +2,132 @@ import SwiftUI
 
 // MARK: - THE SMART CELL
 
-struct ClassChecklistSmartCell: View {
+/// Every input is a plain value and the handlers compare equal across renders, so the grid
+/// wraps the cell in `.equatable()` and a matrix update redraws only the cells whose state
+/// actually changed. A click sends `.click` (the grid reads ⌘ / Shift and opens the card or
+/// changes the selection); the card is this cell's popover while `isCardOpen`.
+struct ClassChecklistSmartCell: View, Equatable {
+    let cell: CellIdentifier
     let state: StudentChecklistRowState?
     let isSelected: Bool
     let isSelectionMode: Bool
+    /// The keyboard cursor is on this cell (drawn only while the grid has focus).
+    var isCursor: Bool = false
+    var isCardOpen: Bool = false
+    /// Mac and iPad: hover, the card as a popover, and (Mac) drag to select.
+    var isRegular: Bool = false
     var studentName: String = ""
     var lessonName: String = ""
+    /// The lesson before this one in its sequence, named in the "Not yet" reason.
+    var precedingLessonName: String?
+    /// Under the Ready lens a ready cell gets a tinted tile and a blue ring; every
+    /// other mark fades.
+    var lens: ChecklistLens = .allMarks
+    let onAction: ChecklistCellActionHandler
+    var onDrag: ChecklistCellDragHandler?
 
-    var onTap: () -> Void
-    var onSelect: () -> Void
-    var onMarkComplete: () -> Void
-    var onMarkPresented: () -> Void
-    var onMarkPreviouslyPresented: () -> Void
-    var onClear: () -> Void
+    @Environment(ChecklistHoverState.self) private var hover: ChecklistHoverState?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.cell == rhs.cell && lhs.state == rhs.state && lhs.isSelected == rhs.isSelected
+            && lhs.isSelectionMode == rhs.isSelectionMode && lhs.isCursor == rhs.isCursor
+            && lhs.isCardOpen == rhs.isCardOpen && lhs.isRegular == rhs.isRegular
+            && lhs.studentName == rhs.studentName && lhs.lessonName == rhs.lessonName
+            && lhs.precedingLessonName == rhs.precedingLessonName && lhs.lens == rhs.lens
+    }
+
+    private func onSelect() { onAction(.toggleSelection, cell) }
 
     var body: some View {
-        let displayStatus = state?.displayStatus ?? .empty
         let isScheduled = state?.isScheduled ?? false
         let blockingReason = state?.blockingReason ?? .none
 
-        cellContent(displayStatus: displayStatus, blockingReason: blockingReason)
+        cellContent
             .overlay(selectionStroke)
-            .onTapGesture { isSelectionMode ? onSelect() : onTap() }
+            .onTapGesture { onAction(.click, cell) }
+            .modifier(ChecklistCellPointer(isEnabled: isRegular, cell: cell, hover: hover, onDrag: onDrag))
+            .popover(isPresented: cardBinding) {
+                ChecklistCellCard(cell: cell, isRegular: isRegular, onAction: onAction)
+            }
             .contextMenu { cellContextMenu(blockingReason: blockingReason, isScheduled: isScheduled) }
+            .help(ChecklistCellDescription.helpText(
+                studentName: studentName, lessonName: lessonName,
+                state: state, precedingLessonName: precedingLessonName
+            ))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(studentName), \(lessonName)")
-            .accessibilityValue(accessibilityValueText)
-            .accessibilityHint(isSelectionMode ? "Adds to the selection" : "Shows options")
+            .accessibilityValue(ChecklistCellDescription.accessibilityValue(
+                state: state, precedingLessonName: precedingLessonName
+            ))
+            .accessibilityHint(ChecklistCellDescription.accessibilityHint(isSelectionMode: isSelectionMode))
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    /// The card shows while the view model says so; closing the popover tells it.
+    private var cardBinding: Binding<Bool> {
+        let isOpen = isCardOpen
+        let cell = cell
+        let onAction = onAction
+        return Binding(
+            get: { isOpen },
+            set: { newValue in
+                if !newValue && isOpen { onAction(.closeCard, cell) }
+            }
+        )
     }
 
     // MARK: - Cell Content
 
-    private func cellContent(displayStatus: ChecklistDisplayStatus, blockingReason: BlockingReason) -> some View {
-        let isStale = state?.isStale ?? false
-
+    /// One mark, centered. The blocking reason is in the hover text and VoiceOver value,
+    /// not a badge; a stale cell gets the mark's check-in dot, not a tint.
+    private var cellContent: some View {
+        let status = state?.displayStatus ?? .ready
+        // Ready as the lens counts it: a cell with a state that reads Ready.
+        let isLifted = lens == .ready && state?.displayStatus == .ready
         return ZStack {
-            // Staleness tint background
-            if isStale && displayStatus != .proficient && displayStatus != .empty {
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                    .fill(Color.orange.opacity(UIConstants.OpacityConstants.light))
+            if isLifted {
+                ChecklistGridMetrics.readyTile
             }
 
-            // Selection highlight background
             if isSelected {
                 RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-                    .fill(Color.accentColor.opacity(UIConstants.OpacityConstants.accent))
+                    .fill(Color.primary.opacity(UIConstants.OpacityConstants.faint))
             }
 
             Color.clear.contentShape(Rectangle())
 
-            statusIcon(displayStatus: displayStatus)
-            blockingBadge(reason: blockingReason, show: displayStatus == .empty)
-            selectionBadge
+            ChecklistMark(
+                status: status,
+                needsCheckIn: state?.needsCheckIn ?? false,
+                emphasizesReady: isLifted
+            )
+            .opacity(lens == .ready && !isLifted ? ChecklistLens.fadedOpacity : 1)
         }
     }
 
-    // MARK: - Status Icon
-
+    /// Selection is an ink outline, never accent blue: blue is the ladder's "started". The
+    /// keyboard cursor (and the cell whose card is open) gets the accent's focus ring.
     @ViewBuilder
-    private func statusIcon(displayStatus: ChecklistDisplayStatus) -> some View {
-        let isInboxPlan = state?.isInboxPlan ?? false
-
-        switch displayStatus {
-        case .proficient:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(Color.green)
-                .font(.title2)
-        case .reviewing:
-            Image(systemName: "eye.fill")
-                .foregroundStyle(Color.yellow)
-                .font(.title3)
-        case .practicing:
-            Image(systemName: "pencil")
-                .foregroundStyle(Color.blue)
-                .font(.title3.weight(.bold))
-        case .presented:
-            Image(systemName: "checkmark")
-                .foregroundStyle(Color.blue)
-                .font(.title3.weight(.bold))
-        case .scheduled:
-            Image(systemName: isInboxPlan ? "tray" : "calendar")
-                .foregroundStyle(Color.orange)
-                .font(.title3)
-        case .empty:
-            Circle()
-                .stroke(Color.secondary.opacity(UIConstants.OpacityConstants.moderate), lineWidth: 2)
-                .frame(width: 16, height: 16)
-        }
-    }
-
     private var selectionStroke: some View {
-        RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
-            .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
-            .padding(2)
-    }
-
-    // MARK: - Accessibility
-
-    private var accessibilityValueText: String {
-        var value = state?.displayStatus.label ?? "Not Started"
-        if let reason = state?.blockingReason, reason != .none {
-            value += ", \(reason.label)"
+        if isSelected {
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
+                .stroke(Color.primary, lineWidth: 2)
+                .padding(2)
+        } else if isCursor || isCardOpen {
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.small)
+                .stroke(Color.accentColor, lineWidth: 2)
+                .padding(2)
         }
-        return value
     }
 
     // MARK: - Context Menu
 
     @ViewBuilder
     private func cellContextMenu(blockingReason: BlockingReason, isScheduled: Bool) -> some View {
-        if blockingReason != .none {
-            Label(blockingReason.label, systemImage: blockingReason.iconName)
+        if let reason = ChecklistCellDescription.reasonText(
+            blockingReason, precedingLessonName: precedingLessonName
+        ) {
+            Label("Not yet: \(reason)", systemImage: blockingReason.iconName)
             Divider()
         }
         Button {
@@ -122,55 +137,62 @@ struct ClassChecklistSmartCell: View {
             #endif
             onSelect()
         } label: {
-            Label("Select", systemImage: "checkmark.circle")
+            Label(isSelected ? "Deselect" : "Select", systemImage: "checkmark.circle")
         }
         Divider()
-        Button { onTap() } label: { Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "tray") }
-        Button { onMarkPresented() } label: { Label("Mark Presented", systemImage: "checkmark") }
-        Button { onMarkPreviouslyPresented() } label: {
+        Button { onAction(.toggleScheduled, cell) } label: {
+            Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "tray")
+        }
+        Button { onAction(.togglePresented, cell) } label: { Label("Mark Presented", systemImage: "checkmark") }
+        Button { onAction(.togglePreviouslyPresented, cell) } label: {
             Label("Previously Presented", systemImage: "clock.badge.checkmark")
         }
-        Button { onMarkComplete() } label: { Label("Mark Mastered", systemImage: "checkmark.circle.fill") }
+        Button { onAction(.markComplete, cell) } label: {
+            Label("Mark Mastered", systemImage: "checkmark.circle.fill")
+        }
         Divider()
-        Button(role: .destructive) { onClear() } label: { Label("Clear All Status", systemImage: "xmark.circle") }
+        Button(role: .destructive) { onAction(.clearStatus, cell) } label: {
+            Label("Clear All Status", systemImage: "xmark.circle")
+        }
     }
+}
 
-    // MARK: - Extracted Subviews
+// MARK: - Pointer
 
-    @ViewBuilder
-    private func blockingBadge(reason: BlockingReason, show: Bool) -> some View {
-        if reason != .none && show {
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Image(systemName: reason.iconName)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(reason.color)
-                        .padding(2)
-                        .background(Circle().fill(Color.white).shadow(radius: 0.5))
+/// Mac and iPad: the pointer's row and column follow it into the cell; on the Mac a
+/// drag that starts here selects along the row or down the column. Touch drags on the
+/// iPad scroll the grid, so the iPad selects with ⌘- and Shift-click instead.
+private struct ChecklistCellPointer: ViewModifier {
+    let isEnabled: Bool
+    let cell: CellIdentifier
+    let hover: ChecklistHoverState?
+    let onDrag: ChecklistCellDragHandler?
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .onHover { inside in
+                    if inside {
+                        hover?.enter(cell)
+                    } else {
+                        hover?.leave(lessonID: cell.lessonID, studentID: cell.studentID)
+                    }
                 }
-            }
-            .padding(2)
+                #if os(macOS)
+                .gesture(dragToSelect)
+                #endif
+        } else {
+            content
         }
     }
 
-    @ViewBuilder
-    private var selectionBadge: some View {
-        if isSelected {
-            VStack {
-                HStack {
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.accentColor)
-                        .font(.caption)
-                        .background(Circle().fill(Color.white).padding(-1))
-                }
-                Spacer()
-            }
-            .padding(4)
-        }
+    #if os(macOS)
+    private var dragToSelect: some Gesture {
+        DragGesture(minimumDistance: 6)
+            .onChanged { value in onDrag?.changed(cell, value.startLocation, value.translation) }
+            .onEnded { _ in onDrag?.ended(cell) }
     }
+    #endif
 }
 
 // MARK: - Cell Identifier for Multi-Selection

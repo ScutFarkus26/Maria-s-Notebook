@@ -99,6 +99,7 @@ nonisolated enum BackupPreferencesService {
         UserDefaultsKeys.studentPickerSortOrder,
         UserDefaultsKeys.studentDetailViewActiveTab,
         UserDefaultsKeys.checklistSelectedArea,
+        UserDefaultsKeys.checklistCollapsedSequences,
         UserDefaultsKeys.logsMenuRootViewMode,
         UserDefaultsKeys.todayDayPadExpanded,
         UserDefaultsKeys.todayDoneTodayExpanded,

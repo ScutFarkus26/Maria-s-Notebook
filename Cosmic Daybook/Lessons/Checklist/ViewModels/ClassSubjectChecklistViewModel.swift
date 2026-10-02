@@ -6,6 +6,11 @@
 // Extensions:
 // - ClassAreaChecklistViewModel+CellActions.swift         (toggle/mark/clear individual cells)
 // - ClassAreaChecklistViewModel+PresentationHelpers.swift (findOrCreateWork, upsert/deleteLessonPresentation)
+// - ClassAreaChecklistViewModel+Collapsing.swift          (sequence bands folded away, per area)
+// - ClassAreaChecklistViewModel+Selection.swift           (clicks, cursor, card, selecting without a mode)
+// - ClassAreaChecklistViewModel+LadderSteps.swift         (the card's steps: presented, practicing, reviewing)
+// - ClassAreaChecklistViewModel+Presenting.swift          (drafts for the present-a-lesson sheet)
+// - ClassAreaChecklistViewModel+ReadyLens.swift           (Ready to Present: counts and the row's Plan)
 
 import SwiftUI
 import CoreData
@@ -26,6 +31,8 @@ class ClassAreaChecklistViewModel {
 
     /// The columns actually drawn: `rosterStudents` narrowed by `studentFilterIDs`.
     var students: [CDStudent] = []
+    /// `students` in level blocks, for the Mac and iPad columns (the iPhone keeps roster order).
+    var columns = ChecklistStudentColumns()
     private var allStudents: [CDStudent] = []
     /// Every student the guide can filter to — the enrolled roster minus hidden test students.
     /// Column labels and the matrix key off this rather than `students`, so neither churns
@@ -58,6 +65,21 @@ class ClassAreaChecklistViewModel {
     var otherAreaMatches: [ChecklistAreaMatchCount] = []
 
     var matrixStates: [UUID: [UUID: StudentChecklistRowState]] = [:]
+    /// The status bar's legend counts over the visible rows × visible students. Recomputed by
+    /// `recomputeStatusCounts()` whenever the matrix or a filter changes.
+    var statusCounts = ChecklistStatusCounts()
+    /// The Class column's tallies per visible lesson, over the visible students. Recomputed
+    /// alongside `statusCounts`.
+    var rowSummaries: [UUID: ChecklistRowSummary] = [:]
+    /// The selected area's folded-away sequence bands, in `ChecklistCollapsedSequences.key`
+    /// form. Loaded with the area, saved by +Collapsing.
+    var collapsedSequences: Set<String> = []
+    /// All Marks, or Ready to Present (+ReadyLens). Not remembered: the grid opens on All Marks.
+    var lens: ChecklistLens = .allMarks
+    /// Where the collapsed bands are remembered; tests hand in their own suite.
+    @ObservationIgnored var collapsedSequencesDefaults: UserDefaults = .standard
+    /// Each lesson's predecessor's name, for the cell's "Not yet: … not presented" text.
+    private(set) var precedingLessonNames: [UUID: String] = [:]
 
     // MARK: - Row Focus
     /// The lesson whose row a deep link asked to reveal. The grid scrolls to it
@@ -66,8 +88,21 @@ class ClassAreaChecklistViewModel {
 
     // MARK: - Multi-Selection State
     var selectedCells: Set<CellIdentifier> = []
+    /// The iPhone's Select mode (long-press → Select). The Mac and iPad have no mode:
+    /// ⌘-click, Shift-click and a drag select there (+Selection).
     var isEditModeActive: Bool = false
     var isSelectionMode: Bool { isEditModeActive || !selectedCells.isEmpty }
+    /// Where Shift-click and a drag reach from: the last cell clicked or ⌘-clicked.
+    var selectionAnchor: CellIdentifier?
+
+    // MARK: - Cursor and Card
+    /// The keyboard cursor: the cell the arrows move from and the keys act on. A click
+    /// puts it on the clicked cell.
+    var cursorCell: CellIdentifier?
+    /// The cell whose card is open, nil when none is.
+    var cardCell: CellIdentifier?
+    /// The open card's dates, read when it opens and after each change made from it.
+    var cardRecord = ChecklistCardRecord()
     private let lessonsLogic = LessonsViewModel()
 
     // OPTIMIZATION: Cache lessons-per-sequence to avoid filtering + sorting on every body evaluation.
@@ -83,6 +118,9 @@ class ClassAreaChecklistViewModel {
         let order: [String]
         let bySection: [String: [CDLesson]]
         let hasSections: Bool
+
+        /// Lessons across every section.
+        var lessonCount: Int { bySection.values.reduce(0) { $0 + $1.count } }
     }
 
     func loadData(context: NSManagedObjectContext) {
@@ -154,6 +192,9 @@ class ClassAreaChecklistViewModel {
         if self.lessons.contains(where: { $0.sequence.trimmed().isEmpty }) {
             self.orderedSequences.append("")
         }
+        self.precedingLessonNames = BlockingAlgorithmEngine.buildPrecedingLessonCache(self.lessons)
+            .mapValues(\.name)
+        self.collapsedSequences = ChecklistCollapsedSequences.load(area: sub, defaults: collapsedSequencesDefaults)
         applyFilters()
     }
 
@@ -234,7 +275,7 @@ class ClassAreaChecklistViewModel {
     }
 
     func clearSelection() {
-        selectedCells.removeAll()
+        if !selectedCells.isEmpty { selectedCells.removeAll() }
         isEditModeActive = false
     }
 
@@ -309,11 +350,51 @@ class ClassAreaChecklistViewModel {
     /// Builds over the full roster and the full area rather than the filtered subsets, so
     /// narrowing or widening a filter is a pure re-render with no Core Data work behind it.
     func recomputeMatrix(context: NSManagedObjectContext) {
+        defer { recomputeStatusCounts() }
         guard !lessons.isEmpty else { matrixStates = [:]; return }
         self.matrixStates = ChecklistMatrixBuilder.buildMatrix(
             students: rosterStudents,
             lessons: lessons,
             context: context
         )
+    }
+
+    /// Recounts the legend over what the grid shows. A pass over the visible cells'
+    /// states already in memory, no fetch.
+    func recomputeStatusCounts() {
+        let counts = ChecklistStatusCounts(
+            matrix: matrixStates,
+            studentIDs: students.compactMap(\.id),
+            lessonIDs: visibleLessons.compactMap(\.id)
+        )
+        if counts != statusCounts { statusCounts = counts }
+        let summaries = ChecklistRowSummary.summaries(
+            matrix: matrixStates,
+            studentIDs: students.compactMap(\.id),
+            lessonIDs: visibleLessons.compactMap(\.id)
+        )
+        if summaries != rowSummaries { rowSummaries = summaries }
+    }
+
+    /// After a change to one lesson's records: recomputes that lesson's row and the rows of
+    /// the lessons that follow it, whose blocking reason reads it, and leaves every other
+    /// row alone. Gives the same matrix `recomputeMatrix` would (pinned by
+    /// `ChecklistIncrementalUpdateTests`), for a fetch of two or three lessons, not the area.
+    func refreshRows(touching lessonID: UUID, context: NSManagedObjectContext) {
+        guard !lessons.isEmpty, !matrixStates.isEmpty else {
+            recomputeMatrix(context: context)
+            return
+        }
+        var updated = matrixStates
+        ChecklistMatrixBuilder.rebuildRows(
+            in: &updated,
+            touching: [lessonID],
+            students: rosterStudents,
+            lessons: lessons,
+            context: context
+        )
+        // One assignment, so observers see one change rather than one per cell.
+        matrixStates = updated
+        recomputeStatusCounts()
     }
 }

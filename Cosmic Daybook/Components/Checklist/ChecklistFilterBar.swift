@@ -2,7 +2,8 @@
 // The checklist grid's row and column filters.
 //
 // The text field hides lesson rows that don't match; the student button hides the
-// columns of students that weren't picked. Both are display-only.
+// columns of students that weren't picked. Both are display-only. iPhone only: the
+// Mac and iPad carry both in the toolbar (ClassAreaChecklistView+Toolbar.swift).
 
 import SwiftUI
 import CoreData
@@ -20,16 +21,8 @@ struct ChecklistFilterBar: View {
     let onQueryDebounced: (String) -> Void
     let onClearAll: () -> Void
 
-    @State private var isShowingStudentPicker = false
-
     private var hasActiveFilters: Bool {
         !lessonQuery.trimmed().isEmpty || !studentFilterIDs.isEmpty
-    }
-
-    private var studentButtonTitle: String {
-        studentFilterIDs.isEmpty
-            ? "All Students"
-            : "\(studentFilterIDs.count) of \(rosterStudents.count)"
     }
 
     var body: some View {
@@ -71,28 +64,9 @@ struct ChecklistFilterBar: View {
     }
 
     private var studentFilterButton: some View {
-        Button {
-            isShowingStudentPicker = true
-        } label: {
-            Label(studentButtonTitle, systemImage: "person.2")
-                .lineLimit(1)
-        }
-        .buttonStyle(.bordered)
-        .tint(studentFilterIDs.isEmpty ? nil : Color.accentColor)
-        .help("Show only the students you pick")
-        .accessibilityLabel(
-            studentFilterIDs.isEmpty
-                ? "Filter students, all students shown"
-                : "Filter students, \(studentFilterIDs.count) of \(rosterStudents.count) shown"
-        )
-        .popover(isPresented: $isShowingStudentPicker, arrowEdge: .bottom) {
-            StudentPickerPopover(
-                students: rosterStudents,
-                selectedIDs: $studentFilterIDs,
-                onDone: { isShowingStudentPicker = false },
-                allowsCreatingStudents: false
-            )
-        }
+        ChecklistStudentFilterButton(studentFilterIDs: $studentFilterIDs, rosterStudents: rosterStudents)
+            .buttonStyle(.bordered)
+            .tint(studentFilterIDs.isEmpty ? nil : Color.accentColor)
     }
 }
 

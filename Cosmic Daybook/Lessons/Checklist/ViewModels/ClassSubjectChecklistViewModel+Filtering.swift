@@ -25,6 +25,7 @@ extension ClassAreaChecklistViewModel {
         recomputeVisibleLessons()
         invalidateLessonsCache()
         pruneSelectionToVisible()
+        recomputeStatusCounts()
     }
 
     /// Applies the debounced text from the filter field.
@@ -125,14 +126,16 @@ extension ClassAreaChecklistViewModel {
     // MARK: - Recomputation
 
     private func recomputeDisplayedStudents() {
-        guard !studentFilterIDs.isEmpty else {
+        if studentFilterIDs.isEmpty {
             students = rosterStudents
-            return
+        } else {
+            students = rosterStudents.filter { student in
+                guard let id = student.id else { return false }
+                return studentFilterIDs.contains(id)
+            }
         }
-        students = rosterStudents.filter { student in
-            guard let id = student.id else { return false }
-            return studentFilterIDs.contains(id)
-        }
+        let arranged = ChecklistStudentColumns(students: students)
+        if arranged != columns { columns = arranged }
     }
 
     private func recomputeVisibleLessons() {

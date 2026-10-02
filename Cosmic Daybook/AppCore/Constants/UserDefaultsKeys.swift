@@ -272,4 +272,5 @@ nonisolated enum UserDefaultsKeys {
     /// `AlbumIdentityRepair` recognise a renamed or moved PDF and carry the
     /// guide's bookmarks, notes, highlights, and ink across to the new name.
     static let albumsFingerprints = "Albums.fingerprints"
+    static let checklistCollapsedSequences = "Checklist.collapsedSequences"
 }

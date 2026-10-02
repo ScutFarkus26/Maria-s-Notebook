@@ -36,7 +36,7 @@ struct StudentCurriculumGrid: View {
             }
             .frame(minWidth: gridWidth, alignment: .leading)
         }
-        .coordinateSpace(name: "gridSpace")
+        .stickyLeftScrollTracking()
     }
 
     // MARK: - Header
