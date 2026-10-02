@@ -28,10 +28,11 @@ extension MCPNotebookTools {
             title: "Add Follow-Up",
             description: "Add a follow-up to the guide's todo list — something owed to a "
                 + "student, a parent, an assistant, or the guide themself. Optionally tied to "
-                + "students, dated, prioritised, or filed under someday. For a goal a student "
-                + "owns, use the goals field of create_meeting_entry instead. An identical "
-                + "open follow-up from today is reported rather than duplicated, unless "
-                + "force is true.",
+                + "students, dated, prioritized, or filed under someday. When it is about one "
+                + "specific piece of work (\"check in with Maya on her map\"), pass that work's "
+                + "work_id so it shows on the work's row. For a goal a student owns, use the "
+                + "goals field of create_meeting_entry instead. An identical open follow-up "
+                + "from today is reported rather than duplicated, unless force is true.",
             inputSchema: addFollowUpSchema,
             annotations: .write,
             handler: { arguments in
@@ -65,6 +66,7 @@ extension MCPNotebookTools {
                 "description": "The day the guide means to do it, YYYY-MM-DD"
             ],
             "priority": todoPrioritySchema,
+            "work_id": todoWorkIDSchema,
             "is_someday": [
                 "type": "boolean",
                 "description": .string("File it under someday/maybe rather than the "
@@ -89,6 +91,7 @@ extension MCPNotebookTools {
         guard studentIDs.count == students.count else {
             throw MCPToolError("A matched student record has no identifier.")
         }
+        let workLink = try todoWorkLinkChange(arguments, allowClear: false, in: modelContext)
         if let notice = duplicateFollowUpNotice(
             title: title, studentIDs: studentIDs,
             force: arguments["force"]?.boolValue ?? false, in: modelContext
@@ -113,6 +116,7 @@ extension MCPNotebookTools {
         todo.tagsArray = TodoTagHelper.syncStudentTags(
             existingTags: [], studentNames: students.map(\.fullName)
         )
+        let linkPhrase = applyTodoWorkLink(workLink, to: todo)
 
         guard modelContext.safeSave() else {
             modelContext.rollback()
@@ -122,7 +126,7 @@ extension MCPNotebookTools {
         let details = followUpDetails(
             dueDate: dueDate, scheduledDate: scheduledDate, isSomeday: isSomeday,
             priority: priority, students: students
-        )
+        ) + [linkPhrase].compactMap { $0 }
         let suffix = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
         return "Added follow-up [todo id=\(citationID(todo.id))] \"\(title)\"\(suffix)."
     }

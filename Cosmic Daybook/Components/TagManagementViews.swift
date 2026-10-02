@@ -9,12 +9,10 @@ import CoreData
 struct TagBadge: View {
     let tag: String
     var compact: Bool = false
+    @Environment(\.dependencies) private var dependencies
 
     private var tagName: String {
-        if TodoTagHelper.isStudentTag(tag) {
-            return TodoTagHelper.leafTagName(tag)
-        }
-        return TodoTagHelper.tagName(tag)
+        TodoTagHelper.displayName(tag, studentShortNames: dependencies.roster.shortNamesByFullName)
     }
 
     private var tagColor: TagColor {
@@ -242,12 +240,10 @@ struct TagButton: View {
     let isSelected: Bool
     let onToggle: () -> Void
     var onEdit: (() -> Void)?
+    @Environment(\.dependencies) private var dependencies
 
     private var tagName: String {
-        if TodoTagHelper.isStudentTag(tag) {
-            return TodoTagHelper.leafTagName(tag)
-        }
-        return TodoTagHelper.tagName(tag)
+        TodoTagHelper.displayName(tag, studentShortNames: dependencies.roster.shortNamesByFullName)
     }
 
     private var tagColor: TagColor {

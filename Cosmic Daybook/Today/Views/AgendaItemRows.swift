@@ -115,7 +115,7 @@ struct TodoTodayRow: View {
                             }
 
                             if !todo.tagsArray.isEmpty {
-                                let firstName = TodoTagHelper.tagName(todo.tagsArray[0])
+                                let firstName = TagHelper.displayName(todo.tagsArray[0], contextOf: todo)
                                 let firstColor = TodoTagHelper.tagColor(todo.tagsArray[0])
                                 Text(firstName)
                                     .font(AppTheme.ScaledFont.captionSmallSemibold)

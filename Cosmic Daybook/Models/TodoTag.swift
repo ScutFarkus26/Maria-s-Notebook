@@ -99,6 +99,45 @@ nonisolated struct TagHelper {
         rootTagName(tag).localizedCaseInsensitiveCompare(studentTagParent) == .orderedSame
     }
 
+    /// The name a tag chip shows. A student tag ("Students/Naomi Fisher") shows
+    /// the child's short name ("Naomi F"); every other tag shows `tagName`.
+    /// Display only: filtering, editing, sorting and storage keep the raw tag.
+    ///
+    /// `studentShortNames` maps a student's full name, as a tag stores it, to
+    /// the canonical short name (`RosterStore.shortNamesByFullName`), so a
+    /// two-word last name comes out right. A name not on the roster falls back
+    /// to splitting at the last space.
+    static func displayName(_ tag: String, studentShortNames: [String: String] = [:]) -> String {
+        guard let fullName = studentFullName(in: tag) else { return tagName(tag) }
+        return studentShortNames[fullName] ?? studentShortName(fromTagName: fullName)
+    }
+
+    /// The child's full name a student tag carries, or nil for any other tag
+    /// (and for the bare "Students" folder).
+    static func studentFullName(in tag: String) -> String? {
+        let components = tagPathComponents(tag)
+        guard isStudentTag(tag), components.count > 1 else { return nil }
+        let fullName = components.dropFirst().joined(separator: "/").trimmed()
+        return fullName.isEmpty ? nil : fullName
+    }
+
+    /// The key a student's full name is filed under in `studentShortNames`:
+    /// `fullName` trimmed, as `syncStudentTags` writes it into the tag.
+    static func studentNameKey(_ fullName: String) -> String {
+        fullName.trimmed()
+    }
+
+    /// A student tag stores `fullName` ("Mary Kate Ross": first name, a space,
+    /// last name). Splitting at the last space keeps a two-word first name
+    /// whole; the canonical formatter does the rest.
+    private static func studentShortName(fromTagName fullName: String) -> String {
+        guard let lastSpace = fullName.lastIndex(of: " ") else { return fullName }
+        return StudentFormatter.displayName(
+            firstName: String(fullName[..<lastSpace]),
+            lastName: String(fullName[fullName.index(after: lastSpace)...])
+        )
+    }
+
     static func createStudentTag(name: String, color: TagColor = .green) -> String {
         createTag(name: "\(studentTagParent)/\(name)", color: color)
     }

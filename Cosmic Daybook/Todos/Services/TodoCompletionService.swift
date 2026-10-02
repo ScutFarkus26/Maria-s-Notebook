@@ -23,6 +23,25 @@ enum TodoCompletionService {
         }
     }
 
+    /// Completes every open todo linked to `workID` (`linkedWorkItemID`), the
+    /// way `complete` does, so a repeating one still gets its next occurrence.
+    /// Called when the work is checked in or otherwise touched: the follow-up
+    /// was about that work, and the work has now been seen. Does not save.
+    @discardableResult
+    static func completeTodosLinked(
+        toWork workID: UUID, in context: NSManagedObjectContext, calendar: Calendar = AppCalendar.shared
+    ) -> [CDTodoItem] {
+        let request = CDFetchRequest(CDTodoItem.self)
+        request.predicate = NSPredicate(
+            format: "isCompleted == NO AND linkedWorkItemID ==[c] %@", workID.uuidString
+        )
+        let linked = context.safeFetch(request)
+        for todo in linked {
+            complete(todo, calendar: calendar)
+        }
+        return linked
+    }
+
     /// Reopens a completed todo. Does not save.
     static func reopen(_ todo: CDTodoItem) {
         todo.isCompleted = false
@@ -75,6 +94,7 @@ enum TodoCompletionService {
         newTodo.repeatAfterCompletion = todo.repeatAfterCompletion
         newTodo.customIntervalDays = todo.customIntervalDays
         newTodo.tags = todo.tags
+        newTodo.linkedWorkItemID = todo.linkedWorkItemID
         return newTodo
     }
 }

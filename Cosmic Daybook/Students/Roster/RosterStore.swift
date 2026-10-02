@@ -28,6 +28,9 @@ final class RosterStore {
     private(set) var all: [CDStudent] = []
     private(set) var enrolled: [CDStudent] = []
     private(set) var byID: [UUID: CDStudent] = [:]
+    /// Each student's canonical short name ("Naomi F") keyed by full name as a
+    /// student tag stores it, for tag chips (`TagHelper.displayName`).
+    private(set) var shortNamesByFullName: [String: String] = [:]
 
     private let table: FetchedTable<CDStudent>
 
@@ -55,6 +58,10 @@ final class RosterStore {
         enrolled = rows.filterEnrolled()
         byID = Dictionary(
             rows.compactMap { student in student.id.map { ($0, student) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        shortNamesByFullName = Dictionary(
+            rows.map { (TagHelper.studentNameKey($0.fullName), $0.shortName) },
             uniquingKeysWith: { first, _ in first }
         )
     }

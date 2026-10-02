@@ -22,7 +22,8 @@ extension MCPNotebookTools {
             name: "list_todos",
             title: "List Todos",
             description: "The guide's todo list, filtered: open or completed, due within a "
-                + "window, someday items, tagged, or concerning one student. For the broader "
+                + "window, someday items, tagged, or concerning one student. A todo tied to a "
+                + "piece of work shows linked_work_id and the work's title. For the broader "
                 + "\"what is owed right now\" across goals and flagged notes, use "
                 + "list_open_follow_ups instead.",
             inputSchema: listTodosSchema,
@@ -156,14 +157,17 @@ extension MCPNotebookTools {
         }
 
         let names = studentNameIndex(in: modelContext)
-        let lines = shown.map { todoLine($0, names: names) }
+        let workTitles = linkedWorkTitles(for: shown, in: modelContext)
+        let lines = shown.map { todoLine($0, names: names, workTitles: workTitles) }
         let more = sorted.count > shown.count
             ? "\n(\(sorted.count - shown.count) more not shown — raise limit or narrow the filter.)"
             : ""
         return "\(sorted.count) todo(s):\n" + lines.joined(separator: "\n") + more
     }
 
-    private static func todoLine(_ todo: CDTodoItem, names: [String: String]) -> String {
+    private static func todoLine(
+        _ todo: CDTodoItem, names: [String: String], workTitles: [String: String]
+    ) -> String {
         var details: [String] = []
         if todo.isCompleted {
             details.append("done \(dayString(todo.completedAt))")
@@ -190,6 +194,9 @@ extension MCPNotebookTools {
         let subtasks = subtaskProgress(of: todo)
         if subtasks.total > 0 {
             details.append("\(subtasks.done)/\(subtasks.total) subtasks")
+        }
+        if let work = linkedWorkDetail(of: todo, titles: workTitles) {
+            details.append(work)
         }
         let suffix = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
         let id = todo.id?.uuidString ?? "unknown"
@@ -218,7 +225,9 @@ extension MCPNotebookTools {
             name: "update_todo",
             title: "Update Todo",
             description: "Edit a todo by its id: title, notes, due or scheduled date, priority, "
-                + "someday flag, or which students it concerns. Only the fields provided are "
+                + "someday flag, which students it concerns, or the piece of work it is about "
+                + "(work_id; clear_work_id removes the link). Link a todo to its work whenever "
+                + "it concerns one specific piece of work. Only the fields provided are "
                 + "changed. To mark one done, use resolve_follow_up.",
             inputSchema: updateTodoSchema,
             annotations: .idempotentWrite,
@@ -252,7 +261,9 @@ extension MCPNotebookTools {
                 "type": "array",
                 "items": ["type": "string"],
                 "description": "Replace the students this todo concerns"
-            ]
+            ],
+            "work_id": todoWorkIDSchema,
+            "clear_work_id": ["type": "boolean", "description": "Remove the link to a work item"]
         ],
         "required": ["todo_id"]
     ]
@@ -261,6 +272,7 @@ extension MCPNotebookTools {
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         let todo = try resolveTodo(requireString(arguments, "todo_id"), in: modelContext)
+        let workLink = try todoWorkLinkChange(arguments, allowClear: true, in: modelContext)
         var changes: [String] = []
 
         if let title = nonEmpty(arguments["title"]?.stringValue) {
@@ -281,6 +293,9 @@ extension MCPNotebookTools {
             changes.append(someday ? "moved to someday" : "moved out of someday")
         }
         changes += try applyTodoStudents(arguments, to: todo, in: modelContext)
+        if let linkChange = applyTodoWorkLink(workLink, to: todo) {
+            changes.append(linkChange)
+        }
 
         guard !changes.isEmpty else {
             throw MCPToolError("Nothing to change — pass at least one field to update.")

@@ -161,6 +161,29 @@ extension MCPNotebookTools {
         )
     }
 
+    /// One open todo in `list_open_follow_ups`.
+    private static func followUpTodoLine(
+        _ todo: CDTodoItem, nameByID: [String: String], workTitles: [String: String]
+    ) -> String {
+        var details: [String] = []
+        if let dueDate = todo.dueDate {
+            details.append("due \(dayString(dueDate))")
+        }
+        if todo.isSomeday {
+            details.append("someday")
+        }
+        let who = todo.studentIDsArray.compactMap { nameByID[$0] }
+        if !who.isEmpty {
+            details.append(who.joined(separator: ", "))
+        }
+        if let work = linkedWorkDetail(of: todo, titles: workTitles) {
+            details.append(work)
+        }
+        let suffix = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
+        let id = todo.id?.uuidString ?? "unknown"
+        return "- [todo id=\(id)] \(todo.title)\(suffix)"
+    }
+
     static func listOpenFollowUps(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
@@ -200,22 +223,8 @@ extension MCPNotebookTools {
             }
             .prefix(30)
         if !todos.isEmpty {
-            let lines = todos.map { todo -> String in
-                var details: [String] = []
-                if let dueDate = todo.dueDate {
-                    details.append("due \(dayString(dueDate))")
-                }
-                if todo.isSomeday {
-                    details.append("someday")
-                }
-                let who = todo.studentIDsArray.compactMap { nameByID[$0] }
-                if !who.isEmpty {
-                    details.append(who.joined(separator: ", "))
-                }
-                let suffix = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
-                let id = todo.id?.uuidString ?? "unknown"
-                return "- [todo id=\(id)] \(todo.title)\(suffix)"
-            }
+            let workTitles = linkedWorkTitles(for: Array(todos), in: modelContext)
+            let lines = todos.map { followUpTodoLine($0, nameByID: nameByID, workTitles: workTitles) }
             sections.append("Follow-up todos:\n" + lines.joined(separator: "\n"))
         }
 
