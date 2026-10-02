@@ -11,8 +11,9 @@
 // The rule here is the opposite: a section earns its place on the screen by
 // carrying something she could act on today. Two sections are deliberately
 // exempt and always render — Right Now and the Agenda — because for those
-// "nothing" is itself the answer she came for, and on macOS the Agenda is a
-// whole column that would otherwise be a void.
+// "nothing" is itself the answer she came for, and on macOS the Agenda is the
+// wide left column that would otherwise be a void. (The Mac does not place
+// Right Now at all; see `macOmitted`.)
 //
 // Nothing here touches Core Data or reads the clock. Every function takes
 // value inputs and, where a date matters, an explicit reference date, exactly
@@ -131,10 +132,18 @@ enum TodaySectionVisibility {
         .doneToday
     ]
 
-    /// macOS left column: the phone ordering minus the agenda, which gets the
-    /// right column to itself.
-    static let macLeftColumnOrder: [TodaySection] = phoneOrder.filter { $0 != .agenda }
+    /// macOS left column, the wide one: the day's plan, full height. The
+    /// Meetings and Gone quiet sections join it after the agenda when they
+    /// get sections of their own.
+    static let macLeftColumnOrder: [TodaySection] = [.agenda]
 
-    /// macOS right column: the live agenda, full height.
-    static let macRightColumnOrder: [TodaySection] = [.agenda]
+    /// macOS right column, 340 pt: the phone ordering minus the plan, and
+    /// minus Right Now. On the Mac the plan's own first row is the next thing
+    /// to do, so a hero card repeating it above the todos says it twice.
+    static let macRightColumnOrder: [TodaySection] = phoneOrder.filter {
+        $0 != .agenda && $0 != .rightNow
+    }
+
+    /// Sections the Mac deliberately leaves out of both columns.
+    static let macOmitted: Set<TodaySection> = [.rightNow]
 }

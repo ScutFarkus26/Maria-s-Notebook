@@ -8,7 +8,7 @@ extension TodayView {
     /// The sheets Today opens the same way on both platforms. The work,
     /// presentation, note, meeting, and todo selections keep their own state:
     /// on iOS each is a sheet, on macOS the same value opens a window (or,
-    /// for a todo, fills the right column).
+    /// for a todo, the inspector).
     enum ActiveSheet: Identifiable {
         case quickNote(studentIDs: Set<UUID>?)
         case newTodo

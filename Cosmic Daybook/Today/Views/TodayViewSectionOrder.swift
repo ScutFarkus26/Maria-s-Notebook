@@ -1,12 +1,20 @@
 // TodayViewSectionOrder.swift
 // The order Today's sections appear in, on each platform.
 //
-// The sequence is the guide's morning, read top to bottom: what is in front of
-// her now (Right Now, the day's banners, the day's plan, her todo list), then
-// what she is watching (ready-for-next, following presentations, recent
-// observations), then the external feeds she does not own (calendar,
+// The phone sequence is the guide's morning, read top to bottom: what is in
+// front of her now (Right Now, the day's banners, the day's plan, her todo
+// list), then what she is watching (ready-for-next, following presentations,
+// recent observations), then the external feeds she does not own (calendar,
 // reminders), then the monthly nudge, the pad, and last the retrospective of
 // what is already done.
+//
+// The Mac splits that in two. The plan is the wide left column — the agenda
+// now; Meetings and Gone quiet join it below the agenda as their own sections.
+// A fixed 340-pt right column holds the rest in the phone's order: the
+// Needs-a-lesson card, Todos, then the count-gated sections. Right Now is not
+// placed on the Mac (the plan's first row is the next thing to do), and a
+// todo opens in an inspector at the trailing edge, below the attendance band,
+// instead of replacing either column.
 //
 // Every section below gates itself — see `TodaySectionVisibility` — so this
 // file only decides sequence, never whether something shows. The declared
@@ -63,26 +71,43 @@ extension TodayView {
     #endif
 
     #if os(macOS)
+    /// Width of the Mac's right column. Fixed, so the plan takes whatever the
+    /// window gives and the side column reads the same at every size.
+    private static let macRightColumnWidth: CGFloat = 340
+
     private var twoColumnLayout: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Left column: glanceable surfaces; Right column: the live agenda.
             List {
                 macLeftColumnSections
             }
             .listStyle(.inset)
-            .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
+            .frame(minWidth: 360, maxWidth: .infinity)
 
             Divider()
 
-            rightColumnContent
+            List {
+                macRightColumnSections
+            }
+            .listStyle(.inset)
+            .frame(width: Self.macRightColumnWidth)
+        }
+        .inspector(isPresented: isTodoInspectorPresented) {
+            todoInspectorContent
+                .inspectorColumnWidth(min: 280, ideal: 320, max: 400)
         }
     }
 
-    /// Mirrors `TodaySectionVisibility.macLeftColumnOrder` — the phone order
-    /// with the agenda lifted out into the right column.
+    /// Mirrors `TodaySectionVisibility.macLeftColumnOrder` — the day's plan.
+    /// Meetings (phase 3) and Gone quiet (phase 4) slot in after the agenda.
     @ViewBuilder
     private var macLeftColumnSections: some View {
-        rightNowListSection
+        agendaListSection
+    }
+
+    /// Mirrors `TodaySectionVisibility.macRightColumnOrder` — the phone order
+    /// without the plan and without Right Now.
+    @ViewBuilder
+    private var macRightColumnSections: some View {
         dayCardsListSection
         todosListSection
         watchingListSection
@@ -96,8 +121,21 @@ extension TodayView {
         doneTodayListSection
     }
 
+    /// Whether the todo inspector is open: exactly when a todo is selected.
+    /// Closing it (Done, or the system's own close) clears the selection.
+    private var isTodoInspectorPresented: Binding<Bool> {
+        Binding(
+            get: { selectedTodoItem != nil },
+            set: { isPresented in
+                if !isPresented { selectedTodoItem = nil }
+            }
+        )
+    }
+
+    /// The todo editor, in the inspector. It used to take over
+    /// the agenda column, so opening a todo hid the day's plan.
     @ViewBuilder
-    private var rightColumnContent: some View {
+    private var todoInspectorContent: some View {
         if let selectedTodoItem {
             VStack(spacing: 0) {
                 HStack {
@@ -107,21 +145,17 @@ extension TodayView {
                     Button("Done") {
                         self.selectedTodoItem = nil
                     }
-                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
 
                 Divider()
 
+                // A fresh form per todo: switching rows saves the old one on
+                // its way out (`EditTodoForm` saves on disappear).
                 EditTodoForm(todo: selectedTodoItem)
+                    .id(selectedTodoItem.objectID)
             }
-        } else {
-            // Mirrors `TodaySectionVisibility.macRightColumnOrder`.
-            List {
-                agendaListSection
-            }
-            .listStyle(.inset)
         }
     }
     #endif

@@ -1,6 +1,8 @@
 // TodayViewDayCardsSection.swift
-// Day-aware top cards — small dismissable banners that surface only when relevant:
-// Needs Lesson when students are overdue. Dismissals are per-date.
+// Day-aware top cards — small banners that surface only when relevant:
+// "N children need a lesson" when students are overdue. Each card names its two
+// actions (Plan lessons, Hide until tomorrow); hiding is per date. On the Mac
+// the card heads the right column; on iPhone and iPad it sits under Right Now.
 
 import SwiftUI
 import CoreData
@@ -10,9 +12,18 @@ extension TodayView {
     enum DayCard: String, CaseIterable {
         case needsLesson
 
-        var title: String {
+        /// What the card is called in accessibility labels; the visible title
+        /// carries the count (`DayCardText`).
+        var name: String {
             switch self {
-            case .needsLesson: return "Needs Lesson"
+            case .needsLesson: return "Needs a lesson"
+            }
+        }
+
+        /// The card's primary action, which opens `lessonsAndWorkScope`.
+        var actionTitle: String {
+            switch self {
+            case .needsLesson: return "Plan lessons"
             }
         }
 
@@ -37,6 +48,12 @@ extension TodayView {
         }
     }
 
+    /// A live card's words, computed from today's counts.
+    struct DayCardText {
+        let title: String
+        let subtitle: String
+    }
+
     /// No active card means no section at all — an empty `Section` still draws
     /// its header in a `List`, so the gate wraps the whole thing.
     @ViewBuilder
@@ -47,8 +64,8 @@ extension TodayView {
         let cards = activeDayCards
         if !cards.isEmpty {
             Section {
-                ForEach(cards, id: \.0) { card, subtitle in
-                    dayCardRow(card: card, subtitle: subtitle)
+                ForEach(cards, id: \.0) { card, text in
+                    dayCardRow(card: card, text: text)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                 }
             } header: {
@@ -58,64 +75,66 @@ extension TodayView {
     }
 
     /// Cards visible right now: condition met AND not dismissed for the selected date.
-    var activeDayCards: [(DayCard, String)] {
+    var activeDayCards: [(DayCard, DayCardText)] {
         // Reading the trigger here is what makes the section re-evaluate after
         // a dismiss — the dismissal itself is stored in UserDefaults, which
         // SwiftUI does not observe.
         _ = dayCardsRefreshTrigger
         return DayCard.allCases.compactMap { card in
             guard !isCardDismissed(card) else { return nil }
-            guard let subtitle = subtitleIfActive(card) else { return nil }
-            return (card, subtitle)
+            guard let text = textIfActive(card) else { return nil }
+            return (card, text)
         }
     }
 
-    @ViewBuilder
-    private func dayCardRow(card: DayCard, subtitle: String) -> some View {
-        Button {
-            appRouter.navigateToLessonsAndWork(card.lessonsAndWorkScope)
-        } label: {
-            HStack(spacing: 12) {
+    private func dayCardRow(card: DayCard, text: DayCardText) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Image(systemName: card.icon)
                     .font(.system(size: 16))
                     .foregroundStyle(card.tint)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(card.title)
+                    Text(text.title)
                         .font(AppTheme.ScaledFont.calloutSemibold)
                         .foregroundStyle(.primary)
-                    Text(subtitle)
+                    Text(text.subtitle)
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Button {
-                    dismissCard(card)
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .padding(6)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss \(card.title) for today")
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
+            // Explicit button styles keep each button its own tap target
+            // inside a List row on iOS, rather than the whole row.
+            HStack(spacing: 8) {
+                Button(card.actionTitle) {
+                    appRouter.navigateToLessonsAndWork(card.lessonsAndWorkScope)
+                }
+                .buttonStyle(.bordered)
+                .tint(card.tint)
+                Button("Hide until tomorrow") {
+                    dismissCard(card)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Hide \(card.name) until tomorrow")
+            }
+            .controlSize(.small)
+            .padding(.leading, 36)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Conditions
 
-    private func subtitleIfActive(_ card: DayCard) -> String? {
+    private func textIfActive(_ card: DayCard) -> DayCardText? {
         switch card {
         case .needsLesson:
             let count = viewModel.needsLessonCount
             guard count > 0 else { return nil }
-            return "\(count) student\(count == 1 ? "" : "s") overdue for a lesson"
+            // Same threshold as `TodayViewModel.computeNeedsLessonCount`.
+            return DayCardText(
+                title: count == 1 ? "1 child needs a lesson" : "\(count) children need a lesson",
+                subtitle: "No presentation in 7+ school days."
+            )
         }
     }
 

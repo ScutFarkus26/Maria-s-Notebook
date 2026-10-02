@@ -134,28 +134,50 @@ struct TodaySectionVisibilityTests {
 
     // MARK: - Orderings
 
-    @Test("The agenda is in the phone ordering and owns the macOS right column")
+    @Test("The agenda is in the phone ordering and owns the macOS left column")
     func agendaPlacement() {
         #expect(TodaySectionVisibility.phoneOrder.contains(.agenda))
-        #expect(TodaySectionVisibility.macLeftColumnOrder.contains(.agenda) == false)
-        #expect(TodaySectionVisibility.macRightColumnOrder == [.agenda])
+        #expect(TodaySectionVisibility.macLeftColumnOrder == [.agenda])
+        #expect(TodaySectionVisibility.macRightColumnOrder.contains(.agenda) == false)
     }
 
-    @Test("The macOS left column is the phone ordering minus the agenda")
-    func macLeftColumnMirrorsThePhone() {
-        #expect(TodaySectionVisibility.macLeftColumnOrder == TodaySectionVisibility.phoneOrder.filter { $0 != .agenda })
+    @Test("The macOS right column is the phone ordering minus the plan and Right Now")
+    func macRightColumnMirrorsThePhone() {
+        #expect(
+            TodaySectionVisibility.macRightColumnOrder
+                == TodaySectionVisibility.phoneOrder.filter { $0 != .agenda && $0 != .rightNow }
+        )
     }
 
-    @Test("Neither ordering repeats a section")
+    @Test("The macOS right column leads with the Needs-a-lesson card, then todos")
+    func macRightColumnLeads() {
+        #expect(Array(TodaySectionVisibility.macRightColumnOrder.prefix(2)) == [.dayCards, .todos])
+        #expect(TodaySectionVisibility.macRightColumnOrder.last == .doneToday)
+    }
+
+    @Test("The Mac places every section but Right Now, each in one column")
+    func macPlacesEverySectionOnce() {
+        let left = Set(TodaySectionVisibility.macLeftColumnOrder)
+        let right = Set(TodaySectionVisibility.macRightColumnOrder)
+        #expect(left.isDisjoint(with: right))
+        #expect(left.union(right) == Set(TodaySection.allCases).subtracting(TodaySectionVisibility.macOmitted))
+        #expect(TodaySectionVisibility.macOmitted == [.rightNow])
+    }
+
+    @Test("No ordering repeats a section")
     func orderingsAreDuplicateFree() {
         #expect(Set(TodaySectionVisibility.phoneOrder).count == TodaySectionVisibility.phoneOrder.count)
         #expect(
             Set(TodaySectionVisibility.macLeftColumnOrder).count
                 == TodaySectionVisibility.macLeftColumnOrder.count
         )
+        #expect(
+            Set(TodaySectionVisibility.macRightColumnOrder).count
+                == TodaySectionVisibility.macRightColumnOrder.count
+        )
     }
 
-    @Test("Every section the enum knows about is placed somewhere")
+    @Test("Every section the enum knows about is placed on the phone")
     func everySectionIsPlaced() {
         let placed = Set(TodaySectionVisibility.phoneOrder)
         #expect(placed == Set(TodaySection.allCases))
