@@ -146,7 +146,7 @@ All paths below are under `Cosmic Daybook/`.
 | 1 Engine | Done. Fetches per reload 18–20 → 13; refresh after edits in other windows | 26b7b1b1 (merged) |
 | 2 Mac layout | Done: plan on the left, 340-pt right column, todo inspector, Needs-a-lesson card with named buttons; Mac UI unseen | 65bdf678 |
 | 3 Lesson & meeting rows | Done: chips + "N of M here", Next card (Present ⌘↩, off while the attendance grid is open), `TodayAbsentMover` with Undo, Meetings section; Mac UI unseen | b3446ddf |
-| 4 Gone quiet + linking | Done: Gone quiet section (title + chips, "19d quiet", Schedule check-in on the next school day, "See all N"), linked todos on work rows and out of Todos, completion on check-in and work log (with Undo), roster tag names; non-UI 26f17f31; Mac UI unseen | 26f17f31 + (phase 4 UI commit) |
+| 4 Gone quiet + linking | Done: Gone quiet section (title + chips, "19d quiet", Schedule check-in on the next school day, "See all N"), linked todos on work rows and out of Todos, completion on check-in and work log (with Undo), roster tag names; non-UI 26f17f31; Mac UI unseen | 26f17f31 + 9233c5bc |
 | 5 Header/toolbar/band | Done; Mac UI unseen | 669ded92 |
 | 6 Floating button | Done (File ▸ New already had all five; New Work now targets the front window); Mac UI unseen | 669ded92 |
 | 7 iPhone/iPad | | |
