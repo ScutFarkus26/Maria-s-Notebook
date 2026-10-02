@@ -150,12 +150,18 @@ struct TodaySectionVisibilityTests {
         #expect(order[agenda + 1] == .meetings)
     }
 
-    @Test("Gone quiet follows the meetings on the phone, ahead of the todos")
+    @Test("Gone quiet follows the meetings on the phone, then the Needs-a-lesson card and the todos")
     func goneQuietFollowsTheMeetingsOnThePhone() throws {
         let order = TodaySectionVisibility.phoneOrder
         let meetings = try #require(order.firstIndex(of: .meetings))
         #expect(order[meetings + 1] == .goneQuiet)
-        #expect(order[meetings + 2] == .todos)
+        #expect(order[meetings + 2] == .dayCards)
+        #expect(order[meetings + 3] == .todos)
+    }
+
+    @Test("The phone leads with the plan: lessons (with the Next card), meetings, Gone quiet")
+    func phoneLeadsWithThePlan() {
+        #expect(Array(TodaySectionVisibility.phoneOrder.prefix(3)) == [.agenda, .meetings, .goneQuiet])
     }
 
     @Test("Gone quiet shows only when some open work has gone quiet")
@@ -170,12 +176,12 @@ struct TodaySectionVisibilityTests {
         #expect(TodaySectionVisibility.showsMeetings(count: 1))
     }
 
-    @Test("The macOS right column is the phone ordering minus the plan and Right Now")
+    @Test("The macOS right column is the phone ordering minus the plan")
     func macRightColumnMirrorsThePhone() {
         #expect(
             TodaySectionVisibility.macRightColumnOrder
                 == TodaySectionVisibility.phoneOrder.filter {
-                    $0 != .agenda && $0 != .meetings && $0 != .goneQuiet && $0 != .rightNow
+                    $0 != .agenda && $0 != .meetings && $0 != .goneQuiet
                 }
         )
     }
@@ -186,13 +192,12 @@ struct TodaySectionVisibilityTests {
         #expect(TodaySectionVisibility.macRightColumnOrder.last == .doneToday)
     }
 
-    @Test("The Mac places every section but Right Now, each in one column")
+    @Test("The Mac places every section, each in one column")
     func macPlacesEverySectionOnce() {
         let left = Set(TodaySectionVisibility.macLeftColumnOrder)
         let right = Set(TodaySectionVisibility.macRightColumnOrder)
         #expect(left.isDisjoint(with: right))
-        #expect(left.union(right) == Set(TodaySection.allCases).subtracting(TodaySectionVisibility.macOmitted))
-        #expect(TodaySectionVisibility.macOmitted == [.rightNow])
+        #expect(left.union(right) == Set(TodaySection.allCases))
     }
 
     @Test("No ordering repeats a section")

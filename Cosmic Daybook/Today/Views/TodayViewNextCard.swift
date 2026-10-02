@@ -2,12 +2,11 @@
 // The Next card: the first lesson on the plan not yet given, drawn
 // highlighted in place with a Present button (⌘↩).
 //
-// It does what Right Now's "Next up" play button did — opens the lesson — and
-// on the Mac it replaces Right Now. With no lesson pending it falls back to
-// the first due check-in, which lives in the todo list rather than on the
-// plan, so on the Mac that one is drawn as a card of its own at the top of
-// the Lessons section. The iPhone keeps Right Now (phase 7 decides), which
-// reads the same `nextAgendaItem`.
+// It does what the old Right Now hero's "Next up" play button did — opens the
+// lesson — and replaced that hero on every platform. With no lesson pending it
+// falls back to the first due check-in, which lives in the todo list rather
+// than on the plan, so that one is drawn as a card of its own at the top of
+// the Lessons section.
 
 import SwiftUI
 
@@ -17,7 +16,7 @@ extension TodayView {
 
     /// The first lesson on the plan not yet given. With none, the first due
     /// check-in stands in — due check-ins moved off the agenda into the todo
-    /// list, and Right Now kept proposing one before the move.
+    /// list, and the old Right Now hero kept proposing one after the move.
     var nextAgendaItem: AgendaItem? {
         let lesson = viewModel.agendaItems.first { item in
             if case .lesson(let sl) = item { return !sl.isPresented }
@@ -49,13 +48,12 @@ extension TodayView {
         }
     }
 
-    // MARK: - Check-in fallback card (Mac)
+    // MARK: - Check-in fallback card
 
     /// The fallback Next card for a due check-in, which is not a row on the
-    /// plan. Only the Mac draws it; the iPhone's Right Now already does.
+    /// plan.
     @ViewBuilder
     var nextCheckInCard: some View {
-        #if os(macOS)
         if let next = nextAgendaItem, case .scheduledWork = next {
             HStack(spacing: 10) {
                 Image(systemName: nextUpIcon(for: next))
@@ -81,7 +79,6 @@ extension TodayView {
             .todayNextHighlight(true)
             .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
         }
-        #endif
     }
 
     // MARK: - Describing an item

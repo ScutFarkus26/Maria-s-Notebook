@@ -120,7 +120,14 @@ nonisolated struct TodayLinkedTodos: Equatable, Sendable {
         var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
         style.calendar = calendar
         style.timeZone = calendar.timeZone
-        style.locale = calendar.locale ?? .current
+        // A calendar made with `Calendar(identifier:)` — `AppCalendar.shared`,
+        // which Today runs on — carries the empty root locale, not nil, and
+        // that prints "M09 18". Only a real locale on the calendar wins.
+        if let locale = calendar.locale, !locale.identifier.isEmpty {
+            style.locale = locale
+        } else {
+            style.locale = .current
+        }
         return "\(noun) · \(earliestDue.formatted(style))"
     }
 

@@ -6,8 +6,8 @@
 // lists it most quiet first instead, so drag-to-reorder is gone for these
 // rows: an order the guide set would only last until the ages changed. The
 // header says how many there really are ("See all 23", the true count, not
-// the 15 rows kept) and opens the work in Lessons & Work. On the Mac it
-// replaces Right Now's "Open work to check".
+// the 15 rows kept) and opens the work in Lessons & Work. It replaces the old
+// Right Now hero's "Open work to check".
 
 import SwiftUI
 import CoreData

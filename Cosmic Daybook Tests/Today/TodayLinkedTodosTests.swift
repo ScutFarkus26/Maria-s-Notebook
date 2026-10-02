@@ -98,6 +98,19 @@ struct TodayLinkedTodosTests {
         #expect(one.byWork[work]?.summary == "1 todo")
     }
 
+    @Test("A calendar with no locale of its own (AppCalendar's kind) still names the month")
+    func summaryOnALocalelessCalendar() throws {
+        var bare = Calendar(identifier: .gregorian)
+        bare.timeZone = Self.calendar.timeZone
+        let summary = try #require(
+            TodayLinkedTodos.summary(count: 1, earliestDue: Self.day(9, 18), calendar: bare)
+                .split(separator: "·").last
+        )
+        // The empty root locale printed "M09 18".
+        #expect(summary.contains("M09") == false)
+        #expect(summary.contains("18"))
+    }
+
     @Test("Undated todos keep their given order after the dated ones")
     func stableOrder() {
         let work = UUID()

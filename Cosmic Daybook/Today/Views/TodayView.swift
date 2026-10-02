@@ -56,7 +56,7 @@ struct TodayView: View {
     // MARK: - Attendance State
     @State var isAttendanceExpanded = false
     @State var lateStudentNames: [String] = [] // the band's late children
-    @State var isDatePickerPresented = false // the Mac's Go to Date popover
+    @State var isDatePickerPresented = false // the Go to Date popover
     @AppStorage(UserDefaultsKeys.quickCaptureButtonVisible) var isQuickCaptureButtonVisible = true
 
     // MARK: - Toast State
@@ -214,8 +214,8 @@ struct TodayView: View {
                     .safeAreaPadding(.bottom, quickCaptureClearance)
             }
             .navigationTitle("Today")
-            #if os(macOS)
             .navigationSubtitle(TodayHeaderText.subtitle(for: viewModel.date))
+            #if os(macOS)
             .toolbar { macOSTodayToolbarContent }
             #else
             .toolbar { toolbarContent }
@@ -248,6 +248,9 @@ struct TodayView: View {
     // TodayViewSectionOrder.swift, beside the ordering they express.
 
     #if os(iOS)
+    /// ‹ Today ›, Go to Date, then +, as on the Mac; the day itself reads in
+    /// the subtitle. The old date field (with ‹ › and a separate Today) ran
+    /// the iPhone's bar out of room and folded Today and + into •••.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
@@ -255,23 +258,21 @@ struct TodayView: View {
                 let prev = previousSchoolDaySync(before: viewModel.date)
                 viewModel.date = AppCalendar.startOfDay(prev)
             } label: { Image(systemName: "chevron.left") }
+            .accessibilityLabel("Previous School Day")
 
-            DatePicker("Date", selection: Binding(get: { viewModel.date }, set: { newValue in
-                let coerced = nearestSchoolDaySync(to: newValue)
-                viewModel.date = AppCalendar.startOfDay(coerced)
-            }), displayedComponents: .date)
-            .datePickerStyle(.compact)
+            todayButton
 
             Button {
                 let next = nextSchoolDaySync(after: viewModel.date)
                 viewModel.date = AppCalendar.startOfDay(next)
             } label: { Image(systemName: "chevron.right") }
+            .accessibilityLabel("Next School Day")
         }
 
-        ToolbarSpacer(.flexible, placement: .topBarTrailing)
+        ToolbarSpacer(.fixed, placement: .topBarTrailing)
 
         ToolbarItem(placement: .topBarTrailing) {
-            todayButton
+            goToDateButton
         }
 
         ToolbarSpacer(.fixed, placement: .topBarTrailing)
@@ -390,11 +391,3 @@ struct TodayView: View {
         }
     }
 }
-
-// MARK: - Supporting Files
-// - TodayViewSections.swift - All list sections (reminders, lessons, etc.)
-// - TodayViewHeader.swift - Header and attendance strip components
-// - TodayViewHelpers.swift - School day helpers and utility functions
-// - TodayViewListRows.swift - Individual row components
-// - AttendanceExpandedView.swift - Expanded attendance grid
-// - TodayView+Sheets.swift - ActiveSheet and the sheets modifier

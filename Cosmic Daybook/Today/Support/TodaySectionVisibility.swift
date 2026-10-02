@@ -9,11 +9,10 @@
 // nothing, so she stopped reading it.
 //
 // The rule here is the opposite: a section earns its place on the screen by
-// carrying something she could act on today. Two sections are deliberately
-// exempt and always render — Right Now and the Agenda — because for those
-// "nothing" is itself the answer she came for, and on macOS the Agenda is the
-// wide left column that would otherwise be a void. (The Mac does not place
-// Right Now at all; see `macOmitted`.)
+// carrying something she could act on today. One section is deliberately
+// exempt and always renders — the Agenda — because for it "nothing" is itself
+// the answer she came for, and on macOS it is the wide left column that would
+// otherwise be a void.
 //
 // Nothing here touches Core Data or reads the clock. Every function takes
 // value inputs and, where a date matters, an explicit reference date, exactly
@@ -28,11 +27,10 @@ import Foundation
 /// because they name the sections in test failures and log lines; nothing
 /// persists them.
 enum TodaySection: String, CaseIterable, Sendable {
-    case rightNow
-    case dayCards
     case agenda
     case meetings
     case goneQuiet
+    case dayCards
     case todos
     case watching
     case readyForNext
@@ -116,23 +114,26 @@ enum TodaySectionVisibility {
 
     // MARK: - Orderings
 
-    /// iPhone and iPad, top to bottom: what is in front of her now (Right Now,
-    /// the day's banners, the day's plan, its meetings and the work gone
-    /// quiet, her todo list),
-    /// then what she is watching (ready-for-next, following presentations,
-    /// observations), then the external feeds, then the monthly nudge, the
-    /// pad, and last the retrospective.
+    /// iPhone and iPad, top to bottom: the day's plan first — the lessons,
+    /// led by the Next card, then its meetings and the work gone quiet — then
+    /// the Needs-a-lesson card and her todo list, then what she is watching
+    /// (ready-for-next, following presentations, observations), then the
+    /// external feeds, then the monthly nudge, the pad, and last the
+    /// retrospective.
+    ///
+    /// There is no Right Now hero any more, on either platform: its Next up
+    /// is the Next card at the top of the plan, and its "open work to check"
+    /// count is Gone quiet's header plus the todo list's due check-ins.
     ///
     /// The Overdue section is deliberately absent from both orderings. It
     /// duplicated the Todos section's own "Overdue" subgroup with a single row
     /// that only navigated away; `DeadlinesSectionView` is kept in the
     /// codebase, just not placed on Today.
     static let phoneOrder: [TodaySection] = [
-        .rightNow,
-        .dayCards,
         .agenda,
         .meetings,
         .goneQuiet,
+        .dayCards,
         .todos,
         .watching,
         .readyForNext,
@@ -149,13 +150,8 @@ enum TodaySectionVisibility {
     /// lessons, then the meetings, then the work gone quiet.
     static let macLeftColumnOrder: [TodaySection] = [.agenda, .meetings, .goneQuiet]
 
-    /// macOS right column, 340 pt: the phone ordering minus the plan, and
-    /// minus Right Now. On the Mac the plan's own first row is the next thing
-    /// to do, so a hero card repeating it above the todos says it twice.
+    /// macOS right column, 340 pt: the phone ordering minus the plan.
     static let macRightColumnOrder: [TodaySection] = phoneOrder.filter {
-        !macLeftColumnOrder.contains($0) && $0 != .rightNow
+        !macLeftColumnOrder.contains($0)
     }
-
-    /// Sections the Mac deliberately leaves out of both columns.
-    static let macOmitted: Set<TodaySection> = [.rightNow]
 }

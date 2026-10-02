@@ -2,7 +2,8 @@
 // Day-aware top cards — small banners that surface only when relevant:
 // "N children need a lesson" when students are overdue. Each card names its two
 // actions (Plan lessons, Hide until tomorrow); hiding is per date. On the Mac
-// the card heads the right column; on iPhone and iPad it sits under Right Now.
+// the card heads the right column; on iPhone and iPad it follows Gone quiet,
+// just above the todos, as it does there.
 
 import SwiftUI
 import CoreData

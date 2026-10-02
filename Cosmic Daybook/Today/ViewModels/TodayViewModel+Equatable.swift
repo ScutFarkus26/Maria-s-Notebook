@@ -73,9 +73,7 @@ extension TodayViewModel: Equatable {
 
     /// Counts of the remaining rendered collections.
     private func listCountsMatch(_ other: TodayViewModel) -> Bool {
-        overdueSchedule.count == other.overdueSchedule.count
-            && todaysSchedule.count == other.todaysSchedule.count
-            && staleFollowUps.count == other.staleFollowUps.count
+        staleFollowUps.count == other.staleFollowUps.count
             && overdueReminders.count == other.overdueReminders.count
             && anytimeReminders.count == other.anytimeReminders.count
     }

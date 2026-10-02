@@ -82,8 +82,6 @@ final class TodayViewModel {
     var todaysLessons: [CDLessonAssignment] = []
 
     // CDWorkModel-based lists
-    var overdueSchedule: [ScheduledWorkItem] = []
-    var todaysSchedule: [ScheduledWorkItem] = []
     var staleFollowUps: [FollowUpWorkItem] = []
     /// Every stale work item; `staleFollowUps` keeps only the top
     /// `TodayScheduleBuilder.staleRowLimit`.
@@ -346,8 +344,6 @@ final class TodayViewModel {
 
         // BATCH UPDATE: Apply all @Published changes together to minimize view re-renders
         todaysLessons = filteredLessons
-        overdueSchedule = workResult.overdueSchedule
-        todaysSchedule = workResult.todaysSchedule
         staleFollowUps = workResult.staleFollowUps
         staleTotalCount = workResult.staleTotalCount
         goneQuietItems = TodayAgendaBuilder.groupFollowUpWork(workResult.staleFollowUps)
@@ -371,8 +367,7 @@ final class TodayViewModel {
 
         // 8. Build unified agenda. Due check-ins live in the todo list now
         // (followUpCheckIns), and quiet work in Gone quiet (goneQuietItems),
-        // so the agenda is built without them; the overdueSchedule/
-        // todaysSchedule outputs stay for Right Now's count.
+        // so the agenda is built without them.
         agendaItems = TodayAgendaBuilder.buildAgenda(
             lessons: filteredLessons,
             overdueSchedule: [],

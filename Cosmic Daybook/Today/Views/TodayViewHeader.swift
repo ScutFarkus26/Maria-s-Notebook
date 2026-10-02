@@ -37,20 +37,7 @@ extension TodayView {
             .accessibilityLabel("Next School Day")
             .help("Next School Day")
 
-            // The stepper's field is gone, so a far-off day is a calendar away.
-            Button {
-                isDatePickerPresented = true
-            } label: {
-                Image(systemName: "calendar")
-            }
-            .accessibilityLabel("Go to Date")
-            .help("Go to a school day")
-            .popover(isPresented: $isDatePickerPresented, arrowEdge: .bottom) {
-                DatePicker("School Day", selection: schoolDayBinding, displayedComponents: .date)
-                    .datePickerStyle(.graphical)
-                    .labelsHidden()
-                    .padding(12)
-            }
+            goToDateButton
 
             // The pad's section hides itself while the pad is empty, so this
             // is how a blank page is reached on a day that has nothing on it.
@@ -66,6 +53,27 @@ extension TodayView {
         }
     }
 
+    #endif
+
+    /// The stepper has no date field, so a far-off day is a calendar away.
+    /// Shared by the Mac stepper and the iOS toolbar.
+    var goToDateButton: some View {
+        Button {
+            isDatePickerPresented = true
+        } label: {
+            Image(systemName: "calendar")
+        }
+        .accessibilityLabel("Go to Date")
+        .help("Go to a school day")
+        .popover(isPresented: $isDatePickerPresented, arrowEdge: .bottom) {
+            DatePicker("School Day", selection: schoolDayBinding, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .padding(12)
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
     /// The picked day, coerced onto the nearest school day.
     private var schoolDayBinding: Binding<Date> {
         Binding(
@@ -73,10 +81,10 @@ extension TodayView {
             set: { newValue in
                 let coercedDate = nearestSchoolDaySync(to: newValue)
                 viewModel.date = AppCalendar.startOfDay(coercedDate)
+                isDatePickerPresented = false
             }
         )
     }
-    #endif
 
     /// Back to the current school day; disabled while already there. Shared
     /// by the Mac stepper and the iOS toolbar.

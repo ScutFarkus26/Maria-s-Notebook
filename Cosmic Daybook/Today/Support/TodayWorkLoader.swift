@@ -14,8 +14,6 @@ enum TodayWorkLoader {
 
     /// Result of loading and processing work.
     struct WorkLoadResult {
-        let overdueSchedule: [ScheduledWorkItem]
-        let todaysSchedule: [ScheduledWorkItem]
         let staleFollowUps: [FollowUpWorkItem]
         /// Every stale work item, before `staleFollowUps` keeps the top rows.
         let staleTotalCount: Int
@@ -27,8 +25,6 @@ enum TodayWorkLoader {
     /// Empty result for when no data is found.
     static var emptyResult: WorkLoadResult {
         WorkLoadResult(
-            overdueSchedule: [],
-            todaysSchedule: [],
             staleFollowUps: [],
             staleTotalCount: 0,
             workByID: [:],
@@ -76,8 +72,6 @@ enum TodayWorkLoader {
         )
 
         return WorkLoadResult(
-            overdueSchedule: schedule.overdue,
-            todaysSchedule: schedule.today,
             staleFollowUps: schedule.stale,
             staleTotalCount: schedule.staleTotalCount,
             workByID: workByID,

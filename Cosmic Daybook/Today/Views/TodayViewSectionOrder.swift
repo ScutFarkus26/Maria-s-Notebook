@@ -1,20 +1,20 @@
 // TodayViewSectionOrder.swift
 // The order Today's sections appear in, on each platform.
 //
-// The phone sequence is the guide's morning, read top to bottom: what is in
-// front of her now (Right Now, the day's banners, the day's plan, her todo
-// list), then what she is watching (ready-for-next, following presentations,
-// recent observations), then the external feeds she does not own (calendar,
-// reminders), then the monthly nudge, the pad, and last the retrospective of
-// what is already done.
+// The phone sequence is the guide's morning, read top to bottom: the day's
+// plan (the lessons, led by the Next card, then the meetings and the work
+// gone quiet), the Needs-a-lesson card and her todo list, then what she is
+// watching (ready-for-next, following presentations, recent observations),
+// then the external feeds she does not own (calendar, reminders), then the
+// monthly nudge, the pad, and last the retrospective of what is already done.
+// The iPad draws the same list, under the attendance band.
 //
 // The Mac splits that in two. The plan is the wide left column — the lessons,
 // then the meetings, then Gone quiet.
 // A fixed 340-pt right column holds the rest in the phone's order: the
-// Needs-a-lesson card, Todos, then the count-gated sections. Right Now is not
-// placed on the Mac (the plan's first row is the next thing to do), and a
-// todo opens in an inspector at the trailing edge, below the attendance band,
-// instead of replacing either column.
+// Needs-a-lesson card, Todos, then the count-gated sections. A todo opens in
+// an inspector at the trailing edge, below the attendance band, instead of
+// replacing either column.
 //
 // Every section below gates itself — see `TodaySectionVisibility` — so this
 // file only decides sequence, never whether something shows. The declared
@@ -54,11 +54,10 @@ extension TodayView {
     /// Mirrors `TodaySectionVisibility.phoneOrder`.
     @ViewBuilder
     private var phoneSections: some View {
-        rightNowListSection
-        dayCardsListSection
         agendaListSection
         meetingsListSection
         goneQuietListSection
+        dayCardsListSection
         todosListSection
         watchingListSection
         readyForNextListSection
@@ -109,7 +108,7 @@ extension TodayView {
     }
 
     /// Mirrors `TodaySectionVisibility.macRightColumnOrder` — the phone order
-    /// without the plan and without Right Now.
+    /// without the plan.
     @ViewBuilder
     private var macRightColumnSections: some View {
         dayCardsListSection

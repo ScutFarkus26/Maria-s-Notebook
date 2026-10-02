@@ -1,12 +1,13 @@
 // TodayHeaderText.swift
-// The words Today's header says: the Mac window subtitle's date and the
+// The words Today's header says: the subtitle's date and the
 // attendance band's one line. Pure, so the tests pin them.
 
 import Foundation
 
 enum TodayHeaderText {
 
-    /// The Mac window subtitle under "Today": "Wednesday, September 23".
+    /// The subtitle under "Today" (the Mac window's, and the iOS large
+    /// title's): "Wednesday, September 23".
     static func subtitle(
         for date: Date,
         locale: Locale = .autoupdatingCurrent,

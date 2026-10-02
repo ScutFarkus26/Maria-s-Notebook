@@ -36,7 +36,9 @@ struct TodoTodayRow: View {
     private var dueDateText: String? {
         guard let dueDate = todo.dueDate else { return nil }
         if AppCalendar.shared.isDateInToday(dueDate) {
-            return DateFormatters.shortTime.string(from: dueDate)
+            // A due date with no time is stored at midnight; "12:00 AM" would read as a deadline.
+            let isDateOnly = dueDate == AppCalendar.shared.startOfDay(for: dueDate)
+            return isDateOnly ? "Today" : DateFormatters.shortTime.string(from: dueDate)
         } else if AppCalendar.shared.isDateInYesterday(dueDate) {
             return "Yesterday"
         } else {
