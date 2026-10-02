@@ -74,6 +74,11 @@ enum TodayAttendanceLoader {
         )
     }
 
+    /// Whether the day's attendance has been taken: any child has a mark.
+    static func isTaken(in records: [CDAttendanceRecord]) -> Bool {
+        records.contains { $0.status != .unmarked }
+    }
+
     /// Every child the day's records mark absent, whatever the level filter
     /// or the roster cache says: what `PresentationRecorder.absentStudentIDs`
     /// answers for a lesson's children, read from the records `reload()`

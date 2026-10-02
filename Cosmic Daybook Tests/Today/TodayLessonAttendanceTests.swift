@@ -55,4 +55,11 @@ struct TodayLessonAttendanceTests {
         #expect(TodayLessonAttendance.absentSummary(count: 3) == "3 children on today's lessons are absent")
         #expect(TodayLessonAttendance.givenText(given: 0, total: 4) == "0 of 4 given")
     }
+
+    @Test("Before attendance is taken a lesson says nothing about who is here")
+    func hiddenUntilAttendanceIsTaken() {
+        let attendance = TodayLessonAttendance(studentIDs: [maya, theo, ava, leo], absent: [])
+        #expect(attendance.hereText(attendanceTaken: false) == nil)
+        #expect(attendance.hereText(attendanceTaken: true) == "all 4 here")
+    }
 }

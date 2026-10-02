@@ -183,6 +183,21 @@ struct TodayEngineTests {
         #expect(TodayAttendanceLoader.absentStudentIDs(in: records) == [maya])
     }
 
+    @Test("Attendance counts as taken once any child has a mark, not before")
+    func attendanceTaken() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let (day, next) = AppCalendar.dayRange(for: Date())
+        let record = CoreDataTestHelpers.seedAttendance(in: context, studentID: UUID(), date: day)
+        record.status = .unmarked
+        #expect(CoreDataTestHelpers.save(context))
+        let fetch = { TodayDataFetcher.fetchAttendance(day: day, nextDay: next, context: context).records }
+        #expect(!TodayAttendanceLoader.isTaken(in: fetch()))
+
+        record.status = .present
+        #expect(CoreDataTestHelpers.save(context))
+        #expect(TodayAttendanceLoader.isTaken(in: fetch()))
+    }
+
     @Test("Only lessons with a plan document get the plan button")
     func lessonIDsWithPlan() throws {
         let context = try CoreDataTestHelpers.makeContext()

@@ -3,7 +3,7 @@
 //
 // A lesson row names its children as chips; the ones attendance marks absent
 // are struck through and labeled, and the row ends with "6 of 7 here" ("all 4
-// here" when nobody is missing). The Lessons header counts the absent
+// here" when nobody is missing) once the day's attendance is taken. The Lessons header counts the absent
 // children across the day's lessons and says how many lessons are given.
 //
 // Value inputs only — the ids on the lesson, the day's absent set
@@ -36,6 +36,12 @@ nonisolated struct TodayLessonAttendance: Equatable, Sendable {
         let here = children.count(where: { !$0.isAbsent })
         if here == total { return total == 1 ? "here" : "all \(total) here" }
         return "\(here) of \(total) here"
+    }
+
+    /// `hereText` once the day's attendance is taken, else nil: before the
+    /// first mark nobody is absent yet, so every lesson would read "all N here".
+    func hereText(attendanceTaken: Bool) -> String? {
+        attendanceTaken ? hereText : nil
     }
 
     // MARK: - Across the day's lessons

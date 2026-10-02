@@ -141,7 +141,7 @@ extension TodayView {
         LessonListRow(
             lessonName: nameForLesson(sl.resolvedLessonID),
             children: lessonChips(for: sl, absent: viewModel.absentStudentIDs),
-            hereText: attendance.hereText,
+            hereText: attendance.hereText(attendanceTaken: viewModel.attendanceTaken),
             isPresented: sl.isPresented,
             trailingAccessorySystemName: hasPlan ? "doc.richtext" : nil,
             trailingAccessoryLabel: "Open lesson plan",
