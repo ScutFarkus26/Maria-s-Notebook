@@ -1094,7 +1094,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Daybook Assistant/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Daybook Assistant";
+				INFOPLIST_KEY_CFBundleDisplayName = Assistant;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";
@@ -1134,7 +1134,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Daybook Assistant/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Daybook Assistant";
+				INFOPLIST_KEY_CFBundleDisplayName = Assistant;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Daniel De Berry. All rights reserved.";

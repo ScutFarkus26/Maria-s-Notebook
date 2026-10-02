@@ -13,6 +13,19 @@
 	-->
 	<key>CloudKitEnvironment</key>
 	<string>$(CLOUDKIT_ENVIRONMENT)</string>
+	<!--
+	  The Home Screen name is just "Assistant" (CFBundleDisplayName build
+	  setting). Siri's App Shortcut phrases use the display name, so keep
+	  "Daybook Assistant" as a spoken alternative: the phrases the setup flow
+	  teaches ("Mark Maya here in Daybook Assistant") keep working.
+	-->
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Daybook Assistant</string>
+		</dict>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
