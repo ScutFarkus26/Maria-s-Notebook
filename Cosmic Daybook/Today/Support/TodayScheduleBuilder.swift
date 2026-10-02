@@ -13,8 +13,14 @@ enum TodayScheduleBuilder {
     struct ScheduleResult {
         let overdue: [ScheduledWorkItem]
         let today: [ScheduledWorkItem]
+        /// The most-stale `staleRowLimit` items, longest untouched first.
         let stale: [FollowUpWorkItem]
+        /// Every stale item, kept or not, so the UI can name the real number.
+        let staleTotalCount: Int
     }
+
+    /// How many stale items `stale` keeps.
+    static let staleRowLimit = 15
 
     // MARK: - Build Schedule
 
@@ -110,7 +116,8 @@ enum TodayScheduleBuilder {
         return ScheduleResult(
             overdue: newOverdue.sorted { ($0.checkIn.date ?? .distantPast) < ($1.checkIn.date ?? .distantPast) },
             today: newToday.sorted { ($0.checkIn.date ?? .distantPast) < ($1.checkIn.date ?? .distantPast) },
-            stale: Array(newStale.sorted { $0.daysSinceTouch > $1.daysSinceTouch }.prefix(15))
+            stale: Array(newStale.sorted { $0.daysSinceTouch > $1.daysSinceTouch }.prefix(staleRowLimit)),
+            staleTotalCount: newStale.count
         )
     }
 }

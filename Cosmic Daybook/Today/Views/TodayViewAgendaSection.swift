@@ -163,8 +163,8 @@ extension TodayView {
 
     @ViewBuilder
     private func agendaLessonRow(_ sl: CDLessonAssignment) -> some View {
-        // Walks the lesson's attachments; asked once per row, not per use.
-        let hasPlan = lessonHasPlanDocument(lessonForPresentation(sl))
+        // Decided once per reload (TodayLessonsLoader.lessonIDsWithPlan).
+        let hasPlan = viewModel.lessonIDsWithPlan.contains(sl.resolvedLessonID)
         LessonListRow(
             lessonName: nameForLesson(sl.resolvedLessonID),
             studentNames: studentNamesForIDs(sl.resolvedStudentIDs),

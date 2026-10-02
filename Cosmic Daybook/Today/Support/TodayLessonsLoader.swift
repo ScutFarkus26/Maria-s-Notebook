@@ -56,4 +56,34 @@ enum TodayLessonsLoader {
             neededLessonIDs: neededLessonIDs
         )
     }
+
+    // MARK: - Lesson Plans
+
+    /// The lessons among `lessons` that have a plan to open (the lesson
+    /// rows' document button). Asked once per reload: deciding walks the
+    /// lesson's attachments, which the rows used to do on every draw.
+    static func lessonIDsWithPlan(
+        for lessons: [CDLessonAssignment],
+        lessonsByID: [UUID: CDLesson]
+    ) -> Set<UUID> {
+        var result = Set<UUID>()
+        for lessonID in Set(lessons.map(\.resolvedLessonID)) {
+            if let lesson = lessonsByID[lessonID], hasPlanDocument(lesson) {
+                result.insert(lessonID)
+            }
+        }
+        return result
+    }
+
+    /// A primary attachment, or a Pages file by path or bookmark.
+    static func hasPlanDocument(_ lesson: CDLesson) -> Bool {
+        if let primaryID = lesson.primaryAttachmentIDUUID,
+           LessonFileStorage.getAttachments(forLesson: lesson).contains(where: { $0.id == primaryID }) {
+            return true
+        }
+        if let relativePath = lesson.pagesFileRelativePath, !relativePath.isEmpty {
+            return true
+        }
+        return lesson.pagesFileBookmark != nil
+    }
 }

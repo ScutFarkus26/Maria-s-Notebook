@@ -41,17 +41,13 @@ struct WorkCheckInFollowUp: Identifiable {
 
 enum TodayFollowUpLoader {
 
-    /// Every former student — withdrawn or transferred — keyed by id. One
-    /// fetch; the enrolled roster is the view model's cache and is not
-    /// re-read here.
-    static func fetchDepartedStudents(context: NSManagedObjectContext) -> [UUID: CDStudent] {
-        let request = CDFetchRequest(CDStudent.self)
-        request.predicate = NSPredicate(
-            format: "enrollmentStatusRaw != %@", CDStudent.EnrollmentStatus.enrolled.rawValue
-        )
-        request.fetchLimit = 500
+    /// Every former student — withdrawn or transferred — in `roster`, keyed
+    /// by id. Pure: the roster is the view model's snapshot
+    /// (`TodayCacheManager.departedStudents`), not a fetch of its own.
+    static func departedStudents(in roster: [CDStudent]) -> [UUID: CDStudent] {
+        let enrolled = CDStudent.EnrollmentStatus.enrolled.rawValue
         var byID: [UUID: CDStudent] = [:]
-        for student in context.safeFetch(request) {
+        for student in roster where student.enrollmentStatusRaw != enrolled {
             guard let id = student.id else { continue }
             byID[id] = student
         }

@@ -17,6 +17,8 @@ enum TodayWorkLoader {
         let overdueSchedule: [ScheduledWorkItem]
         let todaysSchedule: [ScheduledWorkItem]
         let staleFollowUps: [FollowUpWorkItem]
+        /// Every stale work item, before `staleFollowUps` keeps the top rows.
+        let staleTotalCount: Int
         let workByID: [UUID: CDWorkModel]
         let neededStudentIDs: Set<UUID>
         let neededLessonIDs: Set<UUID>
@@ -28,6 +30,7 @@ enum TodayWorkLoader {
             overdueSchedule: [],
             todaysSchedule: [],
             staleFollowUps: [],
+            staleTotalCount: 0,
             workByID: [:],
             neededStudentIDs: [],
             neededLessonIDs: []
@@ -36,34 +39,24 @@ enum TodayWorkLoader {
 
     // MARK: - Load Work
 
-    // Fetches and processes work items for a day.
+    // Processes the open work `reload()` already fetched for a day. It used to
+    // run `TodayDataFetcher.fetchWorkData` a second time (three more fetches
+    // per reload) for the same rows.
     // - Parameters:
-    //   - day: Start of the day
-    //   - nextDay: Start of the next day
+    //   - fetchResult: `TodayDataFetcher.fetchWorkData` for the day (nil = the fetch failed)
     //   - referenceDate: The reference date for schedule calculations
     //   - studentsByID: Cached students for level filtering
     //   - levelFilter: The level filter to apply
-    //   - context: Model context for fetching and schedule building
+    //   - context: Model context for schedule building
     // - Returns: Processed work result with schedules and IDs needed for caching
-    // swiftlint:disable:next function_parameter_count
     static func loadWork(
-        day: Date,
-        nextDay: Date,
+        from fetchResult: TodayDataFetcher.WorkFetchResult?,
         referenceDate: Date,
         studentsByID: [UUID: CDStudent],
         levelFilter: LevelFilter,
-        context: NSManagedObjectContext,
-        errorCollector: FetchErrorCollector? = nil
+        context: NSManagedObjectContext
     ) -> WorkLoadResult {
-        guard let fetchResult = TodayDataFetcher.fetchWorkData(
-            day: day,
-            nextDay: nextDay,
-            referenceDate: referenceDate,
-            context: context,
-            errorCollector: errorCollector
-        ) else {
-            return emptyResult
-        }
+        guard let fetchResult else { return emptyResult }
 
         // Build work lookup
         let workByID: [UUID: CDWorkModel] = fetchResult.workItems.reduce(into: [:]) { dict, work in
@@ -86,6 +79,7 @@ enum TodayWorkLoader {
             overdueSchedule: schedule.overdue,
             todaysSchedule: schedule.today,
             staleFollowUps: schedule.stale,
+            staleTotalCount: schedule.staleTotalCount,
             workByID: workByID,
             neededStudentIDs: fetchResult.neededStudentIDs,
             neededLessonIDs: fetchResult.neededLessonIDs

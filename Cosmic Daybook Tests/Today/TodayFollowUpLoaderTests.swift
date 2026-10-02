@@ -27,7 +27,9 @@ struct TodayFollowUpLoaderTests {
         return TodayFollowUpLoader.build(
             fetch: fetch, day: start, nextDay: next,
             studentsByID: enrolled(in: context),
-            departedStudentsByID: TodayFollowUpLoader.fetchDepartedStudents(context: context),
+            departedStudentsByID: TodayFollowUpLoader.departedStudents(
+                in: context.safeFetch(CDFetchRequest(CDStudent.self))
+            ),
             levelFilter: levelFilter
         )
     }

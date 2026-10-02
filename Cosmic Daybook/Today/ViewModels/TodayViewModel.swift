@@ -12,6 +12,7 @@
 import Foundation
 import SwiftUI
 import CoreData
+import OSLog
 
 /// View model for the Today screen.
 /// - Manages date selection and a level filter.
@@ -54,6 +55,11 @@ final class TodayViewModel {
     @ObservationIgnored var derivedCountsBasis: DerivedCountsBasis?
     /// How many times the count has been computed (for tests pinning the gate).
     @ObservationIgnored var derivedCountsBuildCount = 0
+    /// Flips when one of `reloadInputEntities` changes; `reload()` clears it,
+    /// so a change Today saved and reloaded for itself asks for nothing more.
+    @ObservationIgnored let reloadInputs: ManagedObjectChangeFlag
+    /// How many times `reload()` has run (for tests pinning the change gate).
+    @ObservationIgnored private(set) var reloadCount = 0
 
     // MARK: - Inputs
 
@@ -79,6 +85,9 @@ final class TodayViewModel {
     var overdueSchedule: [ScheduledWorkItem] = []
     var todaysSchedule: [ScheduledWorkItem] = []
     var staleFollowUps: [FollowUpWorkItem] = []
+    /// Every stale work item; `staleFollowUps` keeps only the top
+    /// `TodayScheduleBuilder.staleRowLimit`.
+    var staleTotalCount = 0
 
     // Unified agenda (lessons + work items, user-orderable)
     var agendaItems: [AgendaItem] = []
@@ -103,6 +112,12 @@ final class TodayViewModel {
     var attendanceSummary: AttendanceSummary = AttendanceSummary()
     var absentToday: [UUID] = []
     var leftEarlyToday: [UUID] = []
+    /// Every child marked absent on the selected day, whatever the level
+    /// filter (`absentToday` is filtered) — for the lesson rows.
+    var absentStudentIDs: Set<UUID> = []
+
+    /// Lessons on the day that have a plan to open, decided once per reload.
+    var lessonIDsWithPlan: Set<UUID> = []
 
     // New Outputs for recent notes and their students
     var recentNotes: [CDNote] = []
@@ -160,26 +175,18 @@ final class TodayViewModel {
     // MARK: - Scheduling
 
     // ENERGY OPTIMIZATION: Debounce reloads to prevent excessive database queries
-    // during rapid changes (e.g., date picker scrolling, filter changes)
-    private var reloadTask: Task<Void, Never>?
+    // during rapid changes (e.g., date picker scrolling, filter changes).
+    // The debounce itself lives in TodayViewModel+Refresh.swift.
+    @ObservationIgnored var reloadTask: Task<Void, Never>?
+    /// A reload asked for outright is pending; a change-gated request that
+    /// replaces it must still reload. Cleared by `reload()`.
+    @ObservationIgnored var reloadIsRequired = false
 
     /// Schedules a debounced reload. Use this for data-driven changes that may happen rapidly.
     /// For user-initiated changes, call reload() directly for immediate feedback.
     func scheduleReload() {
-        // Cancel any pending reload
-        reloadTask?.cancel()
-
-        // Schedule a debounced reload (400ms delay balances responsiveness with energy efficiency)
-        reloadTask = Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await Task.sleep(for: .milliseconds(400)) // 400ms debounce
-                guard !Task.isCancelled else { return }
-                reload()
-            } catch {
-                // Task was cancelled, ignore
-            }
-        }
+        reloadIsRequired = true
+        debounceReload()
     }
 
     // MARK: - Init
@@ -194,6 +201,11 @@ final class TodayViewModel {
         self.calendar = calendar
         self.readyForNextInputs = ManagedObjectChangeFlag(
             entityNames: Self.readyForNextInputEntities, context: context
+        )
+        // Saves only (see `inputChanges()`): the history processor's signal
+        // for Today's own save would land after its reload and ask again.
+        self.reloadInputs = ManagedObjectChangeFlag(
+            entityNames: Self.reloadInputEntities, context: context, listensForImportSignal: false
         )
         // Set date without triggering didSet (which would call scheduleReload)
         // The initial reload is deferred to handleViewAppear() via .task to avoid
@@ -222,6 +234,13 @@ final class TodayViewModel {
 
     // swiftlint:disable:next function_body_length
     func reload() {
+        let signpost = Self.signposter.beginInterval("Today reload", id: Self.signposter.makeSignpostID())
+        defer { Self.signposter.endInterval("Today reload", signpost) }
+        reloadCount += 1
+        // Cleared first: a change that lands from here on asks again.
+        reloadIsRequired = false
+        _ = reloadInputs.consume(pendingIn: context)
+
         // First, so the ready queue's record read, off the main thread when
         // it can be, runs alongside the fetches below instead of after them.
         refreshReadyForNextIfNeeded()
@@ -245,26 +264,25 @@ final class TodayViewModel {
                 lessonsResult.lessons, studentsByID: studentsByID, levelFilter: levelFilter
             )
 
-        // 2. Fetch work data
-        let prelimResult = TodayDataFetcher.fetchWorkData(
+        // 2. Fetch work data once; the schedule and the follow-ups both read it
+        let workFetch = TodayDataFetcher.fetchWorkData(
             day: day, nextDay: nextDay, referenceDate: date, context: context,
             errorCollector: errorCollector
         )
-        if let prelimResult {
-            cacheManager.loadStudentsIfNeeded(ids: prelimResult.neededStudentIDs, context: context)
-            cacheManager.loadLessonsIfNeeded(ids: prelimResult.neededLessonIDs, context: context)
+        if let workFetch {
+            cacheManager.loadStudentsIfNeeded(ids: workFetch.neededStudentIDs, context: context)
+            cacheManager.loadLessonsIfNeeded(ids: workFetch.neededLessonIDs, context: context)
         }
         let workResult = TodayWorkLoader.loadWork(
-            day: day, nextDay: nextDay, referenceDate: date,
-            studentsByID: studentsByID, levelFilter: levelFilter, context: context,
-            errorCollector: errorCollector
+            from: workFetch, referenceDate: date,
+            studentsByID: studentsByID, levelFilter: levelFilter, context: context
         )
         cacheManager.updateWork(workResult.workByID)
 
         // 2b. Due check-ins for the todo list (same fetch, list rules)
-        let departed = TodayFollowUpLoader.fetchDepartedStudents(context: context)
+        let departed = cacheManager.departedStudents(context: context)
         let followUps = TodayFollowUpLoader.build(
-            fetch: prelimResult, day: day, nextDay: nextDay,
+            fetch: workFetch, day: day, nextDay: nextDay,
             studentsByID: studentsByID, departedStudentsByID: departed, levelFilter: levelFilter
         )
 
@@ -306,31 +324,19 @@ final class TodayViewModel {
             records: attendanceResult.records, studentsByID: studentsByID, levelFilter: levelFilter
         )
 
-        // 7. Fetch recent notes
+        // 7. Fetch recent notes; their children resolve against the roster snapshot
         let notesResult = TodayDataFetcher.fetchRecentNotes(context: context, errorCollector: errorCollector)
         let missingStudentIDs = notesResult.neededStudentIDs.subtracting(recentNoteStudentsByID.keys)
-        var updatedRecentNoteStudents = recentNoteStudentsByID
-
-        // PERFORMANCE: Batch fetch all missing students in a single query instead of N queries
-        if !missingStudentIDs.isEmpty {
-            let studentRequest = CDFetchRequest(CDStudent.self)
-            studentRequest.fetchLimit = 500 // Safety limit for student roster
-            let allStudents = context.safeFetch(studentRequest).filterEnrolled()
-            let missingStudents = allStudents.filter { student in
-                guard let id = student.id else { return false }
-                return missingStudentIDs.contains(id)
-            }
-            for student in missingStudents {
-                guard let id = student.id else { continue }
-                updatedRecentNoteStudents[id] = student
-            }
-        }
+        let updatedRecentNoteStudents = recentNoteStudentsByID.merging(
+            cacheManager.enrolledStudents(ids: missingStudentIDs, context: context)
+        ) { _, new in new }
 
         // BATCH UPDATE: Apply all @Published changes together to minimize view re-renders
         todaysLessons = filteredLessons
         overdueSchedule = workResult.overdueSchedule
         todaysSchedule = workResult.todaysSchedule
         staleFollowUps = workResult.staleFollowUps
+        staleTotalCount = workResult.staleTotalCount
         completedWork = filteredCompletedWork
         overdueReminders = remindersResult.overdue
         todaysReminders = remindersResult.today
@@ -341,6 +347,8 @@ final class TodayViewModel {
         attendanceSummary = processedAttendance.summary
         absentToday = processedAttendance.absentStudentIDs
         leftEarlyToday = processedAttendance.leftEarlyStudentIDs
+        absentStudentIDs = TodayAttendanceLoader.absentStudentIDs(in: attendanceResult.records)
+        lessonIDsWithPlan = TodayLessonsLoader.lessonIDsWithPlan(for: filteredLessons, lessonsByID: lessonsByID)
         recentNotes = notesResult.notes
         recentNoteStudentsByID = updatedRecentNoteStudents
         followUpCheckIns = followUps

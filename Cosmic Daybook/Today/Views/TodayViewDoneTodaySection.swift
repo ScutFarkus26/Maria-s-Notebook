@@ -91,14 +91,14 @@ extension TodayView {
                 emptyStateText("No lessons presented yet")
             } else {
                 ForEach(presented) { sl in
-                    let lesson = lessonForPresentation(sl)
+                    let hasPlan = viewModel.lessonIDsWithPlan.contains(sl.resolvedLessonID)
                     LessonListRow(
                         lessonName: nameForLesson(sl.resolvedLessonID),
                         studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
                         isPresented: true,
-                        trailingAccessorySystemName: lessonHasPlanDocument(lesson) ? "doc.richtext" : nil,
+                        trailingAccessorySystemName: hasPlan ? "doc.richtext" : nil,
                         trailingAccessoryLabel: "Open lesson plan",
-                        onTrailingAccessoryTap: lessonHasPlanDocument(lesson) ? {
+                        onTrailingAccessoryTap: hasPlan ? {
                             openLessonPlan(for: sl)
                         } : nil
                     )

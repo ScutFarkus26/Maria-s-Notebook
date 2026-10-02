@@ -42,17 +42,6 @@ extension TodayView {
         viewModel.lessonsByID[presentation.resolvedLessonID]
     }
 
-    func lessonHasPlanDocument(_ lesson: CDLesson?) -> Bool {
-        guard let lesson else { return false }
-        if primaryLessonAttachment(for: lesson) != nil {
-            return true
-        }
-        if let relativePath = lesson.pagesFileRelativePath, !relativePath.isEmpty {
-            return true
-        }
-        return lesson.pagesFileBookmark != nil
-    }
-
     func openLessonPlan(for presentation: CDLessonAssignment) {
         guard let lesson = lessonForPresentation(presentation) else { return }
 

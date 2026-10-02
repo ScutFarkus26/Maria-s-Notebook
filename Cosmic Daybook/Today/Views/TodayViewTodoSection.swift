@@ -66,10 +66,44 @@ struct TodayTodosSectionView<FollowUpRow: View>: View {
 
     @Environment(\.calendar) private var calendar
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
-        predicate: NSPredicate(format: "isCompleted == NO")
-    ) private var todoItems: FetchedResults<CDTodoItem>
+    /// Narrowed by `fetchPredicate` (it used to be every open todo); `isShown`
+    /// still makes the exact call in `partition`.
+    @FetchRequest private var todoItems: FetchedResults<CDTodoItem>
+
+    init(
+        date: Date,
+        followUps: FollowUpPartition,
+        onToggle: @escaping (CDTodoItem) -> Void,
+        onOpen: @escaping (CDTodoItem) -> Void,
+        onNewTodo: @escaping () -> Void,
+        @ViewBuilder followUpRow: @escaping (WorkCheckInFollowUp) -> FollowUpRow
+    ) {
+        self.date = date
+        self.followUps = followUps
+        self.onToggle = onToggle
+        self.onOpen = onOpen
+        self.onNewTodo = onNewTodo
+        self.followUpRow = followUpRow
+        _todoItems = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CDTodoItem.createdAt, ascending: false)],
+            predicate: Self.fetchPredicate(selectedDay: AppCalendar.startOfDay(date))
+        )
+    }
+
+    /// The store's half of `isShown`, wide enough to never drop a todo it
+    /// shows: open, not someday, and high priority or due or scheduled
+    /// before a horizon two days past the selected day. Every shown todo
+    /// passes — one scheduled or due on the day, or overdue, is dated before
+    /// the next day, which the environment calendar puts at most 25 hours
+    /// on — while undated and future todos below high priority stay in the store.
+    static func fetchPredicate(selectedDay: Date) -> NSPredicate {
+        let horizon = selectedDay.addingTimeInterval(2 * 24 * 3600) as NSDate
+        return NSPredicate(
+            format: "isCompleted == NO AND isSomeday == NO "
+                + "AND (priorityRaw == %@ OR dueDate < %@ OR scheduledDate < %@)",
+            TodoPriority.high.rawValue, horizon, horizon
+        )
+    }
 
     var body: some View {
         let partition = Self.partition(Array(todoItems), date: date, calendar: calendar)

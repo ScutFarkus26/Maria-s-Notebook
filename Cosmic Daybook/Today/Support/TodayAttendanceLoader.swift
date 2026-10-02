@@ -73,4 +73,17 @@ enum TodayAttendanceLoader {
             leftEarlyStudentIDs: Array(leftEarlyIDs)
         )
     }
+
+    /// Every child the day's records mark absent, whatever the level filter
+    /// or the roster cache says: what `PresentationRecorder.absentStudentIDs`
+    /// answers for a lesson's children, read from the records `reload()`
+    /// already holds (one per child, `deduplicatedPerStudentDay`) instead of a
+    /// fetch per question.
+    static func absentStudentIDs(in records: [CDAttendanceRecord]) -> Set<UUID> {
+        var result = Set<UUID>()
+        for record in records where record.status == .absent {
+            if let id = record.studentID.asUUID { result.insert(id) }
+        }
+        return result
+    }
 }
