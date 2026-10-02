@@ -134,18 +134,34 @@ struct TodaySectionVisibilityTests {
 
     // MARK: - Orderings
 
-    @Test("The agenda is in the phone ordering and owns the macOS left column")
+    @Test("The agenda and its meetings are in the phone ordering and own the macOS left column")
     func agendaPlacement() {
         #expect(TodaySectionVisibility.phoneOrder.contains(.agenda))
-        #expect(TodaySectionVisibility.macLeftColumnOrder == [.agenda])
+        #expect(TodaySectionVisibility.macLeftColumnOrder == [.agenda, .meetings])
         #expect(TodaySectionVisibility.macRightColumnOrder.contains(.agenda) == false)
+        #expect(TodaySectionVisibility.macRightColumnOrder.contains(.meetings) == false)
+    }
+
+    @Test("Meetings follow the lessons directly on the phone")
+    func meetingsFollowTheAgendaOnThePhone() throws {
+        let order = TodaySectionVisibility.phoneOrder
+        let agenda = try #require(order.firstIndex(of: .agenda))
+        #expect(order[agenda + 1] == .meetings)
+    }
+
+    @Test("The Meetings section shows only on a day with a scheduled meeting")
+    func meetingsNeedAMeeting() {
+        #expect(TodaySectionVisibility.showsMeetings(count: 0) == false)
+        #expect(TodaySectionVisibility.showsMeetings(count: 1))
     }
 
     @Test("The macOS right column is the phone ordering minus the plan and Right Now")
     func macRightColumnMirrorsThePhone() {
         #expect(
             TodaySectionVisibility.macRightColumnOrder
-                == TodaySectionVisibility.phoneOrder.filter { $0 != .agenda && $0 != .rightNow }
+                == TodaySectionVisibility.phoneOrder.filter {
+                    $0 != .agenda && $0 != .meetings && $0 != .rightNow
+                }
         )
     }
 

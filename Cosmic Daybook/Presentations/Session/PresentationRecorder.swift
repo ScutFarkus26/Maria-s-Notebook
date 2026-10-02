@@ -76,13 +76,18 @@ enum PresentationRecorder {
         return Result(undoToken: token, keptOnPlan: absent)
     }
 
-    private static func keepOnPlan(
+    /// Takes `absent` off `assignment` onto a plan of their own and returns
+    /// that plan (inserted, or an existing unscheduled one reused). Does not
+    /// save. Also used by Today's "Move them to tomorrow"
+    /// (`TodayAbsentMover`).
+    @discardableResult
+    static func keepOnPlan(
         _ absent: Set<UUID>,
         takenOffOf assignment: CDLessonAssignment,
         lesson: CDLesson,
         keeping present: [UUID],
         context: NSManagedObjectContext
-    ) {
+    ) -> CDLessonAssignment {
         // Their year-plan entries go back to planned first, so the plan they
         // land on can pick them up.
         PresentationRecordCleanup.removeStudents(
@@ -107,5 +112,6 @@ enum PresentationRecorder {
             plan = PresentationFactory.makeDraft(lesson: lesson, students: students, context: context)
         }
         YearPlanPromotionService.promoteMatchingEntries(into: plan, context: context)
+        return plan
     }
 }

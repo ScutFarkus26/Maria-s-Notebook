@@ -1,9 +1,11 @@
 // TodayViewAgendaSection.swift
-// The unified Agenda section for TodayView — the day's lessons and work in one
-// reorderable list. The retrospective halves it used to carry (Lessons
-// Presented, Work Checked) live in TodayViewDoneTodaySection.swift, beside the
-// disclosure that shows them.
-// Extracted for maintainability
+// The Lessons section for TodayView — the day's lessons and quiet work in one
+// reorderable list, its first lesson not yet given drawn as the Next card
+// (TodayViewNextCard.swift). Scheduled meetings have their own section
+// (TodayViewMeetingsSection.swift). The header and the absent-children move
+// live in TodayView+AbsentMove.swift. The retrospective halves it used to
+// carry (Lessons Presented, Work Checked) live in
+// TodayViewDoneTodaySection.swift, beside the disclosure that shows them.
 
 import SwiftUI
 import CoreData
@@ -16,14 +18,20 @@ extension TodayView {
     // MARK: - Unified Agenda Section
 
     var agendaListSection: some View {
-        Section {
+        // Decided once per draw: the lesson drawn as the Next card, if any.
+        let nextLessonID: UUID? = nextAgendaItem.flatMap { item in
+            if case .lesson = item { return item.id }
+            return nil
+        }
+        return Section {
+            nextCheckInCard
             if viewModel.agendaItems.isEmpty {
                 // The agenda never hides: on macOS it is a whole column, and
                 // "nothing planned" is the answer the guide came for.
                 emptyStateText("Nothing scheduled for today.")
             } else {
                 ForEach(viewModel.agendaItems) { item in
-                    agendaRow(for: item)
+                    agendaRow(for: item, isNext: item.id == nextLessonID)
                         .id(item.id)
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                 }
@@ -32,16 +40,17 @@ extension TodayView {
                 }
             }
         } header: {
-            sectionHeader("Agenda")
+            lessonsSectionHeader
         }
     }
 
     @ViewBuilder
-    func agendaRow(for item: AgendaItem) -> some View {
-        HStack(spacing: 10) {
+    func agendaRow(for item: AgendaItem, isNext: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
             agendaTypeIndicator(for: item)
-            agendaRowContent(for: item)
+            agendaRowContent(for: item, isNext: isNext)
         }
+        .todayNextHighlight(isNext)
     }
 
     @ViewBuilder
@@ -50,8 +59,6 @@ extension TodayView {
             switch item {
             case .lesson:
                 return ("book.fill", .blue)
-            case .meeting:
-                return ("person.crop.circle.badge.clock", .teal)
             case .scheduledWork:
                 return ("clock.fill", .orange)
             case .followUp:
@@ -71,10 +78,9 @@ extension TodayView {
     }
 
     @ViewBuilder
-    func agendaRowContent(for item: AgendaItem) -> some View {
+    func agendaRowContent(for item: AgendaItem, isNext: Bool) -> some View {
         switch item {
-        case .lesson(let sl): agendaLessonRow(sl)
-        case .meeting(let meeting): agendaMeetingRow(meeting)
+        case .lesson(let sl): agendaLessonRow(sl, isNext: isNext)
         case .scheduledWork(let scheduled): agendaScheduledWorkRow(scheduled)
         case .followUp(let followUp): agendaFollowUpRow(followUp)
         case .groupedScheduledWork(let items): agendaGroupedScheduledWorkRow(items)
@@ -162,18 +168,26 @@ extension TodayView {
     }
 
     @ViewBuilder
-    private func agendaLessonRow(_ sl: CDLessonAssignment) -> some View {
+    private func agendaLessonRow(_ sl: CDLessonAssignment, isNext: Bool) -> some View {
         // Decided once per reload (TodayLessonsLoader.lessonIDsWithPlan).
         let hasPlan = viewModel.lessonIDsWithPlan.contains(sl.resolvedLessonID)
+        let attendance = TodayLessonAttendance(
+            studentIDs: sl.resolvedStudentIDs, absent: viewModel.absentStudentIDs
+        )
+        let movesAbsent = attendance.hasAbsent && !sl.isPresented
         LessonListRow(
             lessonName: nameForLesson(sl.resolvedLessonID),
-            studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
+            children: lessonChips(for: sl, absent: viewModel.absentStudentIDs),
+            hereText: attendance.hereText,
             isPresented: sl.isPresented,
             trailingAccessorySystemName: hasPlan ? "doc.richtext" : nil,
             trailingAccessoryLabel: "Open lesson plan",
             onTrailingAccessoryTap: hasPlan ? {
                 openLessonPlan(for: sl)
-            } : nil
+            } : nil,
+            onMoveAbsent: movesAbsent ? { moveAbsentToTomorrow(from: [sl]) } : nil,
+            onPresent: isNext ? { startNextAgendaItem(.lesson(sl)) } : nil,
+            presentShortcut: nextCardShortcut
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -191,6 +205,13 @@ extension TodayView {
                 bumpLessonToTomorrow(sl)
             } label: {
                 Label("Bump to Tomorrow", systemImage: "calendar.badge.plus")
+            }
+            if movesAbsent {
+                Button {
+                    moveAbsentToTomorrow(from: [sl])
+                } label: {
+                    Label("Move Absent Children to Tomorrow", systemImage: "person.badge.clock")
+                }
             }
             Button {
                 quickNoteAboutLesson(sl)
@@ -219,9 +240,7 @@ extension TodayView {
     func bumpLessonToTomorrow(_ sl: CDLessonAssignment) {
         // "Tomorrow" is relative to today, not the item's own date — adding a day
         // to an overdue item's old date would leave it in the past, still overdue.
-        guard let tomorrow = calendar.date(
-            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
-        ) else { return }
+        guard let tomorrow = bumpTargetDay() else { return }
         // A bump expresses a day, so it lands at the start of the morning
         // rather than ahead of everything already planned.
         sl.schedule(onDay: tomorrow)
@@ -277,34 +296,6 @@ extension TodayView {
     func quickNoteAboutWork(_ work: CDWorkModel) {
         let studentIDs: Set<UUID>? = UUID(uuidString: work.studentID).map { [$0] }
         activeSheet = .quickNote(studentIDs: studentIDs)
-    }
-
-    @ViewBuilder
-    private func agendaMeetingRow(_ meeting: CDScheduledMeeting) -> some View {
-        ScheduledMeetingListRow(
-            studentName: meetingStudentName(for: meeting),
-            showsLeadingIcon: false,
-            onTap: nil
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            startMeeting(meeting)
-        }
-        .contextMenu {
-            Button {
-                startMeeting(meeting)
-            } label: {
-                Label("Start Meeting", systemImage: "play.fill")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                clearScheduledMeeting(meeting)
-            } label: {
-                Label("Remove", systemImage: "calendar.badge.minus")
-            }
-        }
     }
 
     // MARK: - Helper Views

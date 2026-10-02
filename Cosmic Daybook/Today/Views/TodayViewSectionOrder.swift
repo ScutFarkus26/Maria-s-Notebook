@@ -8,8 +8,8 @@
 // reminders), then the monthly nudge, the pad, and last the retrospective of
 // what is already done.
 //
-// The Mac splits that in two. The plan is the wide left column — the agenda
-// now; Meetings and Gone quiet join it below the agenda as their own sections.
+// The Mac splits that in two. The plan is the wide left column — the lessons,
+// then the meetings; Gone quiet joins it below them as its own section.
 // A fixed 340-pt right column holds the rest in the phone's order: the
 // Needs-a-lesson card, Todos, then the count-gated sections. Right Now is not
 // placed on the Mac (the plan's first row is the next thing to do), and a
@@ -57,6 +57,7 @@ extension TodayView {
         rightNowListSection
         dayCardsListSection
         agendaListSection
+        meetingsListSection
         todosListSection
         watchingListSection
         readyForNextListSection
@@ -97,11 +98,13 @@ extension TodayView {
         }
     }
 
-    /// Mirrors `TodaySectionVisibility.macLeftColumnOrder` — the day's plan.
-    /// Meetings (phase 3) and Gone quiet (phase 4) slot in after the agenda.
+    /// Mirrors `TodaySectionVisibility.macLeftColumnOrder` — the day's plan:
+    /// the lessons, then the meetings. Gone quiet (phase 4) slots in after
+    /// the meetings.
     @ViewBuilder
     private var macLeftColumnSections: some View {
         agendaListSection
+        meetingsListSection
     }
 
     /// Mirrors `TodaySectionVisibility.macRightColumnOrder` — the phone order

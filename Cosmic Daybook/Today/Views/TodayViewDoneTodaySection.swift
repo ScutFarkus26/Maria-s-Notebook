@@ -94,7 +94,7 @@ extension TodayView {
                     let hasPlan = viewModel.lessonIDsWithPlan.contains(sl.resolvedLessonID)
                     LessonListRow(
                         lessonName: nameForLesson(sl.resolvedLessonID),
-                        studentNames: studentNamesForIDs(sl.resolvedStudentIDs),
+                        children: lessonChips(for: sl, absent: []),
                         isPresented: true,
                         trailingAccessorySystemName: hasPlan ? "doc.richtext" : nil,
                         trailingAccessoryLabel: "Open lesson plan",

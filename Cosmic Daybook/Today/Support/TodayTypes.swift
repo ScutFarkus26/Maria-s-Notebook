@@ -23,6 +23,8 @@ struct FollowUpWorkItem: Identifiable {
 // MARK: - Agenda Item Types
 
 /// The kind of item that can appear in the unified Today agenda.
+/// `meeting` is no longer produced (meetings have their own Today section);
+/// it stays so older saved order rows still decode.
 enum AgendaItemType: String, Codable, Sendable {
     case lesson
     case meeting
@@ -37,7 +39,6 @@ enum AgendaItemType: String, Codable, Sendable {
 /// Grouped variants merge multiple students' work from the same lesson into one row.
 enum AgendaItem: Identifiable {
     case lesson(CDLessonAssignment)
-    case meeting(CDScheduledMeeting)
     case scheduledWork(ScheduledWorkItem)
     case followUp(FollowUpWorkItem)
     case groupedScheduledWork([ScheduledWorkItem])
@@ -46,7 +47,6 @@ enum AgendaItem: Identifiable {
     var id: UUID {
         switch self {
         case .lesson(let sl): return sl.id ?? UUID()
-        case .meeting(let meeting): return meeting.id ?? UUID()
         case .scheduledWork(let item): return item.id
         case .followUp(let item): return item.id
         case .groupedScheduledWork(let items): return items.first?.id ?? UUID()
@@ -57,7 +57,6 @@ enum AgendaItem: Identifiable {
     var itemType: AgendaItemType {
         switch self {
         case .lesson: return .lesson
-        case .meeting: return .meeting
         case .scheduledWork: return .scheduledWork
         case .followUp: return .followUp
         case .groupedScheduledWork: return .groupedScheduledWork

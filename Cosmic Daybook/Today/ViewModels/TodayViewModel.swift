@@ -359,7 +359,6 @@ final class TodayViewModel {
         // overdueSchedule/todaysSchedule outputs stay for Right Now's count.
         agendaItems = TodayAgendaBuilder.buildAgenda(
             lessons: filteredLessons,
-            meetings: meetingsResult.meetings,
             overdueSchedule: [],
             todaysSchedule: [],
             staleFollowUps: workResult.staleFollowUps,

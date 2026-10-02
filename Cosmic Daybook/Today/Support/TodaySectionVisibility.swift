@@ -31,6 +31,7 @@ enum TodaySection: String, CaseIterable, Sendable {
     case rightNow
     case dayCards
     case agenda
+    case meetings
     case todos
     case watching
     case readyForNext
@@ -59,6 +60,10 @@ enum TodaySectionVisibility {
 
     /// Recent observations, the guide's own writing from the last day or two.
     static func showsRecentNotes(count: Int) -> Bool { count > 0 }
+
+    /// The day's scheduled meetings, in a small section of their own after
+    /// the lessons — gone on a day with none.
+    static func showsMeetings(count: Int) -> Bool { count > 0 }
 
     /// The retrospective roll-up (lessons presented, work checked, meetings held).
     static func showsDoneToday(total: Int) -> Bool { total > 0 }
@@ -107,10 +112,10 @@ enum TodaySectionVisibility {
     // MARK: - Orderings
 
     /// iPhone and iPad, top to bottom: what is in front of her now (Right Now,
-    /// the day's banners, the day's plan, her todo list), then what she is
-    /// watching (ready-for-next, following presentations, observations), then
-    /// the external feeds, then the monthly nudge, the pad, and last the
-    /// retrospective.
+    /// the day's banners, the day's plan and its meetings, her todo list),
+    /// then what she is watching (ready-for-next, following presentations,
+    /// observations), then the external feeds, then the monthly nudge, the
+    /// pad, and last the retrospective.
     ///
     /// The Overdue section is deliberately absent from both orderings. It
     /// duplicated the Todos section's own "Overdue" subgroup with a single row
@@ -120,6 +125,7 @@ enum TodaySectionVisibility {
         .rightNow,
         .dayCards,
         .agenda,
+        .meetings,
         .todos,
         .watching,
         .readyForNext,
@@ -132,16 +138,16 @@ enum TodaySectionVisibility {
         .doneToday
     ]
 
-    /// macOS left column, the wide one: the day's plan, full height. The
-    /// Meetings and Gone quiet sections join it after the agenda when they
-    /// get sections of their own.
-    static let macLeftColumnOrder: [TodaySection] = [.agenda]
+    /// macOS left column, the wide one: the day's plan, full height — the
+    /// lessons, then the meetings. Gone quiet joins it after the meetings
+    /// when it gets a section of its own.
+    static let macLeftColumnOrder: [TodaySection] = [.agenda, .meetings]
 
     /// macOS right column, 340 pt: the phone ordering minus the plan, and
     /// minus Right Now. On the Mac the plan's own first row is the next thing
     /// to do, so a hero card repeating it above the todos says it twice.
     static let macRightColumnOrder: [TodaySection] = phoneOrder.filter {
-        $0 != .agenda && $0 != .rightNow
+        !macLeftColumnOrder.contains($0) && $0 != .rightNow
     }
 
     /// Sections the Mac deliberately leaves out of both columns.

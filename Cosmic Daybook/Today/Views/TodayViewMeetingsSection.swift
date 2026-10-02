@@ -1,13 +1,52 @@
 // TodayViewMeetingsSection.swift
-// Helpers for meetings on the Today agenda. Meetings are now rendered inline as
-// AgendaItem.meeting rows in the unified Agenda section, so this file only holds
-// the supporting functions (start/clear meeting, lesson plan resolution).
+// The day's scheduled meetings, in a small section of their own after the
+// lessons (hidden on a day with none), plus the supporting functions
+// (start/clear meeting, lesson plan resolution).
 
 import SwiftUI
 import CoreData
 import OSLog
 
 extension TodayView {
+
+    // MARK: - Meetings Section
+
+    @ViewBuilder
+    var meetingsListSection: some View {
+        if TodaySectionVisibility.showsMeetings(count: viewModel.scheduledMeetings.count) {
+            Section {
+                ForEach(viewModel.scheduledMeetings) { meeting in
+                    meetingRow(meeting)
+                        .id(meeting.id)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                }
+            } header: {
+                sectionHeader("Meetings")
+            }
+        }
+    }
+
+    private func meetingRow(_ meeting: CDScheduledMeeting) -> some View {
+        ScheduledMeetingListRow(
+            studentName: meetingStudentName(for: meeting),
+            onTap: { startMeeting(meeting) }
+        )
+        .contextMenu {
+            Button {
+                startMeeting(meeting)
+            } label: {
+                Label("Start Meeting", systemImage: "play.fill")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                clearScheduledMeeting(meeting)
+            } label: {
+                Label("Remove", systemImage: "calendar.badge.minus")
+            }
+        }
+    }
 
     // MARK: - Helpers
 

@@ -1,5 +1,6 @@
 // TodayAgendaBuilder.swift
 // Builds the unified agenda by merging lessons and work items with persisted ordering.
+// Scheduled meetings are not on it: they have a Meetings section of their own.
 
 import Foundation
 import CoreData
@@ -13,7 +14,6 @@ enum TodayAgendaBuilder {
     // swiftlint:disable:next function_parameter_count
     static func buildAgenda(
         lessons: [CDLessonAssignment],
-        meetings: [CDScheduledMeeting],
         overdueSchedule: [ScheduledWorkItem],
         todaysSchedule: [ScheduledWorkItem],
         staleFollowUps: [FollowUpWorkItem],
@@ -28,7 +28,6 @@ enum TodayAgendaBuilder {
         // 2. Build the complete set in default order (exclude presented lessons — they appear in the left column)
         var allItems: [AgendaItem] = []
         allItems += lessons.filter { !$0.isPresented }.map { .lesson($0) }
-        allItems += meetings.map { .meeting($0) }
         allItems += groupedScheduledItems
         allItems += groupedFollowUpItems
 

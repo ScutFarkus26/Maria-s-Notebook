@@ -96,63 +96,7 @@ struct ReminderListRow: View {
     }
 }
 
-struct LessonListRow: View {
-    let lessonName: String
-    let studentNames: String
-    let isPresented: Bool
-    var trailingAccessorySystemName: String?
-    var trailingAccessoryLabel: String?
-    var onTrailingAccessoryTap: (() -> Void)?
-
-    private var accessibilityLabelText: String {
-        var label = "Lesson: \(lessonName)"
-        if !studentNames.trimmed().isEmpty {
-            label += ", for \(studentNames)"
-        }
-        if isPresented {
-            label += ", presented"
-        }
-        return label
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                if !studentNames.trimmed().isEmpty {
-                    Text(studentNames)
-                        .font(AppTheme.ScaledFont.callout)
-                        .foregroundStyle(isPresented ? .tertiary : .primary)
-                }
-                Text(lessonName)
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            Spacer()
-            if let trailingAccessorySystemName, let onTrailingAccessoryTap {
-                Button(action: onTrailingAccessoryTap) {
-                    Image(systemName: trailingAccessorySystemName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
-                        .background(
-                            Circle()
-                                .fill(Color.secondary.opacity(UIConstants.OpacityConstants.medium))
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(trailingAccessoryLabel ?? "Open attachment")
-            } else if isPresented {
-                Text("Done")
-                    .font(AppTheme.ScaledFont.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabelText)
-        .accessibilityHint("Views lesson details")
-    }
-}
+// `LessonListRow` lives in TodayLessonListRow.swift, beside its student chips.
 
 struct ScheduledWorkListRow: View {
     let item: ScheduledWorkItem

@@ -57,29 +57,8 @@ extension TodayView {
     }
 
     // MARK: - Next agenda item
-
-    /// The first agenda item that hasn't been completed yet. Falls back to the first
-    /// future item; if everything is done or empty, returns nil.
-    ///
-    /// Due check-ins moved out of the agenda and into the todo list, so when
-    /// nothing on the agenda is pending the first due check-in still stands
-    /// in as "Next up" — the hero kept proposing one before the move.
-    var nextAgendaItem: AgendaItem? {
-        let pending = viewModel.agendaItems.first { item in
-            switch item {
-            case .lesson(let sl):
-                return !sl.isPresented
-            case .meeting:
-                return true
-            case .scheduledWork, .followUp,
-                 .groupedScheduledWork, .groupedFollowUp:
-                return true
-            }
-        }
-        return pending ?? viewModel.followUpCheckIns.first.map {
-            .scheduledWork(ScheduledWorkItem(work: $0.work, checkIn: $0.checkIn))
-        }
-    }
+    // `nextAgendaItem` and how it is described and started live in
+    // TodayViewNextCard.swift, shared with the agenda's highlighted Next card.
 
     var openWorkToCheckCount: Int {
         viewModel.todaysSchedule.count + viewModel.staleFollowUps.count
@@ -132,67 +111,6 @@ extension TodayView {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-        }
-    }
-
-    private func nextUpDescription(for item: AgendaItem) -> String {
-        switch item {
-        case .lesson(let sl):
-            let lessonName = nameForLesson(sl.resolvedLessonID)
-            let students = studentNamesForIDs(sl.resolvedStudentIDs)
-            if students.isEmpty { return lessonName }
-            return "\(lessonName) — \(students)"
-        case .meeting(let meeting):
-            return "Meeting with \(meetingStudentName(for: meeting))"
-        case .scheduledWork(let item):
-            let lesson = resolveLessonName(for: item.work)
-            let student = resolveStudentName(for: item.work)
-            return "Check \(lesson) — \(student)"
-        case .followUp(let item):
-            let lesson = resolveLessonName(for: item.work)
-            let student = resolveStudentName(for: item.work)
-            return "Follow up: \(lesson) — \(student)"
-        case .groupedScheduledWork(let items):
-            let lesson = items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson"
-            return "Check \(lesson) — \(items.count) students"
-        case .groupedFollowUp(let items):
-            let lesson = items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson"
-            return "Follow up: \(lesson) — \(items.count) students"
-        }
-    }
-
-    private func nextUpIcon(for item: AgendaItem) -> String {
-        switch item {
-        case .lesson: return "book.fill"
-        case .meeting: return "person.crop.circle.badge.clock"
-        case .scheduledWork, .groupedScheduledWork: return "clock.fill"
-        case .followUp, .groupedFollowUp: return "arrow.uturn.left.circle.fill"
-        }
-    }
-
-    private func nextUpColor(for item: AgendaItem) -> Color {
-        switch item {
-        case .lesson: return .blue
-        case .meeting: return .teal
-        case .scheduledWork, .groupedScheduledWork: return .orange
-        case .followUp, .groupedFollowUp: return .purple
-        }
-    }
-
-    private func startNextAgendaItem(_ item: AgendaItem) {
-        switch item {
-        case .lesson(let sl):
-            selectedLessonAssignment = sl
-        case .meeting(let meeting):
-            startMeeting(meeting)
-        case .scheduledWork(let item):
-            selectedWorkID = item.work.id
-        case .followUp(let item):
-            selectedWorkID = item.work.id
-        case .groupedScheduledWork(let items):
-            if let id = items.first?.work.id { selectedWorkID = id }
-        case .groupedFollowUp(let items):
-            if let id = items.first?.work.id { selectedWorkID = id }
         }
     }
 }
