@@ -143,10 +143,27 @@ All paths below are under `Cosmic Daybook/`.
 
 | Phase | State | Commit |
 |---|---|---|
-| 1 Engine | | |
-| 2 Mac layout | | |
+| 1 Engine | Done. Fetches per reload 18–20 → 13; refresh after edits in other windows | 26b7b1b1 (merged) |
+| 2 Mac layout | Next | |
 | 3 Lesson & meeting rows | | |
-| 4 Gone quiet + linking | | |
-| 5 Header/toolbar/band | Built (claude/today-header); Mac UI unseen | |
-| 6 Floating button | Built (claude/today-header); Mac UI unseen | |
+| 4 Gone quiet + linking | Non-UI done: MCP `work_id`, `TodayLinkedTodos`, `completeTodosLinked`, tag short names | 26f17f31 |
+| 5 Header/toolbar/band | Done; Mac UI unseen | 669ded92 |
+| 6 Floating button | Done (File ▸ New already had all five; New Work now targets the front window); Mac UI unseen | 669ded92 |
 | 7 iPhone/iPad | | |
+
+## Handoff notes for phases 2–4 UI
+
+- **What the view model already has:** `staleTotalCount`, `absentStudentIDs` and `TodayLessonsLoader.lessonIDsWithPlan`.
+  `TodayLinkedTodos` (Today/Support) is the pure folding helper.
+- **Wire `TodoCompletionService.completeTodosLinked(toWork:in:)`** at `WorkLogService.log`
+  (Work/Completion/WorkLogService.swift:98, where `lastTouchedAt` is set; this needs undo-token support) and at
+  `WorkCheckInService.markCompleted` (:38, used by Today's `completeCheckInFollowUp`).
+- When the view model starts reading linked todos, **add `"TodoItem"` to the refresh trigger** in
+  `TodayViewModel+Refresh.swift`.
+- **`AgendaItemRows.swift:118`** now calls `TagHelper.displayName(_:contextOf:)`, which does one small student fetch per
+  render. Replace it with `RosterStore.shortNamesByFullName` when the rows are rebuilt.
+- The header agent added a **calendar popover button** next to ‹ Today › for jumping to far-off days (not in the
+  mockup; Danny may drop it).
+- **Agents:** a session guard blocks writes outside the session's own worktree. Run UI agents in this worktree
+  (one at a time) or with `isolation: "worktree"` (then `git merge --ff-only claude/today-view-analysis-275c3c` first).
+- The `today-engine`, `today-header` and `today-mcp` worktrees and branches are merged or abandoned; remove them.
