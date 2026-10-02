@@ -213,10 +213,12 @@ struct TodayEngineTests {
         let viewModel = TodayViewModel(context: context)
         viewModel.reload()
         let afterFirst = viewModel.reloadCount
+        // Each step awaits the debounced task itself, not a fixed sleep, so a
+        // busy simulator can't make the 400 ms debounce look like no reload.
 
         // Nothing changed: the gated request reloads nothing.
         viewModel.scheduleReloadIfInputsChanged()
-        try await Task.sleep(for: .milliseconds(700))
+        await viewModel.reloadTask?.value
         #expect(viewModel.reloadCount == afterFirst)
 
         // Another window saves a work: one reload.
@@ -224,7 +226,7 @@ struct TodayEngineTests {
         #expect(CoreDataTestHelpers.save(context))
         viewModel.scheduleReloadIfInputsChanged()
         viewModel.scheduleReloadIfInputsChanged()
-        try await Task.sleep(for: .milliseconds(700))
+        await viewModel.reloadTask?.value
         #expect(viewModel.reloadCount == afterFirst + 1)
 
         // Today saves and reloads for itself; the save's signal then asks
@@ -233,13 +235,13 @@ struct TodayEngineTests {
         #expect(CoreDataTestHelpers.save(context))
         viewModel.reload()
         viewModel.scheduleReloadIfInputsChanged()
-        try await Task.sleep(for: .milliseconds(700))
+        await viewModel.reloadTask?.value
         #expect(viewModel.reloadCount == afterFirst + 2)
 
         // A pending outright reload survives a gated request replacing it.
         viewModel.scheduleReload()
         viewModel.scheduleReloadIfInputsChanged()
-        try await Task.sleep(for: .milliseconds(700))
+        await viewModel.reloadTask?.value
         #expect(viewModel.reloadCount == afterFirst + 3)
     }
 }
