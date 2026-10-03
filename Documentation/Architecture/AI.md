@@ -109,7 +109,7 @@ equivalent) at runtime before calling the model.
 | Note tag + student suggestion | `Notes/Editor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
 | Describe photo into note | `Notes/Editor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |
 | Story metadata (title/themes/grade) | `Stories/StoryAnalyzer.swift` | `@Generable` `StoryAnalysisAI` | No | **PDF pages** |
-| Command bar parsing and classroom capture proposal | `Services/CommandBar/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` / `GeneratedClassroomCapture` | No | — |
+| Command bar parsing and classroom capture proposal | `CommandBar/Services/AppleIntelligenceCommandParser.swift` | `@Generable` `ParsedTeacherCommand` / `GeneratedClassroomCapture` | No | — |
 | Ask-your-notebook chat | `Chat/Services/ChatService.swift` + `Services/AI/NotebookTools.swift` | Free text | Yes | — |
 | Lesson planning | `Planning/AIPlanning/LessonPlanning/*` | Structured | — | — |
 | Story ↔ lesson connections (rerank + one-line reasons) | `Stories/StoryLessonMatcher.swift` | JSON via `generateStructuredJSON` | No | — |

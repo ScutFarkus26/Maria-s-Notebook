@@ -3,7 +3,7 @@
 // the lens (All Marks / Ready to Present), Jump to sequence, the students filter and the
 // lesson search, all in the toolbar.
 // No Select button: cells are selected with ⌘- and Shift-click, a drag, or Select ready.
-// The iPhone keeps its header and filter bar (ClassSubjectChecklistView.swift).
+// The iPhone keeps its header and filter bar (ClassAreaChecklistView.swift).
 
 import SwiftUI
 

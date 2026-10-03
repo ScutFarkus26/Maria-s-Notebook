@@ -285,7 +285,7 @@ Five actions arranged in a circle (radius: 95pt):
 
 ### Command Bar
 
-**Files:** `Services/CommandBar/CommandBarTypes.swift`, `Services/CommandBar/LocalCommandParser.swift`, `Components/CommandBar/CommandBarSheet.swift`, `ViewModels/CommandBarViewModel.swift`
+**Files:** `CommandBar/Services/CommandBarTypes.swift`, `CommandBar/Services/LocalCommandParser.swift`, `CommandBar/Views/CommandBarSheet.swift`, `CommandBar/ViewModels/CommandBarViewModel.swift`
 
 The command bar accepts natural language input and parses it into structured actions.
 

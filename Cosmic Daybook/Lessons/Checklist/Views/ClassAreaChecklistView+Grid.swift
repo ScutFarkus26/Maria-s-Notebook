@@ -1,6 +1,6 @@
 // ClassAreaChecklistView+Grid.swift
 // The checklist's scrollable lesson x student matrix, split out of
-// ClassSubjectChecklistView.swift to keep that file focused on layout and actions.
+// ClassAreaChecklistView.swift to keep that file focused on layout and actions.
 // The bands are in +Bands, the pinned header in +Header.
 
 import SwiftUI
