@@ -107,7 +107,7 @@ Cosmic Daybook/
 ├── Presentations/    # Presentation scheduling, queues, sessions, record index
 ├── Attendance/       # Attendance: Store/, Rules/, Views/, Tile/, Email/, Reports/, Insights/, Delight/
 ├── Planning/         # Planning tools and AI lesson planning
-├── SmallSequencePlanner/ # Small-group planning by area and sequence
+├── Groups/           # Groups page: who is ready for the same next lesson, sequence ladder
 ├── CommandBar/       # Command bar: Views/, ViewModels/, Services/ (parsing, capture)
 ├── Today/            # Daily hub views, view model, and support
 ├── Todos/            # Todo models, screens, forms, and support

@@ -58,6 +58,10 @@ nonisolated struct PresentationRecordIndex: Sendable {
     /// for a write that needs the managed object back (flagging it for a
     /// second pass). Absent when only a `CDLessonPresentation` row exists.
     let latestPresentedAssignmentByLesson: [String: [String: NSManagedObjectID]]
+    /// lessonID → the open plans themselves, with their dates (see
+    /// `+OpenPlans`). The same children as `openPlanByLesson`, less a
+    /// year-plan entry already promoted to a presentation.
+    let openPlansByLesson: [String: [OpenPlan]]
 
     /// - Parameters:
     ///   - lessonIDs: the lessons to read; `nil` reads the whole record.
@@ -103,6 +107,7 @@ nonisolated struct PresentationRecordIndex: Sendable {
         givenByStudent = byStudent
         openPlanByLesson = builder.openPlan
         latestPresentedAssignmentByLesson = builder.latest.mapValues { $0.mapValues(\.id) }
+        openPlansByLesson = builder.openPlans()
     }
 
     // MARK: - Questions
@@ -144,6 +149,9 @@ nonisolated struct PresentationRecordIndex: Sendable {
         var given: [String: [String: Given]] = [:]
         var openPlan: [String: Set<String>] = [:]
         var latest: [String: [String: (date: Date, id: NSManagedObjectID)]] = [:]
+        var openAssignments: [String: [OpenPlan]] = [:]
+        /// lessonID → planned day (nil for none) → children.
+        var yearPlanDays: [String: [Date?: [String]]] = [:]
 
         init(students: Set<String>?) {
             self.students = students
@@ -181,6 +189,9 @@ nonisolated struct PresentationRecordIndex: Sendable {
             guard !roster.isEmpty else { return }
             guard assignment.isPresented else {
                 openPlan[assignment.lessonID, default: []].formUnion(roster)
+                openAssignments[assignment.lessonID, default: []].append(OpenPlan(
+                    assignmentID: assignment.objectID, date: assignment.scheduledFor, studentIDs: roster
+                ))
                 return
             }
             let confirmed = Set(assignment.confirmedStudentIDs)
@@ -201,6 +212,23 @@ nonisolated struct PresentationRecordIndex: Sendable {
         mutating func fold(_ entry: PlanEntryRow) {
             guard !entry.isSkipped, keeps(entry.studentID) else { return }
             openPlan[entry.lessonID, default: []].insert(entry.studentID)
+            guard !entry.isPromoted else { return }
+            let day = entry.plannedDate.map(AppCalendar.startOfDay)
+            yearPlanDays[entry.lessonID, default: [:]][day, default: []].append(entry.studentID)
+        }
+
+        /// The open assignments as they are, and the year-plan entries one
+        /// plan per planned day, each lesson's in `OpenPlan.precedes` order.
+        func openPlans() -> [String: [OpenPlan]] {
+            var plans = openAssignments
+            for (lessonID, days) in yearPlanDays {
+                for (day, studentIDs) in days {
+                    plans[lessonID, default: []].append(
+                        OpenPlan(assignmentID: nil, date: day, studentIDs: studentIDs.sorted())
+                    )
+                }
+            }
+            return plans.mapValues { $0.sorted(by: OpenPlan.precedes) }
         }
     }
 }

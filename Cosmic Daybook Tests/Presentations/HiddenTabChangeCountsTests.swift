@@ -4,16 +4,16 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-// Two screens kept live whole-table `@FetchRequest`s only to count rows and
-// reload when a count moved: the Group Planner (presented assignments, all
-// work) and the presentation history (every note, every presented
-// assignment). A TabView keeps both alive behind other iPad tabs, so every
-// save and import went through them. They now take the same counts with
-// `count(for:)` when those tables change while the screen is on screen.
-// These pin the counts against change-tracking fetched-results controllers
-// (what a `@FetchRequest` is) across saved rows, unsaved edits and a save
-// merged in from another context, the notes the history's caches read, and
-// the note signal that says when to recount.
+// The presentation history kept live whole-table `@FetchRequest`s (every
+// note, every presented assignment) only to count rows and reload when a count
+// moved. A TabView keeps it alive behind other iPad tabs, so every save and
+// import went through them. It now takes the same counts with `count(for:)`
+// when those tables change while the screen is on screen. These pin the counts
+// against change-tracking fetched-results controllers (what a `@FetchRequest`
+// is) across saved rows, unsaved edits and a save merged in from another
+// context, the notes the history's caches read, and the note signal that says
+// when to recount. (The Group Planner, which did the same, was replaced by the
+// Groups page in 2026-10.)
 
 @Suite("Hidden-tab change counts")
 @MainActor
@@ -92,58 +92,6 @@ struct HiddenTabChangeCountsTests {
         case .draft: break
         }
         return assignment
-    }
-
-    // MARK: - Group Planner
-
-    @Test("The planner's token is the sum its two live fetches counted: saved, unsaved, merged")
-    func plannerTokenMatchesLiveFetches() async throws {
-        let (context, background) = try sqliteContexts()
-        let presented = try LiveFetch(
-            "LessonAssignment",
-            predicate: NSPredicate(format: "stateRaw == %@", LessonAssignmentState.presented.rawValue),
-            sortKey: "id", in: context
-        )
-        let work = try LiveFetch("WorkModel", sortKey: "id", in: context)
-        func expectMatch(_ comment: Comment) {
-            #expect(SmallSequencePlannerView.changeToken(in: context) == presented.count + work.count, comment)
-        }
-        expectMatch("empty store")
-
-        let given = (0..<3).map { _ in assignment(.presented, in: context) }
-        let scheduled = (0..<2).map { _ in assignment(.scheduled, in: context) }
-        _ = assignment(.draft, in: context)
-        let works = (0..<4).map { _ in CoreDataTestHelpers.seedWorkModel(in: context) }
-        #expect(CoreDataTestHelpers.save(context))
-        #expect(presented.count == 3)
-        #expect(work.count == 4)
-        expectMatch("saved rows")
-
-        // Unsaved: one given, one scheduled one given, one given and one work
-        // deleted, one work added.
-        _ = assignment(.presented, in: context)
-        scheduled[0].markPresented(at: Date(timeIntervalSince1970: 1_782_000_000))
-        context.delete(given[1])
-        context.delete(works[0])
-        _ = CoreDataTestHelpers.seedWorkModel(in: context)
-        context.processPendingChanges()
-        #expect(presented.count == 4)
-        expectMatch("unsaved edits")
-
-        #expect(CoreDataTestHelpers.save(context))
-        expectMatch("after the save")
-
-        // A save on another context, merged in the way an import is.
-        let before = presented.count
-        await background.perform {
-            let row = CDLessonAssignment(context: background)
-            row.lessonID = UUID().uuidString
-            row.markPresented(at: Date(timeIntervalSince1970: 1_783_000_000))
-            _ = CDWorkModel(context: background)
-            try? background.save()
-        }
-        #expect(try await waitUntil { presented.count == before + 1 })
-        expectMatch("merged save")
     }
 
     // MARK: - Presentation history

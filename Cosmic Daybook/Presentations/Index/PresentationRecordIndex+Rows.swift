@@ -51,6 +51,8 @@ nonisolated extension PresentationRecordIndex {
         let presentedAt: Date?
         /// Empty on an unpresented row, which the fold never asks about.
         let confirmedStudentIDs: [String]
+        /// The day and time it is planned for; nil on an undated draft.
+        let scheduledFor: Date?
     }
 
     /// One `CDYearPlanEntry`.
@@ -58,6 +60,9 @@ nonisolated extension PresentationRecordIndex {
         let studentID: String
         let lessonID: String
         let isSkipped: Bool
+        /// Promoted to a presentation, which then speaks for the plan.
+        let isPromoted: Bool
+        let plannedDate: Date?
     }
 
     /// The three tables' rows, each in its fetch's order.
@@ -120,11 +125,18 @@ nonisolated extension PresentationRecordIndex {
                 studentIDs: row.studentIDs,
                 isPresented: row.isPresented,
                 presentedAt: row.presentedAt,
-                confirmedStudentIDs: row.isPresented ? row.confirmedStudentIDs : []
+                confirmedStudentIDs: row.isPresented ? row.confirmedStudentIDs : [],
+                scheduledFor: row.scheduledFor
             )
         }
         let planEntries = fetchObjects(CDYearPlanEntry.self, lessonIDs: lessonIDs, in: context).map { row in
-            PlanEntryRow(studentID: row.studentID, lessonID: row.lessonID, isSkipped: row.status == .skipped)
+            PlanEntryRow(
+                studentID: row.studentID,
+                lessonID: row.lessonID,
+                isSkipped: row.status == .skipped,
+                isPromoted: row.status == .promoted,
+                plannedDate: row.plannedDate
+            )
         }
         return RecordRows(presentations: presentations, assignments: assignments, planEntries: planEntries)
     }
@@ -150,6 +162,8 @@ nonisolated extension PresentationRecordIndex {
         static let masteredAt = "masteredAt"
         static let stateRaw = "stateRaw"
         static let statusRaw = "statusRaw"
+        static let scheduledFor = "scheduledFor"
+        static let plannedDate = "plannedDate"
         static let studentIDsData = "_studentIDsData"
         static let confirmedStudentIDsData = "_confirmedStudentIDsData"
     }
@@ -171,11 +185,13 @@ nonisolated extension PresentationRecordIndex {
               let assignmentRows = fetchColumns(
                 CDLessonAssignment.self,
                 [objectID, Column.lessonID, Column.stateRaw, Column.presentedAt,
-                 Column.studentIDsData, Column.confirmedStudentIDsData],
+                 Column.studentIDsData, Column.confirmedStudentIDsData, Column.scheduledFor],
                 in: context
               ),
               let planEntryRows = fetchColumns(
-                CDYearPlanEntry.self, [Column.studentID, Column.lessonID, Column.statusRaw], in: context
+                CDYearPlanEntry.self,
+                [Column.studentID, Column.lessonID, Column.statusRaw, Column.plannedDate],
+                in: context
               )
         else { return nil }
 
@@ -217,7 +233,8 @@ nonisolated extension PresentationRecordIndex {
             presentedAt: row[Column.presentedAt] as? Date,
             confirmedStudentIDs: isPresented
                 ? CloudKitStringArrayStorage.decode(from: row[Column.confirmedStudentIDsData] as? Data)
-                : []
+                : [],
+            scheduledFor: row[Column.scheduledFor] as? Date
         )
     }
 
@@ -227,7 +244,9 @@ nonisolated extension PresentationRecordIndex {
         return PlanEntryRow(
             studentID: string(row, Column.studentID),
             lessonID: string(row, Column.lessonID),
-            isSkipped: status == .skipped
+            isSkipped: status == .skipped,
+            isPromoted: status == .promoted,
+            plannedDate: row[Column.plannedDate] as? Date
         )
     }
 

@@ -32,15 +32,18 @@ actor PersistentHistoryProcessor {
     /// know which entities changed, so the post happens here instead.
     nonisolated private static let schoolDayEntityNames: Set<String> = ["NonSchoolDay", "SchoolDayOverride"]
 
-    /// Entities the Upcoming pane, the progress map, the class checklist and
-    /// the attendance roll read (`LessonPresentation` carries the mastery
-    /// marks the checklist colors green). A batch that touched any of them posts `.presentationDataDidChange`
-    /// with the touched names under `changedEntityNamesKey`, so those screens
-    /// no longer keep whole tables registered through `@FetchRequest` just to
-    /// notice a remote change (see `View.onPresentationDataChange`).
+    /// Entities the Upcoming pane, the progress map, the class checklist, the
+    /// attendance roll and the ready queue (`ReadyQueueLoader.inputEntities`)
+    /// read (`LessonPresentation` carries the mastery marks the checklist
+    /// colors green). A batch that touched any of them posts
+    /// `.presentationDataDidChange` with the touched names under
+    /// `changedEntityNamesKey`, so those screens no longer keep whole tables
+    /// registered through `@FetchRequest` just to notice a remote change (see
+    /// `View.onPresentationDataChange`).
     nonisolated static let presentationEntityNames: Set<String> = [
         "LessonAssignment", "Lesson", "LessonPresentation", "Student", "WorkModel",
-        "AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings"
+        "AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings",
+        "YearPlanEntry", "WorkParticipantEntity", "LessonSequenceSettings"
     ]
 
     /// `userInfo` key of `.presentationDataDidChange`: the `Set<String>` of

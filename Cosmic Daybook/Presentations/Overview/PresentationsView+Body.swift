@@ -7,6 +7,14 @@ import CoreData
 
 extension PresentationsView {
 
+    /// What this screen reloads for. Pinned rather than the history
+    /// processor's whole set, which also carries the ready queue's inputs
+    /// (record rows, year-plan entries, work participants, sub-area rules).
+    static let watchedEntityNames: Set<String> = [
+        "LessonAssignment", "Lesson", "Student", "WorkModel",
+        "AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings"
+    ]
+
     var body: some View {
         planContent
         .task {
@@ -19,9 +27,7 @@ extension PresentationsView {
             syncRecentWindowWithMissWindow()
             revealFocusedPresentationIfNeeded()
         }
-        .onPresentationDataChange(
-            of: PersistentHistoryProcessor.presentationEntityNames, in: viewContext
-        ) { touched in
+        .onPresentationDataChange(of: Self.watchedEntityNames, in: viewContext) { touched in
             pendingChangeToken &+= 1
             if touched.contains("LessonAssignment") {
                 pendingAssignmentChangeToken &+= 1

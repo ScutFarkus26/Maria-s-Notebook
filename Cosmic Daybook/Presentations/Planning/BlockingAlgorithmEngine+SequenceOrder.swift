@@ -57,7 +57,7 @@ extension BlockingAlgorithmEngine {
     /// reads. Two lessons filed at the same `orderInSequence` would otherwise
     /// take whichever order the fetch returned, so name breaks the tie and
     /// the caches answer the same way twice running.
-    nonisolated private static func orderedSequenceGroups(_ lessons: [CDLesson]) -> [[CDLesson]] {
+    nonisolated static func orderedSequenceGroups(_ lessons: [CDLesson]) -> [[CDLesson]] {
         var groups: [String: [CDLesson]] = [:]
         for lesson in lessons {
             let area = lesson.area.trimmed()
@@ -77,7 +77,7 @@ extension BlockingAlgorithmEngine {
 
     /// Case-insensitive key matching the `caseInsensitiveCompare` test in
     /// `computePrecedingLesson`. Inputs are already trimmed.
-    nonisolated private static func sequenceGroupKey(area: String, sequence: String) -> String {
+    nonisolated static func sequenceGroupKey(area: String, sequence: String) -> String {
         area.folding(options: .caseInsensitive, locale: nil)
             + "\u{1F}"
             + sequence.folding(options: .caseInsensitive, locale: nil)

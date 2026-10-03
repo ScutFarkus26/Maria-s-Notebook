@@ -95,7 +95,7 @@ extension RootView {
             case .curriculumMap:       return ("Three-Year View", "square.grid.3x3")
             case .lessonRecall:        return ("Lesson Recall", "arrow.clockwise.circle")
             case .goingOut:            return ("Going Out", "figure.walk")
-            case .smallSequencePlanner:   return ("Group Planner", "person.3.sequence")
+            case .smallSequencePlanner:   return ("Groups", "person.3.sequence")
             case .perpetualCalendar:   return ("Calendar", "calendar.day.timeline.leading")
             case .community:           return ("Community", "bubble.left.and.bubble.right")
             case .schedules:           return ("Schedules", "clock.badge.checkmark")
@@ -139,7 +139,7 @@ extension RootView {
             case .curriculumMap:       return "The curriculum against the whole class, one glyph per child and lesson"
             case .lessonRecall:        return "Re-check mastered lessons after a break"
             case .goingOut:            return "Plan and track student going-out excursions"
-            case .smallSequencePlanner:   return "Find ready and almost-ready students for sequence presentations"
+            case .smallSequencePlanner:   return "See which children are ready for the same next lesson, and plan it"
             case .community:           return "View community meetings and topics"
             case .schedules:           return "View recurring schedules"
             case .resourceLibrary:     return "Browse and organize classroom resource documents"

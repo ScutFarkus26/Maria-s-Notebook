@@ -30,7 +30,8 @@ for path in \
     "Cosmic Daybook/Inbox" \
     "Cosmic Daybook/Community" \
     "Cosmic Daybook/Agenda" \
-    "Cosmic Daybook/Progression"
+    "Cosmic Daybook/Progression" \
+    "Cosmic Daybook/SmallSequencePlanner"
 do
     if [ -e "$path" ]; then
         fail "legacy path still exists: $path"

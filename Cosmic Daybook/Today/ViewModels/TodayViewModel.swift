@@ -31,24 +31,9 @@ final class TodayViewModel {
     private var calendar: Calendar
     private let cacheManager = TodayCacheManager()
 
-    /// Flips when one of `readyForNextInputEntities` changes, so `reload()`
-    /// rebuilds the queue only then — not on every attendance tap or todo toggle.
-    @ObservationIgnored let readyForNextInputs: ManagedObjectChangeFlag
-    /// The test-student preference the queue was last built under; it filters
-    /// the roster without touching the store.
-    @ObservationIgnored var readyForNextHiddenNames: Set<String>?
-    /// How many times the queue has been built (for tests pinning the gate).
-    @ObservationIgnored var readyForNextBuildCount = 0
-    /// Numbers the queue's rebuilds: one publishes only while its number is
-    /// still the latest, so an overtaken rebuild never replaces a newer queue.
-    @ObservationIgnored var readyForNextGeneration = 0
-    /// The rebuild whose record read is running off the main thread, if any.
-    @ObservationIgnored var readyForNextTask: Task<Void, Never>?
-    /// How many rebuilds have published (for tests pinning that an overtaken
-    /// one never does).
-    @ObservationIgnored var readyForNextPublishCount = 0
-    /// The live lesson catalog bound to `context`, when the view supplies one.
-    @ObservationIgnored weak var lessonCatalog: LessonCatalog?
+    /// The ready queue, rebuilt only when one of its inputs changes — not on
+    /// every attendance tap or todo toggle (see +ReadyForNext).
+    let readyQueue: ReadyQueueLoader
     /// Flips when one of `derivedCountInputEntities` changes; made on first use.
     @ObservationIgnored var derivedCountInputs: ManagedObjectChangeFlag?
     /// What `needsLessonCount` was last computed under (see +DerivedCounts).
@@ -133,10 +118,6 @@ final class TodayViewModel {
     var recentNotes: [CDNote] = []
     var recentNoteStudentsByID: [UUID: CDStudent] = [:]
 
-    /// Who the record says is waiting on a next lesson — the capture-time
-    /// confirmations and mastery marks, turned into the lessons they point at.
-    var readyForNext: [ReadyForNextItem] = []
-
     /// Enrolled children overdue for a lesson, for the "Needs Lesson" day card.
     var needsLessonCount = 0
 
@@ -209,9 +190,7 @@ final class TodayViewModel {
         Self.madeCount += 1
         self.context = context
         self.calendar = calendar
-        self.readyForNextInputs = ManagedObjectChangeFlag(
-            entityNames: Self.readyForNextInputEntities, context: context
-        )
+        self.readyQueue = ReadyQueueLoader(context: context)
         // Saves only (see `inputChanges()`): the history processor's signal
         // for Today's own save would land after its reload and ask again.
         self.reloadInputs = ManagedObjectChangeFlag(
