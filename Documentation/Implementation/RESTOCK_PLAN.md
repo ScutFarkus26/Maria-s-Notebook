@@ -12,6 +12,7 @@ After Mac ×4, Assistant iPhone ×4, interactive in Play). Analysis 2026-10-03 o
 - [x] Phase 2C: MCP, `2048cf96` (also: received through checkOff; office needs refuse asked_for/confirmed)
 - [x] Phase 3: merged; `bf4db345` (Mac-only step, "to order" = not yet asked for, CLAUDE.md), review fixes `8411a6ec` (history rows no longer linked to their staple, so sharing one never re-shares the staple; reopen sets Low). Notebook 2,456 + Assistant 165 tests passed, Mac Debug + Release clean. Skipped: Undo doesn't restore a duplicate need closed by a check-off. Unseen: Mac UI running; 22 tiles on an SE with the new tab bar
 - [ ] Phase 4: schema deploy, roll-out, Danny's steps (session: fresh ship session)
+  - 2026-10-03 19:27: schema-15 Development init run (Debug 326da9f1, `CLOUDKIT_ENVIRONMENT=Development`, sim 4E87DAEE; schema records saved and deleted, no errors). Danny's steps are in Tide (Release ×2, Check on a device ×2). Waiting on: Console check + Deploy to Production, the backup, and Danny's OK to merge; then roll out both apps, Mac first.
 
 ## What Danny wants
 Keep the classroom's inventory from both apps. **Staples** are things we always need and restock from the
