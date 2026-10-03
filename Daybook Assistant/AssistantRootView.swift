@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Chooses between onboarding and the attendance list, based on whether this
-/// device has joined a classroom.
+/// Chooses between onboarding and the app's tabs (Attendance and Restock),
+/// based on whether this device has joined a classroom.
 struct AssistantRootView: View {
     @Environment(AssistantBootstrapper.self) private var bootstrapper
 
@@ -36,9 +36,9 @@ struct AssistantRootView: View {
 
         case .ready:
             if let stack = bootstrapper.coreDataStack {
-                // A rebuilt stack is a new screen: its view model must not
+                // A rebuilt stack is a new screen: its view models must not
                 // keep reading the old stack's context.
-                AssistantAttendanceView(coreDataStack: stack)
+                AssistantTabs(coreDataStack: stack)
                     .id(ObjectIdentifier(stack))
             } else {
                 AssistantOnboardingView()

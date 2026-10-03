@@ -66,6 +66,38 @@ struct AssistantAppShortcuts: AppShortcutsProvider {
             shortTitle: "Who's Not Marked",
             systemImageName: "person.crop.circle.badge.questionmark"
         )
+        // Restock (nine of Apple's ten): the supply names come from
+        // `SupplyEntityQuery.suggestedEntities()`.
+        AppShortcut(
+            intent: MarkSupplyOutIntent(),
+            phrases: [
+                "We're out of \(\.$supply) in \(.applicationName)",
+                "We ran out of \(\.$supply) in \(.applicationName)",
+                "Mark a supply out in \(.applicationName)"
+            ],
+            shortTitle: "We're Out",
+            systemImageName: "battery.0"
+        )
+        AppShortcut(
+            intent: MarkSupplyLowIntent(),
+            phrases: [
+                "We're low on \(\.$supply) in \(.applicationName)",
+                "We're running low on \(\.$supply) in \(.applicationName)",
+                "Mark a supply low in \(.applicationName)"
+            ],
+            shortTitle: "We're Low",
+            systemImageName: "battery.25"
+        )
+        AppShortcut(
+            intent: AddToOfficeRunIntent(),
+            phrases: [
+                "Add to the office run in \(.applicationName)",
+                "Add something to the office run in \(.applicationName)",
+                "We need something from the office in \(.applicationName)"
+            ],
+            shortTitle: "Add to Office Run",
+            systemImageName: "building.2"
+        )
     }
 }
 
@@ -78,6 +110,22 @@ enum AssistantSiriVocabulary {
 
     static func refresh(for students: [CDStudent]) {
         let names = students.map { "\($0.id?.uuidString ?? "")|\($0.firstName)|\($0.lastName)|\($0.nickname ?? "")" }
+        guard names != registered else { return }
+        registered = names
+        AssistantAppShortcuts.updateAppShortcutParameters()
+    }
+}
+
+/// Keeps Siri's supply names in step with the shelf, as
+/// `AssistantSiriVocabulary` does with the class: the names come from
+/// `SupplyEntityQuery.suggestedEntities()`, and this tells the system to read
+/// them again only when the staples have changed since it last did.
+@MainActor
+enum AssistantRestockVocabulary {
+    private static var registered: [String]?
+
+    static func refresh(for staples: [CDSupply]) {
+        let names = staples.map { "\($0.id?.uuidString ?? "")|\($0.name)" }
         guard names != registered else { return }
         registered = names
         AssistantAppShortcuts.updateAppShortcutParameters()

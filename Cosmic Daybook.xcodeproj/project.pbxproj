@@ -97,6 +97,17 @@
 		DB7E2A1C3F5B4D6E8A9C0B12 /* UnsentChangesKeepAlive.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB7E2A1C3F5B4D6E8A9C0B11 /* UnsentChangesKeepAlive.swift */; };
 		DA5C5CCA4E75ACBED92597FB /* AttendanceIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9364C079370B59BC25F592 /* AttendanceIntents.swift */; };
 		DABC801FA1D6BE8CBB96B9D7 /* Notification.Name+SiriAttendance.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */; };
+		DE5C0A1E2C3F4B5A6978D002 /* RestockModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D001 /* RestockModels.swift */; };
+		DE5C0A1E2C3F4B5A6978D004 /* RestockService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D003 /* RestockService.swift */; };
+		DE5C0A1E2C3F4B5A6978D006 /* RestockService+Staples.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D005 /* RestockService+Staples.swift */; };
+		DE5C0A1E2C3F4B5A6978D008 /* RestockService+Needs.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D007 /* RestockService+Needs.swift */; };
+		DE5C0A1E2C3F4B5A6978D010 /* SupplyEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D009 /* SupplyEntity.swift */; };
+		DE5C0A1E2C3F4B5A6978D012 /* SupplyTransactionEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D011 /* SupplyTransactionEntity.swift */; };
+		DE5C0A1E2C3F4B5A6978D014 /* Supply.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D013 /* Supply.swift */; };
+		DE5C0A1E2C3F4B5A6978D016 /* OrderItemEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D015 /* OrderItemEntity.swift */; };
+		DE5C0A1E2C3F4B5A6978D018 /* OrderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D017 /* OrderService.swift */; };
+		DE5C0A1E2C3F4B5A6978D020 /* OrderLinkCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D019 /* OrderLinkCleaner.swift */; };
+		DE5C0A1E2C3F4B5A6978D022 /* DateFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D021 /* DateFormatters.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -212,6 +223,17 @@
 		DB7E2A1C3F5B4D6E8A9C0B11 /* UnsentChangesKeepAlive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnsentChangesKeepAlive.swift; path = "Cosmic Daybook/Services/Sync/UnsentChangesKeepAlive.swift"; sourceTree = SOURCE_ROOT; };
 		DA9364C079370B59BC25F592 /* AttendanceIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceIntents.swift; path = "Cosmic Daybook/Siri/AttendanceIntents.swift"; sourceTree = SOURCE_ROOT; };
 		DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "Notification.Name+SiriAttendance.swift"; path = "Cosmic Daybook/Siri/Notification.Name+SiriAttendance.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D001 /* RestockModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RestockModels.swift; path = "Cosmic Daybook/Supplies/RestockModels.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D003 /* RestockService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RestockService.swift; path = "Cosmic Daybook/Supplies/Services/RestockService.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D005 /* RestockService+Staples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RestockService+Staples.swift"; path = "Cosmic Daybook/Supplies/Services/RestockService+Staples.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D007 /* RestockService+Needs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RestockService+Needs.swift"; path = "Cosmic Daybook/Supplies/Services/RestockService+Needs.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D009 /* SupplyEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SupplyEntity.swift; path = "Cosmic Daybook/Supplies/SupplyEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D011 /* SupplyTransactionEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SupplyTransactionEntity.swift; path = "Cosmic Daybook/Supplies/SupplyTransactionEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D013 /* Supply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Supply.swift; path = "Cosmic Daybook/Supplies/Supply.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D015 /* OrderItemEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OrderItemEntity.swift; path = "Cosmic Daybook/Orders/Models/OrderItemEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D017 /* OrderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OrderService.swift; path = "Cosmic Daybook/Orders/Services/OrderService.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D019 /* OrderLinkCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OrderLinkCleaner.swift; path = "Cosmic Daybook/Orders/Services/OrderLinkCleaner.swift"; sourceTree = SOURCE_ROOT; };
+		DE5C0A1E2C3F4B5A6978D021 /* DateFormatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DateFormatters.swift; path = "Cosmic Daybook/Utils/Formatting/DateFormatters.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -422,6 +444,17 @@
 				DB7E2A1C3F5B4D6E8A9C0B11 /* UnsentChangesKeepAlive.swift */,
 				DA9364C079370B59BC25F592 /* AttendanceIntents.swift */,
 				DA50681C41E7DF7962C2D702 /* Notification.Name+SiriAttendance.swift */,
+				DE5C0A1E2C3F4B5A6978D001 /* RestockModels.swift */,
+				DE5C0A1E2C3F4B5A6978D003 /* RestockService.swift */,
+				DE5C0A1E2C3F4B5A6978D005 /* RestockService+Staples.swift */,
+				DE5C0A1E2C3F4B5A6978D007 /* RestockService+Needs.swift */,
+				DE5C0A1E2C3F4B5A6978D009 /* SupplyEntity.swift */,
+				DE5C0A1E2C3F4B5A6978D011 /* SupplyTransactionEntity.swift */,
+				DE5C0A1E2C3F4B5A6978D013 /* Supply.swift */,
+				DE5C0A1E2C3F4B5A6978D015 /* OrderItemEntity.swift */,
+				DE5C0A1E2C3F4B5A6978D017 /* OrderService.swift */,
+				DE5C0A1E2C3F4B5A6978D019 /* OrderLinkCleaner.swift */,
+				DE5C0A1E2C3F4B5A6978D021 /* DateFormatters.swift */,
 			);
 			name = "Shared with Cosmic Daybook";
 			sourceTree = "<group>";
@@ -703,6 +736,17 @@
 				DB7E2A1C3F5B4D6E8A9C0B12 /* UnsentChangesKeepAlive.swift in Sources */,
 				DA5C5CCA4E75ACBED92597FB /* AttendanceIntents.swift in Sources */,
 				DABC801FA1D6BE8CBB96B9D7 /* Notification.Name+SiriAttendance.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D002 /* RestockModels.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D004 /* RestockService.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D006 /* RestockService+Staples.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D008 /* RestockService+Needs.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D010 /* SupplyEntity.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D012 /* SupplyTransactionEntity.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D014 /* Supply.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D016 /* OrderItemEntity.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D018 /* OrderService.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D020 /* OrderLinkCleaner.swift in Sources */,
+				DE5C0A1E2C3F4B5A6978D022 /* DateFormatters.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

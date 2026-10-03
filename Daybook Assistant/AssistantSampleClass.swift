@@ -113,7 +113,8 @@ enum AssistantSampleClass {
         return stack
     }
 
-    /// The roster, the front desk and the past marks, into an empty store.
+    /// The roster, the front desk, the past marks and the Restock shelf, into an
+    /// empty store.
     private static func fill(_ context: NSManagedObjectContext, defaults: UserDefaults) {
         let calendar = Calendar.current
         for (index, (first, last)) in names.enumerated() {
@@ -145,6 +146,7 @@ enum AssistantSampleClass {
         #endif
         _ = context.safeSave()
         seedHistory(in: context)
+        seedRestock(in: context)
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
         AttendanceLatePhase.forget(defaults: defaults)
@@ -184,6 +186,39 @@ enum AssistantSampleClass {
             day = earlier
             mark(noah, .absent, on: day, in: context)
         }
+    }
+
+    /// The Restock shelf: two places, five staples, Toilet Paper out (this
+    /// morning) and Paper Towels low (yesterday), both marked by the guide;
+    /// glue sticks on the office run, and two things the guide is ordering,
+    /// one asked for three days ago.
+    static func seedRestock(in context: NSManagedObjectContext, now: Date = Date()) {
+        let guide = RestockAuthor(role: .leadGuide, recordName: "_sampleGuide")
+        let calendar = Calendar.current
+        let morning = calendar.date(bySettingHour: 8, minute: 12, second: 0, of: now) ?? now
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: morning) ?? morning
+        let bathrooms = [("Toilet Paper", RestockLevel.out), ("Hand Soap", .stocked), ("Tissues", .stocked)]
+        let sink = [("Paper Towels", RestockLevel.low), ("Sponges", .stocked)]
+        for (place, staples) in [("Bathrooms", bathrooms), ("Sink", sink)] {
+            for (name, level) in staples {
+                let at = name == "Toilet Paper" ? min(morning, now) : yesterday
+                let details = RestockService.StapleDetails(name: name, place: place)
+                _ = RestockService.addStaple(details, level: level, by: guide, at: at, in: context)
+            }
+        }
+        _ = RestockService.addOneOff(
+            title: "Glue sticks", quantity: 12, source: .office, by: guide,
+            at: yesterday.addingTimeInterval(3_600), in: context
+        )
+        let asked = calendar.date(byAdding: .day, value: -3, to: morning) ?? morning
+        if let paper = RestockService.addOneOff(
+            title: "Watercolor Paper", source: .order, by: guide, at: asked, in: context
+        )?.object {
+            RestockService.markRequested([paper], from: "the office", at: asked)
+        }
+        _ = RestockService.addOneOff(
+            title: "USB-C Charger", quantity: 2, source: .order, by: guide, at: yesterday, in: context
+        )
     }
 
     private static func mark(
