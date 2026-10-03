@@ -103,7 +103,11 @@ nonisolated extension RestockService {
                 }
             }
         }
-        // `Supply.transactions` cascades: the history goes with it.
+        // History is named by `supplyID` (older rows are also linked, and
+        // cascade): delete it by id so none is left behind.
+        for entry in history(for: supply, in: context) {
+            context.delete(entry)
+        }
         context.delete(supply)
     }
 

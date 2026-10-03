@@ -90,7 +90,8 @@ extension CoreDataStack {
         "AttendanceEmailSettings",
         // Restock (schema 15): staples and their history, and the needs on the
         // office run and the to-order list, which assistants mark and add to.
-        // A staple's history is a real relationship, so the two travel together.
+        // New history rows name their staple by `supplyID` only, so sharing
+        // one never takes an already-shared staple along (RestockService).
         "Supply",
         "SupplyTransaction",
         "OrderItem"

@@ -259,14 +259,14 @@ extension MCPNotebookTools {
     ) {
         switch stage {
         case "to_request" where item.stage != .toRequest:
-            RestockService.moveBackToRequest([item])
+            RestockService.moveBackToRequest([item], by: author, in: modelContext)
         case "confirmed":
             RestockService.markConfirmed([item])
         case "received":
             // Checking off also puts the need's staple back to Stocked.
             RestockService.checkOff(item, by: author, in: modelContext)
         case "not_received":
-            OrderService.setReceived([item], false)
+            RestockService.reopen([item], by: author, in: modelContext)
         default:
             break
         }

@@ -46,7 +46,7 @@ nonisolated struct RestockDigest: Equatable, Sendable {
             let line = Line(title: need.displayTitle, quantity: Int(need.quantity), level: level)
             switch need.source {
             case .office: digest.officeRun.append(line)
-            case .order where need.requestedAt == nil: digest.toOrder.append(line)
+            case .order where RestockService.isNeeded(need): digest.toOrder.append(line)
             case .order: break
             }
         }

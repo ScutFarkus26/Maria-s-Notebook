@@ -227,7 +227,17 @@ struct RestockNeedSheet: View {
         let details = RestockService.StapleDetails(name: name, place: place, source: source, link: link, note: note)
         guard let added = RestockService.addStaple(details, level: .out, by: author, in: viewContext) else { return }
         let staple = added.object
-        if !added.isNew, !staple.level.isNeeded {
+        if !added.isNew {
+            // Already on the shelf: keep what it had where the sheet was left
+            // blank, and take what the guide filled in. A link makes it ordered.
+            var merged = RestockService.StapleDetails(staple)
+            if !details.place.trimmed().isEmpty { merged.place = details.place }
+            if !details.note.trimmed().isEmpty { merged.note = details.note }
+            if let link = details.link {
+                merged.link = link
+                merged.source = .order
+            }
+            RestockService.updateStaple(staple, to: merged, in: viewContext)
             RestockService.setLevel(staple, to: .out, by: author, in: viewContext)
         }
         for need in RestockService.openNeeds(for: staple, in: viewContext) where need.stage == .toRequest {

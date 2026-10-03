@@ -23,6 +23,9 @@ final class AssistantRestockModel {
 
     /// The staples by place, places A to Z and "No place yet" last.
     private(set) var shelf: [RestockService.PlaceGroup] = []
+    /// The same staples by upper-cased id, so a need's row finds its staple
+    /// without a fetch on every redraw.
+    @ObservationIgnored private var staplesByID: [String: CDSupply] = [:]
     /// What to grab from the office: every open need from the office, plus
     /// those checked off on this phone since the tab opened (ticked, so a
     /// second tap takes the check-off back).
@@ -94,6 +97,10 @@ final class AssistantRestockModel {
         }
         let staples = RestockService.staples(in: context, store: store)
         shelf = RestockService.shelf(staples)
+        staplesByID = Dictionary(
+            staples.compactMap { staple in staple.id.map { ($0.uuidString.uppercased(), staple) } },
+            uniquingKeysWith: { first, _ in first }
+        )
         AssistantRestockVocabulary.refresh(for: staples)
         refreshNeeds()
     }
@@ -239,8 +246,8 @@ final class AssistantRestockModel {
         if let at = staple.levelChangedAt {
             let when = Self.when(at, now: now())
             parts.append(staple.level.isNeeded
-                ? "\(staple.level.displayName) since \(when), marked by \(who(staple))"
-                : "Restocked \(when) by \(who(staple))")
+                ? "\(staple.level.displayName) since \(when), marked by \(Self.midSentence(who(staple)))"
+                : "Restocked \(when) by \(Self.midSentence(who(staple)))")
         } else {
             parts.append(staple.level.displayName)
         }
@@ -261,12 +268,18 @@ final class AssistantRestockModel {
             }
             return parts.isEmpty ? "From the shelf" : parts.joined(separator: " · ")
         }
-        return "Added by \(author.reads(changedByID: need.addedByID, name: need.addedByName))"
+        return "Added by \(Self.midSentence(author.reads(changedByID: need.addedByID, name: need.addedByName)))"
+    }
+
+    /// "You" reads "you" inside a sentence ("marked by you").
+    static func midSentence(_ who: String) -> String {
+        who == "You" ? "you" : who
     }
 
     /// The staple a need restocks, while it exists.
     func staple(for need: CDOrderItem) -> CDSupply? {
-        RestockService.staple(for: need, in: context)
+        guard let id = need.supplyID?.uppercased(), let staple = staplesByID[id], !staple.isDeleted else { return nil }
+        return staple
     }
 
     /// "Low · not asked yet", "Asked Sep 30 · waiting 3 days": where one of

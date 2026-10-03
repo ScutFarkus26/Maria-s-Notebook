@@ -108,7 +108,7 @@ extension RestockView {
     }
 
     func moveBackToRequest(_ needs: [CDOrderItem]) {
-        RestockService.moveBackToRequest(needs)
+        RestockService.moveBackToRequest(needs, by: author, in: viewContext)
         saveNow(reason: "Move back to To Order")
     }
 

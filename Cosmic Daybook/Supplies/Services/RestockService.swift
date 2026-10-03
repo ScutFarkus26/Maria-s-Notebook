@@ -135,11 +135,9 @@ nonisolated enum RestockService {
     ) -> (officeRun: Int, toOrder: Int) {
         func count(_ source: RestockSource) -> Int {
             let request = CDFetchRequest(CDOrderItem.self)
-            // Asked for and waiting is the office's move, not a need (office needs
-            // are never asked for, so this only narrows "to order").
-            request.predicate = NSPredicate(
-                format: "receivedAt == nil AND requestedAt == nil AND sourceRaw == %@", source.rawValue
-            )
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                neededPredicate, NSPredicate(format: "sourceRaw == %@", source.rawValue)
+            ])
             if let store { request.affectedStores = [store] }
             return (try? context.count(for: request)) ?? 0
         }
@@ -166,6 +164,17 @@ nonisolated enum RestockService {
                 return lhs.place.localizedStandardCompare(rhs.place) == .orderedAscending
             }
     }
+
+    /// Whether a need still waits on the classroom: not checked off, and not
+    /// asked for (one asked for waits on the office). Office needs are never
+    /// asked for, so this only narrows "to order". The badge, Today's card and
+    /// the page header all count by it.
+    static func isNeeded(_ need: CDOrderItem) -> Bool {
+        need.receivedAt == nil && need.requestedAt == nil
+    }
+
+    /// `isNeeded` for a fetch.
+    static var neededPredicate: NSPredicate { NSPredicate(format: "receivedAt == nil AND requestedAt == nil") }
 
     // MARK: - Stores
 
@@ -266,9 +275,11 @@ nonisolated enum RestockService {
         if supply.id == nil { supply.id = UUID() }
         let entry = CDSupplyTransaction(context: context)
         if let store { context.assign(entry, to: store) }
+        // Named by `supplyID` only, never through the `supply` relationship:
+        // sharing a new history row would take a linked staple along, and a
+        // staple already in the classroom share must never be shared again.
         entry.supplyID = supply.id?.uuidString ?? ""
         entry.date = now
-        entry.supply = supply
         return entry
     }
 

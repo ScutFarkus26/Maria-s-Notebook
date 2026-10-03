@@ -179,6 +179,43 @@ struct RestockNeedTests {
         #expect(counts.toOrder == 1)
     }
 
+    @Test("History names its staple by id only, so sharing it never takes the staple along")
+    func historyIsNotLinked() throws {
+        let context = try makeContext()
+        let towels = try staple("Paper Towels", in: context)
+        RestockService.setLevel(towels, to: .low, by: guide, in: context)
+        RestockService.setLevel(towels, to: .out, by: guide, in: context)
+        #expect(CoreDataTestHelpers.save(context))
+        let history = RestockService.history(for: towels, in: context)
+        #expect(history.count == 2)
+        #expect(history.allSatisfy { $0.supply == nil })
+
+        RestockService.deleteStaple(towels, in: context)
+        #expect(CoreDataTestHelpers.save(context))
+        let left = try context.count(for: CDFetchRequest(CDSupplyTransaction.self))
+        #expect(left == 0)
+    }
+
+    @Test("Taking back received puts a restocked staple back to Low with the same need")
+    func reopenRestockedStaple() throws {
+        let context = try makeContext()
+        let towels = try staple("Paper Towels", in: context)
+        RestockService.setLevel(towels, to: .out, by: guide, in: context)
+        let need = try #require(RestockService.openNeeds(for: towels, in: context).first)
+        RestockService.checkOff(need, by: guide, in: context)
+        #expect(towels.level == .stocked)
+
+        RestockService.reopen([need], by: guide, in: context)
+        #expect(towels.level == .low)
+        #expect(RestockService.openNeeds(for: towels, in: context).map(\.objectID) == [need.objectID])
+
+        RestockService.checkOff(need, by: guide, in: context)
+        RestockService.moveBackToRequest([need], by: guide, in: context)
+        #expect(towels.level == .low)
+        #expect(need.stage == .toRequest)
+        #expect(RestockService.openNeeds(for: towels, in: context).count == 1)
+    }
+
     @Test("Who changed it reads You, a name, or your guide")
     func whoReads() {
         let guideViewer = guide

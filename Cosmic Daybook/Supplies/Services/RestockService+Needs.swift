@@ -170,8 +170,45 @@ nonisolated extension RestockService {
         OrderService.clearConfirmation(needs, at: now)
     }
 
-    static func moveBackToRequest(_ needs: [CDOrderItem], at now: Date = Date()) {
+    /// Puts needs back on the to-request list. A received one is open again,
+    /// as `reopen` does.
+    static func moveBackToRequest(
+        _ needs: [CDOrderItem],
+        by author: RestockAuthor,
+        at now: Date = Date(),
+        in context: NSManagedObjectContext
+    ) {
+        let received = needs.filter { $0.receivedAt != nil }
         OrderService.moveBackToRequest(needs, at: now)
+        restockedAgain(received, by: author, at: now, in: context)
+    }
+
+    /// Takes back "received" without a check-off to undo (MCP's
+    /// not_received): the need is open again, and a staple it had restocked
+    /// goes back to Low, so the shelf and the lists agree.
+    static func reopen(
+        _ needs: [CDOrderItem],
+        by author: RestockAuthor,
+        at now: Date = Date(),
+        in context: NSManagedObjectContext
+    ) {
+        let received = needs.filter { $0.receivedAt != nil }
+        OrderService.setReceived(received, false, at: now)
+        restockedAgain(received, by: author, at: now, in: context)
+    }
+
+    /// The staples of needs just reopened: still on the shelf as Stocked,
+    /// they're Low again, keeping the reopened need as their one need.
+    private static func restockedAgain(
+        _ reopened: [CDOrderItem],
+        by author: RestockAuthor,
+        at now: Date,
+        in context: NSManagedObjectContext
+    ) {
+        for need in reopened {
+            guard let supply = staple(for: need, in: context), !supply.level.isNeeded else { continue }
+            setLevel(supply, to: .low, by: author, at: now, in: context)
+        }
     }
 
     // MARK: - Two devices at once
