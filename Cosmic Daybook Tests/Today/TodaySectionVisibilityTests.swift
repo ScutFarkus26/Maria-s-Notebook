@@ -45,6 +45,13 @@ struct TodaySectionVisibilityTests {
         #expect(TodaySectionVisibility.showsDoneToday(total: 1))
     }
 
+    @Test("The Restock card shows only when something is needed")
+    func restockCardNeedsANeed() {
+        #expect(TodaySectionVisibility.showsRestock(officeRun: 0, toOrder: 0) == false)
+        #expect(TodaySectionVisibility.showsRestock(officeRun: 1, toOrder: 0))
+        #expect(TodaySectionVisibility.showsRestock(officeRun: 0, toOrder: 2))
+    }
+
     // MARK: - Reminders
 
     @Test("An empty reminder list hides the section entirely")

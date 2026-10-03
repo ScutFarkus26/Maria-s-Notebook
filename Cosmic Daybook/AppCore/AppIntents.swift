@@ -101,7 +101,7 @@ struct NewLessonIntent: AppIntent {
 
 /// The notebook's main screens, as Siri names them.
 enum NotebookSection: String, AppEnum {
-    case today, students, lessons, attendance
+    case today, students, lessons, attendance, restock
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation { "Section" }
 
@@ -110,17 +110,19 @@ enum NotebookSection: String, AppEnum {
             .today: "Today",
             .students: "Students",
             .lessons: "Lessons",
-            .attendance: DisplayRepresentation(title: "Attendance", synonyms: ["Attendance", "the roll"])
+            .attendance: DisplayRepresentation(title: "Attendance", synonyms: ["Attendance", "the roll"]),
+            .restock: DisplayRepresentation(title: "Restock", synonyms: ["Restock", "Supplies", "the office run"])
         ]
     }
 }
 
-/// One App Shortcut for the four screens, which used to take four of the ten
-/// an app may have: the attendance commands needed the room.
+/// One App Shortcut for the main screens (four of them once took four of the
+/// ten an app may have: the attendance commands needed the room). Restock
+/// joined as a section, not a shortcut: the notebook is at the cap.
 struct OpenSectionIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Section"
     static let description = IntentDescription(
-        "Open Today, Students, Lessons or Attendance in Cosmic Daybook.",
+        "Open Today, Students, Lessons, Attendance or Restock in Cosmic Daybook.",
         categoryName: "Navigation"
     )
     static let supportedModes: IntentModes = .foreground
@@ -135,6 +137,7 @@ struct OpenSectionIntent: AppIntent {
         case .students: AppRouter.shared.navigateTo(.students)
         case .lessons: AppRouter.shared.navigateTo(.lessons)
         case .attendance: AppRouter.shared.navigateTo(.attendance)
+        case .restock: AppRouter.shared.navigateTo(.supplies)
         }
         return .result()
     }

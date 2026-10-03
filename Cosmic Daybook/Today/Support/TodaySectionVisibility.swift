@@ -68,6 +68,11 @@ enum TodaySectionVisibility {
     /// when every piece of open work has been seen recently.
     static func showsGoneQuiet(count: Int) -> Bool { count > 0 }
 
+    /// The Restock day card: only when something is needed, on the office
+    /// run or to order. An assistant marking a staple Out reaches the guide
+    /// here and nowhere else (no notifications).
+    static func showsRestock(officeRun: Int, toOrder: Int) -> Bool { officeRun > 0 || toOrder > 0 }
+
     /// The retrospective roll-up (lessons presented, work checked, meetings held).
     static func showsDoneToday(total: Int) -> Bool { total > 0 }
 

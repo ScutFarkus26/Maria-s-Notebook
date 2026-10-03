@@ -16,6 +16,9 @@ import SwiftUI
 struct RootAdaptiveTabs: View {
     @Binding var selectedNavItem: RootView.NavigationItem
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.managedObjectContext) private var viewContext
+    /// Open needs, for the Restock row's badge in the iPad sidebar.
+    @State private var restockNeeds = 0
     /// The More tab's stack, and the destination at its bottom.
     @State private var morePath = NavigationPath()
     @State private var moreOpenItem: RootView.NavigationItem?
@@ -40,6 +43,7 @@ struct RootAdaptiveTabs: View {
                     primaryTabs
                     secondaryTabs
                 }
+                .trackingRestockNeedCount($restockNeeds, in: viewContext)
             }
         }
         .tabViewStyle(.sidebarAdaptable)
@@ -125,6 +129,7 @@ struct RootAdaptiveTabs: View {
                     Tab(item.displayName, systemImage: item.icon, value: item) {
                         phonePage(item)
                     }
+                    .badge(item == .supplies ? restockNeeds : 0)
                 }
             }
         }

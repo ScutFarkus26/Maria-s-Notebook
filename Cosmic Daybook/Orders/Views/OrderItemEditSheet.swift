@@ -1,5 +1,5 @@
 // OrderItemEditSheet.swift
-// Edit one order item: its name, link, quantity and note.
+// Edit one need on Restock: its name, link, quantity and note.
 
 import SwiftUI
 import CoreData
@@ -81,7 +81,7 @@ struct OrderItemEditSheet: View {
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle("Order Item")
+            .navigationTitle("Edit Item")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -133,13 +133,14 @@ struct OrderItemEditSheet: View {
 
     private func save() {
         OrderService.update(item, title: title, urlString: link, quantity: quantity, notes: notes)
-        saveCoordinator.save(viewContext, reason: "Edit order item")
+        saveCoordinator.save(viewContext, reason: "Edit a need")
         dismiss()
     }
 
     private func delete() {
-        OrderService.delete([item], in: viewContext)
-        saveCoordinator.save(viewContext, reason: "Delete order item")
+        // Through RestockService: a staple whose need goes is Stocked again.
+        RestockService.removeNeeds([item], by: RestockAuthor.current(in: viewContext), in: viewContext)
+        saveCoordinator.save(viewContext, reason: "Remove a need")
         dismiss()
     }
 }

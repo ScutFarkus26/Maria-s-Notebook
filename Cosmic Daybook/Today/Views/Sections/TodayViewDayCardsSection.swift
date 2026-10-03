@@ -1,7 +1,9 @@
 // TodayViewDayCardsSection.swift
 // Day-aware top cards — small banners that surface only when relevant:
-// "N children need a lesson" when students are overdue. Each card names its two
-// actions (Plan lessons, Hide until tomorrow); hiding is per date. On the Mac
+// "N children need a lesson" when students are overdue, and "Restock: 3 for
+// the office run, 2 to order" when something is needed (an assistant marking
+// a staple Out shows here, and nowhere else). Each card names its two actions
+// (its own, and Hide until tomorrow); hiding is per date. On the Mac
 // the card heads the right column; on iPhone and iPad it follows Gone quiet,
 // just above the todos, as it does there.
 
@@ -12,41 +14,54 @@ extension TodayView {
 
     enum DayCard: String, CaseIterable {
         case needsLesson
+        case restock
 
         /// What the card is called in accessibility labels; the visible title
         /// carries the count (`DayCardText`).
         var name: String {
             switch self {
             case .needsLesson: return "Needs a lesson"
+            case .restock: return "Restock"
             }
         }
 
-        /// The card's primary action, which opens `lessonsAndWorkScope`.
+        /// The card's primary action (`destination`).
         var actionTitle: String {
             switch self {
             case .needsLesson: return "Plan lessons"
+            case .restock: return "Open Restock"
             }
         }
 
         var icon: String {
             switch self {
             case .needsLesson: return "clock.badge.exclamationmark"
+            case .restock: return "shippingbox"
             }
         }
 
         var tint: Color {
             switch self {
             case .needsLesson: return .orange
+            case .restock: return RestockStyle.outFill
             }
         }
 
-        /// The waiting-students list moved into To Schedule, beside the
-        /// lessons you would give — so the banner opens the workspace there.
-        var lessonsAndWorkScope: TriageBucket {
+        /// Where the card's action goes. The waiting-students list moved into
+        /// To Schedule, beside the lessons you would give — so the lesson
+        /// banner opens the workspace there.
+        var destination: DayCardDestination {
             switch self {
-            case .needsLesson: return .toSchedule
+            case .needsLesson: return .lessonsAndWork(.toSchedule)
+            case .restock: return .section(.supplies)
             }
         }
+    }
+
+    /// Where a day card's action goes.
+    enum DayCardDestination: Equatable {
+        case lessonsAndWork(TriageBucket)
+        case section(RootView.NavigationItem)
     }
 
     /// A live card's words, computed from today's counts.
@@ -108,7 +123,7 @@ extension TodayView {
             // inside a List row on iOS, rather than the whole row.
             HStack(spacing: 8) {
                 Button(card.actionTitle) {
-                    appRouter.navigateToLessonsAndWork(card.lessonsAndWorkScope)
+                    open(card.destination)
                 }
                 .buttonStyle(.bordered)
                 .tint(card.tint)
@@ -124,6 +139,13 @@ extension TodayView {
         }
     }
 
+    private func open(_ destination: DayCardDestination) {
+        switch destination {
+        case .lessonsAndWork(let scope): appRouter.navigateToLessonsAndWork(scope)
+        case .section(let item): appRouter.navigateTo(item)
+        }
+    }
+
     // MARK: - Conditions
 
     private func textIfActive(_ card: DayCard) -> DayCardText? {
@@ -136,6 +158,12 @@ extension TodayView {
                 title: count == 1 ? "1 child needs a lesson" : "\(count) children need a lesson",
                 subtitle: "No presentation in 7+ school days."
             )
+        case .restock:
+            let digest = viewModel.restockDigest
+            let counts = (officeRun: digest.officeRun.count, toOrder: digest.toOrder.count)
+            guard TodaySectionVisibility.showsRestock(officeRun: counts.officeRun, toOrder: counts.toOrder),
+                  let title = digest.cardTitle else { return nil }
+            return DayCardText(title: title, subtitle: digest.cardSubtitle)
         }
     }
 
