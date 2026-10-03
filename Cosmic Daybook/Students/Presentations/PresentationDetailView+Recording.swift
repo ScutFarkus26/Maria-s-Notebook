@@ -52,13 +52,28 @@ extension PresentationDetailContentView {
             cancelButton
             Spacer(minLength: 8)
             saveButton
-            Button {
-                showHowItWent()
-            } label: {
+            Button(action: continueToHowItWent) {
                 Text("How It Went…").bold()
             }
             .buttonStyle(.borderedProminent)
-            .disabled(currentLesson == nil)
+            .disabled(currentLesson == nil || vm.selectedStudentIDs.isEmpty)
+        }
+    }
+
+    /// How It Went gives work and files notes for the children the record
+    /// names, so a change to the children or the lesson lands first, the way
+    /// Save lands it (asking about work already given to a child taken off).
+    func continueToHowItWent() {
+        guard vm.hasUnsavedRosterOrLesson else {
+            showHowItWent()
+            return
+        }
+        let plans = vm.workRetractionPlans()
+        howItWentAfterSave = true
+        if plans.isEmpty {
+            saveAndDone(retractingWork: [])
+        } else {
+            vm.pendingWorkRetraction = plans
         }
     }
 

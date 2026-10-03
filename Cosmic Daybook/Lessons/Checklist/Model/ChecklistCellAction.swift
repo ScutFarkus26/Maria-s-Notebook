@@ -21,6 +21,8 @@ enum ChecklistCellAction: String {
     case toggleScheduled
     /// Add to, or take out of, the multi-selection.
     case toggleSelection
+    /// Mark Presented (today, or undated), or on a presented cell Unmark Presented, which
+    /// keeps every mastery mark (`ChecklistRosterRemoval`).
     case togglePresented
     case togglePreviouslyPresented
     /// The card's ladder steps and the keys: move the child up to the rung, never down.

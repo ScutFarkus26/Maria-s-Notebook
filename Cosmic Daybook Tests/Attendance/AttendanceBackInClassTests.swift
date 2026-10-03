@@ -190,4 +190,31 @@ struct AttendanceBackInClassTests {
         store.markBack(record, at: clock(12, 40))
         #expect(row().isInRoom)
     }
+
+    // Bug hunt 2026-10-03, A4: the tardy report and the watch list counted
+    // only Late, and the on-time rate took every Left Early as not on time,
+    // so a late child who went home early dropped out of the tardy figures.
+    @Test("A late arrival who leaves early still counts as tardy; an on-time one as on time")
+    func leftEarlyInTardyFigures() throws {
+        let late = try leftEarly(from: .tardy)
+        let onTime = try leftEarly(from: .present)
+        let unknown = try leftEarly(from: .unmarked)
+        #expect(late.record.cameLate && !onTime.record.cameLate && !unknown.record.cameLate)
+        #expect(AttendanceStatusReportConfig.tardy.counts(late.record))
+        #expect(!AttendanceStatusReportConfig.tardy.counts(onTime.record))
+        #expect(!AttendanceStatusReportConfig.absence.counts(late.record))
+
+        let watch = AttendanceInsightsService.watchList(
+            records: [late.record], students: [late.student], patternDays: [], patternRecords: [], limit: 5
+        )
+        #expect(watch.first?.tardyCount == 1)
+
+        let records = [late.record, onTime.record, unknown.record]
+        let summary = AttendanceInsightsService.classSummary(
+            records: records, students: [late.student, onTime.student, unknown.student]
+        )
+        #expect(summary.leftEarlyCount == 3)
+        #expect(summary.leftEarlyOnTimeCount == 1)
+        #expect(summary.onTimeRate == 1.0 / 3.0)
+    }
 }

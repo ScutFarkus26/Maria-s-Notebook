@@ -26,16 +26,36 @@ extension WeekPlanSection {
         await refreshCheckIns()
     }
 
-    func moveStart(bySchoolDays delta: Int) {
-        guard delta != 0 else { return }
+    /// Earlier / Later: one strip's worth of school days back or forward.
+    func movePage(by pages: Int) {
+        guard pages != 0 else { return }
+        startDate = Self.shiftedStart(
+            from: days.first ?? startDate,
+            bySchoolDays: pages * Self.visibleDayCount,
+            calendar: calendar
+        ) { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
+    }
+
+    /// The school day `delta` school days from `first`. Counted from the first
+    /// day the strip shows rather than the stored start (which can be a
+    /// weekend), so a page of `visibleDayCount` neither skips a school day
+    /// nor shows one twice.
+    static func shiftedStart(
+        from first: Date,
+        bySchoolDays delta: Int,
+        calendar: Calendar,
+        isSchoolDay: (Date) -> Bool
+    ) -> Date {
         var remaining = abs(delta)
-        var cursor = AppCalendar.startOfDay(startDate)
+        var cursor = AppCalendar.startOfDay(first)
         let step = delta > 0 ? 1 : -1
-        while remaining > 0 {
+        var iterations = 0
+        while remaining > 0 && iterations < 1_000 {
             cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? cursor
-            if SchoolDayChecker.isSchoolDay(cursor, using: viewContext) { remaining -= 1 }
+            if isSchoolDay(cursor) { remaining -= 1 }
+            iterations += 1
         }
-        startDate = cursor
+        return cursor
     }
 
     func scrollToFirstDay(_ proxy: ScrollViewProxy) {

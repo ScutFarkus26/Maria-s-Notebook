@@ -10,14 +10,20 @@ import OSLog
 ///
 /// Local notifications can't look at the roll when they fire, so this keeps
 /// one request per pickup still to come over the next `daysAhead` days and
-/// rebuilds them whenever the answer could change: every load of the grid (a
-/// day change, coming back to the app, an import that brings someone else's
-/// pickup), her own pickup edits and marks, and the setting. A child marked
-/// absent or Left Early, or whose time is removed, loses theirs.
+/// brings them up to date whenever the answer could change: every load of
+/// the grid, her own pickup edits and marks, the setting, and, with the
+/// screen closed or the phone locked, every import from iCloud and every
+/// trip to and from the background (`EarlyPickupReminderUpkeep`). A child
+/// marked absent or Left Early, or whose time is removed, loses theirs.
+///
+/// Bringing them up to date only adds and removes what differs from what's
+/// pending (`changes(wanted:pending:)`), so the many imports that change no
+/// pickup leave the requests alone.
 ///
 /// The sample class rings too, the one reminder it does, so Leaving Early…
-/// can be tried there. Its requests carry their own prefix: leaving the
-/// sample, or a relaunch that doesn't reopen it, takes them off.
+/// can be tried there. Its requests carry their own prefix, and each class
+/// only ever compares against its own: leaving the sample, or a relaunch
+/// that doesn't reopen it, takes them off.
 @MainActor
 enum EarlyPickupReminder {
 
@@ -32,6 +38,12 @@ enum EarlyPickupReminder {
     nonisolated private static let sampleIDPrefix = "pickup-sample-"
 
     private static let logger = Logger.app(category: "reminder")
+
+    /// The run bringing the requests up to date, which the next one waits
+    /// for: two at once could each read the pending requests before the
+    /// other changed them, and an older one could put back a reminder the
+    /// newer one had just taken off.
+    private static var lastRun: Task<Void, Never>?
 
     static func isEnabled(_ defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: enabledKey) as? Bool ?? true
@@ -49,6 +61,22 @@ enum EarlyPickupReminder {
         let note: String
     }
 
+    /// One notification request, as wanted or as pending: what the
+    /// comparison looks at.
+    struct Reminder: Equatable {
+        let id: String
+        let title: String
+        let body: String
+        /// To the minute, as the calendar trigger holds it.
+        let fireDate: Date
+    }
+
+    /// What it takes to go from the pending requests to the wanted ones.
+    struct Changes: Equatable {
+        var add: [Reminder] = []
+        var remove: [String] = []
+    }
+
     /// When a pickup's reminder fires: `lead` minutes before it, or nil
     /// once that has passed. Pure, for the tests.
     nonisolated static func fireDate(for leavesAt: Date, leadMinutes: Int, now: Date) -> Date? {
@@ -56,9 +84,10 @@ enum EarlyPickupReminder {
         return fire > now ? fire : nil
     }
 
-    /// The pickups from `now` to `daysAhead` days on, one per child and day
-    /// (the dedup winner's), leaving out children absent or already gone
-    /// home and anyone not on the classroom roll.
+    /// The pickups from `now` to `daysAhead` days on, one per child and day:
+    /// the time `AttendanceDeduplication.plannedPickup` reads across the
+    /// day's copies, and the dedup winner's mark, leaving out children
+    /// absent or already gone home and anyone not on the classroom roll.
     static func pendingPickups(in context: NSManagedObjectContext, now: Date = Date()) -> [Pickup] {
         let calendar = AppCalendar.shared
         let start = calendar.startOfDay(for: now)
@@ -67,14 +96,16 @@ enum EarlyPickupReminder {
         request.predicate = NSPredicate(
             format: "date >= %@ AND date < %@", start as NSDate, end as NSDate
         )
-        let records = context.safeFetch(request).deduplicatedPerStudentDay()
+        let fetched = context.safeFetch(request)
+        let copies = Dictionary(grouping: fetched) { AttendanceDeduplication.studentDayKey($0) ?? "" }
         let students = context.safeFetch(AssistantDayRoll.classroomStudents(in: context))
         let names = Dictionary(
             students.compactMap { student in student.id.map { ($0.uuidString, student.shortName) } },
             uniquingKeysWith: { first, _ in first }
         )
-        return records.compactMap { record in
-            guard let leavesAt = record.leavesAt, leavesAt > now,
+        return fetched.deduplicatedPerStudentDay().compactMap { record in
+            let day = copies[AttendanceDeduplication.studentDayKey(record) ?? ""] ?? [record]
+            guard let leavesAt = AttendanceDeduplication.plannedPickup(among: day), leavesAt > now,
                   record.status != .absent, record.status != .leftEarly,
                   let name = names[record.studentID] else { return nil }
             return Pickup(studentID: record.studentID, name: name, leavesAt: leavesAt, note: record.note ?? "")
@@ -91,14 +122,53 @@ enum EarlyPickupReminder {
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
     }
 
-    /// A pickup's request identifier, one per child and day; the sample
-    /// class's under their own prefix. Pure, for the tests.
+    /// A pickup's request identifier: the child, the day and the time, so a
+    /// moved pickup is a different request. The sample class's under their
+    /// own prefix. Pure, for the tests.
     nonisolated static func requestID(studentID: String, leavesAt: Date, isSample: Bool) -> String {
-        (isSample ? sampleIDPrefix : idPrefix) + studentID + "-" + AppCalendar.dayID(leavesAt)
+        let time = AppCalendar.shared.dateComponents([.hour, .minute], from: leavesAt)
+        let minutes = (time.hour ?? 0) * 60 + (time.minute ?? 0)
+        return (isSample ? sampleIDPrefix : idPrefix) + studentID + "-" + AppCalendar.dayID(leavesAt) + "-\(minutes)"
+    }
+
+    /// Whether a pending request is one the class in use keeps: the sample's
+    /// own while it's open, else the real class's, never the other's.
+    nonisolated static func isOwn(_ id: String, isSample: Bool) -> Bool {
+        isSample ? id.hasPrefix(sampleIDPrefix) : id.hasPrefix(idPrefix) && !id.hasPrefix(sampleIDPrefix)
+    }
+
+    /// The requests `pickups` call for: one per pickup whose reminder is
+    /// still ahead. Pure, for the tests.
+    static func reminders(for pickups: [Pickup], leadMinutes: Int, now: Date, isSample: Bool) -> [Reminder] {
+        pickups.compactMap { pickup in
+            guard let fire = fireDate(for: pickup.leavesAt, leadMinutes: leadMinutes, now: now) else { return nil }
+            return Reminder(
+                id: requestID(studentID: pickup.studentID, leavesAt: pickup.leavesAt, isSample: isSample),
+                title: "\(pickup.name) leaves at \(AttendanceClock.string(pickup.leavesAt))",
+                body: pickup.note.isEmpty
+                    ? "Early pickup. Mark Left Early when they go."
+                    : "\(pickup.note). Mark Left Early when they go.",
+                fireDate: toTheMinute(fire)
+            )
+        }
+    }
+
+    /// The adds and removes that turn `pending` into `wanted`: a request
+    /// pending and wanted unchanged is left alone, one no longer wanted is
+    /// removed, and one new or changed (its words or its time) is added,
+    /// which replaces a pending one with the same identifier. Pure, for the
+    /// tests.
+    static func changes(wanted: [Reminder], pending: [Reminder]) -> Changes {
+        let pendingByID = Dictionary(pending.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let wantedIDs = Set(wanted.map(\.id))
+        return Changes(
+            add: wanted.filter { pendingByID[$0.id] != $0 },
+            remove: pending.map(\.id).filter { !wantedIDs.contains($0) }
+        )
     }
 
     /// Removes every pending pickup reminder, the sample class's included:
-    /// before rescheduling, and when she leaves the classroom.
+    /// when she leaves the classroom.
     static func cancelAll() async {
         await cancel(prefix: idPrefix)
     }
@@ -115,43 +185,79 @@ enum EarlyPickupReminder {
         center.removePendingNotificationRequests(withIdentifiers: ours)
     }
 
-    /// Replaces this app's pending pickup reminders with the ones that should
-    /// be there now.
-    static func reschedule(in context: NSManagedObjectContext, now: Date = Date()) async {
-        // Read once: leaving the sample mid-loop mustn't file its children
+    /// Brings this app's pending pickup reminders up to date with the ones
+    /// that should be there now, after any run already going. Asks for
+    /// permission the first time there is a pickup, unless `asksPermission`
+    /// is false (the background upkeep: the alert belongs on screen).
+    static func reschedule(
+        in context: NSManagedObjectContext,
+        now: Date = Date(),
+        asksPermission: Bool = true
+    ) async {
+        let previous = lastRun
+        let run = Task {
+            await previous?.value
+            await bringUpToDate(in: context, now: now, asksPermission: asksPermission)
+        }
+        lastRun = run
+        await run.value
+    }
+
+    private static func bringUpToDate(in context: NSManagedObjectContext, now: Date, asksPermission: Bool) async {
+        // Read once: leaving the sample mid-run mustn't file its children
         // under the real class's prefix.
         let isSample = AssistantSampleClass.isActive
-        await cancelAll()
-        guard isEnabled() else { return }
-        let pickups = pendingPickups(in: context, now: now)
-        guard !pickups.isEmpty else { return }
-        await requestPermissionIfNeeded()
         let center = UNUserNotificationCenter.current()
-        let status = await center.notificationSettings().authorizationStatus
-        guard status == .authorized || status == .provisional else { return }
-
-        let lead = leadMinutes()
-        let calendar = AppCalendar.shared
-        for pickup in pickups {
-            guard let fire = fireDate(for: pickup.leavesAt, leadMinutes: lead, now: now) else { continue }
-            let content = UNMutableNotificationContent()
-            content.title = "\(pickup.name) leaves at \(AttendanceClock.string(pickup.leavesAt))"
-            content.body = pickup.note.isEmpty
-                ? "Early pickup. Mark Left Early when they go."
-                : "\(pickup.note). Mark Left Early when they go."
-            content.sound = .default
-            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let id = requestID(studentID: pickup.studentID, leavesAt: pickup.leavesAt, isSample: isSample)
-            // A newer reschedule has started: it decides now, and adding
-            // after its removal would bring back a reminder it meant to drop.
-            guard !Task.isCancelled else { return }
-            do {
-                try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
-            } catch {
-                let reason = error.localizedDescription
-                logger.error("Scheduling \(id, privacy: .public) failed: \(reason, privacy: .public)")
+        var wanted: [Reminder] = []
+        let pickups = isEnabled() ? pendingPickups(in: context, now: now) : []
+        if !pickups.isEmpty {
+            if asksPermission { await requestPermissionIfNeeded() }
+            let status = await center.notificationSettings().authorizationStatus
+            if status == .authorized || status == .provisional {
+                wanted = reminders(for: pickups, leadMinutes: leadMinutes(), now: now, isSample: isSample)
             }
         }
+        let pending = await center.pendingNotificationRequests().compactMap { request in
+            pendingReminder(request, isSample: isSample)
+        }
+        let diff = changes(wanted: wanted, pending: pending)
+        if !diff.remove.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: diff.remove)
+        }
+        let calendar = AppCalendar.shared
+        for reminder in diff.add {
+            let content = UNMutableNotificationContent()
+            content.title = reminder.title
+            content.body = reminder.body
+            content.sound = .default
+            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.fireDate)
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            do {
+                try await center.add(UNNotificationRequest(identifier: reminder.id, content: content, trigger: trigger))
+            } catch {
+                let reason = error.localizedDescription
+                logger.error("Scheduling \(reminder.id, privacy: .public) failed: \(reason, privacy: .public)")
+            }
+        }
+    }
+
+    /// A pending request as the comparison reads it, or nil when it isn't
+    /// the class in use's pickup reminder.
+    private static func pendingReminder(_ request: UNNotificationRequest, isSample: Bool) -> Reminder? {
+        guard isOwn(request.identifier, isSample: isSample) else { return nil }
+        let trigger = request.trigger as? UNCalendarNotificationTrigger
+        return Reminder(
+            id: request.identifier,
+            title: request.content.title,
+            body: request.content.body,
+            fireDate: trigger.flatMap { AppCalendar.shared.date(from: $0.dateComponents) } ?? .distantPast
+        )
+    }
+
+    /// `date` with its seconds dropped, as a calendar trigger keeps it.
+    private static func toTheMinute(_ date: Date) -> Date {
+        let calendar = AppCalendar.shared
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        return calendar.date(from: components) ?? date
     }
 }

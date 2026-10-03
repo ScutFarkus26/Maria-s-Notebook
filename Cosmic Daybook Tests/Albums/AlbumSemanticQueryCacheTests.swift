@@ -7,11 +7,11 @@ import Testing
 @Suite("Album semantic index: cached query model", .serialized)
 struct AlbumSemanticQueryCacheTests {
 
-    @Test("A cached sentence model gives the same vector as a fresh one")
+    @Test("A cached sentence model gives the same vector as a fresh one", .needsSentenceModel)
     func cachedSentenceMatchesFresh() async throws {
         // Waits out the simulator's lazy sentence-model load (the first request
-        // in a process returns nil). Every runtime the suite runs on has this
-        // model, so a missing vector is a failure, not a pass.
+        // in a process returns nil). `.needsSentenceModel` has seen the model,
+        // so a missing vector here is a failure, not a pass.
         _ = await AlbumSemanticIndex.resolveTitleBackend()
         let fresh = try #require(AlbumSemanticIndex.sentenceEmbed([Self.text])?.first)
         expectCachedMatches(fresh, backend: "sentence")
@@ -46,7 +46,10 @@ struct AlbumSemanticQueryCacheTests {
         #expect(AlbumSemanticIndex.hasCachedQueryEmbedder == false)
     }
 
-    @Test("Five quiet minutes after a search the model goes; the next search reloads it and gets the same vector")
+    @Test(
+        "Five quiet minutes after a search the model goes; the next search reloads it and gets the same vector",
+        .needsSentenceModel
+    )
     func idleReleaseKeepsVectors() async throws {
         _ = await AlbumSemanticIndex.resolveTitleBackend()
         let text = "borrowing in subtraction"

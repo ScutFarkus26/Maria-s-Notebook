@@ -11,9 +11,7 @@ struct ClassroomLastYearCard: View {
     @State private var showingRelease = false
 
     private var waiting: Int { (contents?.toRelease ?? 0) + (contents?.mixedDuplicates ?? 0) }
-    private var stoppedEarlier: Bool {
-        UserDefaults.standard.object(forKey: ClassroomShareRelease.inProgressKey) != nil
-    }
+    private var stoppedEarlier: Bool { ClassroomShareRelease.stoppedPartway }
 
     var body: some View {
         if waiting > 0 || stoppedEarlier {

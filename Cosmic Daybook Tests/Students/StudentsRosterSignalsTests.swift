@@ -156,6 +156,22 @@ struct StudentsRosterSignalsTests {
         #expect(StudentsViewModel.presence(from: [blank]).taken == false)
     }
 
+    @Test("Two marked rows for a child: the roster shows the one the grid and the Meetings queue show")
+    func presenceUsesTheSharedDedup() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        let earlier = CoreDataTestHelpers.seedAttendance(in: context, studentID: child)
+        earlier.statusRaw = AttendanceStatus.present.rawValue
+        earlier.modifiedAt = Date(timeIntervalSinceNow: -600)
+        let later = CoreDataTestHelpers.seedAttendance(in: context, studentID: child)
+        later.statusRaw = AttendanceStatus.absent.rawValue
+        later.modifiedAt = Date()
+
+        // Either order in: the latest mark wins, as in `deduplicatedPerStudentDay`.
+        #expect(StudentsViewModel.presence(from: [earlier, later]).byStudent[child] == .absent)
+        #expect(StudentsViewModel.presence(from: [later, earlier]).byStudent[child] == .absent)
+    }
+
     @Test("Signal rules: due at seven school days or none, stale at two weeks, birthdays in the coming week")
     func signalRules() throws {
         #expect(RosterSignalRules.isDue(schoolDaysSinceLesson: nil))

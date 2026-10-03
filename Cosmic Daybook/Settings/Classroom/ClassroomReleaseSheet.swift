@@ -69,6 +69,11 @@ struct ClassroomReleaseSheet: View {
                 .font(.callout)
             if preview.isEmpty {
                 Text("Nothing from before it is in the share.")
+                if ClassroomShareRelease.stoppedPartway {
+                    Text("An earlier run stopped after taking the last records out here. Finishing checks "
+                        + "that iCloud has taken them out of the share too.")
+                        .font(.callout)
+                }
             } else {
                 if !preview.children.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
@@ -121,7 +126,9 @@ struct ClassroomReleaseSheet: View {
     private func finished(_ report: ClassroomShareRelease.Report, shareNow: String?) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             if let reason = report.stoppedBecause {
-                Label("Stopped after \(report.batchesDone) of \(report.batchesPlanned) groups.",
+                Label(report.batchesPlanned > 0
+                        ? "Stopped after \(report.batchesDone) of \(report.batchesPlanned) groups."
+                        : "Stopped.",
                       systemImage: "pause.circle.fill")
                     .foregroundStyle(AppColors.warning)
                 Text(reason).font(.callout)
@@ -129,9 +136,11 @@ struct ClassroomReleaseSheet: View {
                 Label("Done.", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(AppColors.success)
             }
-            Text("\(report.studentsMoved) student(s) and \(report.attendanceMoved.formatted()) attendance "
-                + "record(s) left the share. They're still in your notebook.")
-                .font(.callout)
+            if report.batchesPlanned > 0 {
+                Text("\(report.studentsMoved) student(s) and \(report.attendanceMoved.formatted()) attendance "
+                    + "record(s) left the share. They're still in your notebook.")
+                    .font(.callout)
+            }
             if let shareNow {
                 Text(shareNow).font(.callout).foregroundStyle(.secondary)
             }
@@ -149,6 +158,12 @@ struct ClassroomReleaseSheet: View {
                     .keyboardShortcut(.cancelAction)
                 if !preview.isEmpty {
                     Button("Back Up and Remove") {
+                        Task { await model?.start() }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(blocker != nil)
+                } else if ClassroomShareRelease.stoppedPartway {
+                    Button("Finish") {
                         Task { await model?.start() }
                     }
                     .keyboardShortcut(.defaultAction)

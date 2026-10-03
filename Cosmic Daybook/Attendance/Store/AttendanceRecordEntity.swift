@@ -78,6 +78,20 @@ nonisolated extension CDAttendanceRecord {
         }
     }
 
+    /// Whether the child arrived late that day: marked tardy, or Left Early
+    /// after arriving late (`statusBeforeLeavingRaw`). The tardy figures
+    /// count both, so going home early doesn't erase a late arrival.
+    var cameLate: Bool {
+        status == .tardy
+            || (status == .leftEarly && statusBeforeLeavingRaw == AttendanceStatus.tardy.rawValue)
+    }
+
+    /// Whether the child arrived on time and then left early: Left Early
+    /// from Present.
+    var leftAfterOnTime: Bool {
+        status == .leftEarly && statusBeforeLeavingRaw == AttendanceStatus.present.rawValue
+    }
+
     // Computed property for absence reason
     var absenceReason: AbsenceReason {
         get { AbsenceReason(rawValue: absenceReasonRaw) ?? .none }

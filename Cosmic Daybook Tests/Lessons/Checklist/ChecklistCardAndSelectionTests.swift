@@ -190,11 +190,12 @@ struct ChecklistCardAndSelectionTests {
         let draft = try #require(fixture.viewModel.makePresentationDraft(
             lessonID: lessonID, studentIDs: ids, context: fixture.context
         ))
+        let asMade = ChecklistDraftSnapshot(draft)
         #expect(Set(draft.studentIDs) == Set(ids.map(\.uuidString)))
         #expect(draft.lessonID == lessonID.uuidString)
         #expect(!draft.isPresented)
 
-        fixture.viewModel.discardUnusedDraft(draft, context: fixture.context)
+        fixture.viewModel.discardUnusedDraft(draft, asMade: asMade, context: fixture.context)
         let request = CDFetchRequest(CDLessonAssignment.self)
         request.predicate = NSPredicate(format: "lessonID == %@", lessonID.uuidString)
         #expect(fixture.context.safeFetch(request).isEmpty)
@@ -208,11 +209,49 @@ struct ChecklistCardAndSelectionTests {
         let draft = try #require(fixture.viewModel.makePresentationDraft(
             lessonID: lessonID, studentIDs: [adaID], context: fixture.context
         ))
+        let asMade = ChecklistDraftSnapshot(draft)
         draft.markPresented(at: Date())
         fixture.context.safeSave()
 
-        fixture.viewModel.discardUnusedDraft(draft, context: fixture.context)
+        fixture.viewModel.discardUnusedDraft(draft, asMade: asMade, context: fixture.context)
         #expect(!draft.isDeleted)
         #expect(draft.managedObjectContext != nil)
+    }
+
+    @Test("A draft the sheet saved to the Inbox stays when the sheet closes")
+    func savedDraftStays() throws {
+        let fixture = try makeFixture()
+        let lessonID = try #require(fixture.decimal[0].id)
+        let adaID = try #require(fixture.ada.id)
+        let draft = try #require(fixture.viewModel.makePresentationDraft(
+            lessonID: lessonID, studentIDs: [adaID], context: fixture.context
+        ))
+        let asMade = ChecklistDraftSnapshot(draft)
+        // The sheet's Save with no date: the draft stays unscheduled, but written.
+        draft.unschedule()
+        fixture.context.safeSave()
+        #expect(!draft.isScheduled)
+
+        fixture.viewModel.discardUnusedDraft(draft, asMade: asMade, context: fixture.context)
+        #expect(!draft.isDeleted)
+        #expect(draft.managedObjectContext != nil)
+    }
+
+    @Test("A draft with notes typed on it stays when the sheet closes")
+    func notedDraftStays() throws {
+        let fixture = try makeFixture()
+        let lessonID = try #require(fixture.decimal[0].id)
+        let adaID = try #require(fixture.ada.id)
+        let draft = try #require(fixture.viewModel.makePresentationDraft(
+            lessonID: lessonID, studentIDs: [adaID], context: fixture.context
+        ))
+        let asMade = ChecklistDraftSnapshot(draft)
+        #expect(asMade.matches(draft))
+        draft.notes = "Bring the golden beads"
+        fixture.context.safeSave()
+
+        fixture.viewModel.discardUnusedDraft(draft, asMade: asMade, context: fixture.context)
+        #expect(!draft.isDeleted)
+        #expect(draft.notes == "Bring the golden beads")
     }
 }

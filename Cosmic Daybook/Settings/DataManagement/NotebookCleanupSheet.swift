@@ -38,8 +38,8 @@ struct NotebookCleanupSheet: View {
         switch model?.stage ?? .loading {
         case .loading:
             ProgressView("Looking for old records…")
-        case .ready(let counts, let blocker):
-            ready(counts, blocker: blocker)
+        case .ready(let counts):
+            ready(counts, blocker: model?.blocker)
         case .backingUp:
             ProgressView("Making a backup and checking it…")
         case .cleaning:
@@ -102,7 +102,7 @@ struct NotebookCleanupSheet: View {
         HStack {
             Spacer()
             switch model?.stage ?? .loading {
-            case .ready(let counts, let blocker):
+            case .ready(let counts):
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 if !counts.isEmpty {
@@ -110,7 +110,7 @@ struct NotebookCleanupSheet: View {
                         Task { await model?.start() }
                     }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(blocker != nil)
+                    .disabled(model?.blocker != nil)
                 }
             case .finished, .failed:
                 Button("Done") { dismiss() }

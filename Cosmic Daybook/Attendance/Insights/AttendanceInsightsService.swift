@@ -29,6 +29,9 @@ struct AttendanceClassSummary: Sendable, Equatable {
     var absentCount: Int = 0
     var tardyCount: Int = 0
     var leftEarlyCount: Int = 0
+    /// Of `leftEarlyCount`, the children who had arrived on time (Left Early
+    /// from Present). One who left after arriving late stays late.
+    var leftEarlyOnTimeCount: Int = 0
 
     /// Present + Tardy + LeftEarly all counted as "showed up that day".
     var attendedCount: Int { presentCount + tardyCount + leftEarlyCount }
@@ -39,10 +42,12 @@ struct AttendanceClassSummary: Sendable, Equatable {
         return Double(attendedCount) / Double(totalStudentDays)
     }
 
-    /// On-time rate (0...1) — present out of attended. Returns nil if nobody attended.
+    /// On-time rate (0...1): present, or arrived on time and left early, out
+    /// of attended. A Left Early whose arrival isn't known counts as not on
+    /// time, as every Left Early used to. Returns nil if nobody attended.
     var onTimeRate: Double? {
         guard attendedCount > 0 else { return nil }
-        return Double(presentCount) / Double(attendedCount)
+        return Double(presentCount + leftEarlyOnTimeCount) / Double(attendedCount)
     }
 }
 
@@ -115,6 +120,7 @@ enum AttendanceInsightsService {
                 daysWithMarks.insert(day)
             case .leftEarly:
                 summary.leftEarlyCount += 1
+                if record.leftAfterOnTime { summary.leftEarlyOnTimeCount += 1 }
                 daysWithMarks.insert(day)
             case .unmarked:
                 break
@@ -193,10 +199,11 @@ extension AttendanceInsightsService {
         var absentByID: [String: Int] = [:]
         var tardyByID: [String: Int] = [:]
         for record in records {
-            switch record.status {
-            case .absent: absentByID[record.studentID, default: 0] += 1
-            case .tardy: tardyByID[record.studentID, default: 0] += 1
-            default: break
+            // A late arrival who has since left early is still a tardy.
+            if record.status == .absent {
+                absentByID[record.studentID, default: 0] += 1
+            } else if record.cameLate {
+                tardyByID[record.studentID, default: 0] += 1
             }
         }
         return (absentByID, tardyByID)

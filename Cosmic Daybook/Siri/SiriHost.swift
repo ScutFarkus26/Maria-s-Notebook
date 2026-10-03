@@ -51,14 +51,15 @@ enum SiriHost {
     /// Once arrival has closed, a child who arrives is tardy, as a tap on an
     /// iPhone tile marks them: closed on this device (Close Arrival on the
     /// roll), or anywhere else, which shows as Close Arrival's automatic
-    /// absence on a record that day (an assistant's iPhone, say).
+    /// absence on a record that day (an assistant's iPhone, say), unless
+    /// arrival was reopened here since (`AttendanceLatePhase`).
     static func statusForHere(on day: Date, store: CDAttendanceStore) -> AttendanceStatus {
-        if AttendanceLatePhase.isLate(on: day) { return .tardy }
-        return (try? store.arrivalClosed(on: day)) == true ? .tardy : .present
+        AttendanceLatePhase.isLate(on: day, closedAnywhere: (try? store.arrivalClosed(on: day)) == true)
+            ? .tardy : .present
     }
 
     static func arrivalReopened(on day: Date) {
-        AttendanceLatePhase.setLate(false, on: day)
+        AttendanceLatePhase.reopen(on: day)
     }
 
     /// Nothing to do: `SharedStoreOrphanGuard` files the guide's new records

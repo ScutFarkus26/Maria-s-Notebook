@@ -269,13 +269,14 @@ final class StudentsViewModel {
     }
 
     /// Today's mark per child. A child with two rows for the day (a CloudKit
-    /// duplicate) takes the marked one.
+    /// duplicate) takes the one the attendance grid and the Meetings queue
+    /// show (`deduplicatedPerStudentDay`).
     static func presence(
         from records: [CDAttendanceRecord]
     ) -> (byStudent: [UUID: StudentSignals.Presence], taken: Bool) {
         var byStudent: [UUID: StudentSignals.Presence] = [:]
         var taken = false
-        for record in records {
+        for record in records.deduplicatedPerStudentDay() {
             guard let id = UUID(uuidString: record.studentID) else { continue }
             let presence: StudentSignals.Presence
             switch record.status {

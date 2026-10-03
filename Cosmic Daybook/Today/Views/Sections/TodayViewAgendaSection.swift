@@ -187,25 +187,25 @@ extension TodayView {
         }
     }
 
+    /// Records today for the children who were there; an absent child stays
+    /// on the plan (`TodayMarkPresented`).
     func markLessonPresented(_ sl: CDLessonAssignment) {
         do {
-            _ = try LifecycleService.recordPresentation(
-                from: sl,
-                presentedAt: Date(),
-                modelContext: viewContext
+            let result = try TodayMarkPresented.record(
+                sl, context: viewContext, saveCoordinator: saveCoordinator
             )
-            if saveCoordinator.save(viewContext, reason: "Mark lesson presented") {
-                viewModel.reload()
-                toast("Marked presented")
-            }
+            viewModel.reload()
+            toast(TodayMarkPresented.message(keptOnPlan: result.keptOnPlan.map { displayNameForID($0) }))
         } catch {
             Logger.app_.warning("Failed to mark lesson presented: \(error.localizedDescription)")
+            toast(error.localizedDescription)
         }
     }
 
     func bumpLessonToTomorrow(_ sl: CDLessonAssignment) {
-        // The next school day after today, not after the item's own date —
-        // adding a day to an overdue item's old date would leave it overdue.
+        // The next school day after the day shown (`bumpTargetDay`), not after
+        // the item's own date — adding a day to an overdue item's old date
+        // would leave it overdue.
         guard let tomorrow = bumpTargetDay() else { return }
         // A bump expresses a day, so it lands at the start of the morning
         // rather than ahead of everything already planned.
@@ -224,9 +224,10 @@ extension TodayView {
     }
 
     func bumpCheckInToTomorrow(_ checkIn: CDWorkCheckIn) {
-        // The next school day after today, not after the check-in's own date —
-        // adding a day to a 5-day-old check-in moved it to 4 days ago, still
-        // overdue. Keep the original time of day so intra-day ordering stays stable.
+        // The next school day after the day shown (`bumpTargetDay`), not after
+        // the check-in's own date — adding a day to a 5-day-old check-in moved
+        // it to 4 days ago, still overdue. Keep the original time of day so
+        // intra-day ordering stays stable.
         let base = checkIn.date ?? viewModel.date
         guard let startOfTomorrow = bumpTargetDay() else { return }
         let name = bumpTargetName

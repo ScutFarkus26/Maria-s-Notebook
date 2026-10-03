@@ -47,6 +47,9 @@ struct ImmediatePresentationRecordingService {
         /// Other plans the recording took these children off (or discarded),
         /// and the year-plan entries that pointed at them.
         let releasedPlans: YearPlanReleasePreimage
+        /// Children `PresentationRecorder` took off at Record because they
+        /// weren't there: Undo puts them back on this presentation.
+        var absentSplit: PresentationRecorder.AbsentSplit?
     }
 
     /// Records one exact assignment as presented and persists the result immediately.
@@ -100,6 +103,10 @@ struct ImmediatePresentationRecordingService {
             restoreExistingEnrollments(token, in: context)
             deleteEnrollmentsCreatedByRecord(token, in: context)
             token.releasedPlans.restore(in: context)
+            token.absentSplit?.restore(onto: assignment, in: context)
+        }
+        if token.absentSplit != nil {
+            PresentationDetailUtilities.notifyInboxRefresh()
         }
     }
 }

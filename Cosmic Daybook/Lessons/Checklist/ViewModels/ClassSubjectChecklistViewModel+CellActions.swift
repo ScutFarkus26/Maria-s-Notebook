@@ -113,14 +113,22 @@ extension ClassAreaChecklistViewModel {
         lessons.first(where: { !$0.isPresented && $0.studentIDs.contains(student) })
     }
 
+    /// Remove Plan, Remove from Inbox and Unmark Presented: her promoted year-plan entries
+    /// go back to planned, and her mastery marks stay (`ChecklistRosterRemoval`).
     func removeStudentFromLesson(student: String, lesson: CDLessonAssignment, context: NSManagedObjectContext) {
-        var ids = lesson.studentIDs
-        ids.removeAll { $0 == student }
-        if ids.isEmpty {
-            context.delete(lesson)
-        } else {
-            lesson.studentIDs = ids
-        }
+        ChecklistRosterRemoval.remove(student, from: lesson, in: context)
+    }
+
+    /// Unmark Presented: off the presentation, and, once she is on no other, the plain
+    /// history row the Presented toggle made. A mastery mark is never touched.
+    func unmarkPresented(
+        student: String, lessonID: String, from presentation: CDLessonAssignment,
+        among allLAs: [CDLessonAssignment], context: NSManagedObjectContext
+    ) {
+        removeStudentFromLesson(student: student, lesson: presentation, context: context)
+        ChecklistRosterRemoval.deleteToggleHistory(
+            studentID: student, lessonID: lessonID, unmarked: presentation, among: allLAs, in: context
+        )
     }
 
     func addStudentToUnscheduledLesson(
@@ -192,9 +200,9 @@ extension ClassAreaChecklistViewModel {
         let allLAs = context.safeFetch(request)
 
         if let existing = findGivenLessonContaining(student: studentIDString, in: allLAs) {
-            removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
-            deleteLessonPresentation(
-                studentID: studentIDString, lessonID: lessonIDString, context: context
+            unmarkPresented(
+                student: studentIDString, lessonID: lessonIDString,
+                from: existing, among: allLAs, context: context
             )
         } else {
             addStudentToGivenLesson(
@@ -264,9 +272,9 @@ extension ClassAreaChecklistViewModel {
         let allLAs = context.safeFetch(request)
 
         if let existing = findGivenLessonContaining(student: studentIDString, in: allLAs) {
-            removeStudentFromLesson(student: studentIDString, lesson: existing, context: context)
-            deleteLessonPresentation(
-                studentID: studentIDString, lessonID: lessonIDString, context: context
+            unmarkPresented(
+                student: studentIDString, lessonID: lessonIDString,
+                from: existing, among: allLAs, context: context
             )
         } else {
             addStudentToUndatedLesson(

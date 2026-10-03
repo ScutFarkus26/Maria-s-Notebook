@@ -1,14 +1,25 @@
 // TodayBumpDay.swift
 // Where Today's "move" and "bump" actions land, and what their labels call it.
 //
-// They land on the next school day after today (the school calendar's, so a
-// Friday's move goes to Monday and a move before a holiday goes past it), and
-// the labels name that day: "tomorrow" when it is tomorrow, the weekday when
-// it falls within the week ("Monday"), else a short date ("Mon, Oct 12").
+// They land on the next school day after the day Today shows (the school
+// calendar's, so a Friday's move goes to Monday and a move before a holiday
+// goes past it), or after today when it shows an earlier day. Until
+// 2026-10-03 they counted from the clock's today: on a Sunday, Today shows
+// Monday, so a bump "to tomorrow" landed on Monday, where the lesson already
+// was; on a later day it moved the lesson earlier. The labels name the day
+// from the clock's today: "tomorrow" when it is tomorrow, the weekday when it
+// falls within the week ("Monday"), else a short date ("Mon, Oct 12").
 
 import Foundation
 
 enum TodayBumpDay {
+
+    /// The day a bump counts from: the day Today shows, or today when it shows
+    /// an earlier one (an overdue item bumped from a past day must not land in
+    /// the past again).
+    static func base(showing shownDay: Date, now: Date, calendar: Calendar) -> Date {
+        max(calendar.startOfDay(for: shownDay), calendar.startOfDay(for: now))
+    }
 
     /// The day's name for running text: "tomorrow", "Monday", "Mon, Oct 12".
     static func name(

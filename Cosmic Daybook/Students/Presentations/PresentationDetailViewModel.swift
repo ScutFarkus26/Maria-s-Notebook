@@ -149,6 +149,12 @@ final class PresentationDetailViewModel {
         )
     }
 
+    /// Whether the children or lesson on screen differ from the saved record.
+    var hasUnsavedRosterOrLesson: Bool {
+        Set(lessonAssignment.resolvedStudentIDs) != selectedStudentIDs
+            || UUID(uuidString: lessonAssignment.lessonID) != editingLessonID
+    }
+
     /// Work already generated from this presentation for children the edit
     /// removes from it. Empty when nothing downstream would disagree.
     func workRetractionPlans() -> [WorkRemovalPlan] {

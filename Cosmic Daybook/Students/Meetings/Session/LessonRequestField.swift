@@ -7,8 +7,14 @@ struct LessonRequestField: View {
     @Bindable var draft: MeetingDraftModel
 
     @Environment(\.dependencies) private var dependencies
-    @State private var query = ""
     @FocusState private var isFocused: Bool
+
+    /// Held by the draft, so text typed but not yet added survives moving to
+    /// another child and is filed as a request on Complete.
+    private var query: String {
+        get { draft.requestQuery }
+        nonmutating set { draft.requestQuery = newValue }
+    }
 
     private static let suggestionLimit = 6
 
@@ -36,7 +42,7 @@ struct LessonRequestField: View {
                 ForEach(draft.requestTexts, id: \.self) { text in
                     textToken(text)
                 }
-                TextField("Find a lesson…", text: $query)
+                TextField("Find a lesson…", text: $draft.requestQuery)
                     .textFieldStyle(.plain)
                     .focused($isFocused)
                     .frame(minWidth: 180)

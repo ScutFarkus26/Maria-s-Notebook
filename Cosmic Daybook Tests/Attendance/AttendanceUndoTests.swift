@@ -63,6 +63,38 @@ struct AttendanceUndoTests {
         #expect(status(roll, "Ari") == .tardy)
     }
 
+    // Bug hunt 2026-10-03, A5: the Undo matched the status alone, so it
+    // unmarked a child changed since without changing her status.
+    @Test("Mark N Present's Undo leaves a child who went out and came back since")
+    func markRestPresentUndoKeepsTrip() throws {
+        let roll = model(students: [student("Maya"), student("Ari")])
+        let undo = try #require(roll.markUnmarkedPresent(modelContext: context))
+        try context.save()
+        let maya = try #require(roll.rows.first { $0.shortName == "Maya" })
+        #expect(roll.setStatus(.leftEarly, for: maya, modelContext: context))
+        roll.markBack(try #require(roll.rows.first { $0.shortName == "Maya" }), modelContext: context)
+        #expect(status(roll, "Maya") == .present)
+
+        #expect(roll.undoBulkMark(undo, modelContext: context) == 1)
+        #expect(status(roll, "Maya") == .present)
+        #expect(roll.rows.first { $0.shortName == "Maya" }?.leftAt != nil)
+        #expect(status(roll, "Ari") == .unmarked)
+    }
+
+    @Test("Close Arrival's Undo leaves a child given a reason since")
+    func closeArrivalUndoKeepsReason() throws {
+        let roll = model(students: [student("Maya"), student("Ari")])
+        let undo = try #require(roll.closeArrival(modelContext: context))
+        try context.save()
+        let ari = try #require(roll.rows.first { $0.shortName == "Ari" })
+        roll.markAbsent(reason: .sick, for: ari, modelContext: context)
+
+        #expect(roll.undoCloseArrival(undo, modelContext: context) == 1)
+        #expect(status(roll, "Maya") == .unmarked)
+        #expect(status(roll, "Ari") == .absent)
+        #expect(roll.rows.first { $0.shortName == "Ari" }?.absenceReason == .sick)
+    }
+
     @Test("Undoing a mark puts the child back as they were, and the undo of the undo redoes it")
     func undoMark() throws {
         let roll = model(students: [student("Maya")])

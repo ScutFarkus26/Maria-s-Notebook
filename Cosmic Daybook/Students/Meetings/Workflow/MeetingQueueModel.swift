@@ -129,6 +129,10 @@ final class MeetingQueueModel {
     private(set) var signals: [UUID: MeetingQueueSignals] = [:]
     /// Children with a meeting draft in progress (the row's pencil).
     private(set) var draftIDs: Set<UUID> = []
+    /// The day the signals were built for. The queue's "met recently" and
+    /// "late" cutoffs read the clock, so a view that reads this redraws when
+    /// the day turns over even if no signal moved.
+    private(set) var day: Date?
 
     @ObservationIgnored private var inputs: ManagedObjectChangeFlag?
     @ObservationIgnored private var builtFor: Stamp?
@@ -202,6 +206,7 @@ final class MeetingQueueModel {
         // Cleared before the build, so a change that lands during it counts.
         _ = flag(for: context).consume(pendingIn: context)
         builtFor = stamp
+        if day != stamp.day { day = stamp.day }
         buildCount += 1
 
         var result: [UUID: MeetingQueueSignals] = [:]
@@ -244,7 +249,8 @@ final class MeetingQueueModel {
             format: "statusRaw IN %@ AND createdAt < %@",
             WorkStatus.openCases.map(\.rawValue), overdueBefore as NSDate
         )
-        for item in context.safeFetch(work) {
+        // Resting work has a plan (Rest… on a decision card), so it isn't stuck.
+        for item in context.safeFetch(work) where !item.isResting(asOf: now) {
             guard let id = UUID(uuidString: item.studentID) else { continue }
             result[id, default: MeetingQueueSignals()].stuckWork += 1
         }

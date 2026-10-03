@@ -196,6 +196,46 @@ struct ChecklistDisplayStatusTests {
         #expect(fixture.viewModel.matrixStates == full)
     }
 
+    @Test("Open work outranks an older closed row, whatever order the store returns them in")
+    func openWorkWinsOverClosedRow() throws {
+        let fixture = try makeFixture()
+        let lesson = fixture.decimal[0]
+        let lessonID = try #require(lesson.id).uuidString
+        func work(_ status: WorkStatus, created: TimeInterval) -> CDWorkModel {
+            let work = CDWorkModel(context: fixture.context)
+            work.lessonID = lessonID
+            work.status = status
+            work.createdAt = Date(timeIntervalSince1970: created)
+            return work
+        }
+        let oldClosed = work(.keepPracticing, created: 1_770_000_000)
+        let newOpen = work(.active, created: 1_780_000_000)
+        let calendar = AppCalendar.shared
+        let today = calendar.startOfDay(for: Date())
+
+        for order in [[oldClosed, newOpen], [newOpen, oldClosed]] {
+            #expect(ChecklistMatrixBuilder.cellWork(order) === newOpen)
+            let state = ChecklistMatrixBuilder.buildCellState(
+                lesson: lesson, studentLAs: [], studentWorkModels: order,
+                calendar: calendar, today: today
+            )
+            #expect(state.displayStatus == .practicing)
+            #expect(state.contractID == newOpen.id)
+        }
+
+        // With nothing open, the most recent closed row speaks for the cell.
+        let newer = work(.incomplete, created: 1_790_000_000)
+        #expect(ChecklistMatrixBuilder.cellWork([newer, oldClosed]) === newer)
+        #expect(ChecklistMatrixBuilder.cellWork([oldClosed, newer]) === newer)
+    }
+
+    @Test("A mastery mark synced in from another device refreshes the grid")
+    func importedMarksRefreshTheGrid() {
+        // The mark lives on a LessonPresentation row; an import touching only those must
+        // still pass the grid's remote-change filter.
+        #expect(ClassAreaChecklistView.remoteRefreshEntityNames.contains("LessonPresentation"))
+    }
+
     // MARK: - Counts and Words
 
     @Test("Counts cover only the visible students and lessons")

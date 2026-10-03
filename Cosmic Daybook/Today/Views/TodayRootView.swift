@@ -22,8 +22,8 @@ struct TodayRootView: View {
     var body: some View {
         if let viewModel {
             TodayView(viewModel: viewModel)
-                // A work, presentation or check-in saved in another window:
-                // one debounced reload, skipped when Today's own reload already
+                // A work, presentation, check-in, attendance mark or meeting
+                // saved in another window or imported: one debounced reload, skipped when Today's own reload already
                 // covered the save. TodayView's appear-time reload catches up
                 // on anything saved while it was hidden.
                 .onReceiveWhenVisible(TodayViewModel.inputChanges(), catchUpOnAppear: false) {

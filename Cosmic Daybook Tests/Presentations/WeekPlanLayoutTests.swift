@@ -87,6 +87,27 @@ struct WeekPlanLayoutTests {
         #expect(label.contains("Jan"))
     }
 
+    // MARK: - Paging
+
+    @Test("Later and Earlier page by the five days shown, from the first one, skipping none")
+    func pagesByTheVisibleDays() {
+        let appCalendar = AppCalendar.shared
+        let weekday = { (date: Date) in !appCalendar.isDateInWeekend(date) }
+        func date(_ month: Int, _ day: Int) -> Date {
+            appCalendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: 12)) ?? .distantPast
+        }
+        func shifted(_ first: Date, _ delta: Int) -> Date {
+            WeekPlanSection.shiftedStart(from: first, bySchoolDays: delta, calendar: appCalendar, isSchoolDay: weekday)
+        }
+        let page = WeekPlanSection.visibleDayCount
+
+        // Thursday Oct 1 shows Thu, Fri, Mon, Tue, Wed: the next page starts Thursday Oct 8.
+        #expect(appCalendar.isDate(shifted(date(10, 1), page), inSameDayAs: date(10, 8)))
+        #expect(appCalendar.isDate(shifted(date(10, 1), -page), inSameDayAs: date(9, 24)))
+        // A strip that starts on Monday Oct 5 pages back to Monday Sep 28.
+        #expect(appCalendar.isDate(shifted(date(10, 5), -page), inSameDayAs: date(9, 28)))
+    }
+
     // MARK: - Insertion bar
 
     private func card(_ minY: CGFloat, _ half: DayPeriod) -> WeekDayColumn.PlacedCard {

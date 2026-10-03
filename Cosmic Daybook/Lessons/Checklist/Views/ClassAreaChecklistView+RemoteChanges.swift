@@ -8,9 +8,10 @@ import Foundation
 
 extension ClassAreaChecklistView {
     /// Imported entities that can move a cell: its lesson, its child, the plans and
-    /// presentations, and the work.
+    /// presentations, the work, and the history rows that carry mastery marks (a mark made
+    /// on another device turns the cell green).
     nonisolated static let remoteRefreshEntityNames: Set<String> = [
-        "LessonAssignment", "Lesson", "Student", "WorkModel"
+        "LessonAssignment", "Lesson", "Student", "WorkModel", "LessonPresentation"
     ]
 
     /// Imports from another device that touched the grid's records, settled for a second so a

@@ -148,6 +148,23 @@ struct AssistantAttendanceRulesTests {
         #expect(after == ["Ari": .present, "Leah": .unmarked, "Maya": .unmarked, "Noah": .tardy])
     }
 
+    // Bug hunt 2026-10-03, A5: the Undo took back any child still absent.
+    @Test("Undoing Close Arrival leaves a child given a reason since")
+    func closeArrivalUndoKeepsReason() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        for (first, last) in [("Ari", "Cedar"), ("Maya", "Stone")] {
+            AssistantTestSupport.student(first, last, in: stack.viewContext)
+        }
+        let model = AssistantTestSupport.viewModel(stack)
+        #expect(model.beginLate() == 2)
+        model.markAbsent(reason: .sick, for: try #require(model.rows.first { $0.student.firstName == "Maya" }))
+
+        model.returnToArrival(undo: true)
+        let maya = try #require(model.rows.first { $0.student.firstName == "Maya" })
+        #expect(maya.status == .absent && maya.absenceReason == .sick)
+        #expect(model.rows.first { $0.student.firstName == "Ari" }?.status == .unmarked)
+    }
+
     @Test("Closing arrival is remembered, so a relaunch mid-morning stays on Late")
     func closeArrivalIsRemembered() throws {
         let stack = try AssistantTestSupport.makeStack()
@@ -179,6 +196,31 @@ struct AssistantAttendanceRulesTests {
         let ari = try #require(model.rows.first)
         model.tap(ari)
         #expect(model.rows.first?.status == .tardy)
+    }
+
+    // Bug hunt 2026-10-03, A1: only this phone's own Close Arrival counted,
+    // so once the guide closed arrival a tap here marked a late child present.
+    @Test("Arrival closed on another device is Late here too, until she reopens it here")
+    func closedElsewhere() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let ari = AssistantTestSupport.student("Ari", "Cedar", in: context)
+        let maya = AssistantTestSupport.student("Maya", "Stone", in: context)
+        let guide = CDAttendanceStore(context: context, role: .leadGuide)
+        let today = Calendar.current.startOfDay(for: Date())
+        #expect(try guide.markUnmarkedAbsent(for: today, students: [ari, maya]).count == 2)
+        #expect(context.safeSave())
+        let defaults = AssistantTestSupport.makeDefaults()
+
+        let model = AssistantTestSupport.viewModel(stack, defaults: defaults)
+        #expect(model.phase == .late)
+        #expect(model.beginLate() == 0)
+        model.tap(try #require(model.rows.first { $0.student.firstName == "Ari" }))
+        #expect(model.rows.first { $0.student.firstName == "Ari" }?.status == .tardy)
+
+        model.returnToArrival()
+        let relaunched = AssistantTestSupport.viewModel(stack, defaults: defaults)
+        #expect(relaunched.phase == .arrival)
     }
 
     // MARK: - Days off

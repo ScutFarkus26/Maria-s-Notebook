@@ -4,7 +4,8 @@ import Testing
 @testable import CosmicDaybook
 
 /// Where Today's moves and bumps land is named for the day they land on, and
-/// the Meetings section keeps its own dragged order beside the agenda's.
+/// the Meetings section keeps its own dragged order beside the agenda's,
+/// which lists each item once.
 @Suite("Today bump day and meeting order")
 @MainActor
 struct TodayBumpDayAndMeetingOrderTests {
@@ -48,6 +49,32 @@ struct TodayBumpDayAndMeetingOrderTests {
         #expect(TodayBumpDay.name(for: afterBreak, today: friday, calendar: calendar, locale: locale) == "Mon, Oct 12")
     }
 
+    // MARK: - Where a bump counts from
+
+    @Test("On a Sunday Today shows Monday, so a bump counts from Monday and is named from Sunday")
+    func sundayCountsFromShownMonday() {
+        let sunday = day(after: friday, 2)
+        let monday = day(after: friday, 3)
+        #expect(TodayBumpDay.base(showing: monday, now: sunday, calendar: calendar) == monday)
+        // The next school day after Monday is Tuesday: two days from Sunday.
+        let tuesday = day(after: monday, 1)
+        #expect(TodayBumpDay.name(for: tuesday, today: sunday, calendar: calendar, locale: locale) == "Tuesday")
+    }
+
+    @Test("A later day shown counts from that day, so a bump never moves a lesson earlier")
+    func laterDayCountsFromItself() {
+        let nextThursday = day(after: friday, 6)
+        #expect(TodayBumpDay.base(showing: nextThursday, now: friday, calendar: calendar) == nextThursday)
+    }
+
+    @Test("An earlier day shown counts from today, so an overdue item does not land in the past")
+    func earlierDayCountsFromToday() {
+        let lastMonday = day(after: friday, -4)
+        let today = calendar.startOfDay(for: friday)
+        #expect(TodayBumpDay.base(showing: lastMonday, now: friday, calendar: calendar) == today)
+        #expect(TodayBumpDay.base(showing: today, now: friday, calendar: calendar) == today)
+    }
+
     // MARK: - Meeting order
 
     private func meetings(_ count: Int, in context: NSManagedObjectContext) -> [CDScheduledMeeting] {
@@ -65,6 +92,28 @@ struct TodayBumpDayAndMeetingOrderTests {
 
         let ordered = TodayAgendaBuilder.orderMeetings(rows, day: today, context: context)
         #expect(ordered.map(\.id) == [rows[2], rows[0], rows[1]].map(\.id))
+    }
+
+    @Test("A lesson with an order row from each of two devices is listed once, where the first puts it")
+    func duplicateOrderRowsListOnce() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let first = CDLessonAssignment(context: context)
+        first.id = UUID()
+        let second = CDLessonAssignment(context: context)
+        second.id = UUID()
+        let day = AppCalendar.startOfDay(Date())
+        for (position, id) in [second.id, first.id, second.id].enumerated() {
+            let row = CDTodayAgendaOrder(context: context)
+            row.day = day
+            row.itemType = .lesson
+            row.itemID = id
+            row.position = Int64(position)
+        }
+
+        let agenda = TodayAgendaBuilder.buildAgenda(
+            lessons: [first, second], overdueSchedule: [], todaysSchedule: [], day: day, context: context
+        )
+        #expect(agenda.map(\.id) == [second.id, first.id].compactMap { $0 })
     }
 
     @Test("Saving the lessons' order keeps the meetings' order, and the other way round")

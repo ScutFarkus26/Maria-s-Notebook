@@ -54,7 +54,8 @@ extension TodayView {
     /// plan.
     @ViewBuilder
     var nextCheckInCard: some View {
-        if let next = nextAgendaItem, case .scheduledWork = next {
+        if let next = nextAgendaItem, case .scheduledWork = next,
+           let checkIn = viewModel.followUpCheckIns.first {
             HStack(spacing: 10) {
                 Image(systemName: nextUpIcon(for: next))
                     .font(.system(size: 12))
@@ -67,7 +68,7 @@ extension TodayView {
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                         .tracking(0.5)
-                    Text(nextUpDescription(for: next))
+                    Text(nextCheckInDescription(for: checkIn))
                         .font(AppTheme.ScaledFont.calloutSemibold)
                         .lineLimit(2)
                 }
@@ -83,28 +84,16 @@ extension TodayView {
 
     // MARK: - Describing an item
 
-    func nextUpDescription(for item: AgendaItem) -> String {
-        switch item {
-        case .lesson(let sl):
-            let lessonName = nameForLesson(sl.resolvedLessonID)
-            let students = studentNamesForIDs(sl.resolvedStudentIDs)
-            if students.isEmpty { return lessonName }
-            return "\(lessonName) — \(students)"
-        case .scheduledWork(let item):
-            let lesson = resolveLessonName(for: item.work)
-            let student = resolveStudentName(for: item.work)
-            return "Check \(lesson) — \(student)"
-        case .followUp(let item):
-            let lesson = resolveLessonName(for: item.work)
-            let student = resolveStudentName(for: item.work)
-            return "Follow up: \(lesson) — \(student)"
-        case .groupedScheduledWork(let items):
-            let lesson = items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson"
-            return "Check \(lesson) — \(items.count) students"
-        case .groupedFollowUp(let items):
-            let lesson = items.first.map { resolveLessonName(for: $0.work) } ?? "Lesson"
-            return "Follow up: \(lesson) — \(items.count) students"
-        }
+    /// The check-in card's line, named as the todo list's row names it
+    /// (`followUpStudentNames`): everyone on the work, a former student by
+    /// first name. The roster cache holds only enrolled children, so the work
+    /// owner's name alone read "Student" for a former student, whose
+    /// check-ins are kept on purpose and are often the oldest.
+    func nextCheckInDescription(for item: WorkCheckInFollowUp) -> String {
+        let lesson = resolveLessonName(for: item.work)
+        let names = followUpStudentNames(for: item).map(\.name)
+        if names.isEmpty { return "Check \(lesson)" }
+        return "Check \(lesson) — \(PresentationSessionSummary.list(names))"
     }
 
     func nextUpIcon(for item: AgendaItem) -> String {

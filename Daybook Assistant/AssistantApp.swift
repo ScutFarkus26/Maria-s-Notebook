@@ -11,10 +11,20 @@ import UserNotifications
 struct AssistantApp: App {
     @UIApplicationDelegateAdaptor(ShareAcceptanceAppDelegate.self) private var appDelegate
 
-    @State private var bootstrapper = AssistantBootstrapper()
+    @State private var bootstrapper: AssistantBootstrapper
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         UNUserNotificationCenter.current().delegate = ArrivalReminderTaps.shared
+        let bootstrapper = AssistantBootstrapper()
+        _bootstrapper = State(initialValue: bootstrapper)
+        // A sync push can relaunch the app in the background with no window,
+        // and then the window's task below never runs: starting here opens
+        // the store, so it imports the change and the pickup reminders follow
+        // it (`EarlyPickupReminderUpkeep`). The window's call is then a no-op.
+        if !AssistantBootstrapper.isRunningUnitTests {
+            Task { await bootstrapper.start() }
+        }
     }
 
     var body: some Scene {
@@ -27,6 +37,12 @@ struct AssistantApp: App {
                     guard !AssistantBootstrapper.isRunningUnitTests else { return }
                     await bootstrapper.start()
                 }
+        }
+        // Coming back, or leaving for the background: the pickup reminders
+        // catch up with changes made while the attendance screen wasn't
+        // running (`EarlyPickupReminderUpkeep`).
+        .onChange(of: scenePhase) {
+            bootstrapper.pickupRemindersMayHaveChanged()
         }
     }
 }

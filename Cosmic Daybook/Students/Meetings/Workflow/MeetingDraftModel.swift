@@ -24,6 +24,10 @@ final class MeetingDraftModel {
     var requestLessonIDs: [UUID] = [] { didSet { changed() } }
     /// Requests that matched no lesson, kept as the guide typed them.
     var requestTexts: [String] = [] { didSet { changed() } }
+    /// What is typed in the request field and not yet added. Saved with the
+    /// draft as a free-text request, and filed as one on Complete, so moving
+    /// on doesn't drop it.
+    var requestQuery = "" { didSet { changed() } }
     var nextMeetingDate: Date? { didSet { changed() } }
 
     var pendingFocus: [PendingFocusItem] = [] { didSet { changed() } }
@@ -38,7 +42,13 @@ final class MeetingDraftModel {
     /// When the draft last reached disk; nil until something is written.
     private(set) var savedAt: Date?
 
+    /// The student record's Meetings tab writes these two; the workflow
+    /// doesn't show them, so its saves carry them through untouched.
+    @ObservationIgnored private var storedFocusText = ""
+    @ObservationIgnored private var storedIsCompleted = false
+
     @ObservationIgnored private var isLoading = false
+    @ObservationIgnored private var hasUnsavedChanges = false
     @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     init(studentID: UUID) {
@@ -51,6 +61,8 @@ final class MeetingDraftModel {
         isLoading = true
         defer { isLoading = false }
         let data = MeetingPersistenceService.loadCurrent(studentID: studentID)
+        storedFocusText = data.focusText
+        storedIsCompleted = data.isCompleted
         reflection = data.reflectionText
         guideNotes = data.guideNotesText
         requestTexts = data.requestsText
@@ -73,10 +85,10 @@ final class MeetingDraftModel {
 
     var data: MeetingPersistenceService.CurrentMeetingData {
         MeetingPersistenceService.CurrentMeetingData(
-            isCompleted: false,
+            isCompleted: storedIsCompleted,
             reflectionText: reflection,
-            focusText: "", // Focus is managed via the checklist
-            requestsText: requestTexts.joined(separator: "\n"),
+            focusText: storedFocusText,
+            requestsText: allRequestTexts.joined(separator: "\n"),
             guideNotesText: guideNotes,
             nextMeetingDate: nextMeetingDate,
             pendingFocusTexts: pendingFocus.map(\.text),
@@ -90,8 +102,16 @@ final class MeetingDraftModel {
 
     var isEmpty: Bool { data.isEmpty }
 
+    /// The free-text requests, with anything still typed in the field as one more.
+    private var allRequestTexts: [String] {
+        let pending = requestQuery.trimmed()
+        guard !pending.isEmpty, !requestTexts.contains(pending) else { return requestTexts }
+        return requestTexts + [pending]
+    }
+
     private func changed() {
         guard !isLoading else { return }
+        hasUnsavedChanges = true
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(600))
@@ -100,10 +120,17 @@ final class MeetingDraftModel {
         }
     }
 
-    /// Writes the draft now (leaving the child, the app going to the background).
+    /// Writes the draft now (leaving the child, the app going to the background),
+    /// when something changed since it was loaded or last written.
     func flush() {
         saveTask?.cancel()
         saveTask = nil
+        guard hasUnsavedChanges else { return }
+        hasUnsavedChanges = false
+        // The tab may have written its fields since this draft was loaded.
+        let stored = MeetingPersistenceService.loadCurrent(studentID: studentID)
+        storedFocusText = stored.focusText
+        storedIsCompleted = stored.isCompleted
         let snapshot = data
         MeetingPersistenceService.saveCurrent(studentID: studentID, data: snapshot)
         savedAt = snapshot.isEmpty && snapshot.nextMeetingDate == nil ? nil : Date()
@@ -118,13 +145,17 @@ final class MeetingDraftModel {
         guideNotes = ""
         requestLessonIDs = []
         requestTexts = []
+        requestQuery = ""
         nextMeetingDate = nil
         pendingFocus = []
         resolvedFocusIDs = []
         droppedFocusIDs = []
         workNotes = [:]
         reviewedWorkIDs = []
+        storedFocusText = ""
+        storedIsCompleted = false
         isLoading = false
+        hasUnsavedChanges = false
         savedAt = nil
         MeetingPersistenceService.clearCurrent(studentID: studentID)
     }
@@ -173,16 +204,28 @@ final class MeetingDraftModel {
         }
         var completed = data
         completed.isCompleted = true
-        completed.focusText = FocusItemService.snapshotText(
-            activeItems: carryForward,
-            resolvedItems: resolvedItems,
-            newTexts: pendingFocus.map(\.text)
-        )
-        completed.requestsText = (requestLessonIDs.compactMap(lessonName) + requestTexts).joined(separator: "; ")
+        // The checklist, then any focus typed on the student record's Meetings tab.
+        let typedFocus = MeetingPersistenceService.loadCurrent(studentID: studentID).focusText.trimmed()
+        completed.focusText = [
+            FocusItemService.snapshotText(
+                activeItems: carryForward,
+                resolvedItems: resolvedItems,
+                newTexts: pendingFocus.map(\.text)
+            ),
+            typedFocus
+        ].filter { !$0.isEmpty }.joined(separator: "\n")
+        completed.requestsText = (requestLessonIDs.compactMap(lessonName) + allRequestTexts).joined(separator: "; ")
 
+        // Everything below lands in one save, or none of it does: a failed
+        // save takes back the history entry, reviews and inbox drafts, so
+        // trying Complete again doesn't file them twice.
+        let transaction = ContextMutationTransaction(context: context)
         guard let meeting = MeetingPersistenceService.saveToHistory(
-            studentID: studentID, data: completed, context: context
-        ) else { return false }
+            studentID: studentID, data: completed, context: context, save: false
+        ) else {
+            transaction.rollback()
+            return false
+        }
         let meetingID = meeting.id ?? UUID()
 
         MeetingReviewService.persistReviews(
@@ -196,7 +239,11 @@ final class MeetingDraftModel {
 
         // A failure shows the "Couldn't Save" alert and keeps the form open
         // so the meeting record isn't silently lost.
-        guard saveCoordinator.save(context, reason: "Save meeting") else { return false }
+        guard saveCoordinator.save(context, reason: "Save meeting") else {
+            transaction.rollback()
+            return false
+        }
+        transaction.commit()
 
         if let next = nextMeetingDate {
             MeetingScheduler.scheduleMeeting(studentID: studentID, date: next, context: context)

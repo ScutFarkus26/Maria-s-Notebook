@@ -35,6 +35,14 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
 
     init(container: NSPersistentCloudKitContainer) { self.container = container }
 
+    /// The run's list of originals awaiting iCloud's confirmation (the app keeps it in UserDefaults).
+    private var awaitingGone: [CKRecord.ID] = []
+
+    var awaiting: [CKRecord.ID] {
+        get { lock.lock(); defer { lock.unlock() }; return awaitingGone }
+        set { lock.lock(); defer { lock.unlock() }; awaitingGone = newValue }
+    }
+
     func share(_ ids: [NSManagedObjectID]) {
         lock.lock(); defer { lock.unlock() }
         shared.formUnion(ids)
@@ -43,6 +51,19 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
     func isShared(_ id: NSManagedObjectID) -> Bool {
         lock.lock(); defer { lock.unlock() }
         return shared.contains(id)
+    }
+
+    /// Records the server keeps after they're deleted here (an import that dropped them, not a delete).
+    private var keptOnServer = Set<NSManagedObjectID>()
+
+    func keepOnServer(_ ids: [NSManagedObjectID]) {
+        lock.lock(); defer { lock.unlock() }
+        keptOnServer.formUnion(ids)
+    }
+
+    func isKeptOnServer(_ id: NSManagedObjectID) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return keptOnServer.contains(id)
     }
 
     func exists(_ id: NSManagedObjectID) -> Bool {
@@ -104,7 +125,7 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
                 for record in records {
                     guard let url = URL(string: record.recordName),
                           let id = coordinator.managedObjectID(forURIRepresentation: url),
-                          self.exists(id) else { continue }
+                          self.exists(id) || self.isKeptOnServer(id) else { continue }
                     found[record] = Date()
                 }
                 return found
@@ -116,7 +137,9 @@ nonisolated final class FakeReleaseCloud: @unchecked Sendable {
             },
             patience: patience ?? .seconds(3_600),
             exportStarted: { _ in self.nextExportStartAnswer() },
-            afterStep: afterStep
+            afterStep: afterStep,
+            awaitingGone: { self.awaiting },
+            setAwaitingGone: { self.awaiting = $0 }
         )
     }
 }

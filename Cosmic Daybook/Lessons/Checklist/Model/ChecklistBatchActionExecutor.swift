@@ -157,13 +157,7 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
         if let existing = allLAs.first(where: {
             !$0.isPresented && $0.studentIDs.contains(studentIDString)
         }) {
-            var ids = existing.studentIDs
-            ids.removeAll { $0 == studentIDString }
-            if ids.isEmpty {
-                context.delete(existing)
-            } else {
-                existing.studentIDs = ids
-            }
+            ChecklistRosterRemoval.remove(studentIDString, from: existing, in: context)
         } else {
             if let sequence = allLAs.first(where: { !$0.isPresented && $0.scheduledFor == nil }) {
                 if !sequence.studentIDs.contains(studentIDString) {
@@ -200,16 +194,11 @@ enum ChecklistBatchActionExecutor { // swiftlint:disable:this type_body_length
         if let existing = allLAs.first(where: {
             $0.isPresented && $0.studentIDs.contains(studentIDString)
         }) {
-            var ids = existing.studentIDs
-            ids.removeAll { $0 == studentIDString }
-            if ids.isEmpty {
-                context.delete(existing)
-            } else {
-                existing.studentIDs = ids
-            }
-            deleteLessonPresentation(
+            // Unmark Presented, as the cell's own toggle does: never a mastery mark.
+            ChecklistRosterRemoval.remove(studentIDString, from: existing, in: context)
+            ChecklistRosterRemoval.deleteToggleHistory(
                 studentID: studentIDString, lessonID: lessonIDString,
-                from: prefetchedLPs, context: context
+                unmarked: existing, among: allLAs, in: context
             )
         } else {
             addStudentToPresentedLesson(

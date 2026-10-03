@@ -9,11 +9,10 @@ import OSLog
 
 extension AttendanceViewModel {
     /// What a sweeping mark changed, for its Undo: the records it marked
-    /// (every one of them unmarked before) and the status it gave them.
+    /// (every one of them unmarked before), each as the mark left it.
     struct BulkMark {
         let day: Date
-        let records: [NSManagedObjectID]
-        let status: AttendanceStatus
+        let records: [AttendanceRecordSnapshot]
     }
 
     /// Marks everyone still unmarked present; anyone already marked keeps
@@ -27,23 +26,26 @@ extension AttendanceViewModel {
             guard !marked.isEmpty else { return nil }
             try modelContext.obtainPermanentIDs(for: marked.filter(\.objectID.isTemporaryID))
             changed(marked)
-            return BulkMark(day: selectedDate, records: marked.map(\.objectID), status: .present)
+            return BulkMark(day: selectedDate, records: marked.map(AttendanceRecordSnapshot.init))
         } catch {
             Logger.attendance.warning("Failed to mark the rest present: \(error)")
             return nil
         }
     }
 
-    /// Takes back a bulk mark: its children still holding the status it gave
-    /// go back to unmarked (a child marked differently since keeps that).
+    /// Takes back a bulk mark: its children still exactly as it left them go
+    /// back to unmarked. A child changed since keeps the change: marked
+    /// differently, given a reason ("Absent, Sick" after Close Arrival), or
+    /// out and Back in Class after Mark N Present. Matching the status alone
+    /// used to unmark those too, and lose the reason or the trip.
     /// Returns how many.
     @discardableResult
     func undoBulkMark(_ undo: BulkMark, modelContext: NSManagedObjectContext) -> Int {
         let store = CDAttendanceStore(context: modelContext)
         var reverted: [CDAttendanceRecord] = []
-        for id in undo.records {
-            guard let record = try? modelContext.existingObject(with: id) as? CDAttendanceRecord,
-                  record.status == undo.status,
+        for marked in undo.records {
+            guard let record = try? modelContext.existingObject(with: marked.objectID) as? CDAttendanceRecord,
+                  !record.isDeleted, marked.matches(record),
                   store.updateStatus(record, to: .unmarked) else { continue }
             reverted.append(record)
         }

@@ -84,11 +84,14 @@ extension ClassAreaChecklistView {
         if fromSelection { viewModel.clearSelection() }
     }
 
-    /// After the present-a-lesson sheet: a draft it didn't record or schedule goes, then
-    /// the grid catches up.
+    /// After the present-a-lesson sheet: a draft it didn't save or change goes, then the
+    /// grid catches up. On the next turn, so the sheet's own disappearance has flushed
+    /// notes still waiting on its autosave first.
     func finishPresentation(_ target: ChecklistPresentationTarget) {
-        viewModel.discardUnusedDraft(target.assignment, context: viewContext)
-        finishSheet(fromSelection: target.fromSelection)
+        Task { @MainActor in
+            viewModel.discardUnusedDraft(target.assignment, asMade: target.asMade, context: viewContext)
+            finishSheet(fromSelection: target.fromSelection)
+        }
     }
 
     // MARK: - Drag to Select (Mac)

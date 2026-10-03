@@ -21,6 +21,13 @@ nonisolated struct SiriAttendanceChange: Codable, Sendable {
         /// only this. Nil on changes remembered before 2026-09-29.
         var fromReasonRaw: String?
         var toReasonRaw: String?
+        /// The whole record before and after the change, so Undo puts back
+        /// its times too, as ⌘Z does: a late arrival who had left early
+        /// comes back with her arrival, departure and the mark she left
+        /// from. Nil on changes remembered before 2026-10-03, and on Close
+        /// Arrival's marks.
+        var before: AttendanceRecordSnapshot.Values?
+        var after: AttendanceRecordSnapshot.Values?
     }
 
     let day: Date

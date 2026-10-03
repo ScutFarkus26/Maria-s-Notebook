@@ -31,7 +31,7 @@ enum MeetingWorkSnapshotHelper {
         let notComplete = workModelsForStudent.filter { $0.status.isOpen }
 
         let overdueWork = notComplete.filter {
-            ($0.createdAt ?? Date()) < overdueThreshold
+            ($0.createdAt ?? Date()) < overdueThreshold && !$0.isResting
         }
 
         let overdueIDs = Set(overdueWork.compactMap(\.id))
@@ -94,8 +94,9 @@ enum MeetingWorkSnapshotHelper {
     }
 
     /// Splits a child's work into stuck and open. An item reviewed in this
-    /// meeting stays in its list after its status closes it, so the card
-    /// shows the choice that was made.
+    /// meeting stays in its list after its status closes it (or it is set
+    /// resting), so the card shows the choice that was made. Work resting
+    /// from an earlier decision isn't stuck: it waits with the open work.
     static func sessionWork(
         _ work: [CDWorkModel],
         workOverdueDays: Int,
@@ -103,8 +104,11 @@ enum MeetingWorkSnapshotHelper {
         now: Date = Date()
     ) -> SessionWork {
         let overdueBefore = AppCalendar.shared.date(byAdding: .day, value: -workOverdueDays, to: now) ?? .distantPast
-        let shown = work.filter { $0.status.isOpen || ($0.id.map(reviewed.contains) ?? false) }
-        let stuck = shown.filter { ($0.createdAt ?? now) < overdueBefore }
+        let isReviewed = { (item: CDWorkModel) in item.id.map(reviewed.contains) ?? false }
+        let shown = work.filter { $0.status.isOpen || isReviewed($0) }
+        let stuck = shown.filter {
+            ($0.createdAt ?? now) < overdueBefore && (isReviewed($0) || !$0.isResting(asOf: now))
+        }
         let stuckIDs = Set(stuck.compactMap(\.id))
         return SessionWork(
             stuck: stuck,

@@ -183,6 +183,87 @@ struct PresentationSessionCommitTests {
         #expect(notes.allSatisfy { !$0.body.trimmed().isEmpty })
     }
 
+    @Test("Moving off Practice takes back the untouched practice work, and only that")
+    func changedDecisionRetiresUntouchedWork() throws {
+        let fixture = try makeFixture()
+        try record(fixture)
+        let (ada, ben) = try ids(fixture)
+        let presentationID = try #require(fixture.assignment.id)
+        try commit(fixture, decisions: [ada: .practice, ben: .practice], checkIn: .on(fixture.presentedDay))
+
+        // Ben has already had his check-in, so his practice is his record now.
+        let bensWork = try #require(try work(fixture).first { $0.studentID == ben.uuidString })
+        let bensCheckIn = try #require(WorkDeletionService.checkIns(of: bensWork, in: fixture.context).first)
+        bensCheckIn.status = .completed
+        try fixture.context.save()
+
+        try commit(fixture, decisions: [ada: .continueObserving, ben: .continueObserving])
+
+        let works = try work(fixture)
+        #expect(works.count == 1)
+        #expect(works.first?.studentID == ben.uuidString)
+        let state = PresentationSession.appliedState(presentationID: presentationID, in: fixture.context)
+        #expect(state.decisions[ada] == .continueObserving)
+    }
+
+    @Test("Practice changed to Follow-up leaves one open work item, the follow-up")
+    func practiceToFollowUpReplacesWork() throws {
+        let fixture = try makeFixture()
+        try record(fixture)
+        let (ada, ben) = try ids(fixture)
+        let day = PresentationCheckIn.on(fixture.presentedDay)
+        try commit(
+            fixture, decisions: [ada: .practice], all: [ada: .practice, ben: .continueObserving], checkIn: day
+        )
+
+        // A check-in still only scheduled is not progress: the practice goes.
+        let receipt = try commit(
+            fixture, decisions: [ada: .followUpWork], all: [ada: .followUpWork, ben: .continueObserving], checkIn: day
+        )
+
+        let works = try work(fixture)
+        #expect(works.map(\.kind) == [.followUpAssignment])
+        #expect(receipt.checkInCount == 1)
+    }
+
+    @Test("A child added in Details is saved onto the record before How It Went gives her work")
+    func addedChildLandsBeforeHowItWent() throws {
+        let fixture = try makeFixture()
+        try record(fixture)
+        let (ada, ben) = try ids(fixture)
+        let cy = CoreDataTestHelpers.seedStudent(in: fixture.context, firstName: "Cy")
+        let cyID = try #require(cy.id)
+        try fixture.context.save()
+
+        let viewModel = PresentationDetailViewModel(
+            lessonAssignment: fixture.assignment, viewContext: fixture.context, saveCoordinator: fixture.coordinator
+        )
+        #expect(!viewModel.hasUnsavedRosterOrLesson)
+        viewModel.selectedStudentIDs.insert(cyID)
+        #expect(viewModel.hasUnsavedRosterOrLesson)
+
+        // What How It Went… now does first.
+        viewModel.save(
+            studentsAll: [fixture.ada, fixture.ben, cy], lessons: [fixture.lesson],
+            lessonAssignmentsAll: [fixture.assignment], calendar: AppCalendar.shared
+        )
+        #expect(!viewModel.hasUnsavedRosterOrLesson)
+
+        let receipt = try PresentationSessionCommit.apply(
+            PresentationSessionCommit.Input(
+                assignment: fixture.assignment, lesson: fixture.lesson, studentIDs: [ada, ben, cyID],
+                groupNote: "", childNotes: [cyID: "Carried the tens tray."],
+                decisions: [cyID: .practice],
+                allDecisions: [ada: .continueObserving, ben: .continueObserving, cyID: .practice],
+                checkIn: .nextWorkCycle, lessons: [fixture.lesson, fixture.nextLesson]
+            ),
+            context: fixture.context, saveCoordinator: fixture.coordinator
+        )
+        #expect(receipt.noteCount == 1)
+        #expect(try work(fixture).map(\.studentID) == [cyID.uuidString])
+        #expect(try rows(fixture)[cyID.uuidString] != nil)
+    }
+
     @Test("Reading the record back gives each child's standing decision")
     func appliedStateRoundTrip() throws {
         let fixture = try makeFixture()

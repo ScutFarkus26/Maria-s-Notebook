@@ -183,10 +183,12 @@ enum MeetingPersistenceService {
     ///   - studentID: CDStudent ID
     ///   - data: Current meeting data
     ///   - context: Managed object context
+    ///   - save: False leaves the save to a caller that files more with the
+    ///     entry and needs it all to land in one save (the Meetings workflow).
     /// - Returns: The created CDStudentMeeting, or nil if data was empty
     @discardableResult
     static func saveToHistory(
-        studentID: UUID, data: CurrentMeetingData, context: NSManagedObjectContext
+        studentID: UUID, data: CurrentMeetingData, context: NSManagedObjectContext, save: Bool = true
     ) -> CDStudentMeeting? {
         let trimmedReflection = data.reflectionText.trimmed()
         let trimmedFocus = data.focusText.trimmed()
@@ -205,7 +207,7 @@ enum MeetingPersistenceService {
         entry.focus = trimmedFocus
         entry.requests = trimmedRequests
         entry.guideNotes = trimmedGuide
-        context.safeSave()
+        if save { context.safeSave() }
         return entry
     }
 

@@ -79,11 +79,6 @@ final class PresentationSession {
         }
     }
 
-    /// A new day can mean a different attendance; hand-made ticks stay.
-    func resetTouches() {
-        touchedIDs.removeAll()
-    }
-
     // MARK: - Phases
 
     func showHowItWent() {

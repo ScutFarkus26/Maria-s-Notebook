@@ -33,7 +33,8 @@ struct AttendanceRow: Identifiable, Equatable {
     let leftAt: Date?
     /// When a child who left early came back (Back in Class).
     let returnedAt: Date?
-    /// When the child is due to be picked up early ("leaves 1:30").
+    /// When the child is due to be picked up early ("leaves 1:30"), read
+    /// across all the day's copies (`AttendanceDeduplication.plannedPickup`).
     let leavesAt: Date?
     /// Who made the mark: role raw value, CloudKit user, and typed name
     /// (assistants only; the guide's marks carry none).
@@ -48,9 +49,12 @@ struct AttendanceRow: Identifiable, Equatable {
     /// a welcome back (the Daybook Assistant's `AttendanceWelcomeBack`).
     let daysAway: Int?
 
+    /// `copies` are every record the day holds for the child, CloudKit
+    /// duplicates included, for the pickup time; empty reads `record` alone.
     init(
         student: CDStudent,
         record: CDAttendanceRecord?,
+        copies: [CDAttendanceRecord] = [],
         shortName: String,
         day: Date,
         daysAway: Int? = nil
@@ -68,7 +72,8 @@ struct AttendanceRow: Identifiable, Equatable {
         self.markedAt = record?.markedAt
         self.leftAt = record?.leftAt
         self.returnedAt = record?.returnedAt
-        self.leavesAt = record?.leavesAt
+        let day = record.map { copies.contains($0) ? copies : copies + [$0] } ?? copies
+        self.leavesAt = AttendanceDeduplication.plannedPickup(among: day)
         self.recordedBy = record?.recordedBy
         self.recordedByID = record?.recordedByID
         self.recordedByName = record?.recordedByName

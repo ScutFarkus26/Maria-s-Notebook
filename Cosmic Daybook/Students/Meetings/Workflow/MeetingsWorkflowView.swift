@@ -54,7 +54,11 @@ struct MeetingsWorkflowView: View {
     }
 
     private func arrangement(of students: [CDStudent]) -> MeetingQueueArrangement {
-        MeetingQueueArrangement.arrange(ids: students.compactMap(\.id), signals: queueModel.signals, rules: rules)
+        // Read so the queue redraws at midnight: its cutoffs come from the clock.
+        _ = queueModel.day
+        return MeetingQueueArrangement.arrange(
+            ids: students.compactMap(\.id), signals: queueModel.signals, rules: rules
+        )
     }
 
     private func matchesSearch(_ student: CDStudent) -> Bool {
@@ -111,6 +115,9 @@ struct MeetingsWorkflowView: View {
                 queueModel.refreshDrafts()
             }
             .onChange(of: workOverdueDays) { _, _ in refreshQueue() }
+            // Left open overnight (a Mac): yesterday's absences and bookings
+            // give way to today's; the queue's day stamp makes this a rebuild.
+            .onCalendarDayChange { refreshQueue() }
             .sheet(item: $studentForMeetingDatePicker) { student in
                 MeetingDatePickerSheet(studentName: student.fullName) { date in
                     schedule(student, on: date)

@@ -5,8 +5,10 @@
 // observations through PresentationOutcomePersistenceService, the per-child
 // decisions through CaptureFollowUpPersistence (the command bar's and MCP
 // record_presentation's path), the follow-up rows through
-// PresentationFollowUpService, check-ins through WorkCheckInService and the
-// next lesson through PlanNextLessonService. All of it lands or none of it does.
+// PresentationFollowUpService, check-ins through WorkCheckInService, the
+// next lesson through PlanNextLessonService, and untouched work a changed
+// decision leaves behind through WorkDeletionService. All of it lands or none
+// of it does.
 
 import CoreData
 import Foundation
@@ -63,14 +65,20 @@ enum PresentationSessionCommit {
         }
         let transaction = ContextMutationTransaction(context: context)
         do {
+            // Read before anything is written: the decisions' new work isn't
+            // there yet, and the old work's check-ins haven't been moved.
+            let leftBehind = untouchedWork(
+                leftBehindBy: input.decisions, presentationID: presentationID, context: context
+            )
             var receipt = try write(
-                input, presentationID: presentationID, lessonID: lessonID, context: context, now: now
+                input, presentationID: presentationID, lessonID: lessonID,
+                leftBehind: Set(leftBehind.map(\.objectID)), context: context, now: now
             )
             context.processPendingChanges()
             let createdWorks = context.insertedObjects
                 .compactMap { $0 as? CDWorkModel }
                 .filter { $0.presentationID == presentationID.uuidString }
-            guard saveCoordinator.save(context, reason: "Saving how the presentation went") else {
+            guard try save(retiring: leftBehind, context: context, saveCoordinator: saveCoordinator) else {
                 throw CommitError.saveFailed(
                     saveCoordinator.lastSaveErrorMessage ?? "The presentation's follow-up could not be saved."
                 )
@@ -85,12 +93,31 @@ enum PresentationSessionCommit {
         }
     }
 
+    /// The one save, with the left-behind work deleted inside it so a failed
+    /// save puts that back as well.
+    private static func save(
+        retiring works: [CDWorkModel],
+        context: NSManagedObjectContext,
+        saveCoordinator: SaveCoordinator
+    ) throws -> Bool {
+        let save = { saveCoordinator.save(context, reason: "Saving how the presentation went") }
+        guard !works.isEmpty else { return save() }
+        do {
+            try WorkDeletionService(context: context).delete(works, persist: save)
+            return true
+        } catch WorkDeletionService.ServiceError.saveFailed {
+            return false
+        }
+    }
+
     // MARK: - The writes
 
+    // swiftlint:disable:next function_parameter_count
     private static func write(
         _ input: Input,
         presentationID: UUID,
         lessonID: UUID,
+        leftBehind: Set<NSManagedObjectID>,
         context: NSManagedObjectContext,
         now: Date
     ) throws -> Receipt {
@@ -128,7 +155,9 @@ enum PresentationSessionCommit {
         )
 
         updateFollowUpRows(input, presentationID: presentationID, context: context, now: now)
-        receipt.checkInCount = try scheduleCheckIns(input, presentationID: presentationID, context: context)
+        receipt.checkInCount = try scheduleCheckIns(
+            input, presentationID: presentationID, skipping: leftBehind, context: context
+        )
         receipt.nextLessonPlanned = planNextLesson(input, context: context)
         return receipt
     }
@@ -188,6 +217,7 @@ enum PresentationSessionCommit {
     private static func scheduleCheckIns(
         _ input: Input,
         presentationID: UUID,
+        skipping leftBehind: Set<NSManagedObjectID>,
         context: NSManagedObjectContext
     ) throws -> Int {
         guard let day = input.checkIn.day else { return 0 }
@@ -198,6 +228,7 @@ enum PresentationSessionCommit {
         request.predicate = NSPredicate(format: "presentationID == %@", presentationID.uuidString)
         let works = context.safeFetch(request).filter {
             studentIDs.contains($0.studentID) && $0.status.isOpen && !$0.isDeleted
+                && !leftBehind.contains($0.objectID)
         }
         let service = WorkCheckInService(context: context)
         var count = 0

@@ -22,10 +22,14 @@ final class AttendanceViewModel {
     /// The records behind the rows, by student id, for writing (the undo
     /// extension reads it too).
     @ObservationIgnored private(set) var recordsByStudentID: [String: CDAttendanceRecord] = [:]
+    /// Every record the day holds, CloudKit duplicates included, by student
+    /// id: a pickup can sit on a copy that lost to another's mark
+    /// (`AttendanceRow.leavesAt`).
+    @ObservationIgnored private var copiesByStudentID: [String: [CDAttendanceRecord]] = [:]
 
-    /// This device's phase for the day on screen (`AttendanceLatePhase`):
-    /// after Close Arrival a tap on an iPhone tile marks late, and Siri's
-    /// "here" does too.
+    /// The phase for the day on screen (`AttendanceLatePhase`): after Close
+    /// Arrival, here or on another device, a tap on an iPhone tile marks
+    /// late, and Siri's "here" does too.
     private(set) var phase: AttendancePhase = .arrival
     /// Bumped when a mark made here leaves no one unmarked on a day that has
     /// arrived: the success tap and "Everyone's here". Never by a load.
@@ -81,16 +85,23 @@ final class AttendanceViewModel {
     func load(for date: Date? = nil, students candidates: [CDStudent], modelContext: NSManagedObjectContext) {
         let target = (date ?? selectedDate).normalizedDay()
         selectedDate = target
-        phase = AttendanceLatePhase.isLate(on: target, defaults: defaults) ? .late : .arrival
         let store = CDAttendanceStore(context: modelContext)
-        let records: [CDAttendanceRecord]
+        let fetched: [CDAttendanceRecord]
         do {
             // Existing records only: the first mark creates one (`ensureRecord`).
-            records = try store.loadRecords(for: target).deduplicatedPerStudentDay()
+            fetched = try store.loadRecords(for: target)
         } catch {
+            phase = AttendanceLatePhase.isLate(on: target, defaults: defaults) ? .late : .arrival
             Self.logger.warning("Failed to load records: \(error)")
             return
         }
+        // Closed here, or on another device: its automatic absences, as
+        // `CDAttendanceStore.arrivalClosed` reads them.
+        let closedAnywhere = fetched.contains(where: AttendanceDeduplication.isAutomaticAbsence)
+        phase = AttendanceLatePhase.isLate(on: target, closedAnywhere: closedAnywhere, defaults: defaults)
+            ? .late : .arrival
+        let records = fetched.deduplicatedPerStudentDay()
+        copiesByStudentID = Dictionary(grouping: fetched, by: \.studentID)
         let roll = AttendanceRoster.students(
             on: target, from: candidates, recordStudentIDs: Set(records.map(\.studentID))
         )
@@ -112,6 +123,7 @@ final class AttendanceViewModel {
             AttendanceRow(
                 student: student,
                 record: recordsByStudentID[student.cloudKitKey],
+                copies: copiesByStudentID[student.cloudKitKey] ?? [],
                 shortName: gridNames[student.objectID] ?? student.shortName,
                 day: target,
                 daysAway: returning[student.cloudKitKey]
@@ -213,7 +225,7 @@ final class AttendanceViewModel {
             // arrival closed, so "Undo that" can't reach past this.
             SiriAttendanceChange.forget(ifOn: selectedDate, defaults: defaults)
             changed(marked)
-            return BulkMark(day: selectedDate, records: marked.map(\.objectID), status: .absent)
+            return BulkMark(day: selectedDate, records: marked.map(AttendanceRecordSnapshot.init))
         } catch {
             Self.logger.warning("Failed to close arrival: \(error)")
             return nil
@@ -233,17 +245,18 @@ final class AttendanceViewModel {
         }
     }
 
-    /// Back to Arrival on the day on screen; marks stay as they are.
+    /// Back to Arrival on the day on screen, even if another device closed
+    /// it; marks stay as they are.
     func reopenArrival() {
         phase = .arrival
-        AttendanceLatePhase.setLate(false, on: selectedDate, defaults: defaults)
+        AttendanceLatePhase.reopen(on: selectedDate, defaults: defaults)
     }
 
     /// Undoes a Close Arrival: its day reopens, and the children it marked
     /// absent (and still are) go back to unmarked. Returns how many.
     @discardableResult
     func undoCloseArrival(_ undo: BulkMark, modelContext: NSManagedObjectContext) -> Int {
-        AttendanceLatePhase.setLate(false, on: undo.day, defaults: defaults)
+        AttendanceLatePhase.reopen(on: undo.day, defaults: defaults)
         if undo.day == selectedDate { phase = .arrival }
         return undoBulkMark(undo, modelContext: modelContext)
     }
@@ -322,8 +335,8 @@ final class AttendanceViewModel {
         rows = rows.map { row in
             guard let record = byStudent[row.student.cloudKitKey] else { return row }
             return AttendanceRow(
-                student: row.student, record: record, shortName: row.shortName,
-                day: selectedDate, daysAway: row.daysAway
+                student: row.student, record: record, copies: copiesByStudentID[row.student.cloudKitKey] ?? [],
+                shortName: row.shortName, day: selectedDate, daysAway: row.daysAway
             )
         }
     }

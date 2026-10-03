@@ -276,6 +276,11 @@ struct NotebookJunkCleanupTests {
         #expect(entries.filter { $0.status == .skipped }.count == 2)
         #expect(entries.first { $0.studentID == here.id?.uuidString }?.status == .planned)
     }
+}
+
+// MARK: - Reruns, reminder copies, the previewed set and enrollments
+
+extension NotebookJunkCleanupTests {
 
     @Test("A second run finds nothing")
     func idempotent() throws {
@@ -287,5 +292,109 @@ struct NotebookJunkCleanupTests {
 
         #expect(clean(context).removed == 3)
         #expect(NotebookJunkCleanup.run(in: context, today: today, apply: false).isEmpty)
+    }
+
+    @Test("The run removes and changes only what the preview named, never a record that arrived since")
+    func runHeldToPreview() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let left = CoreDataTestHelpers.seedStudent(in: context, firstName: "Naomi", enrollmentStatus: .withdrawn)
+        CoreDataTestHelpers.save(context)
+        func plan() -> CDYearPlanEntry {
+            let entry = CDYearPlanEntry(context: context)
+            entry.studentID = left.id?.uuidString ?? ""
+            entry.lessonID = UUID().uuidString
+            entry.status = .planned
+            return entry
+        }
+        let seen = CDTrackStep(context: context)
+        seen.lessonTemplateID = UUID()
+        let seenPlan = plan()
+        CoreDataTestHelpers.save(context)
+        let preview = NotebookJunkCleanup.run(in: context, today: today, apply: false)
+
+        // Arrives from iCloud after the preview (and the backup).
+        let arrived = CDTrackStep(context: context)
+        arrived.lessonTemplateID = UUID()
+        let arrivedPlan = plan()
+        CoreDataTestHelpers.save(context)
+
+        let done = NotebookJunkCleanup.run(in: context, today: today, apply: true, within: preview)
+        #expect(CoreDataTestHelpers.save(context))
+        #expect(done == preview)
+        #expect(seen.isDeleted || seen.managedObjectContext == nil)
+        #expect(!arrived.isDeleted && arrived.managedObjectContext != nil)
+        #expect(seenPlan.status == .skipped)
+        #expect(arrivedPlan.status == .planned)
+    }
+
+    @Test("An active enrollment is never removed for an inactive one, nor one a note names")
+    func enrollmentsKeptWhenActiveOrNoted() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let avital = CoreDataTestHelpers.seedStudent(in: context, firstName: "Avital")
+        let ora = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ora")
+        let fractions = CDTrackEntity(context: context)
+        fractions.title = "Math — Fractions"
+        CoreDataTestHelpers.save(context)
+        @discardableResult
+        func enroll(
+            _ student: CDStudent, key: String, track: CDTrackEntity? = nil, active: Bool
+        ) -> CDStudentTrackEnrollmentEntity {
+            let enrollment = CDStudentTrackEnrollmentEntity(context: context)
+            enrollment.studentID = student.id?.uuidString ?? ""
+            enrollment.trackID = key
+            enrollment.track = track
+            enrollment.isActive = active
+            return enrollment
+        }
+        let fractionsID = fractions.id?.uuidString ?? ""
+        enroll(avital, key: fractionsID, track: fractions, active: false)       // she stopped once
+        let current = enroll(avital, key: "Math|Fractions", active: true)       // and is on it now
+        enroll(ora, key: fractionsID, track: fractions, active: true)
+        enroll(ora, key: "Math|Fractions", active: false)                       // an old copy: goes
+        let noted = enroll(ora, key: UUID().uuidString, active: true)           // a gone track, but a note names it
+        CoreDataTestHelpers.seedNote(in: context, body: "Ready for the next step").studentTrackEnrollmentID =
+            noted.id?.uuidString
+        CoreDataTestHelpers.save(context)
+
+        let done = clean(context)
+        #expect(done.enrollmentsRemoved == 1)
+        let left = context.safeFetch(CDFetchRequest(CDStudentTrackEnrollmentEntity.self))
+        #expect(left.count == 4)
+        #expect(left.contains(current))
+        #expect(left.contains(noted))
+    }
+
+    @Test("An open reminder, or one with notes, is never removed as a copy")
+    func remindersWithNotesOrOpenStay() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let due = try CoreDataTestHelpers.day("2026-09-11")
+        @discardableResult
+        func reminder(_ title: String, completed: Bool, notes: String? = nil, created: String) throws -> CDReminder {
+            let row = CDReminder(context: context)
+            row.title = title
+            row.dueDate = due
+            row.isCompleted = completed
+            row.notes = notes
+            row.createdAt = try CoreDataTestHelpers.day(created)
+            return row
+        }
+        // A finished one and a newer, empty open one: different reminders.
+        try reminder("Order supplies", completed: true, created: "2025-04-26")
+        let open = try reminder("Order supplies", completed: false, created: "2025-09-07")
+        // An older empty copy and a newer one with notes: only the empty one goes.
+        try reminder("Call the office", completed: false, created: "2025-05-01")
+        let noted = try reminder("Call the office", completed: false, notes: "Ask about trip", created: "2025-06-25")
+        // Two copies with different notes: both stay.
+        try reminder("Field trip forms", completed: false, notes: "Lev", created: "2025-05-01")
+        try reminder("Field trip forms", completed: false, notes: "Ora", created: "2025-06-25")
+        CoreDataTestHelpers.save(context)
+
+        let done = clean(context)
+        #expect(done.duplicateReminders == 1)
+        let left = context.safeFetch(CDFetchRequest(CDReminder.self))
+        #expect(left.count == 5)
+        #expect(left.contains(open))
+        #expect(left.contains(noted))
+        #expect(left.filter { $0.title == "Order supplies" }.count == 2)
     }
 }

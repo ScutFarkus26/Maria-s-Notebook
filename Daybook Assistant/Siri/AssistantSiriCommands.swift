@@ -18,7 +18,8 @@ enum AssistantSiriCommands {
     /// Whether arrival can close today, and how many it would mark. Throws
     /// `dayLocked` on a locked day.
     static func checkClose(_ session: SiriAttendance) throws -> CloseCheck {
-        guard !Late.isLate(on: session.today) else { return .alreadyClosed }
+        let closedAnywhere = (try? session.store.arrivalClosed(on: session.today)) == true
+        guard !Late.isLate(on: session.today, closedAnywhere: closedAnywhere) else { return .alreadyClosed }
         guard !session.store.isLocked(session.today) else { throw SiriAttendanceError.dayLocked }
         guard session.isSchoolDay else { return .notSchoolDay }
         return .ready(waiting: try AssistantDayRoll.today(in: session).unmarked.count)
@@ -45,8 +46,15 @@ enum AssistantSiriCommands {
             return 0
         }
         do {
+            // With Close Arrival's marker, so "Undo" leaves a child given a
+            // reason since ("Absent, Sick") as she is.
             try await session.commit(
-                changed.map { SiriAttendance.Pending(record: $0, from: .unmarked, to: .absent) },
+                changed.map {
+                    SiriAttendance.Pending(
+                        record: $0, from: .unmarked, to: .absent,
+                        toReasonRaw: AttendanceDeduplication.automaticAbsenceRaw
+                    )
+                },
                 created: changed.filter(\.isInserted),
                 summary: "closing arrival",
                 closedArrival: true

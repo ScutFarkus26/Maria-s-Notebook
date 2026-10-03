@@ -45,6 +45,7 @@
 		DA5E1A7C0F3B4D2E9C8A6C51 /* AttendanceLevelGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5E1A7C0F3B4D2E9C8A6C52 /* AttendanceLevelGroups.swift */; };
 		DA352C4EF69599B10DC1BCF8 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4C4B2353AC01D418062C7F /* UIConstants.swift */; };
 		DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */; };
+		DA5A11C0A3F4B2E9C7D6A1F2 /* AttendanceRecordSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5A11C0A3F4B2E9C7D6A1F1 /* AttendanceRecordSnapshot.swift */; };
 		DA3F9E61C2B84D07A5E10F02 /* PersistentHistoryProcessor+StoreHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3F9E61C2B84D07A5E10F01 /* PersistentHistoryProcessor+StoreHistory.swift */; };
 		DA2C99A8FDCF1E8960A219D6 /* CloudKitEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA552C99A8FDCF1E8960A219 /* CloudKitEnvironment.swift */; };
 		DAC6166BA1229B941B603113 /* AttendanceDayLockEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA10C6166BA1229B941B6031 /* AttendanceDayLockEntity.swift */; };
@@ -163,6 +164,7 @@
 		DAA80B8AE6F5033A02C3BFB1 /* CoreDataStack+SchemaVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+SchemaVersion.swift"; path = "Cosmic Daybook/AppCore/Persistence/CoreDataStack+SchemaVersion.swift"; sourceTree = SOURCE_ROOT; };
 		DAB7D64AEAE7820AC7AC7D43 /* StudentEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StudentEntity.swift; path = "Cosmic Daybook/Students/Models/StudentEntity.swift"; sourceTree = SOURCE_ROOT; };
 		DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceRecordEntity.swift; path = "Cosmic Daybook/Attendance/Store/AttendanceRecordEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DA5A11C0A3F4B2E9C7D6A1F1 /* AttendanceRecordSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AttendanceRecordSnapshot.swift; path = "Cosmic Daybook/Attendance/Store/AttendanceRecordSnapshot.swift"; sourceTree = SOURCE_ROOT; };
 		DAC0BE10B161EC5086F86A98 /* ClassroomPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomPermissions.swift; path = "Cosmic Daybook/Sharing/ClassroomPermissions.swift"; sourceTree = SOURCE_ROOT; };
 		DACEB0200E5193CBE69A8BF1 /* RepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RepositoryProtocol.swift; path = "Cosmic Daybook/Repositories/RepositoryProtocol.swift"; sourceTree = SOURCE_ROOT; };
 		DAD7DACCCD304189540F19AF /* ClassroomIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomIdentity.swift; path = "Cosmic Daybook/Sharing/ClassroomIdentity.swift"; sourceTree = SOURCE_ROOT; };
@@ -363,6 +365,7 @@
 				DA00DE26D80F5C93EDE8FD24 /* Logger+Extensions.swift */,
 				DA28F51BB683F0DDC5138A7E /* AttendanceModels.swift */,
 				DABAF43790A11379CBD2A4CC /* AttendanceRecordEntity.swift */,
+				DA5A11C0A3F4B2E9C7D6A1F1 /* AttendanceRecordSnapshot.swift */,
 				DAF89FDB07AADC17488E21D2 /* AttendanceDeduplication.swift */,
 				DA1C34F891F5B082744719A9 /* SchoolDayChecker.swift */,
 				DA9862B7FD7144A92E9B069F /* NonSchoolDayEntity.swift */,
@@ -643,6 +646,7 @@
 				DAC4E37F5533862799AABE6C /* Logger+Extensions.swift in Sources */,
 				DA601CA3998CD10B1685C417 /* AttendanceModels.swift in Sources */,
 				DA3CB4557D19474CF376B2CE /* AttendanceRecordEntity.swift in Sources */,
+				DA5A11C0A3F4B2E9C7D6A1F2 /* AttendanceRecordSnapshot.swift in Sources */,
 				DA273C50CFBB1468B5E697F9 /* AttendanceDeduplication.swift in Sources */,
 				DAE83A3102417A909C03DD3A /* SchoolDayChecker.swift in Sources */,
 				DAFC3D0FE00C154497379F7A /* NonSchoolDayEntity.swift in Sources */,

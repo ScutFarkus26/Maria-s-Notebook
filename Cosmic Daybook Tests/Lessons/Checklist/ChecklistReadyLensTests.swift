@@ -210,11 +210,12 @@ struct ChecklistReadyLensTests {
         let draft = try #require(viewModel.makeReadyDraft(
             lessonID: lessonID, studentOrder: fixture.studentOrder, context: fixture.context
         ))
+        let asMade = ChecklistDraftSnapshot(draft)
         #expect(Set(draft.studentIDs) == Set(try fixture.ids(fixture.ada, fixture.chava).map(\.uuidString)))
         #expect(draft.lessonID == lessonID.uuidString)
         #expect(!draft.isPresented)
 
-        viewModel.discardUnusedDraft(draft, context: fixture.context)
+        viewModel.discardUnusedDraft(draft, asMade: asMade, context: fixture.context)
         #expect(draft.isDeleted || draft.managedObjectContext == nil)
 
         let blocked = try #require(fixture.decimal[1].id)

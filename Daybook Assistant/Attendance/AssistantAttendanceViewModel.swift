@@ -87,8 +87,9 @@ final class AssistantAttendanceViewModel {
     private(set) var earliestDay: Date?
     /// Set when the guide has locked this day: its rows are read-only.
     private(set) var isLocked = false
-    /// This device's phase for the day on screen. Local, not shared: another
-    /// device sees the marks Late made, not the switch.
+    /// The phase for the day on screen: Late once arrival closed here, or on
+    /// another device, which shows as Close Arrival's automatic absences
+    /// (`AttendanceLatePhase`). Reopening it here holds on this phone.
     private(set) var phase: Phase = .arrival
     /// The front-desk email for the day on screen.
     let frontDesk: AssistantFrontDesk
@@ -100,6 +101,10 @@ final class AssistantAttendanceViewModel {
     let context: NSManagedObjectContext
     private let container: NSPersistentCloudKitContainer?
     private let store: CDAttendanceStore
+    /// Every record the day holds, CloudKit duplicates included, by student
+    /// id: a pickup can sit on a copy that lost to another's mark
+    /// (`AttendanceRow.leavesAt`).
+    @ObservationIgnored private var copiesByStudentID: [String: [CDAttendanceRecord]] = [:]
     /// Records created since the last save, to put into the classroom share
     /// once that save gives them permanent IDs.
     private var createdSinceSave: [CDAttendanceRecord] = []
@@ -174,22 +179,28 @@ final class AssistantAttendanceViewModel {
             date = day
         }
         earliestDay = AssistantDayRoll.earliestRecordDay(in: context)
-        phase = AttendanceLatePhase.isLate(on: date, defaults: defaults) ? .late : .arrival
         dayOff = Self.dayOff(on: date, in: context)
         loadGeneration &+= 1
         isLocked = store.isLocked(date)
         canMark = store.canWrite(on: date)
         frontDesk.load(date)
 
-        let records: [CDAttendanceRecord]
+        let fetched: [CDAttendanceRecord]
         do {
-            records = try store.loadRecords(for: date).deduplicatedPerStudentDay()
+            fetched = try store.loadRecords(for: date)
             loadError = nil
         } catch {
             Self.logger.error("Loading attendance failed: \(error.localizedDescription, privacy: .public)")
             loadError = "Couldn't load the attendance for \(dayPhrase). Pull down to try again."
-            records = []
+            fetched = []
         }
+        // Closed here, or on another device: its automatic absences, as
+        // `CDAttendanceStore.arrivalClosed` reads them.
+        let closedAnywhere = fetched.contains(where: AttendanceDeduplication.isAutomaticAbsence)
+        phase = AttendanceLatePhase.isLate(on: date, closedAnywhere: closedAnywhere, defaults: defaults)
+            ? .late : .arrival
+        let records = fetched.deduplicatedPerStudentDay()
+        copiesByStudentID = Dictionary(grouping: fetched, by: \.studentID)
 
         // The day's roll, not today's: a child who has since left still shows
         // on the days she was here, and anyone with a record that day shows
@@ -200,10 +211,7 @@ final class AssistantAttendanceViewModel {
         // Siri marks today only, so its names follow today's roll.
         if isToday { AssistantSiriVocabulary.refresh(for: students) }
 
-        let byStudent = Dictionary(
-            records.map { ($0.studentID, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
+        let byStudent = Dictionary(records.map { ($0.studentID, $0) }, uniquingKeysWith: { first, _ in first })
 
         let gridNames = AttendanceGridNames.names(for: students)
         let returning = dayOff == nil ? AttendanceWelcomeBack.returning(on: date, in: context) : [:]
@@ -212,6 +220,7 @@ final class AssistantAttendanceViewModel {
             return Row(
                 student: student,
                 record: byStudent[key],
+                copies: copiesByStudentID[key] ?? [],
                 shortName: gridNames[student.objectID] ?? student.shortName,
                 day: date,
                 daysAway: returning[key]
@@ -276,22 +285,24 @@ final class AssistantAttendanceViewModel {
         return changed.count
     }
 
-    /// Back to Arrival. Marks stay as they are unless `undo` is set, when the
-    /// children the last Close Arrival marked absent (and still are) go back
-    /// to unmarked.
+    /// Back to Arrival, even if another device closed it. Marks stay as they
+    /// are unless `undo` is set, when the children the last Close Arrival
+    /// marked absent (and still are) go back to unmarked.
     func returnToArrival(undo: Bool = false) {
         // A day locked since arrival closed stays as it was: its absences
         // can't be put back, so reopening arrival would only mislead.
         guard canMark else { return }
         phase = .arrival
-        AttendanceLatePhase.setLate(false, on: date, defaults: defaults)
+        AttendanceLatePhase.reopen(on: date, defaults: defaults)
         let batch = lastLateBatch
         lastLateBatch = []
         guard undo, !batch.isEmpty else { return }
         var reverted: [CDAttendanceRecord] = []
         for id in batch {
+            // Still Close Arrival's own absence: a child marked "Absent,
+            // Sick" since keeps the reason, rather than going back to unmarked.
             guard let record = try? context.existingObject(with: id) as? CDAttendanceRecord,
-                  record.status == .absent else { continue }
+                  AttendanceDeduplication.isAutomaticAbsence(record) else { continue }
             store.updateStatus(record, to: .unmarked)
             reverted.append(record)
         }
@@ -381,7 +392,8 @@ final class AssistantAttendanceViewModel {
                 return row
             }
             return Row(
-                student: row.student, record: record, shortName: row.shortName, day: date, daysAway: row.daysAway
+                student: row.student, record: record, copies: copiesByStudentID[key] ?? [],
+                shortName: row.shortName, day: date, daysAway: row.daysAway
             )
         }
     }

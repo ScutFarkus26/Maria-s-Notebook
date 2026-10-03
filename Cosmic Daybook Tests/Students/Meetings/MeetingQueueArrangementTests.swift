@@ -97,4 +97,58 @@ struct MeetingQueueArrangementTests {
         #expect(result.upNext == [first, second, unplaced])
         #expect(result.met == [met])
     }
+
+    // MARK: - Stuck work
+
+    @Test("Work set resting isn't stuck in the queue or the next meeting; this meeting's card stays")
+    @MainActor
+    func restingWorkIsNotStuck() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        let today = Date()
+        let monthAgo = try #require(AppCalendar.shared.date(byAdding: .day, value: -30, to: today))
+        let startOfToday = AppCalendar.startOfDay(today)
+        let nextWeek = try #require(AppCalendar.shared.date(byAdding: .day, value: 7, to: startOfToday))
+        let resting = CoreDataTestHelpers.seedWorkModel(in: context, title: "Resting", studentID: child)
+        resting.createdAt = monthAgo
+        resting.restingUntil = nextWeek
+        let stuck = CoreDataTestHelpers.seedWorkModel(in: context, title: "Stuck", studentID: child)
+        stuck.createdAt = monthAgo
+        let woke = CoreDataTestHelpers.seedWorkModel(in: context, title: "Woke today", studentID: child)
+        woke.createdAt = monthAgo
+        woke.restingUntil = startOfToday
+        #expect(CoreDataTestHelpers.save(context))
+
+        let queue = MeetingQueueModel()
+        queue.refreshIfNeeded(context: context, workOverdueDays: 14, now: today)
+        #expect(queue.signals[child]?.stuckWork == 2)
+
+        let work = [resting, stuck, woke]
+        let nextMeeting = MeetingWorkSnapshotHelper.sessionWork(work, workOverdueDays: 14, reviewed: [], now: today)
+        #expect(nextMeeting.stuck.map(\.title) == ["Stuck", "Woke today"])
+        #expect(nextMeeting.open.map(\.title) == ["Resting"])
+
+        let restedNow = try #require(resting.id)
+        let thisMeeting = MeetingWorkSnapshotHelper.sessionWork(
+            work, workOverdueDays: 14, reviewed: [restedNow], now: today
+        )
+        #expect(thisMeeting.stuck.map(\.title) == ["Resting", "Stuck", "Woke today"])
+    }
+
+    @Test("The queue's day moves at midnight even when no signal does, so its cutoffs redraw")
+    @MainActor
+    func dayTurnsOver() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let evening = try #require(AppCalendar.shared.date(bySettingHour: 23, minute: 30, second: 0, of: Date()))
+        let morning = try #require(AppCalendar.shared.date(byAdding: .hour, value: 9, to: evening))
+
+        let queue = MeetingQueueModel()
+        queue.refreshIfNeeded(context: context, workOverdueDays: 14, now: evening)
+        #expect(queue.day == AppCalendar.startOfDay(evening))
+        let signals = queue.signals
+
+        queue.refreshIfNeeded(context: context, workOverdueDays: 14, now: morning)
+        #expect(queue.signals == signals)
+        #expect(queue.day == AppCalendar.startOfDay(morning))
+    }
 }

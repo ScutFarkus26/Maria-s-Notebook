@@ -143,9 +143,17 @@ struct ClassChecklistSmartCell: View, Equatable {
         Button { onAction(.toggleScheduled, cell) } label: {
             Label(isScheduled ? "Remove Plan" : "Add to Inbox", systemImage: "tray")
         }
-        Button { onAction(.togglePresented, cell) } label: { Label("Mark Presented", systemImage: "checkmark") }
-        Button { onAction(.togglePreviouslyPresented, cell) } label: {
-            Label("Previously Presented", systemImage: "clock.badge.checkmark")
+        // Both are toggles: on a presented cell either one takes the presentation off again
+        // (mastery marks stay), so it says so and appears once.
+        if state?.isPresented == true {
+            Button { onAction(.togglePresented, cell) } label: {
+                Label("Unmark Presented", systemImage: "arrow.uturn.backward")
+            }
+        } else {
+            Button { onAction(.togglePresented, cell) } label: { Label("Mark Presented", systemImage: "checkmark") }
+            Button { onAction(.togglePreviouslyPresented, cell) } label: {
+                Label("Previously Presented", systemImage: "clock.badge.checkmark")
+            }
         }
         Button { onAction(.markComplete, cell) } label: {
             Label("Mark Mastered", systemImage: "checkmark.circle.fill")

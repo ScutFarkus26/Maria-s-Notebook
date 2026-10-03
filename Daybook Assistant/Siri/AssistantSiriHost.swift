@@ -43,14 +43,16 @@ enum SiriHost {
     /// Hardcoded, as in the grid: this app is only ever used by an assistant.
     static let role: CDClassroomMembership.ClassroomRole? = .assistant
 
-    /// Once arrival has closed on this phone, a child who arrives is tardy,
-    /// exactly as a tap during Late marks them.
+    /// Once arrival has closed, on this phone or another device (Close
+    /// Arrival's automatic absence on a record that day), a child who
+    /// arrives is tardy, exactly as a tap during Late marks them.
     static func statusForHere(on day: Date, store: CDAttendanceStore) -> AttendanceStatus {
-        AttendanceLatePhase.isLate(on: day) ? .tardy : .present
+        AttendanceLatePhase.isLate(on: day, closedAnywhere: (try? store.arrivalClosed(on: day)) == true)
+            ? .tardy : .present
     }
 
     static func arrivalReopened(on day: Date) {
-        AttendanceLatePhase.setLate(false, on: day)
+        AttendanceLatePhase.reopen(on: day)
     }
 
     /// New marks go into the classroom share explicitly, as the grid's do.

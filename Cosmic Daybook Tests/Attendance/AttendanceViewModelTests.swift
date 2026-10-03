@@ -185,6 +185,28 @@ struct AttendanceViewModelTests {
         #expect(!AttendanceLatePhase.isLate(on: today, defaults: defaults))
     }
 
+    // Bug hunt 2026-10-03, A1: the phase came only from this device's own
+    // setting, so after an assistant closed arrival a click here marked a
+    // late arrival present, and the band still read "Arrival open".
+    @Test("Arrival closed on another device is Late here too, until reopened here")
+    func closedElsewhere() throws {
+        let maya = student("Maya"), ari = student("Ari")
+        let assistant = CDAttendanceStore(context: context, role: .assistant)
+        #expect(try assistant.markUnmarkedAbsent(for: today, students: [maya, ari]).count == 2)
+
+        let roll = model(students: [maya, ari])
+        #expect(roll.phase == .late)
+        #expect(!roll.offersCloseArrival(canMark: true))
+        roll.tap(try #require(roll.rows.first { $0.shortName == "Maya" }), modelContext: context)
+        #expect(status(roll, "Maya") == .tardy)
+
+        roll.reopenArrival()
+        roll.load(students: [maya, ari], modelContext: context)
+        #expect(roll.phase == .arrival)
+        roll.tap(try #require(roll.rows.first { $0.shortName == "Ari" }), modelContext: context)
+        #expect(status(roll, "Ari") == .present)
+    }
+
     @Test("Close Arrival isn't offered ahead of the day or on a locked day")
     func closeArrivalRefused() throws {
         let maya = student("Maya")

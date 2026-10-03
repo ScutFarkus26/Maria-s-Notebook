@@ -18,9 +18,11 @@
 //  - Blank attendance rows: opening a day makes an unmarked row per child
 //    (`CDAttendanceStore.ensureRecords`), and nothing marked them. Only
 //    days before today, never a locked day, and only rows holding nothing.
-//  - Unlinked copies of a reminder that also exists linked to Apple
-//    Reminders (or, with no linked copy, every unlinked copy but the oldest).
-//    `EventKitMirror` only ever cleans up linked rows.
+//  - Empty unlinked copies of a reminder (same title, due date and
+//    completion; no notes) that also exists linked to Apple Reminders or
+//    with notes (or, with neither, every empty copy but the oldest). An open
+//    reminder is never a copy of a completed one. `EventKitMirror` only ever
+//    cleans up linked rows.
 //  - Notes with no text, photo or tags that aren't pinned, flagged or in a report.
 //  - Tracks with no steps that nothing points at.
 //  - Work steps with no work, sample-work steps with no sample work, and
@@ -31,16 +33,19 @@
 //    deleted), as a departure does today (`StudentDeparturePlans.skip`).
 //  - Enrollments with no track take the track their id or old
 //    "Area|Sequence" key names; one whose child is already on that track, or
-//    that names no track, is removed.
+//    that names no track, is removed. An active one is never removed for an
+//    inactive one, and one a note names (`studentTrackEnrollmentID`) stays.
 //  - Documents with no file at all are removed.
 //  - Presentation records of lessons that were deleted are removed.
 //
 //  Meeting work reviews of deleted work are kept on purpose
 //  (`WorkDeletionService` leaves them as meeting history).
 //
-//  `run(in:today:apply:)` counts with `apply: false` and changes with
+//  `run(in:today:apply:within:)` counts with `apply: false` and changes with
 //  `apply: true` through one code path, so the preview and the run can't
-//  disagree. It never saves.
+//  disagree; given the preview, the run touches only records the preview
+//  named (and the backup made after it holds), never one that arrived from
+//  iCloud since. It never saves.
 //
 
 import CoreData
@@ -65,6 +70,11 @@ nonisolated enum NotebookJunkCleanup {
         var enrollmentsRelinked = 0
         var enrollmentsRemoved = 0
         var documentsWithoutFile = 0
+
+        /// The records the pass removes and the ones it changes, so the run that follows a
+        /// preview is held to them.
+        var removing: Set<NSManagedObjectID> = []
+        var changing: Set<NSManagedObjectID> = []
 
         /// Records removed.
         var removed: Int {
@@ -102,21 +112,21 @@ nonisolated enum NotebookJunkCleanup {
         }
     }
 
-    /// Every entity a run can delete from or change, for the backup check.
-    static let touchedEntities = [
-        "TrackStep", "Track", "LessonPresentation", "WorkParticipantEntity", "AttendanceRecord", "Reminder",
-        "Note", "WorkStep", "SampleWorkStep", "WorkCompletionRecord", "StudentTrackEnrollment", "Document",
-        "YearPlanEntry"
-    ]
-
-    /// Finds the junk and, with `apply`, removes or fixes it. Runs on the
-    /// context's queue; the caller saves.
-    static func run(in context: NSManagedObjectContext, today: Date = Date(), apply: Bool) -> Counts {
+    /// Finds the junk and, with `apply`, removes or fixes it; given `preview`, only records
+    /// it named. Runs on the context's queue; the caller saves.
+    static func run(
+        in context: NSManagedObjectContext, today: Date = Date(), apply: Bool, within preview: Counts? = nil
+    ) -> Counts {
         var counts = Counts()
         var doomed: [NSManagedObject] = []
         func remove(_ objects: [NSManagedObject], into count: inout Int) {
-            count = objects.count
-            doomed += objects
+            let kept = preview.map { preview in objects.filter { preview.removing.contains($0.objectID) } } ?? objects
+            count = kept.count
+            doomed += kept
+        }
+        func held<T>(_ changes: [T], _ object: (T) -> NSManagedObject) -> [T] {
+            guard let preview else { return changes }
+            return changes.filter { preview.changing.contains(object($0).objectID) }
         }
 
         let lessonIDs = idSet(CDLesson.self, in: context)
@@ -148,16 +158,30 @@ nonisolated enum NotebookJunkCleanup {
         }, into: &counts.documentsWithoutFile)
 
         let enrollments = trackLessEnrollments(in: context)
-        counts.enrollmentsRelinked = enrollments.relinks.count
+        let relinks = held(enrollments.relinks) { $0.enrollment }
+        counts.enrollmentsRelinked = relinks.count
         remove(enrollments.removals, into: &counts.enrollmentsRemoved)
         let relinkTargets = Set(enrollments.relinks.map(\.track.objectID))
         remove(emptyTracks(in: context).filter { !relinkTargets.contains($0.objectID) }, into: &counts.emptyTracks)
 
-        let departedPlans = departedStudentPlans(in: context)
+        let departedPlans = held(departedStudentPlans(in: context)) { $0 }
         counts.departedPlansSkipped = departedPlans.count
+        counts.removing = Set(doomed.map(\.objectID))
+        counts.changing = Set(relinks.map(\.enrollment.objectID) + departedPlans.map(\.objectID))
 
         guard apply else { return counts }
-        for (enrollment, track) in enrollments.relinks {
+        carryOut(relinks: relinks, departedPlans: departedPlans, doomed: doomed, in: context)
+        return counts
+    }
+
+    /// The run's changes and deletes, unsaved.
+    private static func carryOut(
+        relinks: [(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity)],
+        departedPlans: [CDYearPlanEntry],
+        doomed: [NSManagedObject],
+        in context: NSManagedObjectContext
+    ) {
+        for (enrollment, track) in relinks {
             enrollment.track = track
             if let id = track.id { enrollment.trackID = id.uuidString }
         }
@@ -167,7 +191,6 @@ nonisolated enum NotebookJunkCleanup {
         for object in doomed where !object.isDeleted {
             context.delete(object)
         }
-        return counts
     }
 
     // MARK: - Buckets
@@ -192,21 +215,25 @@ nonisolated enum NotebookJunkCleanup {
         }
     }
 
-    /// Unlinked copies of a reminder (same title and due date): all of them
-    /// when a linked copy exists, otherwise all but the oldest. A copy with
-    /// notes on it is kept.
+    /// Empty unlinked copies of a reminder (same title, due date and
+    /// completion): all of them when a linked copy or one with notes exists,
+    /// otherwise all but the oldest. A copy with notes text or note items is
+    /// never a copy, and an open reminder never groups with a completed one.
     static func duplicateReminders(in context: NSManagedObjectContext) -> [CDReminder] {
         let reminders = fetch(CDReminder.self, nil, in: context)
         let groups = Dictionary(grouping: reminders) { reminder in
-            "\(reminder.title.folded())|\(reminder.dueDate?.timeIntervalSince1970 ?? -1)"
+            "\(reminder.title.folded())|\(reminder.dueDate?.timeIntervalSince1970 ?? -1)|\(reminder.isCompleted)"
         }
         var doomed: [CDReminder] = []
         for group in groups.values where group.count > 1 {
-            let unlinked = group.filter { $0.eventKitReminderID == nil && ($0.noteItems?.count ?? 0) == 0 }
-            if group.contains(where: { $0.eventKitReminderID != nil }) {
-                doomed += unlinked
+            let empty = group.filter { reminder in
+                reminder.eventKitReminderID == nil && (reminder.notes ?? "").trimmed().isEmpty
+                    && (reminder.noteItems?.count ?? 0) == 0
+            }
+            if empty.count < group.count {
+                doomed += empty
             } else {
-                doomed += unlinked.sorted(by: olderFirst).dropFirst()
+                doomed += empty.sorted(by: olderFirst).dropFirst()
             }
         }
         return doomed
@@ -236,47 +263,6 @@ nonisolated enum NotebookJunkCleanup {
             (track.steps?.count ?? 0) == 0 && (track.enrollments?.count ?? 0) == 0
                 && !named.contains(normalized(track.id?.uuidString ?? ""))
         }
-    }
-
-    /// Enrollments with no track: the ones to link to the track they name,
-    /// and the ones to remove (the child is already on it, or no track matches).
-    static func trackLessEnrollments(
-        in context: NSManagedObjectContext
-    ) -> (relinks: [(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity)],
-          removals: [CDStudentTrackEnrollmentEntity]) {
-        let tracks = fetch(CDTrackEntity.self, nil, in: context)
-        let byID = Dictionary(tracks.compactMap { track in track.id.map { ($0.uuidString, track) } },
-                              uniquingKeysWith: { first, _ in first })
-        let byTitle = Dictionary(tracks.map { ($0.title.folded(), $0) }, uniquingKeysWith: { first, _ in first })
-        let enrollments = fetch(CDStudentTrackEnrollmentEntity.self, nil, in: context)
-        var onTrack = Set(enrollments.compactMap { enrollment in
-            enrollment.track.map { "\(normalized(enrollment.studentID))|\($0.objectID.uriRepresentation())" }
-        })
-
-        var relinks: [(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity)] = []
-        var removals: [CDStudentTrackEnrollmentEntity] = []
-        for enrollment in enrollments.filter({ $0.track == nil }).sorted(by: olderFirst) {
-            guard let track = byID[UUID(uuidString: enrollment.trackID)?.uuidString ?? ""]
-                ?? legacyKeyTitle(enrollment.trackID).flatMap({ byTitle[$0.folded()] }) else {
-                removals.append(enrollment)
-                continue
-            }
-            let key = "\(normalized(enrollment.studentID))|\(track.objectID.uriRepresentation())"
-            if onTrack.insert(key).inserted {
-                relinks.append((enrollment, track))
-            } else {
-                removals.append(enrollment)
-            }
-        }
-        return (relinks, removals)
-    }
-
-    /// The track title an old "Area|Sequence" key stood for, as
-    /// `SequenceTrackService` writes titles; nil for anything else.
-    static func legacyKeyTitle(_ key: String) -> String? {
-        let parts = key.split(separator: "|", omittingEmptySubsequences: false)
-        guard parts.count == 2 else { return nil }
-        return "\(String(parts[0]).trimmed()) — \(String(parts[1]).trimmed())"
     }
 
     /// Still-planned year-plan entries of withdrawn or transferred children: the entries
@@ -319,5 +305,65 @@ nonisolated enum NotebookJunkCleanup {
         let rhsDate = rhs.value(forKey: "createdAt") as? Date ?? .distantFuture
         if lhsDate != rhsDate { return lhsDate < rhsDate }
         return lhs.objectID.uriRepresentation().absoluteString < rhs.objectID.uriRepresentation().absoluteString
+    }
+}
+
+// MARK: - Enrollments
+
+nonisolated extension NotebookJunkCleanup {
+
+    /// Enrollments with no track: the ones to link to the track they name,
+    /// and the ones to remove (the child is already on it, or no track matches).
+    /// One a note names is never removed, nor an active one for an inactive one.
+    static func trackLessEnrollments(
+        in context: NSManagedObjectContext
+    ) -> (relinks: [(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity)],
+          removals: [CDStudentTrackEnrollmentEntity]) {
+        let tracks = fetch(CDTrackEntity.self, nil, in: context)
+        let byID = Dictionary(tracks.compactMap { track in track.id.map { ($0.uuidString, track) } },
+                              uniquingKeysWith: { first, _ in first })
+        let byTitle = Dictionary(tracks.map { ($0.title.folded(), $0) }, uniquingKeysWith: { first, _ in first })
+        let enrollments = fetch(CDStudentTrackEnrollmentEntity.self, nil, in: context)
+        let noted = Set(fetch(CDNote.self, "studentTrackEnrollmentID != nil", in: context).compactMap {
+            $0.studentTrackEnrollmentID.map(normalized)
+        })
+        // Child and track → whether the child is active on it.
+        var onTrack: [String: Bool] = [:]
+        for enrollment in enrollments {
+            guard let track = enrollment.track else { continue }
+            let key = "\(normalized(enrollment.studentID))|\(track.objectID.uriRepresentation())"
+            onTrack[key] = onTrack[key] == true || enrollment.isActive
+        }
+
+        var relinks: [(enrollment: CDStudentTrackEnrollmentEntity, track: CDTrackEntity)] = []
+        var removals: [CDStudentTrackEnrollmentEntity] = []
+        let trackLess = enrollments.filter { $0.track == nil }
+            .sorted { $0.isActive != $1.isActive ? $0.isActive : olderFirst($0, $1) }
+        for enrollment in trackLess {
+            let isNoted = noted.contains(enrollment.id?.uuidString ?? "")
+            guard let track = byID[UUID(uuidString: enrollment.trackID)?.uuidString ?? ""]
+                ?? legacyKeyTitle(enrollment.trackID).flatMap({ byTitle[$0.folded()] }) else {
+                if !isNoted { removals.append(enrollment) }
+                continue
+            }
+            let key = "\(normalized(enrollment.studentID))|\(track.objectID.uriRepresentation())"
+            guard let activeOnTrack = onTrack[key] else {
+                onTrack[key] = enrollment.isActive
+                relinks.append((enrollment, track))
+                continue
+            }
+            if !isNoted && (activeOnTrack || !enrollment.isActive) {
+                removals.append(enrollment)
+            }
+        }
+        return (relinks, removals)
+    }
+
+    /// The track title an old "Area|Sequence" key stood for, as
+    /// `SequenceTrackService` writes titles; nil for anything else.
+    static func legacyKeyTitle(_ key: String) -> String? {
+        let parts = key.split(separator: "|", omittingEmptySubsequences: false)
+        guard parts.count == 2 else { return nil }
+        return "\(String(parts[0]).trimmed()) — \(String(parts[1]).trimmed())"
     }
 }

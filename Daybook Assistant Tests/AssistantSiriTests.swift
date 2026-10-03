@@ -82,6 +82,22 @@ struct AssistantSiriTests {
         #expect(stays.previous == .present && stays.now == .present)
     }
 
+    // Bug hunt 2026-10-03, A1: only this phone's own Close Arrival counted,
+    // so after the guide closed arrival on the Mac "here" marked present.
+    @Test("Once the guide has closed arrival, here marks tardy and there's nothing left to close")
+    func hereAfterGuideCloses() async throws {
+        defer { cleanUp() }
+        let kids = try classOfThree()
+        let maya = try #require(kids["Maya"]), ari = try #require(kids["Ari"])
+        let guide = CDAttendanceStore(context: context, role: .leadGuide)
+        #expect(try guide.markUnmarkedAbsent(for: monday, students: [maya, ari]).count == 2)
+        #expect(context.safeSave())
+
+        let siri = session()
+        #expect(try AssistantSiriCommands.checkClose(siri) == .alreadyClosed)
+        #expect(try await siri.markHere(maya) == (.absent, .tardy))
+    }
+
     @Test("Close arrival refuses a locked day and has nothing to close on a day off")
     func lockedAndDayOff() throws {
         defer { cleanUp() }

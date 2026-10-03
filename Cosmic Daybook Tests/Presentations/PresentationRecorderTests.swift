@@ -107,6 +107,41 @@ struct PresentationRecorderTests {
         request.predicate = NSPredicate(format: "presentationID == %@", presentationID.uuidString)
         #expect(fixture.context.safeFetch(request).isEmpty)
         #expect(PresentationFollowUpService.rows(for: presentationID, in: fixture.context).isEmpty)
+        // The absent child is back on this plan, and the plan made for her is gone.
+        let absentID = try #require(fixture.absent.id)
+        #expect(Set(fixture.assignment.resolvedStudentIDs) == [presentID, absentID])
+        #expect(try plans(for: fixture.lesson, in: fixture.context).count == 1)
+    }
+
+    @Test("Undo puts the child who wasn't there back, with her year-plan entry")
+    func undoRestoresAbsentChild() throws {
+        let fixture = try makeFixture(requiresPractice: false)
+        let presentID = try #require(fixture.present.id)
+        let absentID = try #require(fixture.absent.id)
+        let entry = CDYearPlanEntry(context: fixture.context)
+        entry.studentID = absentID.uuidString
+        entry.lessonID = fixture.assignment.lessonID
+        entry.status = .promoted
+        entry.promotedAssignmentID = fixture.assignment.id?.uuidString
+        try fixture.context.save()
+
+        let result = try PresentationRecorder.record(
+            fixture.assignment, presentIDs: [presentID], on: fixture.today,
+            context: fixture.context, saveCoordinator: fixture.coordinator
+        )
+        let madePlan = try #require(
+            try plans(for: fixture.lesson, in: fixture.context).first { $0 !== fixture.assignment }
+        )
+        #expect(entry.promotedAssignmentID == madePlan.id?.uuidString)
+
+        try ImmediatePresentationRecordingService.undo(
+            result.undoToken, context: fixture.context, saveCoordinator: fixture.coordinator
+        )
+        #expect(!fixture.assignment.isPresented)
+        #expect(Set(fixture.assignment.resolvedStudentIDs) == [presentID, absentID])
+        #expect(try plans(for: fixture.lesson, in: fixture.context) == [fixture.assignment])
+        #expect(entry.status == .promoted)
+        #expect(entry.promotedAssignmentID == fixture.assignment.id?.uuidString)
     }
 
     @Test("Without a practice rule, one click records and keeps watching")

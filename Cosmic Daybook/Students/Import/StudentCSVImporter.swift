@@ -245,7 +245,10 @@ enum StudentCSVImporter {
                     if let lvl = r.level, existing.level != lvl {
                         existing.level = lvl; didChange = true
                     }
-                    if didChange { updated += 1 }
+                    if didChange {
+                        existing.modifiedAt = Date()
+                        updated += 1
+                    }
                     continue
                 }
             } else {
@@ -261,7 +264,10 @@ enum StudentCSVImporter {
                     if let lvl = r.level, existing.level != lvl {
                         existing.level = lvl; didChange = true
                     }
-                    if didChange { updated += 1 }
+                    if didChange {
+                        existing.modifiedAt = Date()
+                        updated += 1
+                    }
                     continue
                 }
             }

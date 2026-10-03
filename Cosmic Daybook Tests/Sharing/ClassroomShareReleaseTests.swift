@@ -32,7 +32,7 @@ struct ClassroomShareReleaseTests {
 
     /// A current child with one mark this year and two last year; a child who left last
     /// year with three marks. Everything shared, as the classroom share holds it today.
-    private func fixture() throws -> Fixture {
+    func fixture() throws -> Fixture {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let ctx = stack.viewContext
         let current = CDStudent(context: ctx)
@@ -65,7 +65,7 @@ struct ClassroomShareReleaseTests {
         )
     }
 
-    private func plan(
+    func plan(
         _ fix: Fixture, environment: ClassroomShareRelease.Environment
     ) async throws -> [ClassroomShareRelease.Batch] {
         let rows = try await ClassroomShareRelease.rows(
@@ -75,7 +75,7 @@ struct ClassroomShareReleaseTests {
         return ClassroomShareRelease.plan(rows)
     }
 
-    private func release(
+    func release(
         _ fix: Fixture, _ env: ClassroomShareRelease.Environment
     ) async throws -> ClassroomShareRelease.Report {
         let batches = try await plan(fix, environment: env)
@@ -84,7 +84,7 @@ struct ClassroomShareReleaseTests {
         )
     }
 
-    private func count(_ entity: String, in fix: Fixture) -> Int {
+    func count(_ entity: String, in fix: Fixture) -> Int {
         let request = NSFetchRequest<NSManagedObjectID>(entityName: entity)
         request.resultType = .managedObjectIDResultType
         return (try? fix.stack.viewContext.count(for: request)) ?? -1
@@ -289,5 +289,69 @@ struct ClassroomShareReleaseTests {
             }
         }
         return result
+    }
+}
+
+// MARK: - A run stopped after its last deletes
+
+extension ClassroomShareReleaseTests {
+
+    @Test("A run stopped after its last batch's deletes is finished: iCloud is checked, then the list clears")
+    func finishAfterLastDeletes() async throws {
+        let fix = try fixture()
+        let cloud = fix.cloud
+        // The last batch (the current child's old marks) stops between its delete and the server check.
+        let env = cloud.environment { step, batch in
+            if step == .originalsDeleted, batch.studentKey == nil { cloud.stop = "Quit partway" }
+        }
+        let stopped = try await release(fix, env)
+        #expect(stopped.stoppedBecause != nil)
+        #expect(stopped.batchesDone == stopped.batchesPlanned - 1)
+        #expect(try await plan(fix, environment: env).isEmpty) // nothing left for a run to plan
+        #expect(cloud.awaiting.count == 2)
+
+        cloud.stop = nil
+        let finished = await ClassroomShareRelease.finishStopped(environment: cloud.environment())
+        #expect(finished.stoppedBecause == nil)
+        #expect(cloud.awaiting.isEmpty)
+    }
+
+    @Test("Finishing waits for iCloud: while the originals are still there, the list is kept")
+    func finishKeepsListUntilGone() async throws {
+        let fix = try fixture()
+        let records = await fix.cloud.environment().recordIDs(fix.departedMarks.map(\.objectID))
+        fix.cloud.awaiting = Array(records.values) // still on the server
+        let env = fix.cloud.environment(patience: .milliseconds(300)) // gives up on purpose
+        let report = await ClassroomShareRelease.finishStopped(environment: env)
+        #expect(report.stoppedBecause != nil)
+        #expect(fix.cloud.awaiting.count == 3)
+    }
+
+    @Test("A copy edited after a stopped run keeps the edit; the original's older values don't win")
+    func editedTwinKept() async throws {
+        let fix = try fixture()
+        let ctx = fix.stack.viewContext
+        let original = fix.departedMarks[2] // "Sick"
+        original.modifiedAt = day(-118)
+        // The stopped run's private copy, which the guide then edited.
+        let twin = NSManagedObject(entity: original.entity, insertInto: ctx)
+        ClassroomShareRelease.copyAttributes(from: original, to: twin)
+        twin.setValue("Sick, picked up at 10", forKey: "note")
+        twin.setValue(day(-118).addingTimeInterval(3_600), forKey: "modifiedAt")
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let report = try await release(fix, fix.cloud.environment())
+        #expect(report.stoppedBecause == nil)
+        let notes = ctx.safeFetch(CDFetchRequest(CDAttendanceRecord.self)).compactMap(\.note)
+        #expect(notes.contains("Sick, picked up at 10"))
+        #expect(!notes.contains("Sick"))
+    }
+
+    @Test("A completed run leaves nothing awaiting iCloud")
+    func fullRunClearsAwaiting() async throws {
+        let fix = try fixture()
+        let report = try await release(fix, fix.cloud.environment())
+        #expect(report.stoppedBecause == nil)
+        #expect(fix.cloud.awaiting.isEmpty)
     }
 }

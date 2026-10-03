@@ -17,7 +17,11 @@ extension PresentationDetailContentView {
         saveAndDone(retractingWork: [])
     }
 
+    /// Saves the edits, then closes the sheet — or, when the save was for How
+    /// It Went (`continueToHowItWent`), opens it on the saved record.
     func saveAndDone(retractingWork plans: [WorkRemovalPlan]) {
+        let thenHowItWent = howItWentAfterSave
+        howItWentAfterSave = false
         vm.save(
             studentsAll: studentsAll,
             lessons: lessons,
@@ -25,7 +29,11 @@ extension PresentationDetailContentView {
             calendar: calendar,
             retractingWork: plans
         ) {
-            handleDone()
+            if thenHowItWent {
+                showHowItWent()
+            } else {
+                handleDone()
+            }
         }
     }
 

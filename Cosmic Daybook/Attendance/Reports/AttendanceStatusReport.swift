@@ -50,6 +50,13 @@ struct AttendanceStatusReportConfig {
         emptyTitle: "No Tardies",
         emptyDescription: "No tardies recorded in the selected range."
     )
+
+    /// Whether `record` counts in this report: its status, except that a
+    /// tardy also counts a late arrival who has since left early
+    /// (`cameLate`), who used to drop out of the tardy report.
+    func counts(_ record: CDAttendanceRecord) -> Bool {
+        status == .tardy ? record.cameLate : record.status == status
+    }
 }
 
 /// Sheet showing per-student counts of one attendance status over a selected
@@ -94,7 +101,7 @@ struct AttendanceStatusReport: View {
 
         // Count matching records per studentID
         var countsByID: [String: Int] = [:]
-        for record in records where record.status == config.status {
+        for record in records where config.counts(record) {
             countsByID[record.studentID, default: 0] += 1
         }
 

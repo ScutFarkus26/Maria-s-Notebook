@@ -115,6 +115,7 @@ struct SiriAttendance {
         }
         let previous = record.status
         let previousReasonRaw = record.absenceReasonRaw
+        let before = AttendanceRecordSnapshot(record).values
         let created = record.isInserted ? [record] : []
         let statusChanges = previous != status
         if statusChanges {
@@ -122,7 +123,7 @@ struct SiriAttendance {
         }
         let reasonChanges = status == .absent && reason.map { store.updateAbsenceReason(record, to: $0) } == true
         guard statusChanges || reasonChanges else { return previous }
-        var pending = Pending(record: record, from: previous, to: status)
+        var pending = Pending(record: record, from: previous, to: status, before: before)
         if reasonChanges {
             pending.fromReasonRaw = previousReasonRaw
             pending.toReasonRaw = record.absenceReasonRaw
@@ -154,6 +155,9 @@ struct SiriAttendance {
         /// The stored reason before and after, when the mark set one.
         var fromReasonRaw: String?
         var toReasonRaw: String?
+        /// The whole record before the mark, for an Undo that puts back its
+        /// times too. Nil for Close Arrival's marks.
+        var before: AttendanceRecordSnapshot.Values?
     }
 
     /// Saves the marks just made, remembers them for Undo, and sends them on
@@ -174,10 +178,11 @@ struct SiriAttendance {
         // After the save: a new record's ID is only permanent from here.
         SiriAttendanceChange(
             day: today,
-            marks: marks.map {
+            marks: marks.map { mark in
                 SiriAttendanceChange.Mark(
-                    recordURI: $0.record.objectID.uriRepresentation(), from: $0.from, to: $0.to,
-                    fromReasonRaw: $0.fromReasonRaw, toReasonRaw: $0.toReasonRaw
+                    recordURI: mark.record.objectID.uriRepresentation(), from: mark.from, to: mark.to,
+                    fromReasonRaw: mark.fromReasonRaw, toReasonRaw: mark.toReasonRaw,
+                    before: mark.before, after: mark.before.map { _ in AttendanceRecordSnapshot(mark.record).values }
                 )
             },
             summary: summary,
@@ -241,11 +246,24 @@ struct SiriAttendance {
         return change.summary
     }
 
-    /// Puts one remembered mark back, if nothing has changed it since: its
-    /// status, and the reason it set. A reason-only change ("absent, sick"
-    /// on a child already absent) has the same status before and after, so
-    /// only the reason goes back; it used to count as "changed since".
+    /// Puts one remembered mark back, if nothing has changed it since: the
+    /// whole record as it was, times and all, as ⌘Z on the roll does
+    /// (`CDAttendanceStore.revert`). Re-marking the old status instead gave
+    /// a child present since 8:05 a new arrival time, and a child who had
+    /// left early came back with no arrival and today's departure.
+    ///
+    /// A change remembered without the record (before 2026-10-03, or Close
+    /// Arrival's) puts back its status, and the reason it set. A
+    /// reason-only change ("absent, sick" on a child already absent) has the
+    /// same status before and after, so only the reason goes back.
     private func undo(_ mark: SiriAttendanceChange.Mark, on record: CDAttendanceRecord) -> Bool {
+        if let before = mark.before, let after = mark.after {
+            return store.revert(
+                record,
+                to: AttendanceRecordSnapshot(objectID: record.objectID, values: before),
+                ifStill: AttendanceRecordSnapshot(objectID: record.objectID, values: after)
+            )
+        }
         guard record.status == mark.to else { return false }
         if let toRaw = mark.toReasonRaw, record.absenceReasonRaw != toRaw { return false }
         var changed = false

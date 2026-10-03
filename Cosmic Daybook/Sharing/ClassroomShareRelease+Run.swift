@@ -39,12 +39,18 @@ nonisolated extension ClassroomShareRelease {
         var exportStarted: @Sendable (_ after: Date) async -> Bool = { _ in true }
         /// Called after each step of each batch (tests).
         var afterStep: @Sendable (Step, Batch) async -> Void = { _, _ in }
+        /// The originals whose delete was saved here but not yet confirmed gone from iCloud
+        /// (steps 4–5), kept across launches: once they're deleted here no plan can name them,
+        /// so a run stopped there is finished from this list (`finishStopped`).
+        var awaitingGone: @Sendable () -> [CKRecord.ID] = { [] }
+        var setAwaitingGone: @Sendable ([CKRecord.ID]) -> Void = { _ in }
     }
 
     enum RunError: LocalizedError, Equatable {
         case stopped(String)
         case timedOut(String)
         case copyVanished
+        case originalVanished
         case copyLandedInShare
         case originalNotMirrored
         case storeUnavailable
@@ -57,6 +63,9 @@ nonisolated extension ClassroomShareRelease {
             case .copyVanished:
                 return "A private copy disappeared before its original was removed — another device may be "
                     + "running an older build. That record was left in the share; nothing is lost."
+            case .originalVanished:
+                return "A record left this Mac during the run while iCloud still has it. Its private copy "
+                    + "was kept; nothing is lost. Run it again later."
             case .copyLandedInShare: return "A copy was filed into a share instead of the notebook. Stopped."
             case .originalNotMirrored: return "A shared record had no iCloud record to check. Stopped."
             case .storeUnavailable: return "The notebook's store isn't open."
@@ -177,6 +186,9 @@ nonisolated extension ClassroomShareRelease {
     ) async throws {
         if let reason = await env.stopReason() { throw RunError.stopped(reason) }
         let context = container.newBackgroundContext()
+        // The originals' iCloud records, read while they're all here: one that another device
+        // deletes during the batch can't be looked up once the delete reaches this Mac.
+        let startRecords = await env.recordIDs(batch.moves.flatMap(\.sharedRows))
 
         // 1. The private copies (or the ones an earlier run made).
         await env.exportIdle()
@@ -192,27 +204,32 @@ nonisolated extension ClassroomShareRelease {
         // 3. Each copy is still here; anything the original changed since is brought over.
         await env.exportIdle()
         saved = Date()
-        let changed = try await checkCopies(keepers, context: context)
-        if !changed.isEmpty {
-            try await makeSureItExports(after: saved, nudging: changed.first, context: context, environment: env)
-            try await waitForNewerCopies(changed, than: confirmed, environment: env)
+        let checked = try await checkCopies(batch.moves, keepers: keepers, context: context)
+        if !checked.changed.isEmpty {
+            try await makeSureItExports(
+                after: saved, nudging: checked.changed.first, context: context, environment: env
+            )
+            try await waitForNewerCopies(checked.changed, than: confirmed, environment: env)
         }
+        let settled = try await settleVanished(
+            checked.vanished, records: startRecords, keepers: keepers, context: context, environment: env
+        )
         await env.afterStep(.copiesChecked, batch)
 
-        // 4. The shared originals go.
-        let originals = batch.moves.flatMap(\.sharedRows)
+        // 4. The shared originals go (but not those deleted elsewhere, settled above).
+        let originals = batch.moves.filter { !settled.contains($0.source) }.flatMap(\.sharedRows)
         let originalRecords = await env.recordIDs(originals)
         guard originalRecords.count == originals.count else { throw RunError.originalNotMirrored }
         await env.exportIdle()
         saved = Date()
+        env.setAwaitingGone(Array(originalRecords.values))
         try await deleteOriginals(originals, context: context)
         try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
         await env.afterStep(.originalsDeleted, batch)
 
         // 5. iCloud no longer has them.
-        _ = try await waitFor("that last year's records left the share", environment: env) { () -> Bool? in
-            try await env.serverRecords(Array(originalRecords.values)).isEmpty ? true : nil
-        }
+        try await waitForGone(Array(originalRecords.values), environment: env)
+        env.setAwaitingGone([])
         await env.afterStep(.originalsGone, batch)
     }
 
@@ -221,7 +238,7 @@ nonisolated extension ClassroomShareRelease {
     /// Makes sure what was saved after `saved` goes to iCloud: when no export starts, one
     /// harmless change (a private copy's `modifiedAt`, a millisecond on) is saved to schedule
     /// one. Without it, a save that landed while an export ran could wait for the next launch.
-    private static func makeSureItExports(
+    static func makeSureItExports(
         after saved: Date,
         nudging keeper: NSManagedObjectID?,
         context: NSManagedObjectContext,
@@ -285,27 +302,6 @@ nonisolated extension ClassroomShareRelease {
         }
     }
 
-    /// Checks every copy is still here and matches its original; returns the copies it had
-    /// to update.
-    private static func checkCopies(
-        _ keepers: [NSManagedObjectID: NSManagedObjectID], context: NSManagedObjectContext
-    ) async throws -> [NSManagedObjectID] {
-        try await context.perform {
-            context.refreshAllObjects()
-            var changed: [NSManagedObjectID] = []
-            for (source, keeper) in keepers {
-                guard let copy = try? context.existingObject(with: keeper) else { throw RunError.copyVanished }
-                guard let original = try? context.existingObject(with: source) else { continue }
-                if !sameAttributes(original, copy) {
-                    copyAttributes(from: original, to: copy)
-                    changed.append(keeper)
-                }
-            }
-            if context.hasChanges { try context.save() }
-            return changed
-        }
-    }
-
     /// Waits until the server holds a newer version of each of `changed` than `confirmed`.
     private static func waitForNewerCopies(
         _ changed: [NSManagedObjectID], than confirmed: [NSManagedObjectID: Date], environment env: Environment
@@ -364,6 +360,18 @@ nonisolated extension ClassroomShareRelease {
         for name in source.entity.attributesByName.keys {
             target.setValue(source.value(forKey: name), forKey: name)
         }
+    }
+
+    /// Whether `lhs` was stamped by an edit after `rhs`. A nudge moves a copy's `modifiedAt`
+    /// a millisecond, so only a later stamp by more than a second counts. Without a stamp on
+    /// both, the original's values stand. Attendance marks and student edits stamp one (the
+    /// profile, level and roster order, the CSV import, rollover grades); sync imports,
+    /// restores and repairs don't, since they aren't the guide's edits.
+    static func editedLater(_ lhs: NSManagedObject, than rhs: NSManagedObject) -> Bool {
+        guard lhs.entity.attributesByName["modifiedAt"] != nil,
+              let left = lhs.value(forKey: "modifiedAt") as? Date,
+              let right = rhs.value(forKey: "modifiedAt") as? Date else { return false }
+        return left.timeIntervalSince(right) > 1
     }
 
     static func sameAttributes(_ lhs: NSManagedObject, _ rhs: NSManagedObject) -> Bool {

@@ -12,14 +12,17 @@ import Foundation
 ///
 /// 1. insert the copies and save;
 /// 2. confirm on the CloudKit server that every copy is there;
-/// 3. check every copy still exists here, and bring over anything the original changed since;
+/// 3. check every copy still exists here, and bring over anything the original changed since
+///    (a record another device deleted meanwhile goes, copy and all, once the server
+///    confirms it: `+Vanished`);
 /// 4. delete the originals and save;
 /// 5. confirm on the server that the originals are gone.
 ///
 /// iCloud never holds fewer than one copy, and the guide's other devices receive a copy
 /// before the delete, so they never see a child missing (with `DedupShareBoundary` and
 /// `OrphanStudentGrace` as the second line). A run stopped anywhere leaves at most both
-/// copies; the next run finds the private copy (a "twin") and only deletes.
+/// copies; the next run finds the private copy (a "twin") and only deletes. One stopped
+/// after its last deletes leaves nothing to plan; finishing it only checks iCloud (`+Finish`).
 ///
 /// This file is the plan — pure, so it is tested without CloudKit. `+Run` carries it out.
 nonisolated enum ClassroomShareRelease {

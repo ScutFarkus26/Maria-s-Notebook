@@ -20,7 +20,7 @@ struct AlbumSemanticBackendTests {
         #expect((first == "sentence") == AlbumSemanticIndex.sentenceBackendAvailable())
     }
 
-    @Test("An album is built with the chosen model, never the other one")
+    @Test("An album is built with the chosen model, never the other one", .needsSentenceModel)
     func buildsWithChosenModel() async throws {
         let dir = try makeCacheDir()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -38,7 +38,7 @@ struct AlbumSemanticBackendTests {
         }
     }
 
-    @Test("A cache from the chosen model is reused; one from the other model is never served")
+    @Test("A cache from the chosen model is reused; one from the other model is never served", .needsSentenceModel)
     func cacheFollowsChosenModel() async throws {
         let dir = try makeCacheDir()
         defer { try? FileManager.default.removeItem(at: dir) }

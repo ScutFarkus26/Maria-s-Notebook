@@ -10,8 +10,6 @@ nonisolated enum UIConstants {
     static let morningHour: Int = 9
     static let afternoonHour: Int = 14
 
-    static let planningNavigationStepSchoolDays: Int = 7
-
     static let scheduleSpacingSeconds: Int = 1
     
     /// Delay in seconds before resetting navigation state

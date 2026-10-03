@@ -130,41 +130,26 @@ extension ClassroomShareRelease {
         }
     }
 
-    /// Makes a manual backup and checks it: it must read back whole and hold every student
-    /// and attendance record the notebook has (every distinct `id`: a stopped run's two
-    /// copies of one record count once). Throws with the reason otherwise.
+    /// Makes a manual backup; throws when it didn't finish. `checkBackup` checks it against
+    /// the plan made after it.
     @MainActor
-    static func verifiedBackup(
-        coreDataStack: CoreDataStack, backups: AutoBackupManager
-    ) async throws -> URL {
+    static func backUp(coreDataStack: CoreDataStack, backups: AutoBackupManager) async throws -> URL {
         let result = await backups.performManualBackup(viewContext: coreDataStack.viewContext)
         guard case .success(_, let url) = result else {
             throw BackupCheckError("The backup before removing last year didn't finish.")
         }
-        let counts = try await backupCounts(at: url)
-        let context = coreDataStack.viewContext
-        for entity in ["Student", "AttendanceRecord"] {
-            let request = NSFetchRequest<NSDictionary>(entityName: entity)
-            request.resultType = .dictionaryResultType
-            request.propertiesToFetch = ["id"]
-            request.returnsDistinctResults = true
-            guard let rows = try? context.fetch(request) else {
-                throw BackupCheckError("Couldn't count the notebook's \(entity) records. Nothing was changed.")
-            }
-            let here = rows.count
-            guard (counts[entity] ?? 0) >= here else {
-                throw BackupCheckError(
-                    "The backup holds \(counts[entity] ?? 0) \(entity) records, the notebook \(here). "
-                        + "Nothing was changed."
-                )
-            }
-        }
         return url
     }
 
-    @concurrent
-    private static func backupCounts(at url: URL) async throws -> [String: Int] {
-        try BackupReader.verifyStructure(at: url).manifest.entityCounts
+    /// Checks the backup at `url` holds, by `id`, every record `batches` touch: each shared
+    /// original, and any private copy a stopped run left. Throws with the reason otherwise.
+    static func checkBackup(
+        _ url: URL, holds batches: [Batch], container: NSPersistentCloudKitContainer
+    ) async throws {
+        let records = batches.flatMap(\.moves).flatMap { move in
+            move.sharedRows + [move.existingTwin].compactMap { $0 }
+        }
+        try await BackupRecordCheck.check(url, holds: records, context: container.newBackgroundContext())
     }
 
     struct BackupCheckError: LocalizedError {
@@ -175,6 +160,9 @@ extension ClassroomShareRelease {
 
     /// Where a run keeps note that it started, so a stopped one is offered again.
     static var inProgressKey: String { CloudKitEnvironment.scoped("ClassroomShareRelease.inProgress") }
+
+    /// A run started and hasn't finished.
+    static var stoppedPartway: Bool { UserDefaults.standard.object(forKey: inProgressKey) != nil }
 }
 
 nonisolated extension ClassroomShareRelease.Environment {
@@ -223,7 +211,29 @@ nonisolated extension ClassroomShareRelease.Environment {
             sleep: { try await Task.sleep(for: $0) },
             patience: .seconds(10 * 60),
             exportIdle: { await exports.waitUntilIdle() },
-            exportStarted: { await exports.waitForStart(after: $0) }
+            exportStarted: { await exports.waitForStart(after: $0) },
+            awaitingGone: { savedAwaitingGone() },
+            setAwaitingGone: { saveAwaitingGone($0) }
         )
+    }
+
+    /// The live `awaitingGone` list: record name, zone name and owner of each.
+    private static var awaitingGoneKey: String { CloudKitEnvironment.scoped("ClassroomShareRelease.awaitingGone") }
+
+    private static func savedAwaitingGone() -> [CKRecord.ID] {
+        let saved = UserDefaults.standard.array(forKey: awaitingGoneKey) as? [[String]] ?? []
+        return saved.compactMap { parts in
+            guard parts.count == 3 else { return nil }
+            return CKRecord.ID(recordName: parts[0], zoneID: CKRecordZone.ID(zoneName: parts[1], ownerName: parts[2]))
+        }
+    }
+
+    private static func saveAwaitingGone(_ records: [CKRecord.ID]) {
+        guard !records.isEmpty else {
+            UserDefaults.standard.removeObject(forKey: awaitingGoneKey)
+            return
+        }
+        let parts = records.map { [$0.recordName, $0.zoneID.zoneName, $0.zoneID.ownerName] }
+        UserDefaults.standard.set(parts, forKey: awaitingGoneKey)
     }
 }

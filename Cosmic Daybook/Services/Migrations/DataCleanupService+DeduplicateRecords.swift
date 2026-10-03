@@ -100,10 +100,6 @@ nonisolated extension DataCleanupService {
                     canonical.statusBeforeLeavingRaw = duplicate.statusBeforeLeavingRaw
                 }
 
-                // Keep a pickup time set on the duplicate (an assistant can
-                // plan one on a copy made before the guide's mark arrived).
-                if canonical.leavesAt == nil { canonical.leavesAt = duplicate.leavesAt }
-
                 // Keep the duplicate's note: two devices can each have written
                 // one on their own copy of the day.
                 canonical.note = AttendanceNoteMove.merged(canonical.note, duplicate.note)
@@ -122,6 +118,12 @@ nonisolated extension DataCleanupService {
                 context.delete(duplicate)
                 deletedCount += 1
             }
+            // The pickup the grid showed, read across every copy: one still
+            // planned on a duplicate (an assistant can plan one on a copy made
+            // before the guide's mark arrived) is kept, but not one that Left
+            // Early or Back in Class ended on another copy. Copying the time
+            // over whenever the survivor had none brought those back.
+            canonical.leavesAt = AttendanceDeduplication.plannedPickup(among: group)
         }
 
         if deletedCount > 0 {

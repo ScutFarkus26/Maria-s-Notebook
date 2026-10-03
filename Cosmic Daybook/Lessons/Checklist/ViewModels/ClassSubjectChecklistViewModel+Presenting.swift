@@ -3,8 +3,9 @@
 // group…": a draft presentation for exactly those children, made the way the
 // Three-Year View makes one, for the present-a-lesson sheet to record. Recording
 // takes the children off any other plan for the lesson (the sheet's own rule), so
-// nothing here moves them. A draft the sheet closes without recording or
-// scheduling is discarded, so a look at the sheet leaves no stray Inbox entry.
+// nothing here moves them. A draft the sheet closes without saving or changing is
+// discarded, so a look at the sheet leaves no stray Inbox entry; one the teacher
+// saved to the Inbox, or wrote notes on, stays.
 
 import Foundation
 import CoreData
@@ -30,10 +31,13 @@ extension ClassAreaChecklistViewModel {
         return draft
     }
 
-    /// After the sheet closes: a draft it neither recorded nor scheduled goes away again.
-    func discardUnusedDraft(_ draft: CDLessonAssignment, context: NSManagedObjectContext) {
+    /// After the sheet closes: a draft still exactly as the checklist made it (`asMade`)
+    /// goes away again. Recorded, scheduled, saved or noted, it stays.
+    func discardUnusedDraft(
+        _ draft: CDLessonAssignment, asMade: ChecklistDraftSnapshot, context: NSManagedObjectContext
+    ) {
         guard draft.managedObjectContext != nil, !draft.isDeleted,
-              !draft.isPresented, !draft.isScheduled
+              !draft.isPresented, !draft.isScheduled, asMade.matches(draft)
         else { return }
         PresentationRecordCleanup.prepareToDelete(draft, in: context)
         context.delete(draft)

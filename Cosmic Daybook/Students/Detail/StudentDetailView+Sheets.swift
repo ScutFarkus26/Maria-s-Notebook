@@ -42,7 +42,8 @@ extension StudentDetailView {
             }
         case .meetingSession:
             if let studentID = student.id {
-                ScheduledMeetingSessionSheet(studentID: studentID)
+                // The sheet has no Done button, so Complete closes it.
+                ScheduledMeetingSessionSheet(studentID: studentID) { activeSheet = nil }
             }
         #endif
         }

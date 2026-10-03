@@ -71,7 +71,8 @@ final class ClassroomReleaseModel {
     // MARK: - Running
 
     func start() async {
-        guard case .ready(let preview, nil) = stage, !preview.isEmpty else { return }
+        guard case .ready(let preview, nil) = stage,
+              !preview.isEmpty || ClassroomShareRelease.stoppedPartway else { return }
         let stack = dependencies.coreDataStack
         // Checked again: time passed while the guide read the preview.
         if let reason = ClassroomShareRelease.blocker(coreDataStack: stack, isRestoring: isRestoring()) {
@@ -83,11 +84,16 @@ final class ClassroomReleaseModel {
             stage = .failed("The classroom share can't be read right now.")
             return
         }
+        if preview.isEmpty {
+            await finishStoppedRun(zone: zone)
+            return
+        }
 
         stage = .backingUp
-        // The backup is made and checked before anything is touched; then the plan is made
-        // again, since the preview may be minutes old.
-        guard await makeCheckedBackup(), let fresh = await replan() else { return }
+        // The backup is made before anything is touched; then the plan is made again, since
+        // the preview may be minutes old, and the backup must hold every record it names.
+        guard let backup = await makeBackup(), let fresh = await replan(),
+              await checkBackup(backup, holds: fresh) else { return }
 
         let activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiated, .idleSystemSleepDisabled],
@@ -111,11 +117,37 @@ final class ClassroomReleaseModel {
         stage = .finished(report, shareNow: await serverSummary(zone: zone))
     }
 
-    /// False (with the stage set to say why) when the backup failed or didn't check out.
-    private func makeCheckedBackup() async -> Bool {
+    /// A run that stopped after its last deletes were saved here leaves nothing to plan, and
+    /// the flag would never clear: only iCloud's confirmation is left to wait for. Nothing in
+    /// the notebook changes, so no backup is made.
+    private func finishStoppedRun(zone: String) async {
+        let container = dependencies.coreDataStack.container
+        stage = .running(done: 0, total: 1)
+        let report = await ClassroomShareRelease.finishStopped(environment: .live(container: container))
+        if report.stoppedBecause == nil {
+            UserDefaults.standard.removeObject(forKey: ClassroomShareRelease.inProgressKey)
+        }
+        stage = .finished(report, shareNow: await serverSummary(zone: zone))
+    }
+
+    /// Nil (with the stage set to say why) when the backup failed.
+    private func makeBackup() async -> URL? {
         do {
-            let url = try await ClassroomShareRelease.verifiedBackup(
+            return try await ClassroomShareRelease.backUp(
                 coreDataStack: dependencies.coreDataStack, backups: dependencies.autoBackupManager
+            )
+        } catch {
+            stage = .failed(error.localizedDescription)
+            return nil
+        }
+    }
+
+    /// False (with the stage set to say why) when the backup doesn't hold every record
+    /// `plan` touches.
+    private func checkBackup(_ url: URL, holds plan: ClassroomShareRelease.Preview) async -> Bool {
+        do {
+            try await ClassroomShareRelease.checkBackup(
+                url, holds: plan.batches, container: dependencies.coreDataStack.container
             )
             Self.logger.notice("Release: verified backup \(url.lastPathComponent, privacy: .public)")
             return true

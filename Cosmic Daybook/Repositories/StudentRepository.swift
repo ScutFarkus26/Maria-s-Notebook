@@ -59,7 +59,8 @@ struct StudentRepository: SavingRepository {
 
     // MARK: - Update
 
-    /// Update an existing CDStudent's properties
+    /// Update an existing CDStudent's properties. An edit that changes something stamps
+    /// `modifiedAt`, which `ClassroomShareRelease` reads to keep the newer of two copies.
     @discardableResult
     func updateStudent(
         id: UUID,
@@ -73,6 +74,7 @@ struct StudentRepository: SavingRepository {
         dateWithdrawn: Date?? = nil
     ) -> Bool {
         guard let student = fetchStudent(id: id) else { return false }
+        let before = student.dictionaryWithValues(forKeys: Self.editableKeys) as NSDictionary
 
         if let firstName { student.firstName = firstName }
         if let lastName { student.lastName = lastName }
@@ -88,8 +90,17 @@ struct StudentRepository: SavingRepository {
         if let enrollmentStatus { student.enrollmentStatus = enrollmentStatus }
         if let dateWithdrawn { student.dateWithdrawn = dateWithdrawn }
 
+        if !before.isEqual(to: student.dictionaryWithValues(forKeys: Self.editableKeys)) {
+            student.modifiedAt = Date()
+        }
         return true
     }
+
+    /// The attributes `updateStudent` can change.
+    private static let editableKeys = [
+        "firstName", "lastName", "birthday", "nickname", "levelRaw", "dateStarted", "enrollmentStatusRaw",
+        "dateWithdrawn"
+    ]
 
     // MARK: - Delete
 

@@ -230,13 +230,30 @@ struct CDAttendanceStore {
     /// left alone, so a child can be present and "leaves 1:30" at once, and
     /// can have a pickup time on a day ahead. Like the note, it's on the
     /// shared record, so the guide and every assistant see it.
+    ///
+    /// Another copy of the day (a CloudKit duplicate) can hold the pickup the
+    /// grid shows (`AttendanceDeduplication.plannedPickup`), so the time is
+    /// taken off every other copy too: removing it from `record` alone left
+    /// it showing, and ringing, from the copy.
     @discardableResult
     func updateLeavesAt(_ record: CDAttendanceRecord, to time: Date?) -> Bool {
         guard canWrite(on: record.date) else { return false }
-        guard record.leavesAt != time else { return false }
+        let copies = otherCopies(of: record).filter { $0.leavesAt != nil }
+        for copy in copies {
+            copy.leavesAt = nil
+            stamp(copy)
+        }
+        guard record.leavesAt != time else { return !copies.isEmpty }
         record.leavesAt = time
         stamp(record)
         return true
+    }
+
+    /// The day's other records for `record`'s child: CloudKit duplicates.
+    private func otherCopies(of record: CDAttendanceRecord) -> [CDAttendanceRecord] {
+        guard let date = record.date else { return [] }
+        let day = (try? loadRecords(for: date)) ?? []
+        return day.filter { $0 !== record && $0.studentID == record.studentID }
     }
 
     /// Update a record's absence reason and return whether it changed.
@@ -265,8 +282,9 @@ struct CDAttendanceStore {
     }
 
     /// Whether arrival has closed on `date` somewhere: a record that day
-    /// carries Close Arrival's automatic absence. The Late phase itself is
-    /// only on the iPhone that closed it; this is what everyone else sees.
+    /// carries Close Arrival's automatic absence. The device that closed it
+    /// remembers its Late phase; this is what every other device goes by
+    /// (`AttendanceLatePhase.isLate(on:closedAnywhere:)`).
     func arrivalClosed(on date: Date) throws -> Bool {
         try loadRecords(for: date).contains(where: AttendanceDeduplication.isAutomaticAbsence)
     }
@@ -311,11 +329,10 @@ struct CDAttendanceStore {
         return changed
     }
 
-    #if !ASSISTANT_APP
-
     /// Puts `record` back to `snapshot`, but only while it still holds
     /// `current`: a mark made since (here or on another device) wins. Nothing
     /// on a locked day. Returns whether it did. Callers save afterwards.
+    /// ⌘Z on the roll and Siri's "Undo that" both put marks back this way.
     @discardableResult
     func revert(_ record: CDAttendanceRecord, to snapshot: AttendanceRecordSnapshot,
                 ifStill current: AttendanceRecordSnapshot) -> Bool {
@@ -323,6 +340,8 @@ struct CDAttendanceStore {
         snapshot.apply(to: record)
         return true
     }
+
+    #if !ASSISTANT_APP
 
     /// Deletes a record, unless this role can't write or its day is locked.
     /// Returns whether it did. The caller saves.

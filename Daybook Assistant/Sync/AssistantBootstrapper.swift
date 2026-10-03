@@ -48,6 +48,8 @@ final class AssistantBootstrapper {
     /// back as a remote change, which `followLeaveElsewhere` read as a Leave
     /// on another device.
     private var isLeavingHere = false
+    /// Set while `start()` runs: launch and the window both start it.
+    private var isStarting = false
 
     /// True inside a hosted `Daybook Assistant Tests` run, the same check as
     /// the notebook's `AppBootstrapping.isRunningUnitTests`.
@@ -56,7 +58,9 @@ final class AssistantBootstrapper {
     }
 
     func start() async {
-        guard case .starting = phase else { return }
+        guard case .starting = phase, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
 
         if AssistantSampleClass.isRequested {
             do {
@@ -241,39 +245,6 @@ final class AssistantBootstrapper {
         if decision.rebuild { await rebuildStackForAccount() }
     }
 
-    /// What one account check means for the stack. The first check that can
-    /// tell decides whether it came up without a usable account: no account,
-    /// a restricted one, or one temporarily unavailable (an Apple Account
-    /// waiting for its password), for all of which the container's CloudKit
-    /// setup fails ("Unable to initialize without a valid iCloud account",
-    /// seen on a simulator 2026-09-29). Only "couldn't determine", the check
-    /// itself failing, decides nothing (`decided` false), so the next check
-    /// decides instead of that hiccup costing a rebuild. After that, the
-    /// account arriving is the one reason to rebuild, once.
-    nonisolated static func accountDecision(
-        checkedSinceBuild: Bool,
-        needsAccount: Bool,
-        status: CKAccountStatus
-    ) -> AccountDecision {
-        guard checkedSinceBuild else {
-            switch status {
-            case .available: return AccountDecision(needsAccount: false)
-            case .noAccount, .restricted, .temporarilyUnavailable: return AccountDecision(needsAccount: true)
-            default: return AccountDecision(needsAccount: false, decided: false)
-            }
-        }
-        if needsAccount, status == .available { return AccountDecision(needsAccount: false, rebuild: true) }
-        return AccountDecision(needsAccount: needsAccount)
-    }
-
-    nonisolated struct AccountDecision: Equatable {
-        /// The stack came up without a usable account and waits for one.
-        var needsAccount: Bool
-        var rebuild = false
-        /// False when the check couldn't tell, so the next one decides.
-        var decided = true
-    }
-
     /// Asks now, and again whenever the account changes (signed out in
     /// Settings, say), for as long as the app runs.
     private func observeAccountChanges() {
@@ -307,7 +278,8 @@ final class AssistantBootstrapper {
     /// that joined before. Nothing posts `.didJoinClassroom` then, so until
     /// this device has a classroom every import re-reads the row; once it
     /// has one, every import checks the rows are still there
-    /// (`followLeaveElsewhere`).
+    /// (`followLeaveElsewhere`). Every import, the sample's included, also
+    /// brings the pickup reminders up to date (`pickupRemindersMayHaveChanged`).
     private func observeRemoteChanges() {
         guard remoteChangeObserver == nil else { return }
         remoteChangeObserver = Task { [weak self] in
@@ -316,6 +288,7 @@ final class AssistantBootstrapper {
                 .map { _ in () }
             for await _ in changes {
                 guard let self else { return }
+                pickupRemindersMayHaveChanged()
                 if AssistantSampleClass.isChosen {
                     // The sample has no membership row of its own, so reading
                     // it here took every import (the real class's on coming

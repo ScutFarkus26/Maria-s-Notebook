@@ -16,6 +16,10 @@
 //   value can't overwrite the class's real one.
 // - The one exception is the first moment: while iCloud holds no start date at all, the
 //   Mac — the class's main device — publishes what it has. An iPhone or iPad only adopts.
+// - Only values set on this device are ever published, never the defaults (Sept 1, counting
+//   all history). A new or reinstalled Mac holds none, and at launch iCloud key-value storage
+//   may not have downloaded yet, so it looks empty: publishing the defaults then would put
+//   Sept 1 over the class's real start on every device.
 //
 // The live instance exists only in the running app (`start()` from app setup, never under
 // unit tests): a Mac test run is signed into the guide's iCloud, and a test's start date
@@ -89,19 +93,19 @@ final class SchoolYearSync {
     }
 
     /// Copies iCloud's values into UserDefaults; when iCloud has no start date yet, the Mac
-    /// publishes its own. Never publishes over a value iCloud already holds.
+    /// publishes its own, if it has one. Never publishes over a value iCloud already holds.
     @discardableResult
     func adoptOrSeed() -> LaunchOutcome {
         if Self.cloudStart(in: cloud) != nil {
             let changed = adoptFromCloud()
-            if cloud.object(forKey: Self.modeKey) as? Bool == nil, seedsEmptyCloud {
+            if cloud.object(forKey: Self.modeKey) as? Bool == nil, seedsEmptyCloud, Self.hasLocalMode(in: defaults) {
                 // A start date without the mode: add this Mac's mode, leave the date alone.
                 cloud.set(SchoolYearCounters.isResetting(in: defaults), forKey: Self.modeKey)
                 cloud.synchronize()
             }
             return .adopted(changed: changed)
         }
-        guard seedsEmptyCloud else { return .waiting }
+        guard seedsEmptyCloud, Self.localStart(in: defaults) != nil else { return .waiting }
         publishLocalSettings()
         Self.logger.info("Seeded iCloud with this Mac's school-year settings")
         return .seeded
@@ -145,10 +149,18 @@ final class SchoolYearSync {
         cloud.synchronize()
     }
 
-    /// Publishes what UserDefaults holds now (after a restore wrote it, or to seed).
+    /// Publishes what UserDefaults holds now (after a restore wrote it, or to seed): only the
+    /// values set here, never a default standing in for one.
     func publishLocalSettings() {
-        let (month, day) = Self.resolvedStart(in: defaults)
-        publish(month: month, day: day, resetting: SchoolYearCounters.isResetting(in: defaults))
+        let start = Self.localStart(in: defaults)
+        if let start {
+            cloud.set(start.month, forKey: Self.monthKey)
+            cloud.set(start.day, forKey: Self.dayKey)
+        }
+        if Self.hasLocalMode(in: defaults) {
+            cloud.set(SchoolYearCounters.isResetting(in: defaults), forKey: Self.modeKey)
+        }
+        cloud.synchronize()
     }
 
     /// A backup restore rewrote the settings in UserDefaults: publish them, and reload the app.
@@ -180,6 +192,20 @@ final class SchoolYearSync {
               let day = (cloud.object(forKey: dayKey) as? NSNumber)?.intValue, (1...31).contains(day)
         else { return nil }
         return (month, day)
+    }
+
+    /// The start date set on this device, when one is: nil means only the default stands.
+    nonisolated static func localStart(in defaults: UserDefaults) -> (month: Int, day: Int)? {
+        guard let month = defaults.object(forKey: monthKey) as? Int, (1...12).contains(month),
+              let day = defaults.object(forKey: dayKey) as? Int, (1...31).contains(day)
+        else { return nil }
+        return (month, day)
+    }
+
+    /// Whether the counter mode was set on this device (or by the old epoch it replaced).
+    nonisolated static func hasLocalMode(in defaults: UserDefaults) -> Bool {
+        SchoolYearCounters.hasExplicitMode(in: defaults)
+            || defaults.object(forKey: UserDefaultsKeys.schoolYearCounterEpoch) != nil
     }
 
     /// The start date as UserDefaults resolves it, defaulted as `SchoolYearStore` does.

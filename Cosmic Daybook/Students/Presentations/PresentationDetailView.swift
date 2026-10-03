@@ -114,6 +114,8 @@ struct PresentationDetailContentView: View {
     @State var showRecordDayPicker = false
     @State var recordPickedDay = AppCalendar.startOfDay(Date())
     @State var isSavingSession = false
+    /// The roster is being saved on the way to How It Went, not to close.
+    @State var howItWentAfterSave = false
     @State var errorMessage: String?
 
     #if os(iOS)
@@ -145,7 +147,10 @@ struct PresentationDetailContentView: View {
                 vm.pendingWorkRetraction = []
                 saveAndDone(retractingWork: [])
             },
-            onCancel: { vm.pendingWorkRetraction = [] }
+            onCancel: {
+                vm.pendingWorkRetraction = []
+                howItWentAfterSave = false
+            }
         )
         .alert("Couldn’t Save Presentation", isPresented: errorIsPresented) {
             Button("OK") { errorMessage = nil }
@@ -242,7 +247,8 @@ struct PresentationDetailContentView: View {
             refreshMasteryNotes()
         }
         .onChange(of: session.presentedDay) { _, _ in
-            session.resetTouches()
+            // A new day brings its own attendance; ticks the guide changed by
+            // hand stay as she left them.
             refreshAttendance()
         }
         .onDisappear {

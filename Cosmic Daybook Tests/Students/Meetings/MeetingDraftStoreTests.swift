@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import Testing
 @testable import CosmicDaybook
@@ -5,7 +6,8 @@ import Testing
 // Meeting drafts are one JSON blob per child. These pin the round trip, the
 // cleanup of empty drafts, the move from the old ten-key drafts, and that the
 // student record's Meetings tab (which leaves the workflow fields nil) can't
-// wipe the workflow's checklist and reviews.
+// wipe the workflow's checklist and reviews — nor the workflow the tab's
+// focus text — and that Complete lands in one save.
 @Suite("Meeting draft store")
 struct MeetingDraftStoreTests {
     private typealias Store = MeetingPersistenceService
@@ -119,5 +121,104 @@ struct MeetingDraftStoreTests {
         #expect(!reviewed.isEmpty)
 
         #expect(Draft().isEmpty)
+    }
+
+    // MARK: - The workflow's draft model
+    //
+    // MeetingDraftModel keeps its drafts in the standard defaults; each test
+    // uses a fresh child id and removes its draft afterwards.
+
+    @Test("The workflow keeps the Meetings tab's focus text and Completed, and leaving unedited writes nothing")
+    @MainActor
+    func workflowKeepsTabFields() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        defer { Store.clearCurrent(studentID: child) }
+        var tab = Draft()
+        tab.isCompleted = true
+        tab.focusText = "Finish the timeline"
+        Store.saveCurrent(studentID: child, data: tab)
+
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.flush()
+        // A write would have filled the workflow's nil fields in.
+        #expect(Store.loadCurrent(studentID: child) == tab)
+
+        draft.reflection = "Proud of the map"
+        draft.flush()
+        let stored = Store.loadCurrent(studentID: child)
+        #expect(stored.focusText == "Finish the timeline")
+        #expect(stored.isCompleted)
+        #expect(stored.reflectionText == "Proud of the map")
+    }
+
+    @Test("Completing in the workflow files the tab's focus text with the checklist")
+    @MainActor
+    func completeFilesTabFocus() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        defer { Store.clearCurrent(studentID: child) }
+        var tab = Draft()
+        tab.focusText = "Finish the timeline"
+        Store.saveCurrent(studentID: child, data: tab)
+
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.pendingFocus = [PendingFocusItem(text: "Read every day")]
+        #expect(draft.complete(context: context, saveCoordinator: .preview) { _ in nil })
+
+        let meeting = try #require(context.safeFetch(CDFetchRequest(CDStudentMeeting.self)).first)
+        #expect(meeting.focus == "• Read every day\nFinish the timeline")
+    }
+
+    @Test("Request text typed but not added is kept with the draft and filed on Complete")
+    @MainActor
+    func pendingRequestTextIsKept() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        defer { Store.clearCurrent(studentID: child) }
+
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.requestTexts = ["Clocks"]
+        draft.requestQuery = "Volcanoes"
+        draft.flush()
+
+        let reopened = MeetingDraftModel(studentID: child)
+        reopened.load(context: context)
+        #expect(reopened.requestTexts == ["Clocks", "Volcanoes"])
+
+        draft.requestQuery = "  Rivers "
+        #expect(draft.complete(context: context, saveCoordinator: .preview) { _ in nil })
+        let meeting = try #require(context.safeFetch(CDFetchRequest(CDStudentMeeting.self)).first)
+        #expect(meeting.requests == "Clocks; Rivers")
+        #expect(draft.requestQuery.isEmpty)
+    }
+
+    @Test("A Complete whose save fails leaves nothing behind, so trying again files it once")
+    @MainActor
+    func failedCompleteRollsBack() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let child = UUID()
+        defer { Store.clearCurrent(studentID: child) }
+        let lessonID = UUID()
+        let draft = MeetingDraftModel(studentID: child)
+        draft.load(context: context)
+        draft.reflection = "Proud of the map"
+        draft.requestLessonIDs = [lessonID]
+
+        // A row missing a mandatory value, so the next save fails.
+        let broken = CDAttendanceRecord(context: context)
+        broken.date = Date()
+        broken.setValue(nil, forKey: "studentID")
+        #expect(!draft.complete(context: context, saveCoordinator: .preview) { _ in nil })
+        context.processPendingChanges()
+        #expect(context.insertedObjects == [broken])
+
+        context.delete(broken)
+        #expect(draft.complete(context: context, saveCoordinator: .preview) { _ in nil })
+        #expect(context.safeFetch(CDFetchRequest(CDStudentMeeting.self)).count == 1)
+        #expect(context.safeFetch(CDFetchRequest(CDLessonAssignment.self)).count == 1)
     }
 }

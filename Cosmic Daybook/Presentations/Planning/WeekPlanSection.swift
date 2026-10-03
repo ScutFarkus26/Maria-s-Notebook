@@ -154,8 +154,8 @@ struct WeekPlanSection: View {
             visibleKinds: visibleKinds,
             onShowEverything: { visibleKindsRaw = CalendarKindFilter.everything.rawValue },
             onToday: { startDate = AppCalendar.startOfDay(Date()) },
-            onEarlier: { moveStart(bySchoolDays: -UIConstants.planningNavigationStepSchoolDays) },
-            onLater: { moveStart(bySchoolDays: UIConstants.planningNavigationStepSchoolDays) },
+            onEarlier: { movePage(by: -1) },
+            onLater: { movePage(by: 1) },
             actions: { bulkActionsMenu }
         )
     }

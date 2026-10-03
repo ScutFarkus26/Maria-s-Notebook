@@ -42,12 +42,12 @@ enum TodayAgendaBuilder {
         var ordered: [AgendaItem] = []
         var usedIDs = Set<UUID>()
 
+        // Two devices can each save a row for the same item; the first one
+        // places it and the rest are ignored, as `orderMeetings` does.
         for entry in savedOrder {
-            guard let entryItemID = entry.itemID else { continue }
-            if let item = itemsByID[entryItemID] {
-                ordered.append(item)
-                usedIDs.insert(entryItemID)
-            }
+            guard let entryItemID = entry.itemID, let item = itemsByID[entryItemID],
+                  usedIDs.insert(entryItemID).inserted else { continue }
+            ordered.append(item)
         }
 
         // 5. Append any new items that weren't in the saved order

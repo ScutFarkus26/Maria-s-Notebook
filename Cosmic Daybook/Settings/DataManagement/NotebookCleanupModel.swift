@@ -9,8 +9,8 @@ import OSLog
 final class NotebookCleanupModel {
     enum Stage: Equatable {
         case loading
-        /// Ready to confirm, or blocked with the reason.
-        case ready(NotebookJunkCleanup.Counts, blocker: String?)
+        /// Ready to confirm (unless `blocker` says why not).
+        case ready(NotebookJunkCleanup.Counts)
         case backingUp
         case cleaning
         case finished(NotebookJunkCleanup.Counts)
@@ -39,17 +39,24 @@ final class NotebookCleanupModel {
     func load() async {
         stage = .loading
         let counts = await pass(apply: false) ?? NotebookJunkCleanup.Counts()
-        stage = .ready(counts, blocker: blocker())
+        stage = .ready(counts)
     }
 
-    /// Every reason not to start right now, in the guide's words, or nil.
-    private func blocker() -> String? {
+    /// Every reason not to start right now, in the guide's words, or nil. Read live, so the
+    /// sheet's notice clears by itself when the sync it waits on finishes.
+    var blocker: String? {
         #if !os(macOS)
         return "Clean up on your Mac."
         #else
         if isRestoring() { return "A restore is running." }
         if FirstDownloadGate.isPending() { return "This Mac is still downloading the notebook from iCloud." }
-        if UserDefaults.standard.object(forKey: ClassroomShareRelease.inProgressKey) != nil {
+        // Records arriving from iCloud can land a batch ahead of the ones they belong to
+        // (work steps before their work), and look like junk until the rest arrives.
+        let sync = CloudKitSyncStatusService.shared
+        if sync.isImportingFromCloud || sync.isSyncing {
+            return "iCloud is syncing this Mac right now. You can start once it's done."
+        }
+        if ClassroomShareRelease.stoppedPartway {
             return "Removing last year from the share stopped partway. Finish it first, in Settings › Classroom."
         }
         if dependencies.coreDataStack.isCloudKitActive, let reason = ClassroomShareRelease.syncBlocker() {
@@ -62,16 +69,12 @@ final class NotebookCleanupModel {
     // MARK: - Running
 
     func start() async {
-        guard case .ready(let preview, nil) = stage, !preview.isEmpty else { return }
-        // Checked again: time passed while the guide read the preview.
-        if let reason = blocker() {
-            stage = .ready(preview, blocker: reason)
-            return
-        }
+        // Checked again at the press: the sheet may not have redrawn since it changed.
+        guard case .ready(let preview) = stage, !preview.isEmpty, blocker == nil else { return }
 
         stage = .backingUp
         do {
-            let url = try await verifiedBackup()
+            let url = try await verifiedBackup(of: preview)
             Self.logger.notice("Cleanup: verified backup \(url.lastPathComponent, privacy: .public)")
         } catch {
             stage = .failed(error.localizedDescription)
@@ -79,8 +82,9 @@ final class NotebookCleanupModel {
         }
 
         stage = .cleaning
-        // Counted again inside the run: the preview may be minutes old.
-        let done = await pass(apply: true)
+        // Counted again inside the run, and held to what the preview named: anything that
+        // arrived from iCloud since isn't junk the guide saw, nor in the backup.
+        let done = await pass(apply: true, within: preview)
         guard let done else {
             stage = .failed("The cleanup couldn't save. Nothing was changed.")
             return
@@ -96,10 +100,12 @@ final class NotebookCleanupModel {
 
     /// One pass on a background context. With `apply`, saves, and returns nil when the save
     /// failed (its changes are rolled back).
-    private func pass(apply: Bool) async -> NotebookJunkCleanup.Counts? {
+    private func pass(
+        apply: Bool, within preview: NotebookJunkCleanup.Counts? = nil
+    ) async -> NotebookJunkCleanup.Counts? {
         let context = dependencies.coreDataStack.newBackgroundContext()
         return await context.perform {
-            let counts = NotebookJunkCleanup.run(in: context, apply: apply)
+            let counts = NotebookJunkCleanup.run(in: context, apply: apply, within: preview)
             guard apply, context.hasChanges else { return counts }
             if context.safeSave() { return counts }
             context.rollback()
@@ -109,9 +115,9 @@ final class NotebookCleanupModel {
 
     // MARK: - Backup
 
-    /// Makes a manual backup and checks it holds at least as many records of every kind the
-    /// cleanup touches as the notebook has. Throws with the reason otherwise.
-    private func verifiedBackup() async throws -> URL {
+    /// Makes a manual backup and checks it holds, by `id`, every record the preview names
+    /// to remove or change. Throws with the reason otherwise.
+    private func verifiedBackup(of preview: NotebookJunkCleanup.Counts) async throws -> URL {
         let stack = dependencies.coreDataStack
         let result = await dependencies.autoBackupManager.performManualBackup(viewContext: stack.viewContext)
         guard case .success(_, let url) = result else {
@@ -119,29 +125,9 @@ final class NotebookCleanupModel {
                 "The backup before cleaning up didn't finish. Nothing was changed."
             )
         }
-        let counts = try await Self.backupCounts(at: url)
-        for entity in NotebookJunkCleanup.touchedEntities {
-            let request = NSFetchRequest<NSDictionary>(entityName: entity)
-            request.resultType = .dictionaryResultType
-            request.propertiesToFetch = ["id"]
-            request.returnsDistinctResults = true
-            guard let rows = try? stack.viewContext.fetch(request) else {
-                throw ClassroomShareRelease.BackupCheckError(
-                    "Couldn't count the notebook's \(entity) records. Nothing was changed."
-                )
-            }
-            guard (counts[entity] ?? 0) >= rows.count else {
-                throw ClassroomShareRelease.BackupCheckError(
-                    "The backup holds \(counts[entity] ?? 0) \(entity) records, the notebook \(rows.count). "
-                        + "Nothing was changed."
-                )
-            }
-        }
+        try await BackupRecordCheck.check(
+            url, holds: Array(preview.removing.union(preview.changing)), context: stack.newBackgroundContext()
+        )
         return url
-    }
-
-    @concurrent
-    private static func backupCounts(at url: URL) async throws -> [String: Int] {
-        try BackupReader.verifyStructure(at: url).manifest.entityCounts
     }
 }

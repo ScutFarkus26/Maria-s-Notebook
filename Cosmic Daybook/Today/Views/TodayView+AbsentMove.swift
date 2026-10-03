@@ -62,10 +62,11 @@ extension TodayView {
 
     // MARK: - Moving
 
-    /// The day a bump or move lands on: the next school day after today, not
-    /// after the item's own date (see `bumpLessonToTomorrow`).
+    /// The day a bump or move lands on: the next school day after the day
+    /// shown (`TodayBumpDay.base`), not after the item's own date (see
+    /// `bumpLessonToTomorrow`).
     func bumpTargetDay() -> Date? {
-        nextSchoolDaySync(after: calendar.startOfDay(for: Date()))
+        nextSchoolDaySync(after: TodayBumpDay.base(showing: viewModel.date, now: Date(), calendar: calendar))
     }
 
     /// That day's name for running text: "tomorrow", "Monday".

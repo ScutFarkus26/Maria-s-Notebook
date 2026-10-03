@@ -57,23 +57,44 @@ enum PresentationRecorder {
         guard !present.isEmpty else { throw RecordError.nobodyPresent }
         let absent = planned.filter { !presentIDs.contains($0) }
 
+        var split: AbsentSplit?
         if !absent.isEmpty {
-            keepOnPlan(Set(absent), takenOffOf: assignment, lesson: lesson, keeping: present, context: context)
+            var before = AbsentSplit(assignment, absent: Set(absent), context: context)
+            let plan = keepOnPlan(
+                Set(absent), takenOffOf: assignment, lesson: lesson, keeping: present, context: context
+            )
+            let madePlan = plan.isInserted ? plan : nil
             guard saveCoordinator.save(context, reason: "Keeping absent children on the plan") else {
                 throw RecordError.saveFailed(
                     saveCoordinator.lastSaveErrorMessage ?? "The children who weren't there could not be moved."
                 )
             }
+            // Read after the save: an inserted plan carries a temporary id until then.
+            before.createdPlanObjectID = madePlan?.objectID
+            split = before
             PresentationDetailUtilities.notifyInboxRefresh()
         }
 
-        let token = try ImmediatePresentationRecordingService.record(
-            assignment: assignment,
-            presentedOn: day,
-            context: context,
-            saveCoordinator: saveCoordinator
-        )
-        return Result(undoToken: token, keptOnPlan: absent)
+        do {
+            var token = try ImmediatePresentationRecordingService.record(
+                assignment: assignment,
+                presentedOn: day,
+                context: context,
+                saveCoordinator: saveCoordinator
+            )
+            // Undo has to bring the absent children back too, whoever calls it.
+            token.absentSplit = split
+            return Result(undoToken: token, keptOnPlan: absent)
+        } catch {
+            // Nothing was recorded, so nobody should have been moved either.
+            if let split {
+                split.restore(onto: assignment, in: context)
+                if saveCoordinator.save(context, reason: "Putting absent children back on the plan") {
+                    PresentationDetailUtilities.notifyInboxRefresh()
+                }
+            }
+            throw error
+        }
     }
 
     /// Takes `absent` off `assignment` onto a plan of their own and returns
@@ -113,5 +134,55 @@ enum PresentationRecorder {
         }
         YearPlanPromotionService.promoteMatchingEntries(into: plan, context: context)
         return plan
+    }
+
+    /// What taking the absent children off at Record changed, so Undo can put
+    /// them back: the roster as it was, the plan made for them, and their
+    /// year-plan entries for the lesson (pointed back at this presentation).
+    struct AbsentSplit {
+        let studentIDs: [String]
+        let modifiedAt: Date?
+        let absent: Set<UUID>
+        let entries: [YearPlanReleasePreimage.Entry]
+        /// The plan Record made for them; an existing plan it reused is left alone.
+        var createdPlanObjectID: NSManagedObjectID?
+
+        /// Reads the assignment before `keepOnPlan` runs.
+        init(_ assignment: CDLessonAssignment, absent: Set<UUID>, context: NSManagedObjectContext) {
+            studentIDs = assignment.studentIDs
+            modifiedAt = assignment.modifiedAt
+            self.absent = absent
+            let request = CDFetchRequest(CDYearPlanEntry.self)
+            request.predicate = NSPredicate(
+                format: "lessonID == %@ AND studentID IN %@",
+                assignment.lessonID, absent.map(\.uuidString)
+            )
+            entries = context.safeFetch(request).map {
+                YearPlanReleasePreimage.Entry(
+                    objectID: $0.objectID, statusRaw: $0.statusRaw, promotedAssignmentID: $0.promotedAssignmentID
+                )
+            }
+        }
+
+        /// Puts the roster back, removes the plan Record made for the absent
+        /// children (unless it has since become something else) and restores
+        /// their entries. Does not save.
+        func restore(onto assignment: CDLessonAssignment, in context: NSManagedObjectContext) {
+            assignment.studentIDs = studentIDs
+            assignment.modifiedAt = modifiedAt
+            if let createdPlanObjectID,
+               let plan = context.existing(CDLessonAssignment.self, createdPlanObjectID),
+               !plan.isDeleted, !plan.isPresented, plan.scheduledFor == nil,
+               Set(plan.resolvedStudentIDs) == absent {
+                PresentationRecordCleanup.prepareToDelete(plan, in: context)
+                context.delete(plan)
+            }
+            for entry in entries {
+                guard let current = context.existing(CDYearPlanEntry.self, entry.objectID),
+                      !current.isDeleted else { continue }
+                current.statusRaw = entry.statusRaw
+                current.promotedAssignmentID = entry.promotedAssignmentID
+            }
+        }
     }
 }

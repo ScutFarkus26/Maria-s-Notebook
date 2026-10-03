@@ -17,8 +17,17 @@ extension TodayViewModel {
     /// since the work rows carry their linked todos (`linkedTodos`): a todo
     /// linked, completed or redated elsewhere changes a row. The ready queue
     /// keeps its own gate, so a todo tick does not rebuild it.
+    ///
+    /// "AttendanceRecord" since the lesson rows read attendance ("3 of 4
+    /// here", the absent chips, the Move them line): a mark from the Daybook
+    /// Assistant or another device reaches them on iPhone too, where the
+    /// attendance band (whose own listener reloaded Today) is hidden. The two
+    /// meeting entities since a meeting finished in the Mac's meeting window
+    /// (which deletes the scheduled one), or booked or cleared over MCP or on
+    /// another device, left a stale row whose Start and Remove did nothing.
     nonisolated static let reloadInputEntities: Set<String> = [
-        "WorkModel", "LessonAssignment", "WorkCheckIn", "TodoItem"
+        "WorkModel", "LessonAssignment", "WorkCheckIn", "TodoItem",
+        "AttendanceRecord", "ScheduledMeeting", "StudentMeeting"
     ]
 
     /// `reload()` as an Instruments interval ("Today" category).

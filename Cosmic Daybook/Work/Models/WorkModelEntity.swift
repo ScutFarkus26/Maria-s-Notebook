@@ -114,9 +114,12 @@ nonisolated extension CDWorkModel {
     // MARK: - Resting
 
     /// Whether this work is intentionally resting (aging paused until `restingUntil`).
-    var isResting: Bool {
+    var isResting: Bool { isResting(asOf: Date()) }
+
+    /// Whether the work is still resting on `now`'s day: it wakes on `restingUntil`.
+    func isResting(asOf now: Date) -> Bool {
         guard let until = restingUntil else { return false }
-        return until > AppCalendar.startOfDay(Date())
+        return until > AppCalendar.startOfDay(now)
     }
 
     // MARK: - Completion helpers

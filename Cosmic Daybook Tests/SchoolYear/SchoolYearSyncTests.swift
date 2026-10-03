@@ -43,6 +43,36 @@ struct SchoolYearSyncTests {
         #expect(cloud.values[mode] as? Bool == true)
     }
 
+    @Test("A new or reinstalled Mac with no start date of its own never fills iCloud with Sept 1")
+    func freshMacWaitsForCloud() {
+        let cloud = FakeCloud() // key-value storage not downloaded yet: looks empty
+        let defaults = freshDefaults()
+        let sync = SchoolYearSync(cloud: cloud, defaults: defaults, seedsEmptyCloud: true)
+
+        #expect(sync.adoptOrSeed() == .waiting)
+        #expect(cloud.values.isEmpty)
+
+        // The class's start arrives from iCloud, and this Mac takes it.
+        cloud.values = [month: 8, day: 25, mode: true]
+        #expect(sync.adoptFromCloud())
+        #expect(defaults.integer(forKey: month) == 8)
+        #expect(defaults.integer(forKey: day) == 25)
+    }
+
+    @Test("Publishing the local settings sends only values set here, never the defaults")
+    func publishLocalSendsOnlySetValues() {
+        let cloud = FakeCloud()
+        let defaults = freshDefaults()
+        let sync = SchoolYearSync(cloud: cloud, defaults: defaults, seedsEmptyCloud: true)
+        sync.publishLocalSettings()
+        #expect(cloud.values.isEmpty)
+
+        defaults.set(false, forKey: mode)
+        sync.publishLocalSettings()
+        #expect(cloud.values.count == 1)
+        #expect(cloud.values[mode] as? Bool == false)
+    }
+
     @Test("An iPhone never fills an empty iCloud — its stale Sept 1 can't beat the Mac")
     func phoneWaitsOnEmptyCloud() {
         let cloud = FakeCloud()

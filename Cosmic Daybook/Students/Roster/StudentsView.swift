@@ -152,6 +152,9 @@ struct StudentsView: View {
         .onReceiveWhenVisible(Self.signalChanges(), catchUpOnAppear: false) {
             refreshSignals()
         }
+        // Left open overnight (a Mac), today's marks, birthdays and counts
+        // move to the new day; the view model's day stamp makes this a rebuild.
+        .onCalendarDayChange { refreshSignals() }
         .onChange(of: uniqueStudentIDs) { _, _ in
             ensureInitialManualOrderIfNeeded()
             if viewModel.repairManualOrderUniquenessIfNeeded(uniqueStudents) {
@@ -294,7 +297,7 @@ struct StudentsView: View {
 
     private func assignManualOrder(from orderedIDs: [UUID]) {
         for (idx, id) in orderedIDs.enumerated() {
-            dependencies.roster.student(id: id)?.manualOrder = Int64(idx)
+            dependencies.roster.student(id: id)?.moveInRoster(to: Int64(idx))
         }
     }
 
@@ -327,5 +330,14 @@ struct StudentsView: View {
             selectedStudentID = studentID
             appRouter.clearNavigation()
         }
+    }
+}
+
+private extension CDStudent {
+    /// The guide's reorder: a child whose place changed is stamped as edited (`modifiedAt`).
+    func moveInRoster(to order: Int64) {
+        guard manualOrder != order else { return }
+        manualOrder = order
+        modifiedAt = Date()
     }
 }

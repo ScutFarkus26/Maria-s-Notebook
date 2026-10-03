@@ -141,7 +141,10 @@ struct AlbumVectorCacheFileTests {
                 == written)
     }
 
-    @Test("A JSON cache for another date or model is not served: the album is embedded and the JSON goes")
+    @Test(
+        "A JSON cache for another date or model is not served: the album is embedded and the JSON goes",
+        .needsSentenceModel
+    )
     func staleLegacyJSONIsReplaced() async throws {
         // Waits out the simulator's lazy sentence-model load.
         try #require(await AlbumSemanticIndex.resolveTitleBackend() == "sentence")
@@ -171,7 +174,7 @@ struct AlbumVectorCacheFileTests {
         }
     }
 
-    @Test("Rankings from the converted cache are the ones the JSON cache gave")
+    @Test("Rankings from the converted cache are the ones the JSON cache gave", .needsSentenceModel)
     func rankingsAreUnchanged() async throws {
         try #require(await AlbumSemanticIndex.resolveTitleBackend() == "sentence")
         let dir = try Self.makeCacheDir()
@@ -239,7 +242,7 @@ struct AlbumVectorCacheFileTests {
 
     // MARK: The embedding loops' pools
 
-    @Test("Sentence vectors are the same with a pool around each text")
+    @Test("Sentence vectors are the same with a pool around each text", .needsSentenceModel)
     func pooledSentenceEmbeddingMatches() async throws {
         _ = await AlbumSemanticIndex.resolveTitleBackend()
         let embedding = try #require(NLEmbedding.sentenceEmbedding(for: .english))

@@ -124,6 +124,55 @@ struct SiriAttendanceTests {
         #expect(try siri.status(of: maya) == .absent)
     }
 
+    /// `student`'s record on Monday, marked `status` on the grid at
+    /// `markedAt`, then Left Early at `leftAt` when given.
+    private func markedByGrid(
+        _ student: CDStudent, _ status: AttendanceStatus, at markedAt: Date, leftAt: Date? = nil
+    ) throws -> CDAttendanceRecord {
+        let store = CDAttendanceStore(context: context, role: .leadGuide)
+        let record = try #require(try store.ensureRecord(for: student, on: monday))
+        store.updateStatus(record, to: status)
+        if leftAt != nil { store.updateStatus(record, to: .leftEarly) }
+        record.markedAt = markedAt
+        record.leftAt = leftAt
+        #expect(context.safeSave())
+        return record
+    }
+
+    // Bug hunt 2026-10-03, A2: Undo re-marked the old status, which re-ran
+    // the mark's timing rules. A late arrival who had left early came back
+    // Left Early with no arrival, today's departure and nothing to return
+    // to; a misheard "late" left a child "Present at" the time of the undo.
+    @Test("Undo puts back a child who had left early as she was, times and all")
+    func undoKeepsLeftEarlyTimes() async throws {
+        let maya = makeStudent("Maya")
+        let arrived = monday.addingTimeInterval(8 * 3_600 + 5 * 60)
+        let left = monday.addingTimeInterval(11 * 3_600)
+        let record = try markedByGrid(maya, .tardy, at: arrived, leftAt: left)
+        #expect(record.statusBeforeLeavingRaw == AttendanceStatus.tardy.rawValue)
+
+        let siri = session()
+        try await siri.mark(maya, as: .absent)
+        #expect(try await siri.undoLast() == "Maya Stone absent")
+        #expect(record.status == .leftEarly)
+        #expect(record.markedAt == arrived)
+        #expect(record.leftAt == left)
+        #expect(record.statusBeforeLeavingRaw == AttendanceStatus.tardy.rawValue)
+    }
+
+    @Test("Undoing a misheard late keeps the child's arrival time")
+    func undoKeepsArrival() async throws {
+        let maya = makeStudent("Maya")
+        let arrived = monday.addingTimeInterval(8 * 3_600 + 5 * 60)
+        let record = try markedByGrid(maya, .present, at: arrived)
+
+        let siri = session()
+        try await siri.mark(maya, as: .tardy)
+        _ = try await siri.undoLast()
+        #expect(record.status == .present)
+        #expect(record.markedAt == arrived)
+    }
+
     /// An invalid record on a far-off day: every save fails until it goes.
     private func breakSaves() throws -> CDAttendanceRecord {
         let broken = CDAttendanceRecord(context: context)
