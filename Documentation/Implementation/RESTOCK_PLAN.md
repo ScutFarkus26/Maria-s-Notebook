@@ -7,10 +7,10 @@ After Mac ×4, Assistant iPhone ×4, interactive in Play). Analysis 2026-10-03 o
 
 ## Progress
 - [x] Phase 1: data layer (schema 15, backup v37, RestockService), `a97b3439` (session: build)
-- [ ] Phase 2A: notebook Restock page, Today card, navigation (agent) ‖ 2B ‖ 2C
-- [ ] Phase 2B: Assistant Restock tab and Siri (agent) ‖ 2A ‖ 2C
-- [ ] Phase 2C: MCP (agent) ‖ 2A ‖ 2B
-- [ ] Phase 3: merge, Mac-only level step, full suites, review, CLAUDE.md (session: build)
+- [x] Phase 2A: notebook Restock page, Today card, navigation, `02d9bb5a` (no search field; counts aligned in Phase 3)
+- [x] Phase 2B: Assistant Restock tab and Siri, `bb028ec8` ("Add to the office run" asks what's needed: Siri phrases can't carry free text)
+- [x] Phase 2C: MCP, `2048cf96` (also: received through checkOff; office needs refuse asked_for/confirmed)
+- [x] Phase 3: merged; `bf4db345` (Mac-only step, "to order" = not yet asked for, CLAUDE.md), review fixes `8411a6ec` (history rows no longer linked to their staple, so sharing one never re-shares the staple; reopen sets Low). Notebook 2,456 + Assistant 165 tests passed, Mac Debug + Release clean. Skipped: Undo doesn't restore a duplicate need closed by a check-off. Unseen: Mac UI running; 22 tiles on an SE with the new tab bar
 - [ ] Phase 4: schema deploy, roll-out, Danny's steps (session: fresh ship session)
 
 ## What Danny wants
