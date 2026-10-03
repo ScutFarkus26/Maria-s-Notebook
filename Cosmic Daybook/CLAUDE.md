@@ -30,10 +30,12 @@ Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic
   COMPILER_INDEX_STORE_ENABLE=NO build
 
 # Run unit tests: build the app + test bundle once, then run (and re-run) without rebuilding.
-# Test runs compile nothing, so they skip the lock.
+# Test runs compile nothing, so they skip the lock, and run on this checkout's own iPhone 17 from
+# ~/.claude/bin/sim-lease: on the shared "iPhone 17" two sessions' runs killed each other's apps. A hook
+# refuses a test run aimed at a simulator by name.
 Scripts/locked_xcodebuild.sh build-for-testing -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   COMPILER_INDEX_STORE_ENABLE=NO
-nice -n 10 xcodebuild test-without-building -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0"
+nice -n 10 xcodebuild test-without-building -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,id=$(~/.claude/bin/sim-lease)"
 
 # In an agent worktree: the same recipes plus the three prefix-mapping settings, which take the
 # worktree's path out of the compilation-cache keys so every worktree shares one cache.
