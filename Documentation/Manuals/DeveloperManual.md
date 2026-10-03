@@ -1191,7 +1191,7 @@ Additional AI services:
 
 ## Safe Fetch Pattern
 
-**File:** `Utils/NSManagedObjectContext+SafeFetch.swift`
+**File:** `Utils/CoreData/NSManagedObjectContext+SafeFetch.swift`
 
 The most important utility in the app. Every database query should use these:
 
@@ -1210,7 +1210,7 @@ context.fetchUnique(request) -> [T]
 
 ## Collection Extensions
 
-**File:** `Utils/Collection+Extensions.swift`
+**File:** `Utils/Extensions/Collection+Extensions.swift`
 
 ```swift
 // Create lookup dictionary from identifiable array
@@ -1225,7 +1225,7 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 
 ## Date Utilities
 
-**Files:** `Utils/Date+Normalization.swift`, `Utils/DateCalculations.swift`, `Utils/DateFormatters.swift`
+**Files:** `Utils/Formatting/Date+Normalization.swift`, `Utils/Formatting/DateCalculations.swift`, `Utils/Formatting/DateFormatters.swift`
 
 - `AppCalendar.startOfDay(date)` — normalized date used everywhere for date comparisons
 - `AppCalendar.shared` — immutable Gregorian calendar on `TimeZone.autoupdatingCurrent`; the canon behind `\.calendar` and every non-view date computation
@@ -1233,7 +1233,7 @@ array.partitioned(by: predicate) -> (matching: [T], rest: [T])
 
 ## String Utilities
 
-**Files:** `Utils/String+Extensions.swift`, `Utils/String+FuzzyMatch.swift`, `Utils/StringNormalization.swift`
+**Files:** `Utils/Formatting/String+Extensions.swift`, `Utils/Formatting/String+FuzzyMatch.swift`, `Utils/StringNormalization.swift`
 
 - `.trimmed()` — removes leading/trailing whitespace
 - Fuzzy matching for lesson name search in the command bar

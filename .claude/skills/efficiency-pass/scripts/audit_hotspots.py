@@ -23,11 +23,11 @@ DEFAULT_ROOT = "Cosmic Daybook"
 # Paths that are the sanctioned home of a pattern, or are known-good after review.
 # Substring match against the path relative to --root.
 ALLOWLIST = {
-    "formatter_alloc": ["Utils/DateFormatters.swift", "Utils/AppLogging.swift"],
+    "formatter_alloc": ["Utils/Formatting/DateFormatters.swift", "Utils/Diagnostics/AppLogging.swift"],
     "calendar_alloc": ["AppCore/AppCalendar.swift", "HebrewParshaService"],
     "image_decode_in_view": ["Components/CachedThumbnail.swift", "Components/AsyncCachedImage.swift"],
     "unconditional_sync_stamp": ["Services/Calendar/EventKitMirror.swift"],  # stamps only rows that changed
-    "ubiquity_container_lookup": ["Utils/UbiquityContainerCache.swift"],  # the off-main cache itself
+    "ubiquity_container_lookup": ["Utils/Files/UbiquityContainerCache.swift"],  # the off-main cache itself
 }
 
 VIEW_FILE_HINT = re.compile(r"(View|Card|Row|Cell|Sheet|Pill|Column|Tab|Section|Screen|Page)\b")
@@ -59,7 +59,7 @@ RULES: list[Rule] = [
         "DateFormatter / NumberFormatter / ISO8601DateFormatter allocated inline",
         "Each formatter init loads ICU locale data; inside a view body or row builder it runs on every "
         "body pass, and SwiftUI re-runs bodies on every scroll, selection change, and Core Data merge.",
-        "Is this on a per-row or per-body path? If yes, use a shared instance from Utils/DateFormatters.swift "
+        "Is this on a per-row or per-body path? If yes, use a shared instance from Utils/Formatting/DateFormatters.swift "
         "or a static let. A one-shot in an exporter or migration is fine.",
         re.compile(r"\b(DateFormatter|NumberFormatter|ISO8601DateFormatter|DateComponentsFormatter|RelativeDateTimeFormatter|MeasurementFormatter)\(\)"),
     ),
