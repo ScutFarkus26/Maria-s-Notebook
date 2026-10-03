@@ -103,7 +103,7 @@ equivalent) at runtime before calling the model.
 
 | Feature | File | Output | Streaming | Multimodal |
 |---------|------|--------|-----------|------------|
-| Draft generation (parent email, report card, action plan, weekly summary) | `Components/AppleIntelligenceSheet.swift` + `…+Generation.swift` | Free text | No | — |
+| Draft generation (parent email, report card, action plan, weekly summary) | `Students/Notes/AppleIntelligenceSheet.swift` + `…+Generation.swift` | Free text | No | — |
 | Meeting summaries | `Students/Meetings/MeetingSummaryGenerator.swift` | `@Generable` `MeetingSummary` | Yes | — |
 | Observation reflection / narrative draft | `Notes/Observations/ObservationsView+AI.swift` | Evidence-linked `@Generable` `NotesDigest` / `NotesNarrative` | No | — |
 | Note tag + student suggestion | `Notes/Editor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
