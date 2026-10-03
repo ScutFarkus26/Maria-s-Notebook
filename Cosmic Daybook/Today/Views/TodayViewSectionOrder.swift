@@ -82,6 +82,9 @@ extension TodayView {
                 macLeftColumnSections
             }
             .listStyle(.inset)
+            // The lists sit below the attendance band, not the toolbar, so
+            // the top edge's blur band only covered the rows under it.
+            .scrollEdgeEffectHidden(true, for: .top)
             .frame(minWidth: 360, maxWidth: .infinity)
 
             Divider()
@@ -90,6 +93,7 @@ extension TodayView {
                 macRightColumnSections
             }
             .listStyle(.inset)
+            .scrollEdgeEffectHidden(true, for: .top)
             .frame(width: Self.macRightColumnWidth)
         }
         .inspector(isPresented: isTodoInspectorPresented) {
