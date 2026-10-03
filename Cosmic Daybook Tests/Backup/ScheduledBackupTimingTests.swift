@@ -68,6 +68,20 @@ struct ScheduledBackupTimingTests {
         #expect(ScheduledBackupTiming.tolerance(forDelay: 0) == 0)
     }
 
+    @Test("The Mac never arms its scheduler with less than a minute, so an overdue backup can't crash launch")
+    func schedulerIntervalHasAFloor() {
+        // NSBackgroundActivityScheduler raises for an interval under 1 s.
+        let minute: TimeInterval = 60
+        let fourHours = 4 * Self.hour
+        #expect(ScheduledBackupTiming.schedulerInterval(forDelay: 0) == minute)
+        #expect(ScheduledBackupTiming.schedulerInterval(forDelay: 0.5) == minute)
+        #expect(ScheduledBackupTiming.schedulerInterval(forDelay: fourHours) == fourHours)
+        let overdue = ScheduledBackupTiming.delay(
+            intervalHours: 4, lastBackup: Self.now.addingTimeInterval(-10 * Self.hour), now: Self.now
+        )
+        #expect(ScheduledBackupTiming.schedulerInterval(forDelay: overdue) >= 1)
+    }
+
     @Test("Re-arming: nothing once switched off or the interval isn't positive, else the same wait")
     func nextDelayFollowsTheSwitchAndInterval() {
         let lastBackup = Self.now.addingTimeInterval(-Self.hour)
