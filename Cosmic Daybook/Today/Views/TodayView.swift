@@ -4,7 +4,7 @@
 //
 // Split into multiple files for maintainability:
 // - TodayView.swift (this file) - Main view structure and body
-// - TodayViewSections.swift - All list sections (reminders, lessons, etc.)
+// - Sections/TodayView*Section.swift - The list sections (reminders, lessons, etc.)
 // - TodayViewHeader.swift - Header and attendance strip components
 // - TodayViewHelpers.swift - School day helpers and utility functions
 // - TodayViewListRows.swift - Individual row components

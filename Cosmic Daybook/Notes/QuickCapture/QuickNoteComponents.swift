@@ -292,16 +292,6 @@ struct QuickNoteEditor: View {
     #endif
 }
 
-// MARK: - Helper Views
-
-struct Center<Content: View>: View {
-    let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
-    var body: some View {
-        VStack { Spacer(); HStack { Spacer(); content; Spacer() }; Spacer() }
-    }
-}
-
 // MARK: - CDLesson Picker
 
 struct QuickNoteLessonPicker: View {
