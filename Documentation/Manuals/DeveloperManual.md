@@ -1129,7 +1129,7 @@ Universal observation system. Notes can be:
 
 ## Todos Module
 
-**Across:** `Models/TodoItemEntity.swift`, `Todos/Views/`, `Todos/Support/`, `Todos/Services/`
+**Across:** `Todos/Models/TodoItemEntity.swift`, `Todos/Views/`, `Todos/Support/`, `Todos/Services/`
 
 Teacher task management with:
 
