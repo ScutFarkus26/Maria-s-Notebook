@@ -102,4 +102,120 @@ struct MCPSupplyAndResourceToolsTests {
         let listing = try await tool(named: "list_supplies", in: tools).handler([:])
         #expect(listing.hasPrefix("2 supply/supplies"))
     }
+
+    // MARK: - Restock levels
+
+    private func addStaple(
+        _ name: String, place: String = "", level: RestockLevel = .stocked, in context: NSManagedObjectContext
+    ) throws -> CDSupply {
+        let author = RestockAuthor(role: .leadGuide)
+        let added = try #require(RestockService.addStaple(
+            .init(name: name, place: place), level: level, by: author, in: context
+        ))
+        #expect(CoreDataTestHelpers.save(context))
+        return added.object
+    }
+
+    private func history(of supply: CDSupply, in context: NSManagedObjectContext) -> [CDSupplyTransaction] {
+        RestockService.history(for: supply, in: context)
+    }
+
+    @Test("list_supplies reports level, place, source and who set it")
+    func listShowsLevelPlaceAndWho() async throws {
+        let (tools, context) = try makeTools()
+        _ = try addStaple("Paper Towels", place: "Bathrooms", level: .out, in: context)
+        _ = try addStaple("Pencils", place: "Shelf", in: context)
+
+        let listing = try await tool(named: "list_supplies", in: tools).handler([:])
+        let towels = try #require(listing.components(separatedBy: "\n").first { $0.contains("Paper Towels") })
+        #expect(towels.contains("out"))
+        #expect(towels.contains("in Bathrooms"))
+        #expect(towels.contains("from the office"))
+        #expect(towels.contains("level set"))
+        #expect(!listing.contains("reorder threshold"))
+
+        let needed = try await tool(named: "list_supplies", in: tools).handler(["level": .string("needed")])
+        #expect(needed.hasPrefix("1 supply/supplies"))
+        #expect(needed.contains("Paper Towels"))
+    }
+
+    @Test("mark_supplies sets levels, opens the need and writes history in one save")
+    func markSuppliesWritesThroughRestockService() async throws {
+        let (tools, context) = try makeTools()
+        let towels = try addStaple("Paper Towels", in: context)
+        let clay = try addStaple("Air Dry Clay", in: context)
+
+        let receipt = try await tool(named: "mark_supplies", in: tools).handler([
+            "supplies": .array([
+                .object(["supply": .string("Paper Towels"), "level": .string("out")]),
+                .object(["supply": .string("air dry clay"), "level": .string("low")])
+            ])
+        ])
+        #expect(receipt.contains("Marked 2"))
+        #expect(towels.level == .out)
+        #expect(clay.level == .low)
+        #expect(RestockService.openNeeds(for: towels, in: context).count == 1)
+        #expect(history(of: towels, in: context).first?.reason == "Out")
+
+        // Marking stocked closes the need again.
+        _ = try await tool(named: "mark_supplies", in: tools).handler([
+            "supplies": .array([.object(["supply": .string("Paper Towels"), "level": .string("stocked")])])
+        ])
+        #expect(towels.level == .stocked)
+        #expect(RestockService.openNeeds(for: towels, in: context).isEmpty)
+    }
+
+    @Test("One unknown name in mark_supplies writes nothing")
+    func markSuppliesIsAllOrNothing() async throws {
+        let (tools, context) = try makeTools()
+        let towels = try addStaple("Paper Towels", in: context)
+
+        await #expect(throws: MCPToolError.self) {
+            _ = try await tool(named: "mark_supplies", in: tools).handler([
+                "supplies": .array([
+                    .object(["supply": .string("Paper Towels"), "level": .string("out")]),
+                    .object(["supply": .string("Unicorn Glitter"), "level": .string("low")])
+                ])
+            ])
+        }
+        #expect(towels.level == .stocked)
+        #expect(history(of: towels, in: context).isEmpty)
+        #expect(RestockService.openNeeds(in: context).isEmpty)
+    }
+
+    @Test("A level already set is reported and writes nothing")
+    func markSuppliesSameLevelIsANoOp() async throws {
+        let (tools, context) = try makeTools()
+        let towels = try addStaple("Paper Towels", level: .out, in: context)
+        let before = history(of: towels, in: context).count
+
+        let receipt = try await tool(named: "mark_supplies", in: tools).handler([
+            "supplies": .array([.object(["supply": .string("Paper Towels"), "level": .string("out")])])
+        ])
+        #expect(receipt.contains("already out"))
+        #expect(history(of: towels, in: context).count == before)
+        #expect(RestockService.openNeeds(for: towels, in: context).count == 1)
+    }
+
+    @Test("adjust_supply changes the count and leaves the level and its history alone")
+    func adjustLeavesLevelAlone() async throws {
+        let (tools, context) = try makeTools()
+        let towels = try addStaple("Paper Towels", level: .out, in: context)
+        let levelHistory = history(of: towels, in: context).map(\.reason)
+
+        let receipt = try await tool(named: "adjust_supply", in: tools).handler([
+            "supply": .string("Paper Towels"),
+            "set_to": .int(6),
+            "reason": .string("Counted the shelf")
+        ])
+        #expect(receipt.contains("now 6"))
+        #expect(towels.currentQuantity == 6)
+        #expect(towels.level == .out, "a count moves no level")
+        #expect(RestockService.openNeeds(for: towels, in: context).count == 1)
+
+        let after = history(of: towels, in: context)
+        #expect(after.count == levelHistory.count + 1)
+        #expect(after.filter { $0.quantityChange == 0 }.map(\.reason).sorted() == levelHistory.sorted())
+        #expect(after.first { $0.quantityChange == 6 }?.reason == "Counted the shelf")
+    }
 }

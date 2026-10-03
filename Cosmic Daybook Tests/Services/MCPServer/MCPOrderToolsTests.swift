@@ -125,4 +125,85 @@ struct MCPOrderToolsTests {
         }
         #expect(items(in: context).first?.stage == .toRequest)
     }
+
+    @Test("A title with no link is added as an office need, and a repeat is not added twice")
+    func addTitleOnlyFromTheOffice() async throws {
+        let (tools, context) = try makeTools()
+        let add = try tool(named: "add_order_items", in: tools)
+
+        let receipt = try await add.handler(["items": .array([.object(["title": .string("Tape")])])])
+        #expect(receipt.contains("Added 1 to_request"))
+        let saved = try #require(items(in: context).first)
+        #expect(saved.source == .office)
+        #expect(saved.urlString.isEmpty)
+
+        let repeated = try await add.handler(["items": .array([.object(["title": .string("tape")])])])
+        #expect(repeated.contains("Already on the list"))
+        #expect(items(in: context).count == 1)
+
+        let ordered = try await add.handler([
+            "items": .array([.object(["title": .string("Easel"), "source": .string("order")])])
+        ])
+        #expect(ordered.contains("Added 1"))
+        #expect(items(in: context).first { $0.title == "Easel" }?.source == .order)
+    }
+
+    @Test("An entry with neither link nor title adds nothing")
+    func addNeedsLinkOrTitle() async throws {
+        let (tools, context) = try makeTools()
+        await #expect(throws: MCPToolError.self) {
+            _ = try await tool(named: "add_order_items", in: tools).handler([
+                "items": .array([
+                    .object(["title": .string("Tape")]),
+                    .object(["quantity": .int(2)])
+                ])
+            ])
+        }
+        #expect(items(in: context).isEmpty)
+    }
+
+    @Test("list_orders shows the office run and to-order apart, labeling a staple's need")
+    func listSplitsOfficeRunFromToOrder() async throws {
+        let (tools, context) = try makeTools()
+        let author = RestockAuthor(role: .leadGuide)
+        _ = RestockService.addStaple(.init(name: "Paper Towels"), level: .out, by: author, in: context)
+        _ = RestockService.addOneOff(title: "Easel", link: URL(string: "https://example.com/easel"), by: author, in: context)
+        #expect(CoreDataTestHelpers.save(context))
+
+        let listing = try await tool(named: "list_orders", in: tools).handler([:])
+        let office = try #require(listing.range(of: "office run (1)"))
+        let order = try #require(listing.range(of: "to order, to_request (1)"))
+        #expect(office.lowerBound < order.lowerBound)
+        let lines = listing.components(separatedBy: "\n")
+        let towels = try #require(lines.first { $0.contains("Paper Towels") })
+        #expect(towels.contains("staple need"))
+        let easel = try #require(lines.first { $0.contains("Easel") })
+        #expect(!easel.contains("staple need"))
+    }
+
+    @Test("Receiving a staple's need puts the staple back to Stocked; an office need can't be asked for")
+    func receivingAStapleNeedRestocks() async throws {
+        let (tools, context) = try makeTools()
+        let author = RestockAuthor(role: .leadGuide)
+        let towels = try #require(RestockService.addStaple(
+            .init(name: "Paper Towels"), level: .out, by: author, in: context
+        )).object
+        #expect(CoreDataTestHelpers.save(context))
+        let need = try #require(RestockService.openNeeds(for: towels, in: context).first)
+        let id = try #require(need.id?.uuidString)
+        let update = try tool(named: "update_order_items", in: tools)
+
+        await #expect(throws: MCPToolError.self) {
+            _ = try await update.handler([
+                "items": .array([.object(["id": .string(id), "stage": .string("asked_for")])])
+            ])
+        }
+        #expect(need.stage == .toRequest)
+
+        _ = try await update.handler([
+            "items": .array([.object(["id": .string(id), "stage": .string("received")])])
+        ])
+        #expect(need.stage == .received)
+        #expect(towels.level == .stocked)
+    }
 }

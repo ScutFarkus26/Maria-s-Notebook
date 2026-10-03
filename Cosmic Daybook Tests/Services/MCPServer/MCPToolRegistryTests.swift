@@ -14,7 +14,7 @@ struct MCPToolRegistryTests {
         let tools = MCPNotebookTools.makeTools(context: { context })
 
         let names: [String] = tools.map(\.name)
-        #expect(names.count == 89)
+        #expect(names.count == 90)
         #expect(Set(names).count == names.count)
 
         let encoder = JSONEncoder()
@@ -49,7 +49,7 @@ struct MCPToolRegistryTests {
         "update_going_out", "update_guardian", "update_issue", "update_lesson",
         "update_observation", "update_presentation_roster", "update_project",
         "update_student", "update_todo", "update_work", "update_year_plan_entry",
-        "set_school_days", "update_school_calendar", "update_order_items",
+        "set_school_days", "update_school_calendar", "update_order_items", "mark_supplies",
         // deletes and retirements
         "clear_year_plan", "discard_presentation", "remove_student_from_work",
         "skip_year_plan_entries",

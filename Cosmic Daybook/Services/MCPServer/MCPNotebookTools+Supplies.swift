@@ -2,15 +2,17 @@
 //  MCPNotebookTools+Supplies.swift
 //  Cosmic Daybook
 //
-//  The supply shelf: what is there and what was used.
+//  The Restock shelf: each staple's level (Stocked, Low, Out), where it lives
+//  and where it comes from, and the counts that are still kept.
 //
-//  Every quantity change writes a CDSupplyTransaction alongside the new count,
-//  the way the supply screen does — the running total and its history must not
-//  drift apart, or "where did the beads go" becomes unanswerable.
+//  Every write goes through RestockService, the one writer the notebook's page,
+//  the Assistant and Siri use. A level change writes its own history line and
+//  opens or closes the staple's need; a count change (`adjust_supply`) moves no
+//  level, and writes a history line only when it is given a reason.
 //
-//  The Supply entity carries minimumThreshold / unit / isOnOrder columns in the
-//  Core Data model, but nothing in the app declares or writes them, so there is
-//  no reorder threshold to report. `below` lets the caller supply one instead.
+//  The Supply entity's minimumThreshold column is declared but unused (counted
+//  staples are deferred), so there is no reorder threshold to report. `below`
+//  lets the caller supply a count instead.
 //
 
 import CoreData
@@ -24,9 +26,11 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "list_supplies",
             title: "List Supplies",
-            description: "The supply inventory: what is on the shelf, how much of it, and "
-                + "where it lives. The app keeps no reorder threshold, so pass `below` to ask "
-                + "what has fallen under a number.",
+            description: "The Restock staples: each one's level (stocked, low, out), the place it "
+                + "lives, whether it comes from the office or is ordered, and who set the level and "
+                + "when. Low and out staples are what the office run and the to-order list are made "
+                + "of (see list_orders). Counts are kept only where someone recorded one; pass "
+                + "`below` to ask what has fallen under a number.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -36,32 +40,46 @@ extension MCPNotebookTools {
                     ],
                     "out_of_stock_only": [
                         "type": "boolean",
-                        "description": "Only supplies with none left (default false)"
+                        "description": "Only staples whose level is out (default false)"
+                    ],
+                    "level": [
+                        "type": "string",
+                        "enum": ["stocked", "low", "out", "needed"],
+                        "description": "Only this level; needed means low or out"
+                    ],
+                    "source": [
+                        "type": "string",
+                        "enum": ["office", "order"],
+                        "description": "Only staples fetched from the office, or ordered"
                     ],
                     "category": [
                         "type": "string",
-                        "description": "Only this category — Art, Math, Language, Science, Office, and so on"
+                        "description": "Only this category (old data; the page now groups by place)"
                     ],
                     "search": [
                         "type": "string",
-                        "description": "Match against name, location, or notes, as the supply list does"
+                        "description": "Match against name, place, or notes"
                     ]
                 ]
             ],
             annotations: .readOnly,
             handler: { arguments in
-                describeSupplies(arguments: arguments, in: context())
+                try describeSupplies(arguments: arguments, in: context())
             }
         )
     }
 
     private static func describeSupplies(
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
-    ) -> String {
-        let outOnly = arguments["out_of_stock_only"]?.boolValue ?? false
-        let below = arguments["below"]?.intValue
-        let category = nonEmpty(arguments["category"]?.stringValue)?.lowercased()
-        let search = nonEmpty(arguments["search"]?.stringValue)?.lowercased()
+    ) throws -> String {
+        let filter = SupplyFilter(
+            outOnly: arguments["out_of_stock_only"]?.boolValue ?? false,
+            below: arguments["below"]?.intValue,
+            level: try supplyLevelFilter(arguments["level"]?.stringValue),
+            source: try supplySourceFilter(arguments["source"]?.stringValue),
+            category: nonEmpty(arguments["category"]?.stringValue)?.lowercased(),
+            search: nonEmpty(arguments["search"]?.stringValue)?.lowercased()
+        )
 
         // Classroom entities live in both store configurations, so an unscoped
         // fetch legitimately spans private and shared — and a shelf that was
@@ -69,52 +87,76 @@ extension MCPNotebookTools {
         // `deduplicateAllModels` folds those rows away at launch; until it has
         // run, fold them for the reader. Scoping the fetch instead would be
         // wrong: on an assistant device these rows live only in the shared store.
-        let all: [CDSupply] = modelContext.safeFetch(CDFetchRequest(CDSupply.self)).uniqueByID
-        var kept: [CDSupply] = []
-        for supply in all
-        where keeps(supply, outOnly: outOnly, below: below, category: category, search: search) {
-            kept.append(supply)
-        }
-        let matched: [CDSupply] = kept.sorted { lhs, rhs in
-            let leftKey: String = lhs.category.rawValue
-            let rightKey: String = rhs.category.rawValue
-            if leftKey != rightKey { return leftKey < rightKey }
-            return lhs.name < rhs.name
-        }
+        let all: [CDSupply] = RestockService.staples(in: modelContext).uniqueByID
+        let kept = all.filter { keeps($0, filter) }
+        let author = RestockAuthor.current(in: modelContext)
 
-        guard !matched.isEmpty else {
-            if outOnly { return "Nothing is out of stock." }
-            if let below { return "Nothing is below \(below)." }
+        guard !kept.isEmpty else {
+            if filter.outOnly { return "Nothing is out." }
+            if let below = filter.below { return "Nothing is below \(below)." }
             return "No supplies match that."
         }
 
-        let lines = matched.map { supply -> String in
-            let id = supply.id?.uuidString ?? "unknown"
-            var details = ["\(supply.currentQuantity) on hand"]
-            if let location = nonEmpty(supply.location) {
-                details.append("in \(location)")
-            }
-            if let notes = nonEmpty(supply.notes) {
-                details.append(notes)
-            }
-            return "- [supply id=\(id)] \(supply.name) (\(supply.category.rawValue)) — "
-                + details.joined(separator: ", ")
+        // The page's own order: by place, then name.
+        let lines = RestockService.shelf(kept).flatMap { group in
+            group.staples.map { supplyLine($0, author: author) }
         }
-        return "\(matched.count) supply/supplies:\n" + lines.joined(separator: "\n")
+        return "\(kept.count) supply/supplies:\n" + lines.joined(separator: "\n")
     }
 
-    private static func keeps(
-        _ supply: CDSupply, outOnly: Bool, below: Int?, category: String?, search: String?
-    ) -> Bool {
-        let quantity: Int64 = supply.currentQuantity
-        if outOnly && quantity > 0 { return false }
-        if let below, quantity >= Int64(below) { return false }
-        if let category, supply.category.rawValue.lowercased() != category { return false }
-        if let search, !matchesSearch(supply, search) { return false }
+    private struct SupplyFilter {
+        let outOnly: Bool
+        let below: Int?
+        /// Nil for any; otherwise the levels to keep.
+        let level: Set<RestockLevel>?
+        let source: RestockSource?
+        let category: String?
+        let search: String?
+    }
+
+    private static func supplyLevelFilter(_ raw: String?) throws -> Set<RestockLevel>? {
+        guard let raw = nonEmpty(raw)?.lowercased() else { return nil }
+        if raw == "needed" { return [.low, .out] }
+        guard let level = RestockLevel(rawValue: raw) else {
+            throw MCPToolError("Unknown level \"\(raw)\". Use stocked, low, out, or needed.")
+        }
+        return [level]
+    }
+
+    private static func supplySourceFilter(_ raw: String?) throws -> RestockSource? {
+        guard let raw = nonEmpty(raw)?.lowercased() else { return nil }
+        guard let source = RestockSource(rawValue: raw) else {
+            throw MCPToolError("Unknown source \"\(raw)\". Use office or order.")
+        }
+        return source
+    }
+
+    private static func supplyLine(_ supply: CDSupply, author: RestockAuthor) -> String {
+        let id = supply.id?.uuidString ?? "unknown"
+        var details = [supply.level.displayName.lowercased()]
+        details.append(nonEmpty(supply.location).map { "in \($0)" } ?? "no place yet")
+        details.append(supply.source == .office ? "from the office" : "ordered")
+        if let url = nonEmpty(supply.urlString) { details.append(url) }
+        if supply.currentQuantity > 0 { details.append("\(supply.currentQuantity) counted") }
+        if let changed = supply.levelChangedAt {
+            let who = author.reads(changedByID: supply.levelChangedByID, name: supply.levelChangedByName)
+            details.append("level set \(dayString(changed)) by \(who)")
+        }
+        if let notes = nonEmpty(supply.notes) { details.append(notes) }
+        return "- [supply id=\(id)] \(supply.name) — " + details.joined(separator: ", ")
+    }
+
+    private static func keeps(_ supply: CDSupply, _ filter: SupplyFilter) -> Bool {
+        if filter.outOnly && supply.level != .out { return false }
+        if let level = filter.level, !level.contains(supply.level) { return false }
+        if let source = filter.source, supply.source != source { return false }
+        if let below = filter.below, supply.currentQuantity >= Int64(below) { return false }
+        if let category = filter.category, supply.category.rawValue.lowercased() != category { return false }
+        if let search = filter.search, !matchesSearch(supply, search) { return false }
         return true
     }
 
-    /// Matches the supply list's own search: name, location, or notes.
+    /// Matches the page's own search: name, place, or notes.
     private static func matchesSearch(_ supply: CDSupply, _ needle: String) -> Bool {
         if supply.name.lowercased().contains(needle) { return true }
         if supply.location.lowercased().contains(needle) { return true }
@@ -127,10 +169,11 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "adjust_supply",
             title: "Adjust Supply Count",
-            description: "Record supplies used, received, or recounted. Pass `change` for a "
+            description: "Record a count: supplies used, received, or recounted. Pass `change` for a "
                 + "relative move (-12 used, +50 delivered) or `set_to` for a fresh count after "
-                + "checking the shelf. Either way the change is logged with its reason, so the "
-                + "running total and the history agree.",
+                + "checking the shelf. A count never changes the staple's level (use mark_supplies "
+                + "for that). Either way the change is logged with its reason, so the running "
+                + "count and the history agree.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -155,7 +198,7 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try adjustSupply(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try adjustSupply(arguments: arguments, in: $0) }
             }
         )
     }
@@ -186,16 +229,8 @@ extension MCPNotebookTools {
             )
         }
 
-        supply.currentQuantity = after
-        supply.modifiedAt = Date()
-
-        let transaction = CDSupplyTransaction(context: modelContext)
-        transaction.id = UUID()
-        transaction.supplyID = supply.id?.uuidString ?? ""
-        transaction.date = Date()
-        transaction.quantityChange = delta
-        transaction.reason = nonEmpty(arguments["reason"]?.stringValue) ?? "Adjusted"
-        transaction.supply = supply
+        let reason = nonEmpty(arguments["reason"]?.stringValue) ?? "Adjusted"
+        RestockService.setCount(supply, to: Int(after), reason: reason, in: modelContext)
 
         guard modelContext.safeSave() else {
             modelContext.rollback()
@@ -206,10 +241,108 @@ extension MCPNotebookTools {
         let direction = delta > 0 ? "+\(delta)" : "\(delta)"
         let warning = after == 0 ? " That is the last of it." : ""
         return "[supply id=\(id)] \(supply.name): \(direction), now \(after) "
-            + "(\(transaction.reason)).\(warning)"
+            + "(\(reason)).\(warning)"
     }
 
-    private static func resolveSupply(
+    // MARK: - Marking Levels
+
+    static func markSuppliesTool(context: @escaping MCPContextProvider) -> MCPToolDefinition {
+        MCPToolDefinition(
+            name: "mark_supplies",
+            title: "Mark Supply Levels",
+            description: "Set the level of one or more staples: stocked, low, or out. Low and out put "
+                + "the staple on the office run or the to-order list (one open need each); stocked "
+                + "takes it off again. Every name is checked before anything is saved, so one "
+                + "unknown name changes nothing. A level a staple already has is reported, not "
+                + "rewritten. Each change is logged in the staple's history.",
+            inputSchema: [
+                "type": "object",
+                "properties": [
+                    "supplies": [
+                        "type": "array",
+                        "description": "One entry per staple",
+                        "items": [
+                            "type": "object",
+                            "properties": [
+                                "supply": ["type": "string", "description": "The supply's id or its exact name"],
+                                "level": ["type": "string", "enum": ["stocked", "low", "out"]]
+                            ],
+                            "required": ["supply", "level"]
+                        ]
+                    ]
+                ],
+                "required": ["supplies"]
+            ],
+            annotations: .idempotentWrite,
+            handler: { arguments in
+                try rollingBackOnFailure(context()) { try markSupplies(arguments: arguments, in: $0) }
+            }
+        )
+    }
+
+    private static func markSupplies(
+        arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
+    ) throws -> String {
+        guard let entries = arguments["supplies"]?.arrayValue, !entries.isEmpty else {
+            throw MCPToolError("Pass supplies: at least one { supply, level }.")
+        }
+        // Every name and level is resolved before the first write.
+        let marks: [(supply: CDSupply, level: RestockLevel)] = try entries.enumerated().map { index, entry in
+            let fields = entry.objectValue ?? [:]
+            let reference = nonEmpty(fields["supply"]?.stringValue) ?? ""
+            let rawLevel = nonEmpty(fields["level"]?.stringValue)?.lowercased() ?? ""
+            guard let level = RestockLevel(rawValue: rawLevel) else {
+                throw MCPToolError(
+                    "Entry \(index + 1): \"\(rawLevel)\" is not a level. Use stocked, low, or out. "
+                        + "Nothing was changed."
+                )
+            }
+            do {
+                return (try resolveSupply(reference, in: modelContext), level)
+            } catch let error as MCPToolError {
+                throw MCPToolError("Entry \(index + 1): \(error.message) Nothing was changed.")
+            }
+        }
+
+        let author = RestockAuthor.current(in: modelContext)
+        var lines: [String] = []
+        var changed = false
+        for (supply, level) in marks {
+            let before = supply.level
+            if RestockService.setLevel(supply, to: level, by: author, in: modelContext) {
+                changed = true
+                lines.append(markLine(supply, from: before, in: modelContext))
+            } else {
+                lines.append("[supply id=\(supply.id?.uuidString ?? "unknown")] \(supply.name): "
+                    + "already \(level.displayName.lowercased()), nothing to record.")
+            }
+        }
+        guard changed else {
+            MCPCallOutcome.markNothingWritten()
+            return lines.joined(separator: "\n")
+        }
+        guard modelContext.safeSave() else {
+            modelContext.rollback()
+            throw MCPToolError("The levels could not be saved.")
+        }
+        return "Marked \(lines.count):\n" + lines.joined(separator: "\n")
+    }
+
+    private static func markLine(
+        _ supply: CDSupply, from before: RestockLevel, in modelContext: NSManagedObjectContext
+    ) -> String {
+        let id = supply.id?.uuidString ?? "unknown"
+        var line = "[supply id=\(id)] \(supply.name): \(before.displayName.lowercased()) to "
+            + "\(supply.level.displayName.lowercased())."
+        if supply.level.isNeeded {
+            line += supply.source == .office ? " On the office run." : " On the to-order list."
+        } else {
+            line += " Its need is closed."
+        }
+        return line
+    }
+
+    static func resolveSupply(
         _ reference: String, in modelContext: NSManagedObjectContext
     ) throws -> CDSupply {
         // Folded by id for the same reason `describeSupplies` folds: before the

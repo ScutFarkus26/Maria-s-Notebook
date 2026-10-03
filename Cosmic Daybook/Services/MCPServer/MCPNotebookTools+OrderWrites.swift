@@ -2,8 +2,9 @@
 //  MCPNotebookTools+OrderWrites.swift
 //  Cosmic Daybook
 //
-//  Adding to the Orders list and moving items through its stages, through
-//  the same `OrderService` calls the Orders screen makes.
+//  Adding needs to Restock and moving them through their stages, through the
+//  same `RestockService` (and the `OrderService` stage moves behind it) that
+//  the notebook's page uses.
 //
 //  Two boundaries, matching the rest of the server: nothing here deletes an
 //  item, and nothing sends email — marking items asked_for records that the
@@ -21,9 +22,12 @@ extension MCPNotebookTools {
         MCPToolDefinition(
             name: "add_order_items",
             title: "Add Order Items",
-            description: "Add links to the Orders list under to_request. A link already on the "
-                + "list and not yet received is reported, not added twice. Every link is "
-                + "checked before anything is saved.",
+            description: "Add needs to Restock under to_request. An entry takes a product link, a "
+                + "title, or both; with only a title it is something to fetch from the school "
+                + "office, and `source` says office or order (a link means order unless told "
+                + "otherwise). A need already waiting (the same link, or the same title from the "
+                + "same source) is reported, not added twice. Every entry is checked before anything "
+                + "is saved.",
             inputSchema: [
                 "type": "object",
                 "properties": [
@@ -33,12 +37,16 @@ extension MCPNotebookTools {
                         "items": [
                             "type": "object",
                             "properties": [
-                                "url": ["type": "string", "description": "The product page link"],
-                                "title": ["type": "string", "description": "What it is"],
+                                "url": ["type": "string", "description": "The product page link (optional with a title)"],
+                                "title": ["type": "string", "description": "What it is; required without a link"],
+                                "source": [
+                                    "type": "string",
+                                    "enum": ["office", "order"],
+                                    "description": "Fetch from the office, or order it"
+                                ],
                                 "quantity": ["type": "integer", "description": "How many (default 1)"],
                                 "notes": ["type": "string", "description": "A note for the office — size, color"]
                             ],
-                            "required": ["url"]
                         ]
                     ]
                 ],
@@ -46,14 +54,15 @@ extension MCPNotebookTools {
             ],
             annotations: .write,
             handler: { arguments in
-                try addOrderItems(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try addOrderItems(arguments: arguments, in: $0) }
             }
         )
     }
 
     private struct OrderItemRequest {
-        let url: URL
-        let title: String?
+        let url: URL?
+        let title: String
+        let source: RestockSource?
         let quantity: Int
         let notes: String
     }
@@ -62,42 +71,33 @@ extension MCPNotebookTools {
         arguments: [String: JSONValue], in modelContext: NSManagedObjectContext
     ) throws -> String {
         guard let entries = arguments["items"]?.arrayValue, !entries.isEmpty else {
-            throw MCPToolError("Pass items: at least one { url, title, quantity, notes }.")
+            throw MCPToolError("Pass items: at least one { url or title, source, quantity, notes }.")
         }
         let requests: [OrderItemRequest] = try entries.enumerated().map { index, entry in
-            let fields = entry.objectValue ?? [:]
-            let raw = nonEmpty(fields["url"]?.stringValue) ?? ""
-            guard let url = OrderService.webURL(from: raw) else {
-                throw MCPToolError("Item \(index + 1): \"\(raw)\" is not a web link. Nothing was added.")
-            }
-            let quantity = fields["quantity"]?.intValue ?? 1
-            guard quantity >= 1 else {
-                throw MCPToolError("Item \(index + 1): quantity must be at least 1. Nothing was added.")
-            }
-            return OrderItemRequest(
-                url: url,
-                title: nonEmpty(fields["title"]?.stringValue),
-                quantity: quantity,
-                notes: nonEmpty(fields["notes"]?.stringValue) ?? ""
-            )
+            try orderItemRequest(entry, number: index + 1)
         }
 
+        let author = RestockAuthor.current(in: modelContext)
         var added: [CDOrderItem] = []
         var skipped: [String] = []
         for request in requests {
-            let created = OrderService.addLinks(
-                [request.url],
+            guard let result = RestockService.addOneOff(
                 title: request.title,
+                link: request.url,
                 quantity: request.quantity,
-                notes: request.notes,
+                source: request.source,
+                note: request.notes,
+                by: author,
                 in: modelContext
-            )
-            if created.isEmpty {
-                skipped.append(request.url.absoluteString)
+            ) else { continue }
+            if result.isNew {
+                added.append(result.object)
+            } else {
+                skipped.append(request.url?.absoluteString ?? request.title)
             }
-            added += created
         }
 
+        if added.isEmpty { MCPCallOutcome.markNothingWritten() }
         guard modelContext.safeSave() else {
             modelContext.rollback()
             throw MCPToolError("The items could not be saved.")
@@ -112,6 +112,40 @@ extension MCPNotebookTools {
             lines.append("Already on the list, not added: " + skipped.joined(separator: ", "))
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Checks one entry before anything is written.
+    private static func orderItemRequest(_ entry: JSONValue, number: Int) throws -> OrderItemRequest {
+        let fields = entry.objectValue ?? [:]
+        let raw = nonEmpty(fields["url"]?.stringValue)
+        let title = nonEmpty(fields["title"]?.stringValue) ?? ""
+        var url: URL?
+        if let raw {
+            guard let parsed = OrderService.webURL(from: raw) else {
+                throw MCPToolError("Item \(number): \"\(raw)\" is not a web link. Nothing was added.")
+            }
+            url = parsed
+        } else if title.isEmpty {
+            throw MCPToolError("Item \(number): give a link or a title. Nothing was added.")
+        }
+        var source: RestockSource?
+        if let rawSource = nonEmpty(fields["source"]?.stringValue)?.lowercased() {
+            guard let parsed = RestockSource(rawValue: rawSource) else {
+                throw MCPToolError("Item \(number): source must be office or order. Nothing was added.")
+            }
+            source = parsed
+        }
+        let quantity = fields["quantity"]?.intValue ?? 1
+        guard quantity >= 1 else {
+            throw MCPToolError("Item \(number): quantity must be at least 1. Nothing was added.")
+        }
+        return OrderItemRequest(
+            url: url,
+            title: title,
+            source: source,
+            quantity: quantity,
+            notes: nonEmpty(fields["notes"]?.stringValue) ?? ""
+        )
     }
 
     // MARK: - Updating Items
@@ -150,7 +184,7 @@ extension MCPNotebookTools {
             ],
             annotations: .idempotentWrite,
             handler: { arguments in
-                try updateOrderItems(arguments: arguments, in: context())
+                try rollingBackOnFailure(context()) { try updateOrderItems(arguments: arguments, in: $0) }
             }
         )
     }
@@ -169,12 +203,13 @@ extension MCPNotebookTools {
             .filter { $0.fields["stage"]?.stringValue == "asked_for" && $0.item.stage == .toRequest }
             .map(\.item)
         if !newlyAsked.isEmpty {
-            OrderService.markRequested(newlyAsked, from: OrderRequestRecipient.stored().label)
+            RestockService.markRequested(newlyAsked, from: OrderRequestRecipient.stored().label)
         }
 
+        let author = RestockAuthor.current(in: modelContext)
         for (item, fields) in resolved {
             applyOrderEdits(fields, to: item)
-            applyOrderStage(fields["stage"]?.stringValue, to: item)
+            applyOrderStage(fields["stage"]?.stringValue, to: item, by: author, in: modelContext)
         }
 
         guard modelContext.safeSave() else {
@@ -205,6 +240,12 @@ extension MCPNotebookTools {
                     + "set it to asked_for first. Nothing was changed."
             )
         }
+        if item.source == .office, ["asked_for", "confirmed"].contains(fields["stage"]?.stringValue ?? "") {
+            throw MCPToolError(
+                "\"\(item.displayTitle)\" is from the office, so it is never asked for or confirmed: "
+                    + "it goes from to_request straight to received. Nothing was changed."
+            )
+        }
         if let quantity = fields["quantity"]?.intValue, quantity < 1 {
             throw MCPToolError("Quantity must be at least 1. Nothing was changed.")
         }
@@ -213,14 +254,17 @@ extension MCPNotebookTools {
 
     /// Every stage but asked_for, which `updateOrderItems` applies to the whole
     /// batch at once so the items share one request.
-    private static func applyOrderStage(_ stage: String?, to item: CDOrderItem) {
+    private static func applyOrderStage(
+        _ stage: String?, to item: CDOrderItem, by author: RestockAuthor, in modelContext: NSManagedObjectContext
+    ) {
         switch stage {
         case "to_request" where item.stage != .toRequest:
-            OrderService.moveBackToRequest([item])
+            RestockService.moveBackToRequest([item])
         case "confirmed":
-            OrderService.markConfirmed([item])
+            RestockService.markConfirmed([item])
         case "received":
-            OrderService.setReceived([item], true)
+            // Checking off also puts the need's staple back to Stocked.
+            RestockService.checkOff(item, by: author, in: modelContext)
         case "not_received":
             OrderService.setReceived([item], false)
         default:

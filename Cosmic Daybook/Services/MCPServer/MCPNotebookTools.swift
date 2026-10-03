@@ -167,6 +167,7 @@ enum MCPNotebookTools {
             assignJobTool(context: context),
             listSuppliesTool(context: context),
             adjustSupplyTool(context: context),
+            markSuppliesTool(context: context),
             listOrdersTool(context: context),
             addOrderItemsTool(context: context),
             updateOrderItemsTool(context: context),
