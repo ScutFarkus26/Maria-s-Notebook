@@ -12,7 +12,7 @@ struct RootDetailContent: View {
     #endif
 
     /// The destination actually shown: an aliased case (`.note`, `.more`,
-    /// `.perpetualCalendar`) renders as its target.
+    /// `.perpetualCalendar`, `.orders`) renders as its target.
     private var item: RootView.NavigationItem { selectedNavItem.canonical }
 
     /// Returns true if we're on iPhone compact layout
@@ -35,11 +35,11 @@ struct RootDetailContent: View {
                  .planningAgenda,
                  .planningProjects, .smallSequencePlanner:
                 curriculumContent
-            case .todos, .orders, .planningCalendar, .perpetualCalendar:
+            case .todos, .planningCalendar, .perpetualCalendar:
                 planningContent
             case .progressDashboard, .curriculumMap, .lessonRecall:
                 progressContent
-            case .supplies, .procedures, .schedules,
+            case .supplies, .orders, .procedures, .schedules,
                  .community, .resourceLibrary:
                 resourcesContent
             case .askAI, .logs, .notes, .settings:
@@ -66,7 +66,6 @@ struct RootDetailContent: View {
     private var planningContent: some View {
         switch item {
         case .todos: TodoMainView()
-        case .orders: OrdersView()
         case .planningCalendar, .perpetualCalendar: PlanningCalendarView()
         default: EmptyView()
         }
@@ -130,7 +129,7 @@ struct RootDetailContent: View {
     @ViewBuilder
     private var resourcesContent: some View {
         switch item {
-        case .supplies: SuppliesListView()
+        case .supplies: RestockView()
         case .procedures: ProceduresListView()
         case .schedules: SchedulesView()
         case .community: CommunityMeetingsView()

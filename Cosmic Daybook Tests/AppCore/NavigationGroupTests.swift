@@ -125,6 +125,7 @@ struct NavigationGroupTests {
             ("more", .today, nil),
             ("note", .today, nil),
             ("notes", .notes, nil),
+            ("orders", .supplies, nil),
             ("garbage", .today, nil)
         ]
     )
@@ -176,6 +177,17 @@ struct NavigationGroupTests {
                 == .init(item: .today)
         )
         #expect(Restorer.resolve(navItemRaw: nil, legacyTabRaw: nil, planningModeRaw: nil) == .init(item: .today))
+    }
+
+    // MARK: - Restock
+
+    @Test("Supplies shows as Restock, and Orders folds into it")
+    func restockReplacesSuppliesAndOrders() {
+        #expect(NavigationItem.supplies.displayName == "Restock")
+        #expect(NavigationItem.supplies.icon == "shippingbox")
+        #expect(NavigationItem.orders.canonical == .supplies)
+        #expect(NavigationGroup.containing(.supplies)?.id == .classroom)
+        #expect(NavigationGroup.all.flatMap(\.items).contains(.orders) == false)
     }
 
     // MARK: - Router

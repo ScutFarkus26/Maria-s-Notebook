@@ -140,6 +140,10 @@ final class TodayViewModel {
     /// Enrolled children overdue for a lesson, for the "Needs Lesson" day card.
     var needsLessonCount = 0
 
+    /// What Restock needs, for the Restock day card (shown only when
+    /// something is needed). Read in every reload: a few open needs.
+    var restockDigest = RestockDigest.empty
+
     /// Due and overdue work check-ins, one per work, for the todo list.
     /// Departed children's rows are kept and marked (see TodayFollowUpLoader).
     var followUpCheckIns: [WorkCheckInFollowUp] = []
@@ -348,6 +352,9 @@ final class TodayViewModel {
             workIDsOnScreen: workIDsOnScreen, day: day, calendar: calendar, context: context
         )
 
+        // 7c. Restock's open needs, for its day card
+        let restock = TodayRestockLoader.digest(in: context)
+
         // BATCH UPDATE: Apply all @Published changes together to minimize view re-renders
         todaysLessons = filteredLessons
         staleFollowUps = workResult.staleFollowUps
@@ -372,6 +379,7 @@ final class TodayViewModel {
         recentNoteStudentsByID = updatedRecentNoteStudents
         followUpCheckIns = followUps
         departedStudentsByID = departed
+        if restock != restockDigest { restockDigest = restock }
 
         // 8. Build unified agenda. Due check-ins live in the todo list now
         // (followUpCheckIns), and quiet work in Gone quiet (goneQuietItems),

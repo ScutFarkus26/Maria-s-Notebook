@@ -63,7 +63,9 @@ extension RootView {
         static let aliases: [Self: Self] = [
             .perpetualCalendar: .planningCalendar,
             .note: .today,
-            .more: .today
+            .more: .today,
+            // Orders folded into Restock (2026-10-03): its lists are Restock's to-order card.
+            .orders: .supplies
         ]
 
         /// The destination this item actually shows.
@@ -78,7 +80,7 @@ extension RootView {
             case .note:                return ("Note", "square.and.pencil")
             case .students:            return ("Students", "person.3")
             case .parentReports:       return ("Parent Reports", "envelope.badge.person.crop")
-            case .supplies:            return ("Supplies", "shippingbox")
+            case .supplies:            return ("Restock", "shippingbox")
             case .procedures:          return ("Procedures", "doc.text")
             case .meetings:            return ("Meetings", "person.2")
             case .lessons:             return ("Lessons", "book")
@@ -121,7 +123,7 @@ extension RootView {
             case .note:                return "Write a quick observation"
             case .students:            return "Manage student profiles and records"
             case .parentReports:       return "Draft and send monthly parent reports"
-            case .supplies:            return "Track classroom supplies and inventory"
+            case .supplies:            return "What to fetch from the office, what to order, and the shelf"
             case .procedures:          return "View classroom procedures and routines"
             case .meetings:            return "Conduct weekly student meetings"
             case .lessons:             return "Browse and manage lesson plans"

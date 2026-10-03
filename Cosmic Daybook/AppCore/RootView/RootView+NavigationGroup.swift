@@ -17,7 +17,7 @@ extension RootView {
         let title: String
         let items: [NavigationItem]
         /// Classroom and Library start collapsed: the room's running
-        /// (supplies, orders, schedules) and the reference material are both
+        /// (Restock, schedules) and the reference material are both
         /// reached a few times a term, not daily.
         let isExpandedByDefault: Bool
 
@@ -39,7 +39,7 @@ extension RootView {
                   items: [.logs, .notes],
                   isExpandedByDefault: true),
             .init(id: .classroom, title: "Classroom",
-                  items: [.supplies, .orders, .community, .schedules, .goingOut, .lessonRecall,
+                  items: [.supplies, .community, .schedules, .goingOut, .lessonRecall,
                           .planningProjects],
                   isExpandedByDefault: false),
             .init(id: .library, title: "Library",

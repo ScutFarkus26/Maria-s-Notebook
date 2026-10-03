@@ -11,6 +11,9 @@ import CoreData
 struct RootSidebar: View {
     @Binding var selection: RootView.NavigationItem
     @Environment(\.appRouter) private var appRouter
+    @Environment(\.managedObjectContext) private var viewContext
+    /// Open needs, for the Restock row's badge.
+    @State private var restockNeeds = 0
 
     var body: some View {
         #if os(macOS)
@@ -36,6 +39,7 @@ extension RootSidebar {
             }
         }
         .listStyle(.sidebar)
+        .trackingRestockNeedCount($restockNeeds, in: viewContext)
         // A selection that arrives from outside the sidebar — ⌘6 Notes, a
         // restored Community, an album deep link — must not vanish into a
         // collapsed group.
@@ -108,6 +112,8 @@ extension RootSidebar {
                     Label("Import Lessons…", systemImage: "square.and.arrow.down")
                 }
             }
+        case .supplies:
+            row.badge(restockNeeds)
         default:
             row
         }
