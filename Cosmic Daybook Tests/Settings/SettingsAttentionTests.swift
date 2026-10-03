@@ -70,8 +70,11 @@ struct SettingsAttentionTests {
         inputs.unsharedClassroomRecords = 3
         let items = SettingsAttention.items(for: inputs, now: now)
         #expect(items == [.unsharedClassroomRecords(3)])
-        #expect(items.first?.title == "3 classroom records aren't shared")
-        #expect(SettingsAttentionItem.unsharedClassroomRecords(1).title == "1 classroom record isn't shared")
+        #expect(items.first?.title == "3 classroom items aren't shared with your assistant yet")
+        #expect(
+            SettingsAttentionItem.unsharedClassroomRecords(1).title
+                == "1 classroom item isn't shared with your assistant yet"
+        )
     }
 
     @Test("Carried-over year plans show only when there are some")

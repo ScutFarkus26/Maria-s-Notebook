@@ -322,7 +322,9 @@ class QuickNoteViewModel {
         #if canImport(FoundationModels)
         if #available(macOS 26.0, iOS 26.0, *) {
             guard SystemLanguageModel.default.isAvailable else {
-                self.aiError = "Apple Intelligence is not available on this device."
+                self.aiError = AppleIntelligenceMessages.unavailableMessage(
+                    for: SystemLanguageModel.default.availability
+                ) ?? AppleIntelligenceMessages.notAvailable
                 self.isProcessingAI = false
                 return
             }
@@ -353,20 +355,9 @@ class QuickNoteViewModel {
     #if canImport(FoundationModels)
     @available(macOS 26.0, iOS 26.0, *)
     static func userMessage(for error: LanguageModelError) -> String {
-        switch error {
-        case .rateLimited:
-            return "Too many requests. Please wait a moment and try again."
-        case .contextSizeExceeded:
-            return "The text is too long for on-device processing. Try with a shorter note."
-        case .unsupportedLanguageOrLocale:
-            return "This language is not supported by Apple Intelligence."
-        case .refusal:
-            return "The request could not be processed due to content restrictions."
-        case .timeout:
-            return "The request timed out. Please try again."
-        default:
-            return "Apple Intelligence encountered an unexpected issue. Try again."
-        }
+        AppleIntelligenceMessages.message(
+            for: error, tooLong: "This note is too long for Apple Intelligence. Try a shorter note."
+        )
     }
     #endif
     #endif

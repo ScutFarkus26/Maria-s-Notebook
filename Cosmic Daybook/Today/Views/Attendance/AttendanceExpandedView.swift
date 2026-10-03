@@ -3,6 +3,7 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 #if os(iOS)
 import MessageUI
 #endif
@@ -203,6 +204,11 @@ struct AttendanceExpandedView: View {
             viewModel.setSortKey(newValue)
         }
         .onChange(of: viewModel.completions) { rollCompleted() }
+        // A mark, Close Arrival or Reset that failed says so, rather than
+        // looking as if it worked.
+        .onChange(of: viewModel.problem) { _, problem in
+            if let problem { dependencies.toastService.showError(problem.message) }
+        }
         .modifier(delightFollowUps)
         .task(id: finishedLine) {
             guard finishedLine != nil, (try? await Task.sleep(for: .seconds(5))) != nil else { return }
@@ -238,7 +244,11 @@ struct AttendanceExpandedView: View {
                 case .saved:
                     onToast("Draft saved")
                 case .failed:
-                    onToast("Failed to send: \(error?.localizedDescription ?? "Unknown error")")
+                    if let error {
+                        let reason = error.localizedDescription
+                        Logger.attendance.error("Front-desk email failed: \(reason, privacy: .public)")
+                    }
+                    onToast("The email didn't send. Check your connection and try again.")
                 case .cancelled:
                     break
                 @unknown default:

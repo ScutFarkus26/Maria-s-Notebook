@@ -156,7 +156,7 @@ struct MCPRequestHandler: Sendable {
             }
             return .success(id: request.id, result: Self.toolResult(text: text, isError: false))
         } catch {
-            let message = (error as? MCPToolError)?.message ?? error.localizedDescription
+            let message = (error as? MCPToolError)?.message ?? MCPToolError(nil, underlying: error).message
             return .success(id: request.id, result: Self.toolResult(text: message, isError: true))
         }
     }

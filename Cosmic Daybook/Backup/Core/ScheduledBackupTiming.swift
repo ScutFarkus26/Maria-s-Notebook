@@ -26,6 +26,19 @@ nonisolated enum ScheduledBackupTiming {
         return delay(intervalHours: intervalHours, lastBackup: lastBackup, now: now)
     }
 
+    /// The shortest wait the Mac arms its activity with. An overdue backup's
+    /// wait is zero, and NSBackgroundActivityScheduler raises for an interval
+    /// under one second — an exception thrown while launch finishes, which
+    /// crashed the Mac app on every launch once a backup was overdue (it
+    /// never ran, so it stayed overdue). A minute also keeps the backup out
+    /// of launch itself.
+    static let minimumSchedulerInterval: TimeInterval = 60
+
+    /// The interval the Mac arms its activity with for a wait of `delay`.
+    static func schedulerInterval(forDelay delay: TimeInterval) -> TimeInterval {
+        max(delay, minimumSchedulerInterval)
+    }
+
     /// How far either side of the due time the Mac's scheduler may move a
     /// backup: a tenth of the wait. NSBackgroundActivityScheduler's default
     /// is half, which could shift a 4-hour backup by two hours.

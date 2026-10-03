@@ -96,11 +96,14 @@ struct SyncConflictResolutionView: View {
                                         .frame(width: 6, height: 6)
                                         .padding(.top, 5)
                                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                                        Text(event.message)
+                                        Text(event.shownMessage)
                                             .font(.caption)
                                         Text(event.timestamp.formatted(.relative(presentation: .named)))
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
+                                        if let detail = event.shownDetail {
+                                            TechnicalDetailsDisclosure(details: detail)
+                                        }
                                     }
                                 }
                             }

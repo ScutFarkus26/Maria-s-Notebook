@@ -84,7 +84,7 @@ struct CloudKitStoreHealthTests {
 
     // MARK: Tracking
 
-    @Test("A failed export marks only its store, names it, and quotes the server")
+    @Test("A failed export marks only its store, names it plainly, and quotes the server in details")
     func failureNamesStoreAndQuotesServer() throws {
         var health = CloudKitStoreHealth()
         health.recordFinishedEvent(store: .notebook, type: .import, succeeded: true, error: nil)
@@ -96,9 +96,12 @@ struct CloudKitStoreHealthTests {
         #expect(failure.store == .classroomShare)
         #expect(failure.eventType == .export)
         #expect(failure.severity == .stopped)
-        #expect(failure.message.hasPrefix("Classroom share export failed"))
-        #expect(failure.message.contains("\u{201C}\(schemaMessage)\u{201D}"))
-        #expect(failure.message.contains("CKError 12"))
+        #expect(failure.message.hasPrefix("The classroom share can't send changes to iCloud right now."))
+        #expect(!failure.message.contains(schemaMessage))
+        #expect(!failure.message.contains("CKError"))
+        #expect(failure.details.hasPrefix("Classroom share export failed"))
+        #expect(failure.details.contains("\u{201C}\(schemaMessage)\u{201D}"))
+        #expect(failure.details.contains("CKError 12"))
         #expect(health.failures(for: .notebook).isEmpty)
     }
 
@@ -143,7 +146,8 @@ struct CloudKitStoreHealthTests {
         health.recordFinishedEvent(store: .notebook, type: .setup, succeeded: false, error: nil)
         let failure = try #require(health.mostSevereFailure)
         #expect(failure.severity == .stopped)
-        #expect(failure.message.hasPrefix("Notebook setup failed"))
+        #expect(failure.message.hasPrefix("Your notebook can't sync with iCloud right now."))
+        #expect(failure.details.hasPrefix("Notebook setup failed"))
     }
 
     @Test("A stopped store outranks a retrying one; notebook lists first")
@@ -220,8 +224,11 @@ struct CloudKitStoreHealthServiceTests {
     private let keys = [
         UserDefaultsKeys.cloudKitLastSuccessfulSyncDate,
         UserDefaultsKeys.cloudKitLastSyncError,
+        UserDefaultsKeys.cloudKitLastSyncErrorDetail,
+        UserDefaultsKeys.cloudKitLastSyncErrorKind,
         UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate,
-        UserDefaultsKeys.cloudKitErrorLog
+        UserDefaultsKeys.cloudKitErrorLog,
+        UserDefaultsKeys.cloudKitLastErrorDescription
     ]
 
     private func withSavedDefaults(_ body: () throws -> Void) rethrows {
@@ -293,21 +300,24 @@ struct CloudKitStoreHealthServiceTests {
             finish(service, .export, store: "shared-store", error: aborted)
             #expect(service.mirroringDelegateFailed)
 
+            // sync_status goes to Claude, so it carries the details (the server's words, the fix).
             let text = MCPNotebookTools.describeSyncStatus(service)
-            #expect(text.contains("WARNING: Classroom share sync is stopped."))
+            #expect(text.contains("WARNING: Classroom sync is stopped."))
             #expect(text.contains("deploy the CloudKit schema to Production"))
             #expect(text.contains("\u{201C}\(schemaMessage)\u{201D} (CKError 12)"))
             #expect(!text.contains("damaged"))
         }
     }
 
-    @Test("A failure's global error names its store")
+    @Test("A failure's global error is plain; its detail names its store")
     func globalErrorNamesStore() {
         withSavedDefaults {
             let service = makeService()
             defer { service.retryLogic.resetRetryCount() }
             finish(service, .export, store: "shared-store", error: productionSchemaRejection())
-            #expect(service.lastSyncError?.hasPrefix("Classroom share export failed") == true)
+            #expect(service.lastSyncErrorDetail?.hasPrefix("Classroom share export failed") == true)
+            #expect(service.lastSyncError?.contains("CKError") == false)
+            #expect(service.lastSyncError?.contains("failed") == false)
         }
     }
 }

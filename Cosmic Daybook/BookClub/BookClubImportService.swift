@@ -11,16 +11,21 @@ enum BookClubImportService {
         case fileMissing
         case notAPDF
         case encrypted
-        case copyFailed(message: String)
+        /// Copying the PDF in failed; the file error is translated, never shown raw.
+        case copyFailed(underlying: Error)
+        /// The PDF was copied but the new packet couldn't be saved.
+        case saveFailed
         case unreadablePDF
 
         var errorDescription: String? {
             switch self {
-            case .fileMissing: return "Couldn't find the PDF file."
+            case .fileMissing: return "Couldn't find that PDF. It may have been moved or deleted."
             case .notAPDF: return "Only PDF files can be added as book club packets."
-            case .encrypted: return "This PDF is password-protected and can't be imported."
-            case .copyFailed(let message): return "Couldn't copy the PDF: \(message)"
-            case .unreadablePDF: return "This PDF couldn't be opened."
+            case .encrypted: return "This PDF is locked with a password and can't be added."
+            case .copyFailed(let underlying):
+                return ManagedPDFFileStorage.ImportError.copyFailureMessage(for: underlying)
+            case .saveFailed: return "Couldn't save the new packet. Try again."
+            case .unreadablePDF: return "This PDF couldn't be opened. It may be damaged."
             }
         }
     }
@@ -61,7 +66,7 @@ enum BookClubImportService {
             case .notAPDF: throw ImportRejection.notAPDF
             case .encrypted: throw ImportRejection.encrypted
             case .copyFailed(let underlying):
-                throw ImportRejection.copyFailed(message: underlying.localizedDescription)
+                throw ImportRejection.copyFailed(underlying: underlying)
             }
         }
 
@@ -84,7 +89,7 @@ enum BookClubImportService {
             logger.error("Failed to save packet after import: \(error.localizedDescription, privacy: .public)")
             try? BookClubFileStorage.deleteIfManaged(imported.url)
             context.delete(packet)
-            throw ImportRejection.copyFailed(message: error.localizedDescription)
+            throw ImportRejection.saveFailed
         }
 
         return packet

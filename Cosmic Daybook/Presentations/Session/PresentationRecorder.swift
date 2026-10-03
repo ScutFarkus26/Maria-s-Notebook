@@ -20,7 +20,8 @@ enum PresentationRecorder {
     enum RecordError: LocalizedError {
         case nobodyPresent
         case missingLesson
-        case saveFailed(String)
+        /// Moving the absent children to a plan of their own didn't save.
+        case saveFailed
 
         var errorDescription: String? {
             switch self {
@@ -28,8 +29,8 @@ enum PresentationRecorder {
                 return "Choose at least one child who was there before recording this presentation."
             case .missingLesson:
                 return "Choose the lesson before recording this presentation."
-            case .saveFailed(let message):
-                return message
+            case .saveFailed:
+                return "Couldn't keep the absent children on the plan. Nothing was recorded. Try again."
             }
         }
     }
@@ -64,10 +65,11 @@ enum PresentationRecorder {
                 Set(absent), takenOffOf: assignment, lesson: lesson, keeping: present, context: context
             )
             let madePlan = plan.isInserted ? plan : nil
-            guard saveCoordinator.save(context, reason: "Keeping absent children on the plan") else {
-                throw RecordError.saveFailed(
-                    saveCoordinator.lastSaveErrorMessage ?? "The children who weren't there could not be moved."
-                )
+            // The caller shows `RecordError.saveFailed`, so the global alert stays quiet.
+            guard saveCoordinator.save(
+                context, reason: "Keeping absent children on the plan", alertOnFailure: false
+            ) else {
+                throw RecordError.saveFailed
             }
             // Read after the save: an inserted plan carries a temporary id until then.
             before.createdPlanObjectID = madePlan?.objectID
@@ -89,7 +91,9 @@ enum PresentationRecorder {
             // Nothing was recorded, so nobody should have been moved either.
             if let split {
                 split.restore(onto: assignment, in: context)
-                if saveCoordinator.save(context, reason: "Putting absent children back on the plan") {
+                if saveCoordinator.save(
+                    context, reason: "Putting absent children back on the plan", alertOnFailure: false
+                ) {
                     PresentationDetailUtilities.notifyInboxRefresh()
                 }
             }

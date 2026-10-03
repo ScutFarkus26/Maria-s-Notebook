@@ -52,6 +52,8 @@ struct LessonAttachmentsSection: View {
     @State private var renameFileName = ""
     @State private var isDropTargeted = false
     @State private var deleteOriginalAfterImport = false
+    /// What went wrong with an attachment, shown in one alert; the raw error is logged.
+    @State private var attachmentProblem: (title: String, message: String)?
     
     private var attachments: [CDLessonAttachment] {
         LessonFileStorage.getAttachments(forLesson: lesson, includeInherited: true)
@@ -108,7 +110,19 @@ struct LessonAttachmentsSection: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: { attachment in
-                Text("This will permanently delete \(attachment.fileName)")
+                Text("\(attachment.fileName) will be deleted. This can't be undone.")
+            }
+            .alert(
+                attachmentProblem?.title ?? "",
+                isPresented: Binding(
+                    get: { attachmentProblem != nil },
+                    set: { if !$0 { attachmentProblem = nil } }
+                ),
+                presenting: attachmentProblem?.message
+            ) { _ in
+                Button("OK", role: .cancel) { attachmentProblem = nil }
+            } message: { message in
+                Text(message)
             }
             .onDrop(of: [.pdf, .png, .jpeg, .fileURL], isTargeted: $isDropTargeted) { providers in
                 handleDrop(providers: providers)
@@ -279,7 +293,10 @@ struct LessonAttachmentsSection: View {
                 attachment.lesson = lesson
                 
                 Self.logger.debug("Saving context")
-                guard viewContext.safeSave() else { return }
+                guard viewContext.safeSave() else {
+                    attachmentProblem = ("Couldn't Add the File", "Couldn't save the new attachment. Try again.")
+                    return
+                }
                 
                 // Delete original file if requested
                 if deleteOriginalAfterImport {
@@ -293,10 +310,12 @@ struct LessonAttachmentsSection: View {
                 
             } catch {
                 FileImportHelpers.logImportError(error)
+                attachmentProblem = ("Couldn't Add the File", AppErrorMessages.importMessage(for: error))
             }
             
         case .failure(let error):
             Self.logger.error("File import error: \(error)")
+            attachmentProblem = ("Couldn't Add the File", AppErrorMessages.importMessage(for: error))
         }
     }
     
@@ -314,10 +333,13 @@ struct LessonAttachmentsSection: View {
             
             // Delete the attachment entity
             viewContext.delete(attachment)
-            viewContext.safeSave()
+            if !viewContext.safeSave() {
+                attachmentProblem = ("Couldn't Delete the Attachment", "Couldn't delete this attachment. Try again.")
+            }
             
         } catch {
             Self.logger.error("Failed to delete attachment: \(error)")
+            attachmentProblem = ("Couldn't Delete the Attachment", "Couldn't delete this attachment. Try again.")
         }
     }
 
@@ -343,9 +365,12 @@ struct LessonAttachmentsSection: View {
             if viewContext.safeSave() {
                 attachmentToRename = nil
                 renameFileName = ""
+            } else {
+                attachmentProblem = ("Couldn't Rename the Attachment", "Couldn't save the new name. Try again.")
             }
         } catch {
             Self.logger.error("Failed to rename attachment: \(error)")
+            attachmentProblem = ("Couldn't Rename the Attachment", "Couldn't rename this attachment. Try again.")
         }
     }
 
@@ -366,13 +391,15 @@ struct LessonAttachmentsSection: View {
         // Load the file URL asynchronously - don't block!
         let logger = Self.logger
         _ = provider.loadObject(ofClass: URL.self) { url, error in
-            if let error {
-                logger.error("Drop error: \(error)")
-                return
-            }
-
             guard let fileURL = url else {
-                logger.error("Failed to get URL from dropped item")
+                if let error {
+                    logger.error("Drop error: \(error)")
+                } else {
+                    logger.error("Failed to get URL from dropped item")
+                }
+                Task { @MainActor in
+                    self.attachmentProblem = ("Couldn't Add the File", "Couldn't add the file you dropped. Try again.")
+                }
                 return
             }
 

@@ -44,7 +44,7 @@ struct DayDetailPopover: View {
                     .fill(AppColors.color(forArea: area))
                     .frame(width: 8, height: 8)
 
-                Text(lesson?.name ?? "Unknown")
+                Text(lesson?.name ?? "Lesson removed")
                     .font(.body)
                     .strikethrough(item.displayStatus == .promoted || item.displayStatus == .given)
 

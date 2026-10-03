@@ -36,22 +36,23 @@ nonisolated public enum BackupReader {
         case unsupportedFormatVersion(found: Int, supported: ClosedRange<Int>)
         case entryPathInvalid(String)
 
+        /// What the guide reads. The format version, the manifest's fault and
+        /// the entry path go to the log where the error is caught.
         public var errorDescription: String? {
             switch self {
             case .notArchiveFormat:
-                return "Backup file is not a supported archive \u{2014} files from app versions " +
-                    "before the v17 format cannot be imported."
-            case .manifestMissing:
-                return "Backup is missing its manifest entry."
-            case .manifestMalformed(let reason):
-                return "Backup manifest is malformed: \(reason)"
+                return Self.notOurs
+            case .manifestMissing, .manifestMalformed, .entryPathInvalid:
+                return BackupArchive.ArchiveError.damaged
             case .unsupportedFormatVersion(let found, let supported):
-                return "Backup format version \(found) is not supported by this app " +
-                    "(supported: v\(supported.lowerBound)\u{2013}v\(supported.upperBound))."
-            case .entryPathInvalid(let path):
-                return "Backup entry has an unexpected path: '\(path)' (expected '<store>/<EntityName>.ndjson')."
+                return found > supported.upperBound
+                    ? "This backup was made by a newer version of Cosmic Daybook. Update the app, then try again."
+                    : Self.notOurs
             }
         }
+
+        private static let notOurs =
+            "This file isn't a Cosmic Daybook backup, or it's from a much older version of the app."
     }
 
     /// Supported format range. Bump the upper bound when we add a new format

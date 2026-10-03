@@ -46,8 +46,8 @@ extension PresentationDetailContentView {
 
     var workRetractionMessage: String {
         let lines = PresentationWorkRetraction.describe(vm.pendingWorkRetraction, in: viewContext)
-        return "This presentation already generated work for a child you are removing. "
-            + "Take her off that work too, so the two records agree?\n\n"
+        return "This presentation already gave follow-up work to a child you're taking off. "
+            + "Take them off that work too?\n\n"
             + lines.map { "• " + $0 }.joined(separator: "\n")
     }
 }

@@ -11,11 +11,11 @@
 //  a queue: every child confirmed or mastered on a lesson whose successor in
 //  the same sub-area is neither on her record nor on a plan for her.
 //
-//  It reads and proposes; it writes nothing. The practice gate is the one
-//  the Small Sequence Planner applies — a sub-area that requires practice
-//  holds a child at "almost ready" while her own work on the lesson she just
-//  had is still open — so the two surfaces do not disagree about the same
-//  child on the same day.
+//  It reads and proposes; it writes nothing. The practice gate: a sub-area
+//  that requires practice holds a child at "almost ready" while her own work
+//  on the lesson she just had is still open. Today, the Groups page and the
+//  sequence ladder all read this queue, so they cannot disagree about the
+//  same child on the same day.
 //
 //  Cost is one `PresentationRecordIndex`, one work fetch, one next-lesson
 //  cache and dictionary lookups from there: nothing per candidate.
@@ -23,6 +23,12 @@
 
 import CoreData
 import Foundation
+
+/// How ready a child in the queue is. A child who is not ready is not in it.
+nonisolated enum ReadinessTier: String, Sendable, CaseIterable {
+    case ready
+    case almostReady
+}
 
 /// One child, one lesson she is ready for, and why.
 nonisolated struct ReadyForNextItem: Sendable, Hashable, Identifiable {

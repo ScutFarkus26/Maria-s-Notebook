@@ -95,7 +95,7 @@ final class AssistantFrontDesk {
             // Not left waiting for the next mark's save, which wouldn't put
             // it in the share.
             context.delete(send)
-            errorMessage = "Couldn't save that the email went. Try again."
+            errorMessage = "Couldn't record that the email was sent. Try again."
             return
         }
         errorMessage = nil

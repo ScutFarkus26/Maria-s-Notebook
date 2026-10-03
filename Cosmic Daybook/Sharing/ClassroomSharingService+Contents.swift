@@ -157,7 +157,7 @@ nonisolated struct ClassroomShareContents: Sendable, Equatable {
         max(0, (inShare[entity] ?? 0) - (inScopeAndShared[entity] ?? 0))
     }
 
-    /// "40 students, 3,908 attendance records, 16 school-calendar days, 2 locked days".
+    /// "40 students, 3,908 attendance marks, 16 days off, 2 locked days".
     var summary: String {
         ClassroomShareSetupReport.orderedEntityNames.compactMap { entity in
             let count = inShare[entity] ?? 0

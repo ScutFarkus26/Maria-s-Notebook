@@ -14,7 +14,7 @@ struct NoStudentsEmptyState: View {
         ContentUnavailableView {
             Label("No students yet", systemImage: "person.3")
         } description: {
-            Text("Click the plus button to add your first student.")
+            Text("Add your first student to get started.")
         } actions: {
             Button {
                 onAddStudent()

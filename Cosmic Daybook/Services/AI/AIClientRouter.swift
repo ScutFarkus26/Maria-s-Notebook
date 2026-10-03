@@ -168,15 +168,18 @@ final class AIClientRouter: MCPClientProtocol {
                 return try await work(localClient)
             } catch {
                 Self.logger.info("On-device failed (\(error.localizedDescription)), trying next provider")
-                failures.append(error.localizedDescription)
+                // With Private Cloud off there's nowhere else to go, so the
+                // on-device failure is the answer, said in its own words.
+                guard Self.automaticPrivateCloudAllowed else { throw error }
+                failures.append(Self.plainReason(for: error))
             }
         } else {
             failures.append(localClient.unavailabilityReason)
         }
 
         guard Self.automaticPrivateCloudAllowed else {
-            let localReason = failures.filter { !$0.isEmpty }.joined(separator: " ")
-            let privacyReason = "Private Cloud Compute is off in Settings → AI."
+            let localReason = Self.joinedReasons(failures)
+            let privacyReason = AppleIntelligenceMessages.privateCloudOff
             throw LocalModelError.unavailable(
                 localReason.isEmpty ? privacyReason : "\(localReason) \(privacyReason)"
             )
@@ -189,19 +192,34 @@ final class AIClientRouter: MCPClientProtocol {
                 return try await work(privateCloudClient)
             } catch {
                 Self.logger.info("Private Cloud Compute failed (\(error.localizedDescription))")
-                failures.append(error.localizedDescription)
+                failures.append(Self.plainReason(for: error))
             }
         } else {
             failures.append(privateCloudClient.unavailabilityReason)
         }
 
-        let reason = failures.filter { !$0.isEmpty }.joined(separator: " ")
+        let reason = Self.joinedReasons(failures)
         throw LocalModelError.unavailable(
-            reason.isEmpty ? "Apple Intelligence is not available right now." : reason
+            reason.isEmpty ? AppleIntelligenceMessages.notAvailable : reason
         )
         #else
-        throw LocalModelError.unavailable("Apple Intelligence is not available in this build.")
+        throw LocalModelError.unavailable(AppleIntelligenceMessages.notInThisVersion)
         #endif
+    }
+
+    /// A provider's failure as a sentence the teacher can read: Apple
+    /// Intelligence's own errors already are one; anything else (a decoding
+    /// error, a network error) would be raw system text, so it becomes the
+    /// general one. The raw text is in the log line above.
+    private static func plainReason(for error: Error) -> String {
+        if let local = error as? LocalModelError { return local.errorDescription ?? "" }
+        return AppErrorMessages.aiMessage(for: error)
+    }
+
+    /// The distinct, non-empty reasons in order, as one message.
+    private static func joinedReasons(_ reasons: [String]) -> String {
+        var seen = Set<String>()
+        return reasons.filter { !$0.isEmpty && seen.insert($0).inserted }.joined(separator: " ")
     }
 
     /// Automatic cloud movement is an explicit school-level choice and defaults off.

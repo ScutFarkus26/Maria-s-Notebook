@@ -14,10 +14,44 @@ final class DatabaseErrorCoordinator {
     
     private init() {}
     
-    /// Sets a database initialization error
+    /// What the error screen says when nothing more specific is known.
+    static let genericMessage = "Cosmic Daybook couldn't open your notebook on this device."
+
+    /// The plain sentence for a launch error: a stack error's own (plain)
+    /// description or one the app wrote, never raw system text, which stays
+    /// in `errorDetails` for the screen's Details.
+    static func userMessage(for error: any Error) -> String {
+        if let stackError = error as? CoreDataStackError, let message = stackError.errorDescription {
+            return message
+        }
+        let nsError = error as NSError
+        if nsError.domain == "CosmicDaybook", !nsError.localizedDescription.isEmpty {
+            return nsError.localizedDescription
+        }
+        return genericMessage
+    }
+
+    /// The plain sentence for the current error.
+    var userMessage: String {
+        error.map(Self.userMessage(for:)) ?? Self.genericMessage
+    }
+
+    /// The raw text of a launch error, for the log and the screen's Details:
+    /// a stack error's own facts (store file, format numbers), else the
+    /// system text with its domain and code.
+    static func technicalDescription(of error: any Error) -> String {
+        if let stackError = error as? CoreDataStackError {
+            return stackError.technicalDetail
+        }
+        let nsError = error as NSError
+        return "\(nsError.localizedDescription) (\(nsError.domain) \(nsError.code))"
+    }
+
+    /// Sets a database initialization error. `details` is the raw text the
+    /// screen keeps under Details; by default, the error's own.
     func setError(_ error: Error, details: String = "") {
         self.error = error
-        self.errorDetails = details.isEmpty ? error.localizedDescription : details
+        self.errorDetails = details.isEmpty ? Self.technicalDescription(of: error) : details
     }
     
     /// Clears the error state
@@ -43,7 +77,7 @@ final class DatabaseErrorCoordinator {
 
         // Clear error flags
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        DatabaseInitializationService.markInMemorySession(false)
     }
     
     // Exports diagnostic information about the error

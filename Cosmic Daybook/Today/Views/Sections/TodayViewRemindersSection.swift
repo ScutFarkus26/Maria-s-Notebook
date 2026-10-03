@@ -151,8 +151,8 @@ extension TodayView {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
                     .foregroundStyle(.orange.opacity(UIConstants.OpacityConstants.prominent))
-                    .help("Sync error: \(error)")
-                    .accessibilityLabel("Sync error: \(error)")
+                    .help("Reminders didn't sync. \(error)")
+                    .accessibilityLabel("Reminders didn't sync. \(error)")
             }
         }
         .accessibilityElement(children: .combine)
@@ -194,8 +194,8 @@ extension TodayView {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
                     .foregroundStyle(.orange.opacity(UIConstants.OpacityConstants.prominent))
-                    .help("Sync error: \(error)")
-                    .accessibilityLabel("Sync error: \(error)")
+                    .help("Calendar didn't sync. \(error)")
+                    .accessibilityLabel("Calendar didn't sync. \(error)")
             }
         }
         .accessibilityElement(children: .combine)

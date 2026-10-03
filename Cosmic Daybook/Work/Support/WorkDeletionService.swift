@@ -108,11 +108,11 @@ struct WorkDeletionService {
         var errorDescription: String? {
             switch self {
             case .studentNotOnWork:
-                return "That child is not on this work."
+                return "That child isn't on this work."
             case .wouldEmptyRow:
                 return "That child is the only one left on this work. Delete the work instead."
             case .saveFailed:
-                return "The change could not be saved."
+                return "Couldn't save the change. Try again."
             }
         }
     }

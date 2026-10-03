@@ -117,6 +117,7 @@ struct PresentationDetailContentView: View {
     /// The roster is being saved on the way to How It Went, not to close.
     @State var howItWentAfterSave = false
     @State var errorMessage: String?
+    @State var errorTitle = PresentationDetailContentView.notRecordedTitle
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
@@ -152,10 +153,10 @@ struct PresentationDetailContentView: View {
                 howItWentAfterSave = false
             }
         )
-        .alert("Couldn’t Save Presentation", isPresented: errorIsPresented) {
+        .alert(errorTitle, isPresented: errorIsPresented) {
             Button("OK") { errorMessage = nil }
         } message: {
-            Text(errorMessage ?? "The presentation could not be saved.")
+            Text(errorMessage ?? Self.notRecordedMessage)
         }
         .onAppear {
             reopenHowItWentIfFollowing()

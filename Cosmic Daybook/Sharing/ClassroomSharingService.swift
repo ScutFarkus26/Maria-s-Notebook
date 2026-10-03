@@ -207,8 +207,9 @@ final class ClassroomSharingService {
     func acceptShare(metadata: CKShare.Metadata) async throws {
         guard let store = sharedStore else {
             Self.logger.error("Cannot accept share: shared store not found")
-            shareError = "Classroom storage isn't available on this device."
-            ToastService.shared.showError("Couldn't join the classroom: its storage isn't available on this device.")
+            shareError = "Couldn't join the classroom on this device. Quit and reopen the app, "
+                + "then open the invitation again."
+            ToastService.shared.showError(shareError ?? "")
             return
         }
 
@@ -354,7 +355,7 @@ final class ClassroomSharingService {
                 try await acceptShare(metadata: metadata)
             } catch {
                 Self.logger.error("Share acceptance failed: \(error.localizedDescription)")
-                let message = AppErrorMessages.joinMessage(for: error)
+                let message = AppErrorMessages.joinMessage(for: error) + " " + Self.joinAdvice(for: error)
                 shareError = message
                 ToastService.shared.showError(message)
             }

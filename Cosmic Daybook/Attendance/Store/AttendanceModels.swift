@@ -24,6 +24,18 @@ enum AttendanceStatus: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    /// The word Siri says for a mark, in a sentence: the tiles' words, so a
+    /// tardy mark is "late" ("Maya is marked late").
+    nonisolated var spokenWord: String {
+        switch self {
+        case .unmarked: return "unmarked"
+        case .present: return "present"
+        case .absent: return "absent"
+        case .tardy: return "late"
+        case .leftEarly: return "as left early"
+        }
+    }
+
     var color: Color {
         switch self {
         case .unmarked: return Color.gray.opacity(UIConstants.OpacityConstants.quarter)

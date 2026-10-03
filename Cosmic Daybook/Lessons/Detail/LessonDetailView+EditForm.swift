@@ -37,7 +37,7 @@ extension LessonDetailView {
             if draftLessonFormat == .story {
                 let storyLessons = allLessons.filter { $0.isStory && $0.id != lesson.id }
                 Picker("Parent Story", selection: $draftParentStoryID) {
-                    Text("None (Root Story)").tag(nil as UUID?)
+                    Text("None (this is a main story)").tag(nil as UUID?)
                     ForEach(storyLessons) { story in
                         Text(story.name).tag(story.id as UUID?)
                     }

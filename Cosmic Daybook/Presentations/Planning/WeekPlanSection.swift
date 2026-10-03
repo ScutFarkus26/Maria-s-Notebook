@@ -210,7 +210,7 @@ struct WeekPlanSection: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("This will move every scheduled, ungiven presentation back to On Deck.")
+            Text("Every planned presentation not yet given goes back to the Inbox.")
         }
     }
 

@@ -134,7 +134,7 @@ struct StudentCurriculumMapView: View {
                 }
                 if timeline.anchorIsEstimated {
                     Label(
-                        "No start date on file — years counted from her first record",
+                        "No start date yet, so years count from \(student.firstName)'s first lesson",
                         systemImage: "exclamationmark.triangle"
                     )
                         .font(.caption)

@@ -18,7 +18,7 @@ extension StudentInsightsView {
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("AI-powered analysis of \(student.fullName)'s recent progress")
+            Text("Patterns in \(student.fullName)'s recent notes and work")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -262,7 +262,7 @@ extension StudentInsightsView {
 
     func errorCard(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Error", systemImage: SFSymbol.Status.exclamationmarkTriangleFill)
+            Label(errorTitle, systemImage: SFSymbol.Status.exclamationmarkTriangleFill)
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(AppColors.destructive)

@@ -182,13 +182,38 @@ final class CommandBarViewModel {
     ]
 }
 
-enum CaptureSaveError: LocalizedError {
+/// Why a reviewed capture wasn't saved, each in plain words for the review
+/// screen. Nothing is ever half-saved: every case leaves the notebook as it was.
+enum CaptureSaveError: LocalizedError, Equatable {
+    /// A review-screen check (`captureValidationMessage`), already plain.
     case invalid(String)
-    case saveFailed(String)
+    case studentMissing
+    case lessonMissing
+    case presentationMissing
+    case presentationNotGiven
+    case lessonMismatch
+    case childrenMismatch
+    /// The notebook couldn't save; the raw error is in the log.
+    case saveFailed
 
     var errorDescription: String? {
         switch self {
-        case .invalid(let message), .saveFailed(let message): return message
+        case .invalid(let message):
+            return message
+        case .studentMissing:
+            return "One of these children is no longer in your class. Check the names and try again."
+        case .lessonMissing:
+            return "Couldn't find that lesson. It may have been deleted. Nothing was saved."
+        case .presentationMissing:
+            return "Couldn't find the presentation you just recorded. Nothing was saved."
+        case .presentationNotGiven:
+            return "That presentation isn't marked as given yet. Nothing was saved."
+        case .lessonMismatch:
+            return "The lesson here doesn't match the presentation you just recorded. Nothing was saved."
+        case .childrenMismatch:
+            return "The children here don't match the presentation you just recorded. Nothing was saved."
+        case .saveFailed:
+            return "Couldn't save what you wrote. Nothing was changed. Try again."
         }
     }
 }

@@ -418,7 +418,8 @@ struct CaptureProposalTests {
             )
             Issue.record("Expected the reviewed lesson mismatch to be rejected.")
         } catch {
-            #expect(error.localizedDescription == "The reviewed lesson does not match the presentation you just recorded. Nothing was saved.")
+            #expect(error.localizedDescription
+                    == "The lesson here doesn't match the presentation you just recorded. Nothing was saved.")
         }
 
         viewModel.captureProposal = CaptureProposal(
@@ -446,7 +447,8 @@ struct CaptureProposalTests {
             )
             Issue.record("Expected the reviewed child mismatch to be rejected.")
         } catch {
-            #expect(error.localizedDescription == "The reviewed children do not match the presentation you just recorded. Nothing was saved.")
+            #expect(error.localizedDescription
+                    == "The children here don't match the presentation you just recorded. Nothing was saved.")
         }
 
         let presentationRequest = CDFetchRequest(CDLessonAssignment.self)

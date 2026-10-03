@@ -18,9 +18,9 @@
 #                  real app, whose startup runs launch repairs against Danny's LIVE store.
 #                  Only pass it after a fresh backup.
 #
-# The default simulator is the first available one named "iPhone 17": the album semantic
-# tests need its NaturalLanguage sentence model, which the iPhone Air / 17e simulators never
-# load. In an agent worktree the build adds the prefix-mapping settings so it shares the
+# The default simulator is this checkout's own iPhone 17 from ~/.claude/bin/sim-lease (on a
+# shared one, two sessions' runs kill each other's apps): the album semantic tests need its
+# NaturalLanguage sentence model, which the iPhone Air / 17e simulators never load. In an agent worktree the build adds the prefix-mapping settings so it shares the
 # compile cache with other worktrees (CLAUDE.md, "In an agent worktree").
 #
 # Env: BUILD_LOCK_WAIT (seconds to wait for the lock, default 3600), LOGDIR.
@@ -55,9 +55,12 @@ for a in "$@"; do
   esac
 done
 
-# Simulator: SIM_ID is unambiguous; otherwise the first available device with SIM_NAME.
+# Simulator: SIM_ID is unambiguous; then the first available device with SIM_NAME, if given;
+# otherwise this checkout's lease.
 if [[ -n ${SIM_ID:-} ]]; then
   sim=$SIM_ID
+elif [[ -z ${SIM_NAME:-} && -x ~/.claude/bin/sim-lease ]]; then
+  sim=$(~/.claude/bin/sim-lease) || { print "sim-lease failed"; exit 2 }
 else
   sim_name=${SIM_NAME:-iPhone 17}
   sim=$(xcrun simctl list devices available -j 2>/dev/null | python3 -c '

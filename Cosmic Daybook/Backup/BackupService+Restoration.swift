@@ -9,14 +9,15 @@ import OSLog
 /// It propagates through `BackupTransactionManager.executeWithRollback`, which
 /// rolls back to the safety checkpoint — returning the user to their pre-restore
 /// state instead of leaving a half-cleared store.
-private enum RestoreClearError: LocalizedError {
+nonisolated private enum RestoreClearError: ExplainedBackupError {
     case replaceClearIncomplete([String])
 
+    /// The types that wouldn't clear ride along for the log (`executeWithRollback` logs it).
     var errorDescription: String? {
         switch self {
-        case .replaceClearIncomplete(let names):
-            return "Restore was stopped because existing \(names.joined(separator: ", ")) "
-                + "could not be cleared. Your data was returned to its previous state \u{2014} please try again."
+        case .replaceClearIncomplete:
+            return "The restore stopped because some of your current notebook couldn't be cleared first. "
+                + "Your notebook was put back the way it was. Try again."
         }
     }
 }
@@ -24,14 +25,15 @@ private enum RestoreClearError: LocalizedError {
 /// Error thrown when edits the view context held before a restore began
 /// cannot be saved first (see `saveEditsMadeBeforeRestore`). Nothing has been
 /// restored, and those edits are left unsaved, as they were.
-private enum RestoreStartError: LocalizedError {
+nonisolated private enum RestoreStartError: ExplainedBackupError {
     case unsavedEditsNotSaved(reason: String)
 
+    /// The save's own error rides along in `reason` for the log (`executeWithRollback` logs it).
     var errorDescription: String? {
         switch self {
-        case .unsavedEditsNotSaved(let reason):
-            return "The restore didn't start because changes that weren't saved yet "
-                + "couldn't be saved first: \(reason)"
+        case .unsavedEditsNotSaved:
+            return "The restore didn't start because your latest changes couldn't be saved first. "
+                + "Nothing was changed. Try again."
         }
     }
 }

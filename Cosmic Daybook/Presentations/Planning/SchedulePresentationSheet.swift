@@ -105,8 +105,7 @@ struct SchedulePresentationSheet: View {
             Button("Plan a review") { complete(with: .review) }
             Button("Cancel", role: .cancel) { repeatCount = nil }
         } message: {
-            Text("The new record says which of the two it is, and a second pass "
-                + "flags their earlier record for re-teaching.")
+            Text("A second pass marks the earlier lesson to teach again. A review just adds a review.")
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 600)

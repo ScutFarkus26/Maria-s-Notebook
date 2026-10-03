@@ -265,4 +265,22 @@ struct MCPWriteSafetyTests {
             _ = try MCPNotebookTools.backupReceipt(.failure(Date(), DiskFull()))
         }
     }
+
+    @Test("create_backup: a failure tells Claude the plain sentence and the technical detail")
+    func failedBackupCarriesDetailForClaude() throws {
+        let cause = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError,
+                            userInfo: [NSLocalizedDescriptionKey: "The disk is full."])
+        let failure = BackupWriter.WriterError.photoUnreadable(filename: "note-photo.heic", underlying: cause)
+        let error = try #require(throws: MCPToolError.self) {
+            _ = try MCPNotebookTools.backupReceipt(.failure(Date(), failure))
+        }
+        // The app's plain sentence leads, so Claude can relay it to Danny as is.
+        #expect(error.message.hasPrefix("The backup could not be written: \(failure.localizedDescription)"))
+        // Then what only Claude needs: the case, its values and the system cause.
+        #expect(error.message.contains("\nDetails: "))
+        #expect(error.message.contains("photoUnreadable"))
+        #expect(error.message.contains("note-photo.heic"))
+        #expect(error.message.contains("NSCocoaErrorDomain"))
+        #expect(error.message.contains("640"))
+    }
 }

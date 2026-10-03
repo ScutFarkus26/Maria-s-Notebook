@@ -31,15 +31,34 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
         var errorDescription: String? {
             switch self {
             case .sourceMissing:
-                return "Source file is missing or unreadable."
+                return "Couldn't find that file. It may have been moved or deleted."
             case .notAPDF(let subject):
-                return "Only PDF files can be imported as \(subject)."
+                return "Only PDF files can be added as \(subject)."
             case .encrypted:
-                return "This PDF is encrypted and cannot be imported."
+                return "This PDF is locked with a password and can't be added."
             case .copyFailed(let underlying):
-                return "Failed to copy PDF: \(underlying.localizedDescription)"
+                return ImportError.copyFailureMessage(for: underlying)
             }
         }
+
+        /// Why copying a PDF in failed, in plain words. The raw file error is
+        /// logged where it's caught, never shown.
+        static func copyFailureMessage(for underlying: Error) -> String {
+            let nsError = underlying as NSError
+            guard nsError.domain == NSCocoaErrorDomain else { return copyFallback }
+            switch nsError.code {
+            case NSFileWriteOutOfSpaceError:
+                return "There isn't enough space to add this PDF. Free up some space and try again."
+            case NSFileReadNoPermissionError, NSFileWriteNoPermissionError:
+                return "Cosmic Daybook can't open that file. Choose it again."
+            case NSFileReadNoSuchFileError, NSFileNoSuchFileError:
+                return "Couldn't find that file. It may have been moved or deleted."
+            default:
+                return copyFallback
+            }
+        }
+
+        static let copyFallback = "Couldn't add this PDF. Try again."
     }
 
     /// On-disk folder name under `Documents/` ("Story Files").
@@ -122,6 +141,7 @@ nonisolated struct ManagedPDFFileStorage: Sendable {
         do {
             try UbiquitousFile.coordinatedCopy(from: sourceURL, to: destination)
         } catch {
+            logger.error("Couldn't copy a PDF in: \(error.localizedDescription, privacy: .public)")
             throw ImportError.copyFailed(underlying: error)
         }
         return try importedFile(at: destination)

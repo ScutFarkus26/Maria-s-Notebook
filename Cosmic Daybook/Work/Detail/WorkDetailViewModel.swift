@@ -299,53 +299,6 @@ final class WorkDetailViewModel {
         }
     }
     
-    // MARK: - Actions
-
-    func save(modelContext: NSManagedObjectContext, saveCoordinator: SaveCoordinator) {
-        guard let work else { return }
-
-        work.kind = workKind
-        work.title = workTitle
-        work.checkInStyle = checkInStyle
-
-        // A status change is a log entry — completion record, check-ins, note —
-        // so it goes the same way the Scheduled strip's does. The note field
-        // used to be bound here and never written anywhere.
-        let note = completionNote.trimmed()
-        do {
-            if status != work.status {
-                try WorkLogService.log(
-                    [.init(work: work, status: status, note: note.isEmpty ? nil : note)],
-                    context: modelContext, saveCoordinator: saveCoordinator
-                )
-            } else {
-                if !note.isEmpty {
-                    WorkLogService.addNote(note, to: work, on: Date(), in: modelContext)
-                }
-                saveCoordinator.save(modelContext)
-            }
-            completionNote = ""
-        } catch {
-            Self.logger.error("Failed to log work status: \(error.localizedDescription)")
-        }
-    }
-    
-    func deleteWork(
-        modelContext: NSManagedObjectContext,
-        saveCoordinator: SaveCoordinator,
-        onDeleted: @escaping () -> Void
-    ) {
-        guard let work else { return }
-        do {
-            try WorkDeletionService(context: modelContext).delete([work]) {
-                saveCoordinator.save(modelContext, reason: "Delete work")
-            }
-        } catch {
-            Self.logger.error("Failed to delete work: \(error)"); return
-        }
-        onDeleted()
-    }
-    
 }
 
 // MARK: - Peer Context Types

@@ -21,7 +21,7 @@ import AppIntents
 struct MarkHereIntent: AppIntent {
     static let title: LocalizedStringResource = "Mark Student Here"
     static let description = IntentDescription(
-        "Mark a student present today, or tardy once arrival has closed in Daybook Assistant.",
+        "Mark a student present today, or late once arrival has closed in Daybook Assistant.",
         categoryName: "Attendance"
     )
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
@@ -43,14 +43,14 @@ struct MarkHereIntent: AppIntent {
         let (previous, status) = try await session.markHere(child)
         if previous == status {
             return .result(dialog: IntentDialog(
-                full: "\(name) was already marked \(status.displayName.lowercased()).",
-                supporting: "Already \(status.displayName.lowercased())"
+                full: "\(name) was already marked \(status.spokenWord).",
+                supporting: "Already \(status.spokenWord)"
             ))
         }
         if status == .tardy {
             return .result(dialog: IntentDialog(
-                full: "Arrival has closed, so \(name) is marked tardy.",
-                supporting: "Tardy"
+                full: "Arrival has closed, so \(name) is marked late.",
+                supporting: "Late"
             ))
         }
         return .result(dialog: IntentDialog(full: "\(name) is marked present.", supporting: "Present"))
@@ -62,7 +62,7 @@ struct MarkHereIntent: AppIntent {
 struct MarkLateIntent: AppIntent {
     static let title: LocalizedStringResource = "Mark Student Late"
     static let description = IntentDescription(
-        "Mark a student tardy today.",
+        "Mark a student late today.",
         categoryName: "Attendance"
     )
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
@@ -83,9 +83,9 @@ struct MarkLateIntent: AppIntent {
 
         let previous = try await session.mark(child, as: .tardy)
         if previous == .tardy {
-            return .result(dialog: IntentDialog(full: "\(name) was already marked tardy.", supporting: "Already tardy"))
+            return .result(dialog: IntentDialog(full: "\(name) was already marked late.", supporting: "Already late"))
         }
-        return .result(dialog: IntentDialog(full: "\(name) is marked tardy.", supporting: "Tardy"))
+        return .result(dialog: IntentDialog(full: "\(name) is marked late.", supporting: "Late"))
     }
 }
 
@@ -150,8 +150,8 @@ struct UndoAttendanceIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let summary = try await SiriAttendance().undoLast()
-        return .result(dialog: IntentDialog(full: "Undid \(summary).", supporting: "Undone"))
+        let dialog = try await SiriAttendance().undoLast()
+        return .result(dialog: IntentDialog(full: "\(dialog)", supporting: "Undone"))
     }
 }
 

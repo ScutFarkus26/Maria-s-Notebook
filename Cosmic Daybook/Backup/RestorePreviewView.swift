@@ -39,7 +39,7 @@ public struct RestorePreviewView: View {
                 .font(.title2)
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text("You're about to restore data")
+                Text("You're about to restore a backup")
                     .font(.headline)
                 Text(modeDescription)
                     .font(.subheadline)
@@ -53,9 +53,10 @@ public struct RestorePreviewView: View {
     private var modeDescription: String {
         let mode = preview.mode.lowercased()
         if mode == "replace" {
-            return "Mode: Replace — existing data will be deleted and replaced by the backup."
+            return "Replace: everything in your notebook is removed and replaced by what's in the backup."
         } else {
-            return "Mode: Merge — records in the backup are added or updated in place; records not in the backup are kept."
+            return "Merge: what's in the backup is added, and anything already here is updated to match it. "
+                + "Nothing else changes."
         }
     }
 
@@ -64,9 +65,9 @@ public struct RestorePreviewView: View {
             Text("Totals")
                 .font(.headline)
             HStack(spacing: 16) {
-                Label("Inserts: \(preview.totalInserts)", systemImage: "plus.circle.fill")
+                Label("Adding: \(preview.totalInserts)", systemImage: "plus.circle.fill")
                     .foregroundStyle(AppColors.success)
-                Label("Deletes: \(preview.totalDeletes)", systemImage: "trash.fill")
+                Label("Removing: \(preview.totalDeletes)", systemImage: "trash.fill")
                     .foregroundStyle(preview.totalDeletes > 0 ? AppColors.destructive : .secondary)
             }
             .font(.subheadline)
@@ -76,11 +77,11 @@ public struct RestorePreviewView: View {
 
     private var entityBreakdownSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("By Entity")
+            Text("What changes")
                 .font(.headline)
             let keys = allEntityKeys.sorted()
             if keys.isEmpty {
-                Text("No changes detected.")
+                Text("Nothing would change.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -88,12 +89,15 @@ public struct RestorePreviewView: View {
                     HStack(spacing: 12) {
                         Text(key)
                             .font(.subheadline)
-                            .frame(width: 160, alignment: .leading)
-                        let ins = preview.entityInserts[key] ?? 0
-                        let sk = preview.entitySkips[key] ?? 0
-                        let del = preview.entityDeletes[key] ?? 0
+                            .frame(width: 200, alignment: .leading)
+                        let ins = inserts[key] ?? 0
+                        let sk = skips[key] ?? 0
+                        let del = deletes[key] ?? 0
                         if ins > 0 { chip(text: "+\(ins)", color: .green, system: "plus") }
-                        if sk > 0 { chip(text: "update \(sk)", color: .secondary, system: "arrow.triangle.2.circlepath") }
+                        // Already in the notebook: a merge updates them to match the backup.
+                        if sk > 0 {
+                            chip(text: "already here \(sk)", color: .secondary, system: "arrow.triangle.2.circlepath")
+                        }
                         if del > 0 { chip(text: "-\(del)", color: .red, system: "trash") }
                         Spacer()
                     }
@@ -111,7 +115,7 @@ public struct RestorePreviewView: View {
                     Text("Warnings")
                         .font(.headline)
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(preview.warnings, id: \.self) { w in
+                        ForEach(BackupWarningText.plain(preview.warnings), id: \.self) { w in
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundStyle(.yellow)
@@ -119,6 +123,7 @@ public struct RestorePreviewView: View {
                                     .font(.subheadline)
                             }
                         }
+                        TechnicalDetailsDisclosure(details: BackupWarningText.details(preview.warnings))
                     }
                     .padding(8)
                     .surface(
@@ -149,12 +154,16 @@ public struct RestorePreviewView: View {
         .padding(16)
     }
 
+    // The counts under their plain names ("Planned lessons", not "LessonAssignment").
+    private var inserts: [String: Int] { BackupPlainNames.grouped(preview.entityInserts) }
+    private var skips: [String: Int] { BackupPlainNames.grouped(preview.entitySkips) }
+    private var deletes: [String: Int] { BackupPlainNames.grouped(preview.entityDeletes) }
+
+    /// The kinds with something to add, update or remove; one with nothing either way isn't a change.
     private var allEntityKeys: Set<String> {
-        var set = Set<String>()
-        for k in preview.entityInserts.keys { set.insert(k) }
-        for k in preview.entitySkips.keys { set.insert(k) }
-        for k in preview.entityDeletes.keys { set.insert(k) }
-        return set
+        Set(inserts.keys).union(skips.keys).union(deletes.keys).filter { key in
+            (inserts[key] ?? 0) + (skips[key] ?? 0) + (deletes[key] ?? 0) > 0
+        }
     }
 
     private func chip(text: String, color: Color, system: String) -> some View {
@@ -181,7 +190,10 @@ private struct RestorePreviewViewPreview: View {
             entityDeletes: ["Student": 0, "Lesson": 0, "LessonAssignment": 0],
             totalInserts: 8,
             totalDeletes: 0,
-            warnings: ["1 LessonAssignment records reference missing Lessons and will be skipped."]
+            warnings: [
+                "1 lesson assignments reference lessons missing from both this backup and the library; "
+                    + "they will be restored but stay unlinked until their lesson exists."
+            ]
         )
         return RestorePreviewView(preview: preview, onCancel: {}, onConfirm: {})
     }

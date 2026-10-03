@@ -55,7 +55,7 @@ struct DeadlinesSectionView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(count) overdue todo\(count == 1 ? "" : "s")")
                         .foregroundStyle(.primary)
-                    Text("Open the Todos surface to review")
+                    Text("Open Todos to review them")
                         .font(.caption2)
                         .foregroundStyle(.red)
                 }

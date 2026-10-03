@@ -16,6 +16,7 @@ enum StudentDocumentFileStorage {
         logger: .students
     )
 
+    /// Each description is shown as is; the underlying error is for the log.
     enum StudentDocumentError: LocalizedError {
         case sourceMissing
         case writeFailed(underlying: Error)
@@ -23,9 +24,9 @@ enum StudentDocumentFileStorage {
         var errorDescription: String? {
             switch self {
             case .sourceMissing:
-                return "Source file is missing or unreadable."
-            case .writeFailed(let underlying):
-                return "Failed to write document: \(underlying.localizedDescription)"
+                return "Couldn't find that file. It may have been moved or deleted."
+            case .writeFailed:
+                return "Couldn't save the file. Make sure this device has space, then try again."
             }
         }
     }

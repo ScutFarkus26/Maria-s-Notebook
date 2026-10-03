@@ -19,40 +19,27 @@ struct DatabaseErrorView: View {
     
     var body: some View {
         ContentUnavailableView {
-            Label("Database Error", systemImage: "exclamationmark.triangle.fill")
+            Label("Couldn't Open Your Notebook", systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(AppColors.destructive)
         } description: {
             VStack(spacing: 12) {
-                Text("The app could not initialize the database.")
+                Text(errorCoordinator.userMessage)
                     .multilineTextAlignment(.center)
-                
-                if let error = errorCoordinator.error {
-                    VStack(spacing: 8) {
-                        Text("Error Details:")
-                            .font(.headline)
-                            .padding(.top, 8)
-                        
-                        ScrollView {
-                            Text(error.localizedDescription)
-                                .font(.system(.caption, design: .monospaced))
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.secondary.opacity(UIConstants.OpacityConstants.light))
-                                .cornerRadius(UIConstants.CornerRadius.medium)
-                                .textSelection(.enabled)
-                        }
-                        .frame(maxHeight: 200)
-                    }
+
+                // The raw error is for a bug report, not the message.
+                if errorCoordinator.error != nil {
+                    TechnicalDetailsDisclosure(details: technicalDetails)
+                        .frame(maxWidth: 500)
                 }
             }
             .padding()
         } actions: {
             VStack(spacing: 16) {
-                // Reset Local Database
+                // The same recovery as Troubleshooting's "Re-download from iCloud…"
                 Button {
                     showResetConfirmation = true
                 } label: {
-                    Label("Reset Local Database", systemImage: "trash")
+                    Label("Re-download from iCloud…", systemImage: "icloud.and.arrow.down")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isResetting)
@@ -109,16 +96,16 @@ struct DatabaseErrorView: View {
             }
         }
         #endif
-        .alert("Reset Local Database?", isPresented: $showResetConfirmation) {
+        .alert("Re-download from iCloud?", isPresented: $showResetConfirmation) {
             Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
+            Button("Re-download", role: .destructive) {
                 resetLocalDatabase()
             }
         } message: {
             Text(
-                "This deletes local data on this device."
-                + " CloudKit data is preserved and will re-sync after restart."
-                + " The app will restart automatically."
+                "This removes your notebook from this device only. Your notebook in iCloud stays safe "
+                + "and downloads again when you reopen the app. Changes that hadn't reached iCloud yet "
+                + "are lost. The app closes once it's done."
             )
         }
     }
@@ -137,13 +124,21 @@ struct DatabaseErrorView: View {
                 exit(0)
                 #endif
             } catch {
-                resetError = "Failed to reset database: \(error.localizedDescription)"
+                resetError = "Couldn't clear this device's copy. Quit and reopen the app, then try again."
                 isResetting = false
                 Logger.database.error("Failed to reset database: \(error)")
             }
         }
     }
     
+    /// What the launch recorded about the error: the store's facts or the
+    /// system's text, with its domain and code.
+    private var technicalDetails: String {
+        guard let error = errorCoordinator.error else { return "" }
+        let details = errorCoordinator.errorDetails
+        return details.isEmpty ? DatabaseErrorCoordinator.technicalDescription(of: error) : details
+    }
+
     #if os(macOS)
     private func exportDiagnostics() {
         showingExportSheet = true

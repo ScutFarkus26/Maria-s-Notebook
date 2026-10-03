@@ -36,14 +36,14 @@ struct ParshaSuggestionsDetailView: View {
                     HStack {
                         Text("Suggestions")
                         Spacer()
-                        Text("Generated \(cached.generatedAt.formatted(.relative(presentation: .named)))")
+                        Text("Found \(cached.generatedAt.formatted(.relative(presentation: .named)))")
                             .font(AppTheme.ScaledFont.captionSmall)
                             .foregroundStyle(.secondary)
                     }
                 }
             } else if !isLoading && cached != nil {
                 Section {
-                    Text("AI did not find any strong album-lesson matches for this parsha.")
+                    Text("No album lessons stood out for this parsha.")
                         .font(AppTheme.ScaledFont.body)
                         .foregroundStyle(.secondary)
                 }
@@ -110,7 +110,9 @@ struct ParshaSuggestionsDetailView: View {
             cached = result
             onChange()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AppErrorMessages.aiMessage(
+                for: error, fallback: "Couldn't find matching lessons. Try again."
+            )
         }
     }
 

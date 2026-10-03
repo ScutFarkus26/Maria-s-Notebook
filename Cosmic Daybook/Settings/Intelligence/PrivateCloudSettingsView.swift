@@ -13,7 +13,7 @@ struct PrivateCloudSettingsView: View {
                 Text(
                     "When on, a request too big for this device can finish on Apple's servers, "
                         + "which don't keep your data. When off, student records never leave this "
-                        + "device, and a request the on-device model can't finish stops."
+                        + "device, and anything Apple Intelligence on this device can't finish just stops."
                 )
                     .font(.caption)
                     .foregroundStyle(.secondary)

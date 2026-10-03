@@ -41,7 +41,7 @@ enum DatabaseInitializationService {
         try resetPersistentStore()
 
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-        UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        markInMemorySession(false)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
 
         AppBootstrapping.initError = nil
@@ -49,21 +49,28 @@ enum DatabaseInitializationService {
     }
     #endif
 
+    // MARK: - Session flags
+
+    /// Records whether this session runs on an in-memory store, where nothing
+    /// saves. Called wherever the launch picks (or leaves) the in-memory
+    /// fallback; the safe-mode banner reads `inMemoryStoreSession` rather than
+    /// searching the stored reason's wording.
+    static func markInMemorySession(_ inMemory: Bool) {
+        UserDefaults.standard.set(inMemory, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        UserDefaults.standard.set(inMemory, forKey: UserDefaultsKeys.inMemoryStoreSession)
+    }
+
     // MARK: - Error Handling
 
-    /// Centralized error handling for database initialization failures.
-    static func handleDatabaseInitError(_ error: Error, description: String? = nil) {
-        let errorDescription = description ?? ((error as NSError?)?.localizedDescription ?? String(describing: error))
-        let nsError = error as NSError? ?? NSError(
-            domain: "CosmicDaybook",
-            code: 5000,
-            userInfo: [NSLocalizedDescriptionKey: errorDescription]
-        )
-
-        AppBootstrapping.initError = nsError
-        DatabaseErrorCoordinator.shared.setError(nsError)
-        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-        UserDefaults.standard.set(errorDescription, forKey: UserDefaultsKeys.lastStoreErrorDescription)
+    /// Centralized error handling for database initialization failures. The
+    /// error screen words the error plainly (`DatabaseErrorCoordinator.userMessage`);
+    /// its raw text is kept for the screen's Details and diagnostics.
+    static func handleDatabaseInitError(_ error: Error) {
+        let details = DatabaseErrorCoordinator.technicalDescription(of: error)
+        AppBootstrapping.initError = error
+        DatabaseErrorCoordinator.shared.setError(error, details: details)
+        markInMemorySession(true)
+        UserDefaults.standard.set(details, forKey: UserDefaultsKeys.lastStoreErrorDescription)
     }
 
 }

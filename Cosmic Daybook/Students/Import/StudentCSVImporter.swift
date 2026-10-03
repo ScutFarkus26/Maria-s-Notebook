@@ -33,25 +33,26 @@ enum StudentCSVImporter {
     }
 
     // MARK: - Errors
-    enum ImportError: Error, LocalizedError {
-        case empty
+    /// Why a spreadsheet couldn't be read. Each description is what the
+    /// guide sees in the "Couldn't Import Students" alert.
+    enum ImportError: Error, LocalizedError, Equatable {
+        /// The app wasn't given access to the chosen file.
+        case cantOpen
+        /// The file's text isn't in an encoding the parser reads.
+        case unreadableText
+        /// No column was matched to the students' names.
         case needsMapping
-        case malformedRow(Int)
-        case missingRequired(String)
-        case encoding(String)
 
         var errorDescription: String? {
             switch self {
-            case .empty:
-                return "The file appears to be empty."
+            case .cantOpen:
+                return "Couldn't open that file. Choose it again and try once more."
+            case .unreadableText:
+                return "This file's text can't be read. In your spreadsheet app, "
+                    + "save it as \u{201C}CSV UTF-8\u{201D} and try again."
             case .needsMapping:
-                return "Column mapping required. Please map CSV headers to student fields."
-            case .malformedRow(let n):
-                return "Malformed row at line \(n)."
-            case .missingRequired(let what):
-                return "Missing required value: \(what)."
-            case .encoding(let msg):
-                return msg
+                return "Choose which column has the students' names "
+                    + "(First and Last Name, or Full Name), then try again."
             }
         }
     }
@@ -101,7 +102,7 @@ enum StudentCSVImporter {
         existingNameKeys: Set<String>
     ) throws -> Parsed {
         guard let csv = CSVParser.parse(data: data) else {
-            throw ImportError.encoding("Unsupported text encoding; please use UTF-8.")
+            throw ImportError.unreadableText
         }
         let headers = csv.headers
         let useMap = mapping ?? detectMapping(headers: headers)
@@ -131,7 +132,7 @@ enum StudentCSVImporter {
             )
             
             guard !first.isEmpty && !last.isEmpty else {
-                warnings.append("Row \(i + 2): Missing first or last name; row skipped.")
+                warnings.append("Line \(i + 2) skipped: it's missing a first or last name.")
                 continue
             }
 

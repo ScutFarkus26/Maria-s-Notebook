@@ -83,3 +83,32 @@ struct MCPToolError: Error, LocalizedError, Sendable {
 
     var errorDescription: String? { message }
 }
+
+extension MCPToolError {
+    /// A failure reply built from an underlying error. Claude reads tool
+    /// replies, Danny doesn't, so unlike the app's own messages this keeps the
+    /// technical detail: the plain sentence first (the app's errors describe
+    /// themselves in plain words), then a `Details:` line with the error's
+    /// case and values, domain, code and underlying error, for troubleshooting.
+    init(_ lead: String?, underlying error: Error) {
+        let plain = error.localizedDescription
+        let sentence = lead.map { "\($0): \(plain)" } ?? plain
+        self.init("\(sentence)\nDetails: \(Self.technicalDetail(of: error))")
+    }
+
+    /// Everything the error knows about itself, capped so a huge `userInfo`
+    /// can't swamp the reply.
+    static func technicalDetail(of error: Error) -> String {
+        let nsError = error as NSError
+        var detail = String(reflecting: error)
+        if !detail.contains(nsError.domain) {
+            detail += " [\(nsError.domain) \(nsError.code)]"
+        }
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError,
+           !detail.contains(underlying.domain) {
+            detail += "; underlying: \(underlying.domain) \(underlying.code) \(underlying.localizedDescription)"
+        }
+        let limit = 2_000
+        return detail.count > limit ? String(detail.prefix(limit)) + "…" : detail
+    }
+}

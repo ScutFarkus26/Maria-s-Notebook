@@ -125,8 +125,8 @@ struct ClassroomSharingView: View {
 
     private static func outsideTitle(_ count: Int) -> String {
         count == 1
-            ? "1 classroom record isn't in the classroom share"
-            : "\(count.formatted()) classroom records aren't in the classroom share"
+            ? "1 classroom item isn't shared with your assistant yet"
+            : "\(count.formatted()) classroom items aren't shared with your assistant yet"
     }
 
     // MARK: - Role Display
@@ -260,7 +260,7 @@ struct ClassroomSharingView: View {
                     do {
                         try await service?.removeAllMembers()
                     } catch {
-                        errorMessage = AppErrorMessages.userMessage(for: error, context: "stopping sharing")
+                        errorMessage = AppErrorMessages.sharingMessage(for: error, action: "stop sharing")
                     }
                 }
             }
@@ -280,15 +280,7 @@ struct ClassroomSharingView: View {
             let report = try await svc.setUpClassroomSharing(coreDataStack: dependencies.coreDataStack)
             contents = report.contents
             try? svc.refreshParticipants()
-            var message = report.created ? "Classroom share created. " : ""
-            message += report.attached == 1 ? "1 record added." : "\(report.attached.formatted()) records added."
-            if let contents = report.contents { message += " The share holds \(contents.summary)." }
-            if report.failed > 0 {
-                message += " \(report.failed.formatted()) couldn't be added"
-                message += report.stoppedBecause.map { " (\($0))" } ?? ""
-                message += "; try again later."
-            }
-            resultMessage = message
+            resultMessage = report.summary
         } catch {
             let ns = error as NSError
             Logger.classroomSharing.error("""
@@ -297,7 +289,7 @@ struct ClassroomSharingView: View {
                 code=\(ns.code, privacy: .public) \
                 description=\(ns.localizedDescription, privacy: .public)
                 """)
-            errorMessage = AppErrorMessages.userMessage(for: error, context: "setting up classroom sharing")
+            errorMessage = AppErrorMessages.sharingMessage(for: error, action: "set up classroom sharing")
             await refreshContents()
         }
     }
@@ -319,7 +311,7 @@ struct ClassroomSharingView: View {
                 code=\(ns.code, privacy: .public) \
                 description=\(ns.localizedDescription, privacy: .public)
                 """)
-            errorMessage = AppErrorMessages.userMessage(for: error, context: "sharing your classroom")
+            errorMessage = AppErrorMessages.sharingMessage(for: error, action: "open sharing")
         }
     }
 
@@ -342,7 +334,7 @@ struct ClassroomSharingView: View {
                     do {
                         try await service?.leaveClassroom()
                     } catch {
-                        errorMessage = AppErrorMessages.userMessage(for: error, context: "leaving the classroom")
+                        errorMessage = AppErrorMessages.sharingMessage(for: error, action: "leave the classroom")
                     }
                 }
             }

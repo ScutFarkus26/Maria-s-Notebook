@@ -45,24 +45,16 @@ extension CommandBarViewModel {
         request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
         request.fetchLimit = 1
         guard let assignment = try context.fetch(request).first else {
-            throw CaptureSaveError.invalid(
-                "The presentation you just recorded could not be found. Nothing was saved."
-            )
+            throw CaptureSaveError.presentationMissing
         }
         guard assignment.isPresented else {
-            throw CaptureSaveError.invalid(
-                "The selected presentation has not been recorded as presented yet. Nothing was saved."
-            )
+            throw CaptureSaveError.presentationNotGiven
         }
         guard assignment.lessonIDUUID == lessonID else {
-            throw CaptureSaveError.invalid(
-                "The reviewed lesson does not match the presentation you just recorded. Nothing was saved."
-            )
+            throw CaptureSaveError.lessonMismatch
         }
         guard Set(assignment.resolvedStudentIDs) == Set(studentIDs) else {
-            throw CaptureSaveError.invalid(
-                "The reviewed children do not match the presentation you just recorded. Nothing was saved."
-            )
+            throw CaptureSaveError.childrenMismatch
         }
         return assignment
     }

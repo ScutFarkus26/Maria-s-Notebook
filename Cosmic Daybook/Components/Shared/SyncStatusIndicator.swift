@@ -56,10 +56,10 @@ struct CompactSyncStatusIndicator: View {
         }
         let pending = syncService.pendingLocalChanges
         if pending > 0 {
-            return "\(pending) pending"
+            return pending == 1 ? "1 change waiting to send" : "\(pending) changes waiting to send"
         }
         if syncService.lastSyncError != nil {
-            return "Sync error"
+            return "Sync problem \u{2014} see Settings"
         }
         return "Synced"
     }

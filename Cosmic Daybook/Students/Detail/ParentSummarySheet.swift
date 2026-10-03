@@ -29,7 +29,7 @@ struct ParentSummarySheet: View {
 
                     Divider()
 
-                    Text("This summary was generated using AI-powered analysis of classroom observations.")
+                    Text("This summary was drafted automatically from your classroom observations. Read it over before you share it.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

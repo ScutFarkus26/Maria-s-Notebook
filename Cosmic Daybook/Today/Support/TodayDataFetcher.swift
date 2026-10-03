@@ -39,7 +39,12 @@ final class FetchErrorCollector {
         case 1: return "Couldn't load \(distinct[0])"
         case 2: return "Couldn't load \(distinct[0]) or \(distinct[1])"
         default:
-            return "Couldn't load some of today's data"
+            // The toast carries the Retry button.
+            #if os(macOS)
+            return "Couldn't load part of today. Click Retry."
+            #else
+            return "Couldn't load part of today. Tap Retry."
+            #endif
         }
     }
 }

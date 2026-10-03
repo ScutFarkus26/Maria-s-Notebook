@@ -172,7 +172,7 @@ extension MCPNotebookTools {
             }
         } catch {
             modelContext.rollback()
-            throw MCPToolError("The work could not be created: \(error.localizedDescription)")
+            throw MCPToolError("The work could not be created", underlying: error)
         }
         return created
     }
@@ -345,7 +345,7 @@ extension MCPNotebookTools {
             )
         } catch {
             modelContext.rollback()
-            throw MCPToolError("That completion could not be recorded: \(error.localizedDescription)")
+            throw MCPToolError("That completion could not be recorded", underlying: error)
         }
         work.participant(for: studentID)?.completedAt = Date()
         return ["recorded \(student.fullName) as finished"]

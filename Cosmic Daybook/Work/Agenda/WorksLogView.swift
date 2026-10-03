@@ -239,7 +239,7 @@ struct WorksLogView: View {
                     // Pagination footer
                     if pagination.totalCount > 0 {
                         Section {
-                            PaginatedListFooter(state: pagination, itemName: "works")
+                            PaginatedListFooter(state: pagination, itemName: "work items")
                         }
                     }
                 }

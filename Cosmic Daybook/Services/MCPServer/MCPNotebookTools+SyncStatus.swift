@@ -56,7 +56,8 @@ extension MCPNotebookTools {
         if service.hasPendingRetry {
             lines.append("  A retry is scheduled (attempt \(service.retryAttempt) of \(service.maxRetryAttempts)).")
         }
-        if let error = nonEmpty(service.lastSyncError) {
+        // Claude gets the raw form (the app shows the plain one).
+        if let error = nonEmpty(service.lastSyncErrorDetail) ?? nonEmpty(service.lastSyncError) {
             lines.append("  Last error: \(error)")
         }
         // A failed mirroring delegate is terminal for the process, so it must
@@ -64,7 +65,8 @@ extension MCPNotebookTools {
         // helps (it doesn't when the server refused the store's changes).
         if service.mirroringDelegateFailed {
             let advice = SyncStoppedAdvice.make(health: service.storeHealth)
-            lines.append("  WARNING: \(advice.title). \(advice.message)")
+            let details = advice.details.isEmpty ? "" : " Details: \(advice.details)"
+            lines.append("  WARNING: \(advice.title). \(advice.message)\(details)")
         }
         return lines.joined(separator: "\n")
     }

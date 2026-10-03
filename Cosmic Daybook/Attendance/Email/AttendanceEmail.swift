@@ -69,7 +69,8 @@ public struct AttendanceEmailSettingsView: View {
                 }
             }
             Text(notificationsDenied && reminderOn
-                ? "Notifications are off for Cosmic Daybook, so the reminder can't show."
+                ? "Notifications are off for Cosmic Daybook, so the reminder can't show. "
+                    + "Turn them on in \(SystemSettingsApp.name) › Notifications."
                 : "The due time and these settings go to your assistants' Daybook Assistant, which sends the "
                     + "same email to the same addresses. The reminder is this device's own: on school days, "
                     + "before the due time and again at it, if nobody has sent the day's email.")
@@ -148,7 +149,7 @@ public struct AttendanceEmailSettingsView: View {
         // inside the settings ScrollView, and a nested Form scrolls its own sections
         // out of reach — which is how Report Format went missing.
         VStack(alignment: .leading, spacing: 12) {
-            Toggle("Show 'Send Attendance Email' Button", isOn: $enabled)
+            Toggle("Show the attendance email button", isOn: $enabled)
 
             TextField("Send To", text: $toAddress)
                 .textFieldStyle(.roundedBorder)
@@ -160,20 +161,20 @@ public struct AttendanceEmailSettingsView: View {
                 #endif
 
             #if os(iOS)
-            TextField("Preferred 'From' Address (iOS)", text: $fromAddress)
+            TextField("Send from", text: $fromAddress)
                 .textFieldStyle(.roundedBorder)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled(true)
             #else
-            TextField("Preferred 'From' Address (iOS only)", text: $fromAddress)
+            TextField("Send from (iPhone and iPad only)", text: $fromAddress)
                 .textFieldStyle(.roundedBorder)
                 .disabled(true)
                 .foregroundStyle(.secondary)
             #endif
 
-            Text("Note: iOS uses the preferred address when possible. macOS uses your default Mail account.")
+            Text("Mail sends from this address when it can. On a Mac it uses your usual Mail account.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 

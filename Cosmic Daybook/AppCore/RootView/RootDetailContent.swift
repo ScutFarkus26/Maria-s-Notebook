@@ -111,7 +111,7 @@ struct RootDetailContent: View {
     private var curriculumAdvancedContent: some View {
         switch item {
         case .planningProjects: ProjectsRootView()
-        case .smallSequencePlanner: SmallSequencePlannerView()
+        case .smallSequencePlanner: GroupsView()
         default: EmptyView()
         }
     }

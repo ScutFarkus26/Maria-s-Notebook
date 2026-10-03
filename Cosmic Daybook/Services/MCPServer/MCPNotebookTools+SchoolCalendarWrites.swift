@@ -125,7 +125,7 @@ extension MCPNotebookTools {
             }
         } catch {
             modelContext.rollback()
-            throw MCPToolError("The calendar could not be read: \(error.localizedDescription)")
+            throw MCPToolError("The calendar could not be read", underlying: error)
         }
         if tally.wroteSomething, !modelContext.safeSave() {
             modelContext.rollback()

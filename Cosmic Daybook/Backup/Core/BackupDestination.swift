@@ -21,18 +21,11 @@ enum BackupDestination {
         case insideAppBundle(URL)
         case systemProtected(URL)
 
+        /// One plain sentence for every kind: the guide needs to know to pick
+        /// another folder, not which rule the folder broke.
         var errorDescription: String? {
-            switch self {
-            case .insideGitRepository(let url):
-                return "“\(url.lastPathComponent)” is inside a code repository. " +
-                       "Backups would be tracked in version control."
-            case .insideAppBundle(let url):
-                return "“\(url.lastPathComponent)” is inside an app or Xcode project bundle. " +
-                       "Files there can be lost when the app is rebuilt or reinstalled."
-            case .systemProtected:
-                return "That folder is in a system-protected location. " +
-                       "Choose a folder in your Documents or iCloud Drive."
-            }
+            "That folder belongs to another app or project, so backups could be lost there. "
+                + "Choose a folder in Documents or iCloud Drive."
         }
     }
 

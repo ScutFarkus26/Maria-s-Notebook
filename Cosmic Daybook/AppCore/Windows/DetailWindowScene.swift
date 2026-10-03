@@ -129,7 +129,7 @@ private struct DetailWindowGate<Host: View>: View {
     }
 
     private var loadingMessage: String {
-        isRestoring ? "Restoring data…" : "Loading…"
+        isRestoring ? "Restoring your backup…" : "Loading…"
     }
 
     @ViewBuilder

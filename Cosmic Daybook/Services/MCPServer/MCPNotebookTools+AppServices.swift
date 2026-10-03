@@ -47,7 +47,7 @@ extension MCPNotebookTools {
             return "Backup written \(dayString(date)) at \(timeString(date)): "
                 + "[backup path=\(url.path)]\(sizeText)"
         case .failure(_, let error):
-            throw MCPToolError("The backup could not be written: \(error.localizedDescription)")
+            throw MCPToolError("The backup could not be written", underlying: error)
         case .skippedNoChanges:
             // Manual backups are never change-gated, so this is defensive.
             return "Nothing has changed since the last backup, so no new file was written."

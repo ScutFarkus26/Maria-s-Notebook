@@ -7,9 +7,12 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 /// View displaying AI-generated student development insights
 struct StudentInsightsView: View {
+    static let logger = Logger.students
+
     @Environment(\.dependencies) var dependencies
     @Environment(\.managedObjectContext) var viewContext
 
@@ -18,6 +21,7 @@ struct StudentInsightsView: View {
     @State var snapshots: [CDDevelopmentSnapshotEntity] = []
     @State var isGenerating = false
     @State var errorMessage: String?
+    @State var errorTitle = "Couldn't Make Insights"
     @State var selectedLookbackDays = 30
     @State var showingParentSummary = false
     @State var parentSummary = ""
@@ -70,7 +74,9 @@ struct StudentInsightsView: View {
         do {
             snapshots = try viewContext.fetch(descriptor)
         } catch {
-            errorMessage = "Couldn't load development snapshots. Try closing and reopening this view."
+            Self.logger.error("Couldn't fetch development snapshots: \(error, privacy: .public)")
+            errorTitle = "Couldn't Load Insights"
+            errorMessage = "Couldn't load \(student.firstName)'s past insights. Close this screen and open it again."
         }
     }
 
@@ -79,21 +85,36 @@ struct StudentInsightsView: View {
             isGenerating = true
             errorMessage = nil
 
+            defer { isGenerating = false }
+            errorTitle = "Couldn't Make Insights"
+
+            let snapshot: CDDevelopmentSnapshotEntity
             do {
-                let snapshot = try await dependencies.studentAnalysisService.analyzeStudent(
+                snapshot = try await dependencies.studentAnalysisService.analyzeStudent(
                     student,
                     lookbackDays: selectedLookbackDays
                 )
-
-                viewContext.insert(snapshot)
-                try viewContext.save()
-
-                await loadSnapshots()
             } catch {
-                errorMessage = AppErrorMessages.aiMessage(for: error)
+                Self.logger.error("Insights analysis failed: \(error, privacy: .public)")
+                errorMessage = AppErrorMessages.aiMessage(
+                    for: error,
+                    fallback: "Couldn't look over \(student.firstName)'s notes and work right now. Try again."
+                )
+                return
             }
 
-            isGenerating = false
+            // A failed save isn't an Apple Intelligence failure, so it says so.
+            viewContext.insert(snapshot)
+            do {
+                try viewContext.save()
+            } catch {
+                Self.logger.error("Couldn't save the new insights: \(error, privacy: .public)")
+                viewContext.delete(snapshot)
+                errorMessage = "Couldn't save the new insights. Try again."
+                return
+            }
+
+            await loadSnapshots()
         }
     }
 
@@ -108,7 +129,12 @@ struct StudentInsightsView: View {
                 parentSummary = try await dependencies.studentAnalysisService.generateParentSummary(snapshot: snapshot)
                 showingParentSummary = true
             } catch {
-                errorMessage = AppErrorMessages.aiMessage(for: error)
+                Self.logger.error("Parent summary failed: \(error, privacy: .public)")
+                errorTitle = "Couldn't Write the Summary"
+                errorMessage = AppErrorMessages.aiMessage(
+                    for: error,
+                    fallback: "Couldn't draft a summary for parents right now. Try again."
+                )
             }
         }
     }

@@ -27,22 +27,7 @@ final class LocalModelClient: FoundationModelClient {
 
     /// Human-readable description of why the model is unavailable.
     var unavailabilityReason: String {
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            return ""
-        case .unavailable(.appleIntelligenceNotEnabled):
-            #if os(macOS)
-            return "Turn on Apple Intelligence in System Settings."
-            #else
-            return "Turn on Apple Intelligence in Settings."
-            #endif
-        case .unavailable(.deviceNotEligible):
-            return "This device doesn't support Apple Intelligence."
-        case .unavailable(.modelNotReady):
-            return "Apple Intelligence is still downloading. Try again in a little while."
-        case .unavailable:
-            return "Apple Intelligence is not available."
-        }
+        AppleIntelligenceMessages.unavailableMessage(for: SystemLanguageModel.default.availability) ?? ""
     }
 
     // MARK: - FoundationModelClient
@@ -170,18 +155,21 @@ nonisolated enum LocalModelError: Error, LocalizedError {
     case invalidJSON
     case generationFailed(String)
 
+    /// Shown to the teacher as is, so every case is a plain sentence:
+    /// `unavailable` carries one already, and `generationFailed` carries the
+    /// translated message (the raw text goes to the log where it's caught).
     var errorDescription: String? {
         switch self {
         case .unavailable(let reason):
-            return "Apple Intelligence unavailable: \(reason)"
+            return reason.isEmpty ? AppleIntelligenceMessages.notAvailable : reason
         case .contextTooLarge:
-            return "The request is too large for Apple Intelligence. Try selecting fewer items."
+            return AppleIntelligenceMessages.tooLong
         case .rateLimited:
-            return "Apple Intelligence is busy. Try again shortly."
+            return AppleIntelligenceMessages.busy
         case .invalidJSON:
-            return "Apple Intelligence returned an unreadable response."
-        case .generationFailed(let msg):
-            return "Generation failed: \(msg)"
+            return AppleIntelligenceMessages.unreadable
+        case .generationFailed(let message):
+            return message
         }
     }
 
@@ -193,7 +181,7 @@ nonisolated enum LocalModelError: Error, LocalizedError {
         case .rateLimited:
             return .rateLimited
         default:
-            return .generationFailed(error.localizedDescription)
+            return .generationFailed(AppleIntelligenceMessages.message(for: error))
         }
     }
 }
@@ -214,15 +202,15 @@ nonisolated enum LocalModelError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable(let reason):
-            return "Apple Intelligence unavailable: \(reason)"
+            return reason.isEmpty ? AppleIntelligenceMessages.notAvailable : reason
         case .contextTooLarge:
-            return "The request is too large for Apple Intelligence."
+            return AppleIntelligenceMessages.tooLong
         case .rateLimited:
-            return "Apple Intelligence is busy."
+            return AppleIntelligenceMessages.busy
         case .invalidJSON:
-            return "Apple Intelligence returned an unreadable response."
-        case .generationFailed(let msg):
-            return "Generation failed: \(msg)"
+            return AppleIntelligenceMessages.unreadable
+        case .generationFailed(let message):
+            return message
         }
     }
 }

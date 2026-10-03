@@ -35,7 +35,7 @@ struct LessonRelationshipsSection: View {
                 }
             }
             if lessons.isEmpty {
-                Text("Lessons not found")
+                Text("These lessons are no longer in your curriculum.")
                     .font(AppTheme.ScaledFont.caption)
                     .foregroundStyle(.tertiary)
             }

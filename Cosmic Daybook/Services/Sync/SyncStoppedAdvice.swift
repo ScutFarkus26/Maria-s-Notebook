@@ -29,7 +29,11 @@ nonisolated struct SyncStoppedAdvice: Equatable, Sendable {
     /// flag can come from attaching records to the share, which has no store).
     let store: SyncedStore?
     let title: String
+    /// What happened and what to do, in plain words.
     let message: String
+    /// What the server said and the developer-side fix, for the Details
+    /// disclosure and `sync_status`. Empty when there's nothing to add.
+    let details: String
 
     /// Only a damaged local copy is fixed by re-downloading.
     var suggestsRedownload: Bool { diagnosis == .damagedLocalStore }
@@ -45,12 +49,12 @@ nonisolated struct SyncStoppedAdvice: Equatable, Sendable {
             return serverRefusal(refusal)
         }
         if let dead = stopped.first(where: { $0.cause == .mirroringDelegateDied }) {
-            return damaged(store: dead.store)
+            return damaged(store: dead.store, failure: dead)
         }
         if let other = stopped.first {
             return otherFailure(other)
         }
-        return damaged(store: nil)
+        return damaged(store: nil, failure: nil)
     }
 
     // MARK: - Copy
@@ -58,8 +62,61 @@ nonisolated struct SyncStoppedAdvice: Equatable, Sendable {
     private static func title(for store: SyncedStore?) -> String {
         switch store {
         case .notebook: return "Notebook sync is stopped"
-        case .classroomShare: return "Classroom share sync is stopped"
+        case .classroomShare: return "Classroom sync is stopped"
         case .other, nil: return "iCloud sync is stopped"
+        }
+    }
+
+    /// "the classroom share", "your notebook": mid-sentence, in plain words.
+    private static func plainPhrase(_ store: SyncedStore) -> String {
+        switch store {
+        case .notebook: return "your notebook"
+        case .classroomShare: return "the classroom share"
+        case .other: return "part of your notebook"
+        }
+    }
+
+    private static let redownloadWarning = "Don't use \u{201C}Re-download from iCloud\u{2026}\u{201D} for this: "
+        + "it can't fix it, and it would throw away the changes waiting to send."
+
+    private static func serverRefusal(_ failure: StoreSyncFailure) -> SyncStoppedAdvice {
+        let what = plainPhrase(failure.store)
+        let reason: String
+        let after: String
+        switch refusalKind(failure) {
+        case .storageFull:
+            let whose = failure.store == .classroomShare ? "the share owner's" : "your"
+            reason = "because \(whose) iCloud storage is full"
+            after = "Free up iCloud storage, then reopen the app."
+        case .signIn:
+            let member = failure.store == .classroomShare ? " and still a member of the classroom" : ""
+            reason = "because iCloud didn't accept this device"
+            after = "Check that this device is signed in to iCloud\(member), then reopen the app."
+        case .iCloudSide:
+            reason = "because of a problem on iCloud's end"
+            after = "An app update may be needed."
+        }
+        let message = "Sync for \(what) is stopped \(reason). Your changes are kept on this device and will "
+            + "send once it's fixed. \(after) \(redownloadWarning)"
+        let details = "iCloud refused to sync \(failure.store.phrase): \(quote(failure)). "
+            + developerFix(for: failure)
+        return SyncStoppedAdvice(
+            diagnosis: .serverRefusal, store: failure.store, title: title(for: failure.store),
+            message: message, details: details
+        )
+    }
+
+    private enum RefusalKind { case storageFull, signIn, iCloudSide }
+
+    private static func refusalKind(_ failure: StoreSyncFailure) -> RefusalKind {
+        guard case .serverRefusal(let rawCode) = failure.cause,
+              failure.serverMessage.range(of: "schema", options: .caseInsensitive) == nil
+        else { return .iCloudSide }
+        switch CKError.Code(rawValue: rawCode) {
+        case .quotaExceeded: return .storageFull
+        case .permissionFailure, .notAuthenticated, .participantMayNeedVerification, .managedAccountRestricted:
+            return .signIn
+        default: return .iCloudSide
         }
     }
 
@@ -67,19 +124,9 @@ nonisolated struct SyncStoppedAdvice: Equatable, Sendable {
         "\u{201C}\(failure.serverMessage)\u{201D} (\(failure.errorCode))"
     }
 
-    private static func serverRefusal(_ failure: StoreSyncFailure) -> SyncStoppedAdvice {
-        let message = "iCloud refused to sync \(failure.store.phrase): \(quote(failure)). "
-            + iCloudSideFix(for: failure) + " "
-            + "Your changes are kept on this device and send once it's fixed. Don't use "
-            + "\u{201C}Re-download from iCloud\u{2026}\u{201D} for this: it can't fix it, "
-            + "and it would throw away the changes waiting to send."
-        return SyncStoppedAdvice(
-            diagnosis: .serverRefusal, store: failure.store, title: title(for: failure.store), message: message
-        )
-    }
-
-    /// What to change on the iCloud side, by what the server said.
-    private static func iCloudSideFix(for failure: StoreSyncFailure) -> String {
+    /// What to change on the iCloud side, by what the server said: for the
+    /// developer, so it lives in `details`.
+    private static func developerFix(for failure: StoreSyncFailure) -> String {
         guard case .serverRefusal(let rawCode) = failure.cause else { return "" }
         if failure.serverMessage.range(of: "schema", options: .caseInsensitive) != nil {
             return "The fix is on the iCloud side: deploy the CloudKit schema to Production in CloudKit "
@@ -98,7 +145,7 @@ nonisolated struct SyncStoppedAdvice: Equatable, Sendable {
         }
     }
 
-    private static func damaged(store: SyncedStore?) -> SyncStoppedAdvice {
+    private static func damaged(store: SyncedStore?, failure: StoreSyncFailure?) -> SyncStoppedAdvice {
         let what = store.map { "syncing \($0.phrase)" } ?? "syncing this time"
         let copy = store.map { "copy of \($0.phrase)" } ?? "copy of your notebook"
         let message = "iCloud couldn't start \(what), most likely because this device's \(copy) is "
@@ -106,16 +153,18 @@ nonisolated struct SyncStoppedAdvice: Equatable, Sendable {
             + "\u{201C}Re-download from iCloud\u{2026}\u{201D} Your notebook is safe in iCloud and "
             + "downloads again on its own."
         return SyncStoppedAdvice(
-            diagnosis: .damagedLocalStore, store: store, title: title(for: store), message: message
+            diagnosis: .damagedLocalStore, store: store, title: title(for: store),
+            message: message, details: failure?.details ?? ""
         )
     }
 
     private static func otherFailure(_ failure: StoreSyncFailure) -> SyncStoppedAdvice {
-        let said = failure.errorCode == StoreSyncFailure.noErrorCode ? "" : ": \(quote(failure))"
-        let message = "iCloud couldn't start syncing \(failure.store.phrase)\(said). Your changes are kept "
+        let message = "iCloud couldn't start syncing \(plainPhrase(failure.store)). Your changes are kept "
             + "on this device. Reopen the app to try again; if it stops again, open Troubleshooting."
+        let details = failure.errorCode == StoreSyncFailure.noErrorCode ? "" : failure.details
         return SyncStoppedAdvice(
-            diagnosis: .other, store: failure.store, title: title(for: failure.store), message: message
+            diagnosis: .other, store: failure.store, title: title(for: failure.store),
+            message: message, details: details
         )
     }
 }

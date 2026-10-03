@@ -58,6 +58,15 @@ private struct Failed {
 
 private let redownload = "\u{201C}Re-download from iCloud\u{2026}\u{201D}"
 
+/// The banner's message is plain words: the server's quote, codes and the
+/// developer's fix are in `details` (the Details disclosure and `sync_status`).
+private func expectPlain(_ advice: SyncStoppedAdvice, sourceLocation: SourceLocation = #_sourceLocation) {
+    for marker in ["CKError", "NSCocoaErrorDomain", "CloudKit", "schema", "Production", "Console", "\u{201C}Server"] {
+        #expect(!advice.message.contains(marker), "\"\(advice.message)\" contains \(marker)",
+                sourceLocation: sourceLocation)
+    }
+}
+
 @Suite("Sync status: the stopped-sync banner")
 @MainActor
 struct SyncStoppedAdviceTests {
@@ -72,7 +81,7 @@ struct SyncStoppedAdviceTests {
 
     // MARK: Server refusals
 
-    @Test("The 2026-09-30 incident: names the classroom share, quotes the schema error, says not to re-download")
+    @Test("The 2026-09-30 incident: names the classroom share, says not to re-download; the schema error is in details")
     func incident() {
         let advice = advice([
             Failed(.classroomShare, .export, productionSchemaRejection()),
@@ -82,12 +91,17 @@ struct SyncStoppedAdviceTests {
         #expect(advice.diagnosis == .serverRefusal)
         #expect(advice.store == .classroomShare)
         #expect(!advice.suggestsRedownload)
-        #expect(advice.title == "Classroom share sync is stopped")
-        #expect(advice.message.contains("the classroom share: \u{201C}\(schemaMessage)\u{201D} (CKError 12)"))
-        #expect(advice.message.contains("deploy the CloudKit schema to Production"))
+        #expect(advice.title == "Classroom sync is stopped")
+        #expect(advice.message.hasPrefix(
+            "Sync for the classroom share is stopped because of a problem on iCloud's end."
+        ))
         #expect(advice.message.contains("Your changes are kept on this device"))
+        #expect(advice.message.contains("An app update may be needed."))
         #expect(advice.message.contains("Don't use \(redownload)"))
         #expect(!advice.message.contains("damaged"))
+        expectPlain(advice)
+        #expect(advice.details.contains("the classroom share: \u{201C}\(schemaMessage)\u{201D} (CKError 12)"))
+        #expect(advice.details.contains("deploy the CloudKit schema to Production"))
     }
 
     @Test("The dead delegate that follows a refusal doesn't replace it on the same event kind")
@@ -136,10 +150,13 @@ struct SyncStoppedAdviceTests {
     func quota() {
         let share = advice([Failed(.classroomShare, .export, ckError(.quotaExceeded, "Quota exceeded"))])
         #expect(share.diagnosis == .serverRefusal)
-        #expect(share.message.contains("free up the share owner's iCloud storage"))
+        #expect(share.message.contains("because the share owner's iCloud storage is full"))
+        #expect(share.message.contains("Free up iCloud storage, then reopen the app."))
+        #expect(share.details.contains("free up the share owner's iCloud storage"))
+        expectPlain(share)
         let notebook = advice([Failed(.notebook, .export, ckError(.quotaExceeded, "Quota exceeded"))])
         #expect(notebook.title == "Notebook sync is stopped")
-        #expect(notebook.message.contains("free up iCloud storage"))
+        #expect(notebook.message.contains("because your iCloud storage is full"))
     }
 
     @Test("A permission failure on the share asks about iCloud sign-in and classroom membership")
@@ -148,15 +165,18 @@ struct SyncStoppedAdviceTests {
         #expect(advice.diagnosis == .serverRefusal)
         #expect(advice.message.contains("signed in to iCloud and still a member of the classroom"))
         #expect(advice.message.contains("Don't use \(redownload)"))
+        expectPlain(advice)
     }
 
-    @Test("Any other refusal says the fix is on the iCloud side and quotes the server")
+    @Test("Any other refusal says it's on iCloud's end; the server's words are in details")
     func otherRefusal() {
         let rejected = ckError(.serverRejectedRequest, "Server rejected the request")
         let advice = advice([Failed(.notebook, .export, rejected)])
         #expect(advice.diagnosis == .serverRefusal)
-        #expect(advice.message.contains("\u{201C}Server rejected the request\u{201D} (CKError 15)"))
-        #expect(advice.message.contains("The fix is on the iCloud side, not on this device"))
+        #expect(advice.message.hasPrefix("Sync for your notebook is stopped because of a problem on iCloud's end."))
+        expectPlain(advice)
+        #expect(advice.details.contains("\u{201C}Server rejected the request\u{201D} (CKError 15)"))
+        #expect(advice.details.contains("The fix is on the iCloud side, not on this device"))
         #expect(!advice.suggestsRedownload)
     }
 
@@ -172,6 +192,8 @@ struct SyncStoppedAdviceTests {
             #expect(advice.title == "Notebook sync is stopped")
             #expect(advice.message.contains("this device's copy of the notebook is damaged"))
             #expect(advice.message.contains(redownload))
+            expectPlain(advice)
+            #expect(advice.details.contains("NSCocoaErrorDomain \(code)"))
         }
     }
 
@@ -192,17 +214,20 @@ struct SyncStoppedAdviceTests {
         #expect(advice.store == nil)
         #expect(advice.title == "iCloud sync is stopped")
         #expect(advice.message.contains("copy of your notebook is damaged"))
+        #expect(advice.details.isEmpty)
     }
 
     // MARK: Anything else
 
-    @Test("A setup failure for another reason quotes it and suggests reopening, not re-downloading")
+    @Test("A setup failure for another reason suggests reopening, not re-downloading; details quote it")
     func otherSetupFailure() {
         let advice = advice([Failed(.notebook, .setup, ckError(.networkFailure, "The network connection was lost"))])
         #expect(advice.diagnosis == .other)
         #expect(!advice.suggestsRedownload)
-        #expect(advice.message.contains("\u{201C}The network connection was lost\u{201D} (CKError 4)"))
+        #expect(advice.message.hasPrefix("iCloud couldn't start syncing your notebook. "))
         #expect(advice.message.contains("Reopen the app"))
+        expectPlain(advice)
+        #expect(advice.details.contains("\u{201C}The network connection was lost\u{201D} (CKError 4)"))
     }
 
     @Test("A setup failure with no error quotes nothing")
@@ -211,5 +236,6 @@ struct SyncStoppedAdviceTests {
         #expect(advice.diagnosis == .other)
         #expect(advice.message.hasPrefix("iCloud couldn't start syncing the classroom share. "))
         #expect(!advice.message.contains(StoreSyncFailure.noErrorCode))
+        #expect(advice.details.isEmpty)
     }
 }

@@ -91,6 +91,7 @@ struct CloudKitStatusSettingsView: View {
                 // dismissing would just hide it.
                 SyncErrorRow(
                     message: message,
+                    details: errorRowDetails,
                     canDismiss: syncService.storeHealth.mostSevereFailure?.severity != .stopped,
                     dismiss: syncService.clearError
                 )
@@ -143,6 +144,15 @@ struct CloudKitStatusSettingsView: View {
                         value: lastOperationDate.formatted(date: .abbreviated, time: .shortened)
                     )
                 }
+                // What iCloud said about the problem the status line names in
+                // plain words (a stopped store's is under the red row's Details).
+                if syncService.syncHealth == .warning, let failure = syncService.storeHealth.mostSevereFailure {
+                    Text(failure.details)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .font(.footnote)
             .padding(.top, AppTheme.Spacing.verySmall)
@@ -158,7 +168,7 @@ struct CloudKitStatusSettingsView: View {
 
             ForEach(Array(recentErrorLogs.enumerated()), id: \.offset) { _, log in
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
-                    Text("\(SyncProblemCopy.title(log.category)): \(log.errorMessage)")
+                    Text(SyncProblemCopy.title(log.category))
                         .font(.caption)
                         .foregroundStyle(AppColors.destructive)
                         .lineLimit(3)
@@ -170,6 +180,8 @@ struct CloudKitStatusSettingsView: View {
                     Text(log.timestamp.formatted(date: .abbreviated, time: .shortened))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+
+                    TechnicalDetailsDisclosure(details: SyncProblemCopy.details(log))
                 }
                 .padding(AppTheme.Spacing.verySmall)
                 .surface(
@@ -206,7 +218,7 @@ struct CloudKitStatusSettingsView: View {
                 return "Your notebook is kept in iCloud. New changes reach your other devices on their own."
             case .warning:
                 if let failure = syncService.storeHealth.mostSevereFailure {
-                    return failure.message + " Your notebook is safe on this device."
+                    return failure.message
                 }
                 return "Sync is still working, but it's slower than usual or had a hiccup."
                     + " Your notebook is safe on this device."
@@ -244,6 +256,15 @@ struct CloudKitStatusSettingsView: View {
         }
     }
 
+    /// The raw text behind the red error row: a stopped store's server
+    /// message, else the last sync error's.
+    private var errorRowDetails: String {
+        if let failure = syncService.storeHealth.mostSevereFailure, failure.severity == .stopped {
+            return failure.details
+        }
+        return syncService.lastSyncErrorDetail ?? ""
+    }
+
     /// What sync is doing now, in plain words; a scheduled retry reads as "Trying again soon".
     private var rightNowText: String {
         if syncService.hasPendingRetry { return "Trying again soon" }
@@ -264,6 +285,15 @@ private enum SyncProblemCopy {
         case .schema: return "The app needs an update"
         case .unknown: return "Something went wrong"
         }
+    }
+
+    /// The raw error behind a logged problem, for its Details.
+    static func details(_ log: CloudKitConfigurationService.ErrorLogEntry) -> String {
+        var text = log.errorMessage
+        if let domain = log.errorDomain, let code = log.errorCode {
+            text += " [\(domain) (\(code))]"
+        }
+        return text
     }
 
     /// What to do about a logged sync problem.
@@ -310,9 +340,11 @@ private struct CloudKitStatusSettingsViewPreview: View {
     CloudKitStatusSettingsViewPreview()
 }
 
-/// The red row under the sync status: the error, and Dismiss when dismissing means something.
+/// The red row under the sync status: the error in plain words, the raw
+/// text under Details, and Dismiss when dismissing means something.
 private struct SyncErrorRow: View {
     let message: String
+    let details: String
     let canDismiss: Bool
     let dismiss: () -> Void
 
@@ -321,10 +353,14 @@ private struct SyncErrorRow: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(AppColors.destructive)
 
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(AppColors.destructive)
-                .lineLimit(6)
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxsmall) {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(AppColors.destructive)
+                    .lineLimit(6)
+
+                TechnicalDetailsDisclosure(details: details)
+            }
 
             Spacer()
 

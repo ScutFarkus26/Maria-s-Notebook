@@ -40,6 +40,7 @@ struct PresentationRecordIndexRowPathTests {
         #expect(columns.givenByStudent == objects.givenByStudent)
         #expect(columns.openPlanByLesson == objects.openPlanByLesson)
         #expect(columns.latestPresentedAssignmentByLesson == objects.latestPresentedAssignmentByLesson)
+        #expect(columns.openPlansByLesson == objects.openPlansByLesson)
         for lesson in lessons {
             #expect(columns.givenStudents(lesson: lesson) == objects.givenStudents(lesson: lesson))
             #expect(columns.masteredStudents(lesson: lesson) == objects.masteredStudents(lesson: lesson))

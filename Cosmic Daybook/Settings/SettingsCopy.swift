@@ -91,7 +91,7 @@ enum SettingsCopy {
             case .settingsTransfer: return "Move settings to another device"
             case .syncHistory: return "Sync history"
             case .maintenance: return "If sync gets stuck"
-            case .cleanUp: return "Clean up old records"
+            case .cleanUp: return "Clean up leftovers"
             case .notebookStats: return "Notebook at a glance"
             case .testStudents: return "Test students"
             }
@@ -185,7 +185,8 @@ enum SettingsCopy {
             case .maintenance:
                 return ["Reset local cache", "Re-download from iCloud", "Maintenance", "Repair"]
             case .cleanUp:
-                return ["Junk", "Leftovers", "Orphaned records", "Duplicates", "Wasted space", "Clean up"]
+                return ["Junk", "Leftovers", "Old records", "Orphaned records", "Duplicates", "Wasted space",
+                        "Clean up"]
             case .notebookStats:
                 return ["Records", "Statistics", "Database", "Counts", "Students", "Lessons", "Presentations",
                         "Restock", "Staples", "Album marks", "Stories", "Going-outs", "Staple history"]

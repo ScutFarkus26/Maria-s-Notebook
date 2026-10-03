@@ -1,8 +1,8 @@
 // StudentDetailView+Departure.swift
 // The warning shown when a child being withdrawn or transferred is still
 // named on lessons planned but not yet given. Those plans generate work
-// naming her when they are presented, so the point of departure is where
-// she comes off them — see `StudentDeparturePlans`.
+// naming the child when they are presented, so the point of departure is
+// where the child comes off them — see `StudentDeparturePlans`.
 
 import CoreData
 import SwiftUI
@@ -51,7 +51,8 @@ extension StudentDetailView {
         let tail: String = more > 0 ? "\n• and \(more) more" : ""
         let noun: String = count == 1 ? "lesson" : "lessons"
         let opening: String = "\(student.firstName) is still on \(count) planned \(noun)."
-        let consequence: String = " If she stays on them, the work generated when they are given will name her."
+        let first: String = student.firstName
+        let consequence: String = " If you leave \(first) on them, \(first) will get follow-up work when they're given."
         let body: String = listed.joined(separator: "\n")
         return opening + consequence + "\n\n" + body + tail
     }
@@ -63,11 +64,11 @@ extension StudentDetailView {
         guard count > 0 else { return nil }
         let noun: String = count == 1 ? "lesson" : "lessons"
         let them: String = count == 1 ? "it" : "them"
-        let opening: String = "Her year plan still pencils in \(count) \(noun), "
-        let effect: String = "which will go on falling behind pace. "
-        let promise: String = "Removing marks \(them) skipped rather than deleting, "
-        let reason: String = "so the plan is still there if she comes back."
-        return opening + effect + promise + reason
+        let first: String = student.firstName
+        let opening: String = "\(first)'s year plan still has \(count) \(noun) planned. "
+        let promise: String = "Removing marks \(them) skipped instead of deleting \(them), "
+        let reason: String = "so the plan is still there if \(first) comes back."
+        return opening + promise + reason
     }
 }
 

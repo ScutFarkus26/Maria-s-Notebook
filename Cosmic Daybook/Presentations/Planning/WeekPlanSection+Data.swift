@@ -166,12 +166,18 @@ extension WeekPlanSection {
                 do {
                     try WorkLogService.undo(receipt.token, context: viewContext, saveCoordinator: saveCoordinator)
                 } catch {
-                    dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
+                    let message = PresentationFailureMessage.message(
+                        for: error, fallback: "Couldn't undo that. Try again."
+                    )
+                    dependencies.toastService.show(message, type: .error, duration: 4)
                 }
                 Task { await refreshCheckIns() }
             }
         } catch {
-            dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
+            let message = PresentationFailureMessage.message(
+                for: error, fallback: "Couldn't log that work check. Try again."
+            )
+            dependencies.toastService.show(message, type: .error, duration: 4)
         }
     }
 

@@ -48,15 +48,15 @@ extension OpenWorkGrid {
             costs.append("\(cascade.checkIns) " + (cascade.checkIns == 1 ? "check-in" : "check-ins"))
         }
         if cascade.completionRecords > 0 {
-            costs.append("\(cascade.completionRecords) completion "
-                + (cascade.completionRecords == 1 ? "record" : "records"))
+            costs.append("\(cascade.completionRecords) completed-work "
+                + (cascade.completionRecords == 1 ? "entry" : "entries"))
         }
         guard !costs.isEmpty else {
-            return subject + " will be removed from every child's record. This cannot be undone."
+            return subject + " will be deleted for every child. This can't be undone."
         }
         let pronoun = isMany ? "them" : "it"
         return subject + " and the " + costs.joined(separator: ", ") + " on " + pronoun
-            + " will be removed from every child's record. This cannot be undone."
+            + " will be deleted for every child. This can't be undone."
     }
 
     func performPendingDeletion() {

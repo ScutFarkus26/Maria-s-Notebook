@@ -37,6 +37,7 @@ extension StudentFilesTab {
             selectedImportData = ImportDataWrapper(url: url, data: data)
             return true
         } catch {
+            reportUnreadableFile(error)
             return false
         }
     }
@@ -47,7 +48,15 @@ extension StudentFilesTab {
             try repository.deleteDocument(id: documentID)
         } catch {
             Self.logger.warning("Failed to delete document: \(error)")
+            ToastService.shared.showError("Couldn't delete that file. Try again.")
         }
+    }
+
+    /// A file that was chosen or dropped but couldn't be read: said plainly,
+    /// with the raw error in the log.
+    func reportUnreadableFile(_ error: Error) {
+        Self.logger.warning("Couldn't read a chosen student file: \(error, privacy: .public)")
+        ToastService.shared.showError(AppErrorMessages.importMessage(for: error, fileType: "file"))
     }
 
     func renameDocument(_ document: CDDocument) {
@@ -103,8 +112,8 @@ extension StudentFilesTab {
             Task {
                 await loadPDFData(from: url)
             }
-        case .failure:
-            break
+        case .failure(let error):
+            reportUnreadableFile(error)
         }
     }
 
@@ -116,7 +125,7 @@ extension StudentFilesTab {
             let data = try Data(contentsOf: url)
             selectedImportData = ImportDataWrapper(url: url, data: data)
         } catch {
-            // Failed to load PDF data - continue silently
+            reportUnreadableFile(error)
         }
     }
 

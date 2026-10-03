@@ -180,7 +180,7 @@ struct ScheduleCard: View {
 
             // Days summary
             if schedule.activeWeekdays.isEmpty {
-                Text("No slots configured")
+                Text("No days or times set yet")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .italic()

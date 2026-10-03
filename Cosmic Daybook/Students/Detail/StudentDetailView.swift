@@ -282,15 +282,18 @@ struct StudentDetailView: View {
                     try repository.deleteStudent(id: studentID)
                 } catch {
                     Self.logger.warning("Failed to delete student: \(error)")
+                    ToastService.shared.showError(
+                        "Couldn't delete \(student.firstName). Nothing was changed. Try again."
+                    )
+                    return
                 }
                 if let onDone { onDone() } else { dismiss() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "Their attendance, presentations, meetings, work, notes about only them and every "
-                    + "other record of theirs are deleted too. Records shared with other children "
-                    + "stay for them. This can't be undone."
+                "Their attendance, lessons, meetings, work and notes about only them are deleted too. "
+                    + "Anything shared with other children stays for those children. This can't be undone."
             )
         }
         .sheet(item: $vm.selectedLessonForGive) { lesson in

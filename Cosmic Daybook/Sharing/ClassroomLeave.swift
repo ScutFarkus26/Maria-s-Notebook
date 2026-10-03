@@ -2,9 +2,10 @@ import Foundation
 import CloudKit
 import CoreData
 
-// What Leave Classroom purges, and how it fails. Its own file because the
-// Daybook Assistant compiles ClassroomSharingService.swift by path without
-// the notebook's other sharing extensions.
+// What Leave Classroom purges, and how it fails; and what to do after a
+// failed join. Its own file because the Daybook Assistant compiles
+// ClassroomSharingService.swift by path without the notebook's other sharing
+// extensions, and both apps use these.
 
 extension ClassroomSharingService {
 
@@ -34,6 +35,23 @@ extension ClassroomSharingService {
         request.affectedStores = [store]
         return ((try? context.count(for: request)) ?? 0) > 0
     }
+
+    /// What to do after a failed join, to follow `AppErrorMessages.joinMessage`:
+    /// a connection or account problem is fixed on this device, anything else
+    /// by a fresh invitation.
+    nonisolated static func joinAdvice(for error: Error) -> String {
+        let nsError = error as NSError
+        switch (nsError.domain, nsError.code) {
+        case (NSURLErrorDomain, _), ("CKErrorDomain", 3), ("CKErrorDomain", 4):
+            return "Check you're online, then open the invitation again."
+        case ("CKErrorDomain", 9):
+            return "Sign in to iCloud, then open the invitation again."
+        case ("CKErrorDomain", 1), ("CKErrorDomain", 6), ("CKErrorDomain", 7):
+            return "Wait a minute, then open the invitation again."
+        default:
+            return "Ask the lead guide for a new invitation."
+        }
+    }
 }
 
 enum ClassroomLeaveError: LocalizedError {
@@ -44,10 +62,10 @@ enum ClassroomLeaveError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unclearShare(let count):
-            return "This device holds \(count) classroom shares and none is marked as the one it joined, " +
+            return "This device has \(count) shared classes and can't tell which one it joined, " +
                 "so nothing was removed."
         case .shareNotReadable:
-            return "The class's share hasn't reached this device from iCloud yet, so nothing was removed. " +
+            return "The class hasn't finished arriving from iCloud on this device, so nothing was removed. " +
                 "Try Leave again in a minute."
         case .notSaved:
             return "The class came off this device, but leaving couldn't be saved. Try Leave again."

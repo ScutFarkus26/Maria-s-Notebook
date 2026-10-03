@@ -31,10 +31,15 @@ final class SaveCoordinator {
     /// Perform a centralized save with consistent error handling.
     /// - Parameters:
     ///   - context: The `NSManagedObjectContext` to save.
-    ///   - reason: Optional, short description of why the save is occurring (shown to the user on failure).
-    /// - Returns: `true` if the save succeeded; `false` if it failed and an alert was prepared.
+    ///   - reason: Optional, short description of why the save is occurring. It goes to the log,
+    ///     never to the screen: it's a developer label ("Toggle pin status").
+    ///   - alertOnFailure: `false` when the caller shows its own plain message for a failed save,
+    ///     so one failure doesn't raise two alerts. The error is still logged and kept in
+    ///     `lastSaveError` / `lastSaveErrorMessage`.
+    /// - Returns: `true` if the save succeeded; `false` if it failed (and, unless the caller
+    ///   reports it, the global alert was raised).
     @discardableResult
-    func save(_ context: NSManagedObjectContext, reason: String? = nil) -> Bool {
+    func save(_ context: NSManagedObjectContext, reason: String? = nil, alertOnFailure: Bool = true) -> Bool {
         // Avoid unnecessary writes if nothing changed
         if !context.hasChanges {
             return true
@@ -47,8 +52,8 @@ final class SaveCoordinator {
             // visible even when the alert below is suppressed or dismissed.
             Self.logger.fault("Failed to save context (\(reason ?? "no reason")): \(error.localizedDescription)")
             self.lastSaveError = error
-            self.lastSaveErrorMessage = AppErrorMessages.saveFailureMessage(for: error, reason: reason)
-            if !self.suppressAlerts && !self.isShowingSaveError {
+            self.lastSaveErrorMessage = AppErrorMessages.saveFailureMessage(for: error)
+            if alertOnFailure && !self.suppressAlerts && !self.isShowingSaveError {
                 self.isShowingSaveError = true
             }
             return false
@@ -83,7 +88,7 @@ private struct SaveErrorAlertModifier: ViewModifier {
             )) {
                 Button("OK") { saveCoordinator.clearError() }
             } message: {
-                Text(saveCoordinator.lastSaveErrorMessage ?? "Unknown error.")
+                Text(saveCoordinator.lastSaveErrorMessage ?? "Your change couldn't be saved. Try again.")
             }
     }
 }

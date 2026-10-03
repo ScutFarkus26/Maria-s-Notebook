@@ -12,6 +12,7 @@ struct PresentationDetailWindowHost: View {
             notFound: WindowHostNotFound(
                 "Presentation Not Found",
                 systemImage: "rectangle.badge.magnifyingglass",
+                description: Text("This presentation may have been deleted. You can close this window."),
                 minSize: CGSize(width: 400, height: 300)
             )
         ) { (lessonAssignment: CDLessonAssignment) in

@@ -160,8 +160,13 @@ final class CalendarSyncService {
             lastSyncError = nil
             SyncEventLogger.shared.log("calendar", status: "success", message: "Calendar sync completed")
         } catch {
-            lastSyncError = error.localizedDescription
-            SyncEventLogger.shared.log("calendar", status: "error", message: error.localizedDescription)
+            // Plain words for Today's header; the raw text for Sync History's Details.
+            lastSyncError = AppErrorMessages.syncMessage(for: error, service: "Calendar")
+            let nsError = error as NSError
+            SyncEventLogger.shared.log(
+                "calendar", status: "error", message: "Couldn't sync with Calendar",
+                detail: "\(nsError.localizedDescription) [\(nsError.domain) (\(nsError.code))]"
+            )
             isSyncing = false
             throw error
         }
@@ -307,16 +312,19 @@ enum CalendarSyncError: LocalizedError, Equatable {
     case calendarNotFound(String)
     case modelContextUnavailable
 
+    /// Shown as is (Today's header, the Calendar settings), so plain words.
     var errorDescription: String? {
         switch self {
         case .notAuthorized:
-            return "Calendar access has not been granted. Please authorize access in Settings."
+            return "Cosmic Daybook doesn't have access to Calendar. "
+                + "Turn it on in \(SystemSettingsApp.privacyPath("Calendars"))."
         case .noCalendarConfigured:
-            return "No calendar has been configured for syncing."
+            return "Choose a calendar to sync first."
         case .calendarNotFound(let name):
-            return "Calendar '\(name)' not found. Please check the calendar selection in settings."
+            let which = name.isEmpty ? "the calendars you chose" : "\u{201C}\(name)\u{201D}"
+            return "Couldn't find \(which). It may have been renamed or deleted. Choose your calendars again."
         case .modelContextUnavailable:
-            return "Database context is not available. Please try again."
+            return "Couldn't reach your notebook to sync. Try again."
         }
     }
 }

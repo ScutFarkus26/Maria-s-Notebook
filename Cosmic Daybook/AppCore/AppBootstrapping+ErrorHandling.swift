@@ -38,14 +38,14 @@ extension AppBootstrapping {
             logger.info("CoreDataStack: Total initialization time: \(totalElapsed)s")
             return stack
         } catch {
-            let errorDesc = (error as NSError).localizedDescription
+            // The screen says this plainly; the raw error goes to the log and
+            // the error screen's Details.
+            let errorDesc = DatabaseErrorCoordinator.technicalDescription(of: error)
+            Logger.container.error("CoreDataStack initialization failed: \(errorDesc, privacy: .public)")
             let unexpectedError = NSError(
                 domain: "CosmicDaybook",
                 code: 6000,
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Unexpected error during Core Data stack initialization: \(errorDesc)"
-                ]
+                userInfo: [NSLocalizedDescriptionKey: DatabaseErrorCoordinator.userMessage(for: error)]
             )
             AppBootstrapping.initError = unexpectedError
             DatabaseErrorCoordinator.shared.setError(unexpectedError, details: errorDesc)
@@ -53,11 +53,8 @@ extension AppBootstrapping {
             // Create an in-memory stack so the app can show the error UI
             do {
                 let fallbackStack = try CoreDataStack(enableCloudKit: false, inMemory: true)
-                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-                UserDefaults.standard.set(
-                    unexpectedError.localizedDescription,
-                    forKey: UserDefaultsKeys.lastStoreErrorDescription
-                )
+                DatabaseInitializationService.markInMemorySession(true)
+                UserDefaults.standard.set(errorDesc, forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 _sharedCoreDataStack = fallbackStack
                 return fallbackStack
             } catch {
@@ -68,16 +65,12 @@ extension AppBootstrapping {
                 Logger.container.fault(
                     "CRITICAL: no real Core Data stack could be created; using empty fallback. \(errorDesc, privacy: .public)"
                 )
-                UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
-                UserDefaults.standard.set(
-                    unexpectedError.localizedDescription,
-                    forKey: UserDefaultsKeys.lastStoreErrorDescription
-                )
+                DatabaseInitializationService.markInMemorySession(true)
+                UserDefaults.standard.set(errorDesc, forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 let fallbackStack = CoreDataStack.makeEmptyFallback()
                 _sharedCoreDataStack = fallbackStack
                 return fallbackStack
             }
         }
     }
-
 }

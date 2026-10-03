@@ -15,6 +15,7 @@ struct StudentDetailWindowHost: View {
             notFound: WindowHostNotFound(
                 "Student Not Found",
                 systemImage: "person.slash",
+                description: Text("This student may have been deleted. You can close this window."),
                 minSize: CGSize(width: 400, height: 300)
             )
         ) { (student: CDStudent) in

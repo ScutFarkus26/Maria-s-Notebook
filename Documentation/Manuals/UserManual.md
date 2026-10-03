@@ -36,7 +36,7 @@ The groups under **More** (and in the sidebar) are:
 | Today | Today, Todos |
 | Children | Students, Attendance, Meetings, Parent Reports, Progress Dashboard |
 | Lessons & Work | Lessons & Work, Lessons (your full lesson library) |
-| Planning | Checklist, Three-Year View, Calendar, This Week’s Parsha, Group Planner |
+| Planning | Checklist, Three-Year View, Calendar, This Week’s Parsha, Groups |
 | Records | Logs, Notes (your observations) |
 | Classroom | Supplies, Orders, Community, Schedules, Going Out, Lesson Recall, Projects |
 | Library | Albums, Stories, Book Club, Resources, Procedures, Parsha Calendar |
@@ -595,6 +595,16 @@ The filter bar above the grid narrows what you see without changing any records:
 - **Students** — search and tick one or more children; every other column hides. Remove a name from the chips below the bar, or use **Show All** in the picker, to widen it back out.
 
 Both filters can be on at once, and **Clear** drops them both. Cells you had selected for a batch action drop out of the selection when a filter hides them, so the batch buttons only ever act on what you can see.
+
+## Groups
+
+Which children can you put together for the same next lesson? **Groups** answers it for the whole class. It reads the same record as Today's **Ready for a next lesson** (who you confirmed or marked mastered on a lesson, and isn't planned for the next one yet), so the two never disagree; Today shows the top five and **See all in Groups ›** opens this page.
+
+- **A card is a group:** a lesson with two or more children ready for it, showing how long each has waited in school days (colored once it passes your Lesson Age setting). Cards are sorted by how many children are ready, then the longest wait.
+- Children held by open practice (in a sub-area that requires it) are listed in orange with the reason. Children one lesson behind, ready for the lesson before this one, appear dashed as "could join after …". A child who had the previous lesson but isn't confirmed yet shows a **Confirm** button; one tap moves her to Ready.
+- **Plan** opens the scheduling sheet with the ready children already chosen. A card also says when the lesson is already planned for some of them.
+- Lessons with only one child ready are folded into one row at the bottom; tap it to open them.
+- Narrow by level from the toolbar, or by area with the chips. Tap a card's area and sequence to open its **sequence ladder**: every lesson in the sequence, with each child standing on the next one they need, and ‹ › to step through the area's other sequences.
 
 ## Progress Dashboard
 

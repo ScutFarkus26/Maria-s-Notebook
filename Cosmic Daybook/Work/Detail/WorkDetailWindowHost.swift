@@ -9,7 +9,11 @@ struct WorkDetailWindowHost: View {
         EntityWindowHost(
             id: workID,
             minSize: CGSize(width: 400, height: 300),
-            notFound: WindowHostNotFound("Work Not Found", systemImage: "doc.text.magnifyingglass")
+            notFound: WindowHostNotFound(
+                "Work Not Found",
+                systemImage: "doc.text.magnifyingglass",
+                description: Text("This work may have been deleted. You can close this window.")
+            )
         ) { (workModel: CDWorkModel) in
             // Save, Cancel and Delete all mean "close this window", so the
             // window is named rather than left to the ambient `dismiss`, which

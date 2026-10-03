@@ -152,16 +152,37 @@ extension PresentationDetailContentView {
         }
     }
 
+    // MARK: - Failures
+
+    static let notRecordedTitle = "Presentation Not Recorded"
+    static let notRecordedMessage = "Couldn't record the presentation. Nothing was changed. Try again."
+    static let notesNotSavedTitle = "Notes Not Saved"
+    static let notesNotSavedMessage = "Couldn't save your notes. They're still here, so try again."
+
+    /// One alert per failure, titled for what didn't happen. Only plain
+    /// sentences reach it (`PresentationFailureMessage`).
+    func showFailure(_ title: String, _ message: String) {
+        errorTitle = title
+        errorMessage = message
+    }
+
+    func showNotRecorded(_ error: Error) {
+        showFailure(
+            Self.notRecordedTitle,
+            PresentationFailureMessage.message(for: error, fallback: Self.notRecordedMessage)
+        )
+    }
+
     // MARK: - Record
 
     func record() {
         guard currentLesson != nil else {
-            errorMessage = PresentationRecorder.RecordError.missingLesson.localizedDescription
+            showNotRecorded(PresentationRecorder.RecordError.missingLesson)
             return
         }
         let present = session.presentIDs.intersection(vm.selectedStudentIDs)
         guard !present.isEmpty else {
-            errorMessage = PresentationRecorder.RecordError.nobodyPresent.localizedDescription
+            showNotRecorded(PresentationRecorder.RecordError.nobodyPresent)
             return
         }
         let day = AppCalendar.startOfDay(session.presentedDay)
@@ -187,15 +208,19 @@ extension PresentationDetailContentView {
             vm.needsAnotherPresentation = false
             showHowItWent()
         } catch {
-            errorMessage = error.localizedDescription
+            showNotRecorded(error)
         }
     }
 
     /// An earlier presentation whose day nobody knows: it is marked given
     /// without a date (never today's) and the sheet closes.
     func recordUndated() {
-        guard currentLesson != nil, !vm.selectedStudentIDs.isEmpty else {
-            errorMessage = PresentationRecorder.RecordError.nobodyPresent.localizedDescription
+        guard currentLesson != nil else {
+            showNotRecorded(PresentationRecorder.RecordError.missingLesson)
+            return
+        }
+        guard !vm.selectedStudentIDs.isEmpty else {
+            showNotRecorded(PresentationRecorder.RecordError.nobodyPresent)
             return
         }
         vm.isPresented = true
@@ -223,7 +248,9 @@ extension PresentationDetailContentView {
             refreshAttendance()
             dependencies.toastService.showInfo("Presentation recording undone")
         } catch {
-            errorMessage = error.localizedDescription
+            showFailure("Couldn't Undo", PresentationFailureMessage.message(
+                for: error, fallback: "Couldn't undo the recording. Try again."
+            ))
         }
     }
 
@@ -286,13 +313,18 @@ extension PresentationDetailContentView {
                     presentationID: presentationID,
                     context: viewContext
                 )
-                guard vm.saveCoordinator.save(viewContext, reason: "Saving presentation notes") else {
-                    errorMessage = vm.saveCoordinator.lastSaveErrorMessage ?? "The notes could not be saved."
+                // The alert below says what failed, so the global one stays quiet.
+                guard vm.saveCoordinator.save(
+                    viewContext, reason: "Saving presentation notes", alertOnFailure: false
+                ) else {
+                    showFailure(Self.notesNotSavedTitle, Self.notesNotSavedMessage)
                     return
                 }
                 session.clearNotes()
             } catch {
-                errorMessage = error.localizedDescription
+                showFailure(Self.notesNotSavedTitle, PresentationFailureMessage.message(
+                    for: error, fallback: Self.notesNotSavedMessage
+                ))
                 return
             }
         }
@@ -340,7 +372,9 @@ extension PresentationDetailContentView {
             dependencies.toastService.showSuccess("\(lesson.name) saved")
             handleDone()
         } catch {
-            errorMessage = error.localizedDescription
+            showFailure("Couldn't Save How It Went", PresentationFailureMessage.message(
+                for: error, fallback: PresentationSessionCommit.CommitError.saveFailed.errorDescription ?? ""
+            ))
         }
     }
 }

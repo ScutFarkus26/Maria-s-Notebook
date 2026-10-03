@@ -83,6 +83,7 @@ struct LessonDetailView: View {
     @State var showingPagesImporter = false
     @State var resolvedPagesURL: URL?
     @State var importError: String?
+    @State private var deleteError: String?
     @State var previousManagedURL: URL?
 
     var body: some View {
@@ -159,24 +160,36 @@ struct LessonDetailView: View {
         }
         .alert("Delete Lesson?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
-                if let url = resolveLessonFileURL() {
-                    do {
-                        try LessonFileStorage.deleteIfManaged(url)
-                    } catch {
-                        Self.logger.warning("Failed to delete managed file: \(error)")
-                    }
-                }
+                // The lesson goes first, so a failed delete leaves its file in place.
+                let fileURL = resolveLessonFileURL()
                 do {
                     guard let lessonID = lesson.id else { return }
                     try repository.deleteLesson(id: lessonID)
                 } catch {
                     Self.logger.warning("Failed to delete lesson: \(error)")
+                    deleteError = "Couldn't delete this lesson. Try again."
+                    return
+                }
+                if let fileURL {
+                    do {
+                        try LessonFileStorage.deleteIfManaged(fileURL)
+                    } catch {
+                        Self.logger.warning("Failed to delete managed file: \(error)")
+                    }
                 }
                 if let onDone { onDone() } else { dismiss() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This action cannot be undone.")
+            Text("This can't be undone.")
+        }
+        .alert("Couldn't Delete the Lesson", isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button("OK", role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "")
         }
         .sheet(isPresented: $showingGreatLessonTagEditor) {
             NavigationStack {
@@ -233,16 +246,17 @@ struct LessonDetailView: View {
                         previousManagedURL = destURL
                         saveCoordinator.save(viewContext, reason: "Import lesson Pages file")
                     } catch {
-                        importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file")
+                        Self.logger.warning("Pages file import failed: \(error)")
+                        importError = AppErrorMessages.importMessage(for: error, fileType: "Pages file")
                     }
                 }
             case .failure(let error):
                 Task {
-                    importError = AppErrorMessages.importMessage(for: error, fileType: "lesson file")
+                    importError = AppErrorMessages.importMessage(for: error, fileType: "Pages file")
                 }
             }
         }
-        .alert("Import Failed", isPresented: Binding(get: {
+        .alert("Couldn't Add the Pages File", isPresented: Binding(get: {
             importError != nil
         }, set: { newValue in
             if !newValue {

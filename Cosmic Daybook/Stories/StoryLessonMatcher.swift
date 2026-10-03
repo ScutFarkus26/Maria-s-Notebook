@@ -43,9 +43,9 @@ enum StoryLessonMatcher {
         var errorDescription: String? {
             switch self {
             case .noLessons:
-                return "No lessons in your library to match against."
+                return "There are no lessons in your curriculum to connect yet."
             case .noStoryContent:
-                return "This story has too little metadata yet — add themes or a summary first."
+                return "Add a few themes or a summary first, then try again."
             case .rerankFailed(let message):
                 return message
             }
@@ -281,7 +281,8 @@ enum StoryLessonMatcher {
                 timeout: 30
             )
         } catch {
-            throw MatcherError.rerankFailed(error.localizedDescription)
+            // Logged where it's caught; the message stays plain.
+            throw MatcherError.rerankFailed("Couldn't look for connected lessons. Try again.")
         }
 
         let response: RerankResponse
@@ -289,7 +290,7 @@ enum StoryLessonMatcher {
             response = try JSONDecoder().decode(RerankResponse.self, from: Data(raw.utf8))
         } catch {
             logger.warning("Failed to parse rerank response: \(raw, privacy: .public)")
-            throw MatcherError.rerankFailed("Couldn't parse the model's response.")
+            throw MatcherError.rerankFailed(AppleIntelligenceMessages.unreadable)
         }
 
         let lessonsByID = Dictionary(uniqueKeysWithValues: candidates.compactMap { candidate -> (String, Candidate)? in

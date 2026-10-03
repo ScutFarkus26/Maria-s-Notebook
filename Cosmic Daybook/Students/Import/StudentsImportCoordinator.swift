@@ -12,13 +12,13 @@ struct StudentsImportCoordinator {
         Task(priority: .userInitiated) { @MainActor in
             do {
                 guard url.startAccessingSecurityScopedResource() else {
-                    throw StudentCSVImporter.ImportError.encoding("Could not access security scoped resource.")
+                    throw StudentCSVImporter.ImportError.cantOpen
                 }
                 defer { url.stopAccessingSecurityScopedResource() }
 
                 let data = try Data(contentsOf: url, options: [.mappedIfSafe])
                 guard let csv = CSVParser.parse(data: data) else {
-                    throw StudentCSVImporter.ImportError.encoding("Unsupported text encoding; please use UTF-8.")
+                    throw StudentCSVImporter.ImportError.unreadableText
                 }
 
                 let mapping = StudentCSVImporter.detectMapping(headers: csv.headers)
@@ -45,7 +45,7 @@ struct StudentsImportCoordinator {
         Task(priority: .userInitiated) { @MainActor in
             do {
                 guard url.startAccessingSecurityScopedResource() else {
-                    throw StudentCSVImporter.ImportError.encoding("Could not access security scoped resource.")
+                    throw StudentCSVImporter.ImportError.cantOpen
                 }
                 defer { url.stopAccessingSecurityScopedResource() }
 

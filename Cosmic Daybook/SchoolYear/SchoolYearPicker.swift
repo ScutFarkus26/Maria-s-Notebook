@@ -135,7 +135,7 @@ struct SchoolYearStartConfig: View {
 
             Text(
                 "The \(store.current.label) school year began \(startDateText). Changing the start "
-                + "re-buckets which year past activity falls into; it never moves or deletes data. "
+                + "changes which year past activity counts toward. Nothing is moved or deleted. "
                 + "It's the same on all your devices."
             )
             .font(.footnote)

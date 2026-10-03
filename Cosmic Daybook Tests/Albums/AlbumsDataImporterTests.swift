@@ -39,9 +39,8 @@ final class AlbumsDataImporterTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let summary = AlbumsDataImporter.importData(from: url, into: context)
-        #expect(summary.contains("1 bookmarks"))
-        #expect(summary.contains("1 notes"))
-        #expect(summary.contains("1 recents"))
+        // One of each reads in the singular.
+        #expect(summary == "Imported 1 bookmark, 1 note, 1 recent visit.")
 
         #expect(AlbumUserDataStore.isBookmarked(albumID: "Bio.pdf", pageIndex: 4, in: context))
         let notes = AlbumUserDataStore.notes(albumID: "Bio.pdf", pageIndex: 4, in: context)
@@ -87,9 +86,7 @@ final class AlbumsDataImporterTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let summary = AlbumsDataImporter.importData(from: url, into: context)
-        #expect(summary.contains("1 reading positions"))
-        #expect(summary.contains("1 highlights"))
-        #expect(summary.contains("1 ink drawings"))
+        #expect(summary == "Imported 1 highlight, 1 ink drawing, 1 reading position.")
 
         #expect(AlbumUserDataStore.readingPosition(albumID: "Math.pdf", in: context) == 31)
 
@@ -110,7 +107,8 @@ final class AlbumsDataImporterTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let summary = AlbumsDataImporter.importData(from: url, into: context)
-        #expect(summary.contains("doesn't look like an Albums export"))
+        #expect(summary == "That doesn't look like an Albums export. "
+            + "Choose the file you exported from the Albums app.")
         #expect(context.safeFetch(CDFetchRequest(CDAlbumBookmark.self)).isEmpty)
     }
 }

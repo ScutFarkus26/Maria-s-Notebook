@@ -11,7 +11,7 @@
 import Foundation
 
 /// One non-repeating activity per backup. `arm` registers it, due after the
-/// given wait (± a tenth of it); when it fires, `run` performs one backup and
+/// given wait (at least a minute, ± a tenth of it); when it fires, `run` performs one backup and
 /// returns the wait until the next one, or nil to stop, and the activity
 /// re-arms itself with that wait.
 @MainActor
@@ -32,8 +32,9 @@ final class ScheduledBackupActivity {
         let armed = generation
         let scheduler = NSBackgroundActivityScheduler(identifier: Self.identifier)
         scheduler.repeats = false
-        scheduler.interval = delay
-        scheduler.tolerance = ScheduledBackupTiming.tolerance(forDelay: delay)
+        let interval = ScheduledBackupTiming.schedulerInterval(forDelay: delay)
+        scheduler.interval = interval
+        scheduler.tolerance = ScheduledBackupTiming.tolerance(forDelay: interval)
         scheduler.qualityOfService = .utility
         self.scheduler = scheduler
         // The system calls this block on a utility-QoS serial queue.

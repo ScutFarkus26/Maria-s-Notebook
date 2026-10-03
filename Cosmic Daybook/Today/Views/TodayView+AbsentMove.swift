@@ -100,7 +100,9 @@ extension TodayView {
                 undoAction: { undoAbsentMove(receipt) }
             )
         } catch {
-            dependencies.toastService.showError(error.localizedDescription)
+            dependencies.toastService.showError(PresentationFailureMessage.message(
+                for: error, fallback: TodayAbsentMover.MoveError.saveFailed.errorDescription ?? ""
+            ))
         }
     }
 
@@ -109,7 +111,9 @@ extension TodayView {
             try TodayAbsentMover.undo(receipt, context: viewContext, saveCoordinator: saveCoordinator)
             viewModel.reload()
         } catch {
-            dependencies.toastService.showError(error.localizedDescription)
+            dependencies.toastService.showError(PresentationFailureMessage.message(
+                for: error, fallback: TodayAbsentMover.MoveError.undoSaveFailed.errorDescription ?? ""
+            ))
         }
     }
 }

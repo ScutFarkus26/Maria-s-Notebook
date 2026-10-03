@@ -6,6 +6,7 @@
 //  main view file so the view stays under SwiftLint's type/file length limits.
 //
 
+import OSLog
 import SwiftUI
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
@@ -21,7 +22,6 @@ extension AppleIntelligenceSheet {
 
         guard onDevice.isAvailable || privateCloud.isAvailable else {
             generationError = unavailabilityMessage()
-            editorText = context
             isGenerating = false
             return
         }
@@ -29,7 +29,7 @@ extension AppleIntelligenceSheet {
         let prompt = """
         \(template.instruction)
 
-        DATA:
+        Notes:
         \(context)
         """
 
@@ -41,18 +41,18 @@ extension AppleIntelligenceSheet {
             adaptiveWithAnimation {
                 editorText = text
             }
-        } catch let error as LocalModelError {
-            let message = error.localizedDescription
-            generationError = message
-            editorText = context + "\n\n[Error: \(message)]"
         } catch let error as LanguageModelError {
-            let message = userMessage(for: error)
-            generationError = message
-            editorText = context + "\n\n[Error: \(message)]"
+            // The note text stays as it was; the banner says what went wrong.
+            Self.logger.error("Writing help draft failed: \(error, privacy: .public)")
+            generationError = userMessage(for: error)
+        } catch LocalModelError.contextTooLarge {
+            generationError = Self.tooManyNotes
         } catch {
-            let message = AppErrorMessages.aiMessage(for: error)
-            generationError = message
-            editorText = context + "\n\n[Error: \(message)]"
+            Self.logger.error("Writing help draft failed: \(error, privacy: .public)")
+            generationError = AppErrorMessages.aiMessage(
+                for: error,
+                fallback: "Couldn't write the draft. Try again in a moment."
+            )
         }
 
         isGenerating = false
@@ -109,36 +109,21 @@ extension AppleIntelligenceSheet {
         }
     }
 
+    private static let logger = Logger.ai
+    private static let tooManyNotes =
+        "That's too many notes to work with at once. Choose fewer notes and try again."
+
     private func unavailabilityMessage() -> String {
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            return ""
-        case .unavailable(.appleIntelligenceNotEnabled):
-            return "Please enable Apple Intelligence in Settings to use this feature."
-        case .unavailable(.deviceNotEligible):
-            return "This device does not support Apple Intelligence."
-        case .unavailable(.modelNotReady):
-            return "Apple Intelligence model is downloading. Please try again later."
-        case .unavailable:
-            return "Apple Intelligence is not available."
-        }
+        AppleIntelligenceMessages.unavailableMessage(for: SystemLanguageModel.default.availability)
+            ?? AppleIntelligenceMessages.notAvailable
     }
 
     private func userMessage(for error: LanguageModelError) -> String {
-        switch error {
-        case .rateLimited:
-            return "Too many requests. Please wait a moment and try again."
-        case .contextSizeExceeded:
-            return "The data is too large for on-device processing. Try selecting fewer notes."
-        case .unsupportedLanguageOrLocale:
-            return "This language is not supported by Apple Intelligence."
-        case .refusal:
-            return "The request could not be processed due to content restrictions."
-        case .timeout:
-            return "The request timed out. Please try again."
-        default:
-            return "Apple Intelligence encountered an unexpected issue. Try again."
-        }
+        AppleIntelligenceMessages.message(
+            for: error,
+            tooLong: Self.tooManyNotes,
+            fallback: "Couldn't write the draft. Try again in a moment."
+        )
     }
 }
 

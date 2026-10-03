@@ -17,13 +17,16 @@ import Foundation
 
 enum TodayAbsentMover {
 
+    /// Each description is shown as is in Today's toast.
     enum MoveError: LocalizedError {
-        case saveFailed(String)
+        case saveFailed
+        case undoSaveFailed
         case undoUnavailable
 
         var errorDescription: String? {
             switch self {
-            case .saveFailed(let message): return message
+            case .saveFailed: return "Couldn't move the absent children. Nothing changed. Try again."
+            case .undoSaveFailed: return "Couldn't undo the move. Try again."
             case .undoUnavailable: return "This move can no longer be undone."
             }
         }
@@ -127,11 +130,12 @@ enum TodayAbsentMover {
             schedules: schedules,
             entries: entries
         )
-        guard saveCoordinator.save(context, reason: "Move absent children to tomorrow") else {
+        // Today shows `MoveError.saveFailed` in a toast, so the global alert stays quiet.
+        guard saveCoordinator.save(
+            context, reason: "Move absent children to tomorrow", alertOnFailure: false
+        ) else {
             restore(receipt, in: context)
-            throw MoveError.saveFailed(
-                saveCoordinator.lastSaveErrorMessage ?? "The absent children could not be moved."
-            )
+            throw MoveError.saveFailed
         }
         PresentationDetailUtilities.notifyInboxRefresh()
         return receipt
@@ -145,10 +149,8 @@ enum TodayAbsentMover {
         saveCoordinator: SaveCoordinator
     ) throws {
         restore(receipt, in: context)
-        guard saveCoordinator.save(context, reason: "Undo moving absent children") else {
-            throw MoveError.saveFailed(
-                saveCoordinator.lastSaveErrorMessage ?? "The move could not be undone."
-            )
+        guard saveCoordinator.save(context, reason: "Undo moving absent children", alertOnFailure: false) else {
+            throw MoveError.undoSaveFailed
         }
         PresentationDetailUtilities.notifyInboxRefresh()
     }

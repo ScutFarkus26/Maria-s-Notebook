@@ -19,8 +19,17 @@ final class CloudKitSyncStatusService {
     /// The last time a successful sync completed
     var lastSuccessfulSync: Date?
 
-    /// The last sync error message, if any
+    /// The last sync error, in plain words for the screen, if any.
     var lastSyncError: String?
+
+    /// The raw text behind `lastSyncError` (the system error with its domain
+    /// and code), for the Details disclosure and `sync_status`.
+    var lastSyncErrorDetail: String?
+
+    /// What kind of problem `lastSyncError` is, so coming back online or
+    /// signing in clears the right one without reading its wording.
+    /// (The shown error's helpers are in `CloudKitSyncStatusService+ShownError`.)
+    var lastSyncErrorKind: SyncErrorKind?
 
     /// Overall sync health status (delegated to CloudKitHealthCheck)
     var syncHealth: CloudKitHealthCheck.SyncHealth {
@@ -175,7 +184,7 @@ final class CloudKitSyncStatusService {
         // already completed a successful sync in a prior session. Drives
         // suppression of the "Syncing from iCloud…" overlay on routine launches.
         hadSyncedBeforeLaunch = (persistedSyncDate != nil)
-        lastSyncError = UserDefaults.standard.string(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+        loadPersistedSyncError()
 
         // Setup network monitoring using AsyncStream
         Task { [weak self] in
@@ -277,7 +286,7 @@ final class CloudKitSyncStatusService {
         syncStartTime = Date()
         currentOperation = "Manual sync"
         updateSyncHealth()
-        SyncEventLogger.shared.log("cloudkit", status: "started", message: "Manual sync initiated")
+        SyncEventLogger.shared.log("cloudkit", status: "started", message: "You tapped Sync Now")
 
         do {
             // Use the view context so any pending local changes are actually
@@ -286,8 +295,8 @@ final class CloudKitSyncStatusService {
 
             // Update success state
             let now = Date()
-            lastSyncError = nil
-            SyncEventLogger.shared.log("cloudkit", status: "success", message: "Sync completed successfully")
+            clearSyncErrorInMemory()
+            SyncEventLogger.shared.log("cloudkit", status: "success", message: "Saved your changes for iCloud to send")
             // User-initiated: written through at once, as before.
             recordSuccessfulSync(at: now, persistNow: true)
 
@@ -304,10 +313,7 @@ final class CloudKitSyncStatusService {
             updateSyncHealth()
             return true
         } catch {
-            lastSyncError = AppErrorMessages.userMessage(for: error, context: "syncing with iCloud")
-            UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
-            // Keep raw for logs
-            SyncEventLogger.shared.log("cloudkit", status: "error", message: error.localizedDescription)
+            recordManualSyncFailure(error)
             isSyncing = false
             lastOperation = "Manual sync failed"
             lastOperationDate = Date()
@@ -338,9 +344,9 @@ final class CloudKitSyncStatusService {
 
     /// Clear any stored error state
     func clearError() {
-        lastSyncError = nil
+        clearSyncErrorInMemory()
         retryLogic.resetRetryCount()
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+        Self.removePersistedSyncError()
         updateSyncHealth()
     }
 
@@ -359,20 +365,7 @@ final class CloudKitSyncStatusService {
             },
             onMaxRetriesReached: { [weak self] in
                 Task { [weak self] in
-                    guard let self else { return }
-                    self.lastSyncError = "Sync failed after 5 attempts. Please try again later."
-                    UserDefaults.standard.set(self.lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
-                    SyncEventLogger.shared.log(
-                        "cloudkit", status: "error",
-                        message: "Sync failed after 5 retry attempts"
-                    )
-                    self.updateSyncHealth()
-                    ToastService.shared.showError(
-                        "iCloud sync failed. Data may be out of date.",
-                        actionLabel: "Retry"
-                    ) { [weak self] in
-                        Task { await self?.syncNow() }
-                    }
+                    self?.reportRetriesExhausted()
                 }
             }
         )

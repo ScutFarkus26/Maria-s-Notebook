@@ -14,6 +14,8 @@ struct AttachmentRow: View {
     let onDelete: () -> Void
 
     @State private var isHovering = false
+    /// Why the attachment couldn't be opened or shared; the raw error is logged.
+    @State private var problemMessage: String?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -100,7 +102,17 @@ struct AttachmentRow: View {
         .onHover { hovering in
             isHovering = hovering
         }
+        .alert("Couldn't Open the Attachment", isPresented: Binding(
+            get: { problemMessage != nil },
+            set: { if !$0 { problemMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { problemMessage = nil }
+        } message: {
+            Text(problemMessage ?? "")
+        }
     }
+
+    private static let missingFileMessage = "Couldn't find this attachment's file. It may have been moved or deleted."
 
     private var fileIcon: some View {
         ZStack {
@@ -135,10 +147,14 @@ struct AttachmentRow: View {
         do {
             let fileURL = try LessonFileStorage.resolve(relativePath: attachment.fileRelativePath)
             #if os(macOS)
-            NSWorkspace.shared.open(fileURL)
+            if !NSWorkspace.shared.open(fileURL) {
+                Self.logger.error("NSWorkspace couldn't open an attachment")
+                problemMessage = "Couldn't open this attachment. Try again."
+            }
             #endif
         } catch {
             Self.logger.error("Failed to open attachment: \(error)")
+            problemMessage = Self.missingFileMessage
         }
     }
 
@@ -153,6 +169,7 @@ struct AttachmentRow: View {
             #endif
         } catch {
             Self.logger.error("Failed to share attachment: \(error)")
+            problemMessage = Self.missingFileMessage
         }
     }
 }

@@ -12,6 +12,8 @@ struct AttendanceStudentHistorySheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dependencies) private var dependencies
 
+    /// The history couldn't be read: an empty heat map would look like no absences.
+    @State private var loadFailed = false
     @State private var records: [CDAttendanceRecord] = []
 
     private static let logger = Logger.attendance
@@ -57,6 +59,13 @@ struct AttendanceStudentHistorySheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
+                    if loadFailed {
+                        Label(
+                            "Couldn't load this child's attendance. Close this and open it again.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .foregroundStyle(AppColors.warning)
+                    }
                     summaryHeader
 
                     Text("Last 3 months")
@@ -254,9 +263,11 @@ struct AttendanceStudentHistorySheet: View {
         request.predicate = NSPredicate(format: "studentID == %@", studentID.uuidString)
         do {
             records = try viewContext.fetch(request)
+            loadFailed = false
         } catch {
             Self.logger.warning("Load history failed: \(error.localizedDescription, privacy: .public)")
             records = []
+            loadFailed = true
         }
     }
 

@@ -83,9 +83,11 @@ extension WorkLogService {
             throw LogError.undoUnavailable
         }
         revert(token, in: context)
-        let saved = saveCoordinator?.save(context, reason: "Undo work check") ?? context.safeSave()
+        // Every caller shows `LogError.undoSaveFailed` itself, so the global alert stays quiet.
+        let saved = saveCoordinator?.save(context, reason: "Undo work check", alertOnFailure: false)
+            ?? context.safeSave()
         guard saved else {
-            throw LogError.saveFailed(saveCoordinator?.lastSaveErrorMessage ?? "The undo could not be saved.")
+            throw LogError.undoSaveFailed
         }
     }
 

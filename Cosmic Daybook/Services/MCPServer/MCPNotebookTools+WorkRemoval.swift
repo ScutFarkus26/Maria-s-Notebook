@@ -76,7 +76,7 @@ extension MCPNotebookTools {
             try service.apply(plan)
         } catch {
             modelContext.rollback()
-            throw MCPToolError("The change could not be saved: \(error.localizedDescription)")
+            throw MCPToolError("The change could not be saved", underlying: error)
         }
         return "Removed \(student.fullName).\n\n" + report
     }

@@ -48,16 +48,21 @@ struct ClassroomReleaseSheet: View {
         case .running(let done, let total):
             VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
                 ProgressView(value: Double(done), total: Double(max(total, 1)))
-                Text("\(done) of \(total) groups done. Each waits until iCloud confirms it; keep this Mac "
+                Text("\(done) of \(total) steps done. Each waits until iCloud confirms it; keep this Mac "
                     + "awake and online. You can stop by quitting — nothing is lost, and running it again finishes.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
         case .finished(let report, let shareNow):
             finished(report, shareNow: shareNow)
-        case .failed(let message):
-            Label(message, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(AppColors.warning)
+        case .failed(let message, let details):
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(AppColors.warning)
+                if let details {
+                    TechnicalDetailsDisclosure(details: details)
+                }
+            }
         }
     }
 
@@ -70,8 +75,8 @@ struct ClassroomReleaseSheet: View {
             if preview.isEmpty {
                 Text("Nothing from before it is in the share.")
                 if ClassroomShareRelease.stoppedPartway {
-                    Text("An earlier run stopped after taking the last records out here. Finishing checks "
-                        + "that iCloud has taken them out of the share too.")
+                    Text("An earlier run stopped just before the end. Finishing checks that iCloud "
+                        + "has stopped sharing them too.")
                         .font(.callout)
                 }
             } else {
@@ -84,12 +89,14 @@ struct ClassroomReleaseSheet: View {
                     }
                 }
                 if preview.olderAttendance > 0 {
-                    Text("\(preview.olderAttendance.formatted()) attendance records from before that day, "
-                        + "for children still in class, leave the share too.")
+                    Text("\(preview.olderAttendance.formatted()) attendance marks from before that day, "
+                        + "for children still in class, stop being shared too.")
                         .font(.callout)
                 }
                 if preview.unfinished > 0 {
-                    Text("\(preview.unfinished) record(s) from a run that stopped partway are finished too.")
+                    Text(preview.unfinished == 1
+                        ? "1 item from a run that stopped partway is finished too."
+                        : "\(preview.unfinished.formatted()) items from a run that stopped partway are finished too.")
                         .font(.callout)
                 }
                 checklist
@@ -117,8 +124,8 @@ struct ClassroomReleaseSheet: View {
         let left = child.departed.map { "left \($0.formatted(date: .abbreviated, time: .omitted))" }
             ?? "no leaving date"
         let marks = child.attendanceRecords == 1
-            ? "1 attendance record"
-            : "\(child.attendanceRecords) attendance records"
+            ? "1 attendance mark"
+            : "\(child.attendanceRecords.formatted()) attendance marks"
         return "\(child.name) — \(left), \(marks)"
     }
 
@@ -126,25 +133,36 @@ struct ClassroomReleaseSheet: View {
     private func finished(_ report: ClassroomShareRelease.Report, shareNow: String?) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             if let reason = report.stoppedBecause {
+                // The reason says that nothing is lost and what to do next.
                 Label(report.batchesPlanned > 0
-                        ? "Stopped after \(report.batchesDone) of \(report.batchesPlanned) groups."
+                        ? "Stopped partway (\(report.batchesDone) of \(report.batchesPlanned) steps)."
                         : "Stopped.",
                       systemImage: "pause.circle.fill")
                     .foregroundStyle(AppColors.warning)
                 Text(reason).font(.callout)
+                if let details = report.stopDetails {
+                    TechnicalDetailsDisclosure(details: details)
+                }
             } else {
                 Label("Done.", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(AppColors.success)
             }
             if report.batchesPlanned > 0 {
-                Text("\(report.studentsMoved) student(s) and \(report.attendanceMoved.formatted()) attendance "
-                    + "record(s) left the share. They're still in your notebook.")
+                Text(Self.movedLine(report))
                     .font(.callout)
             }
             if let shareNow {
                 Text(shareNow).font(.callout).foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// "3 children and 412 attendance marks are no longer shared."
+    static func movedLine(_ report: ClassroomShareRelease.Report) -> String {
+        let children = report.studentsMoved == 1 ? "1 child" : "\(report.studentsMoved.formatted()) children"
+        let marks = report.attendanceMoved == 1
+            ? "1 attendance mark" : "\(report.attendanceMoved.formatted()) attendance marks"
+        return "\(children) and \(marks) are no longer shared. They're still in your notebook."
     }
 
     // MARK: - Footer

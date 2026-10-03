@@ -280,7 +280,7 @@ struct QuickNoteSheet: View {
             }
         }
         .onChange(of: viewModel.selectedPhotoItem) { _, newItem in viewModel.loadPhoto(newItem) }
-        .alert("AI Error", isPresented: Binding(
+        .alert("Apple Intelligence Couldn't Help", isPresented: Binding(
             get: { viewModel.aiError != nil },
             set: { if !$0 { viewModel.aiError = nil } }
         )) {
@@ -410,7 +410,7 @@ struct QuickNoteSheet: View {
                 }
                 #endif
             }
-            .alert("AI Error", isPresented: Binding(
+            .alert("Apple Intelligence Couldn't Help", isPresented: Binding(
                 get: { viewModel.aiError != nil },
                 set: { if !$0 { viewModel.aiError = nil } }
             )) {

@@ -30,9 +30,49 @@ struct SiriAttendance {
     var context: NSManagedObjectContext { stack.viewContext }
 
     init() throws {
-        let stack = try SiriHost.stack()
+        let stack = try Self.openStack()
         try SiriHost.checkReady(in: stack.viewContext)
         self.init(stack: stack, role: SiriHost.role)
+    }
+
+    /// The app's store, or Siri's plain "couldn't open your class"
+    /// (`SiriHost.cannotOpenMessage`): the store's own error is raw system
+    /// text, so it goes to the log. The student lookups open it this way too.
+    static func openStack() throws -> CoreDataStack {
+        do {
+            return try SiriHost.stack()
+        } catch {
+            log(error, while: "opening the class")
+            throw SiriAttendanceError.cannotOpen
+        }
+    }
+
+    /// Siri's own errors speak for themselves; anything else (a database
+    /// error, say) would reach Siri as raw system text, so it becomes the
+    /// plain "Something went wrong saving attendance" and the raw error goes
+    /// to the log. Siri's confirmation prompts are never wrapped: their
+    /// cancellation must reach Siri as it is.
+    nonisolated static func plain(_ error: Error, while activity: String = "changing attendance") -> Error {
+        if error is SiriAttendanceError { return error }
+        log(error, while: activity)
+        return SiriAttendanceError.saveFailed
+    }
+
+    /// Runs `work`, translating any error that isn't Siri's own (`plain`).
+    static func plainly<T>(_ activity: String, _ work: () async throws -> T) async throws -> T {
+        do {
+            return try await work()
+        } catch {
+            throw plain(error, while: activity)
+        }
+    }
+
+    nonisolated private static func log(_ error: Error, while activity: String) {
+        let ns = error as NSError
+        logger.error("""
+            Siri attendance failed while \(activity, privacy: .public): \
+            \(ns.domain, privacy: .public) \(ns.code, privacy: .public) \(ns.localizedDescription, privacy: .public)
+            """)
     }
 
     /// Tests pass an in-memory stack and a fixed day.
@@ -96,10 +136,14 @@ struct SiriAttendance {
     /// `student`'s mark today, without creating a record to read it.
     func status(of student: CDStudent) throws -> AttendanceStatus {
         let key = student.id?.uuidString ?? ""
-        return try store.loadRecords(for: today)
-            .filter { $0.studentID == key }
-            .deduplicatedPerStudentDay()
-            .first?.status ?? .unmarked
+        do {
+            return try store.loadRecords(for: today)
+                .filter { $0.studentID == key }
+                .deduplicatedPerStudentDay()
+                .first?.status ?? .unmarked
+        } catch {
+            throw Self.plain(error, while: "reading a mark")
+        }
     }
 
     /// Sets `student`'s mark for today and returns what it was before.
@@ -108,6 +152,14 @@ struct SiriAttendance {
     /// reason on a child already absent is a change of its own.
     func mark(
         _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason? = nil
+    ) async throws -> AttendanceStatus {
+        try await Self.plainly("marking attendance") {
+            try await markUnwrapped(student, as: status, reason: reason)
+        }
+    }
+
+    private func markUnwrapped(
+        _ student: CDStudent, as status: AttendanceStatus, reason: AbsenceReason?
     ) async throws -> AttendanceStatus {
         guard !store.isLocked(today) else { throw SiriAttendanceError.dayLocked }
         guard let record = try store.ensureRecord(for: student, on: today) else {
@@ -128,15 +180,12 @@ struct SiriAttendance {
             pending.fromReasonRaw = previousReasonRaw
             pending.toReasonRaw = record.absenceReasonRaw
         }
-        try await commit(
-            [pending],
-            created: created,
-            summary: "\(spokenName(for: student)) \(status.displayName.lowercased())"
-        )
+        let name = spokenName(for: student)
+        try await commit([pending], created: created, summary: "\(name) \(status.spokenWord)", name: name)
         return previous
     }
 
-    /// "Here": present, or tardy once arrival has closed in the Assistant
+    /// "Here": present, or late once arrival has closed in the Assistant
     /// (`SiriHost.statusForHere`), but never a downgrade: a child already
     /// present stays present, as a tap on the grid leaves her.
     func markHere(_ student: CDStudent) async throws -> (previous: AttendanceStatus, now: AttendanceStatus) {
@@ -166,6 +215,7 @@ struct SiriAttendance {
         _ marks: [Pending],
         created: [CDAttendanceRecord],
         summary: String,
+        name: String? = nil,
         closedArrival: Bool = false
     ) async throws {
         // Watch for the export before saving, so a quick one isn't missed.
@@ -186,7 +236,8 @@ struct SiriAttendance {
                 )
             },
             summary: summary,
-            closedArrival: closedArrival
+            closedArrival: closedArrival,
+            name: name
         ).remember()
 
         let createdIDs = created.map(\.objectID)
@@ -211,7 +262,8 @@ struct SiriAttendance {
     }
 
     /// Puts back the last change Siri made today, where nothing has changed
-    /// those marks since. Returns what was undone.
+    /// those marks since. Returns what Siri says about it
+    /// (`SiriAttendanceChange.undoneDialog`).
     ///
     /// The change is forgotten only once the undo is saved, so a failed save
     /// can be retried, and a locked day refuses the undo and keeps it (it
@@ -219,6 +271,10 @@ struct SiriAttendance {
     /// that found everyone marked has no marks to put back, and undoing it
     /// just reopens arrival.
     func undoLast() async throws -> String {
+        try await Self.plainly("undoing a mark") { try await undoLastUnwrapped() }
+    }
+
+    private func undoLastUnwrapped() async throws -> String {
         guard let change = SiriAttendanceChange.last(), Calendar.current.isDate(change.day, inSameDayAs: today) else {
             throw SiriAttendanceError.nothingToUndo
         }
@@ -235,7 +291,7 @@ struct SiriAttendance {
         if reverted.isEmpty, !change.marks.isEmpty {
             SiriAttendanceChange.forget()
             if change.closedArrival { reopenArrival() }
-            throw SiriAttendanceError.changedSince(change.summary)
+            throw SiriAttendanceError.changedSince(change.changedSinceDialog)
         }
         if !reverted.isEmpty {
             try await commit(reverted, created: [], summary: "undo of \(change.summary)")
@@ -243,7 +299,7 @@ struct SiriAttendance {
         if change.closedArrival { reopenArrival() }
         // An undo is not itself undoable: "Undo that" twice shouldn't flip back.
         SiriAttendanceChange.forget()
-        return change.summary
+        return change.undoneDialog
     }
 
     /// Puts one remembered mark back, if nothing has changed it since: the
@@ -294,7 +350,9 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
     case cannotMark
     case saveFailed
     case notReady(String)
+    case cannotOpen
     case nothingToUndo
+    /// Carries the whole sentence (`SiriAttendanceChange.changedSinceDialog`).
     case changedSince(String)
 
     var localizedStringResource: LocalizedStringResource {
@@ -308,15 +366,17 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
         case .dayLocked:
             return "Today's attendance is locked, so I can't change it."
         case .cannotMark:
-            return "Attendance can't be changed from here."
+            return "That child's attendance can't be changed from here. Open the app to mark it."
         case .saveFailed:
-            return "Something went wrong saving attendance. Please try again."
+            return "Something went wrong saving attendance. Try again."
         case .notReady(let message):
             return "\(message)"
+        case .cannotOpen:
+            return "\(SiriHost.cannotOpenMessage)"
         case .nothingToUndo:
             return "There's no attendance mark from Siri today to undo."
-        case .changedSince(let summary):
-            return "The marks from \(summary) have changed since, so I left them."
+        case .changedSince(let dialog):
+            return "\(dialog)"
         }
     }
 }

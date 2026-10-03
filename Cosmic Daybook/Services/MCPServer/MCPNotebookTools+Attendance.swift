@@ -383,7 +383,7 @@ extension MCPNotebookTools {
         } catch {
             modelContext.rollback()
             throw (error as? MCPToolError)
-                ?? MCPToolError("Attendance could not be written: \(error.localizedDescription)")
+                ?? MCPToolError("Attendance could not be written", underlying: error)
         }
         guard modelContext.safeSave() else {
             modelContext.rollback()

@@ -331,6 +331,8 @@ nonisolated public struct BackupOperationSummary: Identifiable, Sendable {
     public let createdAt: Date
     public let entityCounts: [String: Int]
     public let warnings: [String]
+    /// Information for the guide that isn't a warning ("Includes 12 note photos…").
+    public var notes: [String] = []
 
     /// Copy with extra warnings appended — used to surface decode-time skips
     /// in the summary the UI shows after an import.
@@ -342,7 +344,8 @@ nonisolated public struct BackupOperationSummary: Identifiable, Sendable {
             encryptUsed: encryptUsed,
             createdAt: createdAt,
             entityCounts: entityCounts,
-            warnings: warnings + extra
+            warnings: warnings + extra,
+            notes: notes
         )
     }
 }

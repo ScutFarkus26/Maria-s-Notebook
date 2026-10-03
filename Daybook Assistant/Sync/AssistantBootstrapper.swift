@@ -342,6 +342,7 @@ extension AssistantBootstrapper {
             phase = .ready
         } catch {
             Self.logger.error("Sample class failed: \(error.localizedDescription, privacy: .public)")
+            ToastService.shared.showError("Couldn't open the sample class. Try again, or restart the app.")
         }
     }
 

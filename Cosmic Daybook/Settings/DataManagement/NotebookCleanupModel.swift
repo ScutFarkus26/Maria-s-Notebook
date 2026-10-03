@@ -2,7 +2,7 @@ import CoreData
 import Foundation
 import OSLog
 
-/// Drives "Clean Up Old Records" (`NotebookJunkCleanup`): the preview, the checks, the
+/// Drives "Clean Up Leftovers" (`NotebookJunkCleanup`): the preview, the checks, the
 /// verified backup, the run and its report. Mac only, like Remove Last Year: the Mac is the
 /// first device a build reaches, and the other devices take the deletes from iCloud.
 @Observable @MainActor
@@ -48,7 +48,7 @@ final class NotebookCleanupModel {
         #if !os(macOS)
         return "Clean up on your Mac."
         #else
-        if isRestoring() { return "A restore is running." }
+        if isRestoring() { return "A restore is running. Try again when it finishes." }
         if FirstDownloadGate.isPending() { return "This Mac is still downloading the notebook from iCloud." }
         // Records arriving from iCloud can land a batch ahead of the ones they belong to
         // (work steps before their work), and look like junk until the rest arrives.
@@ -76,8 +76,14 @@ final class NotebookCleanupModel {
         do {
             let url = try await verifiedBackup(of: preview)
             Self.logger.notice("Cleanup: verified backup \(url.lastPathComponent, privacy: .public)")
+        } catch let unfinished as BackupDidntFinish {
+            stage = .failed(unfinished.message)
+            return
         } catch {
-            stage = .failed(error.localizedDescription)
+            // The check's reason ("The backup is missing 1 of the YearPlanEntry records…")
+            // names types and counts: the log's, not the guide's.
+            Self.logger.error("Cleanup: backup check failed: \(error.localizedDescription, privacy: .public)")
+            stage = .failed(Self.backupIncomplete)
             return
         }
 
@@ -86,7 +92,7 @@ final class NotebookCleanupModel {
         // arrived from iCloud since isn't junk the guide saw, nor in the backup.
         let done = await pass(apply: true, within: preview)
         guard let done else {
-            stage = .failed("The cleanup couldn't save. Nothing was changed.")
+            stage = .failed("Couldn't save the cleanup, so nothing was changed. Try again.")
             return
         }
         Self.logger.notice(
@@ -115,15 +121,26 @@ final class NotebookCleanupModel {
 
     // MARK: - Backup
 
+    /// What the guide reads when the backup was made but doesn't hold every record the
+    /// cleanup would touch.
+    static let backupIncomplete =
+        "The safety backup didn't hold all of your notebook, so nothing was changed. Try again."
+
+    /// The backup before cleaning up didn't finish, so the check never ran.
+    private struct BackupDidntFinish: Error {
+        let message = "The backup before cleaning up didn't finish. Nothing was changed."
+    }
+
     /// Makes a manual backup and checks it holds, by `id`, every record the preview names
-    /// to remove or change. Throws with the reason otherwise.
+    /// to remove or change. Throws `BackupDidntFinish`, or the check's error with the reason.
     private func verifiedBackup(of preview: NotebookJunkCleanup.Counts) async throws -> URL {
         let stack = dependencies.coreDataStack
         let result = await dependencies.autoBackupManager.performManualBackup(viewContext: stack.viewContext)
         guard case .success(_, let url) = result else {
-            throw ClassroomShareRelease.BackupCheckError(
-                "The backup before cleaning up didn't finish. Nothing was changed."
-            )
+            if case .failure(_, let error) = result {
+                Self.logger.error("Cleanup: the backup failed: \(String(describing: error), privacy: .public)")
+            }
+            throw BackupDidntFinish()
         }
         try await BackupRecordCheck.check(
             url, holds: Array(preview.removing.union(preview.changing)), context: stack.newBackgroundContext()

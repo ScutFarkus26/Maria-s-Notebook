@@ -1,6 +1,7 @@
 import CloudKit
 import CoreData
 import Foundation
+import os
 #if os(macOS)
 import AppKit
 #endif
@@ -51,14 +52,20 @@ extension ClassroomShareRelease {
     static func blocker(coreDataStack: CoreDataStack, isRestoring: Bool) -> String? {
         guard isAvailableHere else { return "Remove last year from the share on your Mac." }
         let context = coreDataStack.viewContext
-        if !coreDataStack.isCloudKitActive { return "iCloud sync is off." }
-        if CDClassroomMembership.currentRole(in: context) != .leadGuide {
-            return "Only the lead guide's Mac can change what the share holds."
+        if !coreDataStack.isCloudKitActive {
+            return "iCloud sync is off. Turn it on in Settings › Sync and backup first."
         }
-        if isRestoring { return "A restore is running." }
-        if FirstDownloadGate.isPending() { return "This Mac is still downloading the notebook from iCloud." }
+        if CDClassroomMembership.currentRole(in: context) != .leadGuide {
+            return "Only the lead guide's Mac can change what's shared."
+        }
+        if isRestoring { return "A restore is running. Try again when it finishes." }
+        if FirstDownloadGate.isPending() {
+            return "This Mac is still downloading your notebook from iCloud. Try again once it has finished."
+        }
         if let reason = syncBlocker() { return reason }
-        if CDClassroomMembership.pinnedZoneName(in: context) == nil { return "There's no classroom share." }
+        if CDClassroomMembership.pinnedZoneName(in: context) == nil {
+            return "Your classroom isn't shared yet, so there's nothing to remove."
+        }
         return anotherCopyBlocker()
     }
 
@@ -70,7 +77,8 @@ extension ClassroomShareRelease {
             withBundleIdentifier: Bundle.main.bundleIdentifier ?? ""
         )
         if running.count > 1 {
-            return "Another copy of Cosmic Daybook is running (it may be hidden, opened for Claude). Quit it first."
+            return "Cosmic Daybook is also open in the background (Claude may have opened it). "
+                + "Quit that copy first."
         }
         #endif
         return nil
@@ -80,11 +88,19 @@ extension ClassroomShareRelease {
     @MainActor
     static func syncBlocker() -> String? {
         let sync = CloudKitSyncStatusService.shared
-        if sync.mirroringDelegateFailed { return "iCloud sync has stopped on this Mac. Quit and reopen first." }
-        if let failure = sync.storeHealth.mostSevereFailure, failure.severity == .stopped { return failure.message }
-        if !sync.isNetworkAvailable { return "This Mac is offline." }
+        if sync.mirroringDelegateFailed {
+            return "iCloud sync has stopped on this Mac. Quit and reopen the app, then try again."
+        }
+        if let failure = sync.storeHealth.mostSevereFailure, failure.severity == .stopped {
+            // The failure's own text is the sync screen's to explain; it goes to the log.
+            logger.notice("Release blocked by a stopped store: \(failure.message, privacy: .public)")
+            return "iCloud sync is stopped. Check Settings › Sync and backup, then try again."
+        }
+        if !sync.isNetworkAvailable { return "This Mac is offline. Connect to the internet, then try again." }
         if sync.pendingLocalChanges > 0 {
-            return "\(sync.pendingLocalChanges) change(s) are still waiting to go to iCloud. Try again in a minute."
+            let changes = sync.pendingLocalChanges == 1
+                ? "1 change is" : "\(sync.pendingLocalChanges.formatted()) changes are"
+            return "\(changes) still waiting to go to iCloud. Try again in a minute."
         }
         return nil
     }
@@ -136,7 +152,7 @@ extension ClassroomShareRelease {
     static func backUp(coreDataStack: CoreDataStack, backups: AutoBackupManager) async throws -> URL {
         let result = await backups.performManualBackup(viewContext: coreDataStack.viewContext)
         guard case .success(_, let url) = result else {
-            throw BackupCheckError("The backup before removing last year didn't finish.")
+            throw BackupCheckError("The backup before removing last year didn't finish. Nothing was changed.")
         }
         return url
     }

@@ -18,14 +18,15 @@ import OSLog
 
 @Observable
 final class BackupCoordinator {
-    private enum ImportError: LocalizedError {
+    /// Explained: a restore failing on it says why, not just that it didn't finish.
+    private nonisolated enum ImportError: ExplainedBackupError {
         case legacyManualImportNoLongerSupported
 
         var errorDescription: String? {
             switch self {
             case .legacyManualImportNoLongerSupported:
-                return "Legacy .mtbbackup files are no longer supported for manual import. " +
-                    "Import a current backup created by this version of the app."
+                return "This backup is from an old version of the app and can't be restored. " +
+                    "Choose a newer backup."
             }
         }
     }

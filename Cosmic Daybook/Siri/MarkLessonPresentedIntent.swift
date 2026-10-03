@@ -77,11 +77,21 @@ struct MarkLessonPresentedIntent: AppIntent {
                 context: context
             )
         }
-        _ = try LifecycleService.recordPresentation(
-            from: assignment,
-            presentedAt: Date(),
-            modelContext: context
-        )
+        do {
+            _ = try LifecycleService.recordPresentation(
+                from: assignment,
+                presentedAt: Date(),
+                modelContext: context
+            )
+        } catch {
+            // The raw error would reach Siri as system text; it goes to the log instead.
+            let ns = error as NSError
+            Logger.database.error("""
+                Siri couldn't record a presentation: \(ns.domain, privacy: .public) \
+                \(ns.code, privacy: .public) \(ns.localizedDescription, privacy: .public)
+                """)
+            throw MarkLessonPresentedError.saveFailed
+        }
 
         guard context.safeSave() else { throw MarkLessonPresentedError.saveFailed }
 
@@ -104,7 +114,7 @@ enum MarkLessonPresentedError: Error, CustomLocalizedStringResourceConvertible {
         case .studentNotFound(let name):
             return "I couldn't find \(name) in your students."
         case .saveFailed:
-            return "Something went wrong saving the presentation. Please try again."
+            return "Something went wrong saving the presentation. Try again."
         }
     }
 }

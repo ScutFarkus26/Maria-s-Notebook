@@ -127,7 +127,7 @@ struct ParentReportDraftEditorView: View {
                 }
                 .disabled(isSent)
         } footer: {
-            Text("Adolescents may speak for themselves: weaves their own meeting reflection into the note. Regenerate the draft to apply.")
+            Text("Adds the student's own words from their meeting. Draft the note again to include them.")
         }
     }
 
@@ -324,7 +324,8 @@ struct ParentReportDraftEditorView: View {
             UIApplication.shared.open(url)
             showingMacSentConfirmation = true
         } else {
-            sendErrorMessage = "No mail account is configured on this device."
+            sendErrorMessage = "No email account is set up on this device. Add one in Mail, "
+                + "or copy the report and send it another way."
         }
     }
     #elseif os(macOS)

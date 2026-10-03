@@ -102,8 +102,9 @@ extension ObservationsView {
         guard !isSummarizing else { return }
         guard SystemLanguageModel.default.isAvailable else {
             showingSummarySheet = true
-            summaryErrorMessage = "Apple Intelligence is not available on this device right now. "
-                + "Your records were not sent anywhere else."
+            summaryErrorMessage = (AppleIntelligenceMessages.unavailableMessage(
+                for: SystemLanguageModel.default.availability
+            ) ?? AppleIntelligenceMessages.notAvailable) + " Your notes stayed on this device."
             return
         }
 
@@ -162,8 +163,8 @@ extension ObservationsView {
 
             guard !packets.isEmpty,
                   await budget.fits(prompt: prompt, reserving: TokenBudget.draftReply) else {
-                summaryErrorMessage = "These records do not fit in an on-device reflection. "
-                    + "Select fewer observations and try again."
+                summaryErrorMessage = "That's too many notes for Apple Intelligence at once. "
+                    + "Choose fewer observations and try again."
                 return
             }
 
@@ -179,8 +180,9 @@ extension ObservationsView {
             }
         } catch {
             Logger.ai.error("[\(#function)] Observations reflection failed: \(error)")
-            summaryErrorMessage = "The on-device reflection could not be completed. "
-                + "Your records were not sent to a cloud model."
+            summaryErrorMessage = AppErrorMessages.aiMessage(
+                for: error, fallback: "Couldn't write the reflection. Try again."
+            ) + " Your notes stayed on this device."
         }
     }
 

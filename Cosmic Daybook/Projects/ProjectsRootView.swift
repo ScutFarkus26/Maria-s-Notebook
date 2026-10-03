@@ -203,8 +203,8 @@ struct ProjectsRootView: View {
                     systemImage: SFSymbol.People.person3Fill,
                     description: Text(
                         searchText.isEmpty
-                            ? "Every project falls outside the school year you are viewing. "
-                                + "Switch the year lens to All Years to see them."
+                            ? "Every project falls outside the school year you're viewing. "
+                                + "Choose All Years to see them."
                             : "No project matches “\(searchText)”."
                     )
                 )

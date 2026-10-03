@@ -81,7 +81,7 @@ enum LogObservationError: Error, CustomLocalizedStringResourceConvertible {
         case .studentNotFound(let name):
             return "I couldn't find \(name) in your students."
         case .saveFailed:
-            return "Something went wrong saving the observation. Please try again."
+            return "Something went wrong saving the observation. Try again."
         }
     }
 }

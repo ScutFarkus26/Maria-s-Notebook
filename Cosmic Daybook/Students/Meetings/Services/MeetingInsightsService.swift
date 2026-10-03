@@ -69,7 +69,7 @@ final class MeetingInsightsService {
 
         guard !relevantMeetings.isEmpty else {
             return MeetingInsightsResult(
-                progressSummary: "No meetings found in this timeframe.",
+                progressSummary: "No meetings in this period.",
                 sentiment: .insufficient,
                 progressTrends: [],
                 regressionSignals: [],

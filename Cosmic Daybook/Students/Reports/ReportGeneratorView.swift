@@ -305,7 +305,8 @@ struct ReportGeneratorView: View {
             )
 
             if notes.isEmpty {
-                errorMessage = "No flagged notes found in the selected date range."
+                errorMessage = "No notes in these dates are marked for reports. "
+                    + "Pick other dates, or mark notes with Include in Report."
                 isGenerating = false
                 return
             }
@@ -318,7 +319,7 @@ struct ReportGeneratorView: View {
             )
 
             if pdfData.isEmpty {
-                errorMessage = "Failed to generate PDF. Please try again."
+                errorMessage = "Couldn't make the report. Try again."
             } else {
                 generatedPDF = pdfData
             }

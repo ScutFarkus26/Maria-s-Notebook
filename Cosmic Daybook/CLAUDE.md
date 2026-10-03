@@ -30,10 +30,12 @@ Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic
   COMPILER_INDEX_STORE_ENABLE=NO build
 
 # Run unit tests: build the app + test bundle once, then run (and re-run) without rebuilding.
-# Test runs compile nothing, so they skip the lock.
+# Test runs compile nothing, so they skip the lock, and run on this checkout's own iPhone 17 from
+# ~/.claude/bin/sim-lease: on the shared "iPhone 17" two sessions' runs killed each other's apps. A hook
+# refuses a test run aimed at a simulator by name.
 Scripts/locked_xcodebuild.sh build-for-testing -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
   COMPILER_INDEX_STORE_ENABLE=NO
-nice -n 10 xcodebuild test-without-building -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0"
+nice -n 10 xcodebuild test-without-building -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,id=$(~/.claude/bin/sim-lease)"
 
 # In an agent worktree: the same recipes plus the three prefix-mapping settings, which take the
 # worktree's path out of the compilation-cache keys so every worktree shares one cache.
@@ -105,7 +107,7 @@ Cosmic Daybook/
 ├── Presentations/    # Presentation scheduling, queues, sessions, record index
 ├── Attendance/       # Attendance: Store/, Rules/, Views/, Tile/, Email/, Reports/, Insights/, Delight/
 ├── Planning/         # Planning tools and AI lesson planning
-├── SmallSequencePlanner/ # Small-group planning by area and sequence
+├── Groups/           # Groups page: who is ready for the same next lesson, sequence ladder
 ├── CommandBar/       # Command bar: Views/, ViewModels/, Services/ (parsing, capture)
 ├── Today/            # Daily hub views, view model, and support
 ├── Todos/            # Todo models, screens, forms, and support
@@ -209,7 +211,7 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 - Check-ins are created only by `CDWorkCheckIn.make(for:on:purpose:in:)` and read with `resolvedWork(in:)`.
 - Work is only for enrolled children (`WorkRepository.createWork`).
 - An observation on a presentation is scoped to specific children (`NoteScope.forSelection`), never `.all`.
-- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Old Records (`NotebookJunkCleanup`), which previews and backs up first.
+- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Leftovers (`NotebookJunkCleanup`), which previews and backs up first.
 
 
 ## Sharing Model
@@ -242,6 +244,7 @@ Attendance by voice in both apps (`Siri/AttendanceIntents.swift`, `Daybook Assis
 - Use `async/await` and `Task.sleep(for:)` for delays (NOT `DispatchQueue`)
 - Use `NSFetchRequest` + `NSPredicate` for queries (NOT `@Query` / `#Predicate`)
 - Use `@FetchRequest` in views for reactive data binding
+- **Plain English on screen** (plan: `Documentation/Implementation/PLAIN_ENGLISH_PLAN.md`): every message the apps show says what happened and what to do, in everyday words. Never put `error.localizedDescription`, `"\(error)"`, codes, IDs, paths or type names into UI text; log them, and put any worth keeping under `TechnicalDetailsDisclosure`. Errors go through `AppErrorMessages` (`userMessage`, `sharingMessage`, `importMessage`, `backupMessage`, `syncMessage`, `aiMessage(fallback:)`); Apple Intelligence wording lives in `AppleIntelligenceMessages`. `SaveCoordinator.save`'s `reason:` is a log label, never shown; pass `alertOnFailure: false` when the screen shows its own message.
 
 ## Auto-Research
 

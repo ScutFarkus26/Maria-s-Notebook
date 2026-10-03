@@ -31,7 +31,16 @@ nonisolated enum SyncedStore: Hashable, Sendable {
         }
     }
 
-    /// Capitalized, for the start of a message.
+    /// The subject of a plain-English sentence ("The classroom share can't…").
+    var subject: String {
+        switch self {
+        case .notebook: return "Your notebook"
+        case .classroomShare: return "The classroom share"
+        case .other: return "Part of your notebook"
+        }
+    }
+
+    /// Capitalized, for the start of a technical line (Details, `sync_status`).
     var displayName: String {
         switch self {
         case .notebook: return "Notebook"
@@ -124,8 +133,22 @@ nonisolated struct StoreSyncFailure: Equatable, Sendable {
         }
     }
 
-    /// One line that names the store and quotes the server.
+    /// What the person sees: which part, which way, and that the changes are
+    /// safe. No server text, codes or event names; those are in `details`.
     var message: String {
+        let head: String
+        switch eventType {
+        case .export: head = "\(store.subject) can't send changes to iCloud right now."
+        case .import: head = "\(store.subject) can't get changes from iCloud right now."
+        default: head = "\(store.subject) can't sync with iCloud right now."
+        }
+        let retry = severity == .retrying ? " iCloud will try again." : ""
+        return head + " Your changes are safe on this device." + retry
+    }
+
+    /// One technical line that names the store and quotes the server, for the
+    /// Details disclosure and `sync_status`.
+    var details: String {
         let head = "\(store.displayName) \(eventName) failed: \u{201C}\(serverMessage)\u{201D} (\(errorCode))."
         switch severity {
         case .stopped: return head + " Nothing in \(store.phrase) syncs until this is fixed."

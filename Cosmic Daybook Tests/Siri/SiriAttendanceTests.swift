@@ -104,8 +104,8 @@ struct SiriAttendanceTests {
         let siri = session()
         try await siri.mark(maya, as: .present)
 
-        let summary = try await siri.undoLast()
-        #expect(summary == "Maya Stone present")
+        let dialog = try await siri.undoLast()
+        #expect(dialog == "Done. Maya Stone isn't marked present anymore.")
         #expect(try siri.status(of: maya) == .unmarked)
         await #expect { try await siri.undoLast() } throws: { Self.siriError($0) == "nothingToUndo" }
     }
@@ -120,7 +120,10 @@ struct SiriAttendanceTests {
         siri.store.updateStatus(record, to: .absent)
         _ = context.safeSave()
 
-        await #expect { try await siri.undoLast() } throws: { Self.siriError($0) == "changedSince" }
+        await #expect { try await siri.undoLast() } throws: { error in
+            guard case .changedSince(let dialog) = error as? SiriAttendanceError else { return false }
+            return dialog == "Maya Stone's mark has changed since then, so I left it alone."
+        }
         #expect(try siri.status(of: maya) == .absent)
     }
 
@@ -153,7 +156,7 @@ struct SiriAttendanceTests {
 
         let siri = session()
         try await siri.mark(maya, as: .absent)
-        #expect(try await siri.undoLast() == "Maya Stone absent")
+        #expect(try await siri.undoLast() == "Done. Maya Stone isn't marked absent anymore.")
         #expect(record.status == .leftEarly)
         #expect(record.markedAt == arrived)
         #expect(record.leftAt == left)
@@ -207,7 +210,7 @@ struct SiriAttendanceTests {
         context.delete(broken)
         #expect(try siri.status(of: maya) == .present)
 
-        #expect(try await siri.undoLast() == "Maya Stone present")
+        #expect(try await siri.undoLast() == "Done. Maya Stone isn't marked present anymore.")
         #expect(try siri.status(of: maya) == .unmarked)
     }
 
@@ -218,7 +221,7 @@ struct SiriAttendanceTests {
         try await siri.mark(maya, as: .present)
         SiriAttendanceChange(day: siri.today, marks: [], summary: "closing arrival", closedArrival: true).remember()
 
-        #expect(try await siri.undoLast() == "closing arrival")
+        #expect(try await siri.undoLast() == "Done. Arrival is open again.")
         // The earlier mark is not what Undo reached for.
         #expect(try siri.status(of: maya) == .present)
         await #expect { try await siri.undoLast() } throws: { Self.siriError($0) == "nothingToUndo" }
@@ -308,5 +311,48 @@ struct SiriAttendanceTests {
         let former = SiriHost.formerStudents(in: context)
         #expect(former.contains(leah))
         #expect(!former.contains(test))
+    }
+}
+
+// MARK: - What Siri says
+
+extension SiriAttendanceTests {
+    @Test("A raw database error becomes Siri's plain sentence; Siri's own errors pass through")
+    func rawErrorsArePlain() {
+        let raw = NSError(domain: NSCocoaErrorDomain, code: 134_030, userInfo: [
+            NSLocalizedDescriptionKey: "The operation couldn't be completed. (NSCocoaErrorDomain error 134030.)"
+        ])
+        let wrapped = SiriAttendance.plain(raw)
+        #expect(Self.siriError(wrapped) == "saveFailed")
+        let said = String(localized: (wrapped as? SiriAttendanceError)?.localizedStringResource ?? "")
+        #expect(said == "Something went wrong saving attendance. Try again.")
+        #expect(Self.siriError(SiriAttendance.plain(SiriAttendanceError.dayLocked)) == "dayLocked")
+        let cannotOpen = String(localized: SiriAttendanceError.cannotOpen.localizedStringResource)
+        #expect(cannotOpen == "I couldn't open your class right now. Open the app and try again.")
+    }
+
+    @Test("Siri says late, never tardy, and undoing a late mark says so")
+    func lateNotTardy() async throws {
+        #expect(AttendanceStatus.tardy.spokenWord == "late")
+        let maya = makeStudent("Maya")
+        let siri = session()
+        try await siri.mark(maya, as: .tardy)
+        #expect(SiriAttendanceChange.last()?.summary == "Maya Stone late")
+        #expect(try await siri.undoLast() == "Done. Maya Stone isn't marked late anymore.")
+    }
+
+    @Test("A change remembered before names were kept still undoes, in a general sentence")
+    func undoWithoutName() throws {
+        let change = SiriAttendanceChange(
+            day: Date(), marks: [], summary: "Maya Stone present", closedArrival: false
+        )
+        #expect(change.name == nil)
+        #expect(change.undoneDialog == "Done. I put that back.")
+        #expect(change.changedSinceDialog == "Those marks have changed since then, so I left them alone.")
+        let decoded = try JSONDecoder().decode(
+            SiriAttendanceChange.self,
+            from: Data(#"{"day":0,"marks":[],"summary":"Maya Stone present","closedArrival":false}"#.utf8)
+        )
+        #expect(decoded.name == nil)
     }
 }

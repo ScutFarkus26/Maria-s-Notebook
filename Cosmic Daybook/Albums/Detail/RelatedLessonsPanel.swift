@@ -54,7 +54,7 @@ struct RelatedLessonsPanel: View {
                         .foregroundStyle(.secondary)
                 }
             case .unavailable:
-                Text("Semantic lesson matching isn't available on this device.")
+                Text("Related lessons aren't available on this device.")
                     .foregroundStyle(.secondary)
             }
         }

@@ -227,6 +227,7 @@ extension TodayView {
             try WorkCheckInService(context: viewContext).markCompleted(item.checkIn, note: nil, at: Date())
         } catch {
             Logger.app_.warning("Failed to complete work check-in: \(error.localizedDescription)")
+            toast("Couldn't check that in. Try again.")
             return
         }
         guard saveCoordinator.save(viewContext, reason: "Complete work check-in") else { return }
@@ -243,7 +244,8 @@ extension TodayView {
                 context: viewContext, saveCoordinator: saveCoordinator
             )
         } catch {
-            Logger.app_.warning("Failed to log work status: \(error.localizedDescription)")
+            // The service saves with the global alert off, so this toast is the only word of it.
+            toast(PresentationFailureMessage.message(for: error, fallback: "Couldn't log that work. Try again."))
             return
         }
         viewModel.reload()
@@ -256,6 +258,7 @@ extension TodayView {
             try WorkCheckInService(context: viewContext).reschedule(item.checkIn, to: day)
         } catch {
             Logger.app_.warning("Failed to reschedule work check-in: \(error.localizedDescription)")
+            toast("Couldn't move that check-in. Try again.")
             return
         }
         item.work.dueAt = day

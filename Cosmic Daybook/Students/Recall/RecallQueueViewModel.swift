@@ -103,7 +103,7 @@ final class RecallQueueViewModel {
         sections = grouped.map { studentID, entries in
             RecallStudentSection(
                 id: studentID,
-                studentName: nameByID[studentID] ?? "Unknown",
+                studentName: nameByID[studentID] ?? "Student removed",
                 entries: entries
             )
         }
@@ -116,7 +116,7 @@ final class RecallQueueViewModel {
         retentionByStudent = RecallRetentionStats.perStudent(rows: statRows, schoolYearKey: currentYear.key)
             .map {
                 RecallStudentRetention(
-                    id: $0.id, name: nameByID[$0.id] ?? "Unknown",
+                    id: $0.id, name: nameByID[$0.id] ?? "Student removed",
                     observedCount: $0.observedCount, percent: $0.percent
                 )
             }

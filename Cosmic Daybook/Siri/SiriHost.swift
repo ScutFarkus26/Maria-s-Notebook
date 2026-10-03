@@ -18,6 +18,9 @@ enum SiriHost {
         AppBootstrapping.getSharedCoreDataStack()
     }
 
+    /// What Siri says when the notebook can't be opened (the raw error is logged).
+    nonisolated static let cannotOpenMessage = "I couldn't open your class right now. Open the app and try again."
+
     /// The notebook is always ready: it owns its data.
     static func checkReady(in context: NSManagedObjectContext) throws {}
 

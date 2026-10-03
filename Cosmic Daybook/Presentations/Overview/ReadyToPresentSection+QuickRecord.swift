@@ -39,7 +39,11 @@ extension ReadyToPresentSection {
                 }
             )
         } catch {
-            dependencies.toastService.showError(error.localizedDescription)
+            // The one click took everything back, so a failed follow-up save
+            // reads as the recording not happening, not as notes kept.
+            let fallback = "Couldn't record the presentation. Nothing was changed. Try again."
+            let message = PresentationFailureMessage.message(for: error, fallback: fallback)
+            dependencies.toastService.showError(error is PresentationSessionCommit.CommitError ? fallback : message)
         }
     }
 
@@ -48,7 +52,12 @@ extension ReadyToPresentSection {
             try PresentationQuickRecord.undo(receipt, context: viewContext, saveCoordinator: saveCoordinator)
             PresentationDetailUtilities.notifyInboxRefresh()
         } catch {
-            dependencies.toastService.showError(error.localizedDescription)
+            // The work deletion's own wording ("Couldn't save the change")
+            // says less than this.
+            let fallback = "Couldn't undo. Try again."
+            let message = PresentationFailureMessage.message(for: error, fallback: fallback)
+            let isRecordingError = error is ImmediatePresentationRecordingService.RecordingError
+            dependencies.toastService.showError(isRecordingError ? message : fallback)
         }
     }
 }

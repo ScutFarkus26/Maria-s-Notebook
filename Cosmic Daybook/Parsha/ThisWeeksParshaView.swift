@@ -306,7 +306,7 @@ private struct ParshaContentList: View {
                 Label("Album Matches (AI)", systemImage: "sparkles")
                 Spacer()
                 if let cached = cachedSuggestions {
-                    Text("Generated \(cached.generatedAt.formatted(.relative(presentation: .named)))")
+                    Text("Found \(cached.generatedAt.formatted(.relative(presentation: .named)))")
                         .font(AppTheme.ScaledFont.captionSmall)
                         .foregroundStyle(.secondary)
                 }
@@ -359,7 +359,9 @@ private struct ParshaContentList: View {
             let result = try await service.generateSuggestions(forParshaKey: parshaKey)
             cachedSuggestions = result
         } catch {
-            suggestionError = error.localizedDescription
+            suggestionError = AppErrorMessages.aiMessage(
+                for: error, fallback: "Couldn't find matching lessons. Try again."
+            )
         }
     }
 

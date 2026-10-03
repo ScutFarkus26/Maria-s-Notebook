@@ -28,7 +28,7 @@ extension AttendanceViewModel {
             changed(marked)
             return BulkMark(day: selectedDate, records: marked.map(AttendanceRecordSnapshot.init))
         } catch {
-            Logger.attendance.warning("Failed to mark the rest present: \(error)")
+            report("Couldn't mark the rest present. Try again.", error, while: "marking the rest present")
             return nil
         }
     }

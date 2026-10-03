@@ -12,7 +12,7 @@ extension CommandBarViewModel {
         recordedPresentationID: UUID? = nil
     ) throws -> CaptureSaveReceipt {
         guard let proposal = captureProposal else {
-            throw CaptureSaveError.invalid("There is no capture to save.")
+            throw CaptureSaveError.invalid("There's nothing to save yet.")
         }
         if let validationMessage = captureValidationMessage {
             throw CaptureSaveError.invalid(validationMessage)
@@ -21,9 +21,7 @@ extension CommandBarViewModel {
         let studentIDs = proposal.studentIDs
         let students = try fetchStudents(ids: studentIDs, context: context)
         guard students.count == Set(studentIDs).count else {
-            throw CaptureSaveError.invalid(
-                "One of the selected children is no longer in the roster. Review the capture and try again."
-            )
+            throw CaptureSaveError.studentMissing
         }
 
         let receipt = try performAtomicCaptureSave(
@@ -65,10 +63,11 @@ extension CommandBarViewModel {
             operationUndoManager.endUndoGrouping()
             groupingIsOpen = false
 
-            guard saveCoordinator.save(context, reason: "saving the reviewed classroom capture") else {
-                let message = saveCoordinator.lastSaveErrorMessage
-                    ?? "The classroom capture could not be saved."
-                throw CaptureSaveError.saveFailed(message)
+            // The review screen shows its own message, so the global alert stays quiet.
+            guard saveCoordinator.save(
+                context, reason: "saving the reviewed classroom capture", alertOnFailure: false
+            ) else {
+                throw CaptureSaveError.saveFailed
             }
             return result
         } catch {
@@ -114,7 +113,7 @@ extension CommandBarViewModel {
     ) throws -> CaptureSaveReceipt {
         guard let lessonID = proposal.lessonID,
               let lesson = try fetchLesson(id: lessonID, context: context) else {
-            throw CaptureSaveError.invalid("The selected lesson could not be found. Nothing was saved.")
+            throw CaptureSaveError.lessonMissing
         }
 
         let assignment = try resolvePresentation(CapturePresentationRequest(
@@ -126,7 +125,7 @@ extension CommandBarViewModel {
             context: context
         ))
         guard let presentationID = assignment.id else {
-            throw CaptureSaveError.invalid("The presentation does not have a saved identity. Nothing was saved.")
+            throw CaptureSaveError.saveFailed
         }
 
         let observations = Dictionary(uniqueKeysWithValues: proposal.studentEntries.map {
@@ -163,7 +162,7 @@ extension CommandBarViewModel {
         _ request: CapturePresentationRequest
     ) throws -> CDLessonAssignment {
         guard let lessonID = request.lesson.id else {
-            throw CaptureSaveError.invalid("The selected lesson could not be found. Nothing was saved.")
+            throw CaptureSaveError.lessonMissing
         }
         if let recordedPresentationID = request.recordedPresentationID {
             return try exactRecordedAssignment(

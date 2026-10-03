@@ -113,14 +113,15 @@ final class ParshaSuggestionService {
             let matches: [Match]
         }
         guard let data = response.data(using: .utf8) else {
-            throw ParshaSuggestionError.decodeError("Response was not UTF-8")
+            logger.error("AI response was not UTF-8")
+            throw LocalModelError.invalidJSON
         }
         let decoded: ResponseShape
         do {
             decoded = try JSONDecoder().decode(ResponseShape.self, from: data)
         } catch {
             logger.error("Failed to decode AI response: \(error.localizedDescription); raw: \(response)")
-            throw ParshaSuggestionError.decodeError(error.localizedDescription)
+            throw LocalModelError.invalidJSON
         }
 
         let indexToLesson = Dictionary(uniqueKeysWithValues: digestEntries.map { ($0.index, $0.lesson) })
@@ -169,14 +170,11 @@ final class ParshaSuggestionService {
 
 enum ParshaSuggestionError: LocalizedError {
     case noAlbumLessons
-    case decodeError(String)
 
     var errorDescription: String? {
         switch self {
         case .noAlbumLessons:
-            return "No album lessons found. Add lessons from your albums before requesting suggestions."
-        case .decodeError(let detail):
-            return "Could not parse AI response: \(detail)"
+            return "There are no album lessons yet. Add lessons from your albums, then try again."
         }
     }
 }

@@ -124,10 +124,11 @@ extension AttendanceLogView {
         dependencies.saveCoordinator.save(viewContext, reason: "Delete attendance record")
     }
 
+    /// The store refuses only a locked day (every role may write attendance,
+    /// `ClassroomPermissions`); otherwise a refused status change means the
+    /// record already had that status, so there's nothing to say.
     private func showRefusal(for record: CDAttendanceRecord, store: CDAttendanceStore) {
-        let message = store.isLocked(record.date ?? Date())
-            ? "That day's attendance is locked. Unlock it to make changes."
-            : "Attendance can't be changed from here."
-        dependencies.toastService.showError(message)
+        guard store.isLocked(record.date ?? Date()) else { return }
+        dependencies.toastService.showError("That day's attendance is locked. Unlock it to make changes.")
     }
 }

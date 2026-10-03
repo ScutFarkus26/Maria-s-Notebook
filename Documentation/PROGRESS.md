@@ -194,3 +194,11 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 - [ ] Classroom sync resumes after the roll-out (Mac: first upload 16:35 clean; iPhone and iPad not yet read)
 - [ ] Real-share checks: join state, Leave, guide's name, reminder firing, Siri
 - [ ] Tide device checks: fa1c434f, gmail re-invite, then the rest
+
+## Plain English (milestones 27–32, plan `Documentation/Implementation/PLAIN_ENGLISH_PLAN.md`)
+- [x] 27. Plain English: shared
+- [x] 28. Plain English: sync
+- [x] 29. Plain English: backup
+- [x] 30. Plain English: sharing & Siri
+- [x] 31. Plain English: screens
+- [ ] 32. Plain English: merge & verify (merged and tested on claude/festive-morse-7d0b1a; landing on main and the on-screen check wait for Danny)

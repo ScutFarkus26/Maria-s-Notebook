@@ -13,16 +13,22 @@ enum StoryImportService {
         case fileMissing
         case notAPDF
         case encrypted
-        case copyFailed(message: String)
+        /// Copying the PDF into the story library failed; the file error is
+        /// translated, never shown raw.
+        case copyFailed(underlying: Error)
+        /// The PDF was copied but the new story couldn't be saved.
+        case saveFailed
         case unreadablePDF
 
         var errorDescription: String? {
             switch self {
-            case .fileMissing: return "Couldn't find the PDF file."
+            case .fileMissing: return "Couldn't find that PDF. It may have been moved or deleted."
             case .notAPDF: return "Only PDF files can be added as stories."
-            case .encrypted: return "This PDF is password-protected and can't be imported."
-            case .copyFailed(let message): return "Couldn't copy the PDF: \(message)"
-            case .unreadablePDF: return "This PDF couldn't be opened."
+            case .encrypted: return "This PDF is locked with a password and can't be added."
+            case .copyFailed(let underlying):
+                return ManagedPDFFileStorage.ImportError.copyFailureMessage(for: underlying)
+            case .saveFailed: return "Couldn't save the new story. Try again."
+            case .unreadablePDF: return "This PDF couldn't be opened. It may be damaged."
             }
         }
     }
@@ -67,7 +73,7 @@ enum StoryImportService {
             case .notAPDF: throw ImportRejection.notAPDF
             case .encrypted: throw ImportRejection.encrypted
             case .copyFailed(let underlying):
-                throw ImportRejection.copyFailed(message: underlying.localizedDescription)
+                throw ImportRejection.copyFailed(underlying: underlying)
             }
         }
 
@@ -93,7 +99,7 @@ enum StoryImportService {
             if !StoryAnalyzer.hasUsableText(extracted.text), !StoryAnalyzer.isVisualAnalysisEnabled {
                 // No readable text and no vision-capable model to read the pages.
                 story.analysisStatus = .manual
-                story.analysisErrorMessage = "Couldn't read text from this PDF — add details manually."
+                story.analysisErrorMessage = "Couldn't read the words in this PDF. Add the details yourself."
             }
         }
 
@@ -106,7 +112,7 @@ enum StoryImportService {
             // Roll back the file on save failure to avoid orphaning.
             try? StoryFileStorage.deleteIfManaged(imported.url)
             context.delete(story)
-            throw ImportRejection.copyFailed(message: error.localizedDescription)
+            throw ImportRejection.saveFailed
         }
 
         scheduleInitialAnalysis(
@@ -143,14 +149,14 @@ enum StoryImportService {
             relativePath: story.pdfFileRelativePath
         ) else {
             story.analysisStatus = .failed
-            story.analysisErrorMessage = "PDF file is missing."
+            story.analysisErrorMessage = "Couldn't find this story's PDF. Delete the story and add the PDF again."
             _ = context.safeSave()
             return
         }
 
         guard let extracted = StoryAnalyzer.extractText(from: url) else {
             story.analysisStatus = .failed
-            story.analysisErrorMessage = "Couldn't read this PDF."
+            story.analysisErrorMessage = "Couldn't open this PDF. Add the details yourself."
             _ = context.safeSave()
             return
         }
@@ -169,7 +175,7 @@ enum StoryImportService {
             scheduleAnalysis(for: story.objectID, input: .visual(url), context: context)
         } else {
             story.analysisStatus = .manual
-            story.analysisErrorMessage = "Couldn't read text from this PDF — add details manually."
+            story.analysisErrorMessage = "Couldn't read the words in this PDF. Add the details yourself."
             _ = context.safeSave()
         }
     }
@@ -239,6 +245,12 @@ enum StoryImportService {
         to objectID: NSManagedObjectID,
         context: NSManagedObjectContext
     ) async {
+        // Stored on the story (synced and backed up), so it's the plain sentence,
+        // never the raw error; the raw one goes to the log.
+        if !(error is StoryAnalyzerError) {
+            logger.error("Story analysis failed: \(error.localizedDescription, privacy: .public)")
+        }
+        let otherFailureMessage = AppErrorMessages.aiMessage(for: error, fallback: StoryAnalyzerError.couldNotRead)
         await context.perform {
             guard let story = context.existing(CDStory.self, objectID) else { return }
             if let analyzerError = error as? StoryAnalyzerError {
@@ -247,20 +259,20 @@ enum StoryImportService {
                     story.analysisStatus = .manual
                 case .insufficientText:
                     story.analysisStatus = .manual
-                    story.analysisErrorMessage = "Couldn't read text from this PDF — add details manually."
+                    story.analysisErrorMessage = "Couldn't read the words in this PDF. Add the details yourself."
                 case .unreadablePDF:
                     story.analysisStatus = .manual
-                    story.analysisErrorMessage = "Couldn't read this PDF's pages — add details manually."
+                    story.analysisErrorMessage = "Couldn't open this PDF's pages. Add the details yourself."
                 case .timedOut:
                     story.analysisStatus = .failed
-                    story.analysisErrorMessage = "Analysis timed out. Try again."
+                    story.analysisErrorMessage = "This took too long. Try again."
                 case .generationFailed(let message):
                     story.analysisStatus = .failed
                     story.analysisErrorMessage = message
                 }
             } else {
                 story.analysisStatus = .failed
-                story.analysisErrorMessage = error.localizedDescription
+                story.analysisErrorMessage = otherFailureMessage
             }
             story.modifiedAt = Date()
             _ = context.safeSave()

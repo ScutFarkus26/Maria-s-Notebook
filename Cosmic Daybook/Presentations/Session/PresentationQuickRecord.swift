@@ -109,8 +109,11 @@ enum PresentationQuickRecord {
             (try? context.existingObject(with: id)) as? CDWorkModel
         }.filter { !$0.isDeleted }
         if !works.isEmpty {
+            // The Ready row's toast reports a failure, so the global alert stays quiet.
             try WorkDeletionService(context: context).delete(works) {
-                saveCoordinator.save(context, reason: "Undoing a one-click presentation's work")
+                saveCoordinator.save(
+                    context, reason: "Undoing a one-click presentation's work", alertOnFailure: false
+                )
             }
         }
         try ImmediatePresentationRecordingService.undo(

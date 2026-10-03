@@ -16,10 +16,11 @@ extension CloudKitSyncStatusService {
 
     func handleNetworkChange(isAvailable: Bool) {
         if isAvailable {
-            // Network restored - clear network-related errors and trigger retry
-            if lastSyncErrorMentions(["network", "offline", "Waiting"]) {
-                lastSyncError = nil
-                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            // Network restored - clear a network error (by its kind, not its
+            // wording; see `loadPersistedSyncError`) and trigger retry
+            if lastSyncErrorKind == .network {
+                clearSyncErrorInMemory()
+                Self.removePersistedSyncError()
             }
             // Trigger retry for any pending syncs
             retryPendingSync()
@@ -27,18 +28,12 @@ extension CloudKitSyncStatusService {
         updateSyncHealth()
     }
 
-    /// Whether the stored error text contains any of `fragments`.
-    private func lastSyncErrorMentions(_ fragments: [String]) -> Bool {
-        guard let text = lastSyncError else { return false }
-        return fragments.contains { text.contains($0) }
-    }
-
     func handleICloudAccountChange(isAvailable: Bool) {
         if isAvailable {
-            // User signed into iCloud - clear any offline errors and retry
-            if lastSyncErrorMentions(["iCloud", "signed in", "Sign into"]) {
-                lastSyncError = nil
-                UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+            // User signed into iCloud - clear an account error and retry
+            if lastSyncErrorKind == .account {
+                clearSyncErrorInMemory()
+                Self.removePersistedSyncError()
             }
             // Trigger retry for any pending syncs
             retryPendingSync()
@@ -135,10 +130,10 @@ extension CloudKitSyncStatusService {
         // A remote change was received from CloudKit - this confirms sync is working.
         // `@Observable` notifies on every assignment, equal or not, and the
         // toolbar indicators observe this service — so write only real changes.
-        SyncEventLogger.shared.log("cloudkit", status: "success", message: "Remote changes received")
+        SyncEventLogger.shared.log("cloudkit", status: "success", message: "Got changes from iCloud")
         let now = Date()
         recordSuccessfulSync(at: now)
-        if lastSyncError != nil { lastSyncError = nil }
+        clearSyncErrorInMemory()
         if isSyncing { isSyncing = false }
         if currentOperation != nil { currentOperation = nil }
         if lastOperation != "Remote changes received" { lastOperation = "Remote changes received" }
@@ -194,7 +189,11 @@ extension CloudKitSyncStatusService {
                 self.currentOperation = nil
                 self.lastOperation = "Sync paused: waiting for network"
                 self.lastOperationDate = Date()
-                self.lastSyncError = "Changes saved locally. Waiting for network to sync."
+                self.recordSyncError(
+                    "You're offline. Your changes are saved on this device and send to iCloud "
+                        + "when you're back online.",
+                    detail: nil, kind: .network, persist: false
+                )
                 self.updateSyncHealth()
                 return
             }
@@ -268,7 +267,8 @@ extension CloudKitSyncStatusService {
             )
         } else {
             handleFailedCloudKitEvent(
-                type: type, typeDescription: "\(store.displayName) \(typeDescription.lowercased())", error: error
+                type: type, store: store,
+                typeDescription: "\(store.displayName) \(typeDescription.lowercased())", error: error
             )
         }
 
@@ -284,7 +284,7 @@ extension CloudKitSyncStatusService {
         storeIdentifier: String?
     ) {
         Self.logger.debug("CloudKit \(typeDescription) succeeded")
-        SyncEventLogger.shared.log("cloudkit", status: "success", message: "\(typeDescription) completed")
+        SyncEventLogger.shared.log("cloudkit", status: "success", message: Self.historyLine(succeeded: type))
 
         guard type != .setup else { return }
 
@@ -313,7 +313,7 @@ extension CloudKitSyncStatusService {
         let operation = "\(typeDescription) completed"
         if lastOperation != operation { lastOperation = operation }
         lastOperationDate = now
-        if lastSyncError != nil { lastSyncError = nil }
+        clearSyncErrorInMemory()
         if pendingSyncCount != 0 { pendingSyncCount = 0 }
         retryLogic.resetRetryCount()
 
@@ -333,8 +333,9 @@ extension CloudKitSyncStatusService {
     func recordSuccessfulSync(at date: Date, persistNow: Bool = false) {
         lastSuccessfulSync = date
         let defaults = UserDefaults.standard
-        if defaults.object(forKey: UserDefaultsKeys.cloudKitLastSyncError) != nil {
-            defaults.removeObject(forKey: UserDefaultsKeys.cloudKitLastSyncError)
+        if defaults.object(forKey: UserDefaultsKeys.cloudKitLastSyncError) != nil
+            || defaults.object(forKey: UserDefaultsKeys.cloudKitLastSyncErrorKind) != nil {
+            Self.removePersistedSyncError(from: defaults)
         }
         unpersistedSyncDate = date
         guard !persistNow, syncDatePersistedAt != nil else {
@@ -382,21 +383,15 @@ extension CloudKitSyncStatusService {
 
     private func handleFailedCloudKitEvent(
         type: NSPersistentCloudKitContainer.EventType,
+        store: SyncedStore,
         typeDescription: String,
         error: (any Error)?
     ) {
+        recordEventFailure(type: type, store: store, typeDescription: typeDescription, error: error)
         if let error {
             let nsError = error as NSError
-            let domainAndCode = "\(nsError.domain) (\(nsError.code))"
             let errorDesc = nsError.localizedDescription
-            Self.logger.error("CloudKit \(typeDescription) failed [\(domainAndCode)]: \(errorDesc)")
-            SyncEventLogger.shared.log(
-                "cloudkit",
-                status: "error",
-                message: "\(typeDescription) failed [\(domainAndCode)]: \(errorDesc)"
-            )
             CloudKitConfigurationService.storeError(error, retryCount: retryLogic.retryAttempt)
-            lastSyncError = "\(typeDescription) failed [\(domainAndCode)]: \(errorDesc)"
 
             // Detect the catastrophic "mirroring delegate never initialized"
             // condition. After this fires, NSPersistentCloudKitContainer
@@ -428,18 +423,12 @@ extension CloudKitSyncStatusService {
                     "CloudKit mirroring delegate marked as failed for this session"
                 )
             }
-        } else {
-            let fallbackError = "\(typeDescription) failed: Unknown error"
-            Self.logger.error("\(fallbackError)")
-            SyncEventLogger.shared.log("cloudkit", status: "error", message: fallbackError)
-            lastSyncError = fallbackError
         }
         lastOperation = "\(typeDescription) failed"
         lastOperationDate = Date()
         if isSyncing { isSyncing = false }
         syncingTask?.cancel()
         syncingTask = nil
-        UserDefaults.standard.set(lastSyncError, forKey: UserDefaultsKeys.cloudKitLastSyncError)
         if type != .setup {
             scheduleRetry()
         }

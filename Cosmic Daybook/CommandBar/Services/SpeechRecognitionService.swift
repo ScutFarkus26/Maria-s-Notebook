@@ -33,7 +33,8 @@ final class SpeechRecognitionService {
         }
 
         guard speechStatus == .authorized else {
-            error = "Speech recognition permission denied."
+            error = "Cosmic Daybook isn't allowed to use dictation. "
+                + "Turn it on in \(SystemSettingsApp.privacyPath("Speech Recognition"))."
             return false
         }
 
@@ -49,7 +50,8 @@ final class SpeechRecognitionService {
             }
         }
         guard audioStatus else {
-            error = "Microphone permission denied."
+            error = "Cosmic Daybook can't use the microphone. "
+                + "Turn it on in \(SystemSettingsApp.privacyPath("Microphone"))."
             return false
         }
         #endif
@@ -62,11 +64,11 @@ final class SpeechRecognitionService {
 
     func startRecording(requiresOnDeviceRecognition: Bool = false) {
         guard let speechRecognizer, speechRecognizer.isAvailable else {
-            error = "Speech recognition is not available."
+            error = "Dictation isn't available right now. Type instead."
             return
         }
         guard !requiresOnDeviceRecognition || speechRecognizer.supportsOnDeviceRecognition else {
-            error = "Private on-device speech recognition is not available here. Type the observation instead."
+            error = "Dictation that stays on this device isn't available here. Type the observation instead."
             return
         }
 
@@ -99,7 +101,7 @@ final class SpeechRecognitionService {
                     let nsError = error as NSError
                     if nsError.domain != "kAFAssistantErrorDomain" || nsError.code != 216 {
                         Self.logger.warning("Speech recognition error: \(error)")
-                        self.error = error.localizedDescription
+                        self.error = "Dictation stopped. Try again, or type instead."
                     }
                     self.stopRecording()
                 }
@@ -117,7 +119,7 @@ final class SpeechRecognitionService {
             Self.logger.info("Started speech recording")
         } catch {
             Self.logger.warning("Failed to start audio engine: \(error)")
-            self.error = "Failed to start recording."
+            self.error = "Couldn't start dictation. Try again, or type instead."
             stopRecording()
         }
     }

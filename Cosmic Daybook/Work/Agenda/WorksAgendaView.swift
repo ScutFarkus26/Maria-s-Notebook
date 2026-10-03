@@ -180,7 +180,7 @@ struct WorksAgendaView: View {
             if restoreCoordinator.isRestoring {
                 VStack(spacing: 16) {
                     ProgressView().controlSize(.large)
-                    Text("Restoring data…")
+                    Text("Restoring your backup…")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

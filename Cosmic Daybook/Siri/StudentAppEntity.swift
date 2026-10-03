@@ -80,7 +80,7 @@ struct StudentEntity: AppEntity, IndexedEntity {
 struct StudentEntityQuery: EntityStringQuery {
     @MainActor
     func entities(for identifiers: [UUID]) async throws -> [StudentEntity] {
-        let context = try SiriHost.stack().viewContext
+        let context = try SiriAttendance.openStack().viewContext
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", identifiers)
         return context.safeFetch(request).compactMap { StudentEntity(student: $0) }
@@ -92,7 +92,7 @@ struct StudentEntityQuery: EntityStringQuery {
     /// over a current Leah.
     @MainActor
     func entities(matching string: String) async throws -> [StudentEntity] {
-        let context = try SiriHost.stack().viewContext
+        let context = try SiriAttendance.openStack().viewContext
         let current = Self.entities(SiriHost.roster(in: context))
         let found = Self.matches(for: string, in: current)
         if !found.isEmpty { return found }
@@ -103,7 +103,7 @@ struct StudentEntityQuery: EntityStringQuery {
     /// The names Siri learns for App Shortcut phrases: the current class.
     @MainActor
     func suggestedEntities() async throws -> [StudentEntity] {
-        let context = try SiriHost.stack().viewContext
+        let context = try SiriAttendance.openStack().viewContext
         return Self.entities(SiriHost.roster(in: context))
     }
 

@@ -3,9 +3,9 @@ import CloudKit
 import Testing
 @testable import CosmicDaybook
 
-/// Pins the user-facing strings `AppErrorMessages.userMessage` produces for one
-/// representative input per branch, so the per-domain helpers stay a pure
-/// refactor of the switch they were split out of.
+/// Pins the user-facing strings `AppErrorMessages` produces for one
+/// representative input per branch, and the plain-English rule itself: no
+/// message carries raw system text, codes or developer labels.
 @MainActor
 @Suite("App error messages")
 struct AppErrorMessagesTests {
@@ -17,6 +17,15 @@ struct AppErrorMessagesTests {
     /// Not a `LocalizedError`, so nothing can speak for it and the domain
     /// switch has to fall through to its default.
     private enum PlainError: Error { case boom }
+
+    /// Words that mean raw system text leaked into a message.
+    private static let rawMarkers = ["domain=", "code=", "Domain", "CKError", "NSCocoa", "(While:", "Error Domain"]
+
+    private func expectPlain(_ message: String, sourceLocation: SourceLocation = #_sourceLocation) {
+        for marker in Self.rawMarkers {
+            #expect(!message.contains(marker), "\"\(message)\" contains \(marker)", sourceLocation: sourceLocation)
+        }
+    }
 
     @Test("An app-defined LocalizedError speaks for itself")
     func localizedErrorWins() {
@@ -35,19 +44,19 @@ struct AppErrorMessagesTests {
     func cloudKitQuotaExceeded() {
         let error = CKError(.quotaExceeded) as NSError
         #expect(AppErrorMessages.userMessage(for: error)
-            == "Your iCloud storage is full. Free up space so your data can continue syncing.")
+            == "Your iCloud storage is full. Free up space so your notebook can keep syncing.")
     }
 
     @Test("CloudKit codes read as what they are: signed out, offline, a gone zone")
     func cloudKitCodesMatchTheirNames() {
         #expect(AppErrorMessages.userMessage(for: CKError(.notAuthenticated) as NSError)
-            == "No iCloud account found. Sign in to iCloud in Settings to sync your data.")
+            .hasPrefix("This device isn't signed in to iCloud. Sign in from "))
         #expect(AppErrorMessages.userMessage(for: CKError(.networkFailure) as NSError, context: "joining")
-            == "Couldn't reach iCloud while joining. Your changes are saved locally.")
+            == "Couldn't reach iCloud while joining. Your changes are saved on this device.")
         #expect(AppErrorMessages.userMessage(for: CKError(.zoneNotFound) as NSError)
-            == "The shared classroom data isn't available yet. Ask the lead guide to re-share.")
+            == "The shared classroom isn't available yet. Ask the lead guide to share it again.")
         #expect(AppErrorMessages.userMessage(for: CKError(.permissionFailure) as NSError)
-            == "You don't have permission for this action. Check with the lead guide.")
+            == "You don't have permission for this. Check with the lead guide.")
         #expect(AppErrorMessages.userMessage(for: CKError(.serviceUnavailable) as NSError).hasPrefix(
             "iCloud is temporarily unavailable."))
     }
@@ -60,7 +69,24 @@ struct AppErrorMessagesTests {
             == "That invitation's classroom isn't available any longer.")
         #expect(AppErrorMessages.joinMessage(for: PlainError.boom) == "The classroom couldn't be joined.")
         for code in [CKError.Code.internalError, .notAuthenticated, .permissionFailure, .quotaExceeded] {
-            #expect(!AppErrorMessages.joinMessage(for: CKError(code)).contains("saved locally"))
+            #expect(!AppErrorMessages.joinMessage(for: CKError(code)).contains("saved"))
+        }
+    }
+
+    @Test("A failed sharing action names the action and never claims anything was saved")
+    func sharingMessages() {
+        #expect(AppErrorMessages.sharingMessage(for: CKError(.networkFailure), action: "add Sam")
+            == "Couldn't add Sam. This device couldn't reach iCloud. Check you're online and try again.")
+        #expect(AppErrorMessages.sharingMessage(for: CKError(.badContainer), action: "stop sharing")
+            == "Couldn't stop sharing. iCloud didn't answer. Check you're online and try again.")
+        #expect(AppErrorMessages.sharingMessage(for: SampleError(), action: "add Sam")
+            == "The lesson file is missing a title row.")
+        for code in [CKError.Code.internalError, .notAuthenticated, .permissionFailure, .quotaExceeded,
+                     .unknownItem, .invalidArguments, .serverRejectedRequest] {
+            let message = AppErrorMessages.sharingMessage(for: CKError(code), action: "add Sam")
+            #expect(!message.contains("saved"))
+            #expect(message.hasPrefix("Couldn't add Sam."))
+            expectPlain(message)
         }
     }
 
@@ -71,22 +97,88 @@ struct AppErrorMessagesTests {
             == "An invitation is already waiting to be accepted. Open the classroom link to accept it, then try again.")
     }
 
-    @Test("A Core Data read error and a save error read differently")
-    func coreDataCodes() {
-        let readError = NSError(domain: NSCocoaErrorDomain, code: 260)
+    @Test("File reads, writes, a full disk and Core Data validation each read differently")
+    func cocoaCodes() {
+        let readError = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoSuchFileError)
         #expect(AppErrorMessages.userMessage(for: readError)
-            == "There was a problem reading your data. Try closing and reopening the app.")
+            == "There was a problem reading your notebook. Try closing and reopening the app.")
 
-        let saveError = NSError(domain: NSCocoaErrorDomain, code: 1560)
+        let saveError = NSError(domain: NSCocoaErrorDomain, code: 1560) // NSValidationMultipleErrorsError
         #expect(AppErrorMessages.userMessage(for: saveError)
-            == "Couldn't save your changes. Try again, or restart the app if the problem persists.")
+            == "Couldn't save your changes. Try again, or restart the app if it keeps happening.")
+
+        let fullDisk = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError)
+        #expect(AppErrorMessages.userMessage(for: fullDisk)
+            == "This device is out of space. Free some up and try again.")
+
+        let noPermission = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteNoPermissionError)
+        #expect(AppErrorMessages.userMessage(for: noPermission)
+            == "Cosmic Daybook isn't allowed to save there. Try a different place.")
     }
 
-    @Test("An unmapped error falls back to the generic message with the activity")
+    @Test("An unmapped error falls back to the general message with the activity")
     func unknownErrorFallsBack() {
         #expect(AppErrorMessages.userMessage(for: PlainError.boom, context: "syncing the calendar")
-            == "An unexpected issue occurred while syncing the calendar. Try again.")
+            == "Something went wrong while syncing the calendar. Try again.")
         #expect(AppErrorMessages.userMessage(for: PlainError.boom)
-            == "An unexpected issue occurred while completing this action. Try again.")
+            == "Something went wrong while doing that. Try again.")
+    }
+
+    @Test("The Couldn't Save message never carries the caller's developer label")
+    func saveFailureHasNoReason() {
+        let message = AppErrorMessages.saveFailureMessage(for: NSError(domain: NSCocoaErrorDomain, code: 1560))
+        #expect(message == "Couldn't save your changes. Try again, or restart the app if it keeps happening.")
+        expectPlain(message)
+    }
+
+    @Test("A backup failure never shows raw text, a domain or a code")
+    func backupMessages() {
+        let raw = NSError(domain: "AutoBackupManager", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Backup already in progress"])
+        #expect(AppErrorMessages.backupMessage(for: raw, operation: "back up your notebook")
+            == "Couldn't back up your notebook. Try again.")
+        #expect(AppErrorMessages.backupMessage(for: SampleError(), operation: "restore your backup")
+            == "The lesson file is missing a title row.")
+        let fullDisk = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError)
+        #expect(AppErrorMessages.backupMessage(for: fullDisk, operation: "save the backup")
+            == "There isn't enough space to save the backup. Free up space and try again.")
+        for error in [raw, fullDisk, NSError(domain: NSCocoaErrorDomain, code: 4242)] {
+            expectPlain(AppErrorMessages.backupMessage(for: error, operation: "save the backup"))
+        }
+    }
+
+    @Test("A file that can't be added says why in plain words")
+    func importMessages() {
+        let missing = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoSuchFileError)
+        #expect(AppErrorMessages.importMessage(for: missing, fileType: "PDF")
+            == "Couldn't find the PDF. It may have been moved or deleted.")
+        let fullDisk = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError)
+        #expect(AppErrorMessages.importMessage(for: fullDisk, fileType: "PDF")
+            == "There isn't enough space to add this PDF. Free up some space and try again.")
+        #expect(AppErrorMessages.importMessage(for: PlainError.boom, fileType: "PDF")
+            == "Couldn't add the PDF. Make sure it's the right kind of file and try again.")
+    }
+
+    @Test("An Apple Intelligence failure is plain, and an app error isn't blamed on Apple Intelligence")
+    func aiMessages() {
+        #expect(AppErrorMessages.aiMessage(for: LocalModelError.rateLimited) == AppleIntelligenceMessages.busy)
+        #expect(AppErrorMessages.aiMessage(for: LocalModelError.contextTooLarge) == AppleIntelligenceMessages.tooLong)
+        #expect(AppErrorMessages.aiMessage(for: LocalModelError.invalidJSON) == AppleIntelligenceMessages.unreadable)
+        #expect(AppErrorMessages.aiMessage(for: LocalModelError.unavailable(""))
+            == AppleIntelligenceMessages.notAvailable)
+        #expect(AppErrorMessages.aiMessage(for: LocalModelError.unavailable(AppleIntelligenceMessages.turnOn))
+            == AppleIntelligenceMessages.turnOn)
+        #expect(AppErrorMessages.aiMessage(for: SampleError()) == "The lesson file is missing a title row.")
+        #expect(AppErrorMessages.aiMessage(for: PlainError.boom, fallback: "Couldn't make a plan. Try again.")
+            == "Couldn't make a plan. Try again.")
+        let rawText = "The data couldn't be read because it isn't in the correct format."
+        let decoding = NSError(domain: NSCocoaErrorDomain, code: 4864, userInfo: [NSLocalizedDescriptionKey: rawText])
+        #expect(AppErrorMessages.aiMessage(for: decoding) == AppleIntelligenceMessages.fallback)
+        for error: Error in [LocalModelError.rateLimited, LocalModelError.invalidJSON, decoding, PlainError.boom] {
+            let message = AppErrorMessages.aiMessage(for: error)
+            #expect(!message.hasPrefix("Generation failed"))
+            #expect(!message.contains("AI feature"))
+            expectPlain(message)
+        }
     }
 }

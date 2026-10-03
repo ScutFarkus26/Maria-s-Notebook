@@ -46,40 +46,16 @@ nonisolated extension ClassroomShareRelease {
         var setAwaitingGone: @Sendable ([CKRecord.ID]) -> Void = { _ in }
     }
 
-    enum RunError: LocalizedError, Equatable {
-        case stopped(String)
-        case timedOut(String)
-        case copyVanished
-        case originalVanished
-        case copyLandedInShare
-        case originalNotMirrored
-        case storeUnavailable
-
-        var errorDescription: String? {
-            switch self {
-            case .stopped(let reason): return "Stopped: \(reason)"
-            case .timedOut(let step):
-                return "iCloud didn't confirm \(step) in time. Nothing is lost; run it again later to finish."
-            case .copyVanished:
-                return "A private copy disappeared before its original was removed — another device may be "
-                    + "running an older build. That record was left in the share; nothing is lost."
-            case .originalVanished:
-                return "A record left this Mac during the run while iCloud still has it. Its private copy "
-                    + "was kept; nothing is lost. Run it again later."
-            case .copyLandedInShare: return "A copy was filed into a share instead of the notebook. Stopped."
-            case .originalNotMirrored: return "A shared record had no iCloud record to check. Stopped."
-            case .storeUnavailable: return "The notebook's store isn't open."
-            }
-        }
-    }
-
     /// How a run went.
     struct Report: Sendable, Equatable {
         var studentsMoved = 0
         var attendanceMoved = 0
         var batchesDone = 0
         var batchesPlanned = 0
+        /// Why the run stopped, in plain words; nil when it finished.
         var stoppedBecause: String?
+        /// The technical reason it stopped, for the Details disclosure.
+        var stopDetails: String?
     }
 
     // MARK: - Reading the store
@@ -162,8 +138,10 @@ nonisolated extension ClassroomShareRelease {
             do {
                 try await runBatch(batch, container: container, storeID: storeID, environment: environment)
             } catch {
-                report.stoppedBecause = error.localizedDescription
-                logger.error("Release stopped: \(error.localizedDescription, privacy: .public)")
+                let stop = stopMessage(for: error)
+                report.stoppedBecause = stop.message
+                report.stopDetails = stop.details
+                logger.error("Release stopped: \(stop.details, privacy: .public)")
                 return report
             }
             report.batchesDone += 1

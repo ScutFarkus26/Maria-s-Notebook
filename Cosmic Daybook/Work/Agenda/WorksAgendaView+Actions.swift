@@ -44,11 +44,15 @@ extension WorksAgendaView {
                 do {
                     try WorkLogService.undo(receipt.token, context: viewContext, saveCoordinator: saveCoordinator)
                 } catch {
-                    dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
+                    let message = PresentationFailureMessage.message(
+                        for: error, fallback: "Couldn't undo that. Try again."
+                    )
+                    dependencies.toastService.show(message, type: .error, duration: 4)
                 }
             }
         } catch {
-            dependencies.toastService.show(error.localizedDescription, type: .error, duration: 4)
+            let message = PresentationFailureMessage.message(for: error, fallback: "Couldn't log that work. Try again.")
+            dependencies.toastService.show(message, type: .error, duration: 4)
         }
     }
 
@@ -90,7 +94,7 @@ extension WorksAgendaView {
             items: items, sortMode: sortMode,
             searchText: debouncedSearchText
         ) else {
-            NSSound.beep()
+            dependencies.toastService.showError("Couldn't make the page to print. Try again.")
             return
         }
 
@@ -121,13 +125,16 @@ extension WorksAgendaView {
                 sortMode: currentSortMode,
                 searchText: currentSearchText
             ) else {
-                NSSound.beep()
+                dependencies.toastService.showError("Couldn't make the PDF. Try again.")
                 return
             }
             do {
                 try pdfData.write(to: url, options: .atomic)
             } catch {
-                NSSound.beep()
+                Logger.work.error("Children Working PDF write failed: \(error, privacy: .public)")
+                dependencies.toastService.showError(
+                    "Couldn't save the PDF there. Choose another folder and try again."
+                )
             }
         }
     }

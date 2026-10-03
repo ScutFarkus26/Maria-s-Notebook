@@ -199,7 +199,7 @@ extension MCPNotebookTools {
             throw error
         } catch {
             modelContext.rollback()
-            throw MCPToolError("The presentation could not be recorded: \(error.localizedDescription)")
+            throw MCPToolError("The presentation could not be recorded", underlying: error)
         }
 
         guard modelContext.safeSave() else {
