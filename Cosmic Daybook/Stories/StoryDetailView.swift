@@ -510,7 +510,8 @@ struct StoryDetailView: View {
             } catch let error as StoryCoverGeneratorError {
                 coverGenerationError = error.errorDescription
             } catch {
-                coverGenerationError = error.localizedDescription
+                Self.logger.warning("Cover generation failed: \(error.localizedDescription, privacy: .public)")
+                coverGenerationError = "Couldn't make a cover. Try again."
             }
         }
     }
@@ -547,7 +548,8 @@ struct StoryDetailView: View {
             } catch let error as StoryLessonMatcher.MatcherError {
                 connectionsError = error.errorDescription
             } catch {
-                connectionsError = error.localizedDescription
+                Self.logger.warning("Finding connected lessons failed: \(error.localizedDescription, privacy: .public)")
+                connectionsError = "Couldn't look for connected lessons. Try again."
             }
         }
     }

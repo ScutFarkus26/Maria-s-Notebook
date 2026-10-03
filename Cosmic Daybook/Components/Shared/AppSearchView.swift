@@ -20,7 +20,7 @@ struct AppSearchView: View {
                     VStack(spacing: 12) {
                         ProgressView()
                             .controlSize(.large)
-                        Text("Building search index…")
+                        Text("Getting search ready…")
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -38,7 +38,7 @@ struct AppSearchView: View {
             .inlineNavigationTitle()
             // The index can be purged under memory pressure; rebuild it here so
             // opening search always ends in a usable index rather than a
-            // permanent "Building search index…" spinner.
+            // permanent "Getting search ready…" spinner.
             .task { await searchIndex.ensureReady() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

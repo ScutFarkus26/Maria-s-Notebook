@@ -72,7 +72,7 @@ struct AlbumsSearchView: View {
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: UIConstants.CornerRadius.large))
             if library.indexing {
                 ProgressView(value: library.indexProgress) {
-                    Text("Indexing pages… results may be incomplete")
+                    Text("Still reading the albums, so some results may be missing")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -89,7 +89,7 @@ struct AlbumsSearchView: View {
                 Label("Search Your Albums", systemImage: "text.page.badge.magnifyingglass")
             } description: {
                 Text("Every page of all \(library.albums.count) albums "
-                     + "(\(library.indexedPageCount) pages) is indexed.\n"
+                     + "(\(library.indexedPageCount) pages) is ready to search.\n"
                      + "Try a material, a lesson name, or any phrase — "
                      + "like “checkerboard” or “parts of the flower”.")
             }

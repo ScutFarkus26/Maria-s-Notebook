@@ -324,23 +324,58 @@ enum CoreDataStackError: LocalizedError {
     case storeFromNewerBuild(storeName: String, storeVersion: Int, appVersion: Int)
     case storeSchemaIncoherent(storeName: String, detail: String)
 
+    /// What the person sees: plain words, no file names, codes or format
+    /// numbers. Those are in `technicalDetail`, for the log and Details.
+    ///
+    /// In the notebook these reach only the database-error screen (a store
+    /// error that isn't fatal is ridden out by the launch's fallbacks), which
+    /// has the "Re-download from iCloud…" button. The Daybook Assistant
+    /// compiles this file: its startup screen words these itself
+    /// (`AssistantStartupProblem`), so its text here is what Siri says when
+    /// a command can't open the class.
     var errorDescription: String? {
+        #if ASSISTANT_APP
+        switch self {
+        case .modelNotFound:
+            return "This copy of Daybook Assistant is damaged. Reinstall it."
+        default:
+            return "Daybook Assistant couldn't open your class. Open the app to fix it."
+        }
+        #else
+        switch self {
+        case .modelNotFound:
+            return "This copy of Cosmic Daybook is damaged. Reinstall it."
+        case .storeLoadFailed, .cloudKitLoadFailed:
+            return "Cosmic Daybook couldn't open your notebook."
+        case .storeFromNewerBuild:
+            return "Your notebook on this device was last opened by a newer version of Cosmic Daybook. "
+                + "Opening it with this copy would permanently delete the newer changes, so it was left "
+                + "untouched. Quit any older copies of the app and open the current one."
+        case .storeSchemaIncoherent:
+            return "Your notebook on this device was damaged by an older version of the app, so it was "
+                + "left untouched. Choose \u{201C}Re-download from iCloud\u{2026}\u{201D} to get a fresh copy."
+        }
+        #endif
+    }
+
+    /// The raw facts behind the message: store file, format numbers, the
+    /// underlying error. For the log and the error screen's Details.
+    var technicalDetail: String {
         switch self {
         case .modelNotFound(let name):
             return "Core Data model '\(name)' not found in app bundle."
         case .storeLoadFailed(let error):
-            return "Failed to load persistent store: \(error.localizedDescription)"
+            let nsError = error as NSError
+            return "Failed to load persistent store: \(error.localizedDescription) "
+                + "(\(nsError.domain) \(nsError.code))"
         case .cloudKitLoadFailed(let error):
-            return "CloudKit store failed to load: \(error.localizedDescription). Falling back to local storage."
+            let nsError = error as NSError
+            return "CloudKit store failed to load: \(error.localizedDescription) "
+                + "(\(nsError.domain) \(nsError.code))"
         case .storeFromNewerBuild(let storeName, let storeVersion, let appVersion):
-            return "\(storeName) was written by a newer version of Cosmic Daybook " +
-                "(database format \(storeVersion); this copy understands \(appVersion)). " +
-                "Opening it with this copy would permanently delete the newer data, so it " +
-                "was left untouched. Quit any older copies of the app and open the current one."
+            return "\(storeName) has database format \(storeVersion); this build understands \(appVersion)."
         case .storeSchemaIncoherent(let storeName, let detail):
-            return "\(storeName) is internally inconsistent (\(detail)): its data format " +
-                "was damaged by an older version of the app. The store was left untouched. " +
-                "Use Settings → Database → Reset Local Cache to rebuild it from iCloud."
+            return "\(storeName) is internally inconsistent (\(detail))."
         }
     }
 }

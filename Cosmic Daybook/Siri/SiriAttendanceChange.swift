@@ -32,10 +32,33 @@ nonisolated struct SiriAttendanceChange: Codable, Sendable {
 
     let day: Date
     let marks: [Mark]
-    /// "Maya Stone present", for the undo's answer.
+    /// "Maya Stone present", for the log.
     let summary: String
     /// Closing arrival also switched the Daybook Assistant to Late.
     let closedArrival: Bool
+    /// The child's name as Siri said it ("Maya Stone"), for a one-child
+    /// change. Nil for Close Arrival and on changes remembered before
+    /// 2026-10-03.
+    var name: String?
+
+    /// What Siri says once this change is undone: "Done. Maya Stone isn't
+    /// marked present anymore."
+    var undoneDialog: String {
+        if closedArrival { return "Done. Arrival is open again." }
+        guard let name, marks.count == 1, let mark = marks.first else { return "Done. I put that back." }
+        if mark.from == mark.to { return "Done. \(name)'s absence reason is back the way it was." }
+        return "Done. \(name) isn't marked \(mark.to.spokenWord) anymore."
+    }
+
+    /// What Siri says when someone has changed these marks since, so Undo
+    /// left them: "Maya Stone's mark has changed since then, so I left it alone."
+    var changedSinceDialog: String {
+        if let name, marks.count == 1 { return "\(name)'s mark has changed since then, so I left it alone." }
+        if closedArrival {
+            return "Those absent marks have changed since then, so I left them alone. Arrival is open again."
+        }
+        return "Those marks have changed since then, so I left them alone."
+    }
 
     /// Object URIs name one store, so the key is per CloudKit environment.
     @MainActor private static var key: String {

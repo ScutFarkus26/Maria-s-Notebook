@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import OSLog
 
 struct StoriesRootView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -69,7 +70,8 @@ struct StoriesRootView: View {
         } catch let error as StoryImportService.ImportRejection {
             return error.errorDescription
         } catch {
-            return error.localizedDescription
+            Logger.stories.error("Story import failed: \(error.localizedDescription, privacy: .public)")
+            return AppErrorMessages.importMessage(for: error, fileType: "PDF")
         }
     }
 }

@@ -49,13 +49,17 @@ struct AppleIntelligenceSheet: View {
             VStack(spacing: 0) {
                 // 1. Control Bar
                 controlBar
-                
+
                 Divider()
+
+                if let generationError {
+                    errorBanner(generationError)
+                }
                 
                 // 2. Editor Area
                 ZStack(alignment: .bottomTrailing) {
                     if editorText.isEmpty && !isGenerating {
-                        ContentUnavailableView("Processing Data...", systemImage: "arrow.triangle.2.circlepath")
+                        ContentUnavailableView("Gathering notes…", systemImage: "arrow.triangle.2.circlepath")
                     } else {
                         // Main Editor
                         SmartTextEditor(text: $editorText, triggerTool: $aiTriggerCounter)
@@ -67,7 +71,7 @@ struct AppleIntelligenceSheet: View {
                     
                     // Loading Indicator or Magic Button
                     if isGenerating {
-                        ProgressView("Drafting...")
+                        ProgressView("Drafting…")
                             .padding()
                             .background(.regularMaterial)
                             .cornerRadius(12)
@@ -89,7 +93,7 @@ struct AppleIntelligenceSheet: View {
                     }
                 }
             }
-            .navigationTitle("AI Assistant")
+            .navigationTitle("Writing Help")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -131,10 +135,10 @@ struct AppleIntelligenceSheet: View {
             Spacer()
             
             Menu {
-                Section("Context Generators") {
-                    Button { applyTemplate(.raw) } label: { Label("Raw Data Context", systemImage: "doc.text") }
+                Section("Start From") {
+                    Button { applyTemplate(.raw) } label: { Label("Notes Only", systemImage: "doc.text") }
                 }
-                Section("AI Instructions") {
+                Section("Drafts") {
                     ForEach(PromptTemplate.allCases.filter { $0 != .raw }, id: \.self) { template in
                         Button {
                             applyTemplate(template)
@@ -145,7 +149,7 @@ struct AppleIntelligenceSheet: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(currentTemplate?.rawValue ?? "Select Template")
+                    Text(currentTemplate?.rawValue ?? "Choose a Draft")
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.caption)
                 }
@@ -163,6 +167,28 @@ struct AppleIntelligenceSheet: View {
         .background(Material.bar)
     }
     
+    /// A failed draft is reported here, never written into the note text.
+    private func errorBanner(_ message: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.callout)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                generationError = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(Color.orange.opacity(UIConstants.OpacityConstants.light))
+    }
+
     // MARK: - Logic Helpers
     
     private func regenerateContent() {
@@ -183,6 +209,7 @@ struct AppleIntelligenceSheet: View {
     
     private func applyTemplate(_ template: PromptTemplate) {
         currentTemplate = template
+        generationError = nil
         let formatter = SmartNoteFormatter(students: students, anonymize: isAnonymized)
         let rawContext = formatter.generateContext(from: notes)
         
@@ -219,17 +246,20 @@ struct SmartNoteFormatter {
     let students: [CDStudent]
     let anonymize: Bool
     
+    /// The notes as plain text: a one-line header ("3 notes, Sep 2 – Sep 30")
+    /// and each note under plain labels. The guide reads and shares this, and
+    /// it is also what Apple Intelligence drafts from.
     func generateContext(from notes: [CDNote]) -> String {
         let sortedNotes = notes.sorted { ($0.updatedAt ?? .distantPast) < ($1.updatedAt ?? .distantPast) }
-        let header = """
-        [DATA EXPORT START]
-        Scope: \(sortedNotes.count) CDNote(s)
-        Timeline: \(dateRangeString(notes: sortedNotes))
-        ----------------------------------------
-        
-        """
         let body = sortedNotes.map { formatSingleNote($0) }.joined(separator: "\n\n")
-        return header + body + "\n\n[DATA EXPORT END]"
+        return header(for: sortedNotes) + "\n\n" + body
+    }
+
+    func header(for sortedNotes: [CDNote]) -> String {
+        let count = sortedNotes.count
+        let counted = "\(count) \(count == 1 ? "note" : "notes")"
+        guard let dates = dateRangeString(notes: sortedNotes) else { return counted }
+        return counted + ", " + dates
     }
     
     private func formatSingleNote(_ note: CDNote) -> String {
@@ -237,53 +267,54 @@ struct SmartNoteFormatter {
         let contextDetail = resolveContextDetail(for: note)
         let dateStr = (note.updatedAt ?? Date()).formatted(date: .abbreviated, time: .shortened)
         let tagNames = ((note.tags as? [String]) ?? []).map { TagHelper.tagName($0) }.joined(separator: ", ")
-        let tagLabel = tagNames.isEmpty ? "General" : tagNames
-        
+        let about = tagNames.isEmpty ? contextDetail : "\(contextDetail) (\(tagNames))"
+
         return """
-        ENTRY: \(dateStr)
-        STUDENT: \(studentName)
-        CONTEXT: \(contextDetail) (\(tagLabel))
-        NOTE:
-        \(note.body)
+        Date: \(dateStr)
+        Student: \(studentName)
+        About: \(about)
+        Note: \(note.body)
         """
     }
     
     private func resolveStudentName(for scope: NoteScope) -> String {
         switch scope {
-        case .all: return "General / Class-wide"
+        case .all: return "Whole class"
         case .student(let id):
-            guard let student = students.first(where: { $0.id == id }) else { return "Unknown Student" }
+            guard let student = students.first(where: { $0.id == id }) else { return "Student removed" }
             return anonymize ? "Student \(student.firstName.prefix(1))" : student.fullName
         case .students(let ids):
-            if anonymize { return "Group of \(ids.count) Students" }
+            if anonymize { return "Group of \(ids.count) \(ids.count == 1 ? "student" : "students")" }
             let names = ids.compactMap { id in students.first(where: { $0.id == id })?.firstName }
             return names.joined(separator: ", ")
         }
     }
     
     private func resolveContextDetail(for note: CDNote) -> String {
-        if let lesson = note.lesson { return "Lesson: \(lesson.name)" }
-        if let work = note.work { return "Work: \(work.title)" }
+        if let lesson = note.lesson { return "\(lesson.name) (lesson)" }
+        if let work = note.work { return "\(work.title) (work)" }
         if let pres = note.lessonAssignment {
             let title = (pres.lessonTitleSnapshot ?? "").trimmed()
-            return title.isEmpty ? "Presentation" : "Presentation: \(title)"
+            return title.isEmpty ? "A presentation" : "\(title) (presentation)"
         }
-        return "General Observation"
+        return "General observation"
     }
     
-    private func dateRangeString(notes: [CDNote]) -> String {
+    private func dateRangeString(notes: [CDNote]) -> String? {
         guard let first = notes.first?.updatedAt ?? notes.first?.createdAt,
-              let last = notes.last?.updatedAt ?? notes.last?.createdAt else { return "N/A" }
+              let last = notes.last?.updatedAt ?? notes.last?.createdAt else { return nil }
         if AppCalendar.isSameDay(first, last) {
             return first.formatted(date: .abbreviated, time: .omitted)
         }
-        return "\(first.formatted(date: .numeric, time: .omitted)) - \(last.formatted(date: .numeric, time: .omitted))"
+        let from = first.formatted(date: .abbreviated, time: .omitted)
+        let through = last.formatted(date: .abbreviated, time: .omitted)
+        return "\(from) – \(through)"
     }
 }
 
 // MARK: - Prompt Templates
 enum PromptTemplate: String, CaseIterable {
-    case raw = "Raw Data"
+    case raw = "Notes Only"
     case parentEmail = "Parent Email"
     case reportCard = "Report Card"
     case actionPlan = "Action Plan"

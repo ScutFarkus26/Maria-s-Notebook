@@ -9,6 +9,7 @@
 
 #if os(macOS)
 import Foundation
+import Network
 import OSLog
 
 /// Starts and stops the MCP server according to the user's "Claude
@@ -123,12 +124,12 @@ final class MCPServerService {
                     self.server = nil
                     currentServerID = nil
                     isRunning = false
-                    lastError = error.localizedDescription
+                    lastError = Self.startFailureMessage(for: error)
                 }
             }
         } catch {
             logger.error("MCP token setup failed: \(error, privacy: .public)")
-            lastError = error.localizedDescription
+            lastError = Self.secureConnectionMessage
         }
     }
 
@@ -154,10 +155,11 @@ final class MCPServerService {
     /// "Listening" row.
     private func serverDidFail(id: UUID, message: String) {
         guard currentServerID == id else { return }
+        logger.error("MCP server stopped: \(message, privacy: .public)")
         server = nil
         currentServerID = nil
         isRunning = false
-        lastError = message
+        lastError = Self.generalFailureMessage
         setConnectedClientCount(0)
     }
 
@@ -174,6 +176,28 @@ final class MCPServerService {
         connectedClientCount = count
         onConnectedClientCountChange?(count)
     }
+
+    // MARK: Status in plain words
+
+    /// Why the server isn't running, for Settings. The raw error is logged
+    /// where it's caught; it never reaches the screen.
+    nonisolated static func startFailureMessage(for error: Error) -> String {
+        if let networkError = error as? NWError, case .posix(.EADDRINUSE) = networkError {
+            return anotherCopyMessage
+        }
+        let nsError = error as NSError
+        if nsError.domain == NSPOSIXErrorDomain, nsError.code == Int(EADDRINUSE) {
+            return anotherCopyMessage
+        }
+        return generalFailureMessage
+    }
+
+    nonisolated static let anotherCopyMessage = "Another copy of Cosmic Daybook is already connected to Claude. "
+        + "Quit it, then turn this off and on."
+    nonisolated static let secureConnectionMessage = "Couldn't set up the secure connection. "
+        + "Turn this off and on again."
+    nonisolated static let generalFailureMessage = "Claude Desktop can't connect right now. "
+        + "Turn this off and on again."
 
     /// Returns the persistent per-install auth token, creating it (0600,
     /// in a 0700 directory) on first run. The bridge script sends it as

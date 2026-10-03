@@ -318,3 +318,26 @@ struct AttendanceViewModelTests {
         #expect(roll.resetDay(modelContext: context) == nil)
     }
 }
+
+// MARK: - Problems
+
+extension AttendanceViewModelTests {
+    // Close Arrival, Reset Day and marking used to log a failure and show
+    // nothing; the roll now keeps a plain message for the screen's toast.
+    @Test("Changes that work report nothing; a failure is kept plainly, and again each time")
+    func problems() throws {
+        let roll = model(students: [student("Maya")])
+        roll.tap(try #require(roll.rows.first), modelContext: context)
+        _ = roll.closeArrival(modelContext: context)
+        _ = roll.resetDay(modelContext: context)
+        #expect(roll.problem == nil)
+
+        let failure = NSError(domain: NSCocoaErrorDomain, code: 134_030)
+        roll.report("Couldn't close arrival. Try again.", failure, while: "closing arrival")
+        let first = try #require(roll.problem)
+        #expect(first.message == "Couldn't close arrival. Try again.")
+        // The same failure twice is two changes, so the toast shows twice.
+        roll.report("Couldn't close arrival. Try again.", failure, while: "closing arrival")
+        #expect(roll.problem != first)
+    }
+}

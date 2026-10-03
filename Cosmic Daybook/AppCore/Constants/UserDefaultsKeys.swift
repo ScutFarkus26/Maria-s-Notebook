@@ -12,13 +12,24 @@ nonisolated enum UserDefaultsKeys {
     static let useInMemoryStoreOnce = "UseInMemoryStoreOnce"
     static let ephemeralSessionFlag = "SwiftDataEphemeralSession"
     static let lastStoreErrorDescription = "SwiftDataLastErrorDescription"
+    /// True while this session runs on an in-memory store (the notebook
+    /// couldn't be opened, or a DEBUG "use in-memory store" run): nothing
+    /// saves. Set wherever the in-memory fallback is chosen; the safe-mode
+    /// banner reads it instead of searching `lastStoreErrorDescription`.
+    static let inMemoryStoreSession = "Store.inMemorySession"
     static let enableCloudKitSync = "EnableCloudKitSync"
     static let cloudKitActive = "CloudKitActive"
     static let cloudKitLastErrorDescription = "CloudKitLastErrorDescription"
     static var cloudKitLastSuccessfulSyncDate: String {
         CloudKitEnvironment.scoped("CloudKitSync.lastSuccessfulSyncDate")
     }
+    /// The plain-English sync error shown in Settings.
     static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
+    /// The raw text behind `cloudKitLastSyncError`, for the Details disclosure and `sync_status`.
+    static let cloudKitLastSyncErrorDetail = "CloudKitSync.lastSyncErrorDetail"
+    /// What kind of problem `cloudKitLastSyncError` is (`CloudKitSyncStatusService.SyncErrorKind`),
+    /// so coming back online or signing in clears the right one.
+    static let cloudKitLastSyncErrorKind = "CloudKitSync.lastSyncErrorKind"
     static var cloudKitErrorLog: String { CloudKitEnvironment.scoped("cloudKitErrorLog") }
     /// The history processor's position in each store: archived
     /// `NSPersistentHistoryToken` data keyed by `NSPersistentStore.identifier`.

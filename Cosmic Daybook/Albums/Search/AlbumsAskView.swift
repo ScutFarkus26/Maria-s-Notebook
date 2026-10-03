@@ -5,6 +5,7 @@
 // device; when Apple Intelligence is unavailable the view explains why.
 
 import SwiftUI
+import OSLog
 
 struct AlbumsAskView: View {
     @Environment(AlbumLibrary.self) private var library
@@ -80,7 +81,7 @@ struct AlbumsAskView: View {
                 }
             }
             if !library.indexReady {
-                Text("One moment — still indexing the albums…")
+                Text("One moment — still reading the albums…")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -157,7 +158,11 @@ struct AlbumsAskView: View {
                                                            semanticBoost: boost)
                 update(id: id) { $0.answer = answer.text; $0.sources = answer.sources }
             } catch {
-                update(id: id) { $0.error = error.localizedDescription }
+                Logger.albums.warning("Ask failed: \(error.localizedDescription, privacy: .public)")
+                let message = AppErrorMessages.aiMessage(
+                    for: error, fallback: "Couldn't answer that. Try asking another way."
+                )
+                update(id: id) { $0.error = message }
             }
         }
     }

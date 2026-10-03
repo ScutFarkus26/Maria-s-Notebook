@@ -25,6 +25,12 @@ struct AlbumsLibraryView: View {
 
     private let columns = [GridItem(.adaptive(minimum: 185, maximum: 240), spacing: 18)]
 
+    /// "1 album" / "3 albums" for the download line.
+    private var pendingAlbumsPhrase: String {
+        let count = library.pendingShelfAlbumNames.count
+        return count == 1 ? "1 album" : "\(count) albums"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -33,7 +39,7 @@ struct AlbumsLibraryView: View {
                 }
                 if !library.pendingShelfAlbumNames.isEmpty {
                     Label(
-                        "Downloading \(library.pendingShelfAlbumNames.count) album(s) from iCloud…",
+                        "Downloading \(pendingAlbumsPhrase) from iCloud…",
                         systemImage: "icloud.and.arrow.down"
                     )
                     .font(.callout)
@@ -69,7 +75,7 @@ struct AlbumsLibraryView: View {
                         || library.albums.allSatisfy { library.isKeptInICloud($0) })
                     Divider()
                     Button("Match Lessons to Albums…") { showMatchSheet = true }
-                    Button("Rebuild Search Index") { library.rebuildIndex() }
+                    Button("Refresh Album Search") { library.rebuildIndex() }
                     Divider()
                     Button("Import Albums App Data…") { showDataImporter = true }
                 } label: {
@@ -90,7 +96,7 @@ struct AlbumsLibraryView: View {
                 importSummary = AlbumsDataImporter.importData(from: url, into: context)
             }
         }
-        .alert("iCloud",
+        .alert("Couldn't Update iCloud Albums",
                isPresented: .init(get: { library.shelfError != nil },
                                   set: { if !$0 { library.shelfError = nil } })) {
             Button("OK") { library.shelfError = nil }

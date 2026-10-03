@@ -41,14 +41,14 @@ enum PresentationSessionCommit {
 
     enum CommitError: LocalizedError {
         case missingIdentity
-        case saveFailed(String)
+        case saveFailed
 
         var errorDescription: String? {
             switch self {
             case .missingIdentity:
-                return "This presentation does not have a saved identity yet. Nothing was saved."
-            case .saveFailed(let message):
-                return message
+                return "This presentation hasn't finished saving yet. Close it, open it again, and try once more."
+            case .saveFailed:
+                return "Couldn't save how the presentation went. Your notes are still here. Try again."
             }
         }
     }
@@ -79,9 +79,7 @@ enum PresentationSessionCommit {
                 .compactMap { $0 as? CDWorkModel }
                 .filter { $0.presentationID == presentationID.uuidString }
             guard try save(retiring: leftBehind, context: context, saveCoordinator: saveCoordinator) else {
-                throw CommitError.saveFailed(
-                    saveCoordinator.lastSaveErrorMessage ?? "The presentation's follow-up could not be saved."
-                )
+                throw CommitError.saveFailed
             }
             transaction.commit()
             // Read after the save: inserted objects carry temporary ids until then.
@@ -100,7 +98,10 @@ enum PresentationSessionCommit {
         context: NSManagedObjectContext,
         saveCoordinator: SaveCoordinator
     ) throws -> Bool {
-        let save = { saveCoordinator.save(context, reason: "Saving how the presentation went") }
+        // The caller shows `CommitError.saveFailed`, so the global alert stays quiet.
+        let save = {
+            saveCoordinator.save(context, reason: "Saving how the presentation went", alertOnFailure: false)
+        }
         guard !works.isEmpty else { return save() }
         do {
             try WorkDeletionService(context: context).delete(works, persist: save)

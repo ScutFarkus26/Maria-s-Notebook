@@ -18,7 +18,8 @@ struct DocumentImportSheet: View {
 
     @State private var title: String
     @State private var category: String = "Progress Report"
-    
+    @State private var saveError: String?
+
     private let categoryOptions = ["Progress Report", "Standardized Test", "IEP/504", "Work Sample", "Other"]
     
     init(pdfURL: URL, pdfData: Data, student: CDStudent, onSave: @escaping () -> Void) {
@@ -46,6 +47,14 @@ struct DocumentImportSheet: View {
                 }
             }
             .navigationTitle("Import Document")
+            .alert(
+                "Couldn't Add the File",
+                isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })
+            ) {
+                Button("OK") { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -85,7 +94,11 @@ struct DocumentImportSheet: View {
             )
             _ = repository.save(reason: "Import document for student")
         } catch {
-            Logger.students.error("Failed to import student document: \(error.localizedDescription)")
+            // Nothing was added, so the sheet stays open for another try.
+            Logger.students.error("Failed to import student document: \(error, privacy: .public)")
+            saveError = (error as? StudentDocumentFileStorage.StudentDocumentError)?.errorDescription
+                ?? AppErrorMessages.importMessage(for: error, fileType: "file")
+            return
         }
 
         onSave()

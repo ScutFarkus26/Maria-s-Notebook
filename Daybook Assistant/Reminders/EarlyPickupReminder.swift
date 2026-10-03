@@ -137,6 +137,14 @@ enum EarlyPickupReminder {
         isSample ? id.hasPrefix(sampleIDPrefix) : id.hasPrefix(idPrefix) && !id.hasPrefix(sampleIDPrefix)
     }
 
+    /// The guide's note as a sentence: a full stop added unless it already
+    /// ends in one ("Grandma picking up!" stays as it is, not "!.").
+    nonisolated static func sentence(_ note: String) -> String {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let last = trimmed.last, !".!?…".contains(last) else { return trimmed }
+        return trimmed + "."
+    }
+
     /// The requests `pickups` call for: one per pickup whose reminder is
     /// still ahead. Pure, for the tests.
     static func reminders(for pickups: [Pickup], leadMinutes: Int, now: Date, isSample: Bool) -> [Reminder] {
@@ -147,7 +155,7 @@ enum EarlyPickupReminder {
                 title: "\(pickup.name) leaves at \(AttendanceClock.string(pickup.leavesAt))",
                 body: pickup.note.isEmpty
                     ? "Early pickup. Mark Left Early when they go."
-                    : "\(pickup.note). Mark Left Early when they go.",
+                    : "\(sentence(pickup.note)) Mark Left Early when they go.",
                 fireDate: toTheMinute(fire)
             )
         }

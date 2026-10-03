@@ -158,7 +158,7 @@ private struct PaginatedListPreview: View {
 
                     Divider()
 
-                    PaginatedListFooter(state: state, itemName: "works")
+                    PaginatedListFooter(state: state, itemName: "work items")
 
                     Divider()
 

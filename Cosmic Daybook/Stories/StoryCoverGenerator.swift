@@ -20,9 +20,9 @@ enum StoryCoverGeneratorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            return "Cover generation needs Apple Intelligence with Image Playground."
+            return "Making a cover needs Image Playground, which isn't available on this device."
         case .noImageReturned:
-            return "The image provider didn't return an image."
+            return "Image Playground didn't make a picture. Try again."
         case .generationFailed(let message):
             return message
         }
@@ -110,12 +110,10 @@ enum StoryCoverGenerator {
                 }
             }
         } catch {
-            let message = friendlyMessage(for: error)
             let styleDesc = String(describing: style)
-            logger.warning(
-                "Generation failed (style=\(styleDesc, privacy: .public)): \(message, privacy: .public)"
-            )
-            throw StoryCoverGeneratorError.generationFailed(message)
+            let raw = error.localizedDescription
+            logger.warning("Generation failed (style=\(styleDesc, privacy: .public)): \(raw, privacy: .public)")
+            throw StoryCoverGeneratorError.generationFailed(friendlyMessage(for: error))
         }
 
         throw StoryCoverGeneratorError.noImageReturned
@@ -170,10 +168,10 @@ enum StoryCoverGenerator {
         let raw = error.localizedDescription
         if raw.localizedCaseInsensitiveContains("source image")
             || raw.localizedCaseInsensitiveContains("face") {
-            return "Image Playground interpreted these themes as implying people. "
-                + "Try removing person-like themes (e.g. \"family\", \"hero\") and regenerate."
+            return "Image Playground can't draw people. "
+                + "Remove themes like \"family\" or \"hero,\" then try again."
         }
-        return raw
+        return "Couldn't make a cover. Try again."
     }
 
     // MARK: - Encoding

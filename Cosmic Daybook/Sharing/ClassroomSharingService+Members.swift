@@ -34,7 +34,7 @@ extension ClassroomSharingService {
             case .emptyAddress:
                 return "Enter an email address or phone number."
             case .noAccount(let address):
-                return "No Apple Account was found for \(address)."
+                return "No Apple Account was found for \(address). Check the address and try again."
             case .alreadyInvited(let address):
                 return "\(address) is already invited. Send them the classroom link; "
                     + "they'll be in once they open it and accept."

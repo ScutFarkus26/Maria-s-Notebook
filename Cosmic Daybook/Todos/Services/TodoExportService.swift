@@ -239,6 +239,17 @@ class TodoExportService {
     }
     
     // MARK: - File Saving
+
+    /// The export's file name, in words: "Todos – Oct 3, 2026".
+    static func exportFileName(
+        on date: Date = Date(),
+        locale: Locale = .current,
+        timeZone: TimeZone = .current
+    ) -> String {
+        var style = Date.FormatStyle(date: .abbreviated, time: .omitted, locale: locale)
+        style.timeZone = timeZone
+        return "Todos \u{2013} \(date.formatted(style))"
+    }
     
     static func saveToFile(content: String, filename: String, format: ExportFormat) -> URL? {
         let fileExtension: String

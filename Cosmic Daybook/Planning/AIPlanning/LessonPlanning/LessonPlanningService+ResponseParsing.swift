@@ -97,7 +97,7 @@ extension LessonPlanningService {
 
         do {
             let response = try JSONDecoder().decode(PlanningResponse.self, from: data)
-            return response.summary ?? "Plan generated."
+            return response.summary ?? "Here's a plan."
         } catch {
             return jsonString.prefix(500).description
         }

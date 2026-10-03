@@ -8,11 +8,11 @@ import CoreData
 // MARK: - Close arrival
 
 /// The Close Arrival button by voice: everyone still unmarked is marked absent, and
-/// from then on "Mark Maya here" marks tardy.
+/// from then on "Mark Maya here" marks late.
 struct CloseArrivalIntent: AppIntent {
     static let title: LocalizedStringResource = "Close Arrival"
     static let description = IntentDescription(
-        "Mark every unmarked child absent. A child who arrives after this is marked tardy.",
+        "Mark every unmarked child absent. A child who arrives after this is marked late.",
         categoryName: "Attendance"
     )
     static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
@@ -20,7 +20,10 @@ struct CloseArrivalIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let session = try SiriAttendance()
-        switch try AssistantSiriCommands.checkClose(session) {
+        let check = try await SiriAttendance.plainly("checking arrival") {
+            try AssistantSiriCommands.checkClose(session)
+        }
+        switch check {
         case .alreadyClosed:
             return .result(dialog: "Arrival is already closed.")
         case .notSchoolDay:
@@ -32,7 +35,9 @@ struct CloseArrivalIntent: AppIntent {
                 )
             }
         }
-        let count = try await AssistantSiriCommands.closeArrival(session)
+        let count = try await SiriAttendance.plainly("closing arrival") {
+            try await AssistantSiriCommands.closeArrival(session)
+        }
         if count == 0 {
             return .result(dialog: "Arrival is closed. Everyone was already marked.")
         }
@@ -58,7 +63,10 @@ struct WhoIsMissingIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let session = try SiriAttendance()
-        guard let missing = try AssistantSiriCommands.missingNames(session) else {
+        let names = try await SiriAttendance.plainly("reading who's missing") {
+            try AssistantSiriCommands.missingNames(session)
+        }
+        guard let missing = names else {
             return .result(dialog: "Today isn't a school day.")
         }
         guard !missing.isEmpty else {

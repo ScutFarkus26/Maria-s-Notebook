@@ -67,7 +67,7 @@ struct SharedStoreOrphanGuardTests {
         contents.inShare = ["Student": 40, "AttendanceRecord": 3_900, "NonSchoolDay": 16, "AttendanceDayLock": 0]
         #expect(contents.outside == 8)
         #expect(contents.toRelease == 0)
-        #expect(contents.summary == "40 students, 3,900 attendance records, 16 days off")
+        #expect(contents.summary == "40 students, 3,900 attendance marks, 16 days off")
         #expect(ClassroomShareContents().summary == "0 students")
     }
 

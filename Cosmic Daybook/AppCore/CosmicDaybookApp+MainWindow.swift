@@ -15,11 +15,11 @@ extension CosmicDaybookApp {
     var loadingMessage: String {
         switch bootstrapper.state {
         case .idle:
-            return "Starting up..."
+            return "Starting up…"
         case .initializingContainer:
-            return "Initializing database..."
+            return "Opening your notebook…"
         case .migrating:
-            return "Running migrations..."
+            return "Updating your notebook…"
         case .ready:
             return "Ready"
         }
@@ -49,7 +49,7 @@ extension CosmicDaybookApp {
         if restoreCoordinator.isRestoring {
             VStack(spacing: 20) {
                 ProgressView().controlSize(.large)
-                Text("Restoring data…")
+                Text("Restoring your backup…")
                     .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)

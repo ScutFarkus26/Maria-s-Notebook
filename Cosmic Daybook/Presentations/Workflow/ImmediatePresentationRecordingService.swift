@@ -1,30 +1,32 @@
 import CoreData
 import Foundation
+import OSLog
 
 /// Performs the small, immediate persistence step behind “Just Presented”.
 ///
 /// This service intentionally records only the presentation lifecycle. Observations,
 /// follow-up work, and next-lesson planning remain explicit, separate actions.
 struct ImmediatePresentationRecordingService {
+    /// Every description is shown as is (the sheet's alert, the Ready row's
+    /// and Today's toasts), so each is a plain sentence; the underlying error
+    /// goes to the log where it is caught.
     enum RecordingError: LocalizedError {
         case invalidAssignment
-        case recordingFailed(String)
-        case saveFailed(String)
+        case recordingFailed
+        case saveFailed
         case undoUnavailable
-        case undoSaveFailed(String)
+        case undoSaveFailed
 
         var errorDescription: String? {
             switch self {
             case .invalidAssignment:
                 return "This presentation is no longer available. Nothing was recorded."
-            case .recordingFailed(let message):
-                return "The presentation could not be recorded: \(message)"
-            case .saveFailed(let message):
-                return message
+            case .recordingFailed, .saveFailed:
+                return "Couldn't record the presentation. Nothing was changed. Try again."
             case .undoUnavailable:
                 return "This presentation can no longer be undone."
-            case .undoSaveFailed(let message):
-                return message
+            case .undoSaveFailed:
+                return "Couldn't undo the recording. Try again."
             }
         }
     }
@@ -129,7 +131,8 @@ private extension ImmediatePresentationRecordingService {
         do {
             existingRows = try historyRows(for: assignmentID, in: context)
         } catch {
-            throw RecordingError.recordingFailed(error.localizedDescription)
+            Logger.presentations.error("Reading the presentation's history failed: \(error, privacy: .public)")
+            throw RecordingError.recordingFailed
         }
         let enrollments = enrollmentRows(for: Set(assignment.studentIDs), in: context)
         return RecordPreparation(
@@ -284,19 +287,21 @@ private extension ImmediatePresentationRecordingService {
             operationUndoManager.endUndoGrouping()
             groupingIsOpen = false
 
-            guard saveCoordinator.save(context, reason: operation.reason) else {
+            // Every caller reports the failure itself, so the global alert stays quiet.
+            guard saveCoordinator.save(context, reason: operation.reason, alertOnFailure: false) else {
                 revert(operationUndoManager, in: context)
                 operationWasReverted = true
-                let message = saveCoordinator.lastSaveErrorMessage
-                    ?? "The change could not be saved."
-                throw operation.saveFailure(message)
+                throw operation.saveFailure
             }
             return result
         } catch {
             if groupingIsOpen { operationUndoManager.endUndoGrouping() }
             if !operationWasReverted { revert(operationUndoManager, in: context) }
             if let recordingError = error as? RecordingError { throw recordingError }
-            throw operation.operationFailure(error.localizedDescription)
+            Logger.presentations.error(
+                "\(operation.reason, privacy: .public) failed: \(error, privacy: .public)"
+            )
+            throw operation.operationFailure
         }
     }
 
@@ -311,17 +316,17 @@ private extension ImmediatePresentationRecordingService {
             }
         }
 
-        func saveFailure(_ message: String) -> RecordingError {
+        var saveFailure: RecordingError {
             switch self {
-            case .record: .saveFailed(message)
-            case .undo: .undoSaveFailed(message)
+            case .record: .saveFailed
+            case .undo: .undoSaveFailed
             }
         }
 
-        func operationFailure(_ message: String) -> RecordingError {
+        var operationFailure: RecordingError {
             switch self {
-            case .record: .recordingFailed(message)
-            case .undo: .undoSaveFailed(message)
+            case .record: .recordingFailed
+            case .undo: .undoSaveFailed
             }
         }
     }

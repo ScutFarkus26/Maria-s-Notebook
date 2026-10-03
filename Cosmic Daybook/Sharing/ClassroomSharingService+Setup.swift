@@ -87,6 +87,7 @@ extension ClassroomSharingService {
             attached: outcome.attached + (pinned == nil ? 1 : 0),
             failed: outcome.failed.count,
             stoppedBecause: outcome.stoppedBecause,
+            needsRelaunch: outcome.mirroringDelegateDied,
             contents: contents
         )
         Self.setupLogger.notice("Classroom setup finished: \(report.logLine, privacy: .public)")
@@ -172,8 +173,27 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
     let created: Bool
     let attached: Int
     let failed: Int
+    /// Why the run stopped early, as a plain phrase ("iCloud stopped
+    /// syncing"); nil when it ran to the end.
     let stoppedBecause: String?
+    /// Nothing more can be added this session; the app has to be reopened.
+    var needsRelaunch = false
     let contents: ClassroomShareContents?
+
+    /// The line Settings shows after a run: "Classroom shared. 214 items
+    /// added. 3 couldn't be added because iCloud stopped syncing. Quit and
+    /// reopen the app, then try again."
+    var summary: String {
+        var message = created ? "Classroom shared. " : ""
+        message += attached == 1 ? "1 item added." : "\(attached.formatted()) items added."
+        if let contents { message += " The share holds \(contents.summary)." }
+        if failed > 0 {
+            message += failed == 1 ? " 1 couldn't be added" : " \(failed.formatted()) couldn't be added"
+            message += stoppedBecause.map { " because \($0)." } ?? "."
+            message += needsRelaunch ? " Quit and reopen the app, then try again." : " Try again later."
+        }
+        return message
+    }
 
     var logLine: String {
         "created=\(created) attached=\(attached) failed=\(failed) stopped=\(stoppedBecause ?? "no") " +
@@ -184,13 +204,14 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
         let number = count.formatted()
         switch entity {
         case "Student": return count == 1 ? "1 student" : "\(number) students"
-        case "AttendanceRecord": return count == 1 ? "1 attendance record" : "\(number) attendance records"
+        case "AttendanceRecord": return count == 1 ? "1 attendance mark" : "\(number) attendance marks"
         case "NonSchoolDay": return count == 1 ? "1 day off" : "\(number) days off"
         case "SchoolDayOverride": return count == 1 ? "1 extra school day" : "\(number) extra school days"
         case "AttendanceDayLock": return count == 1 ? "1 locked day" : "\(number) locked days"
         case "AttendanceEmailSend": return count == 1 ? "1 front-desk email" : "\(number) front-desk emails"
         case "AttendanceEmailSettings": return count == 1 ? "the front-desk email settings" : "\(number) email settings"
-        default: return "\(number) \(entity)"
+        // A type added to the share later: never its model name on screen.
+        default: return count == 1 ? "1 other item" : "\(number) other items"
         }
     }
 }
@@ -211,27 +232,29 @@ enum ClassroomShareError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .cloudKitInactive:
-            return "iCloud sync isn't active. Turn on iCloud for Cosmic Daybook in System Settings and try again."
+            return "iCloud sync isn't on. Turn on iCloud for Cosmic Daybook in \(SystemSettingsApp.name), "
+                + "then try again."
         case .sharedStoreUnavailable:
-            return "Shared classroom storage isn't available on this device."
+            return "Classroom sharing can't start on this device right now. Quit and reopen the app, then try again."
         case .assistantCannotCreateShare:
             return "Only the lead guide can share the classroom."
         case .noSeedRecordAvailable:
             return "Add a student before sharing the classroom."
         case .shareStillSyncing:
-            return "This classroom's share is still coming down from iCloud. Wait for sync to finish, then try again."
+            return "Your classroom's sharing is still coming down from iCloud. Wait for sync to finish, then try again."
         case .firstDownloadPending:
             return "The notebook is still downloading from iCloud. Set up sharing once it has finished."
         case .mirroringStopped:
             return "iCloud sync stopped working this session. Quit and reopen Cosmic Daybook, then try again."
         case .otherShareZonesExist(let count):
-            return "iCloud already holds \(count) other classroom share(s) for this notebook. " +
-                "Sharing is set up once, into an empty notebook, so nothing was changed."
+            let shares = count == 1 ? "a classroom share" : "\(count) classroom shares"
+            return "iCloud already has \(shares) for this notebook, and sharing can only be set up once, " +
+                "so nothing was changed."
         case .notSetUp:
             return "Classroom sharing isn't set up yet. Choose Set Up Classroom Sharing first."
         case .shareHasNoStudents:
-            return "The classroom share holds no students yet, so an assistant would see an empty class. " +
-                "Nothing was sent."
+            return "No students are shared yet, so an assistant would see an empty class. " +
+                "Nothing was sent. Choose Set Up Classroom Sharing first."
         }
     }
 }

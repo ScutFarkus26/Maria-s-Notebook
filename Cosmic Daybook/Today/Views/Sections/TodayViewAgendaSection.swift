@@ -197,8 +197,9 @@ extension TodayView {
             viewModel.reload()
             toast(TodayMarkPresented.message(keptOnPlan: result.keptOnPlan.map { displayNameForID($0) }))
         } catch {
-            Logger.app_.warning("Failed to mark lesson presented: \(error.localizedDescription)")
-            toast(error.localizedDescription)
+            toast(PresentationFailureMessage.message(
+                for: error, fallback: "Couldn't record the presentation. Nothing was changed. Try again."
+            ))
         }
     }
 
@@ -253,7 +254,7 @@ extension TodayView {
                 context: viewContext
             )
         } catch {
-            toast(error.localizedDescription)
+            toast(PresentationFailureMessage.message(for: error, fallback: "Couldn't log that work. Try again."))
             return
         }
         viewModel.reload()

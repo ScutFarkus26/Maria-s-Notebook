@@ -19,8 +19,10 @@ struct WorkRepository: Repository {
 
         var errorDescription: String? {
             switch self {
-            case let .studentNotEnrolled(name, status):
-                return "\(name) is \(status) and cannot be given work. Only enrolled students can be assigned work."
+            // `status` stays in the case for callers that compare errors by
+            // value; the raw status word isn't for the screen.
+            case let .studentNotEnrolled(name, _):
+                return "\(name) has left the class, so they can't get new work."
             }
         }
     }

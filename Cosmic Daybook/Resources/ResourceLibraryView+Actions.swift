@@ -4,6 +4,7 @@
 import SwiftUI
 import CoreData
 import UniformTypeIdentifiers
+import OSLog
 
 extension ResourceLibraryView {
 
@@ -82,14 +83,34 @@ extension ResourceLibraryView {
     func handleDrop(providers: [NSItemProvider]) -> Bool {
         var didImport = false
         for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
-            provider.loadFileRepresentation(forTypeIdentifier: UTType.pdf.identifier) { url, _ in
-                guard let url else { return }
+            provider.loadFileRepresentation(forTypeIdentifier: UTType.pdf.identifier) { url, error in
+                guard let url else {
+                    if let error {
+                        Logger.resources.warning("Drop failed: \(error.localizedDescription, privacy: .public)")
+                    }
+                    Task { @MainActor in
+                        dependencies.toastService.showError("Couldn't add the PDF you dropped. Try again.")
+                    }
+                    return
+                }
 
-                // Copy file to a temp location before the callback closes it
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString)
-                    .appendingPathExtension("pdf")
-                try? FileManager.default.copyItem(at: url, to: tempURL)
+                // Copy the file before the callback closes it, keeping its own
+                // name (in a folder of its own) so the resource is titled after it.
+                let tempFolder = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                let tempURL = tempFolder.appendingPathComponent(url.lastPathComponent)
+                do {
+                    try FileManager.default.createDirectory(at: tempFolder, withIntermediateDirectories: true)
+                    try FileManager.default.copyItem(at: url, to: tempURL)
+                } catch {
+                    Logger.resources.warning(
+                        "Couldn't copy a dropped PDF: \(error.localizedDescription, privacy: .public)"
+                    )
+                    Task { @MainActor in
+                        dependencies.toastService.showError(AppErrorMessages.importMessage(for: error, fileType: "PDF"))
+                    }
+                    return
+                }
 
                 Task { @MainActor in
                     importDroppedPDF(from: tempURL)
@@ -101,8 +122,8 @@ extension ResourceLibraryView {
     }
 
     func importDroppedPDF(from tempURL: URL) {
-        let stem = tempURL.deletingPathExtension().lastPathComponent
-        let title = stem.isEmpty ? "Imported Resource" : stem
+        let stem = tempURL.deletingPathExtension().lastPathComponent.trimmed()
+        let title = stem.isEmpty ? "Untitled Resource" : stem
 
         do {
             let resourceID = UUID()
@@ -126,10 +147,11 @@ extension ResourceLibraryView {
             resource.thumbnailData = thumbnail
             dependencies.saveCoordinator.save(viewContext, reason: "Import dropped PDF")
         } catch {
-            // Silently fail — resource wasn't imported
+            Logger.resources.warning("Dropped PDF import failed: \(error.localizedDescription, privacy: .public)")
+            dependencies.toastService.showError(AppErrorMessages.importMessage(for: error, fileType: "PDF"))
         }
 
-        // Clean up temp file
-        try? FileManager.default.removeItem(at: tempURL)
+        // Clean up the temp copy and its folder
+        try? FileManager.default.removeItem(at: tempURL.deletingLastPathComponent())
     }
 }

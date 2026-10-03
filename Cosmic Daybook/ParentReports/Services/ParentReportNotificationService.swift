@@ -13,25 +13,36 @@ enum ParentReportNotificationService {
     private static let logger = Logger.reports
 
     /// Schedules (or clears) the monthly reminder to match the settings toggle.
-    static func applyPreference(enabled: Bool) async {
+    /// Returns false when the reminder is on but notifications aren't allowed,
+    /// so it can't show.
+    @discardableResult
+    static func applyPreference(enabled: Bool) async -> Bool {
         if enabled {
-            await scheduleMonthlyReminder()
-        } else {
-            cancelMonthlyReminder()
+            return await scheduleMonthlyReminder()
         }
+        cancelMonthlyReminder()
+        return true
     }
 
-    static func scheduleMonthlyReminder() async {
+    /// Whether notifications for the app have been turned off, without
+    /// asking for them.
+    static func notificationsDenied() async -> Bool {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .denied
+    }
+
+    /// Returns false when notifications aren't allowed, so nothing was scheduled.
+    @discardableResult
+    static func scheduleMonthlyReminder() async -> Bool {
         let center = UNUserNotificationCenter.current()
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
             guard granted else {
                 logger.notice("Parent report reminder not scheduled: notifications not authorized")
-                return
+                return false
             }
         } catch {
             logger.warning("Parent report reminder authorization failed: \(error.localizedDescription)")
-            return
+            return false
         }
 
         let content = UNMutableNotificationContent()
@@ -52,6 +63,7 @@ enum ParentReportNotificationService {
         } catch {
             logger.warning("Failed to schedule parent report reminder: \(error.localizedDescription)")
         }
+        return true
     }
 
     static func cancelMonthlyReminder() {
@@ -64,8 +76,26 @@ enum ParentReportNotificationService {
 
 struct ParentReportsSettingsView: View {
     @AppStorage(UserDefaultsKeys.parentReportsReminderEnabled) private var reminderEnabled = false
+    /// The reminder is on but notifications are off, so it can't show: said
+    /// under the toggle, rather than leaving it on as if it worked.
+    @State private var notificationsDenied = false
 
     var body: some View {
+        content
+            .task {
+                guard reminderEnabled else { return }
+                notificationsDenied = await ParentReportNotificationService.notificationsDenied()
+            }
+            .onChange(of: reminderEnabled) { _, newValue in
+                Task {
+                    let canShow = await ParentReportNotificationService.applyPreference(enabled: newValue)
+                    notificationsDenied = !canShow
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 12) {
             LabeledContent("Monthly reminder") {
@@ -75,15 +105,23 @@ struct ParentReportsSettingsView: View {
             Text("Reminds you on the 1st of each month that last month's parent reports are ready to send.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-        }
-        .onChange(of: reminderEnabled) { _, newValue in
-            Task { await ParentReportNotificationService.applyPreference(enabled: newValue) }
+            deniedFootnote
         }
         #else
-        Toggle("Remind me on the 1st of each month", isOn: $reminderEnabled)
-            .onChange(of: reminderEnabled) { _, newValue in
-                Task { await ParentReportNotificationService.applyPreference(enabled: newValue) }
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Remind me on the 1st of each month", isOn: $reminderEnabled)
+            deniedFootnote
+        }
         #endif
+    }
+
+    @ViewBuilder
+    private var deniedFootnote: some View {
+        if reminderEnabled && notificationsDenied {
+            Text("Notifications are off for Cosmic Daybook, so this reminder can't show. "
+                + "Turn them on in \(SystemSettingsApp.name) › Notifications.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 }

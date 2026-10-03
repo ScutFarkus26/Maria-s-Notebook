@@ -61,7 +61,7 @@ struct LessonRepository: SavingRepository {
             switch self {
             case let .duplicateName(_, name, area, sequence):
                 let filing = sequence.trimmed().isEmpty ? area.trimmed() : "\(area.trimmed()) › \(sequence.trimmed())"
-                return "\"\(name)\" is already in \(filing)."
+                return "\"\(name)\" is already in \(filing). Choose a different name."
             }
         }
     }

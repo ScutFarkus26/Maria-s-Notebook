@@ -11,17 +11,21 @@ struct BackupSummaryView: View {
 
     private var title: String {
         switch summary.kind {
-        case .export: return "Backup Export Complete"
-        case .import: return "Backup Import Complete"
+        case .export: return "Backup Saved"
+        case .import: return "Restore Complete"
         }
     }
+
+    /// The restore's warnings in plain words; the raw ones go under Details.
+    private var plainWarnings: [String] { BackupWarningText.plain(summary.warnings) }
 
     private var createdAtString: String {
         DateFormatters.mediumDateTime.string(from: summary.createdAt)
     }
 
+    /// The counts under their plain names ("Planned lessons", not "LessonAssignment").
     private var filteredCounts: [(String, Int)] {
-        let filtered = summary.entityCounts.filter { key, count in
+        let filtered = BackupPlainNames.grouped(summary.entityCounts).filter { key, count in
             (searchText.isEmpty || key.localizedCaseInsensitiveContains(searchText))
                 && (showZeros || count != 0)
         }
@@ -57,19 +61,19 @@ struct BackupSummaryView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 160)
-                Toggle("Show zeros", isOn: $showZeros)
+                Toggle("Show empty", isOn: $showZeros)
                     .toggleStyle(.switch)
             }
             GroupBox {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                     Text("File: \(summary.fileName)")
-                    Text("Format Version: \(summary.formatVersion)")
-                    Text("Encryption: \(summary.encryptUsed ? "On" : "Off")")
-                    Text("Created: \(createdAtString)")
+                    Text("Encrypted: \(summary.encryptUsed ? "Yes" : "No")")
+                    Text("Made: \(createdAtString)")
+                    TechnicalDetailsDisclosure(details: "Backup format version \(summary.formatVersion)")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Text("Records")
+            Text("What's in it")
                 .font(.headline)
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xsmall) {
@@ -84,6 +88,12 @@ struct BackupSummaryView: View {
                     }
                 }
             }
+            ForEach(summary.notes, id: \.self) { note in
+                Label(note, systemImage: "info.circle")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if !summary.warnings.isEmpty {
                 Button(action: {
                     adaptiveWithAnimation {
@@ -94,7 +104,7 @@ struct BackupSummaryView: View {
                         Text("Warnings")
                             .font(.headline)
                         Spacer()
-                        Text("\(summary.warnings.count)")
+                        Text("\(plainWarnings.count)")
                             .font(.caption2.bold())
                             .padding(.horizontal, AppTheme.Spacing.sm)
                             .padding(.vertical, AppTheme.Spacing.xxsmall)
@@ -107,13 +117,14 @@ struct BackupSummaryView: View {
                 })
                 if warningsExpanded {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-                        ForEach(summary.warnings, id: \.self) { w in
+                        ForEach(plainWarnings, id: \.self) { w in
                             HStack(alignment: .top, spacing: AppTheme.Spacing.sm) {
                                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
                                 Text(w)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
+                        TechnicalDetailsDisclosure(details: BackupWarningText.details(summary.warnings))
                     }
                     .padding(AppTheme.Spacing.small)
                     .background(.ultraThinMaterial)
@@ -142,8 +153,9 @@ private struct BackupSummaryViewPreview: View {
             formatVersion: BackupWriter.formatVersion,
             encryptUsed: true,
             createdAt: Date(),
-            entityCounts: ["students": 24, "lessons": 180],
-            warnings: ["Files/attachments are not included in backups by design."]
+            entityCounts: ["Student": 24, "Lesson": 180, "LessonAssignment": 312],
+            warnings: [],
+            notes: [BackupWriter.photoNote(includesPhotos: true, photoCount: 12)]
         ))
     }
 }

@@ -5,7 +5,7 @@ import OSLog
 
 /// The shared shape of a PDF library screen (book club packets, stories): a header,
 /// an adaptive card grid with a single-selection detail column, PDF import by
-/// drag-and-drop or file importer behind one "Couldn't import PDF" alert, and an
+/// drag-and-drop or file importer behind one "Couldn't Add the PDF" alert, and an
 /// empty state. The screens inject only what differs: header, card, detail, empty
 /// state, drop prompt, logger and import service.
 struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detail: View, EmptyState: View>: View {
@@ -54,7 +54,7 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
             handleFileImporter(result)
         }
         .alert(
-            "Couldn't import PDF",
+            "Couldn't Add the PDF",
             isPresented: Binding(
                 get: { importErrorMessage != nil },
                 set: { if !$0 { importErrorMessage = nil } }
@@ -140,6 +140,9 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
                     if let error {
                         logger.warning("Drop failed: \(error.localizedDescription, privacy: .public)")
                     }
+                    Task { @MainActor in
+                        importErrorMessage = "Couldn't add the PDF you dropped. Try again."
+                    }
                     return
                 }
                 // The provided URL is in a temp location that gets cleaned up when the
@@ -161,7 +164,8 @@ struct PDFLibraryListView<Item: NSManagedObject, Header: View, Card: View, Detai
                 performImport(at: url)
             }
         case .failure(let error):
-            importErrorMessage = error.localizedDescription
+            logger.warning("File picker failed: \(error.localizedDescription, privacy: .public)")
+            importErrorMessage = AppErrorMessages.importMessage(for: error, fileType: "PDF")
         }
     }
 

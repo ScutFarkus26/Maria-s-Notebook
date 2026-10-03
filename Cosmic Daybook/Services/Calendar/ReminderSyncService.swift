@@ -322,16 +322,19 @@ enum ReminderSyncError: LocalizedError, Equatable {
         }
     }
 
+    /// Shown as is (Today's header, the Reminders settings), so plain words.
     var errorDescription: String? {
         switch self {
         case .notAuthorized:
-            return "Reminders access has not been granted. Please authorize access in Settings."
+            return "Cosmic Daybook doesn't have access to Reminders. "
+                + "Turn it on in \(SystemSettingsApp.privacyPath("Reminders"))."
         case .noSyncListConfigured:
-            return "No Reminders list has been configured for syncing."
+            return "Choose a Reminders list to sync first."
         case .listNotFound(let name):
-            return "Reminders list '\(name)' not found. Please check the list name in settings."
+            let which = name.isEmpty ? "the Reminders list you chose" : "the Reminders list \u{201C}\(name)\u{201D}"
+            return "Couldn't find \(which). It may have been renamed or deleted. Choose a list again."
         case .modelContextUnavailable:
-            return "Database context is not available. Please try again."
+            return "Couldn't reach your notebook to sync. Try again."
         }
     }
 }

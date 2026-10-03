@@ -95,7 +95,7 @@ struct ClassroomMembersSheet: View {
             titleVisibility: .visible
         ) {
             Button("Remove everyone", role: .destructive) {
-                run("removing classroom members") { try await service.removeAllMembers() }
+                run("remove everyone") { try await service.removeAllMembers() }
             }
         } message: {
             Text(Self.loseAccessMessage)
@@ -110,7 +110,7 @@ struct ClassroomMembersSheet: View {
             presenting: memberToRemove
         ) { member in
             Button("Remove", role: .destructive) {
-                run("removing \(displayName(member))") { try await service.removeMember(member) }
+                run("remove \(displayName(member))") { try await service.removeMember(member) }
             }
         } message: { _ in
             Text(Self.loseAccessMessage)
@@ -156,7 +156,7 @@ struct ClassroomMembersSheet: View {
     private func add() {
         let entered = address
         guard !entered.trimmed().isEmpty else { return }
-        run("adding \(entered.trimmed())") {
+        run("add \(entered.trimmed())") {
             try await service.addMember(entered, permission: permission)
             address = ""
         }
@@ -246,7 +246,8 @@ struct ClassroomMembersSheet: View {
 
     // MARK: - Work
 
-    private func run(_ context: String, _ work: @escaping () async throws -> Void) {
+    /// Runs a sharing change; `action` finishes "Couldn't …" ("add Sam").
+    private func run(_ action: String, _ work: @escaping () async throws -> Void) {
         isWorking = true
         errorMessage = nil
         Task {
@@ -254,7 +255,7 @@ struct ClassroomMembersSheet: View {
             do {
                 try await work()
             } catch {
-                errorMessage = AppErrorMessages.userMessage(for: error, context: context)
+                errorMessage = AppErrorMessages.sharingMessage(for: error, action: action)
             }
         }
     }

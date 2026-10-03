@@ -20,8 +20,10 @@ nonisolated extension ClassroomShareRelease {
             }
             env.setAwaitingGone([])
         } catch {
-            report.stoppedBecause = error.localizedDescription
-            logger.error("Finishing the release stopped: \(error.localizedDescription, privacy: .public)")
+            let stop = stopMessage(for: error)
+            report.stoppedBecause = stop.message
+            report.stopDetails = stop.details
+            logger.error("Finishing the release stopped: \(stop.details, privacy: .public)")
         }
         return report
     }

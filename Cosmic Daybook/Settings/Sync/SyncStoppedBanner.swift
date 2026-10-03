@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Shown in Settings → iCloud Sync when a mirroring delegate failed this
-/// session: which store stopped, what the server said, and the fix that fits
-/// (see `SyncStoppedAdvice`).
+/// session: which part stopped and the fix that fits, in plain words, with
+/// what the server said under Details (see `SyncStoppedAdvice`).
 struct SyncStoppedBanner: View {
     let advice: SyncStoppedAdvice
 
@@ -19,6 +19,7 @@ struct SyncStoppedBanner: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
+                TechnicalDetailsDisclosure(details: advice.details)
             }
             Spacer(minLength: 0)
         }

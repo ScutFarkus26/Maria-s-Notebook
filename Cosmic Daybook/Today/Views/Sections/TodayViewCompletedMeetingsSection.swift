@@ -62,7 +62,7 @@ extension TodayView {
     // MARK: - Helpers
 
     func completedMeetingStudentName(for meeting: CDStudentMeeting) -> String {
-        guard let studentID = meeting.studentIDUUID else { return "Unknown" }
+        guard let studentID = meeting.studentIDUUID else { return "Student removed" }
         return viewModel.displayName(for: studentID)
     }
 }

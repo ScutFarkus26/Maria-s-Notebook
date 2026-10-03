@@ -30,7 +30,7 @@ struct SyncHistoryLogView: View {
                                         .padding(.vertical, AppTheme.Spacing.xxsmall)
                                         .capsuleFill(typeColor(event.type).opacity(UIConstants.OpacityConstants.accent))
                                         .foregroundStyle(typeColor(event.type))
-                                    Text(event.message)
+                                    Text(event.shownMessage)
                                         .font(.subheadline)
                                         .lineLimit(2)
                                     if event.count > 1 {
@@ -43,6 +43,9 @@ struct SyncHistoryLogView: View {
                                 Text(event.timestamp.formatted(.relative(presentation: .named)))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                if let detail = event.shownDetail {
+                                    TechnicalDetailsDisclosure(details: detail)
+                                }
                             }
                         }
                     }

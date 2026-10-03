@@ -121,13 +121,44 @@ struct ManagedPDFFileStorageTests {
     @Test("Import error messages keep their per-library wording")
     func errorMessages() {
         typealias ImportError = ManagedPDFFileStorage.ImportError
-        #expect(ImportError.sourceMissing.errorDescription == "Source file is missing or unreadable.")
+        #expect(ImportError.sourceMissing.errorDescription
+                == "Couldn't find that file. It may have been moved or deleted.")
         #expect(ImportError.notAPDF(subject: "book club packets").errorDescription
-                == "Only PDF files can be imported as book club packets.")
+                == "Only PDF files can be added as book club packets.")
         #expect(ImportError.notAPDF(subject: "stories").errorDescription
-                == "Only PDF files can be imported as stories.")
-        #expect(ImportError.encrypted.errorDescription == "This PDF is encrypted and cannot be imported.")
+                == "Only PDF files can be added as stories.")
+        #expect(ImportError.encrypted.errorDescription == "This PDF is locked with a password and can't be added.")
         #expect(StudentDocumentFileStorage.StudentDocumentError.sourceMissing.errorDescription
-                == "Source file is missing or unreadable.")
+                == "Couldn't find that file. It may have been moved or deleted.")
+    }
+
+    @Test("A failed copy says what happened in plain words, never the raw file error")
+    func copyFailureMessages() {
+        typealias ImportError = ManagedPDFFileStorage.ImportError
+        let outOfSpace = CocoaError(.fileWriteOutOfSpace)
+        #expect(ImportError.copyFailed(underlying: outOfSpace).errorDescription
+                == "There isn't enough space to add this PDF. Free up some space and try again.")
+        #expect(ImportError.copyFailureMessage(for: CocoaError(.fileReadNoPermission))
+                == "Cosmic Daybook can't open that file. Choose it again.")
+        #expect(ImportError.copyFailureMessage(for: CocoaError(.fileReadNoSuchFile))
+                == "Couldn't find that file. It may have been moved or deleted.")
+        // Anything else gets the general sentence, not the system's own text.
+        let other = NSError(domain: "SomeFramework", code: 42, userInfo: [
+            NSLocalizedDescriptionKey: "The operation couldn’t be completed. (SomeFramework error 42.)"
+        ])
+        #expect(ImportError.copyFailed(underlying: other).errorDescription == "Couldn't add this PDF. Try again.")
+        #expect(ImportError.copyFailureMessage(for: CocoaError(.fileWriteUnknown))
+                == "Couldn't add this PDF. Try again.")
+    }
+
+    @Test("Story and book club imports tell a failed copy from a failed save")
+    func copyAndSaveFailuresDiffer() {
+        let outOfSpace = CocoaError(.fileWriteOutOfSpace)
+        #expect(StoryImportService.ImportRejection.copyFailed(underlying: outOfSpace).errorDescription
+                == "There isn't enough space to add this PDF. Free up some space and try again.")
+        #expect(StoryImportService.ImportRejection.saveFailed.errorDescription
+                == "Couldn't save the new story. Try again.")
+        #expect(BookClubImportService.ImportRejection.saveFailed.errorDescription
+                == "Couldn't save the new packet. Try again.")
     }
 }

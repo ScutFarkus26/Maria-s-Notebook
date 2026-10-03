@@ -34,7 +34,7 @@ struct StudentRecordHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(student.shortName)
                     .font(AppTheme.ScaledFont.titleSmall)
-                Text("Student record")
+                Text("Student profile")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

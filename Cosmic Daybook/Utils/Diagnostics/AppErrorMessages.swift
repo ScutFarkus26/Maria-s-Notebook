@@ -1,5 +1,10 @@
 // AppErrorMessages.swift
-// Maps raw errors into user-friendly messages for toast and alert display.
+// Maps raw errors into plain-English messages for toast and alert display.
+//
+// The rule (Danny's): every message says what happened and what, if anything,
+// to do, in everyday words. No raw system text, codes, file paths or type
+// names ever reach the screen; they go to the log where the error is caught.
+// Anything not mapped here gets a plain general sentence, never the raw text.
 
 import Foundation
 
@@ -15,21 +20,9 @@ enum AppErrorMessages {
         let nsError = error as NSError
 
         // Context phrase for embedding in sentences
-        let activity = context ?? "completing this action"
+        let activity = context ?? "doing that"
 
-        // Honor LocalizedError for app-defined error types (those whose underlying
-        // domain isn't one of the system domains we map below). Bridged system
-        // errors (CKError, NSURLError, NSCocoaError) also conform to LocalizedError
-        // but their `errorDescription` is typically unhelpful — let the domain
-        // switch handle them.
-        let systemDomains: Set<String> = [
-            NSURLErrorDomain,
-            "CKErrorDomain",
-            NSCocoaErrorDomain
-        ]
-        if !systemDomains.contains(nsError.domain),
-           let localized = (error as? LocalizedError)?.errorDescription,
-           !localized.trimmingCharacters(in: .whitespaces).isEmpty {
+        if let localized = appDefinedDescription(of: error) {
             return localized
         }
 
@@ -39,16 +32,38 @@ enum AppErrorMessages {
         case "CKErrorDomain":
             return cloudKitMessage(code: nsError.code, activity: activity)
         case NSCocoaErrorDomain:
-            return coreDataMessage(code: nsError.code, activity: activity)
+            return cocoaMessage(code: nsError.code, activity: activity)
         default:
             return unexpectedMessage(activity: activity)
         }
     }
 
-    /// The fallback for a domain — or a Core Data code — we have nothing
-    /// specific to say about.
+    /// The text of an app-defined `LocalizedError`, or nil for a bridged
+    /// system error (CKError, NSURLError, CocoaError also conform to
+    /// `LocalizedError`, but their text is raw system wording — the domain
+    /// switches translate those instead).
+    private static func appDefinedDescription(of error: Error) -> String? {
+        let systemDomains: Set<String> = [NSURLErrorDomain, "CKErrorDomain", NSCocoaErrorDomain]
+        guard !systemDomains.contains((error as NSError).domain),
+              let localized = (error as? LocalizedError)?.errorDescription,
+              !localized.trimmingCharacters(in: .whitespaces).isEmpty
+        else { return nil }
+        return localized
+    }
+
+    /// The fallback for a domain — or a code — we have nothing specific to say about.
     private static func unexpectedMessage(activity: String) -> String {
-        "An unexpected issue occurred while \(activity). Try again."
+        "Something went wrong while \(activity). Try again."
+    }
+
+    /// "Settings" on iPhone and iPad, "System Settings" on the Mac. (The
+    /// Assistant compiles this file, so it can't use `SystemSettingsApp`.)
+    private static var settingsApp: String {
+        #if os(macOS)
+        "System Settings"
+        #else
+        "Settings"
+        #endif
     }
 
     // MARK: Network errors
@@ -58,11 +73,11 @@ enum AppErrorMessages {
         case NSURLErrorNotConnectedToInternet, NSURLErrorDataNotAllowed:
             return "You appear to be offline. Check your connection and try \(activity) again."
         case NSURLErrorTimedOut:
-            return "The request timed out while \(activity). Try again in a moment."
+            return "The connection was too slow while \(activity). Try again in a moment."
         case NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost:
-            return "Couldn't reach the server while \(activity). Try again later."
+            return "Couldn't connect while \(activity). Try again later."
         default:
-            return "A network issue prevented \(activity). Check your connection and try again."
+            return "A connection problem stopped \(activity). Check your connection and try again."
         }
     }
 
@@ -74,23 +89,23 @@ enum AppErrorMessages {
     private static func cloudKitMessage(code: Int, activity: String) -> String {
         switch code {
         case 1, 6, 7: // internalError, serviceUnavailable, requestRateLimited
-            return "iCloud is temporarily unavailable. Your changes are saved locally and " +
+            return "iCloud is temporarily unavailable. Your changes are saved on this device and " +
                 "will sync when iCloud recovers."
         case 9: // notAuthenticated
-            return "No iCloud account found. Sign in to iCloud in Settings to sync your data."
+            return "This device isn't signed in to iCloud. Sign in from \(settingsApp) to sync your notebook."
         case 25: // quotaExceeded
-            return "Your iCloud storage is full. Free up space so your data can continue syncing."
+            return "Your iCloud storage is full. Free up space so your notebook can keep syncing."
         case 3, 4: // networkUnavailable, networkFailure
-            return "Couldn't reach iCloud while \(activity). Your changes are saved locally."
+            return "Couldn't reach iCloud while \(activity). Your changes are saved on this device."
         case 26, 28: // zoneNotFound, userDeletedZone
-            return "The shared classroom data isn't available yet. Ask the lead guide to re-share."
+            return "The shared classroom isn't available yet. Ask the lead guide to share it again."
         case 10: // permissionFailure
-            return "You don't have permission for this action. Check with the lead guide."
+            return "You don't have permission for this. Check with the lead guide."
         case 37: // participantAlreadyInvited (iOS/macOS 26)
             return "An invitation is already waiting to be accepted. Open the classroom link " +
                 "to accept it, then try again."
         default:
-            return "An iCloud issue prevented \(activity). Your changes are saved locally and will sync later."
+            return "iCloud couldn't finish \(activity). Your changes are saved on this device and will sync later."
         }
     }
 
@@ -116,27 +131,58 @@ enum AppErrorMessages {
         }
     }
 
-    // MARK: Core Data errors
+    /// Why a sharing action — setting up the share, adding or removing a
+    /// member, stopping sharing, leaving — failed. Like `joinMessage` it never
+    /// says "saved locally": a failed sharing action saved nothing and nothing
+    /// retries it. `action` is the verb phrase: "add Sam", "stop sharing".
+    static func sharingMessage(for error: Error, action: String) -> String {
+        if let localized = appDefinedDescription(of: error) {
+            return localized
+        }
+        let nsError = error as NSError
+        switch (nsError.domain, nsError.code) {
+        case (NSURLErrorDomain, _), ("CKErrorDomain", 3), ("CKErrorDomain", 4):
+            return "Couldn't \(action). This device couldn't reach iCloud. Check you're online and try again."
+        case ("CKErrorDomain", 9):
+            return "Couldn't \(action). This device isn't signed in to iCloud. " +
+                "Sign in from \(settingsApp), then try again."
+        case ("CKErrorDomain", 25):
+            return "Couldn't \(action). Your iCloud storage is full. Free up space, then try again."
+        case ("CKErrorDomain", 10):
+            return "Couldn't \(action). This Apple Account isn't allowed to change the classroom share."
+        case ("CKErrorDomain", 37):
+            return "Couldn't \(action). An invitation is already waiting to be accepted."
+        default:
+            return "Couldn't \(action). iCloud didn't answer. Check you're online and try again."
+        }
+    }
 
-    private static func coreDataMessage(code: Int, activity: String) -> String {
-        if (256...1024).contains(code) {
-            return "There was a problem reading your data. Try closing and reopening the app."
+    // MARK: Cocoa (file and Core Data) errors
+
+    private static func cocoaMessage(code: Int, activity: String) -> String {
+        switch code {
+        case NSFileWriteOutOfSpaceError:
+            return "This device is out of space. Free some up and try again."
+        case NSFileWriteNoPermissionError, NSFileWriteVolumeReadOnlyError:
+            return "Cosmic Daybook isn't allowed to save there. Try a different place."
+        case 256...511: // file read errors (NSFileReadUnknownError…)
+            return "There was a problem reading your notebook. Try closing and reopening the app."
+        case 512...767: // file write errors (NSFileWriteUnknownError…)
+            return "Couldn't save your changes. Try again, or restart the app if it keeps happening."
+        case NSValidationErrorMinimum...NSValidationErrorMaximum:
+            return "Couldn't save your changes. Try again, or restart the app if it keeps happening."
+        default:
+            return unexpectedMessage(activity: activity)
         }
-        if code >= 1550 && code <= 1599 {
-            return "Couldn't save your changes. Try again, or restart the app if the problem persists."
-        }
-        return unexpectedMessage(activity: activity)
     }
 
     // MARK: - Domain-Specific Messages
 
-    /// User-friendly message for save failures shown in the global save alert.
-    static func saveFailureMessage(for error: Error, reason: String?) -> String {
-        let base = userMessage(for: error, context: "saving your changes")
-        if let why = reason, !why.trimmingCharacters(in: .whitespaces).isEmpty {
-            return "\(base)\n\n(While: \(why))"
-        }
-        return base
+    /// The message for the global "Couldn't Save" alert. The caller's `reason`
+    /// is a developer label ("Toggle pin status"), so it goes to the log
+    /// (`SaveCoordinator` logs it), never into the message.
+    static func saveFailureMessage(for error: Error) -> String {
+        userMessage(for: error, context: "saving your changes")
     }
 
     /// User-friendly message for file import failures (lessons, resources, backups).
@@ -145,68 +191,76 @@ enum AppErrorMessages {
         if nsError.domain == NSCocoaErrorDomain {
             switch nsError.code {
             case NSFileReadNoSuchFileError, NSFileNoSuchFileError:
-                return "The \(fileType) couldn't be found. It may have been moved or deleted."
+                return "Couldn't find the \(fileType). It may have been moved or deleted."
             case NSFileReadNoPermissionError:
-                return "The app doesn't have permission to read this \(fileType). Try selecting it again."
+                return "Cosmic Daybook can't open this \(fileType). Choose it again."
             case NSFileReadCorruptFileError:
-                return "This \(fileType) appears to be damaged and can't be opened."
+                return "This \(fileType) looks damaged and can't be opened."
+            case NSFileWriteOutOfSpaceError:
+                return "There isn't enough space to add this \(fileType). Free up some space and try again."
             default:
                 break
             }
         }
-        return "Couldn't import the \(fileType). Make sure it's a supported format and try again."
+        return "Couldn't add the \(fileType). Make sure it's the right kind of file and try again."
     }
 
     // No AI in the assistant's companion app, and LocalModelError lives with
     // the model clients it doesn't build.
     #if !ASSISTANT_APP
 
-    /// User-friendly message for AI/chat feature errors.
-    static func aiMessage(for error: Error) -> String {
-        let nsError = error as NSError
-
+    /// The message for an Apple Intelligence feature's failure. Apple
+    /// Intelligence's own errors speak for themselves; an app-defined error
+    /// (a student who isn't there any more) speaks for itself too; anything
+    /// else gets the caller's `fallback`, never raw text.
+    static func aiMessage(
+        for error: Error,
+        fallback: String = AppleIntelligenceMessages.fallback
+    ) -> String {
         if let localError = error as? LocalModelError {
-            return localError.localizedDescription
+            return localError.errorDescription ?? fallback
         }
-
-        // Network issues
-        if nsError.domain == NSURLErrorDomain {
-            return userMessage(for: error, context: "connecting to the AI service")
+        if let modelMessage = AppleIntelligenceMessages.message(forAny: error, fallback: fallback) {
+            return modelMessage
         }
-
-        let desc = nsError.localizedDescription.lowercased()
-        if desc.contains("rate limit") || desc.contains("429") {
-            return "Too many requests. Wait a moment and try again."
+        if (error as NSError).domain == NSURLErrorDomain {
+            return userMessage(for: error, context: "reaching Apple Intelligence")
         }
-
-        return "The AI feature encountered a problem. Try again in a moment."
+        return appDefinedDescription(of: error) ?? fallback
     }
 
     #endif
 
-    /// User-friendly message for backup export/restore failures.
+    /// User-friendly message for backup export/restore failures. The backup
+    /// errors are app-defined and already plain, so they speak for themselves;
+    /// file errors are translated; anything else is the general sentence.
     static func backupMessage(for error: Error, operation: String) -> String {
+        if let localized = appDefinedDescription(of: error) {
+            return localized
+        }
         let nsError = error as NSError
         if nsError.domain == NSCocoaErrorDomain {
             switch nsError.code {
             case NSFileWriteOutOfSpaceError:
-                return "Not enough storage space to \(operation). Free up space and try again."
-            case NSFileWriteNoPermissionError, NSFileReadNoPermissionError:
-                return "The app doesn't have permission to access that location. Try a different folder."
+                return "There isn't enough space to \(operation). Free up space and try again."
+            case NSFileWriteNoPermissionError, NSFileReadNoPermissionError, NSFileWriteVolumeReadOnlyError:
+                return "Cosmic Daybook isn't allowed to use that folder. Choose a different one."
+            case NSFileReadNoSuchFileError, NSFileNoSuchFileError:
+                return "Couldn't find that backup file. It may have been moved or deleted."
             default:
                 break
             }
         }
-        return "Couldn't \(operation): \(nsError.localizedDescription) [domain=\(nsError.domain) code=\(nsError.code)]"
+        return "Couldn't \(operation). Try again."
     }
 
     /// User-friendly message for calendar/reminder sync failures.
     static func syncMessage(for error: Error, service: String) -> String {
         let nsError = error as NSError
         if nsError.domain == "EKErrorDomain" || nsError.domain == "EventKit" {
-            return "\(service) sync couldn't complete. " +
-                "Check that the app has permission in Settings \u{2192} Privacy & Security."
+            return "Couldn't update \(service). Check that Cosmic Daybook can use \(service) " +
+                "in \(settingsApp) \u{203A} Privacy & Security."
         }
-        return userMessage(for: error, context: "syncing \(service.lowercased())")
+        return userMessage(for: error, context: "updating \(service)")
     }
 }

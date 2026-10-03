@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "Clean Up Old Records": what would go, then the run. Nothing changes until the guide
+/// "Clean Up Leftovers": what would go, then the run. Nothing changes until the guide
 /// presses Back Up and Clean Up; the backup is made and checked before any record is touched.
 struct NotebookCleanupSheet: View {
     @Environment(\.dependencies) private var dependencies
@@ -10,7 +10,7 @@ struct NotebookCleanupSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-            Text("Clean Up Old Records")
+            Text("Clean Up Leftovers")
                 .font(.title2.weight(.semibold))
             ScrollView {
                 content
@@ -37,7 +37,7 @@ struct NotebookCleanupSheet: View {
     private var content: some View {
         switch model?.stage ?? .loading {
         case .loading:
-            ProgressView("Looking for old records…")
+            ProgressView("Looking for leftovers…")
         case .ready(let counts):
             ready(counts, blocker: model?.blocker)
         case .backingUp:
@@ -65,8 +65,8 @@ struct NotebookCleanupSheet: View {
             if counts.isEmpty {
                 Text("Nothing to clean up.")
             } else {
-                Text("These records are left over from earlier versions of the app, or hold nothing. "
-                    + "Nothing you can see in the notebook changes.")
+                Text("These are bits left over from older versions of the app, and entries with nothing in them. "
+                    + "Nothing you can see in your notebook changes.")
                     .font(.callout)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("What changes").font(.headline)
@@ -129,13 +129,13 @@ struct NotebookCleanupCard: View {
     var body: some View {
         SettingsGroup(
             .cleanUp,
-            footer: "Removes leftovers from earlier versions of the app: records that point at nothing, "
-                + "blank rows and duplicates. You see the list before anything changes."
+            footer: "Removes bits left over from older versions of the app, blank entries and duplicates. "
+                + "You see the list before anything changes."
         ) {
             Button {
                 showingCleanup = true
             } label: {
-                Label("Clean Up Old Records…", systemImage: "sparkles")
+                Label("Clean Up Leftovers…", systemImage: "sparkles")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)

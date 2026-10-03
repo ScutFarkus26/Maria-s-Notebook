@@ -94,18 +94,17 @@ nonisolated public enum BackupWriter {
         case verificationFailed(String)
         case photoUnreadable(filename: String, underlying: Error)
 
+        /// What the guide reads. The type, the reason and the photo's name go
+        /// to the log where the error is caught.
         public var errorDescription: String? {
             switch self {
-            case .entityEncodingFailed(let entityName, let underlying):
-                return "Backup aborted: could not encode \(entityName) records " +
-                    "(\(underlying.localizedDescription)). No file was written \u{2014} " +
-                    "a backup silently missing \(entityName) data would be worse than no backup."
-            case .verificationFailed(let reason):
-                return "Backup aborted: the written file failed read-back verification (\(reason)). " +
-                    "No file was saved to the destination."
-            case .photoUnreadable(let filename, let underlying):
-                return "Backup aborted: the note photo \(filename) could not be read " +
-                    "(\(underlying.localizedDescription)). No file was written."
+            case .entityEncodingFailed:
+                return "The backup stopped because part of your notebook couldn't be read. "
+                    + "No file was saved. Try again."
+            case .verificationFailed:
+                return "The backup didn't check out after saving, so it was thrown away. Try again."
+            case .photoUnreadable:
+                return "A note photo couldn't be read, so the backup stopped. No file was saved. Try again."
             }
         }
     }
@@ -194,11 +193,19 @@ nonisolated public enum BackupWriter {
             encryptUsed: true,
             createdAt: Date(),
             entityCounts: manifest.entityCounts,
-            warnings: [includesPhotos
-                ? "Note photos are included (\(manifest.photoCount ?? 0)); imported documents and "
-                    + "file attachments are not, by design."
-                : "Note photos, imported documents and file attachments are not included in this backup."]
+            warnings: [],
+            notes: [Self.photoNote(includesPhotos: includesPhotos, photoCount: manifest.photoCount ?? 0)]
         )
+    }
+
+    /// What a finished backup says about photos and files: information, not a
+    /// warning (leaving documents and attachments out is by design).
+    static func photoNote(includesPhotos: Bool, photoCount: Int) -> String {
+        guard includesPhotos else {
+            return "Note photos, imported documents and file attachments aren't in this backup."
+        }
+        let photos = photoCount == 1 ? "1 note photo" : "\(photoCount.formatted()) note photos"
+        return "Includes \(photos). Imported documents and file attachments aren't in backups."
     }
 
     // MARK: - Off-Main Pipeline

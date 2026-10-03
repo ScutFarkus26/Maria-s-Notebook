@@ -21,16 +21,16 @@ nonisolated enum BackupEncryptionKeyStore {
         case keychainWrite(OSStatus)
         case keyUnavailableForRestore
 
+        /// What the guide reads; the Keychain status goes to the log where
+        /// the error is caught.
         var errorDescription: String? {
             switch self {
-            case .keychainRead(let status):
-                return "Could not read the backup encryption key from the Keychain (error \(status))."
-            case .keychainWrite(let status):
-                return "Could not save the backup encryption key to the Keychain (error \(status))."
+            case .keychainRead, .keychainWrite:
+                return "Couldn't unlock this device's backup key. Restart the device and try again."
             case .keyUnavailableForRestore:
-                return "This backup is encrypted, but its encryption key isn't on this device yet. " +
-                    "Make sure this device is signed into the same Apple ID with iCloud Keychain " +
-                    "enabled, wait a moment for it to sync, then try again."
+                return "This backup is locked with a key that isn't on this device yet. Make sure this " +
+                    "device is signed in to the same Apple Account with iCloud Keychain on, wait a " +
+                    "moment, then try again."
             }
         }
     }

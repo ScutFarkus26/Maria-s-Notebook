@@ -32,15 +32,19 @@ enum WorkLogService {
         }
     }
 
+    /// Each description is shown as is (toasts on Today, the week plan and
+    /// the work agenda; MCP returns it too).
     enum LogError: LocalizedError {
         case nothingToLog
-        case saveFailed(String)
+        case saveFailed
+        case undoSaveFailed
         case undoUnavailable
 
         var errorDescription: String? {
             switch self {
             case .nothingToLog: return "There is no work to log."
-            case .saveFailed(let message): return message
+            case .saveFailed: return "Couldn't save that work check. Try again."
+            case .undoSaveFailed: return "Couldn't undo that. Try again."
             case .undoUnavailable: return "That work check can no longer be undone."
             }
         }
@@ -114,10 +118,12 @@ enum WorkLogService {
         token.createdObjectIDs = created.map(\.objectID)
 
         if saveImmediately {
-            let saved = saveCoordinator?.save(context, reason: "Log work check") ?? context.safeSave()
+            // Every caller shows `LogError.saveFailed` itself, so the global alert stays quiet.
+            let saved = saveCoordinator?.save(context, reason: "Log work check", alertOnFailure: false)
+                ?? context.safeSave()
             guard saved else {
                 revert(token, in: context)
-                throw LogError.saveFailed(saveCoordinator?.lastSaveErrorMessage ?? "The work check could not be saved.")
+                throw LogError.saveFailed
             }
         }
         return Receipt(token: token, rows: entries.count, closed: closed, reopened: reopened, checkInsSettled: settled)

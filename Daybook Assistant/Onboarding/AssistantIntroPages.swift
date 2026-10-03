@@ -266,8 +266,8 @@ struct AssistantInvitationPage: View {
             if let joinError {
                 OnboardingNotice(text: joinError, systemImage: "exclamationmark.triangle")
                 Text("Your guide invites you by the email or phone number on your Apple Account. If they used a "
-                    + "different one, the link won't open here. Ask them to send the invitation again, then "
-                    + "open it on this iPhone.")
+                    + "different one, the link won't open here: ask them to use the one this iPhone is "
+                    + "signed in with.")
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 if let iCloudProblem {

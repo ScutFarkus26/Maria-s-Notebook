@@ -3,6 +3,7 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 struct CommandBarSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -94,7 +95,7 @@ struct CommandBarSheet: View {
         )) {
             Button("OK") { saveErrorMessage = nil }
         } message: {
-            Text(saveErrorMessage ?? "The classroom capture could not be saved.")
+            Text(saveErrorMessage ?? "Couldn't save what you wrote. Nothing was changed. Try again.")
         }
     }
 
@@ -323,7 +324,7 @@ struct CommandBarSheet: View {
                 lessons: allLessons.uniqueByID,
                 mode: .newCapture,
                 validationMessage: viewModel.captureValidationMessage,
-                saveTitle: "Save Records",
+                saveTitle: "Save",
                 onSave: saveReviewedCapture,
                 onStartOver: {
                     viewModel.reset()
@@ -352,11 +353,14 @@ struct CommandBarSheet: View {
             )
             let recordCount = (receipt.presentationID == nil ? 0 : 1) + receipt.noteCount + receipt.workCount
             dependencies.toastService.showSuccess(
-                recordCount == 1 ? "Classroom record saved" : "\(recordCount) classroom records saved"
+                recordCount == 1 ? "Saved" : "Saved \(recordCount) entries"
             )
             dismiss()
+        } catch let error as CaptureSaveError {
+            saveErrorMessage = error.errorDescription
         } catch {
-            saveErrorMessage = error.localizedDescription
+            Logger.notes.error("Command bar save failed: \(error.localizedDescription, privacy: .public)")
+            saveErrorMessage = CaptureSaveError.saveFailed.errorDescription
         }
     }
 

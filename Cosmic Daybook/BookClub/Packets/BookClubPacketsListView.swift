@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import OSLog
 
 struct BookClubPacketsListView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -80,7 +81,8 @@ struct BookClubPacketsListView: View {
         } catch let error as BookClubImportService.ImportRejection {
             return error.errorDescription
         } catch {
-            return error.localizedDescription
+            Logger.bookClub.error("Packet import failed: \(error.localizedDescription, privacy: .public)")
+            return AppErrorMessages.importMessage(for: error, fileType: "PDF")
         }
     }
 }

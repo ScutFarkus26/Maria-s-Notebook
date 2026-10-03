@@ -117,9 +117,10 @@ final class LessonPickerViewModel {
         var errorDescription: String? {
             switch self {
             case .missingLesson:
-                return "Please select a lesson before saving."
-            case .persistFailed(let underlying):
-                return underlying.localizedDescription
+                return "Choose a lesson before saving."
+            case .persistFailed:
+                // The underlying error is logged where it's caught.
+                return "Couldn't save the lesson. Try again."
             }
         }
     }

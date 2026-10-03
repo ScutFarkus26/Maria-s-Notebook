@@ -215,8 +215,10 @@ struct WorkDetailView: View {
         .sheet(item: $activeSheet) { sheet in
             sheetContent(for: sheet, work: work)
         }
-        .alert("Delete?", isPresented: $viewModel.showDeleteAlert) {
+        .alert("Delete This Work?", isPresented: $viewModel.showDeleteAlert) {
             Button("Delete", role: .destructive) { deleteWork() }
+        } message: {
+            Text("Its check-ins, notes and history go with it. This can't be undone.")
         }
         .alert("Unlock Next Lesson?", isPresented: $viewModel.showUnlockNextLessonAlert) {
             Button("Unlock") {

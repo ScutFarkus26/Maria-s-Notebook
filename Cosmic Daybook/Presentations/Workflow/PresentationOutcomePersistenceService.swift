@@ -14,9 +14,9 @@ struct PresentationOutcomePersistenceService {
         var errorDescription: String? {
             switch self {
             case .missingPresentationID:
-                return "This presentation does not have a saved identity yet. Close this window and try again."
+                return "This presentation hasn't finished saving yet. Close it, open it again, and try once more."
             case .presentationNotFound:
-                return "The presentation could not be found. Nothing was saved so your observations are not attached to the wrong lesson."
+                return "Couldn't find this presentation. It may have been deleted. Nothing was saved."
             }
         }
     }

@@ -19,20 +19,24 @@ public final class BackupTransactionManager {
         case noCheckpointExists
         case importFailed(Error, checkpointURL: URL?)
 
+        /// What the guide reads. The underlying errors are logged where they
+        /// are wrapped (`executeWithRollback`, `createCheckpoint`).
         public var errorDescription: String? {
             switch self {
-            case .checkpointCreationFailed(let error):
-                return "Failed to create safety checkpoint: \(error.localizedDescription)"
-            case .rollbackFailed(let error):
-                return "Rollback failed: \(error.localizedDescription)"
-            case .noCheckpointExists:
-                return "No checkpoint exists for rollback."
+            case .checkpointCreationFailed:
+                return "Couldn't make a safety copy before restoring, so nothing was changed. Try again."
+            case .rollbackFailed, .noCheckpointExists:
+                return "The restore didn't finish, and your notebook couldn't be put back on its own. "
+                    + "Restore your most recent backup from Settings \u{203A} Sync and backup."
             case .importFailed(let error, let checkpointURL):
-                if let url = checkpointURL {
-                    let name = url.lastPathComponent
-                    return "Import failed: \(error.localizedDescription). A safety backup was created at \(name)."
+                // A backup error that already says what went wrong ("This backup
+                // file is damaged…") says it; anything else gets the outcome.
+                if let explained = error as? any ExplainedBackupError, let text = explained.errorDescription {
+                    return text
                 }
-                return "Import failed: \(error.localizedDescription)"
+                return checkpointURL == nil
+                    ? "The restore didn't finish, so nothing was changed. Try again."
+                    : "The restore didn't finish, so your notebook was put back the way it was. Nothing was lost."
             }
         }
     }
@@ -95,6 +99,7 @@ public final class BackupTransactionManager {
             activeCheckpointURL = checkpointURL
             return checkpointURL
         } catch {
+            Self.logger.error("Safety checkpoint failed: \(String(describing: error), privacy: .public)")
             throw TransactionError.checkpointCreationFailed(error)
         }
     }
@@ -154,6 +159,7 @@ public final class BackupTransactionManager {
             return summary
 
         } catch {
+            Self.logger.error("Restore failed: \(String(describing: error), privacy: .public)")
             if let checkpointURL {
                 progress(0.96, "Import failed. Attempting rollback…")
                 do {
@@ -168,6 +174,7 @@ public final class BackupTransactionManager {
                 } catch let rollbackError as TransactionError {
                     throw rollbackError
                 } catch {
+                    Self.logger.fault("Rollback failed: \(String(describing: error), privacy: .public)")
                     throw TransactionError.rollbackFailed(error)
                 }
             } else {
@@ -238,7 +245,16 @@ public final class BackupTransactionManager {
                 progress: progress
             )
         } catch {
+            Self.logger.fault("Rollback failed: \(String(describing: error), privacy: .public)")
             throw TransactionError.rollbackFailed(error)
         }
     }
 }
+
+/// A backup or restore error whose text already tells the guide what went
+/// wrong, so a failed restore shows it rather than the general "didn't finish".
+nonisolated protocol ExplainedBackupError: LocalizedError {}
+
+nonisolated extension BackupArchive.ArchiveError: ExplainedBackupError {}
+nonisolated extension BackupReader.ReadError: ExplainedBackupError {}
+nonisolated extension BackupEncryptionKeyStore.KeyStoreError: ExplainedBackupError {}

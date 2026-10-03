@@ -58,7 +58,7 @@ struct ClaudeDesktopSettingsView: View {
             .foregroundStyle(AppColors.success)
             .font(.caption)
         } else if let error = service.lastError {
-            Label("Not running: \(error)", systemImage: "exclamationmark.triangle.fill")
+            Label(error, systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(AppColors.warning)
                 .font(.caption)
         } else {

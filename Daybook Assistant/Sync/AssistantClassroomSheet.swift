@@ -85,17 +85,20 @@ struct AssistantClassroomSheet: View {
                 LabeledContent("Joined", value: joined.formatted(date: .abbreviated, time: .omitted))
             }
             if let classroomID {
-                LabeledContent("Classroom ID") {
-                    Text(classroomID)
-                        .monospaced()
-                        .textSelection(.enabled)
+                // Folded away: only for telling the guide which class this is.
+                DisclosureGroup("Details") {
+                    LabeledContent("Class code") {
+                        Text(classroomID)
+                            .monospaced()
+                            .textSelection(.enabled)
+                    }
                 }
             }
         } header: {
             Text("Classroom")
         } footer: {
             if classroomID != nil {
-                Text("If something looks wrong, read this ID to your guide. "
+                Text("If something looks wrong, read the class code under Details to your guide. "
                     + "It tells them which class this iPhone is in.")
             }
         }

@@ -24,7 +24,7 @@ struct StudentImportPreviewView: View {
         VStack(spacing: 0) {
             // Header
             HStack(alignment: .firstTextBaseline) {
-                Text("Import Students Preview")
+                Text("Review Students")
                     .font(AppTheme.ScaledFont.titleMedium)
                 Spacer()
             }
@@ -71,9 +71,9 @@ struct StudentImportPreviewView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 16) {
-                stat("Total Rows", value: "\(parsed.totalRows)")
-                stat("Will Insert/Update", value: "\(includedRows.count)")
-                stat("Potential Duplicates", value: "\(parsed.potentialDuplicates.count)")
+                stat("Students in File", value: "\(parsed.totalRows)")
+                stat("Will Add or Update", value: "\(includedRows.count)")
+                stat("Might Already Be Here", value: "\(parsed.potentialDuplicates.count)")
             }
             .padding(12)
             .surface(
@@ -100,7 +100,7 @@ struct StudentImportPreviewView: View {
     private var warningsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label("Warnings", systemImage: "exclamationmark.triangle.fill")
+                Label("Skipped Lines", systemImage: "exclamationmark.triangle.fill")
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(.yellow)
                 Spacer()
@@ -139,7 +139,7 @@ struct StudentImportPreviewView: View {
 
             VStack(spacing: 8) {
                 if includedRows.isEmpty {
-                    Text("No rows selected for import. Remove filters or close to cancel.")
+                    Text("No students left to import. Close this to cancel.")
                         .font(AppTheme.ScaledFont.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -194,10 +194,10 @@ private struct StudentRowView: View {
                 Text("\(row.firstName) \(row.lastName)")
                     .font(AppTheme.ScaledFont.bodySemibold)
                 if isPotentialDuplicate {
-                    Label("Potential duplicate", systemImage: "exclamationmark.triangle.fill")
+                    Label("Might already be in your class", systemImage: "exclamationmark.triangle.fill")
                         .labelStyle(.iconOnly)
                         .foregroundStyle(.yellow)
-                        .help("A student with the same name and birthday (if provided) already exists.")
+                        .help("A student with this name (and birthday, if given) is already in your class.")
                 }
                 Spacer()
                 HStack(spacing: 8) {
@@ -210,7 +210,7 @@ private struct StudentRowView: View {
                             .capsuleFill(Color.accentColor.opacity(UIConstants.OpacityConstants.medium))
                     }
                     if let b = row.birthday {
-                        Text("DOB: \(DateFormatters.isoDate.string(from: b))")
+                        Text("Born \(b.formatted(date: .abbreviated, time: .omitted))")
                             .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
@@ -218,7 +218,7 @@ private struct StudentRowView: View {
                             .capsuleFill(Color.primary.opacity(UIConstants.OpacityConstants.veryFaint))
                     }
                     if let ds = row.dateStarted {
-                        Text("Start: \(DateFormatters.isoDate.string(from: ds))")
+                        Text("Started \(ds.formatted(date: .abbreviated, time: .omitted))")
                             .font(AppTheme.ScaledFont.captionSmallSemibold)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 8)
@@ -232,7 +232,7 @@ private struct StudentRowView: View {
                                 .foregroundStyle(AppColors.destructive)
                         }
                         .buttonStyle(.plain)
-                        .help("Exclude this row from import")
+                        .help("Leave this student out")
                     }
                 }
             }
@@ -254,7 +254,7 @@ private struct StudentImportPreviewViewPreview: View {
         let parsed = StudentCSVImporter.Parsed(
             rows: rows, totalRows: rows.count,
             potentialDuplicates: ["Alex Rivera"],
-            warnings: ["Row 4: Missing first or last name; row skipped."]
+            warnings: ["Line 4 skipped: it's missing a first or last name."]
         )
         return StudentImportPreviewView(parsed: parsed, onCancel: {}, onConfirm: { _ in })
     }

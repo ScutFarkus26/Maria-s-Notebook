@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import OSLog
 
 /// Handles CSV import operations for students, providing static methods
 /// to process file imports, mapping confirmations, and import commits.
@@ -7,6 +8,20 @@ import CoreData
 /// This extracts the CSV import handling logic from StudentsView for better
 /// testability and separation of concerns.
 enum StudentsCSVImportHandler {
+    private static let logger = Logger.students
+    static let failureTitle = "Couldn't Import Students"
+    static let commitFailureMessage = "Couldn't add the students. Nothing was imported. Try again."
+
+    /// The alert for a file that couldn't be read: the importer's own plain
+    /// sentence, or the shared file wording for anything else. The raw error
+    /// goes to the log.
+    static func failureAlert(for error: Error) -> ImportAlert {
+        logger.error("Student import failed: \(error, privacy: .public)")
+        let message = (error as? StudentCSVImporter.ImportError)?.errorDescription
+            ?? AppErrorMessages.importMessage(for: error, fileType: "spreadsheet")
+        return ImportAlert(title: failureTitle, message: message)
+    }
+
     /// Alert model for displaying import results or errors
     struct ImportAlert: Identifiable {
         let id = UUID()
@@ -48,17 +63,14 @@ enum StudentsCSVImportHandler {
                     onHeadersScanned(headers, mapping, url)
                 },
                 onError: { error in
-                    onError(ImportAlert(title: "Import Failed", message: error.localizedDescription))
+                    onError(failureAlert(for: error))
                 },
                 onFinally: onFinally
             )
             return FileImportResult(task: task, immediateError: nil)
         } catch {
             onFinally()
-            return FileImportResult(
-                task: nil,
-                immediateError: ImportAlert(title: "Import Failed", message: error.localizedDescription)
-            )
+            return FileImportResult(task: nil, immediateError: failureAlert(for: error))
         }
     }
 
@@ -93,7 +105,7 @@ enum StudentsCSVImportHandler {
             students: students,
             onParsed: onParsed,
             onError: { error in
-                onError(ImportAlert(title: "Import Failed", message: error.localizedDescription))
+                onError(failureAlert(for: error))
             },
             onFinally: onFinally
         )
@@ -119,7 +131,11 @@ enum StudentsCSVImportHandler {
             )
             return ImportAlert(title: result.title, message: result.message)
         } catch {
-            return ImportAlert(title: "Import Failed", message: error.localizedDescription)
+            // The save failed, so drop the half-made students: "Nothing was
+            // imported" has to be true.
+            logger.error("Student import save failed: \(error, privacy: .public)")
+            viewContext.rollback()
+            return ImportAlert(title: failureTitle, message: commitFailureMessage)
         }
     }
 }

@@ -5,11 +5,11 @@ import SwiftUI
 
 // MARK: - Database Stats Subsection (Collapsible)
 
-/// One section of Notebook at a glance, collapsed to its title and record count.
+/// One section of Notebook at a glance, collapsed to its title and item count.
 struct DatabaseStatsSubsection<Content: View>: View {
     let title: String
     let systemImage: String
-    /// Records in this section, shown beside its title.
+    /// Items (records) in this section, shown beside its title.
     let count: Int
     @ViewBuilder var content: Content
 
@@ -24,7 +24,7 @@ struct DatabaseStatsSubsection<Content: View>: View {
                 Label(title, systemImage: systemImage)
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                Text("^[\(count) record](inflect: true)")
+                Text("^[\(count) item](inflect: true)")
                     .font(.subheadline)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -36,13 +36,13 @@ struct DatabaseStatsSubsection<Content: View>: View {
 
 // MARK: - Database Total Summary
 
-/// The notebook's record count, shown once above the sections.
+/// The notebook's item (record) count, shown once above the sections.
 struct DatabaseTotalSummary: View {
     let totalRecords: Int
 
     var body: some View {
         HStack(spacing: AppTheme.Spacing.compact) {
-            Label("Records across your notebook", systemImage: "books.vertical.fill")
+            Label("Everything in your notebook", systemImage: "books.vertical.fill")
                 .font(.subheadline.weight(.semibold))
             Spacer()
             Text(totalRecords, format: .number)

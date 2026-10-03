@@ -31,7 +31,9 @@ final class SettingsViewModel {
     var restorePreviewData: RestorePreview?
     var defaultFolderName: String = ""
     var exportData: Data?
+    /// The message of the backup or restore alert, and its title.
     var importError: String?
+    var importErrorTitle = "Couldn't Restore"
     var estimatedBackupSize: Int64?
 
     // Internal
@@ -155,7 +157,7 @@ final class SettingsViewModel {
                     dependencies.toastService.showSuccess("Backup saved successfully")
                     loadDefaultFolderName()
                 } catch {
-                    importError = AppErrorMessages.backupMessage(for: error, operation: "save the backup")
+                    showBackupFailure(error, operation: "save the backup")
                 }
             } else {
                 resultSummary = BackupResultNote(text: "Backup canceled.", tone: .neutral)
@@ -167,7 +169,7 @@ final class SettingsViewModel {
             exportData = data
 #endif
         } catch {
-            importError = AppErrorMessages.backupMessage(for: error, operation: "export your backup")
+            showBackupFailure(error, operation: "save the backup")
         }
     }
 
@@ -187,6 +189,7 @@ final class SettingsViewModel {
             #else
             let when = "each time you leave Cosmic Daybook"
             #endif
+            importErrorTitle = "No Automatic Backup Yet"
             importError = "There's no automatic backup yet. With Automatic backups on, one is saved \(when). " +
                 "To restore now, choose Import and pick a backup file."
             return false
@@ -218,7 +221,7 @@ final class SettingsViewModel {
             restorePreviewData = preview
             pendingImportURL = url
         } catch {
-            importError = AppErrorMessages.backupMessage(for: error, operation: "read the backup file")
+            showRestoreFailure(error, operation: "read the backup file")
         }
     }
 
@@ -250,15 +253,32 @@ final class SettingsViewModel {
                 encryptUsed: summary.encryptUsed,
                 createdAt: summary.createdAt,
                 entityCounts: summary.entityCounts,
-                warnings: summary.warnings
+                warnings: summary.warnings,
+                notes: summary.notes
             )
             dependencies.appRouter.requestBackfillIsPresented()
         } catch {
-            importError = AppErrorMessages.backupMessage(for: error, operation: "restore your backup")
+            showRestoreFailure(error, operation: "restore your backup")
         }
     }
 
     // MARK: - Error Handling Helpers
+
+    /// The backup alert: a plain message, with the raw error in the log.
+    func showBackupFailure(_ error: Error, operation: String) {
+        let raw = String(describing: error)
+        Self.logger.error("Backup failed (\(operation, privacy: .public)): \(raw, privacy: .public)")
+        importErrorTitle = "Couldn't Save the Backup"
+        importError = AppErrorMessages.backupMessage(for: error, operation: operation)
+    }
+
+    /// The restore alert: a plain message, with the raw error in the log.
+    func showRestoreFailure(_ error: Error, operation: String) {
+        let raw = String(describing: error)
+        Self.logger.error("Restore failed (\(operation, privacy: .public)): \(raw, privacy: .public)")
+        importErrorTitle = "Couldn't Restore"
+        importError = AppErrorMessages.backupMessage(for: error, operation: operation)
+    }
 
     private func safeRemoveItem(at url: URL, context: String = #function) {
         do {

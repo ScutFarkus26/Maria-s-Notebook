@@ -199,7 +199,7 @@ extension StudentMeetingsTab {
         insightsError = nil
 
         guard let studentID = student.id else {
-            insightsError = "Unable to identify student."
+            insightsError = "Couldn't find this student. Close their page and open it again."
             isGeneratingInsights = false
             return
         }
@@ -208,7 +208,8 @@ extension StudentMeetingsTab {
         let relevantMeetings = meetingItems.filter { ($0.date ?? .distantPast) >= cutoff }
 
         guard !relevantMeetings.isEmpty else {
-            insightsError = "No meetings found in this timeframe."
+            insightsError = "No meetings in the last \(Self.periodPhrase(days: insightsTimeframeDays)). "
+                + "Choose a longer time."
             isGeneratingInsights = false
             return
         }
@@ -225,9 +226,23 @@ extension StudentMeetingsTab {
             )
         } catch {
             Self.logger.warning("Meeting insights generation failed: \(error)")
-            insightsError = "Unable to generate insights. Please try again."
+            insightsError = AppErrorMessages.aiMessage(
+                for: error,
+                fallback: "Couldn't look over the meetings right now. Try again."
+            )
         }
 
         isGeneratingInsights = false
+    }
+
+    /// The picker's period as it reads after "the last": "2 weeks", "month".
+    static func periodPhrase(days: Int) -> String {
+        switch days {
+        case ...14: "2 weeks"
+        case ...30: "month"
+        case ...90: "3 months"
+        case ...180: "6 months"
+        default: "\(days) days"
+        }
     }
 }

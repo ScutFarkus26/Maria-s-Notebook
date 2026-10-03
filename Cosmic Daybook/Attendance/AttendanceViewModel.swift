@@ -45,6 +45,9 @@ final class AttendanceViewModel {
     /// (`AttendanceWelcomeBack`); never by a load or an import.
     private(set) var welcome: Welcome?
 
+    /// The last thing that failed here, for the roll to show (`report`).
+    private(set) var problem: Problem?
+
     /// The day on screen's school day of the year ("Day 37"), nil on a day
     /// off, before the year's first day, or before anyone was marked here.
     private(set) var dayNumber: Int?
@@ -92,7 +95,7 @@ final class AttendanceViewModel {
             fetched = try store.loadRecords(for: target)
         } catch {
             phase = AttendanceLatePhase.isLate(on: target, defaults: defaults) ? .late : .arrival
-            Self.logger.warning("Failed to load records: \(error)")
+            report("Couldn't load this day's attendance. Try again in a moment.", error, while: "loading records")
             return
         }
         // Closed here, or on another device: its automatic absences, as
@@ -183,7 +186,9 @@ final class AttendanceViewModel {
     /// Writes the day's note, creating the record if there is none yet.
     /// Empty text removes the note, and leaves no blank record behind.
     func updateNote(for row: AttendanceRow, note: String?, modelContext: NSManagedObjectContext) {
-        guard let record = record(for: row, modelContext: modelContext) else { return }
+        guard let record = record(
+            for: row, modelContext: modelContext, failure: "Couldn't save that note. Try again."
+        ) else { return }
         let isNew = record.isInserted
         guard CDAttendanceStore(context: modelContext).updateNote(record, to: note) else {
             if isNew { forget(record, in: modelContext) }
@@ -196,7 +201,9 @@ final class AttendanceViewModel {
     /// it, creating the record if there is none yet. Marks nothing, and
     /// leaves no blank record behind.
     func updatePickup(for row: AttendanceRow, time: Date?, modelContext: NSManagedObjectContext) {
-        guard let record = record(for: row, modelContext: modelContext) else { return }
+        guard let record = record(
+            for: row, modelContext: modelContext, failure: "Couldn't save that pickup time. Try again."
+        ) else { return }
         let isNew = record.isInserted
         guard CDAttendanceStore(context: modelContext).updateLeavesAt(record, to: time) else {
             if isNew { forget(record, in: modelContext) }
@@ -227,7 +234,7 @@ final class AttendanceViewModel {
             changed(marked)
             return BulkMark(day: selectedDate, records: marked.map(AttendanceRecordSnapshot.init))
         } catch {
-            Self.logger.warning("Failed to close arrival: \(error)")
+            report("Couldn't close arrival. Try again.", error, while: "closing arrival")
             return nil
         }
     }
@@ -241,7 +248,7 @@ final class AttendanceViewModel {
             let store = CDAttendanceStore(context: modelContext)
             changed(try store.markUnmarkedAbsent(for: selectedDate, students: students))
         } catch {
-            Self.logger.warning("Failed to mark the rest absent: \(error)")
+            report("Couldn't mark the rest absent. Try again.", error, while: "marking the rest absent")
         }
     }
 
@@ -282,7 +289,7 @@ final class AttendanceViewModel {
             guard !snapshots.isEmpty else { return nil }
             return ResetUndo(day: selectedDate, snapshots: snapshots, wasLate: wasLate)
         } catch {
-            Self.logger.warning("Failed to reset day: \(error)")
+            report("Couldn't reset the day. Try again.", error, while: "resetting the day")
             return nil
         }
     }
@@ -300,16 +307,40 @@ final class AttendanceViewModel {
         return restored.count
     }
 
+    // MARK: - Problems
+
+    /// A failure to show once, in plain words; the roll shows it as a toast.
+    /// Each is new (its own id), so the same failure twice shows twice.
+    struct Problem: Equatable {
+        let id = UUID()
+        let message: String
+    }
+
+    /// Logs `error` and sets the plain `message` for the screen to show.
+    func report(_ message: String, _ error: Error, while activity: String) {
+        let ns = error as NSError
+        Self.logger.warning("""
+            Attendance failed while \(activity, privacy: .public): \
+            \(ns.domain, privacy: .public) \(ns.code, privacy: .public) \(ns.localizedDescription, privacy: .public)
+            """)
+        problem = Problem(message: message)
+    }
+
     // MARK: - Rows
 
     /// The row's record, created on the first mark. Nil when the child has
-    /// no id or the day can't be written.
-    private func record(for row: AttendanceRow, modelContext: NSManagedObjectContext) -> CDAttendanceRecord? {
+    /// no id or the day can't be written. `failure` is what the roll says if
+    /// the record couldn't be made (the Assistant's words for the same).
+    private func record(
+        for row: AttendanceRow,
+        modelContext: NSManagedObjectContext,
+        failure: String = "Couldn't save that mark. Try again."
+    ) -> CDAttendanceRecord? {
         if let existing = recordsByStudentID[row.student.cloudKitKey] { return existing }
         do {
             return try CDAttendanceStore(context: modelContext).ensureRecord(for: row.student, on: selectedDate)
         } catch {
-            Self.logger.warning("Failed to create a record: \(error)")
+            report(failure, error, while: "creating a record")
             return nil
         }
     }

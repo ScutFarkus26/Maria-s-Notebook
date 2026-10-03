@@ -22,7 +22,7 @@ extension AppBootstrapping {
         if useInMemory {
             logger.info("Creating in-memory Core Data stack (user requested)")
             let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
-            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+            DatabaseInitializationService.markInMemorySession(true)
             UserDefaults.standard.set(
                 "Using temporary in-memory store on next launch.",
                 forKey: UserDefaultsKeys.lastStoreErrorDescription
@@ -48,15 +48,16 @@ extension AppBootstrapping {
                 logger.info("CloudKit Core Data stack created in \(elapsed)s")
                 UserDefaults.standard.set(true, forKey: UserDefaultsKeys.cloudKitActive)
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
-                UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+                DatabaseInitializationService.markInMemorySession(false)
                 UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
                 return stack
             } catch {
                 if isUnrecoverableStoreError(error) { throw error }
                 logger.warning("CloudKit stack failed, falling back to local: \(error)")
-                let detailedError = (error as NSError).localizedDescription
+                // Raw text for diagnostics; the startup banner only checks
+                // that it's there and says it in its own words.
                 UserDefaults.standard.set(
-                    detailedError,
+                    DatabaseErrorCoordinator.technicalDescription(of: error),
                     forKey: UserDefaultsKeys.cloudKitLastErrorDescription
                 )
             }
@@ -73,7 +74,7 @@ extension AppBootstrapping {
             let elapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
             logger.warning("CloudKit unavailable; using cached local split stores in \(elapsed)s")
             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+            DatabaseInitializationService.markInMemorySession(false)
             UserDefaults.standard.set(
                 "iCloud sync is temporarily unavailable. Using your last downloaded local data.",
                 forKey: UserDefaultsKeys.lastStoreErrorDescription
@@ -90,7 +91,7 @@ extension AppBootstrapping {
             let elapsed = String(format: "%.3f", Date().timeIntervalSince(containerStart))
             logger.info("Local Core Data stack created in \(elapsed)s")
             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.cloudKitActive)
-            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+            DatabaseInitializationService.markInMemorySession(false)
             UserDefaults.standard.set(
                 "iCloud sync is unavailable, so the app started with a separate local fallback store.",
                 forKey: UserDefaultsKeys.lastStoreErrorDescription
@@ -106,7 +107,7 @@ extension AppBootstrapping {
         logger.error("Falling back to in-memory stack")
         let stack = try CoreDataStack(enableCloudKit: false, inMemory: true)
         let errorDesc = "Persistent storage failed. Using temporary in-memory store."
-        UserDefaults.standard.set(true, forKey: UserDefaultsKeys.ephemeralSessionFlag)
+        DatabaseInitializationService.markInMemorySession(true)
         UserDefaults.standard.set(errorDesc, forKey: UserDefaultsKeys.lastStoreErrorDescription)
         return stack
     }
@@ -121,7 +122,7 @@ extension AppBootstrapping {
     /// presents a first-launch-looking app while the real data sits intact on
     /// disk, and invites the user to type fresh work into the wrong database.
     /// Rethrowing instead lands on the database-error screen, which says what
-    /// happened and offers Reset Local Cache.
+    /// happened and offers "Re-download from iCloud…".
     private static func isUnrecoverableStoreError(_ error: any Error) -> Bool {
         guard let stackError = error as? CoreDataStackError else { return false }
         switch stackError {

@@ -210,7 +210,9 @@ struct ClassroomShareReleaseTests {
         let env = fix.cloud.environment()
         let report = try await release(fix, env)
         #expect(report.batchesDone == 0)
-        #expect(report.stoppedBecause?.contains("Classroom share export failed") == true)
+        // The guide reads a plain sentence; the sync failure's own text is kept for Details.
+        #expect(report.stoppedBecause == ClassroomShareRelease.RunError.stopped("").errorDescription)
+        #expect(report.stopDetails?.contains("Classroom share export failed") == true)
         #expect(count("Student", in: fix) == 2)
     }
 

@@ -10,23 +10,21 @@ import SwiftUI
 struct EphemeralStoreWarningBanner: View {
     @Environment(\.appRouter) private var appRouter
 
-    private var reason: String {
-        UserDefaults.standard.string(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-        ?? "The persistent store could not be opened. Data will not persist this session."
-    }
-
+    /// Read from the flag the launch sets when it falls back to an in-memory
+    /// store, not from the stored reason's wording (which is free to change).
     private var isInMemoryMode: Bool {
-        reason.contains("in-memory") || reason.contains("temporary")
+        UserDefaults.standard.bool(forKey: UserDefaultsKeys.inMemoryStoreSession)
     }
 
     private var warningTitle: String {
-        isInMemoryMode ? "⚠️ SAFE MODE: CHANGES WILL NOT BE SAVED" : "Warning: Data won't persist this session"
+        isInMemoryMode ? "Changes Won't Be Saved" : "Changes Might Not Be Saved"
     }
 
     private var warningMessage: String {
         isInMemoryMode
-        ? "You are using an in-memory store. All data will be lost when you quit the app. Create a backup immediately!"
-        : reason
+        ? "Your notebook couldn't be opened, so anything you change now will be lost when you quit. "
+            + "Back up now, then reopen the app."
+        : "Your notebook couldn't be opened normally this time. Back up now, then reopen the app."
     }
 
     private var iconColor: Color {
@@ -106,21 +104,24 @@ struct CloudKitSyncWarningBanner: View {
 
     private var warningTitle: String {
         if !isiCloudSignedIn {
-            return "⚠️ Not Signed Into iCloud"
+            return "Not Signed In to iCloud"
         } else if let error = errorDescription, !error.isEmpty {
-            return "⚠️ CloudKit Init Failed"
+            return "iCloud Sync Couldn't Start"
         } else {
-            return "iCloud Sync Issue"
+            return "iCloud Sync Isn't Running"
         }
     }
 
+    /// The stored error is raw system text; it stays in the log and
+    /// Troubleshooting's diagnostics, never in the banner.
     private var warningMessage: String {
         if !isiCloudSignedIn {
-            return "Sign in to iCloud in System Settings to enable sync across devices."
+            return "Sign in to iCloud in \(SystemSettingsApp.name) to sync your notebook across your devices."
         } else if let error = errorDescription, !error.isEmpty {
-            return error
+            return "Your notebook is on this device and syncs again once iCloud reconnects. "
+                + "Reopen the app to try again."
         } else {
-            return "Sync is enabled but not currently active."
+            return "Sync is turned on but isn't running right now. Reopen the app to start it."
         }
     }
 

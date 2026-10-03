@@ -61,7 +61,7 @@ struct AssistantSiriTests {
         #expect(SiriAttendanceChange.last()?.closedArrival == true)
         #expect(try AssistantSiriCommands.checkClose(siri) == .alreadyClosed)
 
-        #expect(try await siri.undoLast() == "closing arrival")
+        #expect(try await siri.undoLast() == "Done. Arrival is open again.")
         #expect(!Late.isLate(on: monday))
         #expect(try siri.status(of: #require(kids["Maya"])) == .unmarked)
         #expect(try siri.status(of: #require(kids["Ari"])) == .present)
@@ -133,7 +133,7 @@ struct AssistantSiriTests {
 
         #expect(try await AssistantSiriCommands.closeArrival(siri) == 0)
         #expect(Late.isLate(on: monday))
-        #expect(try await siri.undoLast() == "closing arrival")
+        #expect(try await siri.undoLast() == "Done. Arrival is open again.")
         #expect(!Late.isLate(on: monday))
         #expect(try siri.status(of: #require(kids["Noah"])) == .present)
     }
@@ -153,7 +153,7 @@ struct AssistantSiriTests {
 
         try await siri.mark(maya, as: .absent, reason: .sick)
         #expect(record.absenceReason == .sick)
-        #expect(try await siri.undoLast() == "Maya absent")
+        #expect(try await siri.undoLast() == "Done. Maya's absence reason is back the way it was.")
         #expect(record.status == .absent)
         #expect(AttendanceDeduplication.isAutomaticAbsence(record))
         #expect(!context.hasChanges)
@@ -173,7 +173,7 @@ struct AssistantSiriTests {
         #expect(try siri.status(of: ari) == .present)
 
         #expect(AttendanceDayLocks.setLocked(false, for: monday, role: .leadGuide, in: context))
-        #expect(try await siri.undoLast() == "Ari present")
+        #expect(try await siri.undoLast() == "Done. Ari isn't marked present anymore.")
         #expect(try siri.status(of: ari) == .unmarked)
     }
 

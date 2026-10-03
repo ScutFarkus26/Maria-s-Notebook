@@ -23,6 +23,17 @@ struct EarlyPickupReminderTests {
         #expect(EarlyPickupReminder.fireDate(for: pickup, leadMinutes: 10, now: clock(13, 25)) == nil)
     }
 
+    @Test("The guide's note becomes one sentence, never ending in two stops")
+    func noteSentence() {
+        #expect(EarlyPickupReminder.sentence("Dentist") == "Dentist.")
+        #expect(EarlyPickupReminder.sentence("Dentist.") == "Dentist.")
+        #expect(EarlyPickupReminder.sentence("Grandma picking up! ") == "Grandma picking up!")
+
+        let pickup = EarlyPickupReminder.Pickup(studentID: "a", name: "Maya", leavesAt: clock(13, 30), note: "Dentist.")
+        let reminder = EarlyPickupReminder.reminders(for: [pickup], leadMinutes: 10, now: clock(9, 0), isSample: false)
+        #expect(reminder.first?.body == "Dentist. Mark Left Early when they go.")
+    }
+
     @Test("Setting a pickup on the grid marks nothing; removing it leaves no blank record")
     func gridSetsAndRemoves() throws {
         let stack = try AssistantTestSupport.makeStack()

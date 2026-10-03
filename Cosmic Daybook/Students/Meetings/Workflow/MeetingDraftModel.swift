@@ -169,17 +169,23 @@ final class MeetingDraftModel {
         if work.status != status {
             do {
                 try WorkLogService.log([.init(work: work, status: status)], context: context, saveImmediately: false)
-            } catch { return }
+            } catch {
+                ToastService.shared.showError(Self.decisionFailure)
+                return
+            }
         }
         markReviewed(work)
-        context.safeSave()
+        if !context.safeSave() { ToastService.shared.showError(Self.decisionFailure) }
     }
 
     func rest(_ work: CDWorkModel, until date: Date, context: NSManagedObjectContext) {
         MeetingReviewService.setWorkResting(work, until: date)
         markReviewed(work)
-        context.safeSave()
+        if !context.safeSave() { ToastService.shared.showError(Self.decisionFailure) }
     }
+
+    /// A decision card that didn't save says so; `safeSave` has logged why.
+    private static let decisionFailure = "Couldn't save that decision about the work. Try again."
 
     func markReviewed(_ work: CDWorkModel) {
         guard let id = work.id else { return }

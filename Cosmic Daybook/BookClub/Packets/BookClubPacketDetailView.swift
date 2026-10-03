@@ -52,7 +52,7 @@ struct BookClubPacketDetailView: View {
         } message: {
             Text(
                 "The PDF and all packet details will be removed. " +
-                "Sessions referencing this packet will remain but lose their link."
+                "Book clubs that use this packet will stay, but won't show the packet anymore."
             )
         }
     }

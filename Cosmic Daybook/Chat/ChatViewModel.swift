@@ -160,7 +160,9 @@ final class ChatViewModel {
                 if self.inputText.isEmpty {
                     self.inputText = text
                 }
-                self.errorMessage = AppErrorMessages.aiMessage(for: error)
+                self.errorMessage = AppErrorMessages.aiMessage(
+                    for: error, fallback: "Couldn't get an answer right now. Try again in a moment."
+                )
                 self.streamingContent = nil
             }
             self.isLoading = false

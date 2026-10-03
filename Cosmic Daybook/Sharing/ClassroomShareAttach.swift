@@ -36,8 +36,9 @@ nonisolated enum ClassroomShareAttach {
         /// Records that were tried and failed, plus any left untried after the
         /// pass stopped early. Callers keep these to try again later.
         var failed: [NSManagedObjectID] = []
-        /// Set when the pass stopped early and why: the mirroring delegate died
-        /// (nothing more can succeed this session) or CloudKit timed out.
+        /// Set when the pass stopped early and why, in plain words (it is
+        /// shown): the mirroring delegate died (nothing more can succeed this
+        /// session) or CloudKit timed out.
         var stoppedBecause: String?
         var mirroringDelegateDied = false
     }
@@ -188,13 +189,14 @@ nonisolated enum ClassroomShareAttach {
     }
 
     /// Why a failure should end the whole pass: every later call would fail
-    /// the same way.
+    /// the same way. A plain phrase that finishes "…couldn't be added
+    /// because …"; the error's domain and code are logged where it's caught.
     static func stopReason(for error: NSError) -> String? {
         if indicatesDeadMirroringDelegate(error) {
-            return "CloudKit mirroring stopped this session (code \(error.code))"
+            return "iCloud stopped syncing"
         }
         if error.domain == NSCocoaErrorDomain, error.code == 134060 {
-            return "CloudKit's share export timed out"
+            return "iCloud took too long to answer"
         }
         return nil
     }

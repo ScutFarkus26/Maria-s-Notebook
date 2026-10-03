@@ -31,7 +31,9 @@ struct AddLessonView: View {
     @State private var teacherNotes: String = ""
     @State private var showingBulkEntry: Bool = false
     /// Set when the name is already filed in this sub-area; shown as an alert.
-    @State private var duplicateMessage: String?
+    /// Why the lesson wasn't added: a name already in this sub-area, or a
+    /// failure the repository didn't expect (the raw error goes to the log).
+    @State private var addProblem: (title: String, message: String)?
 
     @State private var source: LessonSource = .album
     @State private var personalKind: PersonalLessonKind = .personal
@@ -72,11 +74,11 @@ struct AddLessonView: View {
 #endif
         }
         .alert(
-            "Already in the Curriculum",
-            isPresented: Binding(get: { duplicateMessage != nil }, set: { if !$0 { duplicateMessage = nil } }),
-            presenting: duplicateMessage
+            addProblem?.title ?? "",
+            isPresented: Binding(get: { addProblem != nil }, set: { if !$0 { addProblem = nil } }),
+            presenting: addProblem?.message
         ) { _ in
-            Button("OK", role: .cancel) { duplicateMessage = nil }
+            Button("OK", role: .cancel) { addProblem = nil }
         } message: { message in
             Text(message)
         }
@@ -138,7 +140,7 @@ struct AddLessonView: View {
                             return viewContext.safeFetch(descriptor)
                         }()
                         Picker("Parent Story", selection: $parentStoryID) {
-                            Text("None (Root Story)").tag(nil as UUID?)
+                            Text("None (this is a main story)").tag(nil as UUID?)
                             ForEach(storyLessons) { story in
                                 Text(story.name).tag(story.id as UUID?)
                             }
@@ -217,10 +219,14 @@ struct AddLessonView: View {
                 lessonFormat: lessonFormat,
                 parentStoryID: lessonFormat == .story ? parentStoryID?.uuidString : nil
             )
+        } catch let error as LessonRepository.CreationError {
+            // A name already filed in this sub-area. Nothing was inserted, so
+            // the form stays as typed.
+            addProblem = ("Already in the Curriculum", error.errorDescription ?? "")
+            return
         } catch {
-            // The one refusal the repository makes is a name already filed in
-            // this sub-area. Nothing was inserted, so the form stays as typed.
-            duplicateMessage = error.localizedDescription
+            Self.logger.warning("Couldn't add lesson: \(error.localizedDescription, privacy: .public)")
+            addProblem = ("Couldn't Add the Lesson", "Couldn't add this lesson. Try again.")
             return
         }
 

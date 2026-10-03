@@ -166,7 +166,7 @@ struct AttendanceMacView: View {
     private var restoringView: some View {
         VStack(spacing: AppTheme.Spacing.medium) {
             ProgressView().controlSize(.large)
-            Text("Restoring data…")
+            Text("Restoring your backup…")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

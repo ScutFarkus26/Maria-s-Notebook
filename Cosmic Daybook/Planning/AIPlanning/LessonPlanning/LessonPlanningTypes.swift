@@ -32,7 +32,7 @@ enum PlanningDepth: String, Codable, CaseIterable, Identifiable {
     
     var description: String {
         switch self {
-        case .quick: return "Fast suggestions from curriculum and guide records"
+        case .quick: return "Quick suggestions from your lessons and notes"
         case .standard: return "Scheduled plan with grouping suggestions"
         case .deep: return PlanningDepth.standard.description
         }
@@ -63,14 +63,14 @@ enum PipelineStep: String, Codable {
     var displayLabel: String {
         switch self {
         case .idle: return "Ready"
-        case .gatheringData: return "Gathering data..."
-        case .gatheringEvidence: return "Gathering evidence..."
-        case .generatingPlan: return "Generating plan..."
+        case .gatheringData: return "Getting ready…"
+        case .gatheringEvidence: return "Looking at recent work…"
+        case .generatingPlan: return "Making a plan…"
         case .presentingPlan: return "Plan ready"
-        case .awaitingInput: return "Awaiting input"
-        case .respondingToQuestion: return "Thinking..."
-        case .creatingAssignments: return "Creating assignments..."
-        case .complete: return "Complete"
+        case .awaitingInput: return "Your turn"
+        case .respondingToQuestion: return "Thinking…"
+        case .creatingAssignments: return "Adding lessons to the plan…"
+        case .complete: return "Done"
         }
     }
 }

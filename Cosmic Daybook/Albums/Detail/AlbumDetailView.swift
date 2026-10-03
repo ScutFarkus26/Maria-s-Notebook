@@ -10,6 +10,7 @@ import CoreData
 import SwiftUI
 import PDFKit
 import UniformTypeIdentifiers
+import OSLog
 
 struct AlbumDetailView: View {
     @Environment(AlbumLibrary.self) private var library
@@ -659,7 +660,10 @@ struct AlbumDetailView: View {
                 state.result = try await intelligence.summarize(
                     lessonTitle: lesson.title, albumTitle: album.title, text: text)
             } catch {
-                state.error = "Couldn't summarize: \(error.localizedDescription)"
+                Logger.albums.warning("Summary failed: \(error.localizedDescription, privacy: .public)")
+                state.error = AppErrorMessages.aiMessage(
+                    for: error, fallback: "Couldn't summarize this lesson. Try again."
+                )
             }
         }
     }

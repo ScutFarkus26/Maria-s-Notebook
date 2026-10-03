@@ -4,6 +4,7 @@
 
 import CoreData
 import Foundation
+import OSLog
 
 /// The backup a restore reads: the facts its summary reports, its settings,
 /// and its rows — one entity type at a time, each type deduplicated as it is
@@ -77,8 +78,9 @@ final class BackupRestoreRun {
 
         var errorDescription: String? {
             switch self {
-            case .notBackedUp(let field):
-                "The restore asked for \(field), which no backed-up type holds."
+            case .notBackedUp:
+                // A programming slip, not the guide's; the field is in the log.
+                "The restore stopped partway. Try again."
             }
         }
     }
@@ -98,6 +100,8 @@ final class BackupRestoreRun {
     /// the pipeline probe, where a test can make the restore fail).
     private func importing(_ field: AnyKeyPath) throws -> BackupEntity {
         guard let entity = BackupEntityTable.entity(for: field) else {
+            let name = String(describing: field)
+            Logger.backup.fault("Restore asked for \(name, privacy: .public), which no backed-up type holds")
             throw RunError.notBackedUp("\(field)")
         }
         try BackupPipelineProbe.reachOrFail("import \(entity.name)")

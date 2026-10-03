@@ -195,7 +195,7 @@ struct TodayView: View {
     private var restoringView: some View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large)
-            Text("Restoring data…")
+            Text("Restoring your backup…")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

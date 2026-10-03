@@ -9,6 +9,9 @@ enum SiriHost {
         try AssistantStack.shared()
     }
 
+    /// What Siri says when the class can't be opened (the raw error is logged).
+    nonisolated static let cannotOpenMessage = "Daybook Assistant couldn't open your class. Open the app to fix it."
+
     /// Until an invitation is accepted there is no class to mark.
     static func checkReady(in context: NSManagedObjectContext) throws {
         if AssistantSampleClass.isRequested { return }
@@ -45,7 +48,7 @@ enum SiriHost {
 
     /// Once arrival has closed, on this phone or another device (Close
     /// Arrival's automatic absence on a record that day), a child who
-    /// arrives is tardy, exactly as a tap during Late marks them.
+    /// arrives is late (tardy), exactly as a tap during Late marks them.
     static func statusForHere(on day: Date, store: CDAttendanceStore) -> AttendanceStatus {
         AttendanceLatePhase.isLate(on: day, closedAnywhere: (try? store.arrivalClosed(on: day)) == true)
             ? .tardy : .present

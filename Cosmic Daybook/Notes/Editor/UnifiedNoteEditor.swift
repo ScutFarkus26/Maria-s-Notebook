@@ -138,7 +138,7 @@ struct UnifiedNoteEditor: View {
                 }
             )
         }
-        .alert("AI Suggestion Error", isPresented: Binding(
+        .alert("Apple Intelligence Couldn't Help", isPresented: Binding(
             get: { suggestionError != nil },
             set: { if !$0 { suggestionError = nil } }
         )) {

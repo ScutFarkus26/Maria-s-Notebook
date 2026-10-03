@@ -76,9 +76,24 @@ enum AlbumsDataImporter {
         var ink: [ImportedInk]?
     }
 
+    /// How many of one kind of thing an import added: "1 note", "3 notes".
+    private struct ImportCount {
+        let one: String
+        let many: String
+        let count: Int
+
+        init(_ one: String, _ many: String, _ count: Int) {
+            self.one = one
+            self.many = many
+            self.count = count
+        }
+
+        var phrase: String { "\(count) \(count == 1 ? one : many)" }
+    }
+
     private static let notAnExportMessage =
-        "That doesn't look like an Albums export. Expected a JSON file with "
-        + "bookmarks, notes, and recents."
+        "That doesn't look like an Albums export. "
+        + "Choose the file you exported from the Albums app."
 
     // MARK: Import
 
@@ -89,7 +104,7 @@ enum AlbumsDataImporter {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
         guard let data = try? Data(contentsOf: url) else {
-            return "Couldn't read that file."
+            return "Couldn't open that file. Choose it again."
         }
         guard let payload = try? JSONDecoder().decode(Payload.self, from: data) else {
             return Self.notAnExportMessage
@@ -102,18 +117,24 @@ enum AlbumsDataImporter {
             return Self.notAnExportMessage
         }
 
-        var counts: [String: Int] = [:]
-        counts["bookmarks"] = importBookmarks(payload.bookmarks ?? [], into: context)
-        counts["notes"] = importNotes(payload.notes ?? [], into: context)
-        counts["recents"] = importVisits(payload.recents ?? [], into: context)
-        counts["reading positions"] = importPositions(payload.readingPositions ?? [], into: context)
-        counts["highlights"] = importHighlights(payload.highlights ?? [], into: context)
-        counts["ink drawings"] = importInk(payload.ink ?? [], into: context)
-        context.safeSave()
+        // In the order the summary lists them.
+        let counts = [
+            ImportCount("bookmark", "bookmarks", importBookmarks(payload.bookmarks ?? [], into: context)),
+            ImportCount("highlight", "highlights", importHighlights(payload.highlights ?? [], into: context)),
+            ImportCount("ink drawing", "ink drawings", importInk(payload.ink ?? [], into: context)),
+            ImportCount("note", "notes", importNotes(payload.notes ?? [], into: context)),
+            ImportCount(
+                "reading position", "reading positions",
+                importPositions(payload.readingPositions ?? [], into: context)
+            ),
+            ImportCount("recent visit", "recent visits", importVisits(payload.recents ?? [], into: context))
+        ]
+        guard context.safeSave() else {
+            context.rollback()
+            return "Couldn't save what was in that file. Try again."
+        }
 
-        let added = counts.filter { $0.value > 0 }
-            .sorted { $0.key < $1.key }
-            .map { "\($0.value) \($0.key)" }
+        let added = counts.filter { $0.count > 0 }.map(\.phrase)
         guard !added.isEmpty else {
             return "Nothing new to import — everything in that file is already here."
         }

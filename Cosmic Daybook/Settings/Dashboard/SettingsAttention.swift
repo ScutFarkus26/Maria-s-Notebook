@@ -58,7 +58,9 @@ enum SettingsAttentionItem: Hashable, Identifiable {
             guard let days else { return "No backup yet" }
             return "Last backup was \(days) \(days == 1 ? "day" : "days") ago"
         case .unsharedClassroomRecords(let count):
-            return count == 1 ? "1 classroom record isn't shared" : "\(count) classroom records aren't shared"
+            return count == 1
+                ? "1 classroom item isn't shared with your assistant yet"
+                : "\(count) classroom items aren't shared with your assistant yet"
         case .carriedOverPlans(let count):
             return count == 1 ? "1 year-plan target carried over" : "\(count) year-plan targets carried over"
         case .connectionAccessLost(let calendar, let reminders):
@@ -78,7 +80,9 @@ enum SettingsAttentionItem: Hashable, Identifiable {
                 ? "Make one now so there's always a copy of your notebook to go back to."
                 : "A fresh one keeps this week's work safe."
         case .unsharedClassroomRecords(let count):
-            return count == 1 ? "Your assistant can't see it yet." : "Your assistant can't see them yet."
+            return count == 1
+                ? "Your assistant can't see it. Add it to the share in Classroom."
+                : "Your assistant can't see them. Add them to the share in Classroom."
         case .carriedOverPlans(let count):
             return count == 1
                 ? "It's left from a school year that has ended. Re-date or skip it in School year."

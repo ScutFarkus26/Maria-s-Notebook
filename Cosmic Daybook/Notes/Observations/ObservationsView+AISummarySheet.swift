@@ -67,7 +67,7 @@ extension ObservationsView {
         private var content: some View {
             if let errorMessage {
                 ContentUnavailableView(
-                    "Reflection Unavailable",
+                    "Couldn't Write the Reflection",
                     systemImage: "sparkles",
                     description: Text(errorMessage)
                 )
@@ -75,14 +75,14 @@ extension ObservationsView {
                 switch mode {
                 case .digest:
                     if digest == nil {
-                        ProgressView("Reviewing records\u{2026}")
+                        ProgressView("Reading your notes\u{2026}")
                     } else {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
                                 if !missingEvidence.isEmpty {
-                                    Text("Presentations Without a Linked Observation")
+                                    Text("Lessons Given Without a Note")
                                         .font(.headline)
-                                    Text("This is a record check, not an AI conclusion.")
+                                    Text("These come straight from your notebook, not from Apple Intelligence.")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     ForEach(missingEvidence) { reference in
@@ -113,11 +113,11 @@ extension ObservationsView {
                     }
                 case .narrative:
                     if narrative == nil {
-                        ProgressView("Generating\u{2026}")
+                        ProgressView("Writing\u{2026}")
                     } else {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("Editable AI draft — verify it against the records below.")
+                                Text("A draft you can edit. Check it against the notes below.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 if !narrativeDraft.isEmpty {
@@ -131,7 +131,7 @@ extension ObservationsView {
                                         )
                                         .accessibilityLabel("Editable narrative draft")
                                 }
-                                Text("Records Reviewed")
+                                Text("Notes Used")
                                     .font(.headline)
                                 sourceButtons(keys: sources.keys.sorted())
                             }

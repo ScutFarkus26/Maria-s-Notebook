@@ -2,7 +2,7 @@
 //  NotebookJunkCleanup.swift
 //  Cosmic Daybook
 //
-//  Settings › Troubleshooting › "Clean up old records": the one-time sweep of
+//  Settings › Troubleshooting › "Clean up leftovers": the one-time sweep of
 //  records the notebook no longer reads, found by the 2026-09-30 store audit
 //  (iPhone copy: about 3,340 of 12,257 synced records). Every one costs a
 //  row plus CloudKit's ~3 KB cached copy on each device, and the same again
@@ -89,26 +89,52 @@ nonisolated enum NotebookJunkCleanup {
 
         var isEmpty: Bool { removed == 0 && changed == 0 }
 
-        /// One line per kind, for the sheet and the log; kinds with nothing are left out.
+        /// One line per kind, in the guide's words, for the sheet and the log; kinds with
+        /// nothing are left out.
         var lines: [String] {
             [
-                (orphanTrackSteps, "track step(s) with no track"),
-                (blankPresentations, "presentation record(s) with no child or lesson"),
-                (presentationsOfDeletedLessons, "presentation record(s) of deleted lessons"),
-                (detachedWorkParticipants, "student(s) on work that no longer exists"),
-                (blankAttendance, "blank attendance row(s)"),
-                (departedPlansSkipped, "planned lesson(s) for children who've left, marked skipped"),
-                (enrollmentsRelinked, "old track enrollment(s) linked to their track"),
-                (enrollmentsRemoved, "old track enrollment(s) removed"),
-                (duplicateReminders, "duplicate reminder(s)"),
-                (emptyNotes, "empty note(s)"),
-                (documentsWithoutFile, "document(s) with no file"),
-                (emptyTracks, "empty track(s)"),
-                (orphanWorkSteps + orphanSampleWorkSteps, "work step(s) with no work"),
-                (completionRecordsOfDeletedWork, "completion record(s) of deleted work")
+                Self.line(orphanTrackSteps, "track step with no track", "track steps with no track"),
+                Self.line(
+                    blankPresentations,
+                    "lesson given with no child or lesson", "lessons given with no child or lesson"
+                ),
+                Self.line(
+                    presentationsOfDeletedLessons,
+                    "lesson given whose lesson was deleted", "lessons given whose lesson was deleted"
+                ),
+                Self.line(
+                    detachedWorkParticipants,
+                    "child on work that no longer exists", "children on work that no longer exists"
+                ),
+                Self.line(blankAttendance, "empty attendance entry", "empty attendance entries"),
+                Self.line(
+                    departedPlansSkipped,
+                    "planned lesson for a child who's left, marked skipped",
+                    "planned lessons for children who've left, marked skipped"
+                ),
+                Self.line(
+                    enrollmentsRelinked,
+                    "old track enrollment linked to its track", "old track enrollments linked to their tracks"
+                ),
+                Self.line(enrollmentsRemoved, "old track enrollment removed", "old track enrollments removed"),
+                Self.line(duplicateReminders, "duplicate reminder", "duplicate reminders"),
+                Self.line(emptyNotes, "empty note", "empty notes"),
+                Self.line(documentsWithoutFile, "document with no file", "documents with no file"),
+                Self.line(emptyTracks, "empty track", "empty tracks"),
+                Self.line(orphanWorkSteps + orphanSampleWorkSteps, "work step with no work", "work steps with no work"),
+                Self.line(
+                    completionRecordsOfDeletedWork,
+                    "completed-work entry for work that was deleted",
+                    "completed-work entries for work that was deleted"
+                )
             ]
-            .filter { $0.0 > 0 }
-            .map { "\($0.0.formatted()) \($0.1)" }
+            .compactMap { $0 }
+        }
+
+        /// "1 empty note", "3 empty notes", or nil for none.
+        private static func line(_ count: Int, _ one: String, _ many: String) -> String? {
+            guard count > 0 else { return nil }
+            return "\(count.formatted()) \(count == 1 ? one : many)"
         }
     }
 

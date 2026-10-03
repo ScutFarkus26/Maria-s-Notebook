@@ -42,7 +42,9 @@ enum CloudKitConfigurationService {
 
     // MARK: - Structured Error Log Entry
 
-    /// Represents a structured CloudKit error for logging and diagnostics
+    /// Represents a structured CloudKit error for logging and diagnostics.
+    /// Plain names and advice for each live with the screen that shows them
+    /// (`SyncProblemCopy` in CloudKitStatusSettingsView).
     enum ErrorCategory: String, Codable {
         case authentication
         case network
@@ -50,38 +52,11 @@ enum CloudKitConfigurationService {
         case conflict
         case schema
         case unknown
-
-        var displayName: String {
-            switch self {
-            case .authentication: return "Authentication"
-            case .network: return "Network"
-            case .quota: return "Quota"
-            case .conflict: return "Conflict"
-            case .schema: return "Schema"
-            case .unknown: return "Unknown"
-            }
-        }
-
-        var recommendedAction: String {
-            switch self {
-            case .authentication:
-                return "Sign in to iCloud and confirm this app has iCloud access."
-            case .network:
-                return "Check your internet connection and retry sync."
-            case .quota:
-                return "Free up iCloud storage space, then retry sync."
-            case .conflict:
-                return "Keep using the app; CloudKit should resolve this after a retry."
-            case .schema:
-                return "Update the app to the latest version and retry."
-            case .unknown:
-                return "Retry sync. If this persists, restart the app and check logs."
-            }
-        }
     }
 
     struct ErrorLogEntry: Codable {
         let timestamp: Date
+        /// The raw error text: shown only under Details.
         let errorMessage: String
         let errorCode: Int?
         let errorDomain: String?
@@ -104,7 +79,9 @@ enum CloudKitConfigurationService {
 
     // MARK: - Error Handling
 
-    /// Stores a CloudKit error for display in the UI and adds to error log.
+    /// Stores a CloudKit error's raw text and adds it to the error log. The
+    /// raw text is for diagnostics and the Details under "Recent sync
+    /// problems"; the screen names the problem in plain words by its category.
     static func storeError(_ error: Error, retryCount: Int = 0) {
         let nsError = error as NSError
         let errorDescription = nsError.localizedDescription
@@ -122,7 +99,7 @@ enum CloudKitConfigurationService {
             detailedError += " (retry after \(retryAfter.doubleValue)s)"
         }
 
-        // Store for UI display
+        // Kept for diagnostics (the startup banner only checks that one is there)
         UserDefaults.standard.set(detailedError, forKey: UserDefaultsKeys.cloudKitLastErrorDescription)
 
         // Categorize the error

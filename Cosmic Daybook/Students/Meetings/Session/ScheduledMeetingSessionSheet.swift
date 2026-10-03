@@ -28,7 +28,8 @@ struct ScheduledMeetingSessionSheet: View {
             } else {
                 ContentUnavailableView(
                     "Student Not Found",
-                    systemImage: "person.crop.circle.badge.questionmark"
+                    systemImage: "person.crop.circle.badge.questionmark",
+                    description: Text("This student may have been deleted. You can close this.")
                 )
             }
         }

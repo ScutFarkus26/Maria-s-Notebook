@@ -52,7 +52,7 @@ struct ClassroomLastYearCard: View {
     private var title: String {
         if waiting == 0 { return "Removing last year was stopped partway" }
         return waiting == 1
-            ? "1 record from before this school year is still shared"
-            : "\(waiting.formatted()) records from before this school year are still shared"
+            ? "1 item from before this school year is still shared"
+            : "\(waiting.formatted()) items from before this school year are still shared"
     }
 }

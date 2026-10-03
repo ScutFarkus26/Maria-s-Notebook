@@ -159,7 +159,9 @@ enum DayBalanceService {
     private static func movedSentence(_ result: Result) -> String? {
         switch (result.movedToMorning, result.movedToAfternoon) {
         case (0, 0):
-            return result.isClean ? "Nothing to rearrange." : "Two halves can't separate this day."
+            return result.isClean
+                ? "Nothing to rearrange."
+                : "Morning and afternoon aren't enough to give everyone one lesson at a time."
         case (0, let afternoon):
             return "Moved \(lessons(afternoon)) to the afternoon."
         case (let morning, 0):

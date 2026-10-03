@@ -14,6 +14,7 @@
 
 import CoreData
 import Foundation
+import OSLog
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
 import FoundationModels
@@ -34,7 +35,10 @@ private func bridgedNotebookOperation(_ operation: () throws -> String) -> Strin
     } catch let error as MCPToolError {
         return error.message
     } catch {
-        return "The notebook could not complete that: \(error.localizedDescription)"
+        // The reply can reach the guide word for word, so it stays plain; the
+        // raw error goes to the log.
+        Logger.ai.error("Notebook tool failed: \(error.localizedDescription, privacy: .public)")
+        return "The notebook couldn't do that. Try again, or do it in the app."
     }
 }
 

@@ -21,16 +21,33 @@ public enum ImportCommitService {
         let summary = try StudentCSVImporter.commit(
             parsed: parsed, into: context, existingStudents: existingStudents
         )
-        var message = "Imported \(summary.insertedCount) new and updated \(summary.updatedCount) existing student(s)."
+        return ImportCommitResult(title: "Students Imported", message: message(for: summary))
+    }
+
+    /// "Added 3 new students and updated 2.", then any children who might
+    /// already be in the class, then the lines that were skipped.
+    static func message(for summary: StudentCSVImporter.Summary) -> String {
+        var message = countsSentence(inserted: summary.insertedCount, updated: summary.updatedCount)
         if !summary.potentialDuplicates.isEmpty {
-            let firstFew = summary.potentialDuplicates.prefix(5).joined(separator: "\n• ")
-            message += "\n\nPotential duplicates detected: \(summary.potentialDuplicates.count)."
-            if !firstFew.isEmpty { message += "\n\nExamples:\n• \(firstFew)" }
+            let count = summary.potentialDuplicates.count
+            let names = summary.potentialDuplicates.prefix(5).map { "• \($0)" }.joined(separator: "\n")
+            let more = count > 5 ? "\n• and \(count - 5) more" : ""
+            message += "\n\n\(count) might already be in your class:\n" + names + more
         }
         if !summary.warnings.isEmpty {
-            message += "\n\nWarnings:\n" + summary.warnings.joined(separator: "\n")
+            message += "\n\n" + summary.warnings.joined(separator: "\n")
         }
-        return ImportCommitResult(title: "CSV Import Complete", message: message)
+        return message
+    }
+
+    static func countsSentence(inserted: Int, updated: Int) -> String {
+        let added = "\(inserted) new \(inserted == 1 ? "student" : "students")"
+        switch (inserted > 0, updated > 0) {
+        case (true, true): return "Added \(added) and updated \(updated)."
+        case (true, false): return "Added \(added)."
+        case (false, true): return "Updated \(updated) \(updated == 1 ? "student" : "students")."
+        case (false, false): return "Everyone in the file is already in your class, so nothing changed."
+        }
     }
 
 }

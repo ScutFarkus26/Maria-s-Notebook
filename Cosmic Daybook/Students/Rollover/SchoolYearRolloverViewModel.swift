@@ -166,7 +166,8 @@ final class SchoolYearRolloverViewModel {
             )
         } catch {
             // Stay on Review so the guide can try again; nothing was changed.
-            applyErrorMessage = error.localizedDescription
+            applyErrorMessage = (error as? RolloverService.ApplyError)?.errorDescription
+                ?? RolloverService.ApplyError.saveFailed.errorDescription
             return
         }
         appliedCarryOver = carryOver

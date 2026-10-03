@@ -12,6 +12,8 @@ struct TodoExportView: View {
     @State private var showShareSheet = false
     @State private var shareURL: URL?
     @State private var showCopiedAlert = false
+    /// Why the export couldn't be shared or saved; the raw error is logged.
+    @State private var exportError: String?
     
     var body: some View {
         NavigationStack {
@@ -66,10 +68,18 @@ struct TodoExportView: View {
             .onAppear {
                 generateExport()
             }
-            .alert("Copied!", isPresented: $showCopiedAlert) {
+            .alert("Copied", isPresented: $showCopiedAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Export content copied to clipboard")
+                Text("The todos are on the clipboard.")
+            }
+            .alert("Couldn't Export the Todos", isPresented: Binding(
+                get: { exportError != nil },
+                set: { if !$0 { exportError = nil } }
+            )) {
+                Button("OK", role: .cancel) { exportError = nil }
+            } message: {
+                Text(exportError ?? "")
             }
             #if os(iOS)
             .sheet(isPresented: $showShareSheet) {
@@ -123,7 +133,7 @@ struct TodoExportView: View {
                 FormatOption(
                     format: .json,
                     title: "JSON",
-                    description: "Structured data format for developers",
+                    description: "For moving todos into another app",
                     icon: "curlybraces",
                     isSelected: selectedFormat == .json
                 ) {
@@ -144,7 +154,8 @@ struct TodoExportView: View {
         case .markdown:
             exportedContent = TodoExportService.exportAsMarkdown(todos: todos)
         case .json:
-            exportedContent = TodoExportService.exportAsJSON(todos: todos) ?? "Error generating JSON"
+            exportedContent = TodoExportService.exportAsJSON(todos: todos)
+                ?? "Couldn't prepare this export. Try another format."
         }
     }
     
@@ -154,10 +165,11 @@ struct TodoExportView: View {
     }
     
     private func shareExport() {
-        let filename = "todos_export_\(Date().timeIntervalSince1970)"
+        let filename = TodoExportService.exportFileName()
         guard let url = TodoExportService.saveToFile(
             content: exportedContent, filename: filename, format: selectedFormat
         ) else {
+            exportError = "Couldn't prepare this export. Try again."
             return
         }
         
@@ -166,12 +178,16 @@ struct TodoExportView: View {
         savePanel.nameFieldStringValue = "\(filename).\(fileExtension)"
         savePanel.allowedContentTypes = [contentType]
         savePanel.begin { response in
-            if response == .OK, let destinationURL = savePanel.url {
-                do {
-                    try FileManager.default.copyItem(at: url, to: destinationURL)
-                } catch {
-                    Self.logger.error("[\(#function)] Failed to save export file: \(error)")
+            guard response == .OK, let destinationURL = savePanel.url else { return }
+            do {
+                // The save panel already asked before replacing a file.
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    try FileManager.default.removeItem(at: destinationURL)
                 }
+                try FileManager.default.copyItem(at: url, to: destinationURL)
+            } catch {
+                Self.logger.error("[\(#function)] Failed to save export file: \(error)")
+                exportError = "Couldn't save the export there. Try a different folder."
             }
         }
         #else

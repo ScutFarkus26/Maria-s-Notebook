@@ -21,7 +21,12 @@ final class SyncEventLogger {
         var timestamp: Date
         let type: String      // "cloudkit", "calendar", "reminders"
         let status: String    // "success", "error", "started"
+        /// The plain-English line the history shows.
         let message: String
+        /// Raw technical text (the system error, its domain and code), shown
+        /// under the message in Sync History's Details. Nil for rows that have
+        /// none, and for rows written before it existed.
+        let detail: String?
         /// How many times this event repeated inside the coalesce window.
         var count: Int
 
@@ -31,6 +36,7 @@ final class SyncEventLogger {
             type: String,
             status: String,
             message: String,
+            detail: String? = nil,
             count: Int = 1
         ) {
             self.id = id
@@ -38,8 +44,37 @@ final class SyncEventLogger {
             self.type = type
             self.status = status
             self.message = message
+            self.detail = detail
             self.count = count
         }
+
+        /// The line to show. Rows logged before 2026-10-03 carry developer
+        /// wording ("Export completed", or a raw error with no `detail`);
+        /// those read in plain words here, with the old text as the detail.
+        var shownMessage: String {
+            if let plain = Self.legacyLines[message] { return plain }
+            guard status == "error", detail == nil else { return message }
+            switch type {
+            case "calendar": return "Couldn't sync with Calendar"
+            case "reminders": return "Couldn't sync with Reminders"
+            default: return "Couldn't sync with iCloud"
+            }
+        }
+
+        /// The raw text under the line, if any.
+        var shownDetail: String? {
+            detail ?? (shownMessage == message ? nil : message)
+        }
+
+        private static let legacyLines: [String: String] = [
+            "Remote changes received": "Got changes from iCloud",
+            "Setup completed": "iCloud sync started",
+            "Import completed": "Got changes from iCloud",
+            "Export completed": "Sent changes to iCloud",
+            "Manual sync initiated": "You tapped Sync Now",
+            "Sync completed successfully": "Saved your changes for iCloud to send",
+            "Sync failed after 5 retry attempts": "Sync kept failing, so it stopped trying for now"
+        ]
 
         /// Rows written before `count` existed decode as a single occurrence.
         init(from decoder: any Decoder) throws {
@@ -49,6 +84,7 @@ final class SyncEventLogger {
             type = try container.decode(String.self, forKey: .type)
             status = try container.decode(String.self, forKey: .status)
             message = try container.decode(String.self, forKey: .message)
+            detail = try container.decodeIfPresent(String.self, forKey: .detail)
             count = try container.decodeIfPresent(Int.self, forKey: .count) ?? 1
         }
     }
@@ -82,15 +118,17 @@ final class SyncEventLogger {
         loadEvents()
     }
 
-    func log(_ type: String, status: String, message: String) {
+    /// Adds a row. `message` is the plain line Sync History shows; `detail`
+    /// is the raw text behind it, folded under Details.
+    func log(_ type: String, status: String, message: String, detail: String? = nil) {
         let stamp = now()
         if let latest = events.first,
-           latest.type == type, latest.status == status, latest.message == message,
+           latest.type == type, latest.status == status, latest.message == message, latest.detail == detail,
            stamp.timeIntervalSince(latest.timestamp) < coalesceWindow {
             events[0].timestamp = stamp
             events[0].count += 1
         } else {
-            let event = SyncEvent(timestamp: stamp, type: type, status: status, message: message)
+            let event = SyncEvent(timestamp: stamp, type: type, status: status, message: message, detail: detail)
             events.insert(event, at: 0)
             if events.count > maxEvents {
                 events = Array(events.prefix(maxEvents))
@@ -144,5 +182,5 @@ final class SyncEventLogger {
 
 /// Kept outside `SyncEvent` only to satisfy the one-level nesting rule.
 private enum SyncEventCodingKeys: String, CodingKey {
-    case id, timestamp, type, status, message, count
+    case id, timestamp, type, status, message, detail, count
 }

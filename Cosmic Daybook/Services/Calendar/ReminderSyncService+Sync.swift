@@ -33,8 +33,13 @@ extension ReminderSyncService {
             lastSyncError = nil
             SyncEventLogger.shared.log("reminders", status: "success", message: "Reminders sync completed")
         } catch {
-            lastSyncError = error.localizedDescription
-            SyncEventLogger.shared.log("reminders", status: "error", message: error.localizedDescription)
+            // Plain words for Today's header; the raw text for Sync History's Details.
+            lastSyncError = AppErrorMessages.syncMessage(for: error, service: "Reminders")
+            let nsError = error as NSError
+            SyncEventLogger.shared.log(
+                "reminders", status: "error", message: "Couldn't sync with Reminders",
+                detail: "\(nsError.localizedDescription) [\(nsError.domain) (\(nsError.code))]"
+            )
             isSyncing = false
             throw error
         }
@@ -66,7 +71,7 @@ extension ReminderSyncService {
             // Store changes would only rerun this; stop listening until the
             // list setting changes (Danny, 2026-09-25).
             pauseChangeObservationForMissingList()
-            throw ReminderSyncError.listNotFound(syncListName ?? "Unknown")
+            throw ReminderSyncError.listNotFound(syncListName ?? "")
         }
         resumeChangeObservationIfPaused()
 

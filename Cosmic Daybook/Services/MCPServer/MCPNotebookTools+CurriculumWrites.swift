@@ -141,7 +141,7 @@ extension MCPNotebookTools {
                 materials: materials, purpose: purpose, teacherNotes: teacherNotes
             )
         } catch {
-            throw MCPToolError(error.localizedDescription)
+            throw MCPToolError(nil, underlying: error)
         }
     }
 

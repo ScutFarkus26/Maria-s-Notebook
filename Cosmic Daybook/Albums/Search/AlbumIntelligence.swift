@@ -18,7 +18,7 @@ final class AlbumIntelligence {
         case unavailable
 
         var errorDescription: String? {
-            "Apple Intelligence isn't available in this build."
+            AppleIntelligenceMessages.notInThisVersion
         }
     }
 
@@ -64,16 +64,15 @@ final class AlbumIntelligence {
             return (false, "This device doesn't support Apple Intelligence, so Ask and Summarize aren't "
                 + "available. Search, bookmarks, and notes all still work.")
         case .unavailable(.appleIntelligenceNotEnabled):
-            return (false, "Turn on Apple Intelligence in System Settings to use Ask and Summarize.")
+            return (false, AppleIntelligenceMessages.turnOn + " Then you can use Ask and Summarize.")
         case .unavailable(.modelNotReady):
-            return (false, "The on-device model is still getting ready (it may be downloading). "
-                + "Try again in a little while.")
+            return (false, AppleIntelligenceMessages.stillGettingReady)
         case .unavailable:
-            return (false, "Apple Intelligence isn't available right now.")
+            return (false, AppleIntelligenceMessages.notAvailable)
         }
         #else
-        return (false, "Ask and Summarize need an Apple Intelligence build of the app. "
-            + "Search, bookmarks, and notes all still work.")
+        return (false, "Ask and Summarize aren't in this version of the app. "
+            + "Search, bookmarks and notes still work.")
         #endif
     }
 

@@ -57,38 +57,27 @@ nonisolated public enum BackupArchive {
         case sizeMismatch(expected: UInt64, actual: Int)
         case underlying(Error)
 
+        /// What the guide reads. The file, the stream and the sizes go to the
+        /// log where the error is caught (`"\(error)"` names the case and its values).
         public var errorDescription: String? {
             switch self {
-            case .cannotOpenFileForWrite(let url):
-                return "Could not open backup file for write at \(url.path)"
-            case .cannotOpenFileForRead(let url):
-                return "Could not open backup file for read at \(url.path)"
-            case .compressionStreamFailed:
-                return "Failed to initialize LZFSE compression stream"
-            case .decompressionStreamFailed:
-                return "Failed to initialize LZFSE decompression stream"
-            case .encryptionContextFailed:
-                return "Failed to read the backup's encryption header"
-            case .encryptionStreamFailed:
-                return "Failed to initialize AEA encryption stream"
+            case .cannotOpenFileForWrite, .compressionStreamFailed, .encryptionStreamFailed, .encodeStreamFailed:
+                return "Couldn't write the backup. Try again."
+            case .cannotOpenFileForRead:
+                return "Couldn't open this backup file. Choose it again and try once more."
             case .decryptionStreamFailed:
-                return "Failed to initialize AEA decryption stream \u{2014} the file may be corrupt " +
-                    "or encrypted with a different key"
-            case .encodeStreamFailed:
-                return "Failed to initialize archive encode stream"
-            case .decodeStreamFailed:
-                return "Failed to initialize archive decode stream"
-            case .missingHeaderField(let name):
-                return "Backup entry header missing required field '\(name)'"
-            case .entryTooLarge(let path, let size):
-                return "Backup entry '\(path)' declares an implausible size (\(size) bytes); " +
-                    "refusing to read a corrupt or hostile file"
-            case .sizeMismatch(let expected, let actual):
-                return "Backup entry size mismatch: header says \(expected) bytes, read \(actual)"
-            case .underlying(let error):
-                return error.localizedDescription
+                return "This backup couldn't be opened. It may be damaged, or it was made on a device "
+                    + "signed in to a different Apple Account."
+            case .encryptionContextFailed, .decompressionStreamFailed, .decodeStreamFailed,
+                 .missingHeaderField, .entryTooLarge, .sizeMismatch:
+                return Self.damaged
+            case .underlying:
+                return "Couldn't read or write the backup file. Try again."
             }
         }
+
+        /// A backup file that can't be read.
+        static let damaged = "This backup file is damaged and can't be restored."
     }
 
     // MARK: - Container Detection

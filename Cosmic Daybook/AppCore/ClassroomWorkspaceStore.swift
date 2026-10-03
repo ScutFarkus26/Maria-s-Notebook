@@ -102,10 +102,13 @@ final class ClassroomWorkspaceStore {
             selection = .sampleClass
             Self.logger.info("Switched to isolated Sample Class")
         } catch {
-            preparationErrorMessage = error.localizedDescription
-            Self.logger.error("Could not prepare Sample Class: \(error.localizedDescription)")
+            preparationErrorMessage = Self.samplePreparationFailedMessage
+            Self.logger.error("Could not prepare Sample Class: \(error.localizedDescription, privacy: .public)")
         }
     }
+
+    /// The alert's message when the sample class can't be set up (the raw error goes to the log).
+    static let samplePreparationFailedMessage = "The sample class couldn't be set up. Try again, or restart the app."
 
     func dismissPreparationError() {
         preparationErrorMessage = nil

@@ -4,7 +4,7 @@ import CoreData
 import UserNotifications
 import OSLog
 
-/// "Arrival closes": a notification on school mornings at the time she sets
+/// "Time to close arrival": a notification on school mornings at the time she sets
 /// (8:15 unless changed), reminding her to close arrival so anyone not here
 /// is marked absent. It never marks anyone itself.
 ///
@@ -24,7 +24,7 @@ enum ArrivalReminder {
     static let defaultMinutes = 8 * 60 + 15
     static let daysAhead = 10
     /// The notification's words, which setup's reminder page shows too.
-    static let notificationTitle = "Arrival closes"
+    static let notificationTitle = "Time to close arrival"
     static let notificationBody = "Close arrival to mark anyone not here yet absent."
     private static let idPrefix = "arrival-"
 

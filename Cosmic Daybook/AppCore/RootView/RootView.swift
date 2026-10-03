@@ -171,7 +171,7 @@ struct RootView: View {
         ) {
             Button("OK") { classroomWorkspace.dismissPreparationError() }
         } message: {
-            Text(classroomWorkspace.preparationErrorMessage ?? "The sample classroom could not be prepared.")
+            Text(classroomWorkspace.preparationErrorMessage ?? ClassroomWorkspaceStore.samplePreparationFailedMessage)
         }
         .alert(
             "The \(dependencies.schoolYearStore.current.label) School Year Has Begun",

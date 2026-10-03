@@ -237,7 +237,7 @@ extension WorkDetailView {
     // MARK: - Action Methods
 
     func save() {
-        viewModel.save(modelContext: modelContext, saveCoordinator: saveCoordinator)
+        guard viewModel.save(modelContext: modelContext, saveCoordinator: saveCoordinator) else { return }
         close()
     }
 

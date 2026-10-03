@@ -183,7 +183,7 @@ enum RolloverService {
         case saveFailed
 
         var errorDescription: String? {
-            "The rollover could not be saved, so nothing was changed. Try again."
+            "Couldn't save the move to the new school year, so nothing was changed. Try again."
         }
     }
 

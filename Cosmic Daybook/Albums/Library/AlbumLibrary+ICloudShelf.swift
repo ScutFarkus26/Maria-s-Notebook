@@ -3,6 +3,7 @@
 // another device kept there.
 
 import Foundation
+import OSLog
 
 extension AlbumLibrary {
     /// How long one album may take to download before the library gives up on
@@ -75,7 +76,8 @@ extension AlbumLibrary {
         do {
             try await AlbumICloudShelf.remove(album.url)
         } catch {
-            shelfError = "Couldn't remove \(album.title) from iCloud: \(error.localizedDescription)"
+            Logger.albums.error("Couldn't remove an album from iCloud: \(error.localizedDescription, privacy: .public)")
+            shelfError = "Couldn't remove \(album.title) from iCloud. Check that iCloud Drive is on and try again."
         }
         reloadFolders()
     }

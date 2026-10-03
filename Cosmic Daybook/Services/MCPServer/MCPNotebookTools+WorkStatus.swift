@@ -30,7 +30,7 @@ extension MCPNotebookTools {
         do {
             rows = try WorkLogTargets.resolve(work: work, students: named.map { Set($0.map(\.id)) }, in: modelContext)
         } catch {
-            throw MCPToolError(error.localizedDescription)
+            throw MCPToolError(nil, underlying: error)
         }
 
         // The same write the Scheduled strip makes: status, completion record,
@@ -43,7 +43,7 @@ extension MCPNotebookTools {
             )
         } catch {
             modelContext.rollback()
-            throw MCPToolError("That status could not be logged: \(error.localizedDescription)")
+            throw MCPToolError("That status could not be logged", underlying: error)
         }
 
         let whom: String

@@ -13,6 +13,11 @@ import AppKit
 /// - Pre-destructive operation backups
 @Observable
 final class AutoBackupManager {
+    /// A backup asked for while another is still being written.
+    nonisolated struct AlreadyRunning: LocalizedError {
+        var errorDescription: String? { "A backup is already running. It'll finish in a moment." }
+    }
+
     private static let logger = Logger.backup
 
     // MARK: - Settings
@@ -315,12 +320,8 @@ final class AutoBackupManager {
         stopsWhenCancelled: Bool = false
     ) async -> BackupResult {
         guard !isPerformingBackup else {
-            let result = BackupResult.failure(Date(), NSError(
-                domain: "AutoBackupManager",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Backup already in progress"]
-            ))
-            return result
+            Self.logger.info("Backup (\(trigger.rawValue, privacy: .public)) not started: one is already running")
+            return .failure(Date(), AlreadyRunning())
         }
 
         isPerformingBackup = true
@@ -424,8 +425,9 @@ final class AutoBackupManager {
                     "Auto-backup (\(triggerName, privacy: .public)) stopped \u{2014} the system ended the task"
                 )
             } else {
-                // A failed auto-backup is a data-protection gap, not a debug detail.
-                let reason = error.localizedDescription
+                // A failed auto-backup is a data-protection gap, not a debug detail. The
+                // error's own description, not its plain text: the case, type and cause.
+                let reason = String(describing: error)
                 Self.logger.error("Backup failed (\(triggerName, privacy: .public)): \(reason, privacy: .public)")
             }
 

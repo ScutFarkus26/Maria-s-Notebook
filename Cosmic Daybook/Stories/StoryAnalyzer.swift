@@ -17,7 +17,7 @@ struct StoryAnalysisResult: Sendable {
     var modelVersion: String
 }
 
-enum StoryAnalyzerError: LocalizedError {
+nonisolated enum StoryAnalyzerError: LocalizedError {
     case aiUnavailable
     case insufficientText
     case unreadablePDF
@@ -27,17 +27,20 @@ enum StoryAnalyzerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .aiUnavailable:
-            return "Apple Intelligence is unavailable on this device."
+            return AppleIntelligenceMessages.notAvailable
         case .insufficientText:
-            return "Couldn't read enough text from the PDF to analyze."
+            return "Couldn't read the words in this PDF. Add the details yourself."
         case .unreadablePDF:
-            return "Couldn't read this PDF's pages."
+            return "Couldn't open this PDF. Add the details yourself."
         case .generationFailed(let message):
             return message
         case .timedOut:
-            return "The analysis took too long and was cancelled."
+            return "This took too long. Try again."
         }
     }
+
+    /// The general failure, stored on the story when nothing more specific fits.
+    static let couldNotRead = "Couldn't read this story. Try again, or add the details yourself."
 }
 
 #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
@@ -174,7 +177,7 @@ nonisolated enum StoryAnalyzer {
             throw StoryAnalyzerError.generationFailed(message: userMessage(for: error))
         } catch {
             logger.warning("Story analysis failed: \(error.localizedDescription, privacy: .public)")
-            throw StoryAnalyzerError.generationFailed(message: error.localizedDescription)
+            throw StoryAnalyzerError.generationFailed(message: StoryAnalyzerError.couldNotRead)
         }
         #else
         throw StoryAnalyzerError.aiUnavailable
@@ -223,7 +226,7 @@ nonisolated enum StoryAnalyzer {
             throw StoryAnalyzerError.generationFailed(message: userMessage(for: error))
         } catch {
             logger.warning("Visual story analysis failed: \(error.localizedDescription, privacy: .public)")
-            throw StoryAnalyzerError.generationFailed(message: error.localizedDescription)
+            throw StoryAnalyzerError.generationFailed(message: StoryAnalyzerError.couldNotRead)
         }
         #else
         throw StoryAnalyzerError.aiUnavailable
@@ -327,18 +330,11 @@ nonisolated enum StoryAnalyzer {
     #if ENABLE_FOUNDATION_MODELS && canImport(FoundationModels)
     @available(macOS 26.0, iOS 26.0, *)
     private static func userMessage(for error: LanguageModelError) -> String {
-        switch error {
-        case .contextSizeExceeded:
-            return "The story is too long for the on-device model."
-        case .rateLimited:
-            return "Apple Intelligence is busy. Try again in a moment."
-        case .unsupportedLanguageOrLocale:
-            return "This language is not supported by Apple Intelligence."
-        case .refusal:
-            return "Apple Intelligence declined to analyze this story."
-        default:
-            return "Apple Intelligence encountered an unexpected error."
-        }
+        AppleIntelligenceMessages.message(
+            for: error,
+            tooLong: "This story is too long for Apple Intelligence to read. Add the details yourself.",
+            fallback: StoryAnalyzerError.couldNotRead
+        )
     }
     #endif
 }

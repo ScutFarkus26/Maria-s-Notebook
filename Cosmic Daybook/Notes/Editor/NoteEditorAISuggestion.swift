@@ -115,7 +115,7 @@ extension UnifiedNoteEditor {
             return
         }
         guard let noteImage = noteImageForAI else {
-            self.suggestionError = "Photo description needs a model with image understanding."
+            self.suggestionError = "Describing photos isn't available on this device."
             return
         }
 
@@ -148,33 +148,14 @@ extension UnifiedNoteEditor {
     // MARK: - Shared error text
 
     private func appleIntelligenceUnavailableMessage() -> String {
-        switch SystemLanguageModel.default.availability {
-        case .unavailable(.appleIntelligenceNotEnabled):
-            return "Please enable Apple Intelligence in Settings to use this feature."
-        case .unavailable(.deviceNotEligible):
-            return "This device does not support Apple Intelligence."
-        case .unavailable(.modelNotReady):
-            return "Apple Intelligence model is downloading. Please try again later."
-        default:
-            return "Apple Intelligence is not available."
-        }
+        AppleIntelligenceMessages.unavailableMessage(for: SystemLanguageModel.default.availability)
+            ?? AppleIntelligenceMessages.notAvailable
     }
 
     private func suggestionMessage(for error: LanguageModelError) -> String {
-        switch error {
-        case .rateLimited:
-            return "Too many requests. Please wait a moment and try again."
-        case .contextSizeExceeded:
-            return "The note is too long for on-device processing. Try with a shorter note."
-        case .unsupportedLanguageOrLocale:
-            return "This language is not supported by Apple Intelligence."
-        case .refusal:
-            return "The request could not be processed due to content restrictions."
-        case .timeout:
-            return "The request timed out. Please try again."
-        default:
-            return "Apple Intelligence encountered an unexpected issue. Try again."
-        }
+        AppleIntelligenceMessages.message(
+            for: error, tooLong: "This note is too long for Apple Intelligence. Try a shorter note."
+        )
     }
 }
 
@@ -190,12 +171,7 @@ struct SuggestionPreviewSheet: View {
     @State private var selectedTags: Set<String> = []
 
     private func name(for id: UUID) -> String {
-        if let s = allStudents.first(where: { $0.id == id }) {
-            let first = s.firstName.trimmed()
-            let lastI = s.lastName.first.map { String($0).uppercased() } ?? ""
-            return lastI.isEmpty ? first : "\(first) \(lastI)."
-        }
-        return "Unknown"
+        allStudents.first(where: { $0.id == id })?.shortName ?? "Student removed"
     }
 
     var body: some View {

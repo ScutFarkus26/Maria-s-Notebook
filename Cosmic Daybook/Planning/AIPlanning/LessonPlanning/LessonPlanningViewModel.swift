@@ -62,7 +62,7 @@ final class LessonPlanningViewModel {
     /// Starts the planning pipeline.
     func startPlanning() {
         guard let service = planningService, let context = managedObjectContext else {
-            errorMessage = "Service not configured"
+            errorMessage = "Lesson planning isn't ready yet. Close this and try again."
             return
         }
         
@@ -78,8 +78,10 @@ final class LessonPlanningViewModel {
                 }
             } catch {
                 Self.logger.warning("Planning failed: \(error)")
-                errorMessage = AppErrorMessages.aiMessage(for: error)
-                messages.append(PlanningMessage(role: .system, content: "Error: \(errorMessage ?? "")"))
+                // Shown once, in the error banner.
+                errorMessage = AppErrorMessages.aiMessage(
+                    for: error, fallback: "Couldn't make a plan. Try again in a moment."
+                )
                 currentStep = .idle
             }
             isLoading = false
@@ -114,7 +116,9 @@ final class LessonPlanningViewModel {
                 Self.logger.warning("Follow-up failed: \(error)")
                 messages.append(PlanningMessage(
                     role: .system,
-                    content: "Error: \(AppErrorMessages.aiMessage(for: error))"
+                    content: AppErrorMessages.aiMessage(
+                        for: error, fallback: "Couldn't answer that. Try again in a moment."
+                    )
                 ))
                 currentStep = .awaitingInput
             }
@@ -167,13 +171,14 @@ final class LessonPlanningViewModel {
             
             messages.append(PlanningMessage(
                 role: .assistant,
-                content: "Created \(created.count) lesson assignment\(created.count == 1 ? "" : "s")."
+                content: "Added \(created.count) \(created.count == 1 ? "lesson" : "lessons") to the plan."
             ))
             
             currentStep = .complete
         } catch {
             Self.logger.warning("Failed to apply plan: \(error)")
-            errorMessage = AppErrorMessages.aiMessage(for: error)
+            // Not an Apple Intelligence failure: the lessons didn't go into the plan.
+            errorMessage = "Couldn't add these lessons to your plan. Try again."
             currentStep = .presentingPlan
         }
         
@@ -195,7 +200,7 @@ final class LessonPlanningViewModel {
         currentStep = .gatheringEvidence
         messages.append(PlanningMessage(
             role: .system,
-            content: "Gathering curriculum and guide records for \(student.fullName)..."
+            content: "Looking over \(student.firstName)'s lessons and notes…"
         ))
         
         currentStep = .generatingPlan
@@ -227,7 +232,7 @@ enum PlanningError: Error, LocalizedError {
     
     var errorDescription: String? {
         switch self {
-        case .studentNotFound: return "Student not found"
+        case .studentNotFound: return "Couldn't find this student. Close this and open it again."
         }
     }
 }

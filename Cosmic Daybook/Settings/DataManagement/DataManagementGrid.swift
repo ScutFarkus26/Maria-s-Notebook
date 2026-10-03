@@ -138,7 +138,7 @@ struct DataManagementPanel: View {
                     Task {
                         let result = await BackupFolderMigration
                             .moveBackupsToManagedFolder(from: prompt.suspiciousFolder)
-                        handleMigrationResult(result)
+                        handleMigrationResult(result, expected: prompt.fileCount)
                     }
                 }
                 Button("Keep using this folder", role: .cancel) {
@@ -147,7 +147,7 @@ struct DataManagementPanel: View {
             } message: { prompt in
                 Text(migrationMessage(for: prompt))
             }
-            .alert("Error", isPresented: Binding(
+            .alert(viewModel.importErrorTitle, isPresented: Binding(
                 get: { viewModel.importError != nil },
                 set: { if !$0 { viewModel.importError = nil } }
             )) {
@@ -201,8 +201,10 @@ struct DataManagementPanel: View {
             switch result {
             case .success(let url):
                 Task { await viewModel.previewImportedURL(viewContext: viewContext, url: url) }
-            case .failure:
-                viewModel.importError = "Couldn't access the selected backup file. Try selecting it again."
+            case .failure(let error):
+                Self.logger.warning("Backup file picker failed: \(error, privacy: .public)")
+                viewModel.importErrorTitle = "Couldn't Restore"
+                viewModel.importError = "Couldn't open the backup file you chose. Choose it again and try once more."
             }
         }
         .fileExporter(
@@ -218,7 +220,7 @@ struct DataManagementPanel: View {
             case .failure(let error as CocoaError) where error.code == .userCancelled:
                 viewModel.resultSummary = BackupResultNote(text: "Backup canceled.", tone: .neutral)
             case .failure(let error):
-                viewModel.importError = AppErrorMessages.backupMessage(for: error, operation: "save the backup")
+                viewModel.showBackupFailure(error, operation: "save the backup")
             }
             viewModel.exportData = nil
         }
@@ -240,33 +242,53 @@ struct DataManagementPanel: View {
                     do {
                         try BackupDestination.setDefaultFolder(url)
                     } catch let rejection as BackupDestination.FolderRejection {
+                        Self.logger.notice("Backup folder refused: \(String(describing: rejection), privacy: .public)")
                         folderRejection = rejection
                     } catch {
                         Self.logger.warning("Failed to set default backup folder: \(error, privacy: .public)")
+                        resultMessage = .init(
+                            text: "Couldn't use that folder for backups. Choose it again, or pick another one.",
+                            tone: .failure
+                        )
                     }
                     viewModel.loadDefaultFolderName()
                 }
             } catch {
                 Self.logger.warning("Failed to get folder URL: \(error, privacy: .public)")
+                resultMessage = .init(
+                    text: "Couldn't open the folder you chose. Choose it again and try once more.", tone: .failure
+                )
             }
         }
     }
 
     private func migrationMessage(for prompt: BackupFolderMigration.Prompt) -> String {
-        let path = prompt.suspiciousFolder.path
+        let folder = prompt.suspiciousFolder.lastPathComponent
         let count = prompt.fileCount
         if count == 0 {
-            return "Manual backups are saving to “\(path)”, which looks unsafe. " +
-                   "Move to iCloud Drive › Cosmic Daybook › Backups?"
+            return "Backups are set to save in a folder that isn't safe for them (“\(folder)”). " +
+                   "Save them in iCloud Drive › Cosmic Daybook › Backups instead?"
         }
-        let noun = count == 1 ? "backup" : "backups"
-        return "\(count) \(noun) are saved in “\(path)”, which looks unsafe " +
-               "(code repo, app bundle, or system folder). Move them to " +
-               "iCloud Drive › Cosmic Daybook › Backups?"
+        let them = count == 1 ? "Your backup is" : "Your \(count) backups are"
+        return "\(them) in a folder that isn't safe for them (“\(folder)”). " +
+               "Move \(count == 1 ? "it" : "them") to iCloud Drive › Cosmic Daybook › Backups?"
     }
 
-    private func handleMigrationResult(_ result: BackupFolderMigration.MoveResult) {
+    private func handleMigrationResult(_ result: BackupFolderMigration.MoveResult, expected: Int) {
+        // The files that wouldn't copy stay where they were (logged by the move).
         switch result {
+        case .moved(0, _) where expected > 0:
+            resultMessage = .init(
+                text: "Couldn't move the backups. They're still in the old folder. "
+                    + "New backups will go to iCloud Drive.",
+                tone: .failure
+            )
+        case .moved(let count, _) where count < expected:
+            resultMessage = .init(
+                text: "Moved \(count) of \(expected) backups to iCloud Drive. The rest couldn't be moved "
+                    + "and are still in the old folder.",
+                tone: .failure
+            )
         case .moved(let count, _):
             let noun = count == 1 ? "backup" : "backups"
             resultMessage = .init(text: "Moved \(count) \(noun) to iCloud Drive.", tone: .success)
@@ -274,7 +296,8 @@ struct DataManagementPanel: View {
         case .nothingToMove:
             resultMessage = .init(text: "New backups will go to iCloud Drive.", tone: .success)
         case .failed(let error):
-            resultMessage = .init(text: "Couldn't move backups: \(error.localizedDescription)", tone: .failure)
+            Self.logger.error("Moving backups failed: \(String(describing: error), privacy: .public)")
+            resultMessage = .init(text: "Couldn't move the backups. They're still in the old folder.", tone: .failure)
         }
         viewModel.loadDefaultFolderName()
     }

@@ -78,7 +78,7 @@ struct AlbumsSidebar: View {
         .safeAreaInset(edge: .bottom) {
             if library.indexing {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Indexing for search…")
+                    Text("Getting search ready…")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     ProgressView(value: library.indexProgress)

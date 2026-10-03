@@ -14,7 +14,8 @@ final class ClassroomReleaseModel {
         case backingUp
         case running(done: Int, total: Int)
         case finished(ClassroomShareRelease.Report, shareNow: String?)
-        case failed(String)
+        /// Why it couldn't go on, plainly, and the technical reason for Details.
+        case failed(String, details: String? = nil)
     }
 
     private(set) var stage: Stage = .loading
@@ -41,12 +42,12 @@ final class ClassroomReleaseModel {
         let stack = dependencies.coreDataStack
         do {
             guard let preview = try await ClassroomShareRelease.preview(coreDataStack: stack) else {
-                stage = .failed("The classroom share can't be read right now.")
+                stage = .failed(Self.unreadable)
                 return
             }
             stage = .ready(preview, blocker: blocker(for: preview))
         } catch {
-            stage = .failed("Couldn't read what the share holds: \(error.localizedDescription)")
+            stage = Self.readFailed(error)
         }
     }
 
@@ -81,7 +82,7 @@ final class ClassroomReleaseModel {
         }
         guard let store = stack.privatePersistentStore,
               let zone = CDClassroomMembership.pinnedZoneName(in: stack.viewContext) else {
-            stage = .failed("The classroom share can't be read right now.")
+            stage = .failed(Self.unreadable)
             return
         }
         if preview.isEmpty {
@@ -137,7 +138,10 @@ final class ClassroomReleaseModel {
                 coreDataStack: dependencies.coreDataStack, backups: dependencies.autoBackupManager
             )
         } catch {
-            stage = .failed(error.localizedDescription)
+            Self.logger.error("Release: backup failed: \(error.localizedDescription, privacy: .public)")
+            stage = .failed(
+                AppErrorMessages.backupMessage(for: error, operation: "make the backup, so nothing was changed")
+            )
             return nil
         }
     }
@@ -152,7 +156,13 @@ final class ClassroomReleaseModel {
             Self.logger.notice("Release: verified backup \(url.lastPathComponent, privacy: .public)")
             return true
         } catch {
-            stage = .failed(error.localizedDescription)
+            // The check names what was missing ("The backup holds 12 Student records, the
+            // notebook 14"): that's for Details.
+            Self.logger.error("Release: backup check failed: \(error.localizedDescription, privacy: .public)")
+            stage = .failed(
+                "The safety backup didn't hold all of your notebook, so nothing was changed. Try again.",
+                details: error.localizedDescription
+            )
             return false
         }
     }
@@ -162,11 +172,22 @@ final class ClassroomReleaseModel {
             if let planned = try await ClassroomShareRelease.preview(coreDataStack: dependencies.coreDataStack) {
                 return planned
             }
-            stage = .failed("The classroom share can't be read right now.")
+            stage = .failed(Self.unreadable)
         } catch {
-            stage = .failed("Couldn't read what the share holds: \(error.localizedDescription)")
+            stage = Self.readFailed(error)
         }
         return nil
+    }
+
+    private static let unreadable = "Couldn't read the classroom share right now. Reopen Settings and try again."
+
+    private static func readFailed(_ error: Error) -> Stage {
+        let ns = error as NSError
+        let details = "\(ns.domain) \(ns.code): \(ns.localizedDescription)"
+        logger.error("Release: reading the share failed: \(details, privacy: .public)")
+        return .failed(
+            "Couldn't read the classroom share from iCloud. Check you're online and try again.", details: details
+        )
     }
 
     /// What the share holds now, as the CloudKit server itself counts it.
@@ -177,7 +198,7 @@ final class ClassroomReleaseModel {
         }
         let students = counts["CD_Student", default: 0]
         let marks = counts["CD_AttendanceRecord", default: 0]
-        return "iCloud now holds \(students) student\(students == 1 ? "" : "s") and "
-            + "\(marks.formatted()) attendance record\(marks == 1 ? "" : "s") in the classroom share."
+        return "Your assistants now see \(students) child\(students == 1 ? "" : "ren") and "
+            + "\(marks.formatted()) attendance mark\(marks == 1 ? "" : "s")."
     }
 }

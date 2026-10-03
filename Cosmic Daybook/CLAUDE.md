@@ -211,7 +211,7 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 - Check-ins are created only by `CDWorkCheckIn.make(for:on:purpose:in:)` and read with `resolvedWork(in:)`.
 - Work is only for enrolled children (`WorkRepository.createWork`).
 - An observation on a presentation is scoped to specific children (`NoteScope.forSelection`), never `.all`.
-- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Old Records (`NotebookJunkCleanup`), which previews and backs up first.
+- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Leftovers (`NotebookJunkCleanup`), which previews and backs up first.
 
 
 ## Sharing Model
@@ -244,6 +244,7 @@ Attendance by voice in both apps (`Siri/AttendanceIntents.swift`, `Daybook Assis
 - Use `async/await` and `Task.sleep(for:)` for delays (NOT `DispatchQueue`)
 - Use `NSFetchRequest` + `NSPredicate` for queries (NOT `@Query` / `#Predicate`)
 - Use `@FetchRequest` in views for reactive data binding
+- **Plain English on screen** (plan: `Documentation/Implementation/PLAIN_ENGLISH_PLAN.md`): every message the apps show says what happened and what to do, in everyday words. Never put `error.localizedDescription`, `"\(error)"`, codes, IDs, paths or type names into UI text; log them, and put any worth keeping under `TechnicalDetailsDisclosure`. Errors go through `AppErrorMessages` (`userMessage`, `sharingMessage`, `importMessage`, `backupMessage`, `syncMessage`, `aiMessage(fallback:)`); Apple Intelligence wording lives in `AppleIntelligenceMessages`. `SaveCoordinator.save`'s `reason:` is a log label, never shown; pass `alertOnFailure: false` when the screen shows its own message.
 
 ## Auto-Research
 

@@ -17,7 +17,9 @@ public struct BackupVerification {
                 return .failure(NSError(
                     domain: "BackupVerification",
                     code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "Backup file does not exist at path: \(url.path)"]
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Couldn't find that backup file. It may have been moved or deleted."
+                    ]
                 ))
             }
 
@@ -30,8 +32,8 @@ public struct BackupVerification {
                 code: 2,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "Legacy .mtbbackup files are no longer supported. " +
-                        "Verify or import a current backup created by this version of the app."
+                        "This backup is from an old version of the app and can't be restored. " +
+                        "Choose a newer backup."
                 ]
             ))
         } catch {
@@ -127,13 +129,14 @@ public struct BackupVerification {
         for (entityName, expected) in manifest.entityCounts {
             let actual = verification.entryLineCounts[entityName] ?? 0
             guard actual == expected else {
+                logger.error(
+                    "Backup damaged: \(entityName, privacy: .public) promises \(expected) rows, holds \(actual)"
+                )
                 throw NSError(
                     domain: "BackupVerification",
                     code: 3,
                     userInfo: [
-                        NSLocalizedDescriptionKey:
-                            "Backup is damaged: \(entityName) promises \(expected) records " +
-                            "but the file contains \(actual)."
+                        NSLocalizedDescriptionKey: BackupArchive.ArchiveError.damaged
                     ]
                 )
             }
