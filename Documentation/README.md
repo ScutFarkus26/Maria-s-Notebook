@@ -4,7 +4,7 @@ Project documentation lives outside the synchronized Xcode source folders so it 
 
 ## Contents
 
-- `Architecture/` - system design, data model, CloudKit, AI, backup, ownership conventions, and technical reference material.
+- `Architecture/` - system design, data model, CloudKit, AI, backup, albums, Siri, build settings, ownership conventions, and technical reference material (including the detailed feature notes that used to live in `Cosmic Daybook/CLAUDE.md`).
 - `ADRs/` - architecture decision records.
 - `Implementation/` - active implementation plans and handoffs; finished plans move to `Implementation/Archive/`.
 - `Manuals/` - Markdown sources and PDF generation scripts for the developer and user manuals.
