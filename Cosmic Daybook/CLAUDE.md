@@ -88,48 +88,73 @@ for d in ~/Library/Developer/Xcode/DerivedData/Cosmic_Daybook-*; do
 
 ```
 Cosmic Daybook/
-├── AppCore/          # App entry, initialization, root navigation
-├── Models/           # NSManagedObject subclasses & extensions
+├── AppCore/          # App entry, bootstrapping, dependencies, routing, commands
+│   ├── Persistence/  #   CoreDataStack, database errors, CloudKit configuration
+│   ├── RootView/     #   Root navigation: sidebar, tabs, detail, sheets
+│   ├── Windows/      #   Window registration and detail-window plumbing
+│   ├── Theme/        #   AppTheme, AppColors, spacing
+│   └── SampleClassroom/ # Sample-class seeder
+├── Models/           # Cross-feature NSManagedObject subclasses (single-feature entities live in their feature)
+├── Repositories/     # Data access repositories
 ├── Services/         # Cross-feature infrastructure and system integrations
-├── ViewModels/       # App-wide presentation state (CommandBar)
-├── Components/       # Reusable SwiftUI components
-├── Utils/            # Extensions & utility functions
-├── Repositories/     # Data access layer
+│   ├── Sync/         #   CloudKit status, persistent history, dedup, synced preferences
+│   ├── AI/  Search/  Calendar/  Photos/  System/  Migrations/  MCPServer/
+│   └── Progression/  #   Lesson progression shared by Lessons, Planning, Presentations, Students, Work
+├── Components/       # Reusable SwiftUI used by two or more unrelated features (Toast/, WaitingStudents/, Shared/…)
+├── Utils/            # Extensions/, Formatting/, SwiftUI/, Visibility/, Files/, CoreData/, Platform/, Diagnostics/
 │
-├── Students/         # Student profiles & meetings
-├── Lessons/          # Lesson library, attachments, exercises
+├── Students/         # Student profiles, detail, meetings, progress, notes, import, reports
+├── Lessons/          # Lesson library, detail, attachments, scope map, parsha lessons
+│   └── Checklist/    #   Class checklist: Views/, Model/, ViewModels/
 ├── Work/             # Work items, check-ins, practice sessions
-├── Presentations/    # Presentation scheduling
-├── Attendance/       # Attendance tracking
-├── Planning/         # Planning & checklist tools
+├── Presentations/    # Presentation scheduling, queues, sessions, record index
+├── Attendance/       # Attendance: Store/, Rules/, Views/, Tile/, Email/, Reports/, Insights/, Delight/
+├── Planning/         # Planning tools and AI lesson planning
+├── SmallSequencePlanner/ # Small-group planning by area and sequence
+├── CommandBar/       # Command bar: Views/, ViewModels/, Services/ (parsing, capture)
 ├── Inbox/            # Inbox-status section of the presentation detail
 ├── Today/            # Daily hub views, view model, and support
-├── Todos/            # Todo screens, forms, and presentation support
+├── Todos/            # Todo models, screens, forms, and support
 ├── Notes/            # Observation browsing, editing, and quick capture
+├── ObservationMode/  # Developmental traits and observation quick tags
 │
 ├── Agenda/           # Calendar day/month grid views
-├── Community/        # Community topics & solutions
-├── GoingOut/         # Going Out planning
-├── Albums/           # Teaching-album PDF library: reading, search, annotations
-├── Logs/             # Application logging
-├── Procedures/       # Procedure documentation
-├── Progression/      # Student progress tracking & analytics
+├── Albums/           # Teaching-album PDFs: Library/, Search/, Detail/, LessonLinks/
+├── BookClub/         # Book club packets, sessions, and meetings
+├── Chat/             # AI chat features
+├── ClassroomJobs/    # Classroom jobs and job assignments
+├── Community/        # Community meetings view
 ├── CurriculumMap/    # Three-Year View: per-child grid, class heat map, the shared engine
+├── GoingOut/         # Going Out planning
+├── Logs/             # Application logging
+├── Orders/           # Links to request from the office, tracked to received
+├── ParentReports/    # Monthly parent reports, guardians, report generator
+├── Parsha/           # Weekly parsha calendar and lesson tagging
+├── PerpetualCalendar/# Calendar notes
+├── Procedures/       # Procedure documentation
+├── ProgressDashboard/# Class progress dashboard and sequence detail
+├── Progression/      # Progression value types
 ├── Projects/         # Project management & sessions
 ├── Resources/        # Educational resources
+├── Schedules/        # Schedule management
+├── Stories/          # Story library: import, analysis, covers
 ├── Supplies/         # Supply inventory
-├── Orders/           # Links to request from the office, tracked to received
-├── Topics/           # Educational topics
-├── PerpetualCalendar/# Calendar notes
+├── Topics/           # Community topics, solutions, and their models
 │
+├── SchoolYear/       # School-year lens: store, picker, scoping, rollover grades
 ├── Sharing/          # CloudKit sharing (classroom collaboration)
-├── Backup/           # Backup & restore functionality
-├── Settings/         # App configuration
+├── Siri/             # App Intents, Siri attendance, Spotlight indexing
+├── Backup/           # Backup & restore
+├── Settings/         # App configuration: Classroom/, Sync/, Intelligence/, DataManagement/, Templates/, Preferences/, Dashboard/
+├── AppIcon.icon/     # App icon
+├── Assets.xcassets/  # Asset catalog
 └── CosmicDaybook.xcdatamodeld/ # Core Data model
 
+Daybook Assistant/    # Assistant iPhone app: Attendance/, Onboarding/, Siri/, Reminders/, Sync/, FrontDesk/, Wallpaper/
+                      # (also compiles ~90 notebook files by path; see project.pbxproj)
 Cosmic Daybook Tests/ # Feature-mirrored test target
-Scripts/                 # Repository structure checks
-Documentation/           # Repository-level architecture, ADRs, plans, and manuals
+Scripts/              # Build lock, install/archive, structure and unused-code checks
+Documentation/        # Architecture, ADRs, plans, manuals, organization audits
 ```
 
 Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`).

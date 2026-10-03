@@ -1571,10 +1571,10 @@ Cosmic Daybook/
 |
 +-- Lessons/
 |   +-- LessonEntity.swift              Lesson entity (CDLesson)
-|   +-- LessonsListView.swift           Library view
-|   +-- LessonDetailView.swift          Detail view
+|   +-- Library/LessonsRootView.swift   Library view
+|   +-- Detail/LessonDetailView.swift   Detail view
 |   +-- ViewModels/GiveLessonViewModel.swift  Lesson picker state
-|   +-- Checklist/ViewModels/            Class-area checklist state
+|   +-- Checklist/                       Class-area checklist (Views/, Model/, ViewModels/)
 |
 +-- Work/
 |   +-- Models/WorkModelEntity.swift     Work entity (CDWorkModel)
@@ -1626,9 +1626,11 @@ Cosmic Daybook/
 +-- Settings/                            App configuration
 +-- Backup/                              Backup and restore
 |
++-- CommandBar/                         Command bar: Views/, ViewModels/, Services/ (parsing)
+|
 +-- Services/
-|   +-- CloudKitSyncStatusService.swift  Sync monitoring
-|   +-- CommandBar/                      Natural language parsing
+|   +-- Sync/CloudKitSyncStatusService.swift  Sync monitoring
+|   +-- AI/, Search/, Calendar/, Photos/, System/, Migrations/, MCPServer/, Progression/
 |   +-- (cross-feature infrastructure and system integrations)
 |
 +-- Repositories/
@@ -1636,11 +1638,8 @@ Cosmic Daybook/
 |   +-- LessonRepository.swift
 |   +-- (one struct per entity family)
 |
-+-- ViewModels/
-|   +-- CommandBarViewModel.swift        Command bar state
-|
-+-- Components/                          Reusable UI primitives
-+-- Utils/                               57+ utility files
++-- Components/                          Reusable UI primitives shared by unrelated features
++-- Utils/                               Extensions, formatting, SwiftUI, files, Core Data, platform, diagnostics
 ```
 
 ---
