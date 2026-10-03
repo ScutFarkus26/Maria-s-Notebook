@@ -267,22 +267,23 @@ struct RootView: View {
         // splitViewContent.
         mainContent
         #else
-        let layout = VStack(spacing: 0) {
+        VStack(spacing: 0) {
             warningBanners
             if usesPhoneChrome {
                 mobileContextBar
             }
             Divider()
-            mainContent
-        }
-
-        if usesPhoneChrome {
-            layout
-        } else {
-            layout
-                .overlay(alignment: .topTrailing) {
-                    searchAndSyncOverlay
-                }
+            if usesPhoneChrome {
+                mainContent
+            } else {
+                // The corner controls ride on the content, not the whole stack,
+                // so a banner above pushes them down instead of sitting under
+                // them (they covered Sample Class's "Return to My Class").
+                mainContent
+                    .overlay(alignment: .topTrailing) {
+                        searchAndSyncOverlay
+                    }
+            }
         }
         #endif
     }
