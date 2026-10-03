@@ -132,7 +132,7 @@ Scripts/                 # Repository structure checks
 Documentation/           # Repository-level architecture, ADRs, plans, and manuals
 ```
 
-Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`).
+Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`).
 
 ## Architecture
 
@@ -250,7 +250,7 @@ At the start of each conversation, before writing or modifying any code, search 
 
 ## CloudKit Notes
 
-- **Environments (2026-09-28):** the `CLOUDKIT_ENVIRONMENT` build setting picks Development or Production for both apps (entitlement + `CloudKitEnvironment` Info.plist key; `AppCore/CloudKitEnvironment.swift`). Each environment is its own notebook on a device: Production's store files live in `Production/` under the store directory, and keys describing one store's sync state go through `CloudKitEnvironment.scoped` (history positions, purge/export dates, first-download gate, sync logs, backup change token, check-in repair flag, user record name, classroom attach list, lock carry-over flag). Development keeps today's paths and bare keys, so it stays untouched as the fallback. Sample Class is in neither. A new per-store key must be scoped too. TestFlight/App Store builds are always Production whatever the setting says.
+- **Environments (2026-09-28):** the `CLOUDKIT_ENVIRONMENT` build setting picks Development or Production for both apps (entitlement + `CloudKitEnvironment` Info.plist key; `AppCore/Persistence/CloudKitEnvironment.swift`). Each environment is its own notebook on a device: Production's store files live in `Production/` under the store directory, and keys describing one store's sync state go through `CloudKitEnvironment.scoped` (history positions, purge/export dates, first-download gate, sync logs, backup change token, check-in repair flag, user record name, classroom attach list, lock carry-over flag). Development keeps today's paths and bare keys, so it stays untouched as the fallback. Sample Class is in neither. A new per-store key must be scoped too. TestFlight/App Store builds are always Production whatever the setting says.
 - Container: `iCloud.DanielSDeBerry.MariasNoteBook` — a literal in `CloudKitConfigurationService.containerID`, deliberately NOT derived from the bundle ID: the assistant companion app has its own bundle ID but shares this container. Reach it through `CloudKitConfigurationService.container`; never `CKContainer.default()`, which resolves from the bundle ID.
 - Two persistent stores: private (teacher data) + shared (classroom data)
 - Schema changes must be additive-only after CloudKit deployment

@@ -11,7 +11,7 @@ document explains the design behind them.
 ## 1. The stack
 
 Sync is `NSPersistentCloudKitContainer` end to end
-(`AppCore/CoreDataStack.swift`). There is no `CKSyncEngine`, no SwiftData and
+(`AppCore/Persistence/CoreDataStack.swift`). There is no `CKSyncEngine`, no SwiftData and
 no hand-written `CKOperation` code. That is still Apple's recommended setup for
 a Core Data app that shares records. SwiftData can't share at all, and
 `CKSyncEngine` is for apps that don't use the container.
@@ -26,7 +26,7 @@ a Core Data app that shares records. SwiftData can't share at all, and
 **Environments.** The `CLOUDKIT_ENVIRONMENT` build setting (`Development` or
 `Production`) sets both the `com.apple.developer.icloud-container-environment`
 entitlement in both apps and the `CloudKitEnvironment` Info.plist key the app
-reads (`AppCore/CloudKitEnvironment.swift`). Development-signed builds obey it;
+reads (`AppCore/Persistence/CloudKitEnvironment.swift`). Development-signed builds obey it;
 TestFlight and App Store builds are always Production. Each environment is its
 own notebook on a device:
 - Production's store files live in a `Production/` subfolder of the store

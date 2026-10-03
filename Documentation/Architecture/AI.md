@@ -45,7 +45,7 @@ receive a particular follow-up unless the guide explicitly records that choice.
 ## 2. Providers & the routing cascade
 
 All AI calls go through a single protocol, `MCPClientProtocol`
-(`Services/MCPClient.swift`), so callers never talk to a model directly. The
+(`Services/AI/MCPClient.swift`), so callers never talk to a model directly. The
 implementations:
 
 | Provider | Type | File | Notes |
@@ -142,7 +142,7 @@ records rather than presenting an AI confidence score as truth. The guide can
 edit, accept, or reject every recommendation. No recommendation becomes a
 presentation, assignment, or practice record until the guide chooses it.
 
-System prompts/personas for all of this live in one place: `AppCore/AIPrompts.swift`
+System prompts/personas for all of this live in one place: `Services/AI/AIPrompts.swift`
 (`generalAssistant`, `advancedAssistant`, `lessonPlanningAssistant`,
 `chatAssistant`, `commandBarParser`, `noteClassification`).
 
@@ -279,7 +279,7 @@ on-device. Activation steps: `PrivateCloudCompute.md`.
    and a runtime `isAvailable` check; for images also check
    `capabilities.contains(.vision)`.
 4. **Budget the input** with `TokenBudget` instead of character limits.
-5. **Add the persona** to `AppCore/AIPrompts.swift` rather than inlining prompts.
+5. **Add the persona** to `Services/AI/AIPrompts.swift` rather than inlining prompts.
 6. **Make it a proposal.** Clearly label AI output, link claims to the records
    that support them, let the guide edit or reject it, and require confirmation
    before changing data. Do not turn model confidence into a readiness judgment.
@@ -304,7 +304,7 @@ Services/
 Chat/Services/ChatService.swift       # chat orchestration + escalation
 Planning/AIPlanning/LessonPlanning/   # lesson planning service and state
 Todos/Services/                       # todo parsing and student suggestions
-AppCore/AIPrompts.swift               # all system prompts/personas
+Services/AI/AIPrompts.swift               # all system prompts/personas
 Settings/
   PrivateCloudSettingsView.swift      # the Allow Apple Private Cloud toggle
   SettingsView.swift                  # Apple Intelligence status rows

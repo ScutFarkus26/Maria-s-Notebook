@@ -192,7 +192,7 @@ A view presents sheets by setting `appRouter.navigationDestination`.
 ### Root Navigation Items
 
 ```swift
-// AppCore/RootView+NavigationItem.swift
+// AppCore/RootView/RootView+NavigationItem.swift
 enum NavigationItem: String, Hashable, Identifiable, CaseIterable {
     case today, todos
     case students, attendance, meetings, parentReports, progressDashboard
@@ -212,7 +212,7 @@ Navigation happens by setting `appRouter.selectedNavItem = .students`.
 
 ### Navigation groups
 
-`RootView.NavigationGroup` (`AppCore/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Groups in order: Today, Children, Lessons & Work, Planning, Records, Classroom, Library (those two collapsed by default), System. `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, and the group order.
+`RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`) is the single table that decides where every destination sits. The macOS sidebar (`RootSidebar`), the iPad sidebar and the iPhone tab bar plus its More list (`RootAdaptiveTabs`) all iterate it; nothing lists items by hand. Groups in order: Today, Children, Lessons & Work, Planning, Records, Classroom, Library (those two collapsed by default), System. `NavigationGroup.primaryTabs` is the iPhone bar — Today, Students, Attendance, Lessons & Work — and `secondaryGroups` is what "More" shows. `NavigationGroupTests` pins that every destination is in exactly one group, that the TabView lists each once, and the group order.
 
 The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.sidebarGroupExpanded(groupID)` and auto-expands the group holding a selection that arrives from outside the sidebar (a Go-menu shortcut, an album deep link, a restored selection), so nothing lands invisibly inside a collapsed Classroom or Library.
 
@@ -224,7 +224,7 @@ The macOS sidebar persists each group's collapsed state under `UserDefaultsKeys.
 
 ## RootView
 
-**File:** `AppCore/RootView.swift` (split across multiple files)
+**File:** `AppCore/RootView/RootView.swift` (split across multiple files)
 
 ### Layout Structure
 
@@ -847,7 +847,7 @@ Orchestrates AI chat sessions with classroom context.
 
 ### CloudKitSyncStatusService
 
-**File:** `Services/CloudKitSyncStatusService.swift`
+**File:** `Services/Sync/CloudKitSyncStatusService.swift`
 
 Monitors iCloud sync health and exposes observable state.
 

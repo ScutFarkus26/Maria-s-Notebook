@@ -516,4 +516,4 @@ Large data uses external storage (configured via "Allows External Storage" in xc
 
 The migration from SwiftData to Core Data (`NSManagedObject` subclasses with `NSPersistentCloudKitContainer`) is complete. All entities are now defined in `CosmicDaybook.xcdatamodeld` with `CD`-prefixed classes.
 
-Data migration functions are located in `Services/DataMigrations.swift`.
+Data migration functions are located in `Services/Migrations/DataMigrations.swift`.

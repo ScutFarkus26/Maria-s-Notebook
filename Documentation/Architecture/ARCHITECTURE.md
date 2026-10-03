@@ -28,7 +28,7 @@ App Launch
 **Key files:**
 - `AppCore/CosmicDaybookApp.swift` — App entry point, container config
 - `AppCore/AppBootstrapper.swift` — Startup migrations
-- `AppCore/RootView.swift` — Root navigation container
+- `AppCore/RootView/RootView.swift` — Root navigation container
 - `AppCore/AppRouter.swift` — Programmatic navigation
 
 ## Navigation
@@ -38,11 +38,11 @@ Two layouts over one table:
 - **iOS** — `RootAdaptiveTabs`, a `TabView(.sidebarAdaptable)`: a tab bar on iPhone (Today, Students, Attendance, Lessons & Work, More) and a grouped sidebar on iPad
 
 ```swift
-// AppCore/RootView+NavigationGroup.swift — the single source for every sidebar and the More list
+// AppCore/RootView/RootView+NavigationGroup.swift — the single source for every sidebar and the More list
 enum NavigationGroupID { case today, children, lessonsAndWork, planning, records, library, system }
 struct NavigationGroup { let id: ID; let title: String; let items: [NavigationItem]; let isExpandedByDefault: Bool }
 
-// AppCore/RootView+NavigationItem.swift — raw values are persisted and frozen (NavigationGroupTests)
+// AppCore/RootView/RootView+NavigationItem.swift — raw values are persisted and frozen (NavigationGroupTests)
 enum NavigationItem: String, Hashable, Identifiable, CaseIterable {
     case today, todos, students, attendance, meetings, parentReports, progressDashboard,
          planningAgenda, lessons, planningChecklist, curriculumMap, planningCalendar, smallSequencePlanner,

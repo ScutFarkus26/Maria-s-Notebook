@@ -26,7 +26,7 @@ ALLOWLIST = {
     "formatter_alloc": ["Utils/DateFormatters.swift", "Utils/AppLogging.swift"],
     "calendar_alloc": ["AppCore/AppCalendar.swift", "HebrewParshaService"],
     "image_decode_in_view": ["Components/CachedThumbnail.swift", "Components/AsyncCachedImage.swift"],
-    "unconditional_sync_stamp": ["Services/EventKitMirror.swift"],  # stamps only rows that changed
+    "unconditional_sync_stamp": ["Services/Calendar/EventKitMirror.swift"],  # stamps only rows that changed
     "ubiquity_container_lookup": ["Utils/UbiquityContainerCache.swift"],  # the off-main cache itself
 }
 
