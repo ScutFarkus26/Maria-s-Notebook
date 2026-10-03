@@ -4,7 +4,30 @@
 See the Groups page (main 158c2bce) running for the first time, on an iPad and an iPhone simulator, with enough fake data that every kind of line on a card shows up, and fix what's wrong. Danny gets screenshots of each screen, a pass/fail per check, and small bugs fixed on main; anything bigger goes to Tide. The build session never saw it on screen because the simulator service hung (2026-10-03). Background: `GROUPS_PAGE_PLAN.md` (Decisions 1–7, Review notes) and the user manual's "## Groups" section say what each screen should show.
 
 ## Progress
-- [ ] Phase 1: seed, check, fix (session: fresh)
+- [x] Phase 1: seed, check, fix (session: fresh, 2026-10-03)
+
+### Phase 1 results
+Every check passed on the iPad Pro 13-inch (M5) and iPhone 17 Pro simulators (Sample Class, seeded). Three small layout fixes, all in `Groups/`:
+- A card showed an overdue wait in orange (`AppColors.warning`), the color the same row uses for "practice not done", while the ladder used the Lesson Age overdue color. Cards now use `palette.overdue` too (`GroupCard.swift`).
+- The ladder named the area twice: as the navigation title and again under the sequence name. The header line is gone (`SequenceLadderView.swift`).
+- In the one-child row the child's wait floated mid-row; it now lines up at the right like the cards (`SinglesRow.swift`).
+
+| Check | Result |
+|---|---|
+| iPad 1: Sidebar → Planning → Groups, title, level picker, area chips with counts (Language 2, Math 3), 3-column grid, one-child row expands in place | Pass |
+| iPad 2: lesson name, "Area · Sequence", "k of n", "Maya S" names, waits, orange practice reason, dashed could-join, Confirm, "Planned with Leah H · Oct 6"; nothing clipped | Pass (overdue color fixed) |
+| iPad 3: Plan opens the sheet with exactly the 4 ready children ticked; after Plan the W2 card leaves and its could-join ghosts on W3 go with it | Pass |
+| iPad 4: Confirm on a card moves Rina to Ready after the refresh | Pass |
+| iPad 5: ladder steps, tiers (Ready, Practice open, Not confirmed, Planned), not started / finished counts, ‹ › within Math, Confirm on the ladder marks only Eli of the two on one assignment | Pass (duplicate area fixed) |
+| iPad 6: Today's "Ready for a next lesson" shows 5 lessons in the page's order; "See all in Groups ›" opens Groups | Pass |
+| iPad 7: level picker (Upper) narrows the cards and the chips go to Language 1, Math 2; an area chip filters | Pass |
+| iPhone: More → Groups is a list; the ladder pushes and back works; Today's link reaches Groups; tap targets 44 pt | Pass |
+
+What differed from the plan:
+- **Seeding.** The Sample Class seeder's own history (27 presentation rows, 5 assignments) puts one-child records across every sequence, so the seed script deleted them before adding the scenario, and added one mastered row (Rina, W5) so the seeder (which seeds only into an empty table) doesn't put them back; it doubles as the ladder's "finished" child. A second G1 assignment (Miriam and Eli, unconfirmed) was added later for the ladder's per-child Confirm. The scripts lived in the session's scratchpad (`cdsql.py`, `seed_lessons.py`, `seed_ready.py`, `seed_history.py`).
+- **Onboarding** on the iPhone was skipped with `defaults write … hasCompletedOnboarding -bool YES` before first launch.
+- **Out of scope, to Tide (Build & fix):** on the iPad in the Sample Class, the toolbar's "Sample Class · 2026–2027" control draws over the banner's "Return to My Class" button at the top right (every page; the iPhone is fine).
+- Noticed, not filed: the floating + button sits over the bottom-right of every scrolling page on the iPhone (it covers part of a card's full-width Plan button until you scroll); the Plan sheet's title "Plan Presentation" appears twice. Both are app-wide, not Groups.
 
 Build board: https://claude.ai/artifact/VZpfwHWT7cGz1vkn3xNzNm (milestone 26 "Verify & land", rows `grp-ipad`, `grp-iphone`).
 

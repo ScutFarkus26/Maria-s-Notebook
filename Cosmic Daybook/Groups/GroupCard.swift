@@ -179,9 +179,11 @@ struct GroupMemberRow: View {
             }
             Spacer(minLength: 8)
             if let days = member.waitSchoolDays {
+                // The Lesson Age overdue color, as the ladder shows it; orange
+                // already means "practice not done" on this row.
                 Text(days == 1 ? "1 day" : "\(days) days")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(palette.status(forDays: days) == .overdue ? AppColors.warning : .secondary)
+                    .foregroundStyle(palette.status(forDays: days) == .overdue ? palette.overdue : .secondary)
                     .accessibilityLabel("Waiting \(days) school days")
             }
         }

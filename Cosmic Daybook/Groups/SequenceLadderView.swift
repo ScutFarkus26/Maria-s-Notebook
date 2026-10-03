@@ -74,12 +74,10 @@ struct SequenceLadderView: View {
         HStack(alignment: .center, spacing: 8) {
             stepButton(systemImage: "chevron.left", label: "Previous sequence", offset: -1)
             VStack(spacing: 4) {
+                // The area is the navigation title, so it is not repeated here.
                 Text(ladder?.sequence ?? sequence)
                     .font(.title2.weight(.semibold))
                     .multilineTextAlignment(.center)
-                Text(ladder?.area ?? area)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
                 if let ladder {
                     counts(ladder)
                 }

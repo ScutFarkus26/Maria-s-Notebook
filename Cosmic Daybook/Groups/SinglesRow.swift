@@ -69,7 +69,8 @@ struct SinglesRow: View {
                     GroupMemberRow(member: member, palette: palette)
                 }
             }
-            Spacer(minLength: 8)
+            // Full width, so the child's wait lines up at the right as on the cards.
+            .frame(maxWidth: .infinity, alignment: .leading)
             Button("Plan") { onPlan(single) }
                 .buttonStyle(.bordered)
                 #if os(iOS)
