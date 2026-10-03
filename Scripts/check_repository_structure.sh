@@ -35,6 +35,7 @@ for directory in \
     "Cosmic Daybook/Students" \
     "Cosmic Daybook/Work" \
     "Cosmic Daybook/Presentations" \
+    "Cosmic Daybook/Utils" \
     "Cosmic Daybook Tests"
 do
     loose_file=$(find "$directory" -maxdepth 1 -type f -name '*.swift' -print -quit)
@@ -42,6 +43,19 @@ do
         fail "Swift files must be grouped below $directory (found $loose_file)."
     fi
 done
+
+# A folder past ~40 loose Swift files has stopped being scannable; give it domain
+# subfolders (FEATURE_OWNERSHIP.md). MCPServer's one-family MCPNotebookTools+*.swift is exempt.
+max_loose=40
+crowded=$(find "Cosmic Daybook" "Daybook Assistant" -type d ! -path "*/Services/MCPServer" | while IFS= read -r directory; do
+    count=$(find "$directory" -maxdepth 1 -type f -name '*.swift' | wc -l | tr -d ' ')
+    if [ "$count" -gt "$max_loose" ]; then
+        printf '%s (%s)\n' "$directory" "$count"
+    fi
+done)
+if [ -n "$crowded" ]; then
+    fail "folders with more than $max_loose loose Swift files: $crowded"
+fi
 
 empty_directory=$(find "Cosmic Daybook" "Cosmic Daybook Tests" Documentation -type d -empty -print -quit)
 if [ -n "$empty_directory" ]; then

@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsRootView.swift
+// Cosmic Daybook/Lessons/Library/LessonsRootView.swift
 //
 // Split into multiple files for maintainability:
 // - LessonsRootView.swift (this file) - Main view structure and body

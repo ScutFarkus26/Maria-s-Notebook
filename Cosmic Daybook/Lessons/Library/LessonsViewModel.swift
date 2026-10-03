@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsViewModel.swift
+// Cosmic Daybook/Lessons/Library/LessonsViewModel.swift
 
 import Foundation
 import OSLog

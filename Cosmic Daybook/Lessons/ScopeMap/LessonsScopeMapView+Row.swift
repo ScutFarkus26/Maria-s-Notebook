@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsScopeMapView+Row.swift
+// Cosmic Daybook/Lessons/ScopeMap/LessonsScopeMapView+Row.swift
 //
 // Thread row used by LessonsScopeMapView: leading colored bar, sequence label,
 // and pills tinted in the area's hue. Default state shows pills as a single

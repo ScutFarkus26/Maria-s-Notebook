@@ -111,7 +111,7 @@ lesson.getLessonStats(from: context) -> LessonStats
 
 ### 5. LessonJourneyTimeline Component
 
-**Location**: `Cosmic Daybook/Lessons/LessonJourneyTimeline.swift`
+**Location**: `Cosmic Daybook/Lessons/Detail/LessonJourneyTimeline.swift`
 
 **Purpose**: Visual timeline showing the complete journey from lesson to outcomes
 

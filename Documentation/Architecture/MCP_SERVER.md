@@ -424,7 +424,7 @@ The two album tools are the exception to the `[kind id=<uuid>]` convention:
 album pages aren't Core Data records and have no id, so they cite
 `[albumPage album="<file>" page=<n>]`. `get_album_page` takes that same
 album/page pair, so a citation can be followed without re-searching. Both
-share `Albums/AlbumCorpusLookup.swift` with the on-device
+share `Albums/Search/AlbumCorpusLookup.swift` with the on-device
 `SearchTeachingAlbumsTool`, which is what keeps the two surfaces' wording
 and results identical. They read the album index rather than Core Data, so
 they don't take the context provider; if the guide hasn't chosen an albums

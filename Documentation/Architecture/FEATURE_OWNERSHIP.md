@@ -91,7 +91,8 @@ Run `Scripts/check_repository_structure.sh` from the repository root after movin
 
 - tracked Xcode user data
 - retired folders from the former layout
-- loose Swift files at the roots of `Students`, `Work`, `Presentations`, or the test target
+- loose Swift files at the roots of `Students`, `Work`, `Presentations`, `Utils`, or the test target
+- any app or Assistant folder with more than 40 loose Swift files (except `Services/MCPServer`, one `MCPNotebookTools+*` family): give it domain subfolders
 - empty source, test, or documentation folders
 
 ## Examples for this repository

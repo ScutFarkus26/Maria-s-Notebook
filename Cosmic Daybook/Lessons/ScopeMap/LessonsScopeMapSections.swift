@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsScopeMapSections.swift
+// Cosmic Daybook/Lessons/ScopeMap/LessonsScopeMapSections.swift
 //
 // The rows and sections behind LessonsScopeMapView: one row per sequence, grouped
 // into a spine of either areas or Great Lessons. Kept out of the view so the map

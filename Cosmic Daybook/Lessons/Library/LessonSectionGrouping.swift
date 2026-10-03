@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonSectionGrouping.swift
+// Cosmic Daybook/Lessons/Library/LessonSectionGrouping.swift
 
 import Foundation
 

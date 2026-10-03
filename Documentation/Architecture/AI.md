@@ -81,7 +81,7 @@ be served now; screens use it to enable or explain their AI buttons.
 ## 3. The one setting
 
 There is no per-feature model choice. `Allow Apple Private Cloud`
-(`Settings/PrivateCloudSettingsView.swift`) is a school-level privacy
+(`Settings/Intelligence/PrivateCloudSettingsView.swift`) is a school-level privacy
 permission, stored as `AI.allowAutomaticPrivateCloud` and off by default.
 Changing it should be an informed school choice because it changes where
 student records are processed.
@@ -104,7 +104,7 @@ equivalent) at runtime before calling the model.
 | Feature | File | Output | Streaming | Multimodal |
 |---------|------|--------|-----------|------------|
 | Draft generation (parent email, report card, action plan, weekly summary) | `Students/Notes/AppleIntelligenceSheet.swift` + `…+Generation.swift` | Free text | No | — |
-| Meeting summaries | `Students/Meetings/MeetingSummaryGenerator.swift` | `@Generable` `MeetingSummary` | Yes | — |
+| Meeting summaries | `Students/Meetings/Data/MeetingSummaryGenerator.swift` | `@Generable` `MeetingSummary` | Yes | — |
 | Observation reflection / narrative draft | `Notes/Observations/ObservationsView+AI.swift` | Evidence-linked `@Generable` `NotesDigest` / `NotesNarrative` | No | — |
 | Note tag + student suggestion | `Notes/Editor/NoteEditorAISuggestion.swift` | `@Generable` `NoteTagSuggestion` | No | **Photo** |
 | Describe photo into note | `Notes/Editor/NoteEditorAISuggestion.swift` | Free text | No | **Photo** |

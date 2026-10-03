@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsViewModel+Sorting.swift
+// Cosmic Daybook/Lessons/Library/LessonsViewModel+Sorting.swift
 
 import Foundation
 import CoreData

@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsScopeMapLayout.swift
+// Cosmic Daybook/Lessons/ScopeMap/LessonsScopeMapLayout.swift
 //
 // What LessonsScopeMapView draws, built once per change of its inputs: the
 // builder's sections with each row's derived facts (MapLayout), and the memo

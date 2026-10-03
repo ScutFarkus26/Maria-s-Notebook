@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsScopeThreadFocusView.swift
+// Cosmic Daybook/Lessons/ScopeMap/LessonsScopeThreadFocusView.swift
 //
 // Drill-in view for one (area, sequence) thread on the scope-and-sequence map.
 // Renders full-size labeled pills in sequence order; tapping one opens

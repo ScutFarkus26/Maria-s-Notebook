@@ -238,7 +238,7 @@ Universal note entity that can attach to multiple contexts.
 
 Daily attendance tracking per student.
 
-**Location:** `Attendance/AttendanceRecordEntity.swift` (class `CDAttendanceRecord`)
+**Location:** `Attendance/Store/AttendanceRecordEntity.swift` (class `CDAttendanceRecord`)
 
 | Field | Type | Description |
 |-------|------|-------------|

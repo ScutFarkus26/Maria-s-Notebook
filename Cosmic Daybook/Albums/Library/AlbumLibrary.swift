@@ -10,7 +10,7 @@ import CoreData
 import SwiftUI
 import PDFKit
 
-// PlatformImage comes from Albums/PrintUtils.swift; PlatformColor from
+// PlatformImage comes from Albums/Detail/PrintUtils.swift; PlatformColor from
 // ParentReports/Services/ReportGeneratorService.swift.
 
 // MARK: - Album

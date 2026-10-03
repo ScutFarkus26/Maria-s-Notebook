@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/ReorderSectionsSheet.swift
+// Cosmic Daybook/Lessons/Library/ReorderSectionsSheet.swift
 // NEW FILE — add this file to the Lessons folder.
 
 import SwiftUI

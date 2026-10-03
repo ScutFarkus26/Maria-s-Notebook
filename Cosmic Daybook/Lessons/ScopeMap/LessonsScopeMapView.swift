@@ -1,4 +1,4 @@
-// Cosmic Daybook/Lessons/LessonsScopeMapView.swift
+// Cosmic Daybook/Lessons/ScopeMap/LessonsScopeMapView.swift
 //
 // Scope-and-sequence "Map" view: every sequence is one labeled row, every lesson
 // is a small pill on that row, organized into a spine (Area or Great Lesson).
