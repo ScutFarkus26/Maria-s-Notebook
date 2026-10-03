@@ -25,7 +25,8 @@ nonisolated struct RestockDigest: Equatable, Sendable {
 
     /// Needs from the office: everything to fetch on the next walk there.
     var officeRun: [Line] = []
-    /// Needs to order, asked for or not.
+    /// Needs to order that haven't been asked for yet (one asked for waits on
+    /// the office, not on the guide, so it isn't counted as needed).
     var toOrder: [Line] = []
 
     static let empty = RestockDigest()
@@ -45,7 +46,8 @@ nonisolated struct RestockDigest: Equatable, Sendable {
             let line = Line(title: need.displayTitle, quantity: Int(need.quantity), level: level)
             switch need.source {
             case .office: digest.officeRun.append(line)
-            case .order: digest.toOrder.append(line)
+            case .order where need.requestedAt == nil: digest.toOrder.append(line)
+            case .order: break
             }
         }
         return digest

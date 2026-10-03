@@ -135,7 +135,11 @@ nonisolated enum RestockService {
     ) -> (officeRun: Int, toOrder: Int) {
         func count(_ source: RestockSource) -> Int {
             let request = CDFetchRequest(CDOrderItem.self)
-            request.predicate = NSPredicate(format: "receivedAt == nil AND sourceRaw == %@", source.rawValue)
+            // Asked for and waiting is the office's move, not a need (office needs
+            // are never asked for, so this only narrows "to order").
+            request.predicate = NSPredicate(
+                format: "receivedAt == nil AND requestedAt == nil AND sourceRaw == %@", source.rawValue
+            )
             if let store { request.affectedStores = [store] }
             return (try? context.count(for: request)) ?? 0
         }

@@ -151,7 +151,7 @@ enum SettingsCopy {
             case .parentReports:
                 return ["Monthly reminder", "Reports"]
             case .orderRequests:
-                return ["Orders", "Office", "Send requests to", "Sign off"]
+                return ["Orders", "Restock", "Office", "Send requests to", "Sign off"]
             case .noteTemplates:
                 return ["Templates", "Observations"]
             case .meetingTemplates:
@@ -188,7 +188,7 @@ enum SettingsCopy {
                 return ["Junk", "Leftovers", "Orphaned records", "Duplicates", "Wasted space", "Clean up"]
             case .notebookStats:
                 return ["Records", "Statistics", "Database", "Counts", "Students", "Lessons", "Presentations",
-                        "Orders", "Album marks", "Stories", "Going-outs", "Supply history"]
+                        "Restock", "Staples", "Album marks", "Stories", "Going-outs", "Staple history"]
             case .testStudents:
                 return ["Show test students", "Debug"]
             }

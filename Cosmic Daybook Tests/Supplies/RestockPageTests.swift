@@ -59,6 +59,21 @@ struct RestockPageTests {
         #expect(digest.cardSubtitle == "Toilet Paper, Glue sticks ×12, Air Dry Clay and 1 more")
     }
 
+    @Test("An order already asked for waits on the office: not counted as needed anywhere")
+    func askedForIsNotNeeded() throws {
+        let context = try seededContext()
+        let charger = try #require(RestockService.openNeeds(in: context).first { $0.title.hasPrefix("Anker") })
+        OrderService.markRequested([charger], from: "office@example.com")
+        #expect(CoreDataTestHelpers.save(context))
+
+        let digest = TodayRestockLoader.digest(in: context)
+        #expect(digest.toOrder.map(\.label) == ["Air Dry Clay"])
+        #expect(digest.headerLine == "3 things: 2 from the office, 1 to order")
+        let counts = RestockService.openNeedCounts(in: context)
+        #expect(counts.officeRun == 2)
+        #expect(counts.toOrder == 1)
+    }
+
     @Test("Nothing needed: no card, and the header says so")
     func emptyDigest() throws {
         let context = try CoreDataTestHelpers.makeContext()

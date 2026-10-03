@@ -150,9 +150,13 @@ final class AppBootstrapper {
         AttendanceDayLocks.migrateStoredLegacyKeysIfNeeded(in: coreDataStack.viewContext)
 
         // Staples kept as counts before Restock's levels (schema 15) get a level
-        // from their count, once, on the guide's devices. On the view context, so
-        // the needs it opens join the classroom share when the batch below saves.
+        // from their count, once, on the Mac only: an iPad that hadn't caught up
+        // with the Mac could set a staple restocked there back to Out. On the view
+        // context, so the needs it opens join the classroom share when the batch
+        // below saves.
+        #if os(macOS)
         RestockLevelBackfill.runIfNeeded(in: coreDataStack.viewContext)
+        #endif
 
         // The front-desk email's settings travel to the assistants in the
         // classroom share (schema 12); this device's may have changed on

@@ -119,7 +119,7 @@ Cosmic Daybook/
 ├── CurriculumMap/    # Three-Year View: per-child grid, class heat map, the shared engine
 ├── GoingOut/         # Going Out planning
 ├── Logs/             # Application logging
-├── Orders/           # Links to request from the office, tracked to received
+├── Orders/           # Restock's needs to order: request email, stages, link titles
 ├── ParentReports/    # Monthly parent reports, guardians, report generator
 ├── Parsha/           # Weekly parsha calendar and lesson tagging
 ├── PerpetualCalendar/# Calendar notes
@@ -129,7 +129,7 @@ Cosmic Daybook/
 ├── Resources/        # Educational resources
 ├── Schedules/        # Schedule management
 ├── Stories/          # Story library: import, analysis, covers
-├── Supplies/         # Supply inventory
+├── Supplies/         # Restock: staples with levels, needs, the one page
 ├── Topics/           # Community topics, solutions, community meetings, and their models
 │
 ├── SchoolYear/       # School-year lens: store, picker, scoping, rollover grades
@@ -171,13 +171,13 @@ Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView/Root
 ```
 NSPersistentCloudKitContainer (CoreDataStack.swift)
 ├── Private store (private.sqlite) — the guide's own records, including the classroom records
-│                                     they share out (73 private-only types + the 7 share types)
-└── Shared store (shared.sqlite)  — the classroom share as accepted from someone else (7 types)
+│                                     they share out (70 private-only types + the 10 share types)
+└── Shared store (shared.sqlite)  — the classroom share as accepted from someone else (10 types)
 ```
 
 ## Data Model
 
-**88 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 14): 73 private-only, 7 in the classroom share, 8 dormant tombstones.
+**88 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones.
 
 **Core Models:**
 
@@ -215,11 +215,11 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 ## Sharing Model
 
 - **Lead Guide** — full read/write on everything; the only role that sets up sharing or locks a day
-- **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day
-- These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all seven share types. "Attendance only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
-- Classroom share (7 types, schema 12): Student, AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings
+- **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, and marks staples, checks off the office run and adds needs (Restock)
+- These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all ten share types. "Attendance and Restock only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
+- Classroom share (10 types, schema 15): Student, AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15)
 - **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit Notes.
-- Everything else is the guide's own (73 types): lessons, tracks, notes, work, todos, projects, meetings, ClassroomMembership, …
+- Everything else is the guide's own (70 types): lessons, tracks, notes, work, todos, projects, meetings, ClassroomMembership, …
 
 ## Siri (App Intents)
 
@@ -227,7 +227,7 @@ Attendance by voice in both apps (`Siri/AttendanceIntents.swift`, `Daybook Assis
 
 - Every mark goes through `SiriAttendance` → `CDAttendanceStore`, the grid's path.
 - Files the Assistant compiles by path reach the app only through `SiriHost` and must build for iOS 18.
-- **Apple allows 10 App Shortcuts per app, and the notebook is at 10;** adding one means merging another. Retired intents stay, with `isDiscoverable = false`, so saved shortcuts keep running.
+- **Apple allows 10 App Shortcuts per app, and the notebook is at 10 (the Assistant at 9);** adding one means merging another. Retired intents stay, with `isDiscoverable = false`, so saved shortcuts keep running.
 - Names reach Siri only through `updateAppShortcutParameters()`.
 
 ## Code Conventions
@@ -308,16 +308,21 @@ A macOS-only server in `Services/MCPServer/` on `127.0.0.1:43117` (token preambl
 - App-level services reach tools through `MCPAppServices`.
 - Keep the MCP and on-device `NotebookTools` semantics aligned. Split reads from writes (`+Work` / `+WorkWrites`) to stay under 400 lines. Inside an `inputSchema` literal a concatenated string needs `.string("…" + "…")`; a tool's `description:` is a plain `String`.
 
-## Orders
+## Restock (Supplies + Orders)
 
-- `Orders/` is the guide's list of things to ask the office to order: a link dropped (or pasted) onto the screen becomes a `CDOrderItem` (private store, schema 7, backup v27), and `LPMetadataProvider` fills in the page title afterwards (`OrderLinkTitleFetcher`, started on the main actor, `@Sendable` completion).
-- **The stage is derived, never stored:** `CDOrderItem.stage` reads received > confirmed > asked for > to request off `receivedAt` / `confirmedAt` / `requestedAt`, so no status column can disagree with the dates. Only an item asked for can be confirmed (`markConfirmed` skips the rest; `update_order_items` refuses). Every change goes through `OrderService`, which mutates and leaves saving to the caller (the screen via `SaveCoordinator`, MCP via `safeSave`). Items asked for in one message share a `requestID`, so the office's confirmation is marked per request. Quantity (1–999, `OrderService.quantityRange`) is set with `OrderQuantityControl`'s −/+ on To Request rows and in the draft sheet, read-only once asked for; the row's taps save on an 800 ms debounce, and the email always states it.
-- Draft Request (`OrderRequestDraftSheet`) builds the email with `OrderRequestMessage` (pure; wording pinned by `OrderServiceTests`), sends through `MailComposerView` / `MacOSMailSender` like the attendance email, and marks the included items asked for when Mail reports it sent — or on the guide's say-so when it can't tell.
-- Who requests go to lives in `OrderRequestPrefs` (`Orders.recipientName` / `recipientEmail` / `signOffName`): synced through `SyncedPreferencesStore` and carried in backups. Edited in Settings › Communication › Order Requests and from the Orders toolbar.
+Plan and history: `Documentation/Implementation/RESTOCK_PLAN.md`. One page, raw section value `supplies` (`.orders` is an alias).
+
+- A **staple** is a `CDSupply` with a level (Stocked / Low / Out) and a source (office / order); a **need** is a `CDOrderItem`. A staple that goes Low or Out has exactly one open need (`supplyID`); a one-off is a need on its own. Supply, SupplyTransaction and OrderItem are in the classroom share (schema 15).
+- **`RestockService` is the only writer** (notebook page, Assistant, Siri, MCP); callers save (`SaveCoordinator` on screen, `AssistantSave` on the phone). Every level change writes a `CDSupplyTransaction` (quantity 0) for History. `reconcile()` folds needs two devices opened at once, keeping the oldest; screens run it on appear and on import, never in a loop.
+- **Counts:** "to order" means not yet asked for. An item asked for waits on the office and isn't counted on the badge, Today's card or the page header.
+- The count → level launch step (`RestockLevelBackfill`) runs on the Mac only; a pre-v37 restore runs it on any device.
+- **The stage is derived, never stored:** `CDOrderItem.stage` reads received > confirmed > asked for > to request off `receivedAt` / `confirmedAt` / `requestedAt`. Office needs go To Request → Received only. Items asked for in one message share a `requestID`. Quantity is 1–999 (`OrderService.quantityRange`).
+- Draft Request (`OrderRequestDraftSheet`) builds the email with `OrderRequestMessage` (wording pinned by `OrderServiceTests`), with links cleaned by `OrderLinkCleaner` (Amazon → `/dp/ASIN`, tracking stripped), and marks the included items asked for when Mail reports it sent. Only the guide sends it.
+- Who requests go to lives in `OrderRequestPrefs`, synced through `SyncedPreferencesStore`, edited in Settings › Communication › Order Requests and from the Restock page.
 
 ## Backup System
 
-Format v36 (encrypted Apple Archive); reads v17–v36; entry point `Backup/Archive/BackupCoordinator.swift`. The design and the detailed working notes (format history, threading, streaming, restore) are in `Documentation/Architecture/BACKUP_SYSTEM.md`. Rules:
+Format v37 (encrypted Apple Archive); reads v17–v37; entry point `Backup/Archive/BackupCoordinator.swift`. The design and the detailed working notes (format history, threading, streaming, restore) are in `Documentation/Architecture/BACKUP_SYSTEM.md`. Rules:
 
 - **A new entity or attribute:** add a line to `Backup/BackupEntityTable.swift` (and a `ModelRowSpec` in `ModelRowKinds.swift` when the row is a straight copy). `BackupCoverageTests` fails until every model entity is backed up or explicitly excluded. Bump the format version and record it in BACKUP_SYSTEM.md.
 - Output is pinned by `BackupGoldenOutputTests` and `BackupSparseRowTests`; re-record only for an intended format change.

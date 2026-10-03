@@ -7,8 +7,8 @@ import OSLog
 
 /// Before schema 15 a staple had only a count, and the count stood in for the
 /// level: the live shelf read Paper Towels 0, Toilet Paper 0, Air Dry Clay 1.
-/// Once per device (per CloudKit environment), on the lead guide's devices
-/// only, every staple whose level was never set gets one from its count: none
+/// Once (per CloudKit environment), on the lead guide's Mac only (the iPad and
+/// iPhone get the levels through sync; `AppBootstrapper` gates the call), every staple whose level was never set gets one from its count: none
 /// left is Out, with its open need on the office run; anything else Stocked.
 ///
 /// Judged staple by staple as well as by the flag. Every level write stamps
