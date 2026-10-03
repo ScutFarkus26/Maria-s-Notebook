@@ -1,154 +1,13 @@
 // AlbumLibrary.swift
-// The content layer. Album stands for one PDF: its outline and lessons (read
-// once by AlbumContents), cover rendering, highlight annotations, and the
-// document itself, opened on use and let go by memory trims. AlbumLibrary
-// owns the set of album folders (security-scoped bookmarks), the full-text
-// page index (built in the background, cached per file modification date),
-// change detection for "Updated" badges, and the semantic index build.
+// The content layer. AlbumLibrary owns the set of album folders
+// (security-scoped bookmarks), the full-text page index (built in the
+// background, cached per file modification date), change detection for
+// "Updated" badges, and the semantic index build. Album, the model for one
+// PDF, is in Album.swift.
 
 import CoreData
 import SwiftUI
 import PDFKit
-
-// PlatformImage comes from Albums/Detail/PrintUtils.swift; PlatformColor from
-// ParentReports/Services/ReportGeneratorService.swift.
-
-// MARK: - Album
-
-@Observable
-final class Album: Identifiable {
-    let id: String            // filename, e.g. "Biology Album.pdf"
-    let url: URL
-    let title: String
-    let subject: AlbumSubject
-    let pageCount: Int
-    let outline: [AlbumOutlineNode]
-    let lessons: [AlbumLessonRef]  // flattened outline in document order
-    /// Content fingerprint, used to recognise this album again after the PDF
-    /// is renamed or moved. Read at load, while the PDF is open for its outline.
-    let fingerprint: String
-    var cover: PlatformImage?
-    var coverRequested = false
-
-    /// The PDF, opened on first use and held until `releaseDocument()`. It is
-    /// what a reader shows and what Find and highlighting fill in with page
-    /// objects and page text, so an album read once used to stay that big.
-    @ObservationIgnored private var heldDocument: PDFDocument?
-    /// The same PDF for as long as anything else still has it, a reader's
-    /// PDFView, so a release never swaps it out from under a reader.
-    @ObservationIgnored private weak var openDocument: PDFDocument?
-
-    init?(url: URL) {
-        // Only values are kept; the PDF closes here and reopens on first use.
-        guard let contents = AlbumContents.read(url: url) else { return nil }
-        self.id = url.lastPathComponent
-        self.url = url
-        self.title = Album.cleanTitle(from: url)
-        self.subject = AlbumSubject.detect(from: title)
-        self.pageCount = contents.pageCount
-        self.outline = contents.outline
-        self.lessons = contents.lessons
-        self.fingerprint = contents.fingerprint
-    }
-
-    static func cleanTitle(from url: URL) -> String {
-        var t = url.deletingPathExtension().lastPathComponent
-            .trimmingCharacters(in: .whitespaces)
-        t = t.replacingOccurrences(of: " Album", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        return t.isEmpty ? url.deletingPathExtension().lastPathComponent : t
-    }
-
-    /// The album's PDF for a reader, an export or a page thumbnail: opened on
-    /// first use and kept until `releaseDocument()`. Nil only when the file
-    /// can no longer be opened (moved or deleted since the library loaded).
-    var document: PDFDocument? {
-        if let heldDocument { return heldDocument }
-        let document = openDocument ?? PDFDocument(url: url)
-        heldDocument = document
-        openDocument = document
-        return document
-    }
-
-    /// Lets go of the PDF, as a memory trim does. It closes once nothing else
-    /// has it (at once for an album no reader is showing) and the next use
-    /// reopens the file; a reader still showing it keeps that same document.
-    func releaseDocument() {
-        heldDocument = nil
-    }
-
-    /// Number of leaf outline entries — a decent proxy for "lessons".
-    var lessonCount: Int {
-        func leaves(_ nodes: [AlbumOutlineNode]) -> Int {
-            nodes.reduce(0) { $0 + (($1.children?.isEmpty ?? true) ? 1 : leaves($1.children!)) }
-        }
-        return leaves(outline)
-    }
-
-    /// The deepest outline entry at or before the given page.
-    func lesson(forPage pageIndex: Int) -> AlbumLessonRef? {
-        lessons.last { $0.pageIndex <= pageIndex }
-    }
-
-    /// The page range covered by the lesson segment containing `pageIndex`
-    /// (from its outline entry to the next outline entry in document order).
-    func lessonRange(forPage pageIndex: Int) -> ClosedRange<Int> {
-        guard let current = lesson(forPage: pageIndex) else { return pageIndex...pageIndex }
-        let next = lessons.first { $0.pageIndex > current.pageIndex }
-        let end = (next?.pageIndex).map { max(current.pageIndex, $0 - 1) } ?? (pageCount - 1)
-        return current.pageIndex...min(end, pageCount - 1)
-    }
-
-    // MARK: CDAlbumHighlight rendering
-
-    /// One annotation we've injected into the open document (never written
-    /// back to the PDF file). Weak: its page owns it, and once the document
-    /// closes there is nothing left to take off.
-    private struct AppliedHighlight {
-        weak var annotation: PDFAnnotation?
-        weak var page: PDFPage?
-    }
-
-    /// The injected annotations, so they can be cleanly replaced.
-    private var appliedHighlightAnnotations: [AppliedHighlight] = []
-
-    func applyHighlights(_ items: [CDAlbumHighlight]) {
-        for entry in appliedHighlightAnnotations {
-            if let annotation = entry.annotation, let page = entry.page {
-                page.removeAnnotation(annotation)
-            }
-        }
-        appliedHighlightAnnotations = []
-        guard let document else { return }
-        for item in items {
-            guard let page = document.page(at: Int(item.pageIndex)) else { continue }
-            for rect in item.rects {
-                let annotation = PDFAnnotation(bounds: rect, forType: .highlight, withProperties: nil)
-                annotation.color = Album.highlightColor(item.colorName).withAlphaComponent(0.45)
-                let local = [CGPoint(x: 0, y: rect.height),
-                             CGPoint(x: rect.width, y: rect.height),
-                             CGPoint(x: 0, y: 0),
-                             CGPoint(x: rect.width, y: 0)]
-                #if os(macOS)
-                annotation.quadrilateralPoints = local.map { NSValue(point: $0) }
-                #else
-                annotation.quadrilateralPoints = local.map { NSValue(cgPoint: $0) }
-                #endif
-                page.addAnnotation(annotation)
-                appliedHighlightAnnotations.append(AppliedHighlight(annotation: annotation, page: page))
-            }
-        }
-    }
-
-    static func highlightColor(_ name: String) -> PlatformColor {
-        switch name {
-        case "green": .systemGreen
-        case "blue": .systemBlue
-        case "pink": .systemPink
-        default: .systemYellow
-        }
-    }
-}
 
 // MARK: - Library
 
@@ -195,7 +54,7 @@ final class AlbumLibrary {
     /// against, folded off the main actor by the first search that needs it.
     let folds = AlbumTextFolds()
     /// Modification date of each album's file at the time it was indexed.
-    private var modDates: [String: Date] = [:]
+    var modDates: [String: Date] = [:]
     /// Set when critical memory pressure purged `pageTexts`. The on-disk index
     /// cache still holds every album's extracted text, so recovering is a JSON
     /// decode rather than a PDF re-extraction — but nothing may search until
@@ -290,7 +149,7 @@ final class AlbumLibrary {
 
     /// Runs `buildIndexes()` as the stored in-flight build, unless one is
     /// already stored.
-    private func startIndexBuild() {
+    func startIndexBuild() {
         guard indexTask == nil else { return }
         indexTask = Task {
             await buildIndexes()
@@ -304,7 +163,7 @@ final class AlbumLibrary {
     @ObservationIgnored private(set) var indexingDemanded = false
 
     /// The energy wait the build is suspended in, if any.
-    @ObservationIgnored private var indexEnergyWait: Task<Void, Never>?
+    @ObservationIgnored var indexEnergyWait: Task<Void, Never>?
 
     /// Marks the index as needed now and releases a build paused for heat.
     func demandIndexing() {
@@ -465,127 +324,6 @@ final class AlbumLibrary {
         }
     }
 
-    // MARK: Text index
-
-    func rebuildIndex() {
-        guard !indexing else { return }
-        indexPurged = false
-        pageTexts = [:]
-        folds.dropAll()
-        if let dir = Self.indexCacheDirectory() {
-            try? FileManager.default.removeItem(at: dir)
-        }
-        startIndexBuild()
-    }
-
-    func buildIndexes(policy: EnergyPolicy = .shared) async {
-        guard !indexing else { return }
-        indexing = true
-        indexProgress = 0
-        indexedPageCount = 0
-        var lastSeen = (UserDefaults.standard.dictionary(forKey: Self.lastSeenKey) as? [String: Double]) ?? [:]
-        var lastSeenChanged = false
-        let items = albums.map { (id: $0.id, url: $0.url, pages: $0.pageCount) }
-        let cacheDir = Self.indexCacheDirectory()
-        for (i, item) in items.enumerated() {
-            // Parsing a PDF is discretionary work, so a hot device or Low Power
-            // Mode pauses between albums rather than abandoning the index.
-            if i > 0 {
-                await pauseIndexingWhileDeferred(policy: policy)
-            }
-            let modified = (try? item.url.resourceValues(forKeys: [.contentModificationDateKey]))?
-                .contentModificationDate ?? .distantPast
-            // Indexing is background maintenance, not something the guide is waiting on:
-            // `.utility` keeps the PDF text extraction off the cores the UI needs.
-            let texts = await Task.detached(priority: .utility) {
-                Self.loadOrBuildIndex(url: item.url, modified: modified, cacheDir: cacheDir)
-            }.value
-            pageTexts[item.id] = texts
-            // Folded on first search; a changed album's fold of its old text goes.
-            if modDates[item.id] != modified { folds.drop(albumID: item.id) }
-            modDates[item.id] = modified
-            if let seen = lastSeen[item.id] {
-                if modified.timeIntervalSinceReferenceDate > seen + 1 {
-                    updatedAlbumIDs.insert(item.id)
-                }
-            } else {
-                // First sighting of this album — record it without a badge.
-                lastSeen[item.id] = modified.timeIntervalSinceReferenceDate
-                lastSeenChanged = true
-            }
-            indexedPageCount += texts.count
-            indexProgress = Double(i + 1) / Double(max(items.count, 1))
-            // Give the main actor a turn between albums so a long shelf does not
-            // monopolise it with the per-album bookkeeping above.
-            await Task.yield()
-        }
-        if lastSeenChanged {
-            UserDefaults.standard.set(lastSeen, forKey: Self.lastSeenKey)
-        }
-        indexing = false
-        indexPurged = false
-        // Embedding every lesson is discretionary work too.
-        await pauseIndexingWhileDeferred(policy: policy)
-        await semantic.build(items: semanticItems())
-    }
-
-    /// Waits while the device is too hot (or in Low Power Mode) to index the
-    /// next album — for as long as that lasts, without polling. It never gives
-    /// up and runs hot on its own; only a caller awaiting the index
-    /// (`ensureIndexed()`, i.e. the guide or a tool asked for it) or
-    /// cancellation ends the wait early. Returns whether it waited (1) or not
-    /// (0); the app ignores it, the tests read it.
-    @discardableResult
-    func pauseIndexingWhileDeferred(policy: EnergyPolicy) async -> Int {
-        guard policy.shouldDeferMaintenance, !indexingDemanded, !Task.isCancelled else { return 0 }
-        let wait = Task { await policy.waitUntilMaintenanceAllowed() }
-        indexEnergyWait = wait
-        await withTaskCancellationHandler {
-            await wait.value
-        } onCancel: {
-            wait.cancel()
-        }
-        indexEnergyWait = nil
-        return 1
-    }
-
-    /// Per-lesson titles and body texts used to build the semantic index.
-    private func semanticItems() -> [AlbumSemanticIndex.BuildItem] {
-        albums.map { album in
-            let texts = pageTexts[album.id] ?? []
-            let bodies = album.lessons.enumerated().map { i, lesson in
-                let end = i + 1 < album.lessons.count
-                    ? max(album.lessons[i + 1].pageIndex, lesson.pageIndex + 1)
-                    : album.pageCount
-                let body = (lesson.pageIndex..<min(end, texts.count))
-                    .map { texts[$0] }
-                    .joined(separator: " ")
-                return lesson.title + ". " + String(body.prefix(700))
-            }
-            return AlbumSemanticIndex.BuildItem(id: album.id, modified: modDates[album.id] ?? .distantPast,
-                                                titles: album.lessons.map(\.title), bodies: bodies)
-        }
-    }
-
-    var indexReady: Bool { !indexing && !indexPurged && !pageTexts.isEmpty }
-
-    func text(albumID: String, pageIndex: Int) -> String? {
-        guard let pages = pageTexts[albumID], pages.indices.contains(pageIndex) else { return nil }
-        return pages[pageIndex]
-    }
-
-    /// Every album's page text with its fold, for a search. An album whose fold
-    /// a load, a trim or a change left missing is folded off the main actor
-    /// (`AlbumTextFolds`), so the first search after one no longer stalls it.
-    func corpus() async -> AlbumSearchCorpus {
-        let albums = self.albums
-        let pages = await folds.pages(for: albums.map { (id: $0.id, texts: pageTexts[$0.id] ?? []) })
-        return AlbumSearchCorpus(albums: zip(albums, pages).map { album, pages in
-            AlbumSearchCorpus.AlbumData(id: album.id, title: album.title, subject: album.subject,
-                                        lessons: album.lessons, texts: pages.texts, folded: pages.folded)
-        })
-    }
-
     // MARK: Covers
 
     func loadCoverIfNeeded(_ album: Album) {
@@ -604,34 +342,12 @@ final class AlbumLibrary {
 
     // MARK: Background helpers
 
-    nonisolated private struct CachedIndex: Codable {
-        let modified: Date
-        let pageTexts: [String]
-    }
-
     nonisolated static func indexCacheDirectory() -> URL? {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory,
                                                   in: .userDomainMask).first else { return nil }
         let dir = base.appendingPathComponent("AlbumSearchIndex", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
-    }
-
-    /// The album's page text, from the cache or the PDF; a search folds it later.
-    nonisolated static func loadOrBuildIndex(url: URL, modified: Date, cacheDir: URL?) -> [String] {
-        let cacheURL = cacheDir?.appendingPathComponent(url.lastPathComponent + ".index.json")
-        if let cacheURL,
-           let data = try? Data(contentsOf: cacheURL),
-           let cached = try? JSONDecoder().decode(CachedIndex.self, from: data),
-           abs(cached.modified.timeIntervalSince(modified)) < 1 {
-            return cached.pageTexts
-        }
-        let texts = AlbumPageTextReader.pageTexts(url: url)
-        if let cacheURL,
-           let data = try? JSONEncoder().encode(CachedIndex(modified: modified, pageTexts: texts)) {
-            try? data.write(to: cacheURL)
-        }
-        return texts
     }
 
     /// Normalizes extracted PDF text for display and searching:
