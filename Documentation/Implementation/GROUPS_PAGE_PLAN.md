@@ -94,5 +94,5 @@ None blocking. Danny can overturn defaults 1–7 at any time.
 - [x] Phase 2: ReadyQueueLoader + Groups page + Today link + nav title (8d5799c1..78b29856; 79 tests green)
 - [x] Phase 3: Sequence ladder view (53247700)
 - [x] Phase 4: old planner deleted, docs updated (d5c4a492)
-- [ ] Phase 5: builds, full suite, sim checks
-- [ ] Squash to main (close-out), memory updated
+- [x] Phase 5: builds and suites (full iOS suite 2,372/2,372; final branch iOS + Mac builds, 14 touched suites green). Sim checks not done (simulator service hung): `GROUPS_SIM_CHECK_PLAN.md`
+- [x] Squash to main (close-out), memory updated: 158c2bce, 2026-10-03
