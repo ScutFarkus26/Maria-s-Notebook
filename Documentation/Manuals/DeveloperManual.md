@@ -1599,8 +1599,6 @@ Cosmic Daybook/
 +-- Planning/                            Scheduling and curriculum
 |   +-- AIPlanning/LessonPlanning/        AI planning service and state
 |   +-- Services/                         Next-lesson planning
-+-- Inbox/                               Follow-up management
-|   +-- Services/                         Follow-up categorization
 +-- Today/                               Daily hub
 |   +-- Views/                            Today screen and sections
 |   +-- ViewModels/TodayViewModel.swift   Today hub state

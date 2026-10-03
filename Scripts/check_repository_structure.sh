@@ -24,7 +24,13 @@ for path in \
     "Cosmic Daybook/Components/Observations" \
     "Cosmic Daybook/Components/UnifiedNoteEditor" \
     "docs" \
-    "Cosmic Daybook/Docs"
+    "Cosmic Daybook/Docs" \
+    "Cosmic Daybook/ViewModels" \
+    "Cosmic Daybook/Components/Checklist" \
+    "Cosmic Daybook/Inbox" \
+    "Cosmic Daybook/Community" \
+    "Cosmic Daybook/Agenda" \
+    "Cosmic Daybook/Progression"
 do
     if [ -e "$path" ]; then
         fail "legacy path still exists: $path"

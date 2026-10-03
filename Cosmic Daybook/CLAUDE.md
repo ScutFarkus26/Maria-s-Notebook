@@ -107,18 +107,15 @@ Cosmic Daybook/
 ├── Planning/         # Planning tools and AI lesson planning
 ├── SmallSequencePlanner/ # Small-group planning by area and sequence
 ├── CommandBar/       # Command bar: Views/, ViewModels/, Services/ (parsing, capture)
-├── Inbox/            # Inbox-status section of the presentation detail
 ├── Today/            # Daily hub views, view model, and support
 ├── Todos/            # Todo models, screens, forms, and support
 ├── Notes/            # Observation browsing, editing, and quick capture
 ├── ObservationMode/  # Developmental traits and observation quick tags
 │
-├── Agenda/           # Calendar day/month grid views
 ├── Albums/           # Teaching-album PDFs: Library/, Search/, Detail/, LessonLinks/
 ├── BookClub/         # Book club packets, sessions, and meetings
 ├── Chat/             # AI chat features
 ├── ClassroomJobs/    # Classroom jobs and job assignments
-├── Community/        # Community meetings view
 ├── CurriculumMap/    # Three-Year View: per-child grid, class heat map, the shared engine
 ├── GoingOut/         # Going Out planning
 ├── Logs/             # Application logging
@@ -128,13 +125,12 @@ Cosmic Daybook/
 ├── PerpetualCalendar/# Calendar notes
 ├── Procedures/       # Procedure documentation
 ├── ProgressDashboard/# Class progress dashboard and sequence detail
-├── Progression/      # Progression value types
 ├── Projects/         # Project management & sessions
 ├── Resources/        # Educational resources
 ├── Schedules/        # Schedule management
 ├── Stories/          # Story library: import, analysis, covers
 ├── Supplies/         # Supply inventory
-├── Topics/           # Community topics, solutions, and their models
+├── Topics/           # Community topics, solutions, community meetings, and their models
 │
 ├── SchoolYear/       # School-year lens: store, picker, scoping, rollover grades
 ├── Sharing/          # CloudKit sharing (classroom collaboration)
