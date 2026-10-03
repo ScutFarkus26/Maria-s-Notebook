@@ -66,6 +66,9 @@ nonisolated public struct ModelField: Sendable {
     /// The export writes a made-up value when the attribute is nil: a new id,
     /// the current time, or an empty list.
     let filled: Bool
+    /// Added after the type's first format: a row without it leaves the
+    /// record's value alone instead of clearing it.
+    let keptWhenMissing: Bool
 }
 
 /// How the restore re-links a row to its parent.
@@ -111,12 +114,17 @@ nonisolated public struct ModelRowSpec: Sendable {
     /// - Parameters:
     ///   - filling: optional attributes the export fills when nil.
     ///   - omitting: attributes never backed up (device-local blobs).
+    ///   - addedLater: non-optional attributes added after the type's first
+    ///     format. An older backup's rows lack them, so they aren't required,
+    ///     and the restore leaves the record's value as it is (a new record's
+    ///     is the model's default).
     ///   - parentIDs: key → to-one relationship whose parent's id is written under the key.
     ///   - parents: how the restore re-links each parent.
     init(
         _ entityName: String,
         filling: Set<String> = [],
         omitting: Set<String> = [],
+        addedLater: Set<String> = [],
         parentIDs: [String: String] = [:],
         parents: [ParentLink] = [],
         dropsRecordsWithoutID: Bool = false
@@ -126,17 +134,20 @@ nonisolated public struct ModelRowSpec: Sendable {
         }
         var fields: [ModelField] = attributes.compactMap { attribute in
             guard attribute.name != "id", !omitting.contains(attribute.name) else { return nil }
+            let isLater = addedLater.contains(attribute.name)
             return ModelField(
                 key: attribute.name,
                 kind: Self.kind(of: attribute.type, entity: entityName, name: attribute.name),
                 source: .attribute,
-                required: !attribute.isOptional || filling.contains(attribute.name),
-                filled: filling.contains(attribute.name)
+                required: (!attribute.isOptional || filling.contains(attribute.name)) && !isLater,
+                filled: filling.contains(attribute.name),
+                keptWhenMissing: isLater
             )
         }
         for (key, relationship) in parentIDs.sorted(by: { $0.key < $1.key }) {
             fields.append(ModelField(
-                key: key, kind: .uuid, source: .parentID(relationship: relationship), required: false, filled: false
+                key: key, kind: .uuid, source: .parentID(relationship: relationship), required: false, filled: false,
+                keptWhenMissing: false
             ))
         }
         self.entityName = entityName

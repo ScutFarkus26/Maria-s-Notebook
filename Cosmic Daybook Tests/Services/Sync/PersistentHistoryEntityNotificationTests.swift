@@ -57,6 +57,13 @@ struct PersistentHistoryEntityNotificationTests {
         #expect(both.schoolDay && both.presentation)
     }
 
+    @Test("Restock's page and the Assistant's shelf hear about another device's changes")
+    func restockEntitiesAreWatched() {
+        let restock: Set<String> = ["Supply", "SupplyTransaction", "OrderItem"]
+        #expect(restock.isSubset(of: PersistentHistoryProcessor.presentationEntityNames))
+        #expect(restock.isSubset(of: CoreDataStack.sharedEntityNames))
+    }
+
     @Test("The watched entity names exist in the model")
     func watchedNamesExistInTheModel() throws {
         let model = try CoreDataTestHelpers.makeInMemoryStack().container.managedObjectModel

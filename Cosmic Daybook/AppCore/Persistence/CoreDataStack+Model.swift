@@ -56,7 +56,7 @@ extension CoreDataStack {
     // MARK: - Entity Routing
 
     /// Entities in the classroom share: exactly what the Daybook Assistant
-    /// needs to take attendance, and nothing else.
+    /// needs to take attendance and keep the room stocked, and nothing else.
     ///
     /// Everything in this list lives in both configurations (see
     /// `assignEntitiesToConfigurations`), so it can sit in the lead guide's
@@ -67,9 +67,11 @@ extension CoreDataStack {
     /// It used to hold 33 types, and the Student ↔ StudentTrackEnrollment
     /// relationship pulled tracks, steps, lessons and other students into any
     /// share a student joined. Since schema 9 the relationship is gone
-    /// (enrollments name their student by `studentID`) and the list was five;
-    /// schema 12 added the two front-desk email types. Everything else is the
-    /// guide's own.
+    /// (enrollments name their student by `studentID`) and the list was five
+    /// (Supply and SupplyTransaction were among the 33, and left it then);
+    /// schema 12 added the two front-desk email types, and schema 15 brought
+    /// the supplies back with the order list, as Restock. Everything else is
+    /// the guide's own.
     nonisolated static let sharedEntityNames: Set<String> = [
         "Student",
         // The assistant writes attendance, so it lives in the share. Its former
@@ -85,7 +87,13 @@ extension CoreDataStack {
         // so whoever took the roll sees it went, and the guide's recipients
         // and format, so an assistant's email reads like the guide's.
         "AttendanceEmailSend",
-        "AttendanceEmailSettings"
+        "AttendanceEmailSettings",
+        // Restock (schema 15): staples and their history, and the needs on the
+        // office run and the to-order list, which assistants mark and add to.
+        // A staple's history is a real relationship, so the two travel together.
+        "Supply",
+        "SupplyTransaction",
+        "OrderItem"
     ]
 
     /// Entities stored in the private (per-teacher) store and never shared.
@@ -100,8 +108,6 @@ extension CoreDataStack {
         "SequenceTrack",
         "StudentTrackEnrollment",
         "Procedure",
-        "Supply",
-        "SupplyTransaction",
         "Schedule",
         "ScheduleSlot",
         "CommunityTopic",
@@ -167,8 +173,7 @@ extension CoreDataStack {
         "AlbumRecentVisit",
         "AlbumReadingPosition",
         "AlbumHighlight",
-        "AlbumPageInk",
-        "OrderItem"
+        "AlbumPageInk"
     ]
 
     /// Entities left in the model on purpose, belonging to no store.

@@ -517,14 +517,13 @@ final class BackupFieldCoverageTests {
         ),
         FieldSpec(
             "Supply",
-            // Importer parses categoryRaw via SupplyCategory(rawValue:).
-            overrides: ["categoryRaw": "Math"],
+            // Importer parses categoryRaw via SupplyCategory(rawValue:), and the
+            // level and source through RestockLevel / RestockSource.
+            overrides: ["categoryRaw": "Math", "levelRaw": "low", "sourceRaw": "order"],
             skips: [
                 // Orphaned schema: these exist in the .xcdatamodel but have no
                 // @NSManaged accessor and no app usage — there is no data to back up.
                 "isOnOrder": "orphaned schema: no @NSManaged accessor, no app usage",
-                "unit": "orphaned schema: no @NSManaged accessor, no app usage",
-                "minimumThreshold": "orphaned schema: no @NSManaged accessor, no app usage",
                 "orderedQuantity": "orphaned schema: no @NSManaged accessor, no app usage",
                 "reorderAmount": "orphaned schema: no @NSManaged accessor, no app usage",
                 "orderDate": "orphaned schema: no @NSManaged accessor, no app usage"

@@ -95,7 +95,16 @@ extension CoreDataStack {
     ///   Class returns them to present or late, whichever they were, keeping
     ///   the arrival and the trip. Additive optional attributes on the shared
     ///   entity.
-    nonisolated static let currentSchemaVersion = 14
+    /// - `15` — Restock. `Supply`, `SupplyTransaction` and `OrderItem` move into
+    ///   the classroom share (configuration only: the digest alone wouldn't
+    ///   move, and an older build opening the shared store would drop their
+    ///   new tables). `Supply.levelRaw`, `sourceRaw`, `urlString` and
+    ///   `levelChangedAt` / `ByID` / `ByName`: a staple's level (Stocked, Low,
+    ///   Out), where it comes from, its product link and who set it.
+    ///   `OrderItem.sourceRaw`, `supplyID`, `addedByID` / `addedByName`: a need
+    ///   from the office or to order, the staple it restocks, who added it.
+    ///   Additive attributes, each optional or with a default.
+    nonisolated static let currentSchemaVersion = 15
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

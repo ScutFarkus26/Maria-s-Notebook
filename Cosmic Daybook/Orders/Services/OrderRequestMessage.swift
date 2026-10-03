@@ -47,10 +47,12 @@ struct OrderRequestLine: Equatable, Sendable {
         self.notes = notes
     }
 
+    /// The item as the email prints it: its link trimmed to the product page
+    /// and its title cut to a name (`OrderLinkCleaner`), however they were stored.
     init(_ item: CDOrderItem) {
         self.init(
-            title: item.displayTitle,
-            link: item.urlString,
+            title: OrderLinkCleaner.shortTitle(item.displayTitle),
+            link: OrderLinkCleaner.clean(item.urlString),
             quantity: Int(item.quantity),
             notes: item.notes
         )

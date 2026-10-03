@@ -20,10 +20,12 @@ final class Phase5PostTests {
         }
     }
 
-    @Test("Assistant writes attendance and nothing else")
+    @Test("Assistant writes attendance and Restock, and nothing else")
     func assistantLimitedWrite() {
         let allEntities = CoreDataStack.sharedEntityNames.union(CoreDataStack.privateEntityNames)
-        let allowed: Set<String> = ["AttendanceRecord", "AttendanceEmailSend"]
+        let allowed: Set<String> = [
+            "AttendanceRecord", "AttendanceEmailSend", "Supply", "SupplyTransaction", "OrderItem"
+        ]
         for entity in allEntities {
             #expect(
                 ClassroomPermissions.canWrite(entityName: entity, role: .assistant) == allowed.contains(entity),

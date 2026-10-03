@@ -101,6 +101,16 @@ nonisolated public struct SupplyDTO: Codable, Sendable {
     public var notes: String
     public var createdAt: Date
     public var modifiedAt: Date
+    // Restock (format v37+); absent in older backups, whose staples keep the
+    // model's defaults and get levels from their counts after the restore.
+    public var minimumThreshold: Int?
+    public var unit: String?
+    public var levelRaw: String?
+    public var sourceRaw: String?
+    public var urlString: String?
+    public var levelChangedAt: Date?
+    public var levelChangedByID: String?
+    public var levelChangedByName: String?
 }
 
 // MARK: - CDDocument DTO

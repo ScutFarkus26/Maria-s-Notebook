@@ -12,7 +12,8 @@ extension BackupEntityImporter {
 
     /// Restores `ModelRow` records the way their hand-written importers did:
     /// the record with the row's `id` (`existing`), or a new one, gets every
-    /// attribute the row's spec lists, nil for an optional key the row lacks;
+    /// attribute the row's spec lists, nil for an optional key the row lacks
+    /// (an attribute added later, which an older row lacks, is left as it is);
     /// then each of the spec's parents is re-linked through `parents`, keyed by
     /// relationship name.
     static func importRows<Kind: ModelRowKind, Entity: NSManagedObject>(
@@ -28,7 +29,9 @@ extension BackupEntityImporter {
             object.setValue(row.id, forKey: "id")
             for field in spec.fields {
                 guard case .attribute = field.source else { continue }
-                object.setValue(row.values[field.key]?.storedValue, forKey: field.key)
+                let value = row.values[field.key]
+                if value == nil, field.keptWhenMissing { continue }
+                object.setValue(value?.storedValue, forKey: field.key)
             }
             for link in spec.parents {
                 guard let lookup = parents[link.relationship] else {

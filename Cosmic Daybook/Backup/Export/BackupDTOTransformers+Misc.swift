@@ -123,7 +123,15 @@ extension BackupDTOTransformers {
             currentQuantity: Int(s.currentQuantity),
             notes: s.notes,
             createdAt: s.createdAt ?? Date(),
-            modifiedAt: s.modifiedAt ?? Date()
+            modifiedAt: s.modifiedAt ?? Date(),
+            minimumThreshold: Int(s.minimumThreshold),
+            unit: s.unit,
+            levelRaw: s.levelRaw,
+            sourceRaw: s.sourceRaw,
+            urlString: s.urlString,
+            levelChangedAt: s.levelChangedAt,
+            levelChangedByID: s.levelChangedByID,
+            levelChangedByName: s.levelChangedByName
         )
     }
 

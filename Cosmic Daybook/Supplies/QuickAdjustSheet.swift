@@ -93,13 +93,7 @@ struct QuickAdjustSheet: View {
     }
 
     private func saveAdjustment() {
-        switch adjustmentType {
-        case .add:
-            SupplyService.addStock(to: supply, amount: adjustmentAmount, in: viewContext)
-        case .remove:
-            SupplyService.removeStock(from: supply, amount: adjustmentAmount, in: viewContext)
-        case .set:
-            SupplyService.updateQuantity(for: supply, newQuantity: adjustmentAmount, in: viewContext)
-        }
+        RestockService.setCount(supply, to: newTotal, in: viewContext)
+        viewContext.safeSave()
     }
 }

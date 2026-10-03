@@ -246,8 +246,8 @@
       "{\"id\":\"<new id>\",\"noteID\":\"\",\"studentID\":\"\"}"
     ],
     "OrderItem" : [
-      "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000013\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"quantity\":1,\"requestedFrom\":\"\",\"title\":\"\",\"urlString\":\"\"}",
-      "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"quantity\":1,\"requestedFrom\":\"\",\"title\":\"\",\"urlString\":\"\"}"
+      "{\"addedByName\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000013\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"quantity\":1,\"requestedFrom\":\"\",\"sourceRaw\":\"order\",\"title\":\"\",\"urlString\":\"\"}",
+      "{\"addedByName\":\"\",\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"modifiedAt\":\"<now>\",\"notes\":\"\",\"quantity\":1,\"requestedFrom\":\"\",\"sourceRaw\":\"order\",\"title\":\"\",\"urlString\":\"\"}"
     ],
     "ParentCommunication" : [
       "{\"aiGenerated\":false,\"attachPDF\":false,\"body\":\"\",\"communicationTypeRaw\":\"custom\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-00000000000E\",\"includeStudentReflection\":false,\"includedItemRefs\":\"\",\"notes\":\"\",\"recipientsSnapshot\":\"\",\"statusRaw\":\"draft\",\"studentID\":\"\",\"subject\":\"\",\"templateName\":\"\"}",

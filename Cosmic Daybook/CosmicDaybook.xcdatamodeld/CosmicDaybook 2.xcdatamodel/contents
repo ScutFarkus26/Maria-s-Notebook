@@ -473,6 +473,12 @@
         <attribute name="isOnOrder" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="orderedQuantity" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="orderDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="levelRaw" attributeType="String" defaultValueString="stocked"/>
+        <attribute name="sourceRaw" attributeType="String" defaultValueString="office"/>
+        <attribute name="urlString" attributeType="String" defaultValueString=""/>
+        <attribute name="levelChangedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="levelChangedByID" optional="YES" attributeType="String"/>
+        <attribute name="levelChangedByName" attributeType="String" defaultValueString=""/>
         <relationship name="transactions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SupplyTransaction" inverseName="supply" inverseEntity="SupplyTransaction"/>
     </entity>
     <!-- ==================== SupplyTransaction ==================== -->
@@ -1331,5 +1337,9 @@
         <attribute name="receivedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sourceRaw" attributeType="String" defaultValueString="order"/>
+        <attribute name="supplyID" optional="YES" attributeType="String"/>
+        <attribute name="addedByID" optional="YES" attributeType="String"/>
+        <attribute name="addedByName" attributeType="String" defaultValueString=""/>
     </entity>
 </model>

@@ -89,7 +89,8 @@ struct SupplyDetailView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
-                    SupplyService.deleteSupply(supply, in: viewContext)
+                    RestockService.deleteStaple(supply, in: viewContext)
+                    viewContext.safeSave()
                     dismiss()
                 }
             } message: {

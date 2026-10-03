@@ -30,6 +30,27 @@ struct AssistantSplitStoreTests {
         return try #require(stores.first { $0.configurationName == configuration })
     }
 
+    @Test("The shared store holds Restock's staples, their history and the needs (schema 15)")
+    func sharedStoreTakesRestock() throws {
+        let model = try CoreDataStack.sharedModel()
+        let shared = Set(
+            (model.entities(forConfigurationName: CoreDataStack.sharedConfiguration) ?? []).compactMap(\.name)
+        )
+        #expect(["Supply", "SupplyTransaction", "OrderItem"].allSatisfy(shared.contains))
+        let context = try splitContext()
+        let sharedStore = try store(CoreDataStack.sharedConfiguration, in: context)
+        let staple = NSEntityDescription.insertNewObject(forEntityName: "Supply", into: context)
+        staple.setValue(UUID(), forKey: "id")
+        let history = NSEntityDescription.insertNewObject(forEntityName: "SupplyTransaction", into: context)
+        history.setValue(UUID(), forKey: "id")
+        history.setValue(staple, forKey: "supply")
+        let need = NSEntityDescription.insertNewObject(forEntityName: "OrderItem", into: context)
+        need.setValue(UUID(), forKey: "id")
+        for row in [staple, history, need] { context.assign(row, to: sharedStore) }
+        #expect(context.safeSave())
+        #expect([staple, history, need].allSatisfy { $0.objectID.persistentStore == sharedStore })
+    }
+
     @Test("Only the classroom share's children are on the roll, and every mark goes to the shared store")
     func classroomOnly() throws {
         let context = try splitContext()

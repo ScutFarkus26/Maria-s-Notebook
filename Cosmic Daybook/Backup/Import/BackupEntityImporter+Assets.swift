@@ -50,6 +50,18 @@ extension BackupEntityImporter {
             s.notes = dto.notes
             s.createdAt = dto.createdAt
             s.modifiedAt = dto.modifiedAt
+            // Restock (v37+). An older row has none of these: a new staple keeps
+            // the defaults, and one already here keeps what it has.
+            if let threshold = dto.minimumThreshold { s.minimumThreshold = Int64(threshold) }
+            if let unit = dto.unit { s.unit = unit }
+            if let level = dto.levelRaw { s.level = RestockLevel(rawValue: level) ?? .stocked }
+            if let source = dto.sourceRaw { s.source = RestockSource(rawValue: source) ?? .office }
+            if let link = dto.urlString { s.urlString = link }
+            if dto.levelRaw != nil {
+                s.levelChangedAt = dto.levelChangedAt
+                s.levelChangedByID = dto.levelChangedByID
+                s.levelChangedByName = dto.levelChangedByName ?? ""
+            }
             return s
         })
     }

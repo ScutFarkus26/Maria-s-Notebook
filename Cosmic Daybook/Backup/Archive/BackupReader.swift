@@ -66,8 +66,9 @@ nonisolated public enum BackupReader {
     /// on attendance entries; v33 `leftAt` on attendance entries; v34 the
     /// front-desk attendance emails and their settings; v35 `leavesAt` on
     /// attendance entries; v36 `returnedAt` and `statusBeforeLeavingRaw` on
-    /// attendance entries.
-    public static let supportedFormatVersions: ClosedRange<Int> = 17...36
+    /// attendance entries; v37 Restock's levels, sources and who-and-when on
+    /// supplies and order items.
+    public static let supportedFormatVersions: ClosedRange<Int> = 17...37
 
     // MARK: - Public API
 

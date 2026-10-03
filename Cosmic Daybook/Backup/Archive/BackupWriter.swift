@@ -87,7 +87,13 @@ nonisolated public enum BackupWriter {
     /// - v36: `AttendanceRecord` entries carry `returnedAt` and
     ///   `statusBeforeLeavingRaw`, a child who left early and came back
     ///   (schema 14). Purely additive.
-    public static let formatVersion: Int = 36
+    /// - v37: Restock (schema 15). `Supply` entries carry their level, source,
+    ///   product link, who set the level and when, and the dormant
+    ///   `minimumThreshold` and `unit`; `OrderItem` entries their source, staple
+    ///   (`supplyID`) and who added them. All three Restock types move under
+    ///   `shared/`, as the classroom share now holds them; restore goes by the
+    ///   entity name, so older backups' `private/` entries still restore.
+    public static let formatVersion: Int = 37
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

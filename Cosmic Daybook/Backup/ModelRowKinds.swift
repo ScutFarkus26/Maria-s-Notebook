@@ -219,10 +219,13 @@ public enum AttendanceEmailSettingsBackupRow: ModelRowKind {
 
 public typealias OrderItemDTO = ModelRow<OrderItemBackupRow>
 
+/// A need on the Restock lists. Schema 15's source and adder (format v37)
+/// aren't in older backups: their items stay orders, added by nobody named.
 public enum OrderItemBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec(
         "OrderItem",
-        filling: ["createdAt", "modifiedAt"]
+        filling: ["createdAt", "modifiedAt"],
+        addedLater: ["sourceRaw", "addedByName"]
     )
 }
 

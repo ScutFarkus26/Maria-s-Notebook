@@ -1,12 +1,12 @@
 // OrderService.swift
-// Every change to an order item: adding links, and moving items through
-// asked for → confirmed → received. Callers save; the screen goes through
-// SaveCoordinator and the MCP tools through safeSave.
+// Adding links, and moving items through asked for → confirmed → received.
+// Restock reaches these through RestockService. Callers save; the screen goes
+// through SaveCoordinator and the MCP tools through safeSave.
 
 import Foundation
 import CoreData
 
-enum OrderService {
+nonisolated enum OrderService {
 
     /// How many of one thing a request can ask for.
     static let quantityRange = 1...999
@@ -35,9 +35,10 @@ enum OrderService {
         return !(url.host() ?? "").isEmpty
     }
 
-    /// Adds one item per new web link. A link already waiting in the list (not yet
-    /// received) is not added twice — dropping the same page again is almost always
-    /// a slip, and the quantity field is where "two of these" belongs.
+    /// Adds one item per new web link, cleaned (`OrderLinkCleaner`). A link already
+    /// waiting in the list (not yet received) is not added twice — dropping the same
+    /// page again is almost always a slip, and the quantity field is where "two of
+    /// these" belongs. Links compare cleaned, so a tracked copy matches a bare one.
     /// - Returns: the items created, in the order given.
     @discardableResult
     static func addLinks(
@@ -47,14 +48,15 @@ enum OrderService {
         notes: String = "",
         in context: NSManagedObjectContext
     ) -> [CDOrderItem] {
-        var waiting = Set(openItems(in: context).map { normalized($0.urlString) })
+        var waiting = Set(openItems(in: context).map { normalized(OrderLinkCleaner.clean($0.urlString)) })
         var created: [CDOrderItem] = []
         for url in urls where isWebURL(url) {
-            let key = normalized(url.absoluteString)
+            let link = OrderLinkCleaner.clean(url.absoluteString)
+            let key = normalized(link)
             guard !waiting.contains(key) else { continue }
             waiting.insert(key)
             let item = CDOrderItem(context: context)
-            item.urlString = url.absoluteString
+            item.urlString = link
             item.title = title?.trimmed() ?? ""
             item.quantity = clampedQuantity(quantity)
             item.notes = notes.trimmed()
@@ -81,13 +83,14 @@ enum OrderService {
 
     /// Marks items as asked for in one request. They share a request id so the
     /// office's confirmation can later be marked against the whole message.
+    /// Needs from the office are fetched, never asked for: they are left out.
     static func markRequested(
         _ items: [CDOrderItem],
         from recipient: String,
         at date: Date = Date()
     ) {
         let requestID = UUID().uuidString
-        for item in items {
+        for item in items where item.source == .order {
             item.requestID = requestID
             item.requestedFrom = recipient.trimmed()
             item.requestedAt = date
@@ -145,7 +148,8 @@ enum OrderService {
         at date: Date = Date()
     ) {
         item.title = title.trimmed()
-        item.urlString = webURL(from: urlString)?.absoluteString ?? urlString.trimmed()
+        item.urlString = webURL(from: urlString).map { OrderLinkCleaner.clean($0.absoluteString) }
+            ?? urlString.trimmed()
         item.notes = notes.trimmed()
         item.modifiedAt = date
         setQuantity(item, to: quantity, at: date)
@@ -190,7 +194,7 @@ enum OrderService {
 }
 
 /// The items one request asked for, drawn as one block in the Asked For list.
-struct OrderRequestGroup: Identifiable {
+nonisolated struct OrderRequestGroup: Identifiable {
     let id: String
     let requestedAt: Date?
     let requestedFrom: String

@@ -270,7 +270,8 @@ stalls or reports a design question comes back to the build session, never to a 
 - A Restock widget.
 
 ## Status
-- [ ] Phase 1: data layer (schema 15, backup v37, RestockService)
+- [x] Phase 1: data layer (schema 15, backup v37, RestockService). Not wired here: `reconcile()` after imports and on
+  appear is for the pages (2A/2B). Unchecked until a real share: a new staple's history attaching beside its staple.
 - [ ] Phase 2A: notebook Restock page, Today card, navigation
 - [ ] Phase 2B: Assistant Restock tab and Siri
 - [ ] Phase 2C: MCP

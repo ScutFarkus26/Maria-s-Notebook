@@ -149,6 +149,11 @@ final class AppBootstrapper {
         // records (schema 9); carry this device's old ones over, once.
         AttendanceDayLocks.migrateStoredLegacyKeysIfNeeded(in: coreDataStack.viewContext)
 
+        // Staples kept as counts before Restock's levels (schema 15) get a level
+        // from their count, once, on the guide's devices. On the view context, so
+        // the needs it opens join the classroom share when the batch below saves.
+        RestockLevelBackfill.runIfNeeded(in: coreDataStack.viewContext)
+
         // The front-desk email's settings travel to the assistants in the
         // classroom share (schema 12); this device's may have changed on
         // another of the guide's devices since the last launch.

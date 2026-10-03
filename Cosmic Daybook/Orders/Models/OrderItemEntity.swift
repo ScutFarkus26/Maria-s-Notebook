@@ -1,16 +1,19 @@
 // OrderItemEntity.swift
-// Core Data entity for one thing the guide wants the office to order (private store).
+// Core Data entity for one need on the Restock lists (classroom share, schema 15).
 
 import Foundation
 import CoreData
 
-/// One link the guide dropped into Orders, followed from "to request" through
-/// "received".
+/// One need: something to fetch from the office or to order, followed from
+/// "to request" through "received". A one-off stands alone; a staple's need
+/// points back at its staple by `supplyID`.
 ///
 /// The stage is not stored. It is read off the three dates — received beats
 /// confirmed beats asked for — so there is no status column that could
 /// disagree with them, and each date merges on its own when two devices edit
-/// the same item. Every change goes through `OrderService`.
+/// the same item. A need from the office goes only To Request → Received.
+/// Every change goes through `RestockService` (the stage moves through
+/// `OrderService`).
 @objc(CDOrderItem)
 nonisolated public class CDOrderItem: NSManagedObject {
     // MARK: - Core Data Properties
@@ -29,8 +32,24 @@ nonisolated public class CDOrderItem: NSManagedObject {
     @NSManaged public var receivedAt: Date?
     @NSManaged public var createdAt: Date?
     @NSManaged public var modifiedAt: Date?
+    /// A `RestockSource` raw value; every item from before schema 15 is an order.
+    @NSManaged public var sourceRaw: String
+    /// The staple this need restocks (its `id`); nil for a one-off.
+    @NSManaged public var supplyID: String?
+    /// Who added it: the CloudKit record name, and an assistant's name (the
+    /// guide's carry none).
+    @NSManaged public var addedByID: String?
+    @NSManaged public var addedByName: String
 
     // MARK: - Computed Properties
+
+    var source: RestockSource {
+        get { RestockSource(rawValue: sourceRaw) ?? .order }
+        set { sourceRaw = newValue.rawValue }
+    }
+
+    /// A staple's need, rather than a one-off.
+    var isStapleNeed: Bool { !(supplyID ?? "").isEmpty }
 
     var stage: OrderStage {
         if receivedAt != nil { return .received }
@@ -84,13 +103,15 @@ nonisolated public class CDOrderItem: NSManagedObject {
         self.notes = ""
         self.requestID = nil
         self.requestedFrom = ""
+        self.sourceRaw = RestockSource.order.rawValue
+        self.addedByName = ""
         self.createdAt = Date()
         self.modifiedAt = Date()
     }
 }
 
 /// Where an order stands. Derived from `CDOrderItem`'s dates, never stored.
-enum OrderStage: String, CaseIterable, Identifiable, Sendable {
+nonisolated enum OrderStage: String, CaseIterable, Identifiable, Sendable {
     case toRequest
     case requested
     case confirmed

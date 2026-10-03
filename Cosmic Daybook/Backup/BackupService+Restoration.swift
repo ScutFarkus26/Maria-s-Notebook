@@ -152,6 +152,9 @@ extension BackupService {
         AttendanceDayLocks.carryOverRestoredLocks(
             source.preferences, formatVersion: source.envelope.formatVersion, into: viewContext
         )
+        // A backup from before Restock's levels (v36 and older) brings staples
+        // back with counts only; they get levels from them, as at launch.
+        RestockLevelBackfill.afterRestore(formatVersion: source.envelope.formatVersion, in: viewContext)
         AlbumLibrary.shared.reloadAfterRestore()
         appRouter.signalAppDataDidRestore()
 

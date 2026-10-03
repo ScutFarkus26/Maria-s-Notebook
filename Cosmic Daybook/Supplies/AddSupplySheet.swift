@@ -167,16 +167,12 @@ struct AddSupplySheet: View {
     // MARK: - Actions
 
     private func addSupply() {
-        _ = SupplyService.createSupply(
-            SupplyService.SupplyDraft(
-                name: name.trimmed(),
-                category: category,
-                location: location.trimmed(),
-                currentQuantity: currentQuantity,
-                notes: notes.trimmed()
-            ),
-            in: viewContext
-        )
+        let details = RestockService.StapleDetails(name: name, place: location, note: notes)
+        if let added = RestockService.addStaple(details, by: .current(in: viewContext), in: viewContext), added.isNew {
+            added.object.category = category
+            RestockService.setCount(added.object, to: currentQuantity, in: viewContext)
+        }
+        viewContext.safeSave()
         dismiss()
     }
 }

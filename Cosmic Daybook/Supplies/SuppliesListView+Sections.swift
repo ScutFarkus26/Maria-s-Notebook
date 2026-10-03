@@ -86,7 +86,8 @@ extension SuppliesListView {
                     Divider()
 
                     Button(role: .destructive) {
-                        SupplyService.deleteSupply(supply, in: viewContext)
+                        RestockService.deleteStaple(supply, in: viewContext)
+                        viewContext.safeSave()
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
@@ -142,10 +143,7 @@ extension SuppliesListView {
     // MARK: - Actions
 
     func handleQuickAdjust(supply: CDSupply, adjustment: Int) {
-        if adjustment > 0 {
-            SupplyService.addStock(to: supply, amount: adjustment, in: viewContext)
-        } else {
-            SupplyService.removeStock(from: supply, amount: abs(adjustment), in: viewContext)
-        }
+        RestockService.setCount(supply, to: Int(supply.currentQuantity) + adjustment, in: viewContext)
+        viewContext.safeSave()
     }
 }

@@ -28,8 +28,9 @@ enum OrderLinkTitleFetcher {
         return title
     }
 
-    /// Fills in the title of each item that still has none. Saves after each one
-    /// lands, so a slow page never holds back the others.
+    /// Fills in the title of each item that still has none, shortened
+    /// (`RestockService.applyFetchedTitle`). Saves after each one lands, so a slow
+    /// page never holds back the others.
     static func fillMissingTitles(
         _ items: [CDOrderItem],
         save: @escaping () -> Void
@@ -37,11 +38,7 @@ enum OrderLinkTitleFetcher {
         for item in items where item.title.trimmed().isEmpty {
             guard let url = item.url, let title = await fetchTitle(for: url) else { continue }
             // The guide may have typed a title, or deleted the item, while the page loaded.
-            guard !item.isDeleted, item.managedObjectContext != nil, item.title.trimmed().isEmpty else {
-                continue
-            }
-            item.title = title
-            item.modifiedAt = Date()
+            guard RestockService.applyFetchedTitle(title, to: item) else { continue }
             save()
         }
     }

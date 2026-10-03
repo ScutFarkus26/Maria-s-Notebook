@@ -174,6 +174,11 @@ nonisolated enum UserDefaultsKeys {
     static var attendanceLocksCarriedOver: String {
         CloudKitEnvironment.scoped("Attendance.locksCarriedOver")
     }
+    /// Set once this device has given levels to the staples kept as counts
+    /// before schema 15 (`RestockLevelBackfill`), per CloudKit environment.
+    static var restockLevelsFromCounts: String {
+        CloudKitEnvironment.scoped("Migration.restockLevelsFromCounts.v1")
+    }
     /// URIs of classroom records this device created before the classroom
     /// share's pin arrived, waiting to be attached (`SharedStoreOrphanGuard`).
     /// Device-local; never exported.

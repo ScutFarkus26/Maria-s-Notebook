@@ -117,6 +117,13 @@ nonisolated enum ClassroomShareAttach {
     /// at a time so one bad record doesn't cost the rest. Stops early — with
     /// the remainder in `failed` — when the delegate dies or CloudKit times out.
     ///
+    /// A record goes into the share with everything related to it (a staple
+    /// takes its history along), so one can already be in by the time its own
+    /// call comes up. Before every call after the first, what is now shared is
+    /// dropped from it (and counted as attached): `share(_:to:)` is never
+    /// asked to share a record twice. If CloudKit can't say, that call's
+    /// records wait as failed.
+    ///
     /// Each call is handed the latest copy of the share (`current`), never the
     /// one passed in: every `container.share(_:to:)` saves the share record,
     /// so after the first chunk the caller's copy carries an old change tag.
@@ -132,33 +139,32 @@ nonisolated enum ClassroomShareAttach {
         var start = 0
         while start < ids.count {
             let end = min(start + chunkSize, ids.count)
-            let chunk = Array(ids[start..<end])
-            do {
-                try await shareOffMain(chunk, to: await current(share, container: container), container: container)
-                outcome.attached += chunk.count
-            } catch {
-                let ns = error as NSError
-                logger.warning("Chunk attach failed: \(ns.domain, privacy: .public) \(ns.code, privacy: .public)")
-                if let reason = stopReason(for: ns) {
-                    outcome.stoppedBecause = reason
-                    outcome.mirroringDelegateDied = indicatesDeadMirroringDelegate(ns)
-                    outcome.failed.append(contentsOf: ids[start...])
-                    return outcome
-                }
-                for (index, id) in chunk.enumerated() {
-                    do {
-                        try await shareOffMain([id], to: await current(share, container: container), container: container)
-                        outcome.attached += 1
-                    } catch {
-                        let single = error as NSError
-                        outcome.failed.append(id)
-                        if let reason = stopReason(for: single) {
-                            outcome.stoppedBecause = reason
-                            outcome.mirroringDelegateDied = indicatesDeadMirroringDelegate(single)
-                            outcome.failed.append(contentsOf: chunk[(index + 1)...])
-                            outcome.failed.append(contentsOf: ids[end...])
-                            return outcome
-                        }
+            let taken = Array(ids[start..<end])
+            let outside = start == 0
+                ? taken
+                : await stillOutside(taken, container: container, outcome: &outcome)
+            guard let chunk = outside else {
+                outcome.failed += taken
+                start = end
+                continue
+            }
+            if !chunk.isEmpty {
+                do {
+                    try await shareOffMain(chunk, to: await current(share, container: container), container: container)
+                    outcome.attached += chunk.count
+                } catch {
+                    let ns = error as NSError
+                    logger.warning("Chunk attach failed: \(ns.domain, privacy: .public) \(ns.code, privacy: .public)")
+                    if let reason = stopReason(for: ns) {
+                        outcome.stoppedBecause = reason
+                        outcome.mirroringDelegateDied = indicatesDeadMirroringDelegate(ns)
+                        outcome.failed += chunk + ids[end...]
+                        return outcome
+                    }
+                    let stopped = await attachOneByOne(chunk, to: share, container: container, outcome: &outcome)
+                    if stopped {
+                        outcome.failed += ids[end...]
+                        return outcome
                     }
                 }
             }
@@ -166,6 +172,50 @@ nonisolated enum ClassroomShareAttach {
             start = end
         }
         return outcome
+    }
+
+    /// After a chunk failed, each of its records on its own. Returns true when
+    /// the pass must stop, with what's left in `failed`.
+    private static func attachOneByOne(
+        _ chunk: [NSManagedObjectID],
+        to share: CKShare,
+        container: NSPersistentCloudKitContainer,
+        outcome: inout Outcome
+    ) async -> Bool {
+        for (index, id) in chunk.enumerated() {
+            guard let single = await stillOutside([id], container: container, outcome: &outcome) else {
+                outcome.failed.append(id)
+                continue
+            }
+            guard !single.isEmpty else { continue }
+            do {
+                try await shareOffMain(single, to: await current(share, container: container), container: container)
+                outcome.attached += 1
+            } catch {
+                let failure = error as NSError
+                outcome.failed.append(id)
+                if let reason = stopReason(for: failure) {
+                    outcome.stoppedBecause = reason
+                    outcome.mirroringDelegateDied = indicatesDeadMirroringDelegate(failure)
+                    outcome.failed += chunk[(index + 1)...]
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /// The records among `candidates` still in no share. The others went in
+    /// with a record related to them, and count as attached. Nil when CloudKit
+    /// can't say.
+    private static func stillOutside(
+        _ candidates: [NSManagedObjectID],
+        container: NSPersistentCloudKitContainer,
+        outcome: inout Outcome
+    ) async -> [NSManagedObjectID]? {
+        guard let outside = try? await unshared(candidates, container: container) else { return nil }
+        outcome.attached += candidates.count - outside.count
+        return outside
     }
 
     /// The latest copy of `share`: the server's when it answers, since the

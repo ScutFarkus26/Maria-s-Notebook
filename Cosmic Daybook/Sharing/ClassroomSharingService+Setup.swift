@@ -28,7 +28,8 @@ extension ClassroomSharingService {
 
     /// Creates the classroom share and puts this school year's students and
     /// attendance (`ClassroomShareScope`), and every school-calendar day, day
-    /// lock and front-desk email record into it, then pins its zone.
+    /// lock, front-desk email record and Restock record into it, then pins its
+    /// zone.
     ///
     /// Run once, on the Mac, after the notebook is fully downloaded. Refuses
     /// unless this device is the lead guide's, the first download has
@@ -166,7 +167,7 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
     /// Students first: the first record becomes the share's seed.
     static let orderedEntityNames = [
         "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
-        "AttendanceEmailSend", "AttendanceEmailSettings"
+        "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem"
     ]
 
     let created: Bool
@@ -180,18 +181,23 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
             "outside=\(contents?.outside ?? -1)"
     }
 
+    /// Each share type's name for one record and for several.
+    private static let recordNames: [String: (one: String, many: String)] = [
+        "Student": ("1 student", "students"),
+        "AttendanceRecord": ("1 attendance record", "attendance records"),
+        "NonSchoolDay": ("1 day off", "days off"),
+        "SchoolDayOverride": ("1 extra school day", "extra school days"),
+        "AttendanceDayLock": ("1 locked day", "locked days"),
+        "AttendanceEmailSend": ("1 front-desk email", "front-desk emails"),
+        "AttendanceEmailSettings": ("the front-desk email settings", "email settings"),
+        "Supply": ("1 staple", "staples"),
+        "SupplyTransaction": ("1 restock history entry", "restock history entries"),
+        "OrderItem": ("1 restock item", "restock items")
+    ]
+
     static func describe(_ count: Int, _ entity: String) -> String {
-        let number = count.formatted()
-        switch entity {
-        case "Student": return count == 1 ? "1 student" : "\(number) students"
-        case "AttendanceRecord": return count == 1 ? "1 attendance record" : "\(number) attendance records"
-        case "NonSchoolDay": return count == 1 ? "1 day off" : "\(number) days off"
-        case "SchoolDayOverride": return count == 1 ? "1 extra school day" : "\(number) extra school days"
-        case "AttendanceDayLock": return count == 1 ? "1 locked day" : "\(number) locked days"
-        case "AttendanceEmailSend": return count == 1 ? "1 front-desk email" : "\(number) front-desk emails"
-        case "AttendanceEmailSettings": return count == 1 ? "the front-desk email settings" : "\(number) email settings"
-        default: return "\(number) \(entity)"
-        }
+        guard let names = recordNames[entity] else { return "\(count.formatted()) \(entity)" }
+        return count == 1 ? names.one : "\(count.formatted()) \(names.many)"
     }
 }
 

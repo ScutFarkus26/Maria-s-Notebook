@@ -11,7 +11,7 @@ import Foundation
 /// - An **attendance record** belongs when it is dated on or after the school year's first
 ///   day and its student belongs.
 /// - Everything else the share holds (days off, extra school days, locked days, the
-///   front-desk email) always belongs.
+///   front-desk email, Restock's staples and needs) always belongs.
 ///
 /// The first day is the school-year start (`YearPlanStaleness.currentYearStart`, the synced
 /// setting). Records outside the scope stay in the notebook; they just aren't shared. Every
