@@ -1,3 +1,3 @@
 # Cosmic Daybook
 
-The project's instructions are in `Cosmic Daybook/CLAUDE.md`. Read it before starting work. Its source paths (`Utils/…`, `Students/…`) are relative to the `Cosmic Daybook/` folder; `Scripts/`, `Documentation/` and `Daybook Assistant/` are at the repo root. Documentation is indexed in `Documentation/INDEX.md` (every plan with its status).
+The project's instructions are in `Cosmic Daybook/CLAUDE.md`. Read it before starting work. Its source paths (`Utils/…`, `Students/…`) are relative to the `Cosmic Daybook/` folder; `Scripts/`, `Documentation/` (only the manuals and their PDFs) and `Daybook Assistant/` are at the repo root. Documentation is indexed in `docs/Start here.md` (every plan with its status). Code comments may name old doc paths; look them up in `docs/Old names.md`.

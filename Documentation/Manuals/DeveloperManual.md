@@ -817,7 +817,7 @@ Manages work item state transitions and data integrity.
 
 Conforms to `MCPClientProtocol` and sends every request to Apple Intelligence:
 the on-device model first, then Private Cloud Compute when Settings → AI allows
-it. See `Documentation/Architecture/AI.md`.
+it. See `docs/Technical notes/AI.md`.
 
 #### ChatService
 

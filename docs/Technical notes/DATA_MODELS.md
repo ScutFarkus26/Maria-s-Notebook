@@ -1,0 +1,569 @@
+# Data Models
+
+This document describes the Core Data models used in Cosmic Daybook.
+
+## Overview
+
+All models are NSManagedObject subclasses (with `CD` prefix) defined in `CosmicDaybook.xcdatamodeld` and follow CloudKit compatibility patterns:
+- UUID primary keys (no unique constraints — CloudKit incompatible)
+- Enum properties stored as raw strings
+- Foreign keys stored as `String` (not UUID)
+- Relationship arrays marked as optional
+
+## Entity Relationship Diagram
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Student   │────▶│LessonAssign.│◀────│   Lesson    │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                   │                   │
+       │                   ▼                   │
+       │            ┌─────────────┐            │
+       │            │    Note     │◀───────────┘
+       │            └─────────────┘
+       │                   ▲
+       ▼                   │
+┌─────────────┐     ┌─────────────┐
+│ WorkModel   │────▶│  WorkStep   │
+└─────────────┘     └─────────────┘
+       │
+       ├────▶ WorkParticipantEntity
+       ├────▶ WorkCheckIn
+       └────▶ WorkCompletionRecord
+
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Project   │────▶│ProjectSession│────▶│    Note     │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │
+       └────▶ ProjectAssignmentTemplate
+
+┌─────────────┐     ┌─────────────┐
+│Presentation │────▶│    Note     │
+└─────────────┘     └─────────────┘
+
+┌─────────────────┐
+│AttendanceRecord │────▶ Note
+└─────────────────┘
+```
+
+## Core Models
+
+### Student
+
+The primary entity representing a student in the classroom.
+
+**Location:** `Students/Models/StudentEntity.swift` (class `CDStudent`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `firstName` | String | First name |
+| `lastName` | String | Last name |
+| `nickname` | String? | Optional nickname |
+| `birthday` | Date | Date of birth |
+| `levelRaw` | String | Level enum stored as string ("Lower" or "Upper") |
+| `nextLessons` | [String] | Upcoming lesson IDs (stored as UUID strings) |
+| `manualOrder` | Int | Manual sort order |
+| `dateStarted` | Date? | When student enrolled |
+| `modifiedAt` | Date | Last modification timestamp |
+
+**Computed Properties:**
+- `level: Level` - Enum accessor (.lower, .upper)
+- `fullName: String` - Combined first and last name
+- `nextLessonUUIDs: [UUID]` - UUID convenience accessor
+
+**Relationships:**
+- `documents: [Document]?` - Student's attached documents
+
+---
+
+### Lesson
+
+Curriculum lessons organized by subject and group.
+
+**Location:** `Lessons/LessonEntity.swift` (class `CDLesson`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `name` | String | Lesson name |
+| `subject` | String | Subject area (e.g., "Math", "Language") |
+| `group` | String | Group/category (e.g., "Decimal System") |
+| `orderInGroup` | Int | Order within group |
+| `sortIndex` | Int | Global sort index within subject |
+| `subheading` | String | Short description |
+| `writeUp` | String | Detailed lesson content (Markdown) |
+| `sourceRaw` | String | Source type ("album" or "personal") |
+| `personalKindRaw` | String? | Personal lesson subtype |
+| `defaultWorkKindRaw` | String? | Default work type for this lesson |
+| `pagesFileBookmark` | Data? | Security-scoped bookmark for attached file |
+| `pagesFileRelativePath` | String? | Relative path to imported file |
+| `greatLessonRaw` | String? | `GreatLesson` tag; the Three-Year View builds its Great Lessons row from it (story-format lessons preferred) |
+| `isKeyLesson` | Bool | Milestone flag (schema 6, 2026-09). Key lessons are the Three-Year View's default rows, together with the first lesson of every sequence |
+
+**Computed Properties:**
+- `source: LessonSource` - Enum accessor (.album, .personal)
+- `personalKind: PersonalLessonKind?` - Personal lesson type
+- `defaultWorkKind: WorkKind?` - Default work kind
+
+**Relationships:**
+- `notes: [Note]?` - Attached notes
+- `lessonAssignments: [LessonAssignment]?` - Lesson assignment instances
+
+---
+
+### LessonAssignment
+
+Links students to lessons with scheduling and presentation tracking.
+
+**Location:** `Models/LessonAssignmentEntity.swift` (class `CDLessonAssignment`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `lessonID` | String | Foreign key to Lesson (UUID string) |
+| `_studentIDsData` | Data? | JSON-encoded student IDs |
+| `createdAt` | Date | Creation timestamp |
+| `scheduledFor` | Date? | Scheduled presentation date/time |
+| `scheduledForDay` | Date | Denormalized start-of-day for queries |
+| `givenAt` | Date? | When lesson was presented |
+| `isPresented` | Bool | Whether lesson has been presented |
+| `notes` | String | Legacy notes field |
+| `needsPractice` | Bool | Needs follow-up practice |
+| `needsAnotherPresentation` | Bool | Needs re-presentation |
+| `followUpWork` | String | Follow-up work description |
+| `studentGroupKeyPersisted` | String | Denormalized student group key |
+
+**Computed Properties:**
+- `studentIDs: [String]` - Student ID array accessor
+- `lessonIDUUID: UUID?` - UUID convenience accessor
+- `isScheduled: Bool` - Has scheduled date
+- `isGiven: Bool` - Has been presented
+
+**Relationships:**
+- `lesson: Lesson?` - Parent lesson
+- `students: [Student]` - Transient student references
+- `unifiedNotes: [Note]?` - Attached notes
+
+---
+
+### WorkModel
+
+Tracks student work items through their lifecycle.
+
+**Location:** `Work/Models/WorkModelEntity.swift` (class `CDWorkModel`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `title` | String | Work title |
+| `workTypeRaw` | String | Work type ("Research", "Follow Up", "Practice", "Report") |
+| `lessonAssignmentID` | UUID? | Optional link to LessonAssignment |
+| `notes` | String | Work notes |
+| `createdAt` | Date | Creation date |
+| `completedAt` | Date? | Completion date |
+| `kindRaw` | String? | Work kind raw value |
+| `statusRaw` | String | Status ("active", "review", "mastered", "keepPracticing", "incomplete", "complete" = Done) |
+| `assignedAt` | Date | Assignment date |
+| `lastTouchedAt` | Date? | Last activity date (for aging) |
+| `dueAt` | Date? | Due date |
+| `completionOutcomeRaw` | String? | Legacy: folded into `statusRaw` by `WorkStatusMigration`; not read elsewhere |
+| `studentID` | String | Primary student ID (CloudKit string) |
+| `lessonID` | String | Lesson ID (CloudKit string) |
+| `presentationID` | String? | Related presentation ID |
+| `trackID` | String? | Track ID if part of curriculum track |
+| `trackStepID` | String? | Track step ID |
+| `scheduledNote` | String? | Scheduling notes |
+| `scheduledReasonRaw` | String? | Scheduling reason |
+| `sourceContextTypeRaw` | String? | Source context type |
+| `sourceContextID` | String? | Source context ID |
+| `legacyContractID` | UUID? | Legacy migration reference |
+| `legacyLessonAssignmentID` | String? | Legacy migration reference |
+
+**Computed Properties:**
+- `workType: WorkType` - Work type enum
+- `kind: WorkKind?` - Work kind enum
+- `status: WorkStatus` - The one verdict (.active, .review, .mastered, .keepPracticing, .incomplete, .done)
+- `isCompleted`, `isOpen`, `isActive`, `isReview`, `isClosed` - Status helpers
+
+**Relationships:**
+- `participants: [WorkParticipantEntity]?` - Student participants
+- `checkIns: [WorkCheckIn]?` - Check-in records
+- `steps: [WorkStep]?` - Work steps
+- `unifiedNotes: [Note]?` - Attached notes
+
+---
+
+### Note
+
+Universal note entity that can attach to multiple contexts.
+
+**Location:** `Models/NoteEntity.swift` (class `CDNote`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `createdAt` | Date | Creation timestamp |
+| `updatedAt` | Date | Last update timestamp |
+| `body` | String | Note content |
+| `isPinned` | Bool | Pinned status |
+| `categoryRaw` | String | Category enum raw value |
+| `includeInReport` | Bool | Include in reports |
+| `imagePath` | String? | Path to attached image |
+| `reportedBy` | String? | Reporter type |
+| `reporterName` | String? | Reporter name |
+| `scopeBlob` | Data? | JSON-encoded scope |
+| `searchIndexStudentID` | UUID? | Indexed student ID for queries |
+| `scopeIsAll` | Bool | Scope is "all students" |
+
+**Note Categories:**
+- `academic`, `behavioral`, `social`, `emotional`, `health`, `attendance`, `general`
+
+**Note Scopes:**
+- `.all` - Applies to all students
+- `.student(UUID)` - Applies to single student
+- `.students([UUID])` - Applies to multiple students
+
+**Relationships (one set per note):**
+- `lesson`, `work`, `lessonAssignment`, `presentation`
+- `attendanceRecord`, `workCheckIn`, `workCompletionRecord`
+- `workPlanItem`, `studentMeeting`, `projectSession`
+- `communityTopic`, `reminder`, `schoolDayOverride`
+- `studentTrackEnrollment`
+- `studentLinks: [NoteStudentLink]?` - Multi-student junction records
+
+---
+
+### AttendanceRecord
+
+Daily attendance tracking per student.
+
+**Location:** `Attendance/Store/AttendanceRecordEntity.swift` (class `CDAttendanceRecord`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `studentID` | String | Student ID (CloudKit string) |
+| `date` | Date | Attendance date (normalized to start of day) |
+| `statusRaw` | String | Status raw value |
+| `absenceReasonRaw` | String | Absence reason raw value |
+| `note` | String? | Optional note |
+
+**Attendance Statuses:**
+- `unmarked`, `present`, `absent`, `tardy`, `leftEarly`
+
+**Absence Reasons:**
+- `none`, `sick`, `vacation`
+
+**Relationships:**
+- `notes: [Note]?` - Attached notes
+
+---
+
+### Presentation (LessonAssignment)
+
+Unified model for lesson scheduling and presentation history.
+
+**Location:** `Models/LessonPresentationEntity.swift` (class `CDLessonPresentation`)
+
+**Note:** The Core Data entity is named `LessonPresentation`. The `Presentation` typealias is available in code for cleaner semantics.
+
+**Lifecycle:** `draft` → `scheduled` → `presented`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `createdAt` | Date | Creation timestamp |
+| `modifiedAt` | Date | Last modification |
+| `stateRaw` | String | State: "draft", "scheduled", "presented" |
+| `scheduledFor` | Date? | When scheduled (nil for drafts) |
+| `scheduledForDay` | Date | Denormalized start-of-day for queries |
+| `presentedAt` | Date? | When actually presented |
+| `lessonID` | String | Lesson ID (CloudKit string) |
+| `studentIDs` | [String] | Participating student IDs (JSON-encoded) |
+| `needsPractice` | Bool | Students need more practice |
+| `needsAnotherPresentation` | Bool | Should present again |
+| `followUpWork` | String | Follow-up work description |
+| `notes` | String | General notes |
+| `trackID` | String? | Track ID if applicable |
+| `trackStepID` | String? | Track step ID |
+| `lessonTitleSnapshot` | String? | Frozen title at presentation time |
+| `lessonSubheadingSnapshot` | String? | Frozen subheading |
+| `migratedFromLessonAssignmentID` | String? | Migration tracking |
+| `migratedFromPresentationID` | String? | Migration tracking |
+
+**Relationships:**
+- `lesson: Lesson?` - The lesson being presented
+- `unifiedNotes: [Note]?` - Attached notes (cascade delete)
+
+**Computed Properties:**
+- `state: PresentationState` - Type-safe state accessor
+- `studentUUIDs: [UUID]` - Student IDs as UUIDs
+- `isDraft`, `isScheduled`, `isPresented` - State helpers
+
+---
+
+### Project
+
+Classroom project with sessions and templates.
+
+**Location:** `Projects/ProjectEntity.swift` (class `CDProject`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `createdAt` | Date | Creation timestamp |
+| `modifiedAt` | Date | Last modification |
+| `title` | String | Project title |
+| `bookTitle` | String? | Associated book title |
+| `memberStudentIDs` | [String] | Member student IDs |
+| `isActive` | Bool | Active status |
+
+**Relationships:**
+- `sharedTemplates: [ProjectAssignmentTemplate]?` - Assignment templates
+- `sessions: [ProjectSession]?` - Project sessions
+
+---
+
+### ProjectSession
+
+Individual session within a project.
+
+**Location:** `Projects/ProjectSessionEntity.swift` (class `CDProjectSession`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `createdAt` | Date | Creation timestamp |
+| `projectID` | String | Parent project ID (CloudKit string) |
+| `meetingDate` | Date | Session date |
+| `chapterOrPages` | String? | Chapter/pages covered |
+| `notes` | String? | Session notes |
+| `agendaItemsJSON` | String | JSON-encoded agenda items |
+| `templateWeekID` | String? | Template week reference |
+
+**Relationships:**
+- `project: Project?` - Parent project
+- `noteItems: [Note]?` - Attached notes
+
+---
+
+## Supporting Models
+
+### WorkParticipantEntity
+
+Tracks individual student participation in a work item.
+
+**Location:** `Work/Models/WorkParticipantEntityCD.swift` (class `CDWorkParticipant`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `studentID` | String | Student ID (CloudKit string) |
+| `completedAt` | Date? | Completion date |
+
+---
+
+### WorkCheckIn
+
+Check-in record for work items.
+
+**Location:** `Work/CheckIns/WorkCheckInEntity.swift` (class `CDWorkCheckIn`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `workID` | String | Work item ID (CloudKit string) |
+| `studentID` | String | Student ID (CloudKit string) |
+| `createdAt` | Date | Check-in timestamp |
+| `statusRaw` | String | Status raw value |
+| `notes` | String? | Check-in notes |
+
+---
+
+### WorkStep
+
+Individual step within a work item.
+
+**Location:** `Work/Steps/WorkStepEntity.swift` (class `CDWorkStep`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `title` | String | Step title |
+| `orderIndex` | Int | Order within work |
+| `completedAt` | Date? | Completion date |
+
+---
+
+### WorkCompletionRecord
+
+Records student completion of a work item.
+
+**Location:** `Work/Completion/WorkCompletionRecordEntity.swift` (class `CDWorkCompletionRecord`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `workID` | String | Work item ID (CloudKit string) |
+| `studentID` | String | Student ID (CloudKit string) |
+| `completedAt` | Date | Completion date |
+| `outcomeRaw` | String? | Outcome raw value |
+
+---
+
+### Document
+
+File attachments for students.
+
+**Location:** `Models/DocumentEntity.swift` (class `CDDocument`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `filename` | String | File name |
+| `relativePath` | String? | Relative file path |
+| `bookmarkData` | Data? | Security-scoped bookmark |
+| `createdAt` | Date | Creation timestamp |
+
+---
+
+## Enum Reference
+
+### WorkStatus
+Open: `active` (Working), `review` (Needs Review). Closed: `mastered`,
+`keepPracticing`, `incomplete`, `done` (raw `"complete"`, legacy no-verdict).
+
+### WorkKind
+- `practice` - Practice work
+- `followUp` - Follow-up work
+- `research` - Research work
+- `report` - Report/documentation
+
+### CompletionOutcome
+Per work *step* only (`CDWorkStep.completionOutcomeRaw`): `mastered`
+(case `proficient`), `needsMorePractice`, `needsReview`, `incomplete`,
+`notApplicable`. On a work row it is a legacy column — see WorkStatus.
+
+### LessonSource
+- `album` - Standard curriculum lesson
+- `personal` - Personal/custom lesson
+
+### PersonalLessonKind
+- `personal` - Personal lesson
+- `extension` - Extension activity
+- `remediation` - Remediation work
+
+---
+
+## CloudKit Compatibility Notes
+
+### Foreign Key Pattern
+
+All foreign keys use `String` instead of `UUID`:
+
+```swift
+// Storage (NSManagedObject property)
+@NSManaged var studentID: String
+
+// Computed accessor
+var studentIDUUID: UUID? {
+    get { UUID(uuidString: studentID) }
+    set { studentID = newValue?.uuidString ?? "" }
+}
+```
+
+### Enum Storage Pattern
+
+Enums are stored as raw strings:
+
+```swift
+// Storage (Core Data attribute)
+@NSManaged var statusRaw: String
+
+// Computed accessor
+var status: WorkStatus {
+    get { WorkStatus(rawValue: statusRaw) ?? .active }
+    set { statusRaw = newValue.rawValue }
+}
+```
+
+### Relationships
+
+Relationships are configured in `CosmicDaybook.xcdatamodeld`. In code, they are accessed via `NSSet`:
+
+```swift
+// Core Data relationship (configured in xcdatamodeld with cascade delete rule)
+@NSManaged var notes: NSSet?
+
+// Typed accessor
+var notesArray: [CDNote] {
+    (notes as? Set<CDNote>)?.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) } ?? []
+}
+```
+
+### External Storage
+
+Large data uses external storage (configured via "Allows External Storage" in xcdatamodeld):
+
+```swift
+@NSManaged var pagesFileBookmark: Data?
+```
+
+---
+
+## Migration Notes
+
+The migration from SwiftData to Core Data (`NSManagedObject` subclasses with `NSPersistentCloudKitContainer`) is complete. All entities are now defined in `CosmicDaybook.xcdatamodeld` with `CD`-prefixed classes.
+
+Data migration functions are located in `Services/Migrations/DataMigrations.swift`.
+
+
+## Working notes from CLAUDE.md
+
+Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps only the rules every session needs. Dates in the notes are when each change landed.
+
+**Data-integrity rules (2026-09-10)** — each one closed a defect found by reading the live store over MCP, and each has a launch-time repair plus a creation-time guard:
+- **One lesson name per sub-area.** `LessonRepository.createLesson` throws `CreationError.duplicateName` for a folded-name match in the same area + sequence (parsha lessons exempt via `parshaKey`); `DataCleanupService.mergeSameNameLessons` (in `deduplicateAllModels`, so both the launch and post-import passes) folds any pair that got in anyway onto the older record — CloudKit creation date, then `orderInSequence` — repointing presentations, marks, year-plan entries, work, notes, recall checks, track steps and the id-list fields, and collapsing a child's doubled plan entries and marks. Same name in *different* sub-areas is left alone on purpose.
+- **A check-in always knows its work.** `CDWorkCheckIn.make(for:on:purpose:in:)` is the only creation path and writes the `workID` string and `work` relationship together; readers use `resolvedWork(in:)`. `CDWorkModel.prepareForDeletion` sweeps string-only check-ins so a bare `context.delete(work)` cascades too; `DataCleanupService.repairWorkCheckInLinks` relinks at launch and deletes true orphans from the second run on a device (`UserDefaultsKeys.checkInLinkRepairHasRun`).
+- **Work is for enrolled children.** `WorkRepository.createWork` throws `AssignmentError.studentNotEnrolled` when the student's record is on file and not enrolled; `assign_work` refuses before creating anything; MCP readers print a former student as "Name (withdrawn)".
+- **An observation on a presentation is about specific children.** The link (`CDNote.lessonAssignment`) is per presentation; the student dimension is the note's scope (mirrored into `NoteStudentLink`). `NoteScope.forSelection` gives an empty picker selection the presentation's roster, never `.all`; `DataCleanupService.repairPresentationNoteScopes` narrows old whole-class presentation notes; `PresentationObservationCoverageService` judges coverage per child.
+- **Clean Up Leftovers (2026-09-30, Mac only; called Clean Up Old Records until 2026-10-03).** Settings › Troubleshooting runs `NotebookJunkCleanup` from `NotebookCleanupSheet`. The sheet previews first. The run makes a manual backup, checks it holds every touched entity, and recounts before deleting. The 2026-09-30 audit found ~3,340 such records, among them track steps with no track, presentation rows with no child and no lesson, work participants with no work, and past blank unmarked attendance on unlocked days. The full list is in the file header. It also skips departed children's planned year-plan entries and relinks or removes enrollments that have no track. Meeting work reviews of deleted work are kept on purpose. Counting and changing share one code path (`run(in:today:apply:)`), so the preview can't disagree with the run. It refuses during a restore, a first download, an unfinished `ClassroomShareRelease`, unsent sync changes, or a second running copy.
+
+## Core models, patterns and integrity rules (moved from CLAUDE.md, 2026-10-04)
+
+Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
+
+**88 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones.
+
+**Core Models:**
+
+| Model | Class | Purpose |
+|-------|-------|---------|
+| Student | `CDStudent` | Student profiles (firstName, lastName, birthday, level) |
+| Lesson | `CDLesson` | Curriculum lessons with attachments & exercises |
+| LessonPresentation | `CDLessonPresentation` | Presentation scheduling & history |
+| LessonAssignment | `CDLessonAssignment` | Links students to lessons |
+| WorkModel | `CDWorkModel` | Work items; one `WorkStatus` per row (Working / Needs Review open; Mastered / Keep Practicing / Incomplete / legacy Done closed), changed only through `WorkLogService` |
+| Note | `CDNote` | Observations with tags, multi-student scoping |
+| AttendanceRecord | `CDAttendanceRecord` | Daily attendance tracking; `leavesAt` (schema 13) is a planned early pickup, not a mark; `returnedAt` + `statusBeforeLeavingRaw` (schema 14) record a child who left early and came back |
+| ClassroomMembership | `CDClassroomMembership` | This device's role and the pinned classroom share zone (private only) |
+| AttendanceDayLock | `CDAttendanceDayLock` | A day the lead guide locked (shared); read and written through `AttendanceDayLocks` |
+| AttendanceEmailSend / AttendanceEmailSettings | `CDAttendanceEmailSend` / `CDAttendanceEmailSettings` | The front-desk attendance email: who sent a day's, and the guide's settings for it (shared, schema 12); read and written through `AttendanceEmailLog` |
+
+**Core Data Patterns:**
+- Entity classes use `CD` prefix (e.g., `CDStudent`, `CDLesson`)
+- No unique constraints (incompatible with CloudKit)
+- Enums stored as raw `String` (e.g., `statusRaw`, `categoryRaw`)
+- Foreign keys as `String` not `UUID`
+- `modifiedAt` for conflict resolution
+- All properties optional or have defaults
+- Relationships use `NSSet` (cast to `Set<CDEntityType>` for iteration)
+- Use `mutableSetValue(forKey:)` for relationship mutations
+
+**Data-integrity rules** (each has a creation-time guard and a launch-time repair; detail in `docs/Technical notes/DATA_MODELS.md`):
+- One lesson name per sub-area (`LessonRepository.createLesson` throws on a duplicate).
+- Check-ins are created only by `CDWorkCheckIn.make(for:on:purpose:in:)` and read with `resolvedWork(in:)`.
+- Work is only for enrolled children (`WorkRepository.createWork`).
+- An observation on a presentation is scoped to specific children (`NoteScope.forSelection`), never `.all`.
+- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Leftovers (`NotebookJunkCleanup`), which previews and backs up first.

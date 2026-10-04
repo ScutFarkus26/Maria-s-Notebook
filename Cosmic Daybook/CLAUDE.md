@@ -64,7 +64,7 @@ Scripts/archive_assistant_testflight.sh
 # SVGs (Check.svg, Rule.svg). Re-run after editing either SVG so both icon sets keep the same art.
 swift Scripts/render_assistant_icon.swift .
 
-# Clean-build timing baseline (compare against Documentation/Implementation/perf-baselines/).
+# Clean-build timing baseline (compare against docs/Technical notes/Performance baselines/).
 # Caching off, or a "clean" build of an already-built tree is a cache replay, not a compile; BUILD_NICE=0
 # so the number is not a low-priority one.
 BUILD_NICE=0 Scripts/locked_xcodebuild.sh -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,name=iPhone 17,OS=27.0" \
@@ -76,7 +76,7 @@ for d in ~/Library/Developer/Xcode/DerivedData/Cosmic_Daybook-*; do
   p=$(/usr/libexec/PlistBuddy -c "Print :WorkspacePath" "$d/info.plist" 2>/dev/null); [ -e "$p" ] || echo "$d  ($p)"; done
 ```
 
-**Build-setting rules** (reasons and measurements: `Documentation/Architecture/BUILD_SETTINGS.md`):
+**Build-setting rules** (reasons and measurements: `docs/Technical notes/BUILD_SETTINGS.md`):
 - Leave the scheme's `-InitializeCloudKitSchema` unchecked except for one run after a model change.
 - Change `CLOUDKIT_ENVIRONMENT` only at project level, never per target or file.
 - Don't override explicit modules, incremental Debug, DWARF Debug info, compilation caching or `-driver-batch-size-limit 70`.
@@ -151,18 +151,19 @@ Daybook Assistant/    # Assistant iPhone app: Attendance/, Onboarding/, Siri/, R
                       # (also compiles ~90 notebook files by path; see project.pbxproj)
 Cosmic Daybook Tests/ # Feature-mirrored test target
 Scripts/              # Build lock, install/archive, structure and unused-code checks
-Documentation/        # Architecture, ADRs, plans, manuals, audits; start at Documentation/INDEX.md (plans and status)
+Documentation/        # manuals (Manuals/) and their PDFs (Generated/) only
+docs/                 # everything else; start at docs/Start here.md (plans and status); old doc paths in code comments: docs/Old names.md
 ```
 
 Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`).
 
 ## Architecture
 
-MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores, `CoreDataStack.swift`). Data access has two layers: `Repositories/*` (per-entity writes, typed reads) and `Services/DataQueryService` (reads across entities); never hand-roll a whole-table `CDFetchRequest`. Swift 6 strict concurrency; CPU-heavy work that leaves the main actor is `@concurrent` and takes only `Sendable` arguments. Detail: `Documentation/Architecture/ARCHITECTURE.md`.
+MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores, `CoreDataStack.swift`). Data access has two layers: `Repositories/*` (per-entity writes, typed reads) and `Services/DataQueryService` (reads across entities); never hand-roll a whole-table `CDFetchRequest`. Swift 6 strict concurrency; CPU-heavy work that leaves the main actor is `@concurrent` and takes only `Sendable` arguments. Detail: `docs/Technical notes/ARCHITECTURE.md`.
 
 ## Data Model
 
-88 entities (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `Documentation/Architecture/DATA_MODELS.md`.
+88 entities (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
@@ -175,7 +176,7 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Siri (App Intents)
 
-Rules: `Documentation/Architecture/SIRI.md`. Apple allows 10 App Shortcuts per app and the notebook is at 10 (the Assistant 9): adding one means merging another.
+Rules: `docs/Technical notes/SIRI.md`. Apple allows 10 App Shortcuts per app and the notebook is at 10 (the Assistant 9): adding one means merging another.
 
 ## Code Conventions
 
@@ -189,7 +190,7 @@ Rules: `Documentation/Architecture/SIRI.md`. Apple allows 10 App Shortcuts per a
 - Use `async/await` and `Task.sleep(for:)` for delays (NOT `DispatchQueue`)
 - Use `NSFetchRequest` + `NSPredicate` for queries (NOT `@Query` / `#Predicate`)
 - Use `@FetchRequest` in views for reactive data binding
-- **Plain English on screen** (plan: `Documentation/Implementation/Archive/PLAIN_ENGLISH_PLAN.md`): every message the apps show says what happened and what to do, in everyday words. Never put `error.localizedDescription`, `"\(error)"`, codes, IDs, paths or type names into UI text; log them, and put any worth keeping under `TechnicalDetailsDisclosure`. Errors go through `AppErrorMessages` (`userMessage`, `sharingMessage`, `importMessage`, `backupMessage`, `syncMessage`, `aiMessage(fallback:)`); Apple Intelligence wording lives in `AppleIntelligenceMessages`. `SaveCoordinator.save`'s `reason:` is a log label, never shown; pass `alertOnFailure: false` when the screen shows its own message.
+- **Plain English on screen** (plan: `docs/Plans/Plan - Plain English messages.md`): every message the apps show says what happened and what to do, in everyday words. Never put `error.localizedDescription`, `"\(error)"`, codes, IDs, paths or type names into UI text; log them, and put any worth keeping under `TechnicalDetailsDisclosure`. Errors go through `AppErrorMessages` (`userMessage`, `sharingMessage`, `importMessage`, `backupMessage`, `syncMessage`, `aiMessage(fallback:)`); Apple Intelligence wording lives in `AppleIntelligenceMessages`. `SaveCoordinator.save`'s `reason:` is a log label, never shown; pass `alertOnFailure: false` when the screen shows its own message.
 
 ## Auto-Research
 
@@ -216,23 +217,23 @@ At the start of each conversation, before writing or modifying any code, search 
 
 ## CloudKit Notes
 
-Rules: `Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md`. Never `CKContainer.default()` (use `CloudKitConfigurationService.container`); never move shared records with `container.share(_:to:)` or take one out of the share except through `ClassroomShareRelease`; schema changes are additive-only and, after a model change, need one Debug Development `-InitializeCloudKitSchema` run before the Production deploy; attendance writes go through `CDAttendanceStore`.
+Rules: `docs/Technical notes/CloudKit/CLOUDKIT_GUIDE.md`. Never `CKContainer.default()` (use `CloudKitConfigurationService.container`); never move shared records with `container.share(_:to:)` or take one out of the share except through `ClassroomShareRelease`; schema changes are additive-only and, after a model change, need one Debug Development `-InitializeCloudKitSchema` run before the Production deploy; attendance writes go through `CDAttendanceStore`.
 
 ## Albums (teaching-album PDFs)
 
-Rules: `Documentation/Architecture/ALBUMS.md`. The PDFs stay where they live; never copy them into the container.
+Rules: `docs/Technical notes/ALBUMS.md`. The PDFs stay where they live; never copy them into the container.
 
 ## MCP Server (Claude Desktop)
 
-Rules: `Documentation/Architecture/MCP_SERVER.md`. Every write goes through the service the in-app control uses, never straight to Core Data; every tool gets an `MCPToolAnnotations` and a line in `MCPToolRegistryTests`.
+Rules: `docs/Technical notes/MCP_SERVER.md`. Every write goes through the service the in-app control uses, never straight to Core Data; every tool gets an `MCPToolAnnotations` and a line in `MCPToolRegistryTests`.
 
 ## Restock (Supplies + Orders)
 
-Rules: `Documentation/Architecture/RESTOCK.md`. `RestockService` is the only writer; a need's stage is derived, never stored.
+Rules: `docs/Technical notes/RESTOCK.md`. `RestockService` is the only writer; a need's stage is derived, never stored.
 
 ## Backup System
 
-Format v37; rules: `Documentation/Architecture/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v37; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 
