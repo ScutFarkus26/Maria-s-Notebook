@@ -37,3 +37,4 @@ English (2026-10-04). Code comments may still name an old path: look it up here.
 | `Documentation/PROGRESS.md` | [docs/Progress.md](<Progress.md>) |
 | `Documentation/README.md` | [docs/Start here.md](<Start here.md>) |
 | `Documentation/organization-audits/` | [docs/Reviews/](<Reviews>) |
+| `Documentation/organization-audits/2026-10-02.md` | [docs/Reviews/Organization audit 2026-10-02.md](<Reviews/Organization audit 2026-10-02.md>) |

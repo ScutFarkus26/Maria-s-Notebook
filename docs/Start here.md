@@ -74,7 +74,7 @@ Cosmic Daybook (the notebook app for macOS, iPad and iPhone) and the Daybook Ass
   - [ADR-003](<Technical notes/Decision records/ADR-003-repository-pattern.md>): when to use repositories versus `@FetchRequest` (accepted 2026-01).
   - [ADR-004](<Technical notes/Decision records/ADR-004-dependency-injection.md>): dependency injection through `AppDependencies` (accepted 2026-02).
 - [Performance baselines](<Technical notes/Performance baselines/>): 16 dated performance measurements (2026-09-04 to 2026-09-29): clean build, launch, energy waves, build-speed levers. Covers both apps.
-- [Reviews](<Reviews/>): [2026-10-02](<Reviews/2026-10-02.md>) is the organization audit of the repo with the changes applied.
+- [Reviews](<Reviews/>): [2026-10-02](<Reviews/Organization audit 2026-10-02.md>) is the organization audit of the repo with the changes applied.
 
 ### Manuals (these stay in `Documentation/`)
 

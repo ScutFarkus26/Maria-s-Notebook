@@ -3,7 +3,7 @@
 An efficiency change without a number attached is a guess. Pick the cheapest measurement
 that can actually move for the change you are making, take it before, take it after, and
 write both into the PR or commit message. Keep durable baselines in
-`Documentation/Implementation/perf-baselines/` (one dated file per capture).
+`docs/Technical notes/Performance baselines/` (one dated file per capture).
 
 ## Which instrument for which symptom
 

@@ -3,7 +3,7 @@
 Use this when Danny asks for a whole-app pass ("find 50 ways to…", "audit battery and memory"),
 or to implement numbered items from one ("do 12, 13, 25"). It is how the 2026-09-25 "Energy
 Fifty" audit was found and how its five waves landed (the private artifact "Daybook Energy
-Fifty"; per-wave numbers in `Documentation/Implementation/perf-baselines/2026-09-2*-energy-fifty-wave*.md`).
+Fifty"; per-wave numbers in `docs/Technical notes/Performance baselines/2026-09-2*-energy-fifty-wave*.md`).
 
 ## 1. Know which copy you are measuring
 

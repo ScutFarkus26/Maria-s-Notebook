@@ -112,7 +112,8 @@ Daybook Assistant/    # Assistant iPhone app: Attendance/, Onboarding/, Siri/, R
                       # (also compiles ~90 notebook files by path; see project.pbxproj)
 Cosmic Daybook Tests/ # Feature-mirrored test target
 Scripts/              # Build lock, install/archive, structure and unused-code checks
-Documentation/        # Architecture, ADRs, plans, manuals, organization audits
+docs/                 # Start here map, plans, technical notes, reviews
+Documentation/        # Manuals and their generated PDFs (scripts read these paths)
 ```
 
 ## Configuration
@@ -129,20 +130,20 @@ Documentation/        # Architecture, ADRs, plans, manuals, organization audits
 
 ### CloudKit Sync
 
-Disabled by default. Enable in Settings → CloudKit Status, then restart. See the [CloudKit Guide](../Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md).
+Disabled by default. Enable in Settings → CloudKit Status, then restart. See the [CloudKit Guide](<../docs/Technical notes/CloudKit/CLOUDKIT_GUIDE.md>).
 
 Container: `iCloud.DanielSDeBerry.MariasNoteBook`
 
 ### Apple Intelligence (Optional)
 
-AI-powered observation summarization using Foundation Models. Requires the `ENABLE_FOUNDATION_MODELS` build flag. See the [AI architecture guide](../Documentation/Architecture/AI.md#8-build-flag--entitlement).
+AI-powered observation summarization using Foundation Models. Requires the `ENABLE_FOUNDATION_MODELS` build flag. See the [AI architecture guide](<../docs/Technical notes/AI.md#8-build-flag--entitlement>).
 
 ### Backup
 
 - Auto-backup enabled by default (10 backup retention)
 - Location: `~/Documents/Backups/Auto/`
 - Format: `.mtbbackup` (v19 encrypted Apple Archive)
-- See the [Backup System](../Documentation/Architecture/BACKUP_SYSTEM.md) for details
+- See the [Backup System](<../docs/Technical notes/BACKUP_SYSTEM.md>) for details
 
 ### SwiftLint
 
@@ -154,12 +155,12 @@ After moving files or folders, run `Scripts/check_repository_structure.sh` from 
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](../Documentation/Architecture/ARCHITECTURE.md) | Architecture, patterns, and guidelines |
-| [DATA_MODELS.md](../Documentation/Architecture/DATA_MODELS.md) | Core Data model documentation |
-| [CloudKit Guide](../Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md) | CloudKit verification & troubleshooting |
-| [ADRs](../Documentation/ADRs/) | Architecture Decision Records |
+| [ARCHITECTURE.md](<../docs/Technical notes/ARCHITECTURE.md>) | Architecture, patterns, and guidelines |
+| [DATA_MODELS.md](<../docs/Technical notes/DATA_MODELS.md>) | Core Data model documentation |
+| [CloudKit Guide](<../docs/Technical notes/CloudKit/CLOUDKIT_GUIDE.md>) | CloudKit verification & troubleshooting |
+| [ADRs](<../docs/Technical notes/Decision records/>) | Architecture Decision Records |
 | [Manuals](../Documentation/Manuals/) | Developer and user manuals |
-| [BACKUP_SYSTEM.md](../Documentation/Architecture/BACKUP_SYSTEM.md) | Backup system documentation |
+| [BACKUP_SYSTEM.md](<../docs/Technical notes/BACKUP_SYSTEM.md>) | Backup system documentation |
 
 ## Keyboard Shortcuts (macOS)
 
@@ -174,7 +175,7 @@ After moving files or folders, run `Scripts/check_repository_structure.sh` from 
 
 **Signing issues** — Verify Apple Developer account and team in Signing & Capabilities
 
-**CloudKit not syncing** — Check iCloud account, network, container ID, and restart app after enabling. See the [CloudKit Guide](../Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md).
+**CloudKit not syncing** — Check iCloud account, network, container ID, and restart app after enabling. See the [CloudKit Guide](<../docs/Technical notes/CloudKit/CLOUDKIT_GUIDE.md>).
 
 **Slow performance** — Check for unfiltered `@FetchRequest` usage. Profile with Instruments.
 

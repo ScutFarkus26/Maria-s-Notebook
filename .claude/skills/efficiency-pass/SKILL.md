@@ -1,6 +1,6 @@
 ---
 name: efficiency-pass
-description: Reduce battery drain, memory footprint, and device heat in Cosmic Daybook without changing behavior, following Apple's current (WWDC25/WWDC26, iOS 27 / macOS 27) guidance. Use this whenever Danny mentions the app being hot or warm, the battery, the fan, memory, "over a gigabyte", jetsam, slow sync, the app "doing something" while idle, CPU usage, energy, thermal state, Low Power Mode, or asks for a "perf pass", "battery pass", "efficiency pass", "heat audit", a whole-app audit ("find 50 ways to…"), implementing numbered items from such an audit, or to make a screen or service "cheaper" or "lighter". Also when the Mac app sits open all day and he asks why it costs so much, or asks which build he should be running. Also use it when adding any new background, scheduled, polling, caching, or sync-reactive code, since that is where regressions come from. Not for build-time or launch-time work on its own (see BUILD_AND_LAUNCH_PERFORMANCE_PLAN.md), and not for UI bugs that merely happen to be slow.
+description: Reduce battery drain, memory footprint, and device heat in Cosmic Daybook without changing behavior, following Apple's current (WWDC25/WWDC26, iOS 27 / macOS 27) guidance. Use this whenever Danny mentions the app being hot or warm, the battery, the fan, memory, "over a gigabyte", jetsam, slow sync, the app "doing something" while idle, CPU usage, energy, thermal state, Low Power Mode, or asks for a "perf pass", "battery pass", "efficiency pass", "heat audit", a whole-app audit ("find 50 ways to…"), implementing numbered items from such an audit, or to make a screen or service "cheaper" or "lighter". Also when the Mac app sits open all day and he asks why it costs so much, or asks which build he should be running. Also use it when adding any new background, scheduled, polling, caching, or sync-reactive code, since that is where regressions come from. Not for build-time or launch-time work on its own (see docs/Plans/Plan - Build and launch speed.md), and not for UI bugs that merely happen to be slow.
 ---
 
 # Efficiency pass
@@ -182,7 +182,7 @@ Then:
   change it while yours runs.
 - Try the hot path once in the app if a simulator is available (the `run` skill), since
   a gate that never fires looks identical to a gate that always skips.
-- Record durable numbers in `Documentation/Implementation/perf-baselines/` as a dated
+- Record durable numbers in `docs/Technical notes/Performance baselines/` as a dated
   file when they are worth comparing against later.
 
 ## Report
