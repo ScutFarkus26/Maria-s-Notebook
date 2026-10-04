@@ -23,7 +23,6 @@ for path in \
     "Cosmic Daybook/Components/QuickNote" \
     "Cosmic Daybook/Components/Observations" \
     "Cosmic Daybook/Components/UnifiedNoteEditor" \
-    "docs" \
     "Cosmic Daybook/Docs" \
     "Cosmic Daybook/ViewModels" \
     "Cosmic Daybook/Components/Checklist" \
