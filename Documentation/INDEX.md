@@ -26,6 +26,7 @@ The notebook app (macOS, iPad, iPhone).
 | [roster-provider-migration.md](Implementation/Archive/roster-provider-migration.md) | plan | Built (8e2f7c04) | 2026-09-21 | `RosterStore` and `LessonCatalog` migration. |
 | [MACOS_HIG_PLAN.md](Implementation/MACOS_HIG_PLAN.md) | plan | In progress (phases 0–3 on main) | 2026-09-30 | macOS Human Interface Guidelines conformance; phase 4 and sweeps open. |
 | [SCHOOL_YEAR_SEPARATION.md](Implementation/SCHOOL_YEAR_SEPARATION.md) | plan | In progress (paused; phases 0–2 on main) | 2026-09-30 | School-year lens; reports, exports and the activity stamp never built. |
+| [DEBUG_NOTEBOOK_PLAN.md](Implementation/DEBUG_NOTEBOOK_PLAN.md) | plan | Not built | 2026-10-04 | Debug builds open a fake, local-only notebook; the real one only via the Real Notebook scheme. |
 | [SIRI_WIDGETS_HANDOFF.md](Implementation/SIRI_WIDGETS_HANDOFF.md) | plan | Not built | 2026-09-30 | Widgets and Control Center recipe; no widget target exists. |
 | [organization-audits/2026-10-02.md](organization-audits/2026-10-02.md) | review | — | 2026-10-02 | Organization audit of the repo with the changes applied. |
 | [ADRs/README.md](ADRs/README.md) | decisions | — | — | Index of the architecture decision records. |
