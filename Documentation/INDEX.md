@@ -52,7 +52,7 @@ The attendance and Restock app for the assistants. It has no docs of its own und
 | File | Kind | Status | Date | What it covers |
 |---|---|---|---|---|
 | [ASSISTANT_TOP_25_FIXES_PLAN.md](Implementation/Archive/ASSISTANT_TOP_25_FIXES_PLAN.md) | plan | Built (944eb2c5) | 2026-09-29 | 20 fixes to the Daybook Assistant from the top-25 review (moved here from `~/.claude/plans/` on 2026-10-04). |
-| `Implementation/ASSISTANT_BUG_FIX_PLAN.md` (exists only on the branch) | plan | In progress (only on branch `claude/assistants-app-bugs-3a5efa`, not on main; left alone) | — | Assistant app bug fixes; another session's file, status as best git shows. |
+| [ASSISTANT_BUG_FIX_PLAN.md](Implementation/ASSISTANT_BUG_FIX_PLAN.md) | plan | Not built (planned; waiting on which phases to run before the 2026-10-09 usage reset) | 2026-10-04 | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. |
 
 ## Both
 
