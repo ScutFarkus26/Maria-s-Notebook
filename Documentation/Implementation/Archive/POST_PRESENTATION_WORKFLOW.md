@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Post-Presentation Workflow
+
+> **Built 2026-10-01** (6948166c) "Present a lesson: one sheet, three beats" is on main; this file is the design and its manual validation checklist.
 
 ## Purpose
 

@@ -2,6 +2,8 @@
 
 # Key-Value Storage Implementation
 
+> **Built 2026-02-23** (8483b90e) iCloud key-value sync is on main (`SyncedPreferencesStore`); 8483b90e is the oldest commit that mentions it.
+
 ## Summary
 
 Key-Value Storage (iCloud KVS) has been fully enabled and integrated into the app using best practices. User preferences now sync across devices automatically via iCloud.

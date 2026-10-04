@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Plain English in the apps — plan (2026-10-03)
+
+> **Built 2026-10-03** (9503d7f2) All six phases are on main (the branch `claude/festive-morse-7d0b1a` is gone). Git cannot say whether Danny has since looked at the screens; his on-screen check is in Tide.
 
 **Rule** (Danny's `~/.claude/CLAUDE.md`, "Plain English in the apps"): everything Cosmic Daybook and the
 Daybook Assistant show him — notifications, alerts, error messages, status lines, empty states, toasts,
@@ -7,7 +11,7 @@ system errors, codes, IDs, file paths, type names or developer jargon. Useful te
 "Details" disclosure or the log. Apple-framework errors are translated for the cases the app knows;
 anything else gets a plain general sentence, never the raw text.
 
-**Status: built 2026-10-03, on branch `claude/festive-morse-7d0b1a` (not on main yet).** Danny approved
+**Status: built 2026-10-03, on main as 9503d7f2 (merged from branch `claude/festive-morse-7d0b1a`).** Danny approved
 every recommendation (decisions at the end). Phase 1 (shared translator) built in session; phases 2–6 ran
 as parallel agents, one isolated worktree each, then merged with no conflicts. Final check on the merged
 branch: notebook iOS + Mac and the Assistant build clean (no new warnings); full suites: notebook 2,466

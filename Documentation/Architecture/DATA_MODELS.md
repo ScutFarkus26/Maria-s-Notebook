@@ -529,3 +529,41 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 - **Work is for enrolled children.** `WorkRepository.createWork` throws `AssignmentError.studentNotEnrolled` when the student's record is on file and not enrolled; `assign_work` refuses before creating anything; MCP readers print a former student as "Name (withdrawn)".
 - **An observation on a presentation is about specific children.** The link (`CDNote.lessonAssignment`) is per presentation; the student dimension is the note's scope (mirrored into `NoteStudentLink`). `NoteScope.forSelection` gives an empty picker selection the presentation's roster, never `.all`; `DataCleanupService.repairPresentationNoteScopes` narrows old whole-class presentation notes; `PresentationObservationCoverageService` judges coverage per child.
 - **Clean Up Leftovers (2026-09-30, Mac only; called Clean Up Old Records until 2026-10-03).** Settings › Troubleshooting runs `NotebookJunkCleanup` from `NotebookCleanupSheet`. The sheet previews first. The run makes a manual backup, checks it holds every touched entity, and recounts before deleting. The 2026-09-30 audit found ~3,340 such records, among them track steps with no track, presentation rows with no child and no lesson, work participants with no work, and past blank unmarked attendance on unlocked days. The full list is in the file header. It also skips departed children's planned year-plan entries and relinks or removes enrollments that have no track. Meeting work reviews of deleted work are kept on purpose. Counting and changing share one code path (`run(in:today:apply:)`), so the preview can't disagree with the run. It refuses during a restore, a first download, an unfinished `ClassroomShareRelease`, unsent sync changes, or a second running copy.
+
+## Core models, patterns and integrity rules (moved from CLAUDE.md, 2026-10-04)
+
+Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
+
+**88 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones.
+
+**Core Models:**
+
+| Model | Class | Purpose |
+|-------|-------|---------|
+| Student | `CDStudent` | Student profiles (firstName, lastName, birthday, level) |
+| Lesson | `CDLesson` | Curriculum lessons with attachments & exercises |
+| LessonPresentation | `CDLessonPresentation` | Presentation scheduling & history |
+| LessonAssignment | `CDLessonAssignment` | Links students to lessons |
+| WorkModel | `CDWorkModel` | Work items; one `WorkStatus` per row (Working / Needs Review open; Mastered / Keep Practicing / Incomplete / legacy Done closed), changed only through `WorkLogService` |
+| Note | `CDNote` | Observations with tags, multi-student scoping |
+| AttendanceRecord | `CDAttendanceRecord` | Daily attendance tracking; `leavesAt` (schema 13) is a planned early pickup, not a mark; `returnedAt` + `statusBeforeLeavingRaw` (schema 14) record a child who left early and came back |
+| ClassroomMembership | `CDClassroomMembership` | This device's role and the pinned classroom share zone (private only) |
+| AttendanceDayLock | `CDAttendanceDayLock` | A day the lead guide locked (shared); read and written through `AttendanceDayLocks` |
+| AttendanceEmailSend / AttendanceEmailSettings | `CDAttendanceEmailSend` / `CDAttendanceEmailSettings` | The front-desk attendance email: who sent a day's, and the guide's settings for it (shared, schema 12); read and written through `AttendanceEmailLog` |
+
+**Core Data Patterns:**
+- Entity classes use `CD` prefix (e.g., `CDStudent`, `CDLesson`)
+- No unique constraints (incompatible with CloudKit)
+- Enums stored as raw `String` (e.g., `statusRaw`, `categoryRaw`)
+- Foreign keys as `String` not `UUID`
+- `modifiedAt` for conflict resolution
+- All properties optional or have defaults
+- Relationships use `NSSet` (cast to `Set<CDEntityType>` for iteration)
+- Use `mutableSetValue(forKey:)` for relationship mutations
+
+**Data-integrity rules** (each has a creation-time guard and a launch-time repair; detail in `Documentation/Architecture/DATA_MODELS.md`):
+- One lesson name per sub-area (`LessonRepository.createLesson` throws on a duplicate).
+- Check-ins are created only by `CDWorkCheckIn.make(for:on:purpose:in:)` and read with `resolvedWork(in:)`.
+- Work is only for enrolled children (`WorkRepository.createWork`).
+- An observation on a presentation is scoped to specific children (`NoteScope.forSelection`), never `.all`.
+- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Leftovers (`NotebookJunkCleanup`), which previews and backs up first.

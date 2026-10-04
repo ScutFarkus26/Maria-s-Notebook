@@ -85,7 +85,6 @@ for d in ~/Library/Developer/Xcode/DerivedData/Cosmic_Daybook-*; do
 - A script build phase, if one is ever added, must declare input and output file lists.
 - Every `#Preview` body lives in a `private struct <File>Preview` that the macro calls.
 
-
 ## Project Structure
 
 ```
@@ -152,72 +151,18 @@ Daybook Assistant/    # Assistant iPhone app: Attendance/, Onboarding/, Siri/, R
                       # (also compiles ~90 notebook files by path; see project.pbxproj)
 Cosmic Daybook Tests/ # Feature-mirrored test target
 Scripts/              # Build lock, install/archive, structure and unused-code checks
-Documentation/        # Architecture, ADRs, plans, manuals, organization audits
+Documentation/        # Architecture, ADRs, plans, manuals, audits; start at Documentation/INDEX.md (plans and status)
 ```
 
 Sidebar/tab grouping lives in `RootView.NavigationGroup` (`AppCore/RootView/RootView+NavigationGroup.swift`); `NavigationGroupTests` pins it, and pins every `NavigationItem` raw value (they are persisted — never rename one; alias a retired case via `NavigationItem.aliases`).
 
 ## Architecture
 
-**MVVM with Services pattern:**
-- **Views** — SwiftUI views using `@FetchRequest` for data binding
-- **ViewModels** — `@Observable @MainActor` classes for complex state
-- **Services** — Business logic operations (50+ services)
-- **Models** — `NSManagedObject` subclasses with `CD` prefix (76 entities)
-
-**Data access has two layers, not three.** `Repositories/*` own per-entity writes and typed reads (`fetch(id:)`, `StudentRepository.fetchStudents(ids:)`, `LessonRepository.fetchLessons(byArea:)`); `Services/DataQueryService` owns the read helpers that span entities or apply roster policy (`fetchAllStudents(excludeTest:excludeWithdrawn:sortBy:)`, `fetchAllLessons(sortBy:)`, presented assignments, open work). View models and services call one of those instead of hand-rolling a whole-table `CDFetchRequest`, and keep a caller-specific sort or filter at the call site rather than adding a variant to the layer. A read that is really per-student is scoped there (`SequenceTrackService+ScopedReads`, predicates on the student's ids), never widened to the table.
-
-**Concurrency:** Swift 6.0 strict concurrency throughout:
-- `@Observable` on all ViewModels and stateful services (zero `ObservableObject`)
-- `@MainActor` on all ViewModels, services, and repositories (~496 annotations)
-- `async/await` throughout, actors for off-thread work
-- `SWIFT_APPROACHABLE_CONCURRENCY` is on, so a `nonisolated async` function runs on its *caller's* actor. CPU-heavy work that must leave the main actor (decoding, tokenizing, digesting) is marked `@concurrent` — see `SearchIndexService.refreshContents` — and takes only `Sendable` arguments (a background `NSManagedObjectContext`, `Data`, value types), never a container or managed object
-- `Sendable` types for cross-actor data
-
-**Persistence:**
-```
-NSPersistentCloudKitContainer (CoreDataStack.swift)
-├── Private store (private.sqlite) — the guide's own records, including the classroom records
-│                                     they share out (70 private-only types + the 10 share types)
-└── Shared store (shared.sqlite)  — the classroom share as accepted from someone else (10 types)
-```
+MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores, `CoreDataStack.swift`). Data access has two layers: `Repositories/*` (per-entity writes, typed reads) and `Services/DataQueryService` (reads across entities); never hand-roll a whole-table `CDFetchRequest`. Swift 6 strict concurrency; CPU-heavy work that leaves the main actor is `@concurrent` and takes only `Sendable` arguments. Detail: `Documentation/Architecture/ARCHITECTURE.md`.
 
 ## Data Model
 
-**88 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones.
-
-**Core Models:**
-
-| Model | Class | Purpose |
-|-------|-------|---------|
-| Student | `CDStudent` | Student profiles (firstName, lastName, birthday, level) |
-| Lesson | `CDLesson` | Curriculum lessons with attachments & exercises |
-| LessonPresentation | `CDLessonPresentation` | Presentation scheduling & history |
-| LessonAssignment | `CDLessonAssignment` | Links students to lessons |
-| WorkModel | `CDWorkModel` | Work items; one `WorkStatus` per row (Working / Needs Review open; Mastered / Keep Practicing / Incomplete / legacy Done closed), changed only through `WorkLogService` |
-| Note | `CDNote` | Observations with tags, multi-student scoping |
-| AttendanceRecord | `CDAttendanceRecord` | Daily attendance tracking; `leavesAt` (schema 13) is a planned early pickup, not a mark; `returnedAt` + `statusBeforeLeavingRaw` (schema 14) record a child who left early and came back |
-| ClassroomMembership | `CDClassroomMembership` | This device's role and the pinned classroom share zone (private only) |
-| AttendanceDayLock | `CDAttendanceDayLock` | A day the lead guide locked (shared); read and written through `AttendanceDayLocks` |
-| AttendanceEmailSend / AttendanceEmailSettings | `CDAttendanceEmailSend` / `CDAttendanceEmailSettings` | The front-desk attendance email: who sent a day's, and the guide's settings for it (shared, schema 12); read and written through `AttendanceEmailLog` |
-
-**Core Data Patterns:**
-- Entity classes use `CD` prefix (e.g., `CDStudent`, `CDLesson`)
-- No unique constraints (incompatible with CloudKit)
-- Enums stored as raw `String` (e.g., `statusRaw`, `categoryRaw`)
-- Foreign keys as `String` not `UUID`
-- `modifiedAt` for conflict resolution
-- All properties optional or have defaults
-- Relationships use `NSSet` (cast to `Set<CDEntityType>` for iteration)
-- Use `mutableSetValue(forKey:)` for relationship mutations
-
-**Data-integrity rules** (each has a creation-time guard and a launch-time repair; detail in `Documentation/Architecture/DATA_MODELS.md`):
-- One lesson name per sub-area (`LessonRepository.createLesson` throws on a duplicate).
-- Check-ins are created only by `CDWorkCheckIn.make(for:on:purpose:in:)` and read with `resolvedWork(in:)`.
-- Work is only for enrolled children (`WorkRepository.createWork`).
-- An observation on a presentation is scoped to specific children (`NoteScope.forSelection`), never `.all`.
-- Old-record cleanup runs only through Settings › Troubleshooting › Clean Up Leftovers (`NotebookJunkCleanup`), which previews and backs up first.
-
+88 entities (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `Documentation/Architecture/DATA_MODELS.md`.
 
 ## Sharing Model
 
@@ -225,17 +170,12 @@ NSPersistentCloudKitContainer (CoreDataStack.swift)
 - **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, and marks staples, checks off the office run and adds needs (Restock)
 - These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all ten share types. "Attendance and Restock only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
 - Classroom share (10 types, schema 15): Student, AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15)
-- **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit Notes.
+- **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit.
 - Everything else is the guide's own (70 types): lessons, tracks, notes, work, todos, projects, meetings, ClassroomMembership, …
 
 ## Siri (App Intents)
 
-Attendance by voice in both apps (`Siri/AttendanceIntents.swift`, `Daybook Assistant/Siri/AssistantAttendanceIntents.swift`). Details: `Documentation/Architecture/SIRI.md`.
-
-- Every mark goes through `SiriAttendance` → `CDAttendanceStore`, the grid's path.
-- Files the Assistant compiles by path reach the app only through `SiriHost` and must build for iOS 18.
-- **Apple allows 10 App Shortcuts per app, and the notebook is at 10 (the Assistant at 9);** adding one means merging another. Retired intents stay, with `isDiscoverable = false`, so saved shortcuts keep running.
-- Names reach Siri only through `updateAppShortcutParameters()`.
+Rules: `Documentation/Architecture/SIRI.md`. Apple allows 10 App Shortcuts per app and the notebook is at 10 (the Assistant 9): adding one means merging another.
 
 ## Code Conventions
 
@@ -249,7 +189,7 @@ Attendance by voice in both apps (`Siri/AttendanceIntents.swift`, `Daybook Assis
 - Use `async/await` and `Task.sleep(for:)` for delays (NOT `DispatchQueue`)
 - Use `NSFetchRequest` + `NSPredicate` for queries (NOT `@Query` / `#Predicate`)
 - Use `@FetchRequest` in views for reactive data binding
-- **Plain English on screen** (plan: `Documentation/Implementation/PLAIN_ENGLISH_PLAN.md`): every message the apps show says what happened and what to do, in everyday words. Never put `error.localizedDescription`, `"\(error)"`, codes, IDs, paths or type names into UI text; log them, and put any worth keeping under `TechnicalDetailsDisclosure`. Errors go through `AppErrorMessages` (`userMessage`, `sharingMessage`, `importMessage`, `backupMessage`, `syncMessage`, `aiMessage(fallback:)`); Apple Intelligence wording lives in `AppleIntelligenceMessages`. `SaveCoordinator.save`'s `reason:` is a log label, never shown; pass `alertOnFailure: false` when the screen shows its own message.
+- **Plain English on screen** (plan: `Documentation/Implementation/Archive/PLAIN_ENGLISH_PLAN.md`): every message the apps show says what happened and what to do, in everyday words. Never put `error.localizedDescription`, `"\(error)"`, codes, IDs, paths or type names into UI text; log them, and put any worth keeping under `TechnicalDetailsDisclosure`. Errors go through `AppErrorMessages` (`userMessage`, `sharingMessage`, `importMessage`, `backupMessage`, `syncMessage`, `aiMessage(fallback:)`); Apple Intelligence wording lives in `AppleIntelligenceMessages`. `SaveCoordinator.save`'s `reason:` is a log label, never shown; pass `alertOnFailure: false` when the screen shows its own message.
 
 ## Auto-Research
 
@@ -276,69 +216,23 @@ At the start of each conversation, before writing or modifying any code, search 
 
 ## CloudKit Notes
 
-The full notes (history, recovery, the beta-SDK warnings and console noise to ignore) are in `Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md`, under "Working notes from CLAUDE.md". The rules every change must keep:
-
-- **Environments:** `CLOUDKIT_ENVIRONMENT` (project-level, `Production`) picks the environment for both apps; change it only in the project. A new key describing one store's sync state goes through `CloudKitEnvironment.scoped`.
-- **Container:** reach it through `CloudKitConfigurationService.container`, never `CKContainer.default()` (the Daybook Assistant has its own bundle ID but shares the container).
-- Two stores, private and shared; schema changes are additive-only after deployment; foreign keys are strings.
-- **The classroom share** holds only `CoreDataStack.sharedEntityNames`. It is created once, by Settings → Classroom → Set Up Classroom Sharing; `classroomShare(among:in:)` returns the pinned share, never `.first`. **Never move already-shared records with `container.share(_:to:)`** (on 2026-09-27 that killed export for the session), and **never take a record out of the share** except through `ClassroomShareRelease`.
-- New share-type records join the share through `SharedStoreOrphanGuard` (notebook) and `AssistantShareAttacher` (Assistant); nothing attaches during a first download (`FirstDownloadGate`). Don't add sweeps that attach records that merely *look* unshared.
-- **Attendance writes go through `CDAttendanceStore`** (marks, notes, pickups, Back in Class, permissions); day locks through `AttendanceDayLocks`; the front-desk email log through `AttendanceEmailLog`.
-- **A screen built from a one-off fetch must listen for imports:** `onPresentationDataChange(WhenVisible)`, adding the entity to `PersistentHistoryProcessor.presentationEntityNames` if it isn't there.
-- **Persistent history:** purge only what predates both the last export's start and 180 days; only the primary on-disk stack creates a `PersistentHistoryProcessor`; positions are per store, so never save a coordinator token or another store's token as a store's position.
-- **Schema:** after a model change, one Debug Development run with `-InitializeCloudKitSchema`, verify in CloudKit Console, deploy to Production before release.
-- **iCloud Drive files** (managed PDF folders, backups, note photos) go through `UbiquitousFile`: on iOS another device's file is a placeholder until downloaded, and writes are coordinated. Never orphan-clean the iCloud photo folder.
-- **Account status:** `CKContainer.accountStatus` / `.CKAccountChanged` for sync health, never `ubiquityIdentityToken` (that is iCloud Drive).
-- **Save observers:** typed `.didSave` messages, not `.didSaveObjectIDs(Async)` (they double-fire on the 27.0 SDK). Files the Daybook Assistant compiles stay on classic notifications (iOS 18 target).
+Rules: `Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md`. Never `CKContainer.default()` (use `CloudKitConfigurationService.container`); never move shared records with `container.share(_:to:)` or take one out of the share except through `ClassroomShareRelease`; schema changes are additive-only and, after a model change, need one Debug Development `-InitializeCloudKitSchema` run before the Production deploy; attendance writes go through `CDAttendanceStore`.
 
 ## Albums (teaching-album PDFs)
 
-Details (indexes, costs, annotations, identity repair, lesson links): `Documentation/Architecture/ALBUMS.md`.
-
-- The PDFs stay where they live (security-scoped bookmarks); never copy them into the container.
-- `AlbumLibrary.shared` is app-lifetime and deliberately not in `AppDependencies`.
-- **Album identity is the PDF filename**; `AlbumIdentityRepair` remaps it after a rename.
-- Indexes load lazily (`bootstrapIfNeeded`, `ensureIndexed`), never at launch, and one embedding model is used per process.
-- Annotations go through `AlbumUserDataStore`; the reading position is debounced on purpose.
-- Lesson ↔ album links are never written without review in `LessonAlbumMatchSheet`.
+Rules: `Documentation/Architecture/ALBUMS.md`. The PDFs stay where they live; never copy them into the container.
 
 ## MCP Server (Claude Desktop)
 
-A macOS-only server in `Services/MCPServer/` on `127.0.0.1:43117` (token preamble), bridged to Claude Desktop by `Scripts/mcp/cosmic-daybook-mcp`, toggled in Settings → AI Features → Claude Desktop. The design, the tool table and the detailed working notes are in `Documentation/Architecture/MCP_SERVER.md`. When adding or changing a tool:
-
-- **Every write goes through the service the in-app control uses**, never straight to Core Data.
-- Give every tool an `MCPToolAnnotations`, and add non-read-only and destructive names to the literal sets in `MCPToolRegistryTests` (which also pins the tool count).
-- A confirm-gated preview or "nothing changed" return calls `MCPCallOutcome.markNothingWritten()`. A write that can refuse after applying part of its input runs inside `rollingBackOnFailure(context)`. Check every save result.
-- Batches resolve every name before writing and land in one save; history reads take `since` / `until` through `DayWindow`.
-- Nothing deletes outright except the two confirm-gated tools (`remove_student_from_work`, `discard_presentation`); `record_parent_communication` files a letter but never sends it.
-- Deleting, un-marking or taking a child off a presentation calls `PresentationRecordCleanup` first; departures go through `StudentDeparturePlans`.
-- **Check the Swift entity class, not the model:** `representedClassName` often differs (`Schedule` → `CDSchedule`, `CommunityTopic` → `CDCommunityTopicEntity`, `Track` → `CDTrackEntity`). Grep `class CD<Name>` before writing a fetch.
-- App-level services reach tools through `MCPAppServices`.
-- Keep the MCP and on-device `NotebookTools` semantics aligned. Split reads from writes (`+Work` / `+WorkWrites`) to stay under 400 lines. Inside an `inputSchema` literal a concatenated string needs `.string("…" + "…")`; a tool's `description:` is a plain `String`.
+Rules: `Documentation/Architecture/MCP_SERVER.md`. Every write goes through the service the in-app control uses, never straight to Core Data; every tool gets an `MCPToolAnnotations` and a line in `MCPToolRegistryTests`.
 
 ## Restock (Supplies + Orders)
 
-Plan and history: `Documentation/Implementation/RESTOCK_PLAN.md`. One page, raw section value `supplies` (`.orders` is an alias).
-
-- A **staple** is a `CDSupply` with a level (Stocked / Low / Out) and a source (office / order); a **need** is a `CDOrderItem`. A staple that goes Low or Out has exactly one open need (`supplyID`); a one-off is a need on its own. Supply, SupplyTransaction and OrderItem are in the classroom share (schema 15).
-- **`RestockService` is the only writer** (notebook page, Assistant, Siri, MCP); callers save (`SaveCoordinator` on screen, `AssistantSave` on the phone). Every level change writes a `CDSupplyTransaction` (quantity 0) for History. `reconcile()` folds needs two devices opened at once, keeping the oldest; screens run it on appear and on import, never in a loop.
-- **Counts:** "to order" means not yet asked for. An item asked for waits on the office and isn't counted on the badge, Today's card or the page header.
-- The count → level launch step (`RestockLevelBackfill`) runs on the Mac only; a pre-v37 restore runs it on any device.
-- **The stage is derived, never stored:** `CDOrderItem.stage` reads received > confirmed > asked for > to request off `receivedAt` / `confirmedAt` / `requestedAt`. Office needs go To Request → Received only. Items asked for in one message share a `requestID`. Quantity is 1–999 (`OrderService.quantityRange`).
-- Draft Request (`OrderRequestDraftSheet`) builds the email with `OrderRequestMessage` (wording pinned by `OrderServiceTests`), with links cleaned by `OrderLinkCleaner` (Amazon → `/dp/ASIN`, tracking stripped), and marks the included items asked for when Mail reports it sent. Only the guide sends it.
-- Who requests go to lives in `OrderRequestPrefs`, synced through `SyncedPreferencesStore`, edited in Settings › Communication › Order Requests and from the Restock page.
+Rules: `Documentation/Architecture/RESTOCK.md`. `RestockService` is the only writer; a need's stage is derived, never stored.
 
 ## Backup System
 
-Format v37 (encrypted Apple Archive); reads v17–v37; entry point `Backup/Archive/BackupCoordinator.swift`. The design and the detailed working notes (format history, threading, streaming, restore) are in `Documentation/Architecture/BACKUP_SYSTEM.md`. Rules:
-
-- **A new entity or attribute:** add a line to `Backup/BackupEntityTable.swift` (and a `ModelRowSpec` in `ModelRowKinds.swift` when the row is a straight copy). `BackupCoverageTests` fails until every model entity is backed up or explicitly excluded. Bump the format version and record it in BACKUP_SYSTEM.md.
-- Output is pinned by `BackupGoldenOutputTests` and `BackupSparseRowTests`; re-record only for an intended format change.
-- Encode, encryption, write, verification and decode run off the main actor through `@concurrent` (plain `nonisolated async` runs on the caller's actor in this project).
-- **Merge restore is an upsert:** never delete and reinsert a row. Replace mode uses context-level deletes, not `NSBatchDeleteRequest`. Restore runs through `BackupTransactionManager.executeWithRollback`.
-- `ClassroomMembership` is carried but never restored.
-- Binary attributes are left out (regenerable), except album highlights and ink.
-- `Cosmic Daybook Tests/Backup/BackupService+LegacyRestore.swift` is a frozen copy of the old restore for the equivalence tests; don't modernize it.
+Format v37; rules: `Documentation/Architecture/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 

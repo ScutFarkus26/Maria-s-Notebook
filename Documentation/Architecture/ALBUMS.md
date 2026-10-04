@@ -13,3 +13,16 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 - **Album identity is the PDF filename**, which is what every annotation row, citation, `@SceneStorage` value, album-window value, and MCP tool argument carries. Renaming a PDF would orphan all of it, so `AlbumIdentityRepair` fingerprints each album by page count + outline titles + first-page text, keeps a fingerprint → filename map in `UserDefaultsKeys.albumsFingerprints`, and remaps every `albumID` foreign key when an album reappears under a new name and the old name is gone from disk. Driven from `AlbumsRootView` because it needs a managed object context.
 - **Lesson ↔ album links:** `CDLesson` carries `albumID` / `albumPageIndex` / `albumLessonTitle` / `albumLinkConfidence` (see `CDLesson.albumLink`, which vends an `AlbumLink`). `LessonAlbumMatcher` scores every unlinked lesson against every album outline entry (70% folded-title Dice coefficient, 30% semantic index, small subject/area bonus); nothing is written without review in `LessonAlbumMatchSheet`, because album outlines repeat lesson titles across levels. `albumLessonTitle` is the re-resolution anchor: `reresolvePages` re-points page numbers by title when a revised PDF shifts pagination. Entry points: the lesson detail's Album row (`LessonAlbumLinkSection`), the album reader's Notebook Lesson button (`LinkedNotebookLessonsPanel`), and Library Options ▸ Match Lessons to Albums. Cross-surface navigation goes through `AppRouter.navigateToAlbumPage` / `navigateToLesson`.
 - Ported from the standalone Albums app (`~/Developer/Albums`), which is left in place. `Scripts/export_albums_user_data.sh` + Library Options → Import Albums App Data… carries its data over.
+
+## Rules (moved from CLAUDE.md, 2026-10-04)
+
+Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
+
+Details (indexes, costs, annotations, identity repair, lesson links): `Documentation/Architecture/ALBUMS.md`.
+
+- The PDFs stay where they live (security-scoped bookmarks); never copy them into the container.
+- `AlbumLibrary.shared` is app-lifetime and deliberately not in `AppDependencies`.
+- **Album identity is the PDF filename**; `AlbumIdentityRepair` remaps it after a rename.
+- Indexes load lazily (`bootstrapIfNeeded`, `ensureIndexed`), never at launch, and one embedding model is used per process.
+- Annotations go through `AlbumUserDataStore`; the reading position is debounced on purpose.
+- Lesson ↔ album links are never written without review in `LessonAlbumMatchSheet`.

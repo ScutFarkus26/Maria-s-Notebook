@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Groups page: simulator check
+
+> **Built 2026-10-03** (b0c2a6f0) Run on the iPad and iPhone simulators; three small layout fixes are on main.
 
 ## Goal
 See the Groups page (main 158c2bce) running for the first time, on an iPad and an iPhone simulator, with enough fake data that every kind of line on a card shows up, and fix what's wrong. Danny gets screenshots of each screen, a pass/fail per check, and small bugs fixed on main; anything bigger goes to Tide. The build session never saw it on screen because the simulator service hung (2026-10-03). Background: `GROUPS_PAGE_PLAN.md` (Decisions 1–7, Review notes) and the user manual's "## Groups" section say what each screen should show.

@@ -2,6 +2,8 @@
 
 # Swift 6.2 Evaluation: Module-Level @MainActor Adoption
 
+> **Built 2026-09-03** (7c79d42c) Main-actor default isolation is adopted on every target.
+
 **Date:** April 2026
 **Status:** Preparation — ready to adopt when Swift 6.2 is stable
 **Applies to:** Cosmic Daybook (Core Data + NSPersistentCloudKitContainer rewrite)

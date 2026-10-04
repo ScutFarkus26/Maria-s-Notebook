@@ -2,6 +2,8 @@
 
 # Energy and Heat — Implementation Plan
 
+> **Built 2026-09-10** (e83bace9) All five phases merged to main; e83bace9 is the last of the five merges.
+
 Status: **All five phases merged to `main` 2026-09-10** (phases 1–2 by the parent session, 3–5 by parallel agents; final verification on `main` recorded below) · Owner: Danny · Created 2026-09-10
 
 Source: the 2026-09-10 heat audit (recorded in the project memory under

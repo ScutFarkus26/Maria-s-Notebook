@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Groups page: replacing the Group Planner
+
+> **Built 2026-10-03** (158c2bce) Squashed to main; the simulator check is `GROUPS_SIM_CHECK_PLAN.md`.
 
 Status checklist at the bottom. This file is the handoff: a fresh session reads it and continues from the first unticked box.
 

@@ -1,10 +1,12 @@
 # Progress: Production move, then the Daybook Assistant improvements
 
+> **In progress** Milestones 1–12 and 14–32 are done or landed on main; Milestone 13 (ship to the devices) is active with its device checks open, and Milestone 32's on-screen check waits for Danny. Status checked against git 2026-10-04.
+
 Repo copy of the build board (https://claude.ai/artifact/VZpfwHWT7cGz1vkn3xNzNm).
 Milestones 1–7: Part 2 of the two-zone Production move. Milestones 8–13: the 20
 Daybook Assistant improvements picked from the 2026-09-29 top-25 review (plan:
-`~/.claude/plans/polymorphic-crafting-kahan.md`). Milestones 14–21: the logic-break
-sweep (plan: `~/.claude/plans/analyze-my-code-and-happy-frog.md`), squashed onto main
+`Implementation/Archive/ASSISTANT_TOP_25_FIXES_PLAN.md`). Milestones 14–21: the logic-break
+sweep (plan: `Implementation/Archive/LOGIC_BREAK_SWEEP_PLAN.md`), squashed onto main
 as 81e8f4cb. Milestone 22: the sweep's loose ends and live MCP checks, squashed onto
 main as fa1c434f. Milestone 13 ships it all to the devices.
 
@@ -15,7 +17,7 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 - [x] 4. Assistant test
 - [x] 5. iPhone + iPad
 - [x] 6. Tidy up
-- [ ] 7. Attendance parity (blocked: roll-out of 63101f40 waits for Danny)
+- [x] 7. Attendance parity (63101f40 on main 2026-09-29; rolled out with 4c83cb89 on 2026-09-30, see 13)
 - [x] 8. Tests & correctness
 - [x] 9. Joining & identity
 - [x] 10. Tile menu
@@ -48,7 +50,7 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 
 ### Sync checks
 - [x] A change on one device reaches the other
-- [ ] Attendance roll redraws when another device marks (fix 978fb33d; ships with attendance parity)
+- [ ] Attendance roll redraws when another device marks (fix landed on main as 63101f40 and rolled out 2026-09-30; the device check is under 13)
 - [x] Production holds exactly two zones
 - [x] Push main to GitHub
 
@@ -59,7 +61,7 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 - [x] Update memory and docs for the Production move
 
 ### After step 6
-- [ ] Ship attendance parity + roll redraw fix together
+- [x] Ship attendance parity + roll redraw fix together (63101f40, rolled out with 4c83cb89 on 2026-09-30)
 - [ ] Make former students easier to find on iPhone/iPad (optional)
 
 ## 8. Tests & correctness (done 2026-09-29)
@@ -161,7 +163,7 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 - [x] Found during it and fixed: F4 temporarily-unavailable iCloud rebuilds again, Leave refuses with no readable share (ea271509); Manage Sharing saves off the main actor (ba4bf394)
 - [x] Merge: squashed onto main as 81e8f4cb and pushed 2026-09-30 (Assistant 116/116, notebook 2080/2080, Mac build clean)
 
-## 22. Sweep loose ends (active, branch fix/logic-break-loose-ends-2026-09-30)
+## 22. Sweep loose ends (done 2026-09-30, fa1c434f; was branch fix/logic-break-loose-ends-2026-09-30)
 
 ### Code (612956a4; each new test failed on the old code first)
 - [x] The notebook's Close Arrival retires Siri's Undo for that day, as the Assistant's grid does
@@ -178,7 +180,7 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 - [x] Daybook Assistant: 118 of 118
 - [x] Cosmic Daybook: 2081 of 2081
 - [x] macOS build of the branch: clean
-- [ ] Merge and push (Danny's call)
+- [x] Merge: squashed onto main as fa1c434f (2026-09-30), pushed
 
 ## 13. Ship to devices (active, 2026-09-30)
 
@@ -195,10 +197,10 @@ main as fa1c434f. Milestone 13 ships it all to the devices.
 - [ ] Real-share checks: join state, Leave, guide's name, reminder firing, Siri
 - [ ] Tide device checks: fa1c434f, gmail re-invite, then the rest
 
-## Plain English (milestones 27–32, plan `Documentation/Implementation/PLAIN_ENGLISH_PLAN.md`)
+## Plain English (milestones 27–32, plan `Documentation/Implementation/Archive/PLAIN_ENGLISH_PLAN.md`)
 - [x] 27. Plain English: shared
 - [x] 28. Plain English: sync
 - [x] 29. Plain English: backup
 - [x] 30. Plain English: sharing & Siri
 - [x] 31. Plain English: screens
-- [ ] 32. Plain English: merge & verify (merged and tested on claude/festive-morse-7d0b1a; landing on main and the on-screen check wait for Danny)
+- [ ] 32. Plain English: merge & verify (on main as 9503d7f2 on 2026-10-03, merged and tested; the on-screen check waits for Danny)

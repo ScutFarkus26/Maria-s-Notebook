@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # iPad: Sample Class control covers "Return to My Class"
+
+> **Built 2026-10-03** (62682481) On main; checked on the iPad Pro 13" simulator.
 
 ## Goal
 On the iPad, while the Sample Class is showing, the "Return to My Class" button in the blue Sample Class banner can be seen and tapped again. The class and year control ("Sample Class · 2026–2027") stays in the top-right corner but sits just below the banner, no longer over it. Done before the next iPhone and iPad install.

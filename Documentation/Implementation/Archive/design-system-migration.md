@@ -2,6 +2,8 @@
 
 # Design-system migration recipe (2026-09-22)
 
+> **Built 2026-09-22** (353485ec) The radius tokens and surface modifiers are adopted; the leftover noted above is open.
+
 Consolidation, not redesign: every migrated site renders exactly as before. A value stays the value it was; two sites that differ stay different. `Components/` and `Students/` are the reference; `DesignTokensTests` pins the tokens.
 
 ## Tokens — `UIConstants.CornerRadius`

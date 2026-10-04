@@ -2,6 +2,8 @@
 
 # Siri & Apple Intelligence Improvements
 
+> **Built 2026-06-25** (92d0226a) Nine of ten items are on main; the tenth (widgets and Control Center) is `../SIRI_WIDGETS_HANDOFF.md`, not built.
+
 **Date:** 2026-06-24
 **Status:** 9 of 10 items shipped in-app (iOS + macOS builds green, lint-clean). 1 item (widgets/Control Center) is a documented Xcode handoff.
 **Scope:** Make the app a first-class citizen of Siri, Spotlight, and Apple Intelligence using the modern **App Intents** framework (the successor to SiriKit custom intents).

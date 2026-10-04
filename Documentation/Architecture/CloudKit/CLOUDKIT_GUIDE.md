@@ -433,3 +433,22 @@ These come from Apple's frameworks, not this app — they are not actionable in 
 
 **Filter in Console.app:** exclude subsystem `com.apple.BackgroundSystemTasks`.
 **Noisy Xcode debug runs:** set `OS_ACTIVITY_MODE=disable` in the scheme's environment variables.
+
+## Rules (moved from CLAUDE.md, 2026-10-04)
+
+Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
+
+The full notes (history, recovery, the beta-SDK warnings and console noise to ignore) are in `Documentation/Architecture/CloudKit/CLOUDKIT_GUIDE.md`, under "Working notes from CLAUDE.md". The rules every change must keep:
+
+- **Environments:** `CLOUDKIT_ENVIRONMENT` (project-level, `Production`) picks the environment for both apps; change it only in the project. A new key describing one store's sync state goes through `CloudKitEnvironment.scoped`.
+- **Container:** reach it through `CloudKitConfigurationService.container`, never `CKContainer.default()` (the Daybook Assistant has its own bundle ID but shares the container).
+- Two stores, private and shared; schema changes are additive-only after deployment; foreign keys are strings.
+- **The classroom share** holds only `CoreDataStack.sharedEntityNames`. It is created once, by Settings → Classroom → Set Up Classroom Sharing; `classroomShare(among:in:)` returns the pinned share, never `.first`. **Never move already-shared records with `container.share(_:to:)`** (on 2026-09-27 that killed export for the session), and **never take a record out of the share** except through `ClassroomShareRelease`.
+- New share-type records join the share through `SharedStoreOrphanGuard` (notebook) and `AssistantShareAttacher` (Assistant); nothing attaches during a first download (`FirstDownloadGate`). Don't add sweeps that attach records that merely *look* unshared.
+- **Attendance writes go through `CDAttendanceStore`** (marks, notes, pickups, Back in Class, permissions); day locks through `AttendanceDayLocks`; the front-desk email log through `AttendanceEmailLog`.
+- **A screen built from a one-off fetch must listen for imports:** `onPresentationDataChange(WhenVisible)`, adding the entity to `PersistentHistoryProcessor.presentationEntityNames` if it isn't there.
+- **Persistent history:** purge only what predates both the last export's start and 180 days; only the primary on-disk stack creates a `PersistentHistoryProcessor`; positions are per store, so never save a coordinator token or another store's token as a store's position.
+- **Schema:** after a model change, one Debug Development run with `-InitializeCloudKitSchema`, verify in CloudKit Console, deploy to Production before release.
+- **iCloud Drive files** (managed PDF folders, backups, note photos) go through `UbiquitousFile`: on iOS another device's file is a placeholder until downloaded, and writes are coordinated. Never orphan-clean the iCloud photo folder.
+- **Account status:** `CKContainer.accountStatus` / `.CKAccountChanged` for sync health, never `ubiquityIdentityToken` (that is iCloud Drive).
+- **Save observers:** typed `.didSave` messages, not `.didSaveObjectIDs(Async)` (they double-fire on the 27.0 SDK). Files the Daybook Assistant compiles stay on classic notifications (iOS 18 target).

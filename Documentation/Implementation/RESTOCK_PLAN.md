@@ -1,9 +1,11 @@
 # Restock: Supplies + Orders as one page, shared with the Daybook Assistant
 
+> **In progress** Phases 1–3 are on main (merged 2026-10-03, 015c269c) and Phase 4 shipped to TestFlight as 202610031959; the device checks that remain are Danny's, in Tide.
+
 Mockups: canvas https://claude.ai/artifact/BBSwXMHajtcQRK2rggK1Eo (Before ×3 with numbered findings,
 After Mac ×4, Assistant iPhone ×4, interactive in Play). Analysis 2026-10-03 on
 `claude/inventory-tracking-design-d3a470`. Built on `claude/restock-feature-build-ec3135` (worktree
-`.claude/worktrees/groups-view-analysis-9432b3`). Nothing reaches main until Danny has looked.
+`.claude/worktrees/groups-view-analysis-9432b3`). Reached main 2026-10-03 (015c269c); Phase 4's device checks remain.
 
 ## Progress
 - [x] Phase 1: data layer (schema 15, backup v37, RestockService), `a97b3439` (session: build)

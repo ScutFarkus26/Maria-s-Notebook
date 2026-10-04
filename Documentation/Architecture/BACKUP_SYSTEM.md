@@ -241,3 +241,17 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 - **Model-driven rows for 31 types:** where a backup is a straight copy of the attributes, the DTO name is an alias of `ModelRow<Kind>` (`Backup/ModelRow.swift`) and the type has a short `ModelRowSpec` in `Backup/ModelRowKinds.swift`: `filling` (optional attributes the export writes "now"/a new id/`[]` for when nil — older builds need them to decode), `omitting` (device-local blobs), `parentIDs` (a parent's id written from a relationship) and `parents` (how restore re-links: keep, clear when not found, or always set). Everything else — keys, types, which keys are required — comes from the model, read once off the main actor (`BackupModelSchema`). Restore goes through `BackupEntityImporter.importRows`. The other 42 types keep hand-written DTOs (`Backup/BackupTypes*.swift`), transformers (`Backup/Export/`) and importers (`Backup/Import/`) because they reshape, validate or drop data. A new plain type is one table line plus one spec.
 - **Output is pinned:** `BackupGoldenOutputTests` (+ `BackupGolden-v27.json`) compares a backup of the fully populated field-coverage fixture byte for byte and checks restore-then-export; `BackupSparseRowTests` (+ `BackupSparseRows-v27.json`, recorded from the hand-written code) pins nil fields, id-less records, id-only rows and missing parents for the 31 model-row types. Re-record only for an intended format change (`TEST_RUNNER_RECORD_BACKUP_GOLDEN=1` / `TEST_RUNNER_RECORD_BACKUP_SPARSE=1`; the file lands in the simulator app's tmp).
 - Binary attributes are excluded from backups by design because they're regenerable (thumbnails, covers, file bookmarks). The **one exception is the album annotations** (format v21): highlight rectangles travel as plain numbers and Pencil ink travels as its PencilKit data, because neither can be recreated after a restore.
+
+## Rules (moved from CLAUDE.md, 2026-10-04)
+
+Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
+
+Format v37 (encrypted Apple Archive); reads v17–v37; entry point `Backup/Archive/BackupCoordinator.swift`. The design and the detailed working notes (format history, threading, streaming, restore) are in `Documentation/Architecture/BACKUP_SYSTEM.md`. Rules:
+
+- **A new entity or attribute:** add a line to `Backup/BackupEntityTable.swift` (and a `ModelRowSpec` in `ModelRowKinds.swift` when the row is a straight copy). `BackupCoverageTests` fails until every model entity is backed up or explicitly excluded. Bump the format version and record it in BACKUP_SYSTEM.md.
+- Output is pinned by `BackupGoldenOutputTests` and `BackupSparseRowTests`; re-record only for an intended format change.
+- Encode, encryption, write, verification and decode run off the main actor through `@concurrent` (plain `nonisolated async` runs on the caller's actor in this project).
+- **Merge restore is an upsert:** never delete and reinsert a row. Replace mode uses context-level deletes, not `NSBatchDeleteRequest`. Restore runs through `BackupTransactionManager.executeWithRollback`.
+- `ClassroomMembership` is carried but never restored.
+- Binary attributes are left out (regenerable), except album highlights and ink.
+- `Cosmic Daybook Tests/Backup/BackupService+LegacyRestore.swift` is a frozen copy of the old restore for the equivalence tests; don't modernize it.

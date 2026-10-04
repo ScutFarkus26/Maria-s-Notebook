@@ -1,5 +1,7 @@
 # macOS HIG Conformance — Phased Plan
 
+> **In progress** Phases 0–3 are on main (the plan's 2026-09-30 status says so); Phase 4 and the open sweeps below are not built.
+
 Derived from the macOS Human Interface Guidelines audit (2026-06-28). The audit produced 56 adversarially-verified findings + 5 completeness additions; this is the build plan that turns the top items into work.
 
 **Decision on file:** The floating radial PieMenu quick-command button is **kept** (Danny's call). It is made HIG-compliant by adding parallel standard paths, not removed. See Phase 1.

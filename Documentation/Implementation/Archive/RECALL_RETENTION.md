@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Lesson Recall & Retention — Implementation Plan
+
+> **Built 2026-06-25** (c946ee20) v1 is on main; the deferred follow-ups listed below were never built.
 
 Status: **Implemented v1 — full test suite green** — built 2026-06-23 · Owner: Danny · Created 2026-06-23
 (Deferred follow-ups: spaced-interval Settings UI, photo capture, per-covered "check anyway"

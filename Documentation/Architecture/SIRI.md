@@ -9,3 +9,14 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 - **Shared by path, one seam:** the student entity, `StudentNameMatcher`, `SiriAttendance`, the undo memory, `SiriSyncKeepAlive` and the attendance intents compile into both apps. They reach the app only through `SiriHost`, which each target defines with the same shape (`Siri/SiriHost.swift`, `Daybook Assistant/Siri/AssistantSiriHost.swift`). The Assistant builds its one stack in `AssistantStack` so a Siri launch with no window never opens a second container. Shared files target iOS 18: no iOS 26+ App Intents API in them without an availability check.
 - **Apple's limit is 10 App Shortcuts per app, and the notebook is at 10.** The four "Open Today/Students/Lessons/Attendance" intents became one `OpenSectionIntent`; the old ones stay (`isDiscoverable = false`) so saved shortcuts keep running. Adding an App Shortcut means merging another.
 - **Names reach Siri only through `updateAppShortcutParameters()`**: the notebook calls it on each launch's Spotlight pass, the Assistant whenever its roster changes (`AssistantSiriVocabulary`). Phrases must include the app name; for a bare "Mark Maya here" the user makes a personal Shortcut with that name.
+
+## Rules (moved from CLAUDE.md, 2026-10-04)
+
+Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
+
+Attendance by voice in both apps (`Siri/AttendanceIntents.swift`, `Daybook Assistant/Siri/AssistantAttendanceIntents.swift`). Details: `Documentation/Architecture/SIRI.md`.
+
+- Every mark goes through `SiriAttendance` → `CDAttendanceStore`, the grid's path.
+- Files the Assistant compiles by path reach the app only through `SiriHost` and must build for iOS 18.
+- **Apple allows 10 App Shortcuts per app, and the notebook is at 10 (the Assistant at 9);** adding one means merging another. Retired intents stay, with `isDiscoverable = false`, so saved shortcuts keep running.
+- Names reach Siri only through `updateAppShortcutParameters()`.

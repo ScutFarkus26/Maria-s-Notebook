@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Today redesign plan
+
+> **Built 2026-10-02** (c2430056) All seven phases are on main; the Mac UI is checked by Danny (in Tide).
 
 Source: the "Today View Redesign" canvas (https://claude.ai/artifact/APGbKvVfA6j3T1fuqfzwPR), Mac Before/After
 boards with numbered red (problem) and green (fix) notes and a blue efficiency note. Danny approved the plan on

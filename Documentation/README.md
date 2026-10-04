@@ -4,9 +4,11 @@ Project documentation lives outside the synchronized Xcode source folders so it 
 
 ## Contents
 
+Start at [INDEX.md](INDEX.md): every plan and progress file with its status, date and where it lives.
+
 - `Architecture/` - system design, data model, CloudKit, AI, backup, albums, Siri, build settings, ownership conventions, and technical reference material (including the detailed feature notes that used to live in `Cosmic Daybook/CLAUDE.md`).
 - `ADRs/` - architecture decision records.
-- `Implementation/` - active implementation plans and handoffs; finished plans move to `Implementation/Archive/`.
+- `Implementation/` - active implementation plans and handoffs; finished plans move to `Implementation/Archive/`. Each plan opens with a status line, and `INDEX.md` lists them all.
 - `Manuals/` - Markdown sources and PDF generation scripts for the developer and user manuals.
 - `Generated/` - generated PDF manuals.
 

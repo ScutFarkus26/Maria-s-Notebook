@@ -2,6 +2,8 @@
 
 # Roster and lesson-catalog migration (items #28/#29)
 
+> **Built 2026-09-21** (8e2f7c04) `RosterStore` and `LessonCatalog` are on main; the leftover noted above is open.
+
 **What the stores are.** `RosterStore` (`Students/Roster/`) and `LessonCatalog` (`Lessons/`) are
 `@Observable @MainActor` classes, each wrapping one `NSFetchedResultsController` on the view context
 (`Utils/FetchedTable.swift`). The controller listens to the same `NSManagedObjectContextObjectsDidChange`

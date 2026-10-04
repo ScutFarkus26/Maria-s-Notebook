@@ -2,7 +2,7 @@
 
 Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps only the rules every session needs. Dates in the notes are when each change landed.
 
-**Build-setting rules** (see `Documentation/Implementation/BUILD_AND_LAUNCH_PERFORMANCE_PLAN.md`):
+**Build-setting rules** (see `Documentation/Implementation/Archive/BUILD_AND_LAUNCH_PERFORMANCE_PLAN.md`):
 - The scheme's `-InitializeCloudKitSchema` launch argument stays **unchecked**. Tick it for one run after a Core Data model change, verify in CloudKit Console, then untick it — every Debug launch with it on pays a synchronous CloudKit round-trip inside `CoreDataStack.init`. Apple allows schema setup only in Development, so a Production build ignores the argument: build the schema run with `CLOUDKIT_ENVIRONMENT=Development` (in a simulator, not on the guide's Mac — a Development build of a newer schema would migrate the Mac's Development notebook forward, and an older build then refuses to open it).
 - **`CLOUDKIT_ENVIRONMENT`** (project-level; `Production` since the notebook moved there on 2026-09-28, with Development kept frozen on each device as the fallback) sets the `com.apple.developer.icloud-container-environment` entitlement in both apps and the `CloudKitEnvironment` Info.plist key. Change it only in the project, never in one target or one file; see CloudKit Notes → Environments.
 - Explicit modules (`SWIFT_ENABLE_EXPLICIT_MODULES`), incremental Debug compilation, and DWARF-only Debug info (`DEBUG_INFORMATION_FORMAT = dwarf`) are deliberate; do not override them per target or switch Debug to whole-module. Explicit modules are also what compilation caching requires.

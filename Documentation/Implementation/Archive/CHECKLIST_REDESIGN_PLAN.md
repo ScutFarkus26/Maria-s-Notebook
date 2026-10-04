@@ -1,10 +1,14 @@
+> Archived 2026-10-04: built and on main.
+
 # Checklist redesign
+
+> **Built 2026-10-02** (95606c42) All five phases are on main. Mac UI was compiled but not seen in a run; Danny's check is in Tide.
 
 Planning › Checklist (`ClassAreaChecklistView`): the lesson × student grid for one curriculum area.
 Mockups: canvas https://claude.ai/artifact/P8ZL7mvh3YvBEybm46Vvpe (boards: Before, After, After — Ready lens,
 Status marks, cell detail, multi-select). Approved by Danny 2026-10-02 ("go with your recommendations, build
-all five phases"). Branch `claude/checklist-view-analysis-5d42f6`, one commit per phase, nothing merged to
-main until Danny has looked.
+all five phases"). Branch `claude/checklist-view-analysis-5d42f6`, one commit per phase, merged to
+main as 95606c42 on 2026-10-02.
 
 ## Decisions (Danny, 2026-10-02)
 

@@ -1,5 +1,7 @@
 # School Year Separation — Implementation Plan
 
+> **In progress** Paused 2026-09-30: Phases 0–2 are on main (d49bb0bc added the attendance-report lens); the rest was never built.
+
 Status: **Paused (2026-09-30)** — Phases 0–2 are on `main`. Phase 3 got only the attendance reports' "Match viewing" preset (`d49bb0bc`); year-scoped progress reports and exports were never built, nor was Phase 4 (the `schoolYearKey` stamp on activity records). `SchoolYearFilter` is currently used only by tests, and `TODO(phase-1)` (deriving the picker's lower bound from the earliest activity) is still open at `Cosmic Daybook/SchoolYear/SchoolYearStore.swift:112` · Owner: Danny · Created 2026-06-15
 
 ## Implementation status (2026-06-15)

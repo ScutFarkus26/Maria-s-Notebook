@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Student Workspace Redesign
+
+> **Built 2026-10-01** (7431c30c) The roster redesign is on main; "Before release" below lists by-hand checks, which are in Tide.
 
 ## Purpose
 

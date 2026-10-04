@@ -1,4 +1,8 @@
+> Archived 2026-10-04: built and on main.
+
 # Build and Launch Performance — Implementation Plan
+
+> **Built 2026-09-04** (251ec634) Phases 0–4 are on main; the build-speed levers (2026-09-23, recorded in ac2e8a9c) and the Phase 6 bottom-layer split were measured and deferred or not pursued, so nothing is left to build.
 
 Status: **Phases 0–4 on `main`** (4a landed as 251ec634; 4b/24a/24b measured and deferred, see status); build-speed levers 2026-09-23; Phase 6 bottom-layer split measured and not pursued · Owner: Danny · Created 2026-09-04
 
