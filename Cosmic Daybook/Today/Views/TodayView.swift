@@ -203,16 +203,7 @@ struct TodayView: View {
 
     private var mainContent: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // On iPhone compact, attendance has its own tab, so hide it here.
-                // Otherwise render the strip (and expanded grid, if open) above the
-                // list so the user can mark attendance without losing scroll position.
-                if !isIPhoneCompact {
-                    attendanceSection
-                }
-                listContent
-                    .safeAreaPadding(.bottom, quickCaptureClearance)
-            }
+            bandAndList
             .navigationTitle("Today")
             .navigationSubtitle(TodayHeaderText.subtitle(for: viewModel.date))
             #if os(macOS)
@@ -221,6 +212,25 @@ struct TodayView: View {
             .toolbar { toolbarContent }
             #endif
         }
+    }
+
+    @ViewBuilder
+    private var bandAndList: some View {
+        let stack = VStack(spacing: 0) {
+            // On iPhone compact, attendance has its own tab, so hide it here.
+            // Otherwise render the strip (and expanded grid, if open) above the
+            // list so the user can mark attendance without losing scroll position.
+            if !isIPhoneCompact {
+                attendanceSection
+            }
+            listContent
+                .safeAreaPadding(.bottom, quickCaptureClearance)
+        }
+        #if os(macOS)
+        todoInspector(on: stack)
+        #else
+        stack
+        #endif
     }
 
     private var attendanceSection: some View {

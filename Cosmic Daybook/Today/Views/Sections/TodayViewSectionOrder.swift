@@ -13,8 +13,8 @@
 // then the meetings, then Gone quiet.
 // A fixed 340-pt right column holds the rest in the phone's order: the
 // Needs-a-lesson card, Todos, then the count-gated sections. A todo opens in
-// an inspector at the trailing edge, below the attendance band, instead of
-// replacing either column.
+// an inspector at the window's trailing edge instead of replacing either
+// column.
 //
 // Every section below gates itself — see `TodaySectionVisibility` — so this
 // file only decides sequence, never whether something shows. The declared
@@ -82,9 +82,6 @@ extension TodayView {
                 macLeftColumnSections
             }
             .listStyle(.inset)
-            // The lists sit below the attendance band, not the toolbar, so
-            // the top edge's blur band only covered the rows under it.
-            .scrollEdgeEffectHidden(true, for: .top)
             .frame(minWidth: 360, maxWidth: .infinity)
 
             Divider()
@@ -93,12 +90,7 @@ extension TodayView {
                 macRightColumnSections
             }
             .listStyle(.inset)
-            .scrollEdgeEffectHidden(true, for: .top)
             .frame(width: Self.macRightColumnWidth)
-        }
-        .inspector(isPresented: isTodoInspectorPresented) {
-            todoInspectorContent
-                .inspectorColumnWidth(min: 280, ideal: 320, max: 400)
         }
     }
 
@@ -126,6 +118,17 @@ extension TodayView {
         parentReportsListSection
         dayPadListSection
         doneTodayListSection
+    }
+
+    /// The todo editor, at the window's trailing edge beside the band and
+    /// both columns. Attached to the columns alone, the inspector made the
+    /// Mac draw a toolbar-height grey band across the top of both lists,
+    /// covering their first rows, even while it was closed.
+    func todoInspector(on content: some View) -> some View {
+        content.inspector(isPresented: isTodoInspectorPresented) {
+            todoInspectorContent
+                .inspectorColumnWidth(min: 280, ideal: 320, max: 400)
+        }
     }
 
     /// Whether the todo inspector is open: exactly when a todo is selected.
