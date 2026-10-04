@@ -37,6 +37,11 @@ Scripts/locked_xcodebuild.sh build-for-testing -project "Cosmic Daybook.xcodepro
   COMPILER_INDEX_STORE_ENABLE=NO
 nice -n 10 xcodebuild test-without-building -project "Cosmic Daybook.xcodeproj" -scheme "Cosmic Daybook" -destination "platform=iOS Simulator,id=$(~/.claude/bin/sim-lease)"
 
+# The Daybook Assistant's phones: the assistants carry an iPhone SE (3rd generation) on iOS 26 and an
+# iPhone 14 Pro Max on iOS 27. Check the Assistant on the SE leased on iOS 26.5, always with `--os 26.5`:
+# without it sim-lease makes a second SE on iOS 27, and Danny keeps only one.
+~/.claude/bin/sim-lease --type "iPhone SE (3rd generation)" --os 26.5
+
 # In an agent worktree: the same recipes plus the three prefix-mapping settings, which take the
 # worktree's path out of the compilation-cache keys so every worktree shares one cache.
 # Build ONCE right after creating the worktree, before editing anything (see Build-setting rules).
