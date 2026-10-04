@@ -236,9 +236,11 @@ Format v37; rules: `Documentation/Architecture/BACKUP_SYSTEM.md`. A new entity o
 
 ## Todos for Danny
 
-Todos for this app go in Tide, in `Areas/App Development/Cosmic Daybook/TODO.md` —
-never in the old single `Areas/App Development/TODO.md`, which is gone. Add
-them with Tide's `add_action`, giving that file and one of its five headings:
+Todos go in Tide: the Daybook Assistant's own in `Areas/App Development/Daybook Assistant/TODO.md`
+(from 2026-10-04), Cosmic Daybook's and those about both apps in
+`Areas/App Development/Cosmic Daybook/TODO.md` — never in the old single
+`Areas/App Development/TODO.md`, which is gone. Add them with Tide's `add_action`,
+giving the file and one of its five headings:
 
 - `Release` — getting a build onto devices or TestFlight, uploading an archive, importing data into CloudKit.
 - `Check on a device` — by-hand checks of something built ("try", "click through", "after the roll-out, check…").
