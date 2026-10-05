@@ -257,9 +257,7 @@ struct ClassroomMembersCard: View {
                     ForEach(participants, id: \.userIdentity.userRecordID) { participant in
                         ClassroomParticipantRow(
                             participant: participant,
-                            isYou: participant.userIdentity.userRecordID?.recordName != nil
-                                && participant.userIdentity.userRecordID?.recordName
-                                    == service?.currentUserRecordName
+                            isYou: participant.participantID == service?.currentUserParticipantID
                         )
                     }
                 } else {

@@ -57,14 +57,17 @@ enum AttendanceRules {
         viewerRole: CDClassroomMembership.ClassroomRole = .leadGuide
     ) -> String? {
         guard row.status != .unmarked else { return nil }
+        // A stand-in such as `__defaultOwner__`, on either side, is no ID.
+        let markedByID = ClassroomIdentity.realRecordName(row.recordedByID)
+        let myRecordName = ClassroomIdentity.realRecordName(myRecordName)
         switch row.recordedBy {
         case CDClassroomMembership.ClassroomRole.leadGuide.rawValue:
             return guideName ?? "your guide"
         case CDClassroomMembership.ClassroomRole.assistant.rawValue:
-            if let id = row.recordedByID, let mine = myRecordName {
+            if let id = markedByID, let mine = myRecordName {
                 return id == mine ? "you" : (row.recordedByName ?? "another assistant")
             } else if viewerRole == .assistant, row.recordedByName == myName,
-                      row.recordedByID == nil || row.recordedByID == myRecordName {
+                      markedByID == nil || markedByID == myRecordName {
                 // Her own mark from a phone with no record name yet (or the
                 // Sample Class, which has neither a name nor an id), read as
                 // the front-desk line reads her send (`AttendanceEmailLog.Send`).

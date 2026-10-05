@@ -1,4 +1,6 @@
+import CloudKit
 import Foundation
+import OSLog
 
 /// Who this device's user is, for attributing what they change.
 ///
@@ -11,10 +13,47 @@ enum ClassroomIdentity {
     private static let recordNameKey = UserDefaultsKeys.classroomIdentityRecordName
     private static let displayNameKey = UserDefaultsKeys.classroomIdentityDisplayName
 
-    /// Stable CloudKit user record name, cached when participants are refreshed.
+    private static let logger = Logger.classroomSharing
+
+    /// This account's CloudKit user record name in the classroom's container,
+    /// from `refreshRecordName()`. Never a stand-in: one saved by an older
+    /// build reads as nil, so changes fall back to role and name.
     static var currentUserRecordName: String? {
-        get { UserDefaults.standard.string(forKey: recordNameKey) }
-        set { UserDefaults.standard.set(newValue, forKey: recordNameKey) }
+        get { realRecordName(UserDefaults.standard.string(forKey: recordNameKey)) }
+        set {
+            if let real = realRecordName(newValue) {
+                UserDefaults.standard.set(real, forKey: recordNameKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: recordNameKey)
+            }
+        }
+    }
+
+    /// A record name that names one person, or nil.
+    ///
+    /// CloudKit calls whoever is using the device `__defaultOwner__`
+    /// (`CKCurrentUserDefaultName`) on their own share entry, so every device
+    /// that saved that one thought it was the same person, and the guide's
+    /// changes read "you" on an assistant's phone. "unknown" and "self" are
+    /// what membership rows hold where the share gave no name. Stamps already
+    /// saved with any of these are read as having no ID.
+    nonisolated static func realRecordName(_ name: String?) -> String? {
+        guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return nil }
+        return [CKCurrentUserDefaultName, "unknown", "self"].contains(name) ? nil : name
+    }
+
+    /// Asks CloudKit who this account is in the classroom's container (never
+    /// `CKContainer.default()`, whose record names differ) and saves it. Once
+    /// per launch; offline, it keeps what was saved before.
+    static func refreshRecordName(container: CKContainer = CloudKitConfigurationService.container) async {
+        // Unit tests never ask iCloud.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        do {
+            let recordID = try await container.userRecordID()
+            currentUserRecordName = recordID.recordName
+        } catch {
+            logger.notice("Couldn't read this account's CloudKit record name: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// The label this person wants beside their marks. Empty is stored as nil so

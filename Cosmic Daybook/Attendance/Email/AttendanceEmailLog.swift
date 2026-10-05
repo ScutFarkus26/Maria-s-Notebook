@@ -98,6 +98,10 @@ enum AttendanceEmailLog {
             myName: String?,
             guideName: String? = nil
         ) -> String {
+            // A stand-in such as `__defaultOwner__`, on either side, is no ID:
+            // every device once saved the same one, so it matched the guide's sends.
+            let sentByID = ClassroomIdentity.realRecordName(sentByID)
+            let myRecordName = ClassroomIdentity.realRecordName(myRecordName)
             if let id = sentByID, let mine = myRecordName, id == mine { return "you" }
             switch sentBy {
             case .leadGuide:

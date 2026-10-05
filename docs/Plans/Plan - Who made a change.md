@@ -27,9 +27,9 @@ The screenshot: the Assistant's office run showed Toilet Paper and Paper Towels 
 | `AttendanceDayLocks` `lockedByID` | Written, never compared |
 
 ## Progress
-- [ ] Phase 1: Real IDs, the stand-in read as no ID (session: here) ‖ Phases 2 and 3 · est. ~1–2% weekly
-- [ ] Phase 2: The Assistant's office run as an errand list (agent `feature-phase` on Sonnet) ‖ Phases 1 and 3 · est. ~1% weekly
-- [ ] Phase 3: Restock on the guide's devices: names only for others, the share banner (agent `feature-phase`) ‖ Phases 1 and 2 · est. ~1–2% weekly
+- [x] Phase 1: Real IDs, the stand-in read as no ID (session: here) ‖ Phases 2 and 3 · est. ~1–2% weekly · started at 8% · actual ~1% (8→9, noisy: two agents and other sessions running). Differed: the generic-simulator build compiled twice (Intel and Apple simulators); the CLAUDE.md recipe's "iPhone 17, OS=27.0" destination no longer exists. 52 notebook + 21 Assistant tests green.
+- [ ] Phase 2: The Assistant's office run as an errand list (agent `feature-phase` on Sonnet) ‖ Phases 1 and 3 · est. ~1% weekly · started at 8%
+- [ ] Phase 3: Restock on the guide's devices: names only for others, the share banner (agent `feature-phase`) ‖ Phases 1 and 2 · est. ~1–2% weekly · started at 8%
 - [ ] Phase 4: Combine, full build, whole suites, simulator look, merge (session: here) · est. ~2% weekly
 - [ ] Phase 5: Danny's steps (Tide rows, no session)
 

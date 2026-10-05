@@ -126,6 +126,11 @@ final class AppServicesLauncher {
         NSApplication.shared.registerForRemoteNotifications()
         #endif
 
+        // Who this account is, for "you" on marks, sends and Restock changes.
+        if coreDataStack.isCloudKitActive {
+            Task { await ClassroomIdentity.refreshRecordName() }
+        }
+
         // PERFORMANCE: Start memory pressure monitoring
         // This allows the app to proactively clear caches before being terminated
         _ = dependencies.memoryPressureMonitor

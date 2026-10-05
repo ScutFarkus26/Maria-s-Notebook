@@ -28,10 +28,12 @@ final class ClassroomSharingService {
     /// Numbers each join (`beginJoin`).
     @ObservationIgnored private var joinAttempt = 0
 
-    /// Record name of whoever is using this device, so the members list can
-    /// mark its own row. CloudKit withholds your own name components, which
-    /// otherwise leaves you as an anonymous entry in your own classroom.
-    private(set) var currentUserRecordName: String?
+    /// The share entry of whoever is using this device, so the members list
+    /// can mark its own row. CloudKit withholds your own name components, which
+    /// otherwise leaves you as an anonymous entry in your own classroom. By
+    /// participant ID: your own entry's record name is CloudKit's stand-in
+    /// `__defaultOwner__` on every device (`ClassroomIdentity.realRecordName`).
+    private(set) var currentUserParticipantID: String?
 
     // `@ObservationIgnored nonisolated(unsafe)` so deinit (which is
     // nonisolated by default on MainActor classes) can cancel the observer
@@ -198,11 +200,10 @@ final class ClassroomSharingService {
 
     private func publishParticipants(of share: CKShare?) {
         participants = share?.participants.map { $0 } ?? []
-        let recordName = share?.currentUserParticipant?.userIdentity.userRecordID?.recordName
-        if currentUserRecordName != recordName { currentUserRecordName = recordName }
-        if let currentUserRecordName {
-            ClassroomIdentity.currentUserRecordName = currentUserRecordName
-        }
+        // This device's own record name comes from `ClassroomIdentity
+        // .refreshRecordName()`, never from here: the share gives the stand-in.
+        let participantID = share?.currentUserParticipant?.participantID
+        if currentUserParticipantID != participantID { currentUserParticipantID = participantID }
     }
 
     /// Accepts an incoming share invitation.

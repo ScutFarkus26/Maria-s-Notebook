@@ -69,9 +69,10 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
         ownerRecordName: String? = nil
     ) {
         self.role = role
-        self.recordName = recordName
+        // A stand-in such as `__defaultOwner__` names nobody in particular.
+        self.recordName = ClassroomIdentity.realRecordName(recordName)
         self.name = name
-        self.ownerRecordName = ownerRecordName
+        self.ownerRecordName = ClassroomIdentity.realRecordName(ownerRecordName)
     }
 
     /// This device's user in `role`, as `ClassroomIdentity` knows them.
@@ -90,11 +91,8 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
     @MainActor
     static func assistant(in context: NSManagedObjectContext) -> RestockAuthor {
         var author = current(role: .assistant)
-        let owner = CDClassroomMembership.current(in: context)?.ownerIdentity.trimmed() ?? ""
         // "unknown" and "self" stand in where the share gave no record name.
-        if !["", "unknown", "self", "__defaultOwner__"].contains(owner) {
-            author.ownerRecordName = owner
-        }
+        author.ownerRecordName = ClassroomIdentity.realRecordName(CDClassroomMembership.current(in: context)?.ownerIdentity)
         return author
     }
 
@@ -113,8 +111,10 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
     /// name an assistant gave, "your guide" on an assistant's phone for the
     /// guide's changes (which carry no name), and for one who gave no name
     /// "another assistant" there (told from the guide by `ownerRecordName`)
-    /// and "an assistant" on the guide's devices.
-    func reads(changedByID id: String?, name: String?) -> String {
+    /// and "an assistant" on the guide's devices. A stamp holding a stand-in
+    /// (`ClassroomIdentity.realRecordName`) reads as having no ID.
+    func reads(changedByID stampedID: String?, name: String?) -> String {
+        let id = ClassroomIdentity.realRecordName(stampedID)
         if let id, let mine = recordName, id == mine { return "You" }
         let name = name?.trimmed() ?? ""
         if !name.isEmpty {
