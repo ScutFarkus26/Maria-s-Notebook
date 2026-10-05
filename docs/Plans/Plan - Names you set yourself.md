@@ -8,7 +8,7 @@
 Danny sets his name once in Settings › Classroom, and each assistant sets hers in the Assistant, as now. Either can change it at any time. Her phone then says "Marked Out by Danny", "Danny is ordering" and "Present · by Danny" instead of "your guide". Danny's devices show each assistant's current name. A rename shows on every device, on old entries too, because names are looked up when shown, not frozen when stamped.
 
 ## Progress
-- [ ] Phase 1: The shared name list: record type, schema 16, share, backup, lookup (agent `feature-phase-deep`) · est. ~3–5% weekly
+- [ ] Phase 1: The shared name list: record type, schema 16, share, backup, lookup (agent `feature-phase-deep`) · est. ~3–5% weekly · started at 10%
 - [ ] Phase 2: The notebook: "Your name" in Settings › Classroom, and names on its screens (agent `feature-phase`) ‖ Phase 3 · est. ~1–2% weekly (parallel because Phase 1 makes every shared signature change)
 - [ ] Phase 3: The Assistant: her name sheet writes the list, and Restock and attendance say your name (agent `feature-phase`) ‖ Phase 2 · est. ~1–2% weekly
 - [ ] Phase 4: Combine, full build, whole suites, simulator look, review, Development schema init, merge (session: here) · est. ~2–3% weekly
@@ -136,7 +136,7 @@ About 7–12% of the weekly all-models limit (Max). 10% used, 90% left until Sun
   3. One whole-suite run each, on the leased simulator, aimed by id.
   4. On the simulator, with the Assistant's Sample Class seeded with a guide name, screenshot the office run's "… is ordering", a held row, and a shelf tile.
   5. `/code-review`; fix what holds up.
-  6. Development schema init for schema 16: a Debug build with `CLOUDKIT_ENVIRONMENT=Development` and `-InitializeCloudKitSchema`, on a leased simulator, as in `docs/Plans/Plan - Restock.md` Phase 4. Confirm `CD_ClassroomPerson` in the Development Console listing if it can be read; otherwise Danny checks.
+  6. Development schema init for schema 16: a Debug build with `CLOUDKIT_ENVIRONMENT=Development` and `-InitializeCloudKitSchema`, on a leased simulator, as in `docs/Plans/Plan - Restock.md` Phase 4. Danny's developer account is signed in in the built-in browser pane (2026-10-05): open CloudKit Console there, confirm `CD_ClassroomPerson` and its fields in Development, then ask Danny in chat before clicking Deploy Schema Changes to Production (a hard-to-undo change, his yes each time).
   7. Merge to main and push, with Danny's OK. **Don't roll out** until Danny has deployed schema 16 to Production.
 - Cost: ~2–3%.
 - Done when:
