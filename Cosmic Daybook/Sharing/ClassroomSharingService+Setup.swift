@@ -28,8 +28,8 @@ extension ClassroomSharingService {
 
     /// Creates the classroom share and puts this school year's students and
     /// attendance (`ClassroomShareScope`), and every school-calendar day, day
-    /// lock, front-desk email record and Restock record into it, then pins its
-    /// zone.
+    /// lock, front-desk email record, Restock record and name in the classroom's
+    /// list (`ClassroomNames`) into it, then pins its zone.
     ///
     /// Run once, on the Mac, after the notebook is fully downloaded. Refuses
     /// unless this device is the lead guide's, the first download has
@@ -168,7 +168,8 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
     /// Students first: the first record becomes the share's seed.
     static let orderedEntityNames = [
         "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
-        "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem"
+        "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem",
+        "ClassroomPerson"
     ]
 
     let created: Bool
@@ -212,7 +213,8 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
         "AttendanceEmailSettings": ("the front-desk email settings", "email settings"),
         "Supply": ("1 staple", "staples"),
         "SupplyTransaction": ("1 restock history entry", "restock history entries"),
-        "OrderItem": ("1 restock item", "restock items")
+        "OrderItem": ("1 restock item", "restock items"),
+        "ClassroomPerson": ("1 person's name", "people's names")
     ]
 
     static func describe(_ count: Int, _ entity: String) -> String {

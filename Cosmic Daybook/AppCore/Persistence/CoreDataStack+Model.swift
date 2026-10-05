@@ -69,9 +69,9 @@ extension CoreDataStack {
     /// share a student joined. Since schema 9 the relationship is gone
     /// (enrollments name their student by `studentID`) and the list was five
     /// (Supply and SupplyTransaction were among the 33, and left it then);
-    /// schema 12 added the two front-desk email types, and schema 15 brought
-    /// the supplies back with the order list, as Restock. Everything else is
-    /// the guide's own.
+    /// schema 12 added the two front-desk email types, schema 15 brought the
+    /// supplies back with the order list, as Restock, and schema 16 added the
+    /// names people set for themselves. Everything else is the guide's own.
     nonisolated static let sharedEntityNames: Set<String> = [
         "Student",
         // The assistant writes attendance, so it lives in the share. Its former
@@ -94,7 +94,11 @@ extension CoreDataStack {
         // one never takes an already-shared staple along (RestockService).
         "Supply",
         "SupplyTransaction",
-        "OrderItem"
+        "OrderItem",
+        // The name each person goes by (schema 16), so her phone says the
+        // guide's name and his devices show each assistant's current one.
+        // Each person writes only their own row (`ClassroomNames`).
+        "ClassroomPerson"
     ]
 
     /// Entities stored in the private (per-teacher) store and never shared.

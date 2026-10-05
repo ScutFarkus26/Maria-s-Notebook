@@ -54,7 +54,7 @@ struct StoreMigrationTests {
     /// enforces that rather than trusting this comment.
     private static let entitiesAddedLater: Set<String> = [
         "Guardian", "AlbumBookmark", "AlbumHighlight", "OrderItem", "AttendanceDayLock",
-        "AttendanceEmailSend", "AttendanceEmailSettings"
+        "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson"
     ]
     private static let attributesAddedLater: [String: Set<String>] = [
         "Lesson": ["albumID", "albumPageIndex", "isKeyLesson"],

@@ -1342,4 +1342,13 @@
         <attribute name="addedByID" optional="YES" attributeType="String"/>
         <attribute name="addedByName" attributeType="String" defaultValueString=""/>
     </entity>
+    <!-- ==================== ClassroomPerson ==================== -->
+    <entity name="ClassroomPerson" representedClassName="CDClassroomPerson" syncable="YES">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="recordName" attributeType="String" defaultValueString=""/>
+        <attribute name="roleRaw" attributeType="String" defaultValueString="assistant"/>
+        <attribute name="displayName" attributeType="String" defaultValueString=""/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modifiedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

@@ -111,6 +111,7 @@ nonisolated enum BackupPlainNames {
         "Resource": "Resources",
         "PlanningRecommendation": "Planning suggestions",
         "ClassroomMembership": "Classroom sharing setup",
+        "ClassroomPerson": "Names you and your assistants go by",
         // Todos and Today
         "TodoItem": "Todos",
         "TodoSubtask": "Todo steps",

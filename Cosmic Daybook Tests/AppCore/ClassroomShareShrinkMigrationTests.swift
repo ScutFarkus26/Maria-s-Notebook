@@ -43,11 +43,14 @@ struct ClassroomShareShrinkMigrationTests {
     }
 
     /// The model as schema 8 had it: no AttendanceDayLock (nor schema 12's
-    /// front-desk email types), the enrollment relationship in place, and the
-    /// old 33-type Shared configuration.
+    /// front-desk email types, nor schema 16's ClassroomPerson), the
+    /// enrollment relationship in place, and the old 33-type Shared
+    /// configuration.
     private func schema8Model() throws -> NSManagedObjectModel {
         let model = try bundleModel()
-        let later: Set<String> = ["AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings"]
+        let later: Set<String> = [
+            "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings", "ClassroomPerson"
+        ]
         model.entities = model.entities.filter { !later.contains($0.name ?? "") }
         let byName = model.entitiesByName
         let student = try #require(byName["Student"])

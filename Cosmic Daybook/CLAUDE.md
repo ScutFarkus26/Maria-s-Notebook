@@ -163,14 +163,14 @@ MVVM with services on `NSPersistentCloudKitContainer` (private and shared stores
 
 ## Data Model
 
-88 entities (schema 15): 70 private-only, 10 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
+89 entities (schema 16): 70 private-only, 11 in the classroom share, 8 dormant tombstones. Core Data rules: `CD` prefix, no unique constraints, enums as raw `String`, foreign keys as `String`, every property optional or defaulted, `modifiedAt` for conflicts. Integrity rules and the entity table: `docs/Technical notes/DATA_MODELS.md`.
 
 ## Sharing Model
 
 - **Lead Guide** — full read/write on everything; the only role that sets up sharing or locks a day
-- **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, and marks staples, checks off the office run and adds needs (Restock)
-- These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all ten share types. "Attendance and Restock only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
-- Classroom share (10 types, schema 15): Student, AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15)
+- **Assistant** — the Daybook Assistant: reads the classroom share, writes attendance on any unlocked day, marks staples, checks off the office run and adds needs (Restock), and sets her own name (`ClassroomNames`)
+- These roles are app conventions, not access control: CloudKit enforces only the share participant's permission, over all eleven share types. "Attendance, Restock and your own name only", "only the guide locks" and "a locked day refuses edits" hold because the apps enforce them (`ClassroomPermissions`, `CDAttendanceStore`), and `recordedBy`/`recordedByName` are stamped by the writing device.
+- Classroom share (11 types, schema 16): Student, AttendanceRecord, NonSchoolDay, SchoolDayOverride, AttendanceDayLock, AttendanceEmailSend, AttendanceEmailSettings (schema 12), Supply, SupplyTransaction, OrderItem (schema 15), ClassroomPerson (schema 16: the name each person sets, looked up when a line is worded; `ClassroomNames` is the only reader and writer)
 - **This school year only (2026-09-30):** students who are enrolled or left during this school year, and attendance from its first day on (`ClassroomShareScope`); last year leaves the share only by the Mac's Settings › Classroom › Remove Last Year from the Share (`ClassroomShareRelease`). See CloudKit.
 - Everything else is the guide's own (70 types): lessons, tracks, notes, work, todos, projects, meetings, ClassroomMembership, …
 
@@ -233,7 +233,7 @@ Rules: `docs/Technical notes/RESTOCK.md`. `RestockService` is the only writer; a
 
 ## Backup System
 
-Format v37; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
+Format v38; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attribute needs a line in `Backup/BackupEntityTable.swift` and a format-version bump; merge restore is an upsert, never delete and reinsert.
 
 ## Todos for Danny
 

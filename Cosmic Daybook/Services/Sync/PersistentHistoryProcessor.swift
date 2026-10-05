@@ -35,7 +35,8 @@ actor PersistentHistoryProcessor {
     /// Entities the Upcoming pane, the progress map, the class checklist, the
     /// attendance roll, the ready queue (`ReadyQueueLoader.inputEntities`) and
     /// Restock read (`LessonPresentation` carries the mastery marks the
-    /// checklist colors green). A batch that touched any of them posts
+    /// checklist colors green), and the names people go by (`ClassroomPerson`),
+    /// which those lines are worded with. A batch that touched any of them posts
     /// `.presentationDataDidChange` with the touched names under
     /// `changedEntityNamesKey`, so those screens no longer keep whole tables
     /// registered through `@FetchRequest` just to notice a remote change (see
@@ -44,7 +45,7 @@ actor PersistentHistoryProcessor {
         "LessonAssignment", "Lesson", "LessonPresentation", "Student", "WorkModel",
         "AttendanceRecord", "AttendanceDayLock", "AttendanceEmailSend", "AttendanceEmailSettings",
         "YearPlanEntry", "WorkParticipantEntity", "LessonSequenceSettings",
-        "Supply", "SupplyTransaction", "OrderItem"
+        "Supply", "SupplyTransaction", "OrderItem", "ClassroomPerson"
     ]
 
     /// `userInfo` key of `.presentationDataDidChange`: the `Set<String>` of
