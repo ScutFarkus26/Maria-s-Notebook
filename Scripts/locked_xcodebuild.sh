@@ -7,9 +7,9 @@
 #
 #   Scripts/locked_xcodebuild.sh [xcodebuild arguments…]
 #
-# BUILD_LOCK_WAIT  seconds to wait for the lock before giving up (default 900). A
-#                  build stuck elsewhere then fails this one visibly, with exit
-#                  status 75, instead of blocking it forever.
+# BUILD_LOCK_WAIT  seconds to wait for the lock before giving up with exit status
+#                  75. Unset (the default), a build waits as long as it takes:
+#                  a wait means another build is running (Danny, 2026-10-05).
 # BUILD_NICE       niceness for the build (default 10; 0 for timing baselines).
 # BUILD_LOCK_FILE  the lock (default ~/Library/Caches/xcodebuild.lock, Tide's);
 #                  override only to test this script.
@@ -26,14 +26,14 @@ zmodload zsh/system
 
 me=${0:t}
 lock=${BUILD_LOCK_FILE:-$HOME/Library/Caches/xcodebuild.lock}
-wait_limit=${BUILD_LOCK_WAIT:-900}
+wait_limit=${BUILD_LOCK_WAIT:-}
 niceness=${BUILD_NICE:-10}
 
-[[ $wait_limit == <-> ]] || { print -u2 "$me: BUILD_LOCK_WAIT must be whole seconds, not '$wait_limit'"; exit 64 }
+[[ -z $wait_limit || $wait_limit == <-> ]] || { print -u2 "$me: BUILD_LOCK_WAIT must be whole seconds, not '$wait_limit'"; exit 64 }
 [[ $niceness == <0-20> ]] || { print -u2 "$me: BUILD_NICE must be 0–20, not '$niceness'"; exit 64 }
 
 turn=$HOME/.claude/bin/build-turn
-[[ -x $turn ]] && exec $turn --wait $wait_limit --nice $niceness xcodebuild "$@"
+[[ -x $turn ]] && exec $turn ${wait_limit:+--wait} $wait_limit --nice $niceness xcodebuild "$@"
 
 [[ -e $lock ]] || : >> $lock || exit 73
 
@@ -56,13 +56,17 @@ show_lock_users() {
 # poll once a second instead, and a poller loses every hand-off to a blocked waiter:
 # on 2026-09-25 a build waiting that way sat 36 min while Tide builds that queued
 # after it took the lock. A one-process timer (zselect, so no stray `sleep`)
-# interrupts the wait with SIGALRM when BUILD_LOCK_WAIT runs out.
+# interrupts the wait with SIGALRM when BUILD_LOCK_WAIT runs out; with no
+# BUILD_LOCK_WAIT there is no timer.
 if ! zsystem flock -t 0 $lock 2>/dev/null; then
-  print -u2 "$me: another build holds $lock — waiting up to ${wait_limit}s"
+  print -u2 "$me: another build holds $lock — waiting${wait_limit:+ up to ${wait_limit}s}"
   show_lock_users
-  ( zmodload zsh/zselect; zselect -t $(( wait_limit * 100 )); kill -ALRM $$ ) &
-  timer=$!
-  stop_timer() { kill $timer 2>/dev/null; wait $timer 2>/dev/null }
+  timer=
+  if [[ -n $wait_limit ]]; then
+    ( zmodload zsh/zselect; zselect -t $(( wait_limit * 100 )); kill -ALRM $$ ) &
+    timer=$!
+  fi
+  stop_timer() { [[ -n $timer ]] && { kill $timer 2>/dev/null; wait $timer 2>/dev/null }; return 0 }
   TRAPALRM() {
     print -u2 "$me: still locked after ${wait_limit}s; not building (exit 75). Kill the stuck build or raise BUILD_LOCK_WAIT."
     show_lock_users
