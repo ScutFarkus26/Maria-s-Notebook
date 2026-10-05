@@ -60,11 +60,13 @@ final class Phase8PreTests {
     func sharedEntityRoutingCorrect() {
         // Schema 9: students, attendance, the school calendar and day locks;
         // schema 12: the front-desk email's sends and settings; schema 15:
-        // Restock's staples, their history and the needs. Anything added here
-        // reaches an assistant's device — keep it that short on purpose.
+        // Restock's staples, their history and the needs; schema 16: the names
+        // people set for themselves. Anything added here reaches an
+        // assistant's device — keep it that short on purpose.
         #expect(CoreDataStack.sharedEntityNames == [
             "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
-            "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem"
+            "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem",
+            "ClassroomPerson"
         ])
         let priv = CoreDataStack.privateEntityNames
         for name in ["Lesson", "Track", "StudentTrackEnrollment", "Schedule", "Procedure", "ClassroomJob", "GoingOut"] {

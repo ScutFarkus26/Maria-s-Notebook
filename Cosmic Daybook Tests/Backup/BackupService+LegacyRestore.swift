@@ -952,6 +952,13 @@ extension BackupService {
                 existing: { try index.existing(CDAttendanceEmailSettings.self, id: $0) }
             )
         }
+        // v38: the names people set for themselves.
+        if let people = payload.classroomPeople {
+            BackupEntityImporter.importRows(
+                people, as: CDClassroomPerson.self, into: viewContext,
+                existing: { try index.existing(CDClassroomPerson.self, id: $0) }
+            )
+        }
     }
 
     private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {

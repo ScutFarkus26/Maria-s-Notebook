@@ -8,6 +8,8 @@ import OSLog
 /// CloudKit calls this iCloud account in this container, and the display name
 /// is what the person typed on their own device — CloudKit withholds your own
 /// name components from you, so a name can only come from the person themselves.
+/// What everyone else sees is the classroom's shared list (`ClassroomNames`),
+/// which each person's row joins once the record name is known.
 enum ClassroomIdentity {
 
     private static let recordNameKey = UserDefaultsKeys.classroomIdentityRecordName
@@ -44,7 +46,9 @@ enum ClassroomIdentity {
 
     /// Asks CloudKit who this account is in the classroom's container (never
     /// `CKContainer.default()`, whose record names differ) and saves it. Once
-    /// per launch; offline, it keeps what was saved before.
+    /// per launch; offline, it keeps what was saved before. Callers then run
+    /// `ClassroomNames.writeWaitingName`, which writes a name typed before the
+    /// record name was known.
     static func refreshRecordName(container: CKContainer = CloudKitConfigurationService.container) async {
         // Unit tests never ask iCloud.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
@@ -52,12 +56,17 @@ enum ClassroomIdentity {
             let recordID = try await container.userRecordID()
             currentUserRecordName = recordID.recordName
         } catch {
-            logger.notice("Couldn't read this account's CloudKit record name: \(error.localizedDescription, privacy: .public)")
+            let detail = error.localizedDescription
+            logger.notice("Couldn't read this account's CloudKit record name: \(detail, privacy: .public)")
         }
     }
 
     /// The label this person wants beside their marks. Empty is stored as nil so
     /// a cleared field doesn't attribute marks to a blank name.
+    ///
+    /// Also where a name typed before `currentUserRecordName` is known waits
+    /// (`nameWaitingAs`) until `ClassroomNames.writeWaitingName` puts it in the
+    /// classroom's list.
     static var displayName: String? {
         get {
             let stored = UserDefaults.standard.string(forKey: displayNameKey)?.trimmed()
@@ -69,6 +78,24 @@ enum ClassroomIdentity {
                 UserDefaults.standard.set(trimmed, forKey: displayNameKey)
             } else {
                 UserDefaults.standard.removeObject(forKey: displayNameKey)
+            }
+        }
+    }
+
+    /// Per CloudKit environment, like the record name it waits for.
+    private static var nameWaitingKey: String { CloudKitEnvironment.scoped("ClassroomIdentity.nameWaitingAs") }
+
+    /// Set while a name typed on this device (in `displayName`, or cleared)
+    /// waits for this account's record name before it can go into the
+    /// classroom's list: the role it was typed as. Nil when nothing waits.
+    /// Only `ClassroomNames` sets it.
+    static var nameWaitingAs: CDClassroomMembership.ClassroomRole? {
+        get { UserDefaults.standard.string(forKey: nameWaitingKey).flatMap(CDClassroomMembership.ClassroomRole.init) }
+        set {
+            if let newValue {
+                UserDefaults.standard.set(newValue.rawValue, forKey: nameWaitingKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: nameWaitingKey)
             }
         }
     }

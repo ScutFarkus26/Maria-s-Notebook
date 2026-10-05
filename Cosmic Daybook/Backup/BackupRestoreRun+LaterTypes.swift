@@ -1,7 +1,7 @@
 // BackupRestoreRun+LaterTypes.swift
 // The restore order, last part: the format v12–v14 types, then v18 (stories,
 // book club, year plan, day pads), v20 (guardians, parent communications), v21
-// (teaching-album annotations) and v27 (orders).
+// (teaching-album annotations), v27 (orders), v30, v31, v34 and v38 (names).
 
 import CoreData
 import Foundation
@@ -277,6 +277,22 @@ extension BackupRestoreRun {
             BackupEntityImporter.importRows(
                 settings, as: CDAttendanceEmailSettings.self, into: viewContext,
                 existing: { try index.existing(CDAttendanceEmailSettings.self, id: $0) }
+            )
+        }
+    }
+
+    /// v38+ entities: the names people set for themselves. Matched on `id`
+    /// like every row; a duplicate a restore makes (a person's row restored
+    /// beside the one their other device wrote since) is folded by the owner
+    /// (`ClassroomNames.foldMyRows`), and reads take the newest meanwhile.
+    func importV38Entities() throws {
+        let viewContext = context
+        let index = self.index
+
+        if let people = try rows(\.classroomPeople) {
+            BackupEntityImporter.importRows(
+                people, as: CDClassroomPerson.self, into: viewContext,
+                existing: { try index.existing(CDClassroomPerson.self, id: $0) }
             )
         }
     }

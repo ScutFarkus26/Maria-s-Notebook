@@ -91,28 +91,34 @@ enum AttendanceEmailLog {
         }
 
         /// Who sent it, as the viewer should read it: "you", an assistant's
-        /// name, or the guide ("your guide" to an assistant).
+        /// name, or the guide. Names come from the classroom's list first
+        /// (`names`, by the sender's record name, so a rename reaches old
+        /// sends), then from the send; to an assistant the guide is the name
+        /// he set, then `guideName` (Apple's), then "your guide".
         func senderName(
             viewerRole: CDClassroomMembership.ClassroomRole,
             myRecordName: String?,
             myName: String?,
-            guideName: String? = nil
+            guideName: String? = nil,
+            names: ClassroomNames.Snapshot = ClassroomNames.Snapshot()
         ) -> String {
             // A stand-in such as `__defaultOwner__`, on either side, is no ID:
             // every device once saved the same one, so it matched the guide's sends.
             let sentByID = ClassroomIdentity.realRecordName(sentByID)
             let myRecordName = ClassroomIdentity.realRecordName(myRecordName)
             if let id = sentByID, let mine = myRecordName, id == mine { return "you" }
+            let current = names.name(forRecordName: sentByID)
             switch sentBy {
             case .leadGuide:
-                return viewerRole == .leadGuide ? "you" : (guideName ?? "your guide")
+                guard viewerRole == .assistant else { return "you" }
+                return current ?? names.guideName ?? guideName ?? "your guide"
             case .assistant:
                 // Her own send from a phone that has no record name yet (or
                 // the Sample Class, which has neither a name nor an id).
                 if viewerRole == .assistant, sentByName == myName, sentByID == nil || sentByID == myRecordName {
                     return "you"
                 }
-                return sentByName ?? "an assistant"
+                return current ?? sentByName ?? "an assistant"
             case nil:
                 return "someone"
             }
@@ -173,7 +179,8 @@ enum AttendanceEmailLog {
         send.sentBy = role.rawValue
         send.sentByID = ClassroomIdentity.currentUserRecordName
         // Only assistants carry a name, as on their marks: the guide's sends
-        // read as "you" on the guide's devices and "your guide" on theirs.
+        // read as "you" on the guide's devices and, on theirs, as the name he
+        // set in the classroom's list (`ClassroomNames`), else "your guide".
         send.sentByName = role == .assistant ? ClassroomIdentity.displayName : nil
         send.wasConfirmedByHand = confirmedByHand
         return send

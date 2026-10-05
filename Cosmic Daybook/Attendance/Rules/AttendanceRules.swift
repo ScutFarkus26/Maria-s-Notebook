@@ -45,27 +45,34 @@ enum AttendanceRules {
         [.present, .absent, .tardy, .leftEarly, .unmarked].filter { allows($0, on: day, now: now) }
     }
 
-    /// Who made the mark: "you", another assistant's name, or "your guide"
+    /// Who made the mark: "you", another assistant's name, or the guide.
+    /// Names come from the classroom's list first (`names`, by the mark's
+    /// record name, so a rename reaches old marks), then from the mark. On an
+    /// assistant's phone the guide reads as the name he set, then `guideName`
     /// (the owner's name when CloudKit gives it; the guide's own marks carry
-    /// no name). Nil while unmarked, and for old marks made before
-    /// attribution existed. `viewerRole` is whose screen it is.
+    /// no name), then "your guide"; on the guide's own screens as `guideName`.
+    /// Nil while unmarked, and for old marks made before attribution existed.
+    /// `viewerRole` is whose screen it is.
     static func markerName(
         for row: AttendanceRow,
         myRecordName: String?,
         myName: String?,
         guideName: String?,
-        viewerRole: CDClassroomMembership.ClassroomRole = .leadGuide
+        viewerRole: CDClassroomMembership.ClassroomRole = .leadGuide,
+        names: ClassroomNames.Snapshot = ClassroomNames.Snapshot()
     ) -> String? {
         guard row.status != .unmarked else { return nil }
         // A stand-in such as `__defaultOwner__`, on either side, is no ID.
         let markedByID = ClassroomIdentity.realRecordName(row.recordedByID)
         let myRecordName = ClassroomIdentity.realRecordName(myRecordName)
+        let current = names.name(forRecordName: markedByID)
         switch row.recordedBy {
         case CDClassroomMembership.ClassroomRole.leadGuide.rawValue:
-            return guideName ?? "your guide"
+            guard viewerRole == .assistant else { return guideName ?? "your guide" }
+            return current ?? names.guideName ?? guideName ?? "your guide"
         case CDClassroomMembership.ClassroomRole.assistant.rawValue:
             if let id = markedByID, let mine = myRecordName {
-                return id == mine ? "you" : (row.recordedByName ?? "another assistant")
+                return id == mine ? "you" : (current ?? row.recordedByName ?? "another assistant")
             } else if viewerRole == .assistant, row.recordedByName == myName,
                       markedByID == nil || markedByID == myRecordName {
                 // Her own mark from a phone with no record name yet (or the
@@ -73,9 +80,9 @@ enum AttendanceRules {
                 // the front-desk line reads her send (`AttendanceEmailLog.Send`).
                 return "you"
             } else if let name = row.recordedByName {
-                return name == myName ? "you" : name
+                return name == myName ? "you" : (current ?? name)
             }
-            return "an assistant"
+            return current ?? "an assistant"
         default:
             return nil
         }

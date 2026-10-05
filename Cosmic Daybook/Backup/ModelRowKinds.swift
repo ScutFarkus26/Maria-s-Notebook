@@ -217,6 +217,14 @@ public enum AttendanceEmailSettingsBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec("AttendanceEmailSettings")
 }
 
+public typealias ClassroomPersonDTO = ModelRow<ClassroomPersonBackupRow>
+
+/// The name one person in the classroom set for themselves (format v38+).
+/// Nothing older reads it, so nothing needs filling.
+public enum ClassroomPersonBackupRow: ModelRowKind {
+    public static let spec = ModelRowSpec("ClassroomPerson")
+}
+
 public typealias OrderItemDTO = ModelRow<OrderItemBackupRow>
 
 /// A need on the Restock lists. Schema 15's source and adder (format v37)

@@ -51,7 +51,8 @@ nonisolated enum RestockSource: String, CaseIterable, Identifiable, Sendable {
 ///
 /// Stamped the way attendance marks are (`CDAttendanceStore`): the CloudKit
 /// record name always, a name only for an assistant. The guide's own changes
-/// read as "You" on the guide's devices and "your guide" on an assistant's.
+/// read as "You" on the guide's devices and, on an assistant's, as the name he
+/// set for himself (`names`), else "your guide".
 nonisolated struct RestockAuthor: Sendable, Equatable {
     var role: CDClassroomMembership.ClassroomRole
     /// This person's CloudKit user record name, when known.
@@ -61,18 +62,31 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
     /// On an assistant's phone, the classroom owner's CloudKit record name:
     /// whose unnamed changes are her guide's. Nil when not known.
     var ownerRecordName: String?
+    /// The names people set for themselves (`ClassroomNames.snapshot`), for
+    /// reading changes only: the person's current name beats the one stamped,
+    /// so a rename reaches old entries. Never stamped on anything.
+    var names: ClassroomNames.Snapshot
 
     init(
         role: CDClassroomMembership.ClassroomRole,
         recordName: String? = nil,
         name: String? = nil,
-        ownerRecordName: String? = nil
+        ownerRecordName: String? = nil,
+        names: ClassroomNames.Snapshot = ClassroomNames.Snapshot()
     ) {
         self.role = role
         // A stand-in such as `__defaultOwner__` names nobody in particular.
         self.recordName = ClassroomIdentity.realRecordName(recordName)
         self.name = name
         self.ownerRecordName = ClassroomIdentity.realRecordName(ownerRecordName)
+        self.names = names
+    }
+
+    /// This author, reading changes with `names`.
+    func reading(_ names: ClassroomNames.Snapshot) -> RestockAuthor {
+        var author = self
+        author.names = names
+        return author
     }
 
     /// This device's user in `role`, as `ClassroomIdentity` knows them.
@@ -92,7 +106,8 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
     static func assistant(in context: NSManagedObjectContext) -> RestockAuthor {
         var author = current(role: .assistant)
         // "unknown" and "self" stand in where the share gave no record name.
-        author.ownerRecordName = ClassroomIdentity.realRecordName(CDClassroomMembership.current(in: context)?.ownerIdentity)
+        let owner = CDClassroomMembership.current(in: context)?.ownerIdentity
+        author.ownerRecordName = ClassroomIdentity.realRecordName(owner)
         return author
     }
 
@@ -107,26 +122,37 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
         role == .assistant ? (name?.trimmed() ?? "") : ""
     }
 
-    /// Who made a change, as this person reads it: "You" for their own, the
-    /// name an assistant gave, "your guide" on an assistant's phone for the
-    /// guide's changes (which carry no name), and for one who gave no name
-    /// "another assistant" there (told from the guide by `ownerRecordName`)
-    /// and "an assistant" on the guide's devices. A stamp holding a stand-in
-    /// (`ClassroomIdentity.realRecordName`) reads as having no ID.
+    /// Who made a change, as this person reads it: "You" for their own; else
+    /// the name the person goes by now (`names`, looked up by the stamp's ID),
+    /// then the name an assistant was stamped with; on an assistant's phone the
+    /// guide's name for the guide's changes (which carry no name), else "your
+    /// guide"; and for one who gave no name "another assistant" there (told
+    /// from the guide by `ownerRecordName`) and "an assistant" on the guide's
+    /// devices. A stamp holding a stand-in (`ClassroomIdentity.realRecordName`)
+    /// reads as having no ID.
     func reads(changedByID stampedID: String?, name: String?) -> String {
         let id = ClassroomIdentity.realRecordName(stampedID)
         if let id, let mine = recordName, id == mine { return "You" }
+        // Before this device knows its record name: a classroom has one lead
+        // guide, so on his devices a lead guide's row is his own.
+        if recordName == nil, role == .leadGuide, names.role(forRecordName: id) == .leadGuide { return "You" }
+        let current = names.name(forRecordName: id)
         let name = name?.trimmed() ?? ""
         if !name.isEmpty {
             // Her own change from a phone that had no record name yet.
             if role == .assistant, name == self.name?.trimmed(), id == nil || recordName == nil { return "You" }
-            return name
+            return current ?? name
+        }
+        if let current {
+            // Her own unnamed change from a phone with no record name yet.
+            if role == .assistant, recordName == nil, current == self.name?.trimmed() { return "You" }
+            return current
         }
         if role == .assistant {
             // Without the owner's record name, an unnamed change is most
             // likely the guide's, as it always read before.
             if let id, let owner = ownerRecordName, id != owner { return "another assistant" }
-            return "your guide"
+            return names.guideName ?? "your guide"
         }
         if let id, let mine = recordName, id != mine { return "an assistant" }
         return "You"

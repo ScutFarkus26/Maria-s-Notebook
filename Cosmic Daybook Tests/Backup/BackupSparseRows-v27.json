@@ -36,6 +36,9 @@
     "ClassroomMembership" : [
       "rejected"
     ],
+    "ClassroomPerson" : [
+      "rejected"
+    ],
     "DayPad" : [
       "rejected"
     ],
@@ -204,6 +207,10 @@
     "ClassroomMembership" : [
       "{\"classroomZoneID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000007\",\"joinedAt\":\"<now>\",\"modifiedAt\":\"<now>\",\"ownerIdentity\":\"\",\"roleRaw\":\"leadGuide\"}",
       "{\"classroomZoneID\":\"\",\"id\":\"<new id>\",\"joinedAt\":\"<now>\",\"modifiedAt\":\"<now>\",\"ownerIdentity\":\"\",\"roleRaw\":\"leadGuide\"}"
+    ],
+    "ClassroomPerson" : [
+      "{\"displayName\":\"\",\"id\":\"00000000-0000-4000-8000-000000000023\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}",
+      "{\"displayName\":\"\",\"id\":\"<new id>\",\"recordName\":\"\",\"roleRaw\":\"assistant\"}"
     ],
     "DayPad" : [
       "{\"body\":\"\",\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000009\",\"modifiedAt\":\"<now>\"}",

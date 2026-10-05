@@ -108,6 +108,8 @@
 		DE5C0A1E2C3F4B5A6978D018 /* OrderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D017 /* OrderService.swift */; };
 		DE5C0A1E2C3F4B5A6978D020 /* OrderLinkCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D019 /* OrderLinkCleaner.swift */; };
 		DE5C0A1E2C3F4B5A6978D022 /* DateFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5C0A1E2C3F4B5A6978D021 /* DateFormatters.swift */; };
+		DF6D1B2F3D4A5C6B7A89E002 /* ClassroomPersonEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6D1B2F3D4A5C6B7A89E001 /* ClassroomPersonEntity.swift */; };
+		DF6D1B2F3D4A5C6B7A89E004 /* ClassroomNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6D1B2F3D4A5C6B7A89E003 /* ClassroomNames.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -234,6 +236,8 @@
 		DE5C0A1E2C3F4B5A6978D017 /* OrderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OrderService.swift; path = "Cosmic Daybook/Orders/Services/OrderService.swift"; sourceTree = SOURCE_ROOT; };
 		DE5C0A1E2C3F4B5A6978D019 /* OrderLinkCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OrderLinkCleaner.swift; path = "Cosmic Daybook/Orders/Services/OrderLinkCleaner.swift"; sourceTree = SOURCE_ROOT; };
 		DE5C0A1E2C3F4B5A6978D021 /* DateFormatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DateFormatters.swift; path = "Cosmic Daybook/Utils/Formatting/DateFormatters.swift"; sourceTree = SOURCE_ROOT; };
+		DF6D1B2F3D4A5C6B7A89E001 /* ClassroomPersonEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomPersonEntity.swift; path = "Cosmic Daybook/Sharing/ClassroomPersonEntity.swift"; sourceTree = SOURCE_ROOT; };
+		DF6D1B2F3D4A5C6B7A89E003 /* ClassroomNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassroomNames.swift; path = "Cosmic Daybook/Sharing/ClassroomNames.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -455,6 +459,8 @@
 				DE5C0A1E2C3F4B5A6978D017 /* OrderService.swift */,
 				DE5C0A1E2C3F4B5A6978D019 /* OrderLinkCleaner.swift */,
 				DE5C0A1E2C3F4B5A6978D021 /* DateFormatters.swift */,
+				DF6D1B2F3D4A5C6B7A89E001 /* ClassroomPersonEntity.swift */,
+				DF6D1B2F3D4A5C6B7A89E003 /* ClassroomNames.swift */,
 			);
 			name = "Shared with Cosmic Daybook";
 			sourceTree = "<group>";
@@ -747,6 +753,8 @@
 				DE5C0A1E2C3F4B5A6978D018 /* OrderService.swift in Sources */,
 				DE5C0A1E2C3F4B5A6978D020 /* OrderLinkCleaner.swift in Sources */,
 				DE5C0A1E2C3F4B5A6978D022 /* DateFormatters.swift in Sources */,
+				DF6D1B2F3D4A5C6B7A89E002 /* ClassroomPersonEntity.swift in Sources */,
+				DF6D1B2F3D4A5C6B7A89E004 /* ClassroomNames.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

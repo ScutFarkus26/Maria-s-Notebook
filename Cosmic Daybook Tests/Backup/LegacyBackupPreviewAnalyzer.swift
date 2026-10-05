@@ -204,7 +204,8 @@ enum LegacyBackupPreviewAnalyzer {
             "AttendanceDayLock": payload.attendanceDayLocks?.count ?? 0,
             "SupplyTransaction": payload.supplyTransactions?.count ?? 0,
             "AttendanceEmailSend": payload.attendanceEmailSends?.count ?? 0,
-            "AttendanceEmailSettings": payload.attendanceEmailSettings?.count ?? 0
+            "AttendanceEmailSettings": payload.attendanceEmailSettings?.count ?? 0,
+            "ClassroomPerson": payload.classroomPeople?.count ?? 0
         ]
     }
 

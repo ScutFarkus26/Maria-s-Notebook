@@ -104,7 +104,10 @@ extension CoreDataStack {
     ///   `OrderItem.sourceRaw`, `supplyID`, `addedByID` / `addedByName`: a need
     ///   from the office or to order, the staple it restocks, who added it.
     ///   Additive attributes, each optional or with a default.
-    nonisolated static let currentSchemaVersion = 15
+    /// - `16` — `ClassroomPerson` (shared): the name each person goes by, one row
+    ///   per CloudKit record name, looked up when a line is worded (`ClassroomNames`)
+    ///   so a rename reaches old entries. Additive entity.
+    nonisolated static let currentSchemaVersion = 16
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"
@@ -312,10 +315,7 @@ extension CoreDataStack {
 
         let metadata: [String: Any]
         do {
-            metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(
-                type: .sqlite,
-                at: storeURL
-            )
+            metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(type: .sqlite, at: storeURL)
         } catch {
             let msg = "Could not read schema stamp from \(storeURL.lastPathComponent): " +
                 "\(error.localizedDescription)"

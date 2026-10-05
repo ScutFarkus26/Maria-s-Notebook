@@ -93,7 +93,10 @@ nonisolated public enum BackupWriter {
     ///   (`supplyID`) and who added them. All three Restock types move under
     ///   `shared/`, as the classroom share now holds them; restore goes by the
     ///   entity name, so older backups' `private/` entries still restore.
-    public static let formatVersion: Int = 37
+    /// - v38: `ClassroomPerson` entries (schema 16) under `shared/`, the name
+    ///   each person in the classroom set for themselves. Purely additive; a
+    ///   v37 reader would skip them silently, hence the version.
+    public static let formatVersion: Int = 38
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

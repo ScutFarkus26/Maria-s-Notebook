@@ -127,6 +127,7 @@ nonisolated public struct BackupPayload: Codable, Sendable {
         case supplyTransactions
         case attendanceEmailSends
         case attendanceEmailSettings
+        case classroomPeople
         case preferences
     }
 
@@ -279,6 +280,10 @@ nonisolated public struct BackupPayload: Codable, Sendable {
     // the classroom share carries them (format v34+, schema 12).
     public var attendanceEmailSends: [AttendanceEmailSendDTO]?
     public var attendanceEmailSettings: [AttendanceEmailSettingsDTO]?
+
+    // The names people in the classroom set for themselves (format v38+,
+    // schema 16), one row per person, as the classroom share carries them.
+    public var classroomPeople: [ClassroomPersonDTO]?
 
     // Lightweight app/user metadata (preferences) as typed dictionary
     public var preferences: PreferencesDTO

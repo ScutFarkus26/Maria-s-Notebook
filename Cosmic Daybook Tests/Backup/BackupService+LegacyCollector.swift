@@ -331,5 +331,7 @@ extension BackupService {
             CDAttendanceEmailSend.self, using: viewContext) { AttendanceEmailSendDTO.rows($0) }
         payload.attendanceEmailSettings = fetchAndTransformInBatches(
             CDAttendanceEmailSettings.self, using: viewContext) { AttendanceEmailSettingsDTO.rows($0) }
+        payload.classroomPeople = fetchAndTransformInBatches(
+            CDClassroomPerson.self, using: viewContext) { ClassroomPersonDTO.rows($0) }
     }
 }

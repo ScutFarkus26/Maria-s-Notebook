@@ -51,6 +51,50 @@ struct AssistantSplitStoreTests {
         #expect([staple, history, need].allSatisfy { $0.objectID.persistentStore == sharedStore })
     }
 
+    @Test("Her name goes into the shared store, and names are read only from the classroom share (schema 16)")
+    func namesLiveInTheShare() throws {
+        let model = try CoreDataStack.sharedModel()
+        let sharedTypes = model.entities(forConfigurationName: CoreDataStack.sharedConfiguration) ?? []
+        #expect(sharedTypes.contains { $0.name == "ClassroomPerson" })
+        let context = try splitContext()
+        let sharedStore = try store(CoreDataStack.sharedConfiguration, in: context)
+        let privateStore = try store(CoreDataStack.privateConfiguration, in: context)
+
+        // A notebook of her own on the same Apple Account, where she's the guide.
+        let ownNotebook = CDClassroomPerson(context: context)
+        context.assign(ownNotebook, to: privateStore)
+        ownNotebook.recordName = "_ana"
+        ownNotebook.role = .leadGuide
+        ownNotebook.displayName = "Ms. A"
+        // Her guide's row, as the share brings it.
+        let guide = CDClassroomPerson(context: context)
+        context.assign(guide, to: sharedStore)
+        guide.recordName = "_guide"
+        guide.role = .leadGuide
+        guide.displayName = "Danny"
+        #expect(context.safeSave())
+
+        let previous = (
+            ClassroomIdentity.currentUserRecordName, ClassroomIdentity.displayName, ClassroomIdentity.nameWaitingAs
+        )
+        defer {
+            ClassroomIdentity.currentUserRecordName = previous.0
+            ClassroomIdentity.displayName = previous.1
+            ClassroomIdentity.nameWaitingAs = previous.2
+        }
+        ClassroomIdentity.currentUserRecordName = "_ana"
+        let written = try #require(ClassroomNames.setMyName("Ana", role: .assistant, in: context))
+        #expect(written.isNew, "her notebook's row is another classroom's, not hers here")
+        #expect(context.safeSave())
+        #expect(written.person.objectID.persistentStore == sharedStore)
+
+        let names = ClassroomNames.snapshot(in: context)
+        #expect(names.guideName == "Danny")
+        #expect(names.name(forRecordName: "_ana") == "Ana")
+        #expect(ClassroomNames.guideName(in: context) == "Danny")
+        #expect(ownNotebook.displayName == "Ms. A")
+    }
+
     @Test("Only the classroom share's children are on the roll, and every mark goes to the shared store")
     func classroomOnly() throws {
         let context = try splitContext()

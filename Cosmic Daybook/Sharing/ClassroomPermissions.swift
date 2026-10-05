@@ -5,12 +5,13 @@ import Foundation
 /// Determines which Core Data entities each role can read/write.
 /// Lead guides have full access; assistants can read everything but write
 /// only what the Daybook Assistant does: attendance (the day's records and the
-/// front-desk email sends) and Restock (staples, their history and the needs,
-/// since schema 15). Only the guide sends the order email; that is the app's
-/// rule, not this matrix's. (Per-category toggles the guide could set lived in
-/// iCloud key-value storage, which never reached an assistant's own Apple
-/// Account; they were removed on 2026-09-30. Letting assistants write more
-/// would need the choice in the classroom share itself.)
+/// front-desk email sends), Restock (staples, their history and the needs,
+/// since schema 15) and her own name in the classroom's list (schema 16). Only
+/// the guide sends the order email, and each person writes only their own
+/// name; those are the app's rules, not this matrix's. (Per-category toggles
+/// the guide could set lived in iCloud key-value storage, which never reached
+/// an assistant's own Apple Account; they were removed on 2026-09-30. Letting
+/// assistants write more would need the choice in the classroom share itself.)
 ///
 /// These permissions gate UI actions (edit buttons, save operations).
 /// The actual store routing (private vs shared) is handled by CoreDataStack.
@@ -31,7 +32,8 @@ enum ClassroomPermissions {
 
     /// The entities an assistant may create, update or delete.
     static let assistantWritableEntities: Set<String> = [
-        "AttendanceRecord", "AttendanceEmailSend", "Supply", "SupplyTransaction", "OrderItem"
+        "AttendanceRecord", "AttendanceEmailSend", "Supply", "SupplyTransaction", "OrderItem",
+        "ClassroomPerson"
     ]
 
     /// Whether the given role can delete the named entity.

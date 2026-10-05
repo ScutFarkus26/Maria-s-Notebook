@@ -20,11 +20,11 @@ final class Phase5PostTests {
         }
     }
 
-    @Test("Assistant writes attendance and Restock, and nothing else")
+    @Test("Assistant writes attendance, Restock and her own name, and nothing else")
     func assistantLimitedWrite() {
         let allEntities = CoreDataStack.sharedEntityNames.union(CoreDataStack.privateEntityNames)
         let allowed: Set<String> = [
-            "AttendanceRecord", "AttendanceEmailSend", "Supply", "SupplyTransaction", "OrderItem"
+            "AttendanceRecord", "AttendanceEmailSend", "Supply", "SupplyTransaction", "OrderItem", "ClassroomPerson"
         ]
         for entity in allEntities {
             #expect(
