@@ -223,7 +223,8 @@ extension RestockView {
     }
 
     /// The line under a need's name: where a staple lives and who marked it,
-    /// or a one-off's site, note and who added it.
+    /// or a one-off's site, note and who added it. Who shows only when it
+    /// isn't the person looking.
     func detail(for need: CDOrderItem, staple: CDSupply?) -> String {
         var parts: [String] = []
         if let staple {
@@ -236,11 +237,26 @@ extension RestockView {
         }
         if let caption = need.linkCaption { parts.append(caption) }
         if !need.notes.isEmpty { parts.append(need.notes) }
-        if need.addedByID != nil || !need.addedByName.isEmpty {
-            let who = author.reads(changedByID: need.addedByID, name: need.addedByName)
-            parts.append(who == "You" ? "added by you" : "added by \(who)")
+        if let added = Self.addedByLine(changedByID: need.addedByID, name: need.addedByName, viewer: author) {
+            parts.append(added)
         }
         return parts.joined(separator: " · ")
+    }
+
+    // MARK: - Who, when it isn't you
+
+    /// Who made a change, as `viewer` reads it, or nil when it was `viewer`
+    /// (your own changes carry no label) or the change has no stamp at all.
+    static func someoneElse(changedByID id: String?, name: String?, viewer: RestockAuthor) -> String? {
+        let name = name?.trimmed() ?? ""
+        guard id != nil || !name.isEmpty else { return nil }
+        let who = viewer.reads(changedByID: id, name: name)
+        return who == "You" ? nil : who
+    }
+
+    /// "added by Rivka" on a one-off someone else added; nil on your own.
+    static func addedByLine(changedByID id: String?, name: String?, viewer: RestockAuthor) -> String? {
+        someoneElse(changedByID: id, name: name, viewer: viewer).map { "added by \($0)" }
     }
 
     @ViewBuilder

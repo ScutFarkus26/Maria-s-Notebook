@@ -9,15 +9,20 @@ import Foundation
 extension ClassroomSharingService {
 
     /// Per type, what the pinned share holds and what this school year's share should
-    /// hold. Nil when there is nothing to read or CloudKit can't say.
-    static func shareContents(coreDataStack: CoreDataStack) async -> ClassroomShareContents? {
+    /// hold. Nil when there is nothing to read or CloudKit can't say. `entities` narrows
+    /// the read to some of the share's types (Restock's banner reads only its own three);
+    /// the others are left out of the result.
+    static func shareContents(
+        coreDataStack: CoreDataStack,
+        entities: [String] = ClassroomShareSetupReport.orderedEntityNames
+    ) async -> ClassroomShareContents? {
         guard coreDataStack.isCloudKitActive, let store = coreDataStack.privatePersistentStore else { return nil }
         let pinnedZone = CDClassroomMembership.pinnedZoneName(in: coreDataStack.viewContext)
         let container = coreDataStack.container
         let scope = ClassroomShareScope()
         let storeID = store.identifier
         let (everything, inScope) = await classroomRecordIDsWithScope(
-            storeID: storeID, container: container, scope: scope
+            storeID: storeID, container: container, scope: scope, entities: entities
         )
         return await countInShare(everything, inScope: inScope, zone: pinnedZone, container: container)
     }
@@ -27,13 +32,14 @@ extension ClassroomSharingService {
     private static func classroomRecordIDsWithScope(
         storeID: String?,
         container: NSPersistentCloudKitContainer,
-        scope: ClassroomShareScope
+        scope: ClassroomShareScope,
+        entities: [String]
     ) async -> (everything: [String: [NSManagedObjectID]], inScope: [String: [NSManagedObjectID]]) {
         let context = container.newBackgroundContext()
         return await context.perform {
             (
-                recordIDs(storeID: storeID, context: context, scope: nil),
-                recordIDs(storeID: storeID, context: context, scope: scope)
+                recordIDs(storeID: storeID, context: context, scope: nil, entities: entities),
+                recordIDs(storeID: storeID, context: context, scope: scope, entities: entities)
             )
         }
     }
@@ -114,14 +120,17 @@ extension ClassroomSharingService {
     nonisolated private static func recordIDs(
         storeID: String?,
         context: NSManagedObjectContext,
-        scope: ClassroomShareScope?
+        scope: ClassroomShareScope?,
+        entities: [String] = ClassroomShareSetupReport.orderedEntityNames
     ) -> [String: [NSManagedObjectID]] {
         guard let store = context.persistentStoreCoordinator?.persistentStores.first(where: {
             $0.identifier == storeID
         }) else { return [:] }
-        let belonging = scope?.belongingStudentIDs(in: context, store: store) ?? []
+        // Only the student types' scope goes by who belongs this year.
+        let needsStudents = entities.contains("Student") || entities.contains("AttendanceRecord")
+        let belonging = needsStudents ? (scope?.belongingStudentIDs(in: context, store: store) ?? []) : []
         var result: [String: [NSManagedObjectID]] = [:]
-        for entity in ClassroomShareSetupReport.orderedEntityNames {
+        for entity in ClassroomShareSetupReport.orderedEntityNames where entities.contains(entity) {
             let request = NSFetchRequest<NSManagedObjectID>(entityName: entity)
             request.affectedStores = [store]
             request.resultType = .managedObjectIDResultType
@@ -143,9 +152,17 @@ nonisolated struct ClassroomShareContents: Sendable, Equatable {
     /// Records held twice, in the share and outside it: a release caught partway.
     var mixedDuplicates = 0
 
+    /// Restock's share types: staples, needs and the staples' history.
+    static let restockEntityNames = ["Supply", "OrderItem", "SupplyTransaction"]
+
     /// Records that belong in the share and aren't in it.
     var outside: Int {
-        inScope.reduce(0) { $0 + max(0, $1.value - (inScopeAndShared[$1.key] ?? 0)) }
+        inScope.keys.reduce(0) { $0 + outside(of: $1) }
+    }
+
+    /// Records of one type that belong in the share and aren't in it.
+    func outside(of entity: String) -> Int {
+        max(0, (inScope[entity] ?? 0) - (inScopeAndShared[entity] ?? 0))
     }
 
     /// Records in the share that no longer belong there (earlier school years).

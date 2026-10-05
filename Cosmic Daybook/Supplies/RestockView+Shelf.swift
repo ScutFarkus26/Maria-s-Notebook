@@ -129,14 +129,34 @@ extension RestockView {
 
     // MARK: - Who and when
 
-    /// "Ana · 8:12 AM" for a staple that's Low or Out (the day instead of the
-    /// time once it isn't today); "" for a stocked one.
+    /// "Ana · 8:12 AM" for a staple someone else marked Low or Out (the day
+    /// instead of the time once it isn't today); "" for a stocked one or one
+    /// you marked yourself.
     func byLine(for staple: CDSupply, now: Date = Date()) -> String {
-        guard staple.level.isNeeded, let when = staple.levelChangedAt else { return "" }
-        let who = author.reads(changedByID: staple.levelChangedByID, name: staple.levelChangedByName)
+        Self.byLine(
+            isNeeded: staple.level.isNeeded,
+            changedAt: staple.levelChangedAt,
+            changedByID: staple.levelChangedByID,
+            name: staple.levelChangedByName,
+            viewer: author,
+            now: now
+        )
+    }
+
+    static func byLine(
+        isNeeded: Bool,
+        changedAt: Date?,
+        changedByID: String?,
+        name: String?,
+        viewer: RestockAuthor,
+        now: Date = Date()
+    ) -> String {
+        guard isNeeded, let when = changedAt,
+              let who = someoneElse(changedByID: changedByID, name: name, viewer: viewer) else { return "" }
         let time = AppCalendar.shared.isDate(when, inSameDayAs: now)
             ? DateFormatters.shortTime.string(from: when)
             : DateFormatters.shortMonthDay.string(from: when)
-        return "\(who) · \(time)"
+        // It can start the line: "An assistant · 8:12 AM".
+        return "\(who.prefix(1).uppercased())\(who.dropFirst()) · \(time)"
     }
 }
