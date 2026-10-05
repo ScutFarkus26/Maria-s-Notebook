@@ -78,15 +78,21 @@ extension AssistantRestockModel {
     /// The line under an office-run row: "Bathrooms · you, 8:12 AM" for a
     /// staple, "Added by your guide" for a one-off.
     func runDetail(_ need: CDOrderItem) -> String {
-        if let staple = staple(for: need) {
-            var parts: [String] = []
-            if !staple.location.isEmpty { parts.append(staple.location) }
-            if staple.level.isNeeded, let at = staple.levelChangedAt {
-                parts.append("\(who(staple)), \(Self.when(at, now: now()))")
-            }
-            return parts.isEmpty ? "From the shelf" : parts.joined(separator: " · ")
+        staple(for: need)?.location ?? ""
+    }
+
+    /// The office-run hold menu's header: "Marked Out by your guide · Oct 3"
+    /// for a Low or Out staple, "Added by your guide · Oct 3" for a one-off
+    /// (and for a need whose staple is Stocked or not here). It always names
+    /// who, "you" included, since the row itself says nothing of it.
+    func runWho(_ need: CDOrderItem) -> String {
+        if let staple = staple(for: need), staple.level.isNeeded, let at = staple.levelChangedAt {
+            let who = Self.midSentence(who(staple))
+            return "Marked \(staple.level.displayName) by \(who) · \(Self.when(at, now: now()))"
         }
-        return "Added by \(Self.midSentence(author.reads(changedByID: need.addedByID, name: need.addedByName)))"
+        let who = Self.midSentence(author.reads(changedByID: need.addedByID, name: need.addedByName))
+        guard let at = need.createdAt else { return "Added by \(who)" }
+        return "Added by \(who) · \(Self.when(at, now: now()))"
     }
 
     /// "You" reads "you" inside a sentence ("marked by you").

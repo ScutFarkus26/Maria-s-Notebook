@@ -100,7 +100,7 @@ struct AssistantRestockOfficeRunTests {
         #expect(!tab.isCheckedOff(need))
     }
 
-    @Test("An office-run row whose staple reads Stocked is tagged with the staple's name, not One-off")
+    @Test("An office-run row whose staple reads Stocked has no tag until the staple is Out or Low")
     func stockedStapleTag() throws {
         let towels = try staple("Paper Towels")
         // Its level and its need arrived out of step from another device.
@@ -110,10 +110,10 @@ struct AssistantRestockOfficeRunTests {
         let need = try #require(tab.officeRun.first)
 
         #expect(tab.officeRunCount == 1, "a Stocked staple's open need isn't closed")
-        #expect(AssistantRestockStyle.tag(for: tab.staple(for: need)).text == "Paper Towels")
-        #expect(AssistantRestockStyle.tag(for: nil).text == "One-off")
+        #expect(AssistantRestockStyle.tag(for: tab.staple(for: need)) == nil)
+        #expect(AssistantRestockStyle.tag(for: nil) == nil)
         tab.setLevel(towels, to: .out)
-        #expect(AssistantRestockStyle.tag(for: tab.staple(for: need)).text == "Out")
+        #expect(AssistantRestockStyle.tag(for: tab.staple(for: need))?.text == "Out")
     }
 
     // MARK: - Out of step, and the share
