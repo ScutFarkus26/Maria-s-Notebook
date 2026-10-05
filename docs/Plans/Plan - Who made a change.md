@@ -28,9 +28,9 @@ The screenshot: the Assistant's office run showed Toilet Paper and Paper Towels 
 
 ## Progress
 - [x] Phase 1: Real IDs, the stand-in read as no ID (session: here) ‖ Phases 2 and 3 · est. ~1–2% weekly · started at 8% · actual ~1% (8→9, noisy: two agents and other sessions running). Differed: the generic-simulator build compiled twice (Intel and Apple simulators); the CLAUDE.md recipe's "iPhone 17, OS=27.0" destination no longer exists. 52 notebook + 21 Assistant tests green.
-- [ ] Phase 2: The Assistant's office run as an errand list (agent `feature-phase` on Sonnet) ‖ Phases 1 and 3 · est. ~1% weekly · started at 8%
-- [ ] Phase 3: Restock on the guide's devices: names only for others, the share banner (agent `feature-phase`) ‖ Phases 1 and 2 · est. ~1–2% weekly · started at 8%
-- [ ] Phase 4: Combine, full build, whole suites, simulator look, merge (session: here) · est. ~2% weekly
+- [x] Phase 2: The Assistant's office run as an errand list (agent `feature-phase` on Sonnet) ‖ Phases 1 and 3 · est. ~1% weekly · started at 8% · 04a92d53. Differed: also fixed `AssistantRestockOfficeRunTests` (tags are optional now); a ticked row keeps its rank until the tick is undone or forgotten (ticks already survive `load()`); a ticked row's hold menu says "Put it back".
+- [x] Phase 3: Restock on the guide's devices: names only for others, the share banner (agent `feature-phase`) ‖ Phases 1 and 2 · est. ~1–2% weekly · started at 8% · 7964647d. Differed: the banner opens Settings › Classroom (there is no separate Sharing category; on iPhone it lands on the Settings list, one tap away); its wording also covers list items and history-only gaps. Phases 1–3 together: 8→10%, noisy.
+- [ ] Phase 4: Combine, full build, whole suites, simulator look, merge (session: here) · est. ~2% weekly · started at 10%. Combined cleanly; notebook iOS + Mac and Assistant build; notebook 2,469 and Assistant 234 tests green; code review found nothing; office run and hold menu screenshots match the mockups. Merge waits for Danny's OK.
 - [ ] Phase 5: Danny's steps (Tide rows, no session)
 
 ## Cost
@@ -150,6 +150,8 @@ About 5–7% of the weekly all-models limit (Max). 8% used, 92% left until Sun O
 - Hand off: no.
 
 ## Phase 5: Danny's steps (Tide rows)
+
+Checks after the roll-out: [Check "who added it" on my assistant's phone and the Mac](tide://box/Areas/App%20Development/Cosmic%20Daybook/TODO.md?text=Check%20%22who%20added%20it%22%20on%20my%20assistant%27s%20phone%20and%20the%20Mac%3A%20no%20more%20%22you%22%20for%20my%20changes).
 
 - **Mac first**, the open Tide row: Settings › Classroom Sharing › "Add them to the share". This alone turns her "One-off" rows back into Toilet Paper (Out, Bathrooms) and Paper Towels (Out).
 - **Roll out the fix**: Mac, iPhone, iPad, and an Assistant TestFlight, with the `roll-out` skill when Danny asks.
