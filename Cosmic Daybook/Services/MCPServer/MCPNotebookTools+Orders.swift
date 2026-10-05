@@ -126,7 +126,9 @@ extension MCPNotebookTools {
         if let confirmed = item.confirmedAt { details.append("confirmed \(dayString(confirmed))") }
         if let received = item.receivedAt { details.append("received \(dayString(received))") }
         if item.isStapleNeed { details.insert("staple need", at: 0) }
-        let who = nonEmpty(item.addedByName).map { "added by \($0)" }
+        // By the name they go by now (`ClassroomNames`), else the one stamped.
+        let current = item.managedObjectContext.flatMap { ClassroomNames.name(forRecordName: item.addedByID, in: $0) }
+        let who = (current ?? nonEmpty(item.addedByName)).map { "added by \($0)" }
         if let who { details.append(who) }
         return "- [order id=\(id)] \(item.displayTitle) — " + details.joined(separator: ", ")
     }
