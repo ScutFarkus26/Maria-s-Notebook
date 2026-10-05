@@ -150,7 +150,7 @@ About 7–12% of the weekly all-models limit (Max). 10% used, 90% left until Sun
 ## Phase 5: Danny's steps (Tide rows)
 
 1. CloudKit Console (container iCloud.DanielSDeBerry.MariasNoteBook): check `CD_ClassroomPerson` in Development, then **Deploy Schema Changes to Production**. Nothing with schema 16 may run on any device before this.
-2. Roll out (Mac first, iPhone, iPad). This also carries the who-made-a-change fix, if it isn't out yet. **The Assistant TestFlight waits for Danny's word** (2026-10-05: "don't add this to the assistant's TestFlight until I say so"): no Assistant upload or tester-group change for this work until he says so.
+2. Roll out (Mac first, iPhone, iPad). This also carries the who-made-a-change fix, if it isn't out yet. **The Assistant TestFlight goes to internal testers only** (Danny, 2026-10-05: "you can upload it and send to internal"); no external group until he says so.
 3. Set your name in Settings › Classroom; have her check hers in the Assistant (person button › Your name).
 4. Check on her phone: the office run says "Danny is ordering", holding your item says "Marked Out by Danny", and attendance says "by Danny". Rename yourself and see her phone follow. On the Mac, her current name shows on her marks and Restock changes.
 
