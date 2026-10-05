@@ -32,6 +32,9 @@ struct RestockView: View {
 
     /// Who this device's changes are stamped with, and who reads as "You".
     @State var viewer: RestockAuthor?
+    /// The names people set for themselves (`ClassroomNames`), so an
+    /// assistant's current name shows on her changes, old ones included.
+    @State var names = ClassroomNames.Snapshot()
     @State var showingNeedSheet = false
     @State var stapleSheet: StapleSheetTarget?
     @State var historyStaple: CDSupply?
@@ -95,7 +98,7 @@ struct RestockView: View {
         #endif
     }
 
-    var author: RestockAuthor { viewer ?? RestockAuthor(role: .leadGuide) }
+    var author: RestockAuthor { (viewer ?? RestockAuthor(role: .leadGuide)).reading(names) }
 
     // MARK: - Body
 
@@ -175,6 +178,7 @@ struct RestockView: View {
         }
         .task {
             if viewer == nil { viewer = RestockAuthor.current(in: viewContext) }
+            names = ClassroomNames.snapshot(in: viewContext)
             reconcile()
             await refreshShareGap()
         }
@@ -182,6 +186,10 @@ struct RestockView: View {
         // syncs; the page keeps one whenever needs change, here or elsewhere.
         .onPresentationDataChangeWhenVisible(of: ["OrderItem"], in: viewContext, catchUpOnAppear: false) {
             reconcile()
+        }
+        // Someone renamed themselves: redraw the who-lines with the new name.
+        .onPresentationDataChangeWhenVisible(of: ["ClassroomPerson"], in: viewContext, catchUpOnAppear: false) {
+            names = ClassroomNames.snapshot(in: viewContext)
         }
         .onDisappear(perform: flushPendingSave)
         .navigationTitle("Restock")

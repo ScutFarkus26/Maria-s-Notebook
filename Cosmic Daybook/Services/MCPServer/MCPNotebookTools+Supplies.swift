@@ -89,7 +89,8 @@ extension MCPNotebookTools {
         // wrong: on an assistant device these rows live only in the shared store.
         let all: [CDSupply] = RestockService.staples(in: modelContext).uniqueByID
         let kept = all.filter { keeps($0, filter) }
-        let author = RestockAuthor.current(in: modelContext)
+        // Who set each level, by the name they go by now (`ClassroomNames`).
+        let author = RestockAuthor.current(in: modelContext).reading(ClassroomNames.snapshot(in: modelContext))
 
         guard !kept.isEmpty else {
             if filter.outOnly { return "Nothing is out." }

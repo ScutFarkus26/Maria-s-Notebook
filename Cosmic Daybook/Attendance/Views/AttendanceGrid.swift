@@ -28,6 +28,9 @@ struct AttendanceGrid: View {
     let actions: AttendanceGridActions
     /// A sideways swipe across the iPhone tiles: true for the next school day.
     var onStepDay: ((Bool) -> Void)?
+    /// The names people set for themselves (`ClassroomNames`): an
+    /// assistant's current name on her marks, old ones included.
+    var names = ClassroomNames.Snapshot()
 
     /// Group by Level, from the View menu; synced across the guide's devices.
     static let groupsByLevelKey = "Attendance.groupsByLevel"
@@ -111,14 +114,15 @@ struct AttendanceGrid: View {
 #endif
     }
 
-    /// Who made a mark, when it wasn't you: an assistant's name. The guide's
-    /// own marks carry none.
+    /// Who made a mark, when it wasn't you: an assistant's name, the one she
+    /// goes by now. The guide's own marks carry none.
     private func markedBy(_ row: AttendanceRow) -> String? {
         let name = AttendanceRules.markerName(
             for: row,
             myRecordName: ClassroomIdentity.currentUserRecordName,
             myName: ClassroomIdentity.displayName,
-            guideName: "you"
+            guideName: "you",
+            names: names
         )
         return name == "you" ? nil : name
     }

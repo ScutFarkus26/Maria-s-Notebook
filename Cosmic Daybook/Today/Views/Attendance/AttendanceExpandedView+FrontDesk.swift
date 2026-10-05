@@ -71,12 +71,13 @@ extension AttendanceExpandedView {
     }
 
     /// Who sent the day's email, as this screen reads it ("you" for the
-    /// guide's own).
+    /// guide's own, an assistant by the name she goes by now).
     func frontDeskSummary(_ send: AttendanceEmailLog.Send) -> String {
         let name = send.senderName(
             viewerRole: CDClassroomMembership.currentRole(in: viewContext),
             myRecordName: ClassroomIdentity.currentUserRecordName,
-            myName: ClassroomIdentity.displayName
+            myName: ClassroomIdentity.displayName,
+            names: classroomNames
         )
         return send.summary(senderName: name, for: date, deadlineMinutes: deadlineMinutes)
     }
