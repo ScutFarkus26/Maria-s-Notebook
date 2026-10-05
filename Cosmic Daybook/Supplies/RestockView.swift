@@ -13,8 +13,12 @@ import CoreData
 struct RestockView: View {
     @Environment(\.managedObjectContext) var viewContext
     @Environment(SaveCoordinator.self) var saveCoordinator
+    @Environment(\.dependencies) var dependencies
     #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.appRouter) var appRouter
+    #else
+    @Environment(\.openSettings) var openSettings
     #endif
 
     @FetchRequest(sortDescriptors: [
@@ -40,6 +44,8 @@ struct RestockView: View {
     @State var showingAskedFor = false
     @State var showingReceived = false
     @State var confirmingClearReceived = false
+    /// Restock records the lead guide's assistant can't see yet (`+ShareBanner`).
+    @State var shareGap: RestockShareGap?
     /// The pending save for a burst of taps (levels, −/+), so marking three
     /// staples is one save and one CloudKit push, not three.
     @State var pendingSave: Task<Void, Never>?
@@ -113,6 +119,7 @@ struct RestockView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    shareBanner
                     needsSection(digest: digest, staplesByID: byID)
                     shelfSection
                 }
@@ -169,6 +176,7 @@ struct RestockView: View {
         .task {
             if viewer == nil { viewer = RestockAuthor.current(in: viewContext) }
             reconcile()
+            await refreshShareGap()
         }
         // Two devices can each open a need for one staple before either
         // syncs; the page keeps one whenever needs change, here or elsewhere.
