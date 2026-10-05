@@ -49,6 +49,9 @@ final class AssistantRestockModel {
     /// another id. Forgotten when she comes back to the tab or the app
     /// (`forgetCheckOffs`). Observed: a row redraws ticked from it.
     private var checkOffs: [UUID: RestockService.CheckOff] = [:]
+    /// Where each ticked row sorted when it was ticked (`runRank`), by the
+    /// need's `id`, so it stays put on the list.
+    @ObservationIgnored private var tickedRanks: [UUID: Int] = [:]
     @ObservationIgnored private var pendingSave: Task<Void, Never>?
     /// The Restock records made here since this tab's last save, to put into
     /// the classroom share once a save gives them permanent IDs. Noted as
@@ -162,8 +165,29 @@ final class AssistantRestockModel {
             let need = checkOff.need
             return !need.isDeleted && need.managedObjectContext != nil && need.receivedAt != nil
         }
-        officeRun = (run + checkOffs.values.map(\.need)).sorted(by: RestockService.isOlder)
+        tickedRanks = tickedRanks.filter { checkOffs[$0.key] != nil }
+        officeRun = (run + checkOffs.values.map(\.need)).sorted { lhs, rhs in
+            let (left, right) = (runRank(lhs), runRank(rhs))
+            return left != right ? left < right : RestockService.isOlder(lhs, rhs)
+        }
         revision &+= 1
+    }
+
+    /// Where a need sorts on the office run: Out first, then Low, then the
+    /// rest (a one-off, or a staple she can't see or that reads Stocked). A
+    /// row she ticked keeps the rank it had when she ticked it, rather than
+    /// dropping to the bottom once its staple reads Stocked.
+    private func runRank(_ need: CDOrderItem) -> Int {
+        if let id = need.id, let ticked = tickedRanks[id] { return ticked }
+        return Self.rank(of: staple(for: need)?.level)
+    }
+
+    private static func rank(of level: RestockLevel?) -> Int {
+        switch level {
+        case .out: 0
+        case .low: 1
+        case .stocked, nil: 2
+        }
     }
 
     // MARK: - The shelf
@@ -219,14 +243,17 @@ final class AssistantRestockModel {
     func toggleCheckOff(_ need: CDOrderItem) {
         author = currentAuthor()
         if let id = need.id, let checkOff = checkOffs.removeValue(forKey: id) {
+            tickedRanks[id] = nil
             RestockService.undoCheckOff(checkOff, at: now(), in: context)
         } else {
+            let rank = runRank(need)
             guard let checkOff = RestockService.checkOff(need, by: author, at: now(), in: context) else { return }
             // Every need carries an id from the day it's made; one that
             // somehow didn't gets one, so its tick can be found again.
             let id = need.id ?? UUID()
             if need.id == nil { need.id = id }
             checkOffs[id] = checkOff
+            tickedRanks[id] = rank
             if let staple = checkOff.staple { notedHistory(for: staple) }
         }
         changed()
@@ -244,6 +271,7 @@ final class AssistantRestockModel {
     func forgetCheckOffs() {
         guard !checkOffs.isEmpty else { return }
         checkOffs.removeAll()
+        tickedRanks.removeAll()
         refreshNeeds()
     }
 

@@ -58,25 +58,22 @@ enum AssistantRestockStyle {
         }
     }
 
-    /// The small Out / Low / One-off tag on an office-run row.
+    /// The small Out / Low tag on an office-run row.
     struct Tag {
         let text: String
         let fill: Color
         let foreground: Color
     }
 
-    /// The tag for a need of `staple` (nil for a one-off). A staple that reads
-    /// Stocked while its need is still open (its level and need arrived out
-    /// of step from another device, and nothing closes the need on its own)
-    /// shows the staple's name: the need is the staple's, not a one-off.
-    static func tag(for staple: CDSupply?) -> Tag {
-        guard let staple else {
-            return Tag(text: "One-off", fill: Color(.tertiarySystemFill), foreground: .primary)
-        }
-        switch staple.level {
-        case .out: return Tag(text: "Out", fill: Self.level(.out).fill, foreground: .white)
-        case .low: return Tag(text: "Low", fill: Self.level(.low).fill, foreground: Self.level(.low).text)
-        case .stocked: return Tag(text: staple.name, fill: Color(.tertiarySystemFill), foreground: .primary)
+    /// The tag for a need of `staple`: how urgent it is, Out or Low, and
+    /// nothing otherwise (a one-off, a staple she can't see, or a Stocked
+    /// staple whose need is still open because its level and need arrived
+    /// out of step from another device).
+    static func tag(for staple: CDSupply?) -> Tag? {
+        switch staple?.level {
+        case .out: Tag(text: "Out", fill: Self.level(.out).fill, foreground: .white)
+        case .low: Tag(text: "Low", fill: Self.level(.low).fill, foreground: Self.level(.low).text)
+        case .stocked, nil: nil
         }
     }
 
