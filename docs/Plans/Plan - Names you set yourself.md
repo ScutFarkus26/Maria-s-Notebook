@@ -149,6 +149,8 @@ About 7–12% of the weekly all-models limit (Max). 10% used, 90% left until Sun
 
 ## Phase 5: Danny's steps (Tide rows)
 
+Check after the roll-out: [Set my name in Settings › Classroom and check her phone says it](tide://box/Areas/App%20Development/Cosmic%20Daybook/TODO.md?text=Set%20my%20name%20in%20Settings%20%E2%80%BA%20Classroom%20on%20the%20Mac%2C%20and%20check%20my%20assistant%27s%20phone%20says%20it%20instead%20of%20%22your%20guide%22).
+
 1. ~~CloudKit Console: deploy schema 16 to Production.~~ Done 2026-10-05 by Claude in the browser pane with Danny's yes: the sheet listed only the new `CD_ClassroomPerson` type, its 21 indexes and the three security roles extended to it; `CD_ClassroomPerson` and all its fields confirmed in Production.
 2. Roll out (Mac first, iPhone, iPad). This also carries the who-made-a-change fix, if it isn't out yet. **The Assistant TestFlight goes to internal testers only** (Danny, 2026-10-05: "you can upload it and send to internal"); no external group until he says so.
 3. Set your name in Settings › Classroom; have her check hers in the Assistant (person button › Your name).
