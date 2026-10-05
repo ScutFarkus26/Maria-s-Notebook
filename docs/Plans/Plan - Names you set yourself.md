@@ -1,6 +1,6 @@
 # Names you set yourself
 
-> **Not started.** Written 2026-10-05, after the who-made-a-change fix (main 826a8214); Danny wants his own name, not "your guide", and everyone's name changeable.
+> **Working on it.** Phases 1–4 on main and schema 16 deployed to Production 2026-10-05; Phase 5 (Danny's roll-out, names and device check) left. Written 2026-10-05, after the who-made-a-change fix (main 826a8214); Danny wants his own name, not "your guide", and everyone's name changeable.
 > In short: A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included.
 
 ## Goal
@@ -10,8 +10,8 @@ Danny sets his name once in Settings › Classroom, and each assistant sets hers
 ## Progress
 - [x] Phase 1: The shared name list: record type, schema 16, share, backup, lookup (agent `feature-phase-deep`) · est. ~3–5% weekly · started at 10% · f8cf505b. Notebook 253 focused + Assistant 235 tests green; iOS, Assistant and Mac build. Differed: a name an assistant set on an older build counts as waiting and joins the list at launch; the guide's per-device copy is cleared once his row is written. Launch wiring left outside its files: notebook done in the main session; the Assistant's goes to Phase 3. Docs counts (DATA_MODELS, BACKUP_SYSTEM) for Phase 4.
 - [x] Phase 2: The notebook: "Your name" in Settings › Classroom, and names on its screens (agent `feature-phase`) ‖ Phase 3 · est. ~1–2% weekly (parallel because Phase 1 makes every shared signature change) · 9e440fb5; 45 focused tests green, notebook + Assistant build. Differed: no `ClassroomPerson` on Today's watch list (Today shows no names); "Your name" sits inside the Classroom card, not a Settings card of its own (`Phase5PostTests` pins one card); the order-list MCP line was done in the main session.
-- [x] Phase 3: The Assistant: her name sheet writes the list, and Restock and attendance say your name (agent `feature-phase`) ‖ Phase 2 · est. ~1–2% weekly · af27a4a4; 84 tests in 10 suites green, both builds. Differed: no `ClassroomPerson` on `restockEntities` (the Assistant reloads on every sync, and that list also picks what joins the share); "Ask Danny to Order", "Danny sees this note too", the Classroom sheet's Guide line and setup's last page name him too. Phases 1–3: 10→?% (filled in at Phase 4's end).
-- [ ] Phase 4: Combine, full build, whole suites, simulator look, review, Development schema init, merge (session: here) · est. ~2–3% weekly · merged 2 and 3 cleanly; full build + notebook 2,493 / Assistant 243 green; sim look shows the guide's name on tiles, "… is ordering" and the hold menu; review found 3 issues, fixed in b779eede (25 name tests + Assistant 243 green); Development schema init run 2026-10-05 01:26 from sim 1F85CE89 signed in to Danny's second (test) account, no CloudKit error, and `CD_ClassroomPerson` with all its fields confirmed in the Development Console.
+- [x] Phase 3: The Assistant: her name sheet writes the list, and Restock and attendance say your name (agent `feature-phase`) ‖ Phase 2 · est. ~1–2% weekly · af27a4a4; 84 tests in 10 suites green, both builds. Differed: no `ClassroomPerson` on `restockEntities` (the Assistant reloads on every sync, and that list also picks what joins the share); "Ask Danny to Order", "Danny sees this note too", the Classroom sheet's Guide line and setup's last page name him too. Phases 1–3: 10→?% 10→14% for Phases 1–4 together, noisy: other sessions running.
+- [x] Phase 4: Combine, full build, whole suites, simulator look, review, Development schema init, merge (session: here) · est. ~2–3% weekly · merged 2 and 3 cleanly; full build + notebook 2,493 / Assistant 243 green; sim look shows the guide's name on tiles, "… is ordering" and the hold menu; review found 3 issues, fixed in b779eede (25 name tests + Assistant 243 green); Development schema init run 2026-10-05 01:26 from sim 1F85CE89 signed in to Danny's second (test) account, no CloudKit error, and `CD_ClassroomPerson` with all its fields confirmed in the Development Console.
 - [ ] Phase 5: Danny's steps: deploy schema 16 to Production, roll out everything together, set names, check (Tide rows, no session)
 
 ## Cost
@@ -149,7 +149,7 @@ About 7–12% of the weekly all-models limit (Max). 10% used, 90% left until Sun
 
 ## Phase 5: Danny's steps (Tide rows)
 
-1. CloudKit Console (container iCloud.DanielSDeBerry.MariasNoteBook): check `CD_ClassroomPerson` in Development, then **Deploy Schema Changes to Production**. Nothing with schema 16 may run on any device before this.
+1. ~~CloudKit Console: deploy schema 16 to Production.~~ Done 2026-10-05 by Claude in the browser pane with Danny's yes: the sheet listed only the new `CD_ClassroomPerson` type, its 21 indexes and the three security roles extended to it; `CD_ClassroomPerson` and all its fields confirmed in Production.
 2. Roll out (Mac first, iPhone, iPad). This also carries the who-made-a-change fix, if it isn't out yet. **The Assistant TestFlight goes to internal testers only** (Danny, 2026-10-05: "you can upload it and send to internal"); no external group until he says so.
 3. Set your name in Settings › Classroom; have her check hers in the Assistant (person button › Your name).
 4. Check on her phone: the office run says "Danny is ordering", holding your item says "Marked Out by Danny", and attendance says "by Danny". Rename yourself and see her phone follow. On the Mac, her current name shows on her marks and Restock changes.
