@@ -16,6 +16,7 @@ struct AssistantNameSheet: View {
     var isRequired = false
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AssistantBootstrapper.self) private var bootstrapper
     @State private var name: String = ClassroomIdentity.displayName ?? ""
     /// Where `ClassroomIdentity.displayName` is kept, watched so a name
     /// restored from iCloud while the sheet is open fills it in.
@@ -68,7 +69,7 @@ struct AssistantNameSheet: View {
 
     private func save() {
         guard !trimmed.isEmpty else { return }
-        AssistantNameStore.save(trimmed)
+        AssistantNameStore.save(trimmed, in: bootstrapper.coreDataStack)
         dismiss()
     }
 }

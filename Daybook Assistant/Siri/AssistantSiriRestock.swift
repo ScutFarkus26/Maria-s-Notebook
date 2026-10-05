@@ -19,8 +19,14 @@ struct AssistantSiriRestock {
     init() throws {
         let stack = try SiriHost.stack()
         try SiriHost.checkReady(in: stack.viewContext)
-        self.init(stack: stack, author: RestockAuthor.current(role: .assistant))
+        let names = ClassroomNames.snapshot(in: stack.viewContext)
+        self.init(stack: stack, author: RestockAuthor.current(role: .assistant).reading(names))
     }
+
+    /// The name the guide set in the classroom's list, for "It's on Danny's
+    /// order list". Siri reads the list itself; Apple's name for the share's
+    /// owner comes only with the app's sharing service, which Siri doesn't open.
+    var guideName: String? { author.names.guideName }
 
     /// Tests pass an in-memory stack and an author, and a save that fails.
     init(
@@ -51,15 +57,19 @@ struct AssistantSiriRestock {
         /// That one-off was already on the office run.
         case alreadyListed(String)
 
-        var dialog: IntentDialog {
-            IntentDialog(full: "\(spoken)", supporting: "\(summary)")
+        /// What Siri says and shows, naming the guide (`guideName`) when he
+        /// set a name.
+        func dialog(guideName: String?) -> IntentDialog {
+            IntentDialog(full: "\(spoken(guideName: guideName))", supporting: "\(summary)")
         }
 
-        /// What Siri says.
-        var spoken: String {
+        /// What Siri says: "It's on Danny's order list", or "your guide's"
+        /// without his name.
+        func spoken(guideName: String? = nil) -> String {
             switch self {
             case let .marked(name, level, source):
-                let list = source == .office ? "It's on the office run." : "It's on your guide's order list."
+                let guides = guideName.map { "\($0)'s" } ?? "your guide's"
+                let list = source == .office ? "It's on the office run." : "It's on \(guides) order list."
                 return "\(name) is marked \(level.displayName.lowercased()). \(list)"
             case let .already(name, level):
                 return "\(name) was already marked \(level.displayName.lowercased())."

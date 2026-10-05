@@ -25,6 +25,42 @@ enum AssistantRestockTestSupport {
         return added.object
     }
 
+    /// A row in the classroom's list of names, as the share brings it.
+    @discardableResult
+    static func person(
+        _ recordName: String,
+        _ name: String,
+        role: CDClassroomMembership.ClassroomRole = .assistant,
+        at time: Date = Date(),
+        in context: NSManagedObjectContext
+    ) -> CDClassroomPerson {
+        let person = CDClassroomPerson(context: context)
+        person.recordName = recordName
+        person.role = role
+        person.displayName = name
+        person.createdAt = time
+        person.modifiedAt = time
+        #expect(context.safeSave())
+        return person
+    }
+
+    /// Runs `body` with this phone's identity set to `recordName` and
+    /// `name` and no name waiting, then puts back what was there.
+    static func asIdentity<T>(_ recordName: String?, named name: String?, _ body: () throws -> T) rethrows -> T {
+        let previous = (
+            ClassroomIdentity.currentUserRecordName, ClassroomIdentity.displayName, ClassroomIdentity.nameWaitingAs
+        )
+        defer {
+            ClassroomIdentity.currentUserRecordName = previous.0
+            ClassroomIdentity.displayName = previous.1
+            ClassroomIdentity.nameWaitingAs = previous.2
+        }
+        ClassroomIdentity.currentUserRecordName = recordName
+        ClassroomIdentity.displayName = name
+        ClassroomIdentity.nameWaitingAs = nil
+        return try body()
+    }
+
     /// Ana's tab. A long save delay, so each test saves when it says (`flush`).
     static func model(
         in context: NSManagedObjectContext,

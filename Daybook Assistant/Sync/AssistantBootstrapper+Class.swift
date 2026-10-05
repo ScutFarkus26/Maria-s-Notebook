@@ -24,6 +24,13 @@ extension AssistantBootstrapper {
         return name.isEmpty ? nil : name
     }
 
+    /// The guide's name as her screens show it: the one he set in the
+    /// classroom's list (`ClassroomNames`), then Apple's (`guideName`). Nil
+    /// without either.
+    var guideNameToShow: String? {
+        coreDataStack.flatMap { ClassroomNames.guideName(in: $0.viewContext) } ?? guideName
+    }
+
     /// An import that finds no membership row means she left on another
     /// iPhone, unless the Leave is this iPhone's own and still running.
     nonisolated static func leftElsewhere(hasOwnRow: Bool, leavingHere: Bool) -> Bool {

@@ -72,6 +72,57 @@ struct AssistantMenuTests {
         #expect(who(try row(by: nil), myName: nil) == nil)
     }
 
+    @Test("Marked by and the front-desk line read the classroom's list, and a reload follows a rename")
+    func namesFromTheList() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let today = Calendar.current.startOfDay(for: Date())
+        func mark(_ first: String, by role: String, id: String, name: String?) {
+            let student = AssistantTestSupport.student(first, "Cedar", in: context)
+            let record = CDAttendanceRecord(context: context)
+            record.studentID = student.id!.uuidString
+            record.date = today
+            record.status = .present
+            record.recordedBy = role
+            record.recordedByID = id
+            record.recordedByName = name
+        }
+        mark("Ari", by: "leadGuide", id: "_guide", name: nil)
+        mark("Leah", by: "assistant", id: "_chana", name: "Chana")
+        let send = CDAttendanceEmailSend(context: context)
+        send.date = today
+        send.sentAt = Date()
+        send.sentBy = CDClassroomMembership.ClassroomRole.leadGuide.rawValue
+        send.sentByID = "_guide"
+        #expect(context.safeSave())
+
+        let model = AssistantTestSupport.viewModel(stack)
+        func who(_ first: String) throws -> String? {
+            let row = try #require(model.rows.first { $0.student.firstName == first })
+            return Model.markerName(
+                for: row, myRecordName: "me", myName: "Rivka", guideName: "Daniel DeBerry", names: model.names
+            )
+        }
+        func sender() throws -> String {
+            try #require(model.frontDesk.latestSend).senderName(
+                viewerRole: .assistant, myRecordName: "me", myName: "Rivka",
+                guideName: "Daniel DeBerry", names: model.names
+            )
+        }
+        // No names set: Apple's name for the guide, the name Chana's mark was stamped with.
+        #expect(try who("Ari") == "Daniel DeBerry")
+        #expect(try who("Leah") == "Chana")
+        #expect(try sender() == "Daniel DeBerry")
+
+        AssistantRestockTestSupport.person("_guide", "Danny", role: .leadGuide, in: context)
+        AssistantRestockTestSupport.person("_chana", "Hannah", in: context)
+        model.load()
+        #expect(model.names.guideName == "Danny")
+        #expect(try who("Ari") == "Danny")
+        #expect(try who("Leah") == "Hannah")
+        #expect(try sender() == "Danny")
+    }
+
     @Test("A locked day's long-press still says the mark and who made it, or that there's none")
     func lockedDayHeader() throws {
         let eight = try #require(Calendar.current.date(bySettingHour: 8, minute: 2, second: 0, of: Date()))

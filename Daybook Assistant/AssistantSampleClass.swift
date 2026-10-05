@@ -146,6 +146,7 @@ enum AssistantSampleClass {
         #endif
         _ = context.safeSave()
         seedHistory(in: context)
+        seedGuideName(in: context)
         seedRestock(in: context)
         _ = context.safeSave()
         // A fresh class starts the morning fresh.
@@ -188,12 +189,29 @@ enum AssistantSampleClass {
         }
     }
 
+    /// The sample guide's record name, on his Restock changes and his name.
+    static let guideRecordName = "_sampleGuide"
+    /// The name the sample guide set, so Restock reads "Ms. Rivera is
+    /// ordering" and "Marked Out by Ms. Rivera" as a real class would.
+    static let guideName = "Ms. Rivera"
+
+    /// The sample guide's row in the classroom's list of names, in the
+    /// sample's own store (it has no other): never the real class's list.
+    static func seedGuideName(in context: NSManagedObjectContext, now: Date = Date()) {
+        let guide = CDClassroomPerson(context: context)
+        guide.recordName = guideRecordName
+        guide.role = .leadGuide
+        guide.displayName = guideName
+        guide.createdAt = now
+        guide.modifiedAt = now
+    }
+
     /// The Restock shelf: two places, five staples, Toilet Paper out (this
     /// morning) and Paper Towels low (yesterday), both marked by the guide;
     /// glue sticks on the office run, and two things the guide is ordering,
     /// one asked for three days ago.
     static func seedRestock(in context: NSManagedObjectContext, now: Date = Date()) {
-        let guide = RestockAuthor(role: .leadGuide, recordName: "_sampleGuide")
+        let guide = RestockAuthor(role: .leadGuide, recordName: guideRecordName)
         let calendar = Calendar.current
         let morning = calendar.date(bySettingHour: 8, minute: 12, second: 0, of: now) ?? now
         let yesterday = calendar.date(byAdding: .day, value: -1, to: morning) ?? morning

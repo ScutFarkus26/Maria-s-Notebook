@@ -61,7 +61,13 @@ struct AssistantSiriRestockTests {
 
         let outcome = try siri.mark(id(clay), as: .low)
         #expect(outcome == .marked("Air Dry Clay", .low, .order))
-        #expect(outcome.spoken.contains("order list"))
+        #expect(outcome.spoken().contains("It's on your guide's order list."))
+        #expect(outcome.spoken(guideName: "Danny").contains("It's on Danny's order list."))
+        // Siri reads the guide's name from the classroom's list itself.
+        AssistantRestockTestSupport.person("_guide", "Danny", role: .leadGuide, in: context)
+        let named = AssistantSiriRestock(stack: stack, author: Self.ana.reading(ClassroomNames.snapshot(in: context)))
+        #expect(named.guideName == "Danny")
+        #expect(siri.guideName == nil)
         #expect(clay.level == .low)
 
         #expect(try siri.mark(id(paper), as: .low) == .already("Toilet Paper", .out))

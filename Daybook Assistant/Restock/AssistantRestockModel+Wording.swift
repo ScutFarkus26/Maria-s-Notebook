@@ -51,9 +51,10 @@ extension AssistantRestockModel {
         return "\(who(staple).capitalizedFirst) · \(Self.when(at, now: now()))"
     }
 
-    /// The hold menu's header: "Out since Oct 1, marked by your guide ·
-    /// Bathrooms · From the office", "Added Sep 3 by your guide · Sink ·
-    /// Your guide orders it", and the note on a line of its own.
+    /// The hold menu's header: "Out since Oct 1, marked by Danny ·
+    /// Bathrooms · From the office", "Added Sep 3 by Danny · Sink · Danny
+    /// orders it" ("your guide" while he has no name), and the note on a
+    /// line of its own.
     func menuHeader(_ staple: CDSupply) -> String {
         var parts: [String] = []
         if let at = staple.levelChangedAt {
@@ -70,7 +71,7 @@ extension AssistantRestockModel {
             parts.append(staple.level.displayName)
         }
         if !staple.location.isEmpty { parts.append(staple.location) }
-        parts.append(staple.source == .office ? "From the office" : "Your guide orders it")
+        parts.append(staple.source == .office ? "From the office" : ordersIt)
         let line = parts.joined(separator: " · ")
         return staple.notes.isEmpty ? line : "\(line)\n\(staple.notes)"
     }
@@ -94,6 +95,32 @@ extension AssistantRestockModel {
         guard let at = need.createdAt else { return "Added by \(who)" }
         return "Added by \(who) · \(Self.when(at, now: now()))"
     }
+
+    // MARK: - The guide
+
+    /// The guide starting a sentence: the name he goes by, else "Your guide".
+    /// Names are shown as typed, never re-capitalized.
+    var guideStartingSentence: String { guideName ?? "Your guide" }
+
+    /// The office run's section for what he orders: "Danny is ordering".
+    var orderingTitle: String { "\(guideStartingSentence) is ordering" }
+
+    /// The hold menu's last part for a staple that's ordered: "Danny orders it".
+    var ordersIt: String { "\(guideStartingSentence) orders it" }
+
+    /// The empty shelf: who puts staples on it.
+    var emptyShelfMessage: String {
+        "\(guideStartingSentence) adds the things the class always needs. Tap + to ask for something else."
+    }
+
+    /// "We need…"'s Needs ordering choice: "Danny sends the order".
+    var sendsTheOrder: String { "\(guideStartingSentence) sends the order" }
+
+    /// "We need…"'s button for something to order: "Ask Danny to Order".
+    var askToOrder: String { "Ask \(guideName ?? "Your Guide") to Order" }
+
+    /// Under a staple's note: "Danny sees this note too."
+    var seesNoteToo: String { "\(guideStartingSentence) sees this note too." }
 
     /// "You" reads "you" inside a sentence ("marked by you").
     static func midSentence(_ who: String) -> String {
