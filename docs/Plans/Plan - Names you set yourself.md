@@ -8,7 +8,7 @@
 Danny sets his name once in Settings › Classroom, and each assistant sets hers in the Assistant, as now. Either can change it at any time. Her phone then says "Marked Out by Danny", "Danny is ordering" and "Present · by Danny" instead of "your guide". Danny's devices show each assistant's current name. A rename shows on every device, on old entries too, because names are looked up when shown, not frozen when stamped.
 
 ## Progress
-- [ ] Phase 1: The shared name list: record type, schema 16, share, backup, lookup (agent `feature-phase-deep`) · est. ~3–5% weekly · started at 10%
+- [x] Phase 1: The shared name list: record type, schema 16, share, backup, lookup (agent `feature-phase-deep`) · est. ~3–5% weekly · started at 10% · f8cf505b. Notebook 253 focused + Assistant 235 tests green; iOS, Assistant and Mac build. Differed: a name an assistant set on an older build counts as waiting and joins the list at launch; the guide's per-device copy is cleared once his row is written. Launch wiring left outside its files: notebook done in the main session; the Assistant's goes to Phase 3. Docs counts (DATA_MODELS, BACKUP_SYSTEM) for Phase 4.
 - [ ] Phase 2: The notebook: "Your name" in Settings › Classroom, and names on its screens (agent `feature-phase`) ‖ Phase 3 · est. ~1–2% weekly (parallel because Phase 1 makes every shared signature change)
 - [ ] Phase 3: The Assistant: her name sheet writes the list, and Restock and attendance say your name (agent `feature-phase`) ‖ Phase 2 · est. ~1–2% weekly
 - [ ] Phase 4: Combine, full build, whole suites, simulator look, review, Development schema init, merge (session: here) · est. ~2–3% weekly

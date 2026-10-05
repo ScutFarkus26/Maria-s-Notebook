@@ -126,9 +126,15 @@ final class AppServicesLauncher {
         NSApplication.shared.registerForRemoteNotifications()
         #endif
 
-        // Who this account is, for "you" on marks, sends and Restock changes.
+        // Who this account is, for "you" on marks, sends and Restock changes;
+        // then a name typed before that was known joins the shared name list
+        // (and this person's duplicate rows fold into one).
         if coreDataStack.isCloudKitActive {
-            Task { await ClassroomIdentity.refreshRecordName() }
+            let viewContext = coreDataStack.viewContext
+            Task {
+                await ClassroomIdentity.refreshRecordName()
+                ClassroomNames.writeWaitingName(in: viewContext)
+            }
         }
 
         // PERFORMANCE: Start memory pressure monitoring
