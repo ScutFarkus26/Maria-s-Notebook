@@ -58,12 +58,26 @@ struct AssistantWallpaperPicker: View {
                     WallpaperPreview(wallpaper: .photo, isSelected: current == .photo)
                 }
                 .buttonStyle(.plain)
-                HStack(spacing: 16) {
-                    PhotosPicker("Change", selection: $photoItem, matching: .images)
-                    Button("Remove", role: .destructive, action: removePhoto)
+                // A new pick importing, or why it couldn't be used, in place
+                // of the buttons until it's done.
+                if isImporting {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(minHeight: 20)
+                } else {
+                    HStack(spacing: 16) {
+                        PhotosPicker("Change", selection: $photoItem, matching: .images)
+                        Button("Remove", role: .destructive, action: removePhoto)
+                    }
+                    .font(.footnote.weight(.medium))
                 }
-                .font(.footnote.weight(.medium))
-                .disabled(isImporting)
+                if let importError {
+                    Text(importError)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         } else {
             // The label closure isn't main-actor isolated, so it gets the
@@ -95,6 +109,7 @@ struct AssistantWallpaperPicker: View {
     }
 
     private func removePhoto() {
+        importError = nil
         photo.remove()
         if current == .photo || wallpaperRaw == AssistantWallpaper.photo.rawValue {
             wallpaperRaw = AssistantWallpaper.standard.rawValue

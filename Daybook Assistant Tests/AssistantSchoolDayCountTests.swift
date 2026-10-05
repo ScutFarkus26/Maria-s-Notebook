@@ -128,4 +128,23 @@ struct AssistantSchoolDayCountTests {
         model.load()
         #expect(model.dayNumber == 4)
     }
+
+    // Bug hunt 2026-10-04, step 11: a first day found among a first
+    // download's early pieces stood for good, so the number stayed short.
+    @Test("An earlier first day that syncs in later moves the day number")
+    func earlierFirstDayArrivesLater() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let maya = AssistantTestSupport.student("Maya", "Stone", in: context)
+        try mark(maya, .present, on: "2026-09-02", in: context)
+        #expect(context.safeSave())
+
+        let model = AssistantTestSupport.viewModel(stack, on: try day("2026-09-03"))
+        #expect(model.dayNumber == 2)
+
+        try mark(maya, .present, on: "2026-08-31", in: context)
+        #expect(context.safeSave())
+        model.load()
+        #expect(model.dayNumber == 4)
+    }
 }

@@ -27,11 +27,21 @@ final class ToastService {
 
     func showError(_ message: String) { show(message, kind: .error) }
 
+    /// How long a message stays up: long enough to read, at about 15
+    /// characters a second after a moment to notice it, between 4 and 10
+    /// seconds.
+    nonisolated static func duration(for message: String) -> Duration {
+        let seconds = 2 + Double(message.count) / 15
+        return .milliseconds(Int(min(max(seconds, 4), 10) * 1000))
+    }
+
     private func show(_ message: String, kind: Kind) {
         let toast = Toast(message: message, kind: kind)
         current = toast
+        // VoiceOver doesn't notice text appearing over the screen on its own.
+        AccessibilityNotification.Announcement(message).post()
         Task {
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: Self.duration(for: message))
             if current?.id == toast.id { current = nil }
         }
     }

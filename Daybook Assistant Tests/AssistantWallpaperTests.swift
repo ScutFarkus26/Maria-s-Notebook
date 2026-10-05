@@ -80,6 +80,28 @@ struct AssistantWallpaperTests {
         #expect(photo.image == nil)
     }
 
+    @Test("A first read that finds no photo is tried again, and finds it once it's there")
+    func failedReadRetried() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "WallpaperTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let photo = AssistantWallpaperPhoto(directory: directory)
+        photo.loadIfNeeded()
+        #expect(photo.image == nil)
+
+        // The file becomes readable later (as after the first unlock).
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let small = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30), format: format).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 40, height: 30))
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try #require(small.jpegData(compressionQuality: 0.8)).write(to: photo.fileURL)
+
+        photo.loadIfNeeded()
+        #expect(photo.image != nil)
+    }
+
     @Test("Data that isn't an image is refused")
     func unreadablePhoto() async {
         await #expect(throws: AssistantWallpaperPhoto.ImportError.self) {

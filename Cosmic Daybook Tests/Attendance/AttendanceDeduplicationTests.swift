@@ -150,6 +150,44 @@ struct AttendanceDeduplicationTests {
         #expect(!AttendanceDeduplication.isAutomaticAbsence(closed[1]))
     }
 
+    // Bug hunt 2026-10-04, Phase 1 step 1: Close Arrival's marker left on a
+    // record that isn't absent (an older build's) came back with a plain
+    // Absent, and the day read as closed on every device.
+    @Test("A plain Absent never brings back Close Arrival's marker")
+    func plainAbsentDropsStaleMarker() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let day = AppCalendar.startOfDay(Date())
+        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ari")
+        let store = CDAttendanceStore(context: context, role: .leadGuide)
+        let record = try #require(try store.ensureRecord(for: student, on: day))
+        record.absenceReasonRaw = AttendanceDeduplication.automaticAbsenceRaw
+
+        #expect(store.updateStatus(record, to: .absent))
+        #expect(!AttendanceDeduplication.isAutomaticAbsence(record))
+        #expect(try !store.arrivalClosed(on: day))
+    }
+
+    // Bug hunt 2026-10-04, Phase 1 step 6: No Reason on an automatic absence
+    // compared equal (the marker reads as no reason), so the marker came off
+    // without the change being stamped as hers.
+    @Test("No Reason on Close Arrival's absence is a change of its own, stamped as hers")
+    func noReasonOnAutomaticAbsence() throws {
+        let context = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let day = AppCalendar.startOfDay(Date())
+        let student = CoreDataTestHelpers.seedStudent(in: context, firstName: "Ari")
+        let guide = CDAttendanceStore(context: context, role: .leadGuide)
+        let record = try #require(try guide.markUnmarkedAbsent(for: day, students: [student]).first)
+        let closedAt = Date().addingTimeInterval(-600)
+        record.modifiedAt = closedAt
+        let assistant = CDAttendanceStore(context: context, role: .assistant)
+
+        #expect(assistant.updateAbsenceReason(record, to: .none))
+        #expect(!AttendanceDeduplication.isAutomaticAbsence(record))
+        #expect(record.recordedBy == CDClassroomMembership.ClassroomRole.assistant.rawValue)
+        #expect(record.modifiedAt != closedAt)
+        #expect(!assistant.updateAbsenceReason(record, to: .none), "no change the second time")
+    }
+
     @Test("Distinct students and distinct days are not collapsed")
     func distinctRecordsKept() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()

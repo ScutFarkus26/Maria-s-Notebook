@@ -136,6 +136,34 @@ struct RestockStapleTests {
         #expect(RestockService.history(for: paper, in: context).map(\.reason) == ["Out · Ana"])
     }
 
+    @Test("Undo of a check-off is refused once the staple or the need has changed since")
+    func undoRefusedAfterAChange() throws {
+        let context = try makeContext()
+        let paper = try staple("Toilet Paper", place: "Bathrooms", in: context)
+        RestockService.setLevel(paper, to: .out, by: guide, at: at(10), in: context)
+        let need = try #require(RestockService.openNeeds(for: paper, in: context).first)
+        let checkOff = try #require(RestockService.checkOff(need, by: ana, at: at(20), in: context))
+        #expect(RestockService.canUndo(checkOff))
+
+        // The guide marks it Low again, and checks that need off too.
+        RestockService.setLevel(paper, to: .low, by: guide, at: at(30), in: context)
+        let second = try #require(RestockService.openNeeds(for: paper, in: context).first)
+        RestockService.checkOff(second, by: guide, at: at(40), in: context)
+        #expect(!RestockService.canUndo(checkOff))
+        #expect(!RestockService.undoCheckOff(checkOff, at: at(50), in: context))
+        #expect(paper.level == .stocked)
+        #expect(paper.levelChangedAt == at(40))
+        #expect(need.receivedAt == at(20))
+        #expect(RestockService.history(for: paper, in: context).count == 4, "her Restocked line stays")
+
+        // A one-off someone else put back on the list first: nothing to take back.
+        let glue = try #require(RestockService.addOneOff(title: "Glue sticks", by: guide, in: context)).object
+        let glueOff = try #require(RestockService.checkOff(glue, by: ana, at: at(60), in: context))
+        RestockService.reopen([glue], by: guide, at: at(70), in: context)
+        #expect(!RestockService.undoCheckOff(glueOff, at: at(80), in: context))
+        #expect(glue.receivedAt == nil)
+    }
+
     @Test("Checking off a one-off only marks it received")
     func checkOffOneOff() throws {
         let context = try makeContext()

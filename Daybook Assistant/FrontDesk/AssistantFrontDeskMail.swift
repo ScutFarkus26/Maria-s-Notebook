@@ -67,12 +67,41 @@ struct AssistantFrontDeskMail: ViewModifier {
         }
     }
 
-    /// A tapped reminder: today's email, unless it has gone since.
+    /// A tapped reminder: today's email, unless it has gone since. With
+    /// children still unmarked, the bar asks its Mark N Absent & Email
+    /// question first (`reminderAction`).
     private func openForReminder() {
         guard FrontDeskEmailReminder.isEmailRequested, let viewModel else { return }
         FrontDeskEmailReminder.isEmailRequested = false
         viewModel.load(Date())
-        guard viewModel.frontDesk.latestSend == nil, viewModel.frontDesk.isOffered(by: viewModel) else { return }
-        open()
+        let action = Self.reminderAction(
+            alreadySent: viewModel.frontDesk.latestSend != nil,
+            isOffered: viewModel.frontDesk.isOffered(by: viewModel),
+            unmarked: viewModel.unmarkedCount,
+            canClose: viewModel.canMark && viewModel.phase == .arrival
+        )
+        switch action {
+        case .nothing: break
+        case .openEmail: open()
+        case .askToClose: viewModel.asksToCloseAndEmail = true
+        }
+    }
+
+    /// What a tapped front-desk reminder does.
+    enum ReminderAction: Equatable {
+        /// Someone has sent it, or there's no email to send today.
+        case nothing
+        case openEmail
+        /// Ask to mark the unmarked absent first, then open the email.
+        case askToClose
+    }
+
+    /// The email lists only children marked present, late, absent or left
+    /// early, so with any still unmarked it used to go without them. When
+    /// she can close arrival, she's asked to mark them absent first; when
+    /// she can't (a locked day, arrival already closed), it opens as it is.
+    static func reminderAction(alreadySent: Bool, isOffered: Bool, unmarked: Int, canClose: Bool) -> ReminderAction {
+        guard !alreadySent, isOffered else { return .nothing }
+        return unmarked > 0 && canClose ? .askToClose : .openEmail
     }
 }

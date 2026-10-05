@@ -58,11 +58,20 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
     var recordName: String?
     /// The name an assistant typed on her phone.
     var name: String?
+    /// On an assistant's phone, the classroom owner's CloudKit record name:
+    /// whose unnamed changes are her guide's. Nil when not known.
+    var ownerRecordName: String?
 
-    init(role: CDClassroomMembership.ClassroomRole, recordName: String? = nil, name: String? = nil) {
+    init(
+        role: CDClassroomMembership.ClassroomRole,
+        recordName: String? = nil,
+        name: String? = nil,
+        ownerRecordName: String? = nil
+    ) {
         self.role = role
         self.recordName = recordName
         self.name = name
+        self.ownerRecordName = ownerRecordName
     }
 
     /// This device's user in `role`, as `ClassroomIdentity` knows them.
@@ -73,6 +82,20 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
             recordName: ClassroomIdentity.currentUserRecordName,
             name: role == .assistant ? ClassroomIdentity.displayName : nil
         )
+    }
+
+    /// This phone's assistant as she is now, with her classroom's owner as
+    /// her membership row names them (`ownerIdentity`, written when she
+    /// joined).
+    @MainActor
+    static func assistant(in context: NSManagedObjectContext) -> RestockAuthor {
+        var author = current(role: .assistant)
+        let owner = CDClassroomMembership.current(in: context)?.ownerIdentity.trimmed() ?? ""
+        // "unknown" and "self" stand in where the share gave no record name.
+        if !["", "unknown", "self", "__defaultOwner__"].contains(owner) {
+            author.ownerRecordName = owner
+        }
+        return author
     }
 
     /// This device's user, in the role its classroom membership gives it.
@@ -88,8 +111,9 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
 
     /// Who made a change, as this person reads it: "You" for their own, the
     /// name an assistant gave, "your guide" on an assistant's phone for the
-    /// guide's changes (which carry no name), and on the guide's devices
-    /// "an assistant" for one who gave no name.
+    /// guide's changes (which carry no name), and for one who gave no name
+    /// "another assistant" there (told from the guide by `ownerRecordName`)
+    /// and "an assistant" on the guide's devices.
     func reads(changedByID id: String?, name: String?) -> String {
         if let id, let mine = recordName, id == mine { return "You" }
         let name = name?.trimmed() ?? ""
@@ -98,7 +122,12 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
             if role == .assistant, name == self.name?.trimmed(), id == nil || recordName == nil { return "You" }
             return name
         }
-        if role == .assistant { return "your guide" }
+        if role == .assistant {
+            // Without the owner's record name, an unnamed change is most
+            // likely the guide's, as it always read before.
+            if let id, let owner = ownerRecordName, id != owner { return "another assistant" }
+            return "your guide"
+        }
         if let id, let mine = recordName, id != mine { return "an assistant" }
         return "You"
     }

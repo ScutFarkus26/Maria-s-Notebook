@@ -150,7 +150,10 @@ final class AttendanceViewModel {
         guard AttendanceRules.allows(status, on: selectedDate),
               let record = record(for: row, modelContext: modelContext) else { return false }
         let store = CDAttendanceStore(context: modelContext)
-        guard store.updateStatus(record, to: status) else { return false }
+        // Clearing goes through every copy of the day, or a duplicate's mark
+        // would win the child straight back (`CDAttendanceStore.unmark`).
+        let didChange = status == .unmarked ? store.unmark(record) : store.updateStatus(record, to: status)
+        guard didChange else { return false }
         changed([record])
         welcomeBack(row, to: status)
         return true

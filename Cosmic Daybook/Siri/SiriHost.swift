@@ -61,8 +61,18 @@ enum SiriHost {
             ? .tardy : .present
     }
 
-    static func arrivalReopened(on day: Date) {
-        AttendanceLatePhase.reopen(on: day)
+    /// Siri's Undo of a Close Arrival: this device no longer counts the day
+    /// as closed here, and goes by the records again, so a Close Arrival
+    /// made on another device still counts (unlike Reopen Arrival on the
+    /// roll, which is on purpose).
+    static func closeArrivalUndone(on day: Date) {
+        AttendanceLatePhase.setLate(false, on: day)
+    }
+
+    /// Whether `day` is a school day by the guide's calendar, read from both
+    /// stores: the class is her own.
+    static func isSchoolDay(_ day: Date, in context: NSManagedObjectContext) -> Bool {
+        !SchoolDayChecker.isNonSchoolDay(day, using: context)
     }
 
     /// Nothing to do: `SharedStoreOrphanGuard` files the guide's new records

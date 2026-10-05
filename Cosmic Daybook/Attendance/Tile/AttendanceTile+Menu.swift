@@ -6,10 +6,18 @@ import SwiftUI
 extension AttendanceTile {
 
     /// Every status, Absent with its reasons, clearing, the note and the
-    /// pickup time (`AttendanceStatusMenu`), when the day can be marked.
+    /// pickup time (`AttendanceStatusMenu`), when the day can be marked. On
+    /// a locked day, the mark itself (time, reason, who) and that the day is
+    /// locked, with the note above as always, but nothing to change.
     @ViewBuilder
     var menu: some View {
-        if canMark {
+        if !canMark {
+            Section {
+                Label(Self.lockedLine, systemImage: "lock.fill")
+            } header: {
+                Text(Self.readOnlyHeader(for: row, markedBy: markedBy))
+            }
+        } else {
             AttendanceStatusMenu(
                 status: row.status,
                 absenceReason: row.absenceReason,
@@ -31,6 +39,14 @@ extension AttendanceTile {
     /// what isn't so.
     var menuHeader: String? {
         AttendanceStatusMenu.header(for: row, markedBy: markedBy)
+    }
+
+    static let lockedLine = "This day is locked"
+
+    /// A locked day's menu header: the mark's header, or that there's no
+    /// mark, so the menu always says something.
+    static func readOnlyHeader(for row: AttendanceRow, markedBy: String?) -> String {
+        AttendanceStatusMenu.header(for: row, markedBy: markedBy) ?? "Not marked"
     }
 
     // MARK: - Accessibility

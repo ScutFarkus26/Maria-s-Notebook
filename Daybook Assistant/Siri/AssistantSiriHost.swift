@@ -10,7 +10,8 @@ enum SiriHost {
     }
 
     /// What Siri says when the class can't be opened (the raw error is logged).
-    nonisolated static let cannotOpenMessage = "Daybook Assistant couldn't open your class. Open the app to fix it."
+    /// "Assistant" is the app's name on the Home Screen.
+    nonisolated static let cannotOpenMessage = "I couldn't open your class. Open the Assistant app to fix it."
 
     /// Until an invitation is accepted there is no class to mark.
     static func checkReady(in context: NSManagedObjectContext) throws {
@@ -18,7 +19,7 @@ enum SiriHost {
         let request = CDClassroomMembership.ownRowsRequest()
         request.fetchLimit = 1
         guard context.safeFetchFirst(request) != nil else {
-            throw SiriAttendanceError.notReady("Open Daybook Assistant and join your class first.")
+            throw SiriAttendanceError.notReady("Open the Assistant app and join your class first.")
         }
     }
 
@@ -54,8 +55,36 @@ enum SiriHost {
             ? .tardy : .present
     }
 
-    static func arrivalReopened(on day: Date) {
-        AttendanceLatePhase.reopen(on: day)
+    /// Siri's Undo of a Close Arrival: this phone no longer counts the day
+    /// as closed here, and goes by the records again, as the grid's Undo
+    /// does. It used to reopen on purpose, so a Close Arrival the guide made
+    /// afterwards was ignored here.
+    static func closeArrivalUndone(on day: Date) {
+        AttendanceLatePhase.setLate(false, on: day)
+    }
+
+    /// Whether `day` is a school day by the guide's calendar: the classroom
+    /// share's days off and school Saturdays alone, under the school-day rule
+    /// (`SchoolDayChecker`). The private store can hold a notebook of her
+    /// own on the same Apple Account (as `AssistantDayRoll.classroomStudents`
+    /// reads), and its days off made Siri ask about a day of school. A stack
+    /// with one store (tests, the Sample Class) reads it all.
+    static func isSchoolDay(_ day: Date, in context: NSManagedObjectContext) -> Bool {
+        let shared = context.persistentStoreCoordinator?.persistentStores
+            .first { $0.configurationName == CoreDataStack.sharedConfiguration }
+        let start = AppCalendar.startOfDay(day)
+        func days<T: NSManagedObject>(_ type: T.Type) -> Set<Date> {
+            let request = CDFetchRequest(type)
+            request.predicate = NSPredicate(
+                format: "date >= %@ AND date < %@", start as NSDate, AppCalendar.addingDays(1, to: start) as NSDate
+            )
+            request.affectedStores = shared.map { [$0] }
+            let dates = context.safeFetch(request).compactMap { $0.value(forKey: "date") as? Date }
+            return Set(dates.map(AppCalendar.startOfDay))
+        }
+        return !SchoolDayChecker.isNonSchoolDay(
+            start, nonSchoolDayDates: days(CDNonSchoolDay.self), overrideDates: days(CDSchoolDayOverride.self)
+        )
     }
 
     /// New marks go into the classroom share explicitly, as the grid's do.

@@ -12,10 +12,12 @@ extension AssistantAttendanceViewModel {
         canMark && AttendanceRules.allowsPickup(for: row, on: date)
     }
 
-    /// Sets when the child is due to be picked up early, or with nil removes
-    /// it, creating the record if there is none yet.
-    func setPickup(_ time: Date?, for row: Row) {
-        let saved = editRecord(for: row, failure: "Couldn't save that pickup time. Try again.") { store, record in
+    /// Sets when the child is due to be picked up early on `day` (the day
+    /// the sheet was opened on; the day on screen when nil), or with nil
+    /// removes it, creating the record if there is none yet.
+    func setPickup(_ time: Date?, for row: Row, on day: Date? = nil) {
+        let failure = "Couldn't save that pickup time. Try again."
+        let saved = editRecord(for: row, on: day, failure: failure) { store, record in
             store.updateLeavesAt(record, to: time)
         }
         if saved { pickupEdits += 1 }

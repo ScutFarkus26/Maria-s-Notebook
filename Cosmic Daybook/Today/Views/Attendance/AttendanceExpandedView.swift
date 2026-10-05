@@ -234,7 +234,7 @@ struct AttendanceExpandedView: View {
                 present: students(for: .present),
                 tardy: students(for: .tardy),
                 absent: students(for: .absent),
-                leftEarly: students(for: .leftEarly),
+                leftEarly: emailStudents(for: .leftEarly),
                 date: date
             ) { result, error in
                 switch result {

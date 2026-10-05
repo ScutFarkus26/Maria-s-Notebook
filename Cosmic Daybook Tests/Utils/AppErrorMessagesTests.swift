@@ -73,6 +73,31 @@ struct AppErrorMessagesTests {
         }
     }
 
+    // Bug hunt 2026-10-04: a join that failed offline arrived wrapped (a
+    // partial failure holding each record's error, or a Core Data error over
+    // CloudKit's) and read "The classroom couldn't be joined".
+    @Test("A failed join is read from inside CloudKit's and Core Data's wrappers")
+    func joinMessagesUnwrapped() {
+        let partial = CKError(.partialFailure, userInfo: [CKPartialErrorsByItemIDKey: [
+            "zone": CKError(.batchRequestFailed),
+            "share": CKError(.networkFailure)
+        ]])
+        #expect(AppErrorMessages.joinMessage(for: partial)
+            == "This device couldn't reach iCloud to join the classroom.")
+        let coreData = NSError(domain: NSCocoaErrorDomain, code: 134_400, userInfo: [
+            NSUnderlyingErrorKey: CKError(.notAuthenticated) as NSError
+        ])
+        #expect(AppErrorMessages.joinMessage(for: coreData) == "This device isn't signed in to iCloud.")
+        let both = NSError(domain: NSCocoaErrorDomain, code: 134_400, userInfo: [
+            NSUnderlyingErrorKey: partial as NSError
+        ])
+        #expect(AppErrorMessages.joinMessage(for: both) == "This device couldn't reach iCloud to join the classroom.")
+        #expect(AppErrorMessages.sharingMessage(for: coreData, action: "leave the classroom")
+            .hasPrefix("Couldn't leave the classroom. This device isn't signed in to iCloud."))
+        // Nothing inside: as before.
+        #expect(AppErrorMessages.joinMessage(for: CocoaError(.fileReadUnknown)) == "The classroom couldn't be joined.")
+    }
+
     @Test("A failed sharing action names the action and never claims anything was saved")
     func sharingMessages() {
         #expect(AppErrorMessages.sharingMessage(for: CKError(.networkFailure), action: "add Sam")

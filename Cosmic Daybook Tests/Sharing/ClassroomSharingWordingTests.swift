@@ -43,6 +43,15 @@ struct ClassroomSharingWordingTests {
         #expect(ClassroomSharingService.joinAdvice(for: offline).contains("online"))
         #expect(ClassroomSharingService.joinAdvice(for: signedOut).contains("Sign in"))
         #expect(ClassroomSharingService.joinAdvice(for: gone) == "Ask the lead guide for a new invitation.")
+        // Wrapped, as joins often fail (bug hunt 2026-10-04): it used to say
+        // to ask for a new invitation when the fix was getting online.
+        let wrapped = NSError(domain: NSCocoaErrorDomain, code: 134_400, userInfo: [
+            NSUnderlyingErrorKey: CKError(.partialFailure, userInfo: [
+                CKPartialErrorsByItemIDKey: ["share": CKError(.networkUnavailable)]
+            ]) as NSError
+        ])
+        #expect(ClassroomSharingService.joinAdvice(for: wrapped)
+            == "Check you're online, then open the invitation again.")
     }
 
     @Test("What the share holds names marks, never a model type")

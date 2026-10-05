@@ -2,9 +2,10 @@ import SwiftUI
 import CoreData
 
 /// The Restock tab: the Office run banner, then the shelf, two columns of
-/// tiles grouped by where things live. A tap says something is running out;
-/// holding a tile gives every level, a note and its history. The + asks for
-/// something that isn't on the shelf ("We need…").
+/// tiles grouped by where things live (one at accessibility text sizes, as
+/// the attendance grid does, so a name isn't broken mid-word). A tap says
+/// something is running out; holding a tile gives every level, a note and its
+/// history. The + asks for something that isn't on the shelf ("We need…").
 struct AssistantRestockView: View {
     let model: AssistantRestockModel
 
@@ -12,8 +13,12 @@ struct AssistantRestockView: View {
     @State private var showingWeNeed = false
     @State private var noteStaple: CDSupply?
     @State private var historyStaple: CDSupply?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+    private var columns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 10), count: count)
+    }
 
     var body: some View {
         NavigationStack {

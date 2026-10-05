@@ -80,10 +80,24 @@ struct StudentEntity: AppEntity, IndexedEntity {
 struct StudentEntityQuery: EntityStringQuery {
     @MainActor
     func entities(for identifiers: [UUID]) async throws -> [StudentEntity] {
-        let context = try SiriAttendance.openStack().viewContext
+        Self.entities(for: identifiers, in: try SiriAttendance.openStack().viewContext)
+    }
+
+    /// The children with these ids, named as the app names them: Siri shows
+    /// this name when it confirms a child it resolved by id (a shortcut, a
+    /// follow-up), on a locked phone too. The names are worked out against
+    /// the whole class, which "Etty G" needs the other Etty for.
+    @MainActor
+    static func entities(for identifiers: [UUID], in context: NSManagedObjectContext) -> [StudentEntity] {
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", identifiers)
-        return context.safeFetch(request).compactMap { StudentEntity(student: $0) }
+        let students = context.safeFetch(request)
+        let names = SiriHost.displayNames(for: Array(Set(SiriHost.roster(in: context)).union(students)))
+        return students.compactMap { student in
+            var entity = StudentEntity(student: student)
+            entity?.displayName = names[student.objectID]
+            return entity
+        }
     }
 
     /// The class first; only when no current child matches does it look at

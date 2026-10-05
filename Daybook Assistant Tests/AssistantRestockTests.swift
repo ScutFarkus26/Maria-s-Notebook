@@ -23,7 +23,7 @@ struct AssistantRestockTests {
     /// Ana's tab. A long save delay, so each test saves when it says (`flush`).
     private func model(now: Date = Date()) -> AssistantRestockModel {
         let model = AssistantRestockModel(
-            context: context, container: nil, author: Self.ana, saveDelay: .seconds(600), now: { now }
+            context: context, container: nil, author: { Self.ana }, saveDelay: .seconds(600), now: { now }
         )
         model.load()
         return model
@@ -233,7 +233,7 @@ struct AssistantRestockTests {
     func sampleShelf() throws {
         let sample = try AssistantSampleClass.makeStack()
         let tab = AssistantRestockModel(
-            context: sample.viewContext, container: nil, author: RestockAuthor(role: .assistant)
+            context: sample.viewContext, container: nil, author: { RestockAuthor(role: .assistant) }
         )
         tab.load()
 

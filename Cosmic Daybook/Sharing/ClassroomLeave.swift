@@ -2,10 +2,10 @@ import Foundation
 import CloudKit
 import CoreData
 
-// What Leave Classroom purges, and how it fails; and what to do after a
-// failed join. Its own file because the Daybook Assistant compiles
-// ClassroomSharingService.swift by path without the notebook's other sharing
-// extensions, and both apps use these.
+// What Leave Classroom purges, and how it fails; the invitation inbox, and
+// what to do after a failed join. Its own file because the Daybook Assistant
+// compiles ClassroomSharingService.swift by path without the notebook's other
+// sharing extensions, and both apps use these.
 
 extension ClassroomSharingService {
 
@@ -36,11 +36,19 @@ extension ClassroomSharingService {
         return ((try? context.count(for: request)) ?? 0) > 0
     }
 
+    /// How long "Joining your classroom…" shows before the wait is given up
+    /// (`joinTimedOut`).
+    static let joinTimeout: Duration = .seconds(60)
+
+    /// What shows when a join outlasts `joinTimeout`.
+    static let joinTimeoutMessage = "Joining is taking longer than it should. Check you're online, "
+        + "then open the invitation again."
+
     /// What to do after a failed join, to follow `AppErrorMessages.joinMessage`:
     /// a connection or account problem is fixed on this device, anything else
-    /// by a fresh invitation.
+    /// by a fresh invitation. Looks inside the same wrappers it does.
     nonisolated static func joinAdvice(for error: Error) -> String {
-        let nsError = error as NSError
+        let nsError = AppErrorMessages.innermostError(error)
         switch (nsError.domain, nsError.code) {
         case (NSURLErrorDomain, _), ("CKErrorDomain", 3), ("CKErrorDomain", 4):
             return "Check you're online, then open the invitation again."
@@ -70,5 +78,41 @@ enum ClassroomLeaveError: LocalizedError {
         case .notSaved:
             return "The class came off this device, but leaving couldn't be saved. Try Leave again."
         }
+    }
+}
+
+// MARK: - Notification Name
+
+extension Notification.Name {
+    /// Posted by `ShareInvitationInbox` when an invitation is waiting.
+    static let didAcceptCloudKitShare = Notification.Name("didAcceptCloudKitShare")
+    /// Posted once an accepted invitation has been joined and the membership
+    /// row written.
+    static let didJoinClassroom = Notification.Name("didJoinClassroom")
+}
+
+// MARK: - Invitation Inbox
+
+/// Holds an accepted share invitation until a `ClassroomSharingService` can
+/// act on it.
+///
+/// The system can hand the invitation over before any service exists: tapping
+/// the link can be what launches the app, and the notebook only builds its
+/// service when something asks for it. A bare notification posted then would
+/// reach nobody, so the invitation waits here, and whichever comes second — the
+/// invitation or the service — picks it up. `take()` hands it out once.
+enum ShareInvitationInbox {
+    private static var pending: CKShare.Metadata?
+
+    static var hasPending: Bool { pending != nil }
+
+    static func deliver(_ metadata: CKShare.Metadata) {
+        pending = metadata
+        NotificationCenter.default.post(name: .didAcceptCloudKitShare, object: nil)
+    }
+
+    static func take() -> CKShare.Metadata? {
+        defer { pending = nil }
+        return pending
     }
 }

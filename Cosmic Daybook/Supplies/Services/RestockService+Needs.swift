@@ -92,7 +92,7 @@ nonisolated extension RestockService {
         in context: NSManagedObjectContext
     ) -> CheckOff? {
         guard need.receivedAt == nil else { return nil }
-        var result = CheckOff(need: need)
+        var result = CheckOff(need: need, checkedAt: now)
         OrderService.setReceived([need], true, at: now)
         guard let supply = staple(for: need, in: context) else { return result }
         close(openNeeds(for: supply, in: context), at: now, in: context)
@@ -109,13 +109,36 @@ nonisolated extension RestockService {
         return result
     }
 
-    /// Takes back a check-off: the need is open again, and its staple returns
-    /// to the level it had, unless someone has set it since.
-    static func undoCheckOff(_ checkOff: CheckOff, at now: Date = Date(), in context: NSManagedObjectContext) {
+    /// Whether a check-off can still be taken back: nothing has changed since,
+    /// here or on another device. The need is still received from that very
+    /// check-off, and the staple it put back to Stocked still stands as it
+    /// left it. Otherwise Undo would reopen a need someone has since dealt
+    /// with, set back a level someone has since set, and delete the history
+    /// line every device already has.
+    static func canUndo(_ checkOff: CheckOff) -> Bool {
         let need = checkOff.need
-        guard !need.isDeleted, need.managedObjectContext != nil else { return }
+        guard !need.isDeleted, need.managedObjectContext != nil,
+              sameMoment(need.receivedAt, checkOff.checkedAt) else { return false }
+        guard let supply = checkOff.staple else { return true }
+        return !supply.isDeleted && supply.managedObjectContext != nil && supply.level == .stocked
+            && sameMoment(supply.levelChangedAt, checkOff.checkedAt)
+    }
+
+    /// The same stamp, allowing for CloudKit keeping dates to the millisecond.
+    private static func sameMoment(_ date: Date?, _ other: Date) -> Bool {
+        guard let date else { return false }
+        return abs(date.timeIntervalSince(other)) < 0.01
+    }
+
+    /// Takes back a check-off: the need is open again, and its staple returns
+    /// to the level it had. Only while nothing has changed since (`canUndo`);
+    /// returns whether it did.
+    @discardableResult
+    static func undoCheckOff(_ checkOff: CheckOff, at now: Date = Date(), in context: NSManagedObjectContext) -> Bool {
+        guard canUndo(checkOff) else { return false }
+        let need = checkOff.need
         OrderService.setReceived([need], false, at: now)
-        if let supply = checkOff.staple, !supply.isDeleted, supply.level == .stocked {
+        if let supply = checkOff.staple {
             supply.level = checkOff.levelBefore
             supply.levelChangedAt = checkOff.changedAtBefore
             supply.levelChangedByID = checkOff.changedByIDBefore
@@ -125,6 +148,7 @@ nonisolated extension RestockService {
         if let history = checkOff.history, !history.isDeleted {
             context.delete(history)
         }
+        return true
     }
 
     /// Deletes needs. An open need of a staple going means nothing is needed
@@ -213,15 +237,34 @@ nonisolated extension RestockService {
 
     // MARK: - Two devices at once
 
+    /// How long a staple's level must have stood before `reconcile` opens the
+    /// need it lacks: until then the need may still be on its way from the
+    /// device that set the level.
+    static let settledAfter: TimeInterval = 5 * 60
+
     /// Two devices can each open a need for the same staple before either
     /// syncs. Keeps the oldest by (`createdAt`, `id`), so every device keeps
     /// the same one, and deletes the rest; if only a newer copy had been asked
     /// for, the one kept takes over its request, so the order is still
-    /// followed. Run it after remote-change imports and when the page appears,
-    /// never in a loop: a second run finds nothing. Returns how many it
-    /// deleted; the caller saves.
+    /// followed.
+    ///
+    /// It also mends one way a staple's level and its need fall out of step
+    /// across devices (one checks the need off as another marks the staple
+    /// Out): a Low or Out staple with no open need gets one, once its level
+    /// has stood `settledAfter`. The need is stamped as added by whoever set
+    /// the level, and writes no history (setting the level wrote that). The
+    /// other way round, a Stocked staple with an open need, is left alone:
+    /// another device's half-arrived import could make closing it wrong.
+    ///
+    /// Run it after remote-change imports and when the page appears, never in
+    /// a loop: a second run finds nothing. Returns how many needs it deleted
+    /// or opened; the caller saves.
     @discardableResult
-    static func reconcile(in context: NSManagedObjectContext, store: NSPersistentStore? = nil) -> Int {
+    static func reconcile(
+        in context: NSManagedObjectContext,
+        store: NSPersistentStore? = nil,
+        now: Date = Date()
+    ) -> Int {
         let request = CDFetchRequest(CDOrderItem.self)
         request.predicate = NSPredicate(format: "receivedAt == nil AND supplyID != nil AND supplyID != %@", "")
         if let store { request.affectedStores = [store] }
@@ -243,6 +286,36 @@ nonisolated extension RestockService {
                 removed += 1
             }
         }
-        return removed
+        return removed + openMissingNeeds(besides: Set(byStaple.keys), store: store, now: now, in: context)
+    }
+
+    /// Opens a need for each settled Low or Out staple whose id isn't among
+    /// `open` (upper-cased): beside the staple, as `setLevel` would.
+    private static func openMissingNeeds(
+        besides open: Set<String>,
+        store: NSPersistentStore?,
+        now: Date,
+        in context: NSManagedObjectContext
+    ) -> Int {
+        let request = CDFetchRequest(CDSupply.self)
+        request.predicate = NSPredicate(
+            // No date (an older build set the level) counts as long settled.
+            format: "levelRaw IN %@ AND (levelChangedAt == nil OR levelChangedAt <= %@)",
+            [RestockLevel.low.rawValue, RestockLevel.out.rawValue],
+            now.addingTimeInterval(-settledAfter) as NSDate
+        )
+        if let store { request.affectedStores = [store] }
+        var opened = 0
+        for supply in context.safeFetch(request) {
+            guard let id = supply.id?.uuidString.uppercased(), !open.contains(id) else { continue }
+            let name = supply.levelChangedByName.trimmed()
+            let setter = RestockAuthor(
+                role: name.isEmpty ? .leadGuide : .assistant, recordName: supply.levelChangedByID, name: name
+            )
+            let store = destinationStore(for: setter.role, near: supply, in: context)
+            openNeed(for: supply, by: setter, at: now, store: store, in: context)
+            opened += 1
+        }
+        return opened
     }
 }

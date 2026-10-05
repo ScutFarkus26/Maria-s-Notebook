@@ -149,6 +149,61 @@ struct RestockNeedTests {
         #expect(RestockService.reconcile(in: context) == 0, "a second run finds nothing")
     }
 
+    @Test("Reconcile opens the need a Low or Out staple lost once its level has settled, with no history")
+    func reconcileOpensMissingNeed() throws {
+        let context = try makeContext()
+        // Out, and another device checked its need off as it was marked.
+        let towels = try staple("Paper Towels", in: context)
+        RestockService.setLevel(towels, to: .out, by: ana, at: at(0), in: context)
+        OrderService.setReceived(RestockService.openNeeds(for: towels, in: context), true, at: at(1))
+        // Low, its need not here yet.
+        let soap = try staple("Hand Soap", in: context)
+        RestockService.setLevel(soap, to: .low, by: guide, at: at(200), in: context)
+        for need in RestockService.openNeeds(for: soap, in: context) {
+            context.delete(need)
+        }
+        // Stocked, with a need still open: left alone.
+        let tissues = try staple("Tissues", in: context)
+        RestockService.openNeed(for: tissues, by: guide, at: at(5), store: nil, in: context)
+        #expect(CoreDataTestHelpers.save(context))
+        let history = try context.count(for: CDFetchRequest(CDSupplyTransaction.self))
+
+        #expect(RestockService.reconcile(in: context, now: at(400)) == 1)
+        let opened = try #require(RestockService.openNeeds(for: towels, in: context).first)
+        #expect(opened.addedByID == "_ana")
+        #expect(opened.addedByName == "Ana")
+        #expect(opened.createdAt == at(400))
+        #expect(opened.source == .office)
+        #expect(RestockService.openNeeds(for: soap, in: context).isEmpty, "marked 200 s ago: not settled")
+        #expect(tissues.level == .stocked)
+        #expect(RestockService.openNeeds(for: tissues, in: context).count == 1)
+        #expect(try context.count(for: CDFetchRequest(CDSupplyTransaction.self)) == history)
+        #expect(CoreDataTestHelpers.save(context))
+        #expect(RestockService.reconcile(in: context, now: at(400)) == 0, "a second run finds nothing")
+
+        #expect(RestockService.reconcile(in: context, now: at(600)) == 1)
+        let soapNeed = try #require(RestockService.openNeeds(for: soap, in: context).first)
+        #expect(soapNeed.addedByID == "_guide")
+        #expect(soapNeed.addedByName.isEmpty)
+    }
+
+    // A level set by a build from before `levelChangedAt` has no date; the
+    // fetch used to compare it with the cutoff and skip it for good.
+    @Test("Reconcile opens the need of a Low staple whose level has no date")
+    func reconcileOpensNeedForUndatedLevel() throws {
+        let context = try makeContext()
+        let glue = try staple("Glue Sticks", in: context)
+        RestockService.setLevel(glue, to: .low, by: guide, at: at(0), in: context)
+        for need in RestockService.openNeeds(for: glue, in: context) {
+            context.delete(need)
+        }
+        glue.levelChangedAt = nil
+        #expect(CoreDataTestHelpers.save(context))
+
+        #expect(RestockService.reconcile(in: context, now: at(10)) == 1)
+        #expect(RestockService.openNeeds(for: glue, in: context).count == 1)
+    }
+
     // MARK: - Reading
 
     @Test("The shelf groups by place, places A to Z and No place yet last")
@@ -232,5 +287,17 @@ struct RestockNeedTests {
         #expect(RestockService.historyReason(for: .low, by: ana) == "Low · Ana")
         #expect(RestockService.historyReason(for: .out, by: guide) == "Out")
         #expect(RestockService.historyReason(for: .stocked, by: guide) == "Restocked")
+    }
+
+    @Test("On an assistant's phone, another assistant who gave no name isn't read as her guide")
+    func whoReadsAnotherAssistant() {
+        let anaInClass = RestockAuthor(role: .assistant, recordName: "_ana", name: "Ana", ownerRecordName: "_guide")
+        #expect(anaInClass.reads(changedByID: "_bea", name: "") == "another assistant")
+        #expect(anaInClass.reads(changedByID: "_guide", name: "") == "your guide")
+        #expect(anaInClass.reads(changedByID: nil, name: nil) == "your guide")
+        #expect(anaInClass.reads(changedByID: "_ana", name: "") == "You")
+        #expect(anaInClass.reads(changedByID: "_bea", name: "Bea") == "Bea")
+        // Before her phone knows who the guide is, an unnamed change is still the guide's.
+        #expect(ana.reads(changedByID: "_bea", name: "") == "your guide")
     }
 }

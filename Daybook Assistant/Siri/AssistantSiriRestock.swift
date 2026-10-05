@@ -10,6 +10,8 @@ import CoreData
 struct AssistantSiriRestock {
     let stack: CoreDataStack
     let author: RestockAuthor
+    /// Saves the context; true when it worked.
+    private let save: @MainActor (NSManagedObjectContext) -> Bool
 
     var context: NSManagedObjectContext { stack.viewContext }
 
@@ -20,10 +22,15 @@ struct AssistantSiriRestock {
         self.init(stack: stack, author: RestockAuthor.current(role: .assistant))
     }
 
-    /// Tests pass an in-memory stack and an author.
-    init(stack: CoreDataStack, author: RestockAuthor) {
+    /// Tests pass an in-memory stack and an author, and a save that fails.
+    init(
+        stack: CoreDataStack,
+        author: RestockAuthor,
+        save: @escaping @MainActor (NSManagedObjectContext) -> Bool = { $0.safeSave() }
+    ) {
         self.stack = stack
         self.author = author
+        self.save = save
     }
 
     /// The classroom share's store; nil with one store (the sample class, tests).
@@ -83,29 +90,37 @@ struct AssistantSiriRestock {
         if staple.level == level || (level == .low && staple.level == .out) {
             return .already(staple.name, staple.level)
         }
+        let change = SiriChange(in: context)
         RestockService.setLevel(staple, to: level, by: author, in: context)
-        try commit()
+        try commit(change)
         return .marked(staple.name, level, staple.source)
     }
 
-    /// "Add ‹thing› to the office run": a staple of that name is marked Low
-    /// (it's on the office run, or the order list for one that's ordered);
-    /// anything else becomes a one-off from the office.
+    /// "Add ‹thing› to the office run": the one staple that name means is
+    /// marked Low (it's on the office run, or the order list for one that's
+    /// ordered); anything else, a name in several staples' names included,
+    /// becomes a one-off from the office rather than a guess at one of them.
     func addToOfficeRun(_ spoken: String) throws -> Outcome {
         let name = spoken.trimmed()
         guard !name.isEmpty else { throw AssistantRestockSiriError.noName }
         let staples = RestockService.staples(in: context, store: Self.sharedStore(of: context))
-        if let staple = AssistantSupplyNames.matches(for: name, in: staples).first {
+        if let staple = AssistantSupplyNames.match(for: name, in: staples) {
             guard staple.level == .stocked else { return .already(staple.name, staple.level) }
+            let change = SiriChange(in: context)
             RestockService.setLevel(staple, to: .low, by: author, in: context)
-            try commit()
+            try commit(change)
             return .marked(staple.name, .low, staple.source)
         }
+        let change = SiriChange(in: context)
         guard let added = RestockService.addOneOff(title: name, source: .office, by: author, in: context) else {
+            change.end()
             throw AssistantRestockSiriError.noName
         }
-        guard added.isNew else { return .alreadyListed(added.object.displayTitle) }
-        try commit()
+        guard added.isNew else {
+            change.end()
+            return .alreadyListed(added.object.displayTitle)
+        }
+        try commit(change)
         return .added(added.object.displayTitle)
     }
 
@@ -120,15 +135,20 @@ struct AssistantSiriRestock {
     }
 
     /// Saves, then sends what the save created into the classroom share
-    /// without holding up Siri's answer, and tells an open Restock tab.
-    private func commit() throws {
+    /// without holding up Siri's answer, and tells an open Restock tab. A
+    /// save that fails takes back Siri's `change` alone: the tab's taps still
+    /// waiting for their own save in the same context stay, and the tab
+    /// reloads to show them without Siri's.
+    private func commit(_ change: SiriChange) throws {
         let created = context.insertedObjects.filter {
             AssistantRestockModel.restockEntities.contains($0.entity.name ?? "")
         }
-        guard context.safeSave() else {
-            context.rollback()
+        guard save(context) else {
+            change.takeBack()
+            NotificationCenter.default.post(name: .restockChangedBySiri, object: nil)
             throw AssistantRestockSiriError.saveFailed
         }
+        change.end()
         // After the save: a new record's ID is only permanent from here.
         let ids = created.map(\.objectID)
         let stack = self.stack
@@ -136,6 +156,54 @@ struct AssistantSiriRestock {
             await SiriHost.didSave(created: ids, in: stack)
         }
         NotificationCenter.default.post(name: .restockChangedBySiri, object: nil)
+    }
+}
+
+/// The changes one Siri command makes to a context that may already hold the
+/// Restock tab's unsaved taps: recorded by a temporary undo manager from its
+/// start, so a failed save can take back these and nothing else, where
+/// `rollback()` would drop the tab's taps too. As the notebook's
+/// `ContextMutationTransaction` does, which this app doesn't compile.
+@MainActor
+private final class SiriChange {
+    private let context: NSManagedObjectContext
+    private let previous: UndoManager?
+    private let undo = UndoManager()
+    private var isDone = false
+
+    init(in context: NSManagedObjectContext) {
+        self.context = context
+        // The tab's changes so far are settled first, so none is recorded.
+        context.processPendingChanges()
+        previous = context.undoManager
+        undo.groupsByEvent = false
+        context.undoManager = undo
+        undo.beginUndoGrouping()
+    }
+
+    /// Keeps the change (saved, or nothing to save).
+    func end() {
+        finishRecording()
+        undo.removeAllActions()
+        context.undoManager = previous
+    }
+
+    /// Undoes the change.
+    func takeBack() {
+        finishRecording()
+        if undo.canUndo {
+            undo.undo()
+            context.processPendingChanges()
+        }
+        undo.removeAllActions()
+        context.undoManager = previous
+    }
+
+    private func finishRecording() {
+        guard !isDone else { return }
+        isDone = true
+        context.processPendingChanges()
+        if undo.groupingLevel > 0 { undo.endUndoGrouping() }
     }
 }
 

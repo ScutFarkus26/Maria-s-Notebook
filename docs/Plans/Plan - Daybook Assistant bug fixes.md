@@ -1,19 +1,19 @@
 # Daybook Assistant bug fixes (hunt of 2026-10-04)
 
-> **Not started.** Written 2026-10-04.
+> **Working on it.** Every fix is on main (f8c0bade, 2026-10-05): both whole suites pass and all three builds are clean. Still to do: the Sample Class check on the SE and iPhone 17, and the TestFlight roll-out ([Tide](tide://box/Areas/App%20Development/Daybook%20Assistant/TODO.md?text=Ask%20Claude%20to%20finish%20the%20Assistant%20bug%20fixes%3A%20the%20Sample%20Class%20check%20on%20the%20SE%20and%20iPhone%2017%2C%20then%20the%20TestFlight%20roll-out)).
 > In short: Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases.
-> Waiting on Danny's choice of which phases to run before the weekly usage reset (see Estimated cost and Open questions).
+> Build board: https://claude.ai/artifact/39K63NUK4t7kmwbsTn1C1c
 
 ## Goal
 Every finding from the 2026-10-04 Daybook Assistant bug hunt (five code reviewers + a Sample Class simulator walk over main 44389d4d) is fixed, each behavior fix with a regression test that fails on the old code, the layout fixes checked on an SE and an iPhone 17 simulator, everything squashed onto main, pushed, and rolled out to TestFlight (notebook + Assistant), with the Assistant build added to the TestFlight group "Assistants".
 
 ## Progress
-- [ ] Phase 1: Attendance grid, store and Siri attendance (agent, worktree) ‖ 2 ‖ 3 ‖ 4 ‖ 5
-- [ ] Phase 2: Reminders and the front-desk email (agent, worktree)
-- [ ] Phase 3: Restock (agent, worktree)
-- [ ] Phase 4: Sync, joining and leaving (agent, worktree)
-- [ ] Phase 5: Shell, layout and readability (agent, worktree)
-- [ ] Phase 6: Combine, full builds, whole suites, SE check, ship (main session)
+- [x] Phase 1: Attendance grid, store and Siri attendance (agent, worktree) ‖ 2 ‖ 3 ‖ 4 ‖ 5
+- [x] Phase 2: Reminders and the front-desk email (agent, worktree)
+- [x] Phase 3: Restock (agent, worktree)
+- [x] Phase 4: Sync, joining and leaving (agent, worktree)
+- [x] Phase 5: Shell, layout and readability (agent, worktree)
+- [ ] Phase 6: Combine, full builds, whole suites, SE check, ship (main session). Combined, reviewed (3 fixes), built and tested; on main f8c0bade. SE check and roll-out not done yet.
 
 Session: all phases run from the planning session (branch `claude/assistants-app-bugs-3a5efa`, worktree `.claude/worktrees/groups-view-analysis-9432b3`). It launches Phases 1–5 as parallel agents with `isolation: "worktree"` (they start at origin/main 44389d4d, which equals local main), then does Phase 6 itself. No fresh-session handoff: the findings context is already loaded here and Phase 6 needs it.
 

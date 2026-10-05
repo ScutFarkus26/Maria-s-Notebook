@@ -47,14 +47,33 @@ final class AssistantBootstrapper {
     /// Set while this iPhone's own Leave runs. Its membership delete comes
     /// back as a remote change, which `followLeaveElsewhere` read as a Leave
     /// on another device.
-    private var isLeavingHere = false
+    private(set) var isLeavingHere = false
     /// Set while `start()` runs: launch and the window both start it.
     private var isStarting = false
 
-    /// True inside a hosted `Daybook Assistant Tests` run, the same check as
-    /// the notebook's `AppBootstrapping.isRunningUnitTests`.
-    nonisolated static var isRunningUnitTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    /// Asks CloudKit for the account's status; tests pass their own.
+    @ObservationIgnored private let fetchAccountStatus: @MainActor () async throws -> CKAccountStatus
+    /// Numbers each account check: an answer that arrives after a newer one
+    /// began is dropped (the slowest answer used to win, however old).
+    @ObservationIgnored private var accountCheck = 0
+    /// Mirroring stopped again after its one rebuild (`mirroringStopped(in:)`).
+    var sendingStopped = false
+    /// When the stack was last rebuilt because mirroring stopped: a second
+    /// stop soon after gives up rather than rebuilding round and round, but
+    /// one hours later, on a stack that worked meanwhile, gets its rebuild.
+    @ObservationIgnored var rebuiltForMirroringStopAt: Date?
+    /// Taken out of the class (`checkStillInClass`).
+    var removedFromClass = false
+    @ObservationIgnored var classCheck: Task<Void, Never>?
+    @ObservationIgnored var classCheckAgain = false
+    /// The history trim's export recorder, and whether this launch trimmed.
+    @ObservationIgnored var exportRecorder: Task<Void, Never>?
+    @ObservationIgnored var historyTrimmed = false
+
+    init(fetchAccountStatus: @escaping @MainActor () async throws -> CKAccountStatus = {
+        try await CloudKitConfigurationService.container.accountStatus()
+    }) {
+        self.fetchAccountStatus = fetchAccountStatus
     }
 
     func start() async {
@@ -84,6 +103,8 @@ final class AssistantBootstrapper {
             observeAcceptance()
             observeRemoteChanges()
             observeAccountChanges()
+            observeMirroringStops()
+            startHistoryUpkeep()
             if reopenSample { await resumeSample() }
         } catch {
             Self.logger.error("Assistant bootstrap failed: \(error.localizedDescription, privacy: .public)")
@@ -103,15 +124,18 @@ final class AssistantBootstrapper {
         sharingService = service
         accountCheckedSinceBuild = false
         stackNeedsAccount = false
+        sendingStopped = false
+        removedFromClass = false
 
         refreshMembership()
     }
 
-    /// Builds the stack again now that iCloud is signed in (see
-    /// `stackNeedsAccount`). The screens let go of the old one first, so
-    /// nothing reads its objects once its stores are gone.
-    private func rebuildStackForAccount() async {
-        Self.logger.info("iCloud account arrived after launch; rebuilding the Core Data stack")
+    /// Builds the stack again: once iCloud is signed in (see
+    /// `stackNeedsAccount`), or once after CloudKit mirroring stopped
+    /// (`mirroringStopped(in:)`). The screens let go of the old one first,
+    /// so nothing reads its objects once its stores are gone.
+    func rebuildStack(because reason: String) async {
+        Self.logger.info("\(reason, privacy: .public); rebuilding the Core Data stack")
         phase = .starting
         sharingService = nil
         coreDataStack = nil
@@ -175,13 +199,16 @@ final class AssistantBootstrapper {
         if let stack = coreDataStack {
             AssistantShareAttacher.shared.flush(container: stack.container, context: stack.viewContext)
         }
+        checkStillInClass()
     }
 
     /// Leaves the classroom: the class comes off this iPhone and the screen
-    /// goes back to joining. Her marks stay with the guide.
+    /// goes back to joining. Her marks stay with the guide. Taken out of the
+    /// class, the share read at launch is gone: Leave reads the store afresh.
     func leaveClassroom() async throws {
         isLeavingHere = true
         defer { isLeavingHere = false }
+        if removedFromClass { sharingService?.updateShareState(nil) }
         try await sharingService?.leaveClassroom()
         await backToJoining()
     }
@@ -200,15 +227,10 @@ final class AssistantBootstrapper {
         await backToJoining()
     }
 
-    /// An import that finds no membership row means she left on another
-    /// iPhone, unless the Leave is this iPhone's own and still running.
-    nonisolated static func leftElsewhere(hasOwnRow: Bool, leavingHere: Bool) -> Bool {
-        !hasOwnRow && !leavingHere
-    }
-
     /// After a Leave, here or elsewhere: this iPhone's classroom state and
     /// reminders go, and the screen goes back to joining.
     private func backToJoining() async {
+        removedFromClass = false
         AssistantClassroomLocalState.forget()
         await ArrivalReminder.cancelAll()
         await FrontDeskEmailReminder.cancelAll()
@@ -216,33 +238,32 @@ final class AssistantBootstrapper {
         refreshMembership()
     }
 
-    /// The guide's name as the share's owner identity gives it, for display
-    /// only (Apple's terms: never stored). Nil when CloudKit withholds it.
-    var guideName: String? {
-        let name = sharingService?.currentShare?.owner.userIdentity.nameComponents?.formatted().trimmed() ?? ""
-        return name.isEmpty ? nil : name
-    }
-
     func refreshAccountStatus() async {
+        accountCheck += 1
+        let check = accountCheck
+        let status: CKAccountStatus
         do {
-            accountStatus = try await CloudKitConfigurationService.container.accountStatus()
+            status = try await fetchAccountStatus()
         } catch {
             // Unknown isn't a problem worth showing; keep what we had.
             Self.logger.error("iCloud account status failed: \(error.localizedDescription, privacy: .public)")
             return
         }
-        guard coreDataStack != nil, let accountStatus else { return }
+        // A newer check is on its way, and its answer is the one that counts.
+        guard check == accountCheck else { return }
+        accountStatus = status
+        guard coreDataStack != nil else { return }
         let decision = Self.accountDecision(
             checkedSinceBuild: accountCheckedSinceBuild,
             needsAccount: stackNeedsAccount,
-            status: accountStatus
+            status: status
         )
         accountCheckedSinceBuild = decision.decided
         // Cleared before the rebuild awaits, so a second check arriving
         // meanwhile (the account-change loop and Check Again together)
         // doesn't rebuild again and pull the stores from under the first.
         stackNeedsAccount = decision.needsAccount
-        if decision.rebuild { await rebuildStackForAccount() }
+        if decision.rebuild { await rebuildStack(because: "iCloud account arrived after launch") }
     }
 
     /// Asks now, and again whenever the account changes (signed out in
@@ -278,15 +299,18 @@ final class AssistantBootstrapper {
     /// that joined before. Nothing posts `.didJoinClassroom` then, so until
     /// this device has a classroom every import re-reads the row; once it
     /// has one, every import checks the rows are still there
-    /// (`followLeaveElsewhere`). Every import, the sample's included, also
-    /// brings the pickup reminders up to date (`pickupRemindersMayHaveChanged`).
+    /// (`followLeaveElsewhere`), and each of the class's imports that its
+    /// share is still there (`checkStillInClass`). Every import, the
+    /// sample's included, also brings the pickup reminders up to date
+    /// (`pickupRemindersMayHaveChanged`).
     private func observeRemoteChanges() {
         guard remoteChangeObserver == nil else { return }
         remoteChangeObserver = Task { [weak self] in
+            // Only the store's identifier comes across: `Notification` isn't Sendable.
             let changes = NotificationCenter.default
                 .notifications(named: .NSPersistentStoreRemoteChange)
-                .map { _ in () }
-            for await _ in changes {
+                .map { $0.userInfo?[NSStoreUUIDKey] as? String }
+            for await storeID in changes {
                 guard let self else { return }
                 pickupRemindersMayHaveChanged()
                 if AssistantSampleClass.isChosen {
@@ -299,9 +323,15 @@ final class AssistantBootstrapper {
                     continue
                 }
                 switch phase {
-                case .needsClassroom: refreshMembership()
-                case .ready: await followLeaveElsewhere()
-                case .starting, .failed: break
+                case .needsClassroom:
+                    refreshMembership()
+                case .ready:
+                    await followLeaveElsewhere()
+                    if storeID == nil || storeID == coreDataStack?.sharedPersistentStore?.identifier {
+                        checkStillInClass()
+                    }
+                case .starting, .failed:
+                    break
                 }
             }
         }

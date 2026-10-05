@@ -20,6 +20,9 @@ struct AssistantRootView: View {
                         .padding(.top, 8)
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .accessibilityAddTraits(.isStaticText)
+                        // It only says something: taps go through to the
+                        // date and buttons under it.
+                        .allowsHitTesting(false)
                 }
             }
             .animation(.smooth, value: ToastService.shared.current?.id)

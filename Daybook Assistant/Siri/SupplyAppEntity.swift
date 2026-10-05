@@ -73,6 +73,18 @@ enum AssistantSupplyNames {
         }
     }
 
+    /// The one staple a spoken name means, for a command that acts on it
+    /// without asking which: a staple of that very name, or the only one
+    /// whose name holds the words (or that the words hold). Nil when the
+    /// words are in several names ("paper": Paper Towels and Toilet Paper),
+    /// or in none.
+    static func match(for spoken: String, in staples: [CDSupply]) -> CDSupply? {
+        let found = matches(for: spoken, in: staples)
+        let key = normalized(spoken)
+        if let exact = found.first(where: { normalized($0.name) == key }) { return exact }
+        return found.count == 1 ? found.first : nil
+    }
+
     /// Folded, without a leading "the", "some" or "more", and each word
     /// without a plural "s" or "es".
     static func normalized(_ text: String) -> String {

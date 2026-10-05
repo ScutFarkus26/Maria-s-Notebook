@@ -71,9 +71,9 @@ public struct AttendanceEmailSettingsView: View {
             Text(notificationsDenied && reminderOn
                 ? "Notifications are off for Cosmic Daybook, so the reminder can't show. "
                     + "Turn them on in \(SystemSettingsApp.name) › Notifications."
-                : "The due time and these settings go to your assistants' Daybook Assistant, which sends the "
-                    + "same email to the same addresses. The reminder is this device's own: on school days, "
-                    + "before the due time and again at it, if nobody has sent the day's email.")
+                : "The due time and these settings go to the Daybook Assistant app on your assistants' phones, "
+                    + "which sends the same email to the same addresses. The reminder is this device's own: "
+                    + "on school days, before the due time and again at it, if nobody has sent the day's email.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

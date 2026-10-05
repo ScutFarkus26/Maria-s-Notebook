@@ -20,8 +20,12 @@ struct AssistantClassroomSheet: View {
     @State private var displayName = ClassroomIdentity.displayName
     @State private var showingNameSheet = false
     @State private var confirmingLeave = false
+    /// Marks still on their way when she tapped Leave: asks Wait or Leave Anyway.
+    @State private var unsentBeforeLeave: AssistantBootstrapper.UnsentMarks?
     @State private var isLeaving = false
+    @State private var isSendingFirst = false
     @State private var leaveError: String?
+    @State private var leaveNote: String?
     @AppStorage(ArrivalReminder.enabledKey) private var reminderOn = true
     @AppStorage(ArrivalReminder.timeKey) private var reminderMinutes = ArrivalReminder.defaultMinutes
     @AppStorage(FrontDeskEmailReminder.enabledKey) private var frontDeskOn = FrontDeskEmailReminder.isOnByDefault
@@ -73,11 +77,30 @@ struct AssistantClassroomSheet: View {
                 Text("This takes the class off this iPhone. The attendance you've taken stays with your guide. "
                     + "To come back, open your guide's invitation again.")
             }
+            .confirmationDialog(
+                "Some marks haven't been sent",
+                isPresented: Binding(
+                    get: { unsentBeforeLeave != nil },
+                    set: { if !$0 { unsentBeforeLeave = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: unsentBeforeLeave
+            ) { _ in
+                Button("Wait") {
+                    Task { await sendFirst() }
+                }
+                Button("Leave Anyway", role: .destructive) {
+                    Task { await leave() }
+                }
+            } message: { unsent in
+                Text(unsent.message)
+            }
         }
     }
 
     // MARK: - Sections
 
+    /// No header: the screen's title already says "Classroom".
     private var classroomSection: some View {
         Section {
             LabeledContent("Guide", value: guideName)
@@ -94,8 +117,6 @@ struct AssistantClassroomSheet: View {
                     }
                 }
             }
-        } header: {
-            Text("Classroom")
         } footer: {
             if classroomID != nil {
                 Text("If something looks wrong, read the class code under Details to your guide. "
@@ -180,7 +201,7 @@ struct AssistantClassroomSheet: View {
         } footer: {
             if (reminderOn || frontDeskOn || pickupOn) && notificationsDenied {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Notifications are off for Daybook Assistant.")
+                    Text("Notifications are off for this app.")
                     Button("Turn On in Settings") {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
                             UIApplication.shared.open(url)
@@ -188,7 +209,9 @@ struct AssistantClassroomSheet: View {
                     }
                 }
             } else {
-                Text(reminderFooter)
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(reminderFooter, id: \.self) { Text($0) }
+                }
             }
         }
         .task(id: "\(reminderOn)|\(reminderMinutes)|\(frontDeskOn)|\(frontDeskLead)") {
@@ -196,27 +219,23 @@ struct AssistantClassroomSheet: View {
         }
     }
 
-    /// Says what will actually happen with the switches as they are now.
-    private var reminderFooter: String {
+    /// Says what will actually happen with the switches as they are now: a
+    /// short line for each reminder, not one long paragraph.
+    private var reminderFooter: [String] {
         var lines: [String] = []
         if reminderOn {
             let at = FrontDeskEmailReminder.timeString(reminderMinutes)
-            lines.append("On school days at \(at), you'll get a reminder to close arrival. "
-                + "If every child is already marked, it stays quiet.")
+            lines.append("Arrival: a reminder at \(at) on school days, unless every child is marked.")
         }
         if let dueAt = frontDeskDueAt {
-            if frontDeskOn {
-                lines.append("The front desk needs attendance emailed by \(dueAt). If no one has sent it yet, "
-                    + "you'll get a reminder \(frontDeskLead) minutes before, and another at \(dueAt).")
-            } else {
-                lines.append("The front desk needs attendance emailed by \(dueAt).")
-            }
+            let nudge = " If no one has sent it, a reminder \(frontDeskLead) min before and at \(dueAt)."
+            lines.append("Front desk: attendance is due by \(dueAt)." + (frontDeskOn ? nudge : ""))
         }
         if pickupOn {
-            lines.append("When someone is being picked up early, you'll get a reminder before their time. "
-                + "Hold a child's name and choose Leaving Early… to set it.")
+            lines.append("Early pickups: hold a child's name and choose Leaving Early… "
+                + "for a reminder before their time.")
         }
-        return lines.isEmpty ? "Turn on a reminder to get a nudge on school days." : lines.joined(separator: " ")
+        return lines.isEmpty ? ["Turn on a reminder to get a nudge on school days."] : lines
     }
 
     /// The guide's due time ("9:00 AM"), once the guide has set up the
@@ -242,32 +261,6 @@ struct AssistantClassroomSheet: View {
         }
     }
 
-    /// The sample class opened from the join screen: the way back to joining.
-    private var sampleSection: some View {
-        Section {
-            Button("Leave Sample Class") {
-                dismiss()
-                bootstrapper.leaveSampleClass()
-            }
-        } footer: {
-            Text("This is a sample class with made-up names. Your marks stay on this iPhone "
-                + "for today and go nowhere else. To take real attendance, open your guide's invitation.")
-        }
-    }
-
-    private var leaveSection: some View {
-        Section {
-            Button("Leave Classroom", role: .destructive) {
-                confirmingLeave = true
-            }
-            .disabled(isLeaving)
-        } footer: {
-            if let leaveError {
-                Text(leaveError).foregroundStyle(.red)
-            }
-        }
-    }
-
     // MARK: - Values
 
     private var guideName: String { bootstrapper.guideName ?? "Your guide" }
@@ -283,19 +276,85 @@ struct AssistantClassroomSheet: View {
               let zone = CDClassroomMembership.pinnedZoneName(in: context) else { return nil }
         return CDClassroomMembership.classroomID(forZone: zone)
     }
+}
+
+// MARK: - Leaving
+
+extension AssistantClassroomSheet {
+
+    /// The sample class opened from the join screen: the way back to joining.
+    private var sampleSection: some View {
+        Section {
+            Button("Leave Sample Class") {
+                dismiss()
+                bootstrapper.leaveSampleClass()
+            }
+        } footer: {
+            Text("This is a sample class with made-up names. Your marks stay on this iPhone "
+                + "for today and go nowhere else. To take real attendance, open your guide's invitation.")
+        }
+    }
+
+    private var leaveSection: some View {
+        Section {
+            Button("Leave Classroom", role: .destructive, action: startLeave)
+                .disabled(isLeaving || isSendingFirst)
+            if isSendingFirst {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Sending your marks…").foregroundStyle(.secondary)
+                }
+            }
+        } footer: {
+            if let leaveError {
+                Text(leaveError).foregroundStyle(.red)
+            } else if let leaveNote {
+                Text(leaveNote)
+            }
+        }
+    }
+
+    /// Leave purges the class at once, so marks still on their way are lost:
+    /// with any, she's asked to wait first.
+    private func startLeave() {
+        leaveError = nil
+        leaveNote = nil
+        if let unsent = bootstrapper.unsentMarks() {
+            unsentBeforeLeave = unsent
+        } else {
+            confirmingLeave = true
+        }
+    }
+
+    /// Wait: tries to send them, then says how it went. Leave stays hers to tap.
+    private func sendFirst() async {
+        isSendingFirst = true
+        let stillUnsent = await bootstrapper.sendUnsentMarks()
+        isSendingFirst = false
+        leaveNote = stillUnsent == nil
+            ? "Your marks have reached your guide. You can leave now."
+            : "Some marks still haven't gone. Check that this iPhone is online, then try again."
+    }
 
     private func leave() async {
         isLeaving = true
         leaveError = nil
+        leaveNote = nil
         do {
             try await bootstrapper.leaveClassroom()
             dismiss()
         } catch {
-            // CloudKit's own text reads as jargon; the purge only fails on
-            // reaching iCloud, and the class stays until it succeeds.
-            leaveError = "Couldn't leave the classroom. Check that this iPhone is online, then try again."
+            leaveError = Self.leaveMessage(for: error)
         }
         isLeaving = false
+    }
+
+    /// Leave's own reasons (the class hasn't finished arriving, several
+    /// classes, the leave not saved) say what to do; a CloudKit failure gets
+    /// the sharing wording. They all used to read "Check that this iPhone is
+    /// online".
+    static func leaveMessage(for error: Error) -> String {
+        AppErrorMessages.sharingMessage(for: error, action: "leave the classroom")
     }
 }
 
@@ -323,9 +382,8 @@ extension AssistantClassroomSheet {
             let order = AssistantGridOrder.resolved(gridOrderRaw) == .across
                 ? "Names go A to Z across each row, then on to the next row."
                 : "Names go A to Z down each column, then on to the next column."
-            Text(groupsByLevel
-                ? "Upper Elementary, Adolescent and Lower Elementary each get their own block. \(order) It only changes this iPhone."
-                : "\(order) It only changes this iPhone.")
+            let blocks = "Upper Elementary, Adolescent and Lower Elementary each get their own block. "
+            Text("\(groupsByLevel ? blocks : "")\(order) It only changes this iPhone.")
         }
     }
 }

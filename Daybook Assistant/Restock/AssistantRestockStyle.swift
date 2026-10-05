@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import CoreData
 
 /// Restock's colors, light and dark. A level shows in the tile's shape as well
 /// as its color (three bars, one, none; Out solid), so color is never the only
@@ -64,11 +65,18 @@ enum AssistantRestockStyle {
         let foreground: Color
     }
 
-    static func tag(for level: RestockLevel?) -> Tag {
-        switch level {
-        case .out?: Tag(text: "Out", fill: Self.level(.out).fill, foreground: .white)
-        case .low?: Tag(text: "Low", fill: Self.level(.low).fill, foreground: Self.level(.low).text)
-        case .stocked?, nil: Tag(text: "One-off", fill: Color(.tertiarySystemFill), foreground: .primary)
+    /// The tag for a need of `staple` (nil for a one-off). A staple that reads
+    /// Stocked while its need is still open (its level and need arrived out
+    /// of step from another device, and nothing closes the need on its own)
+    /// shows the staple's name: the need is the staple's, not a one-off.
+    static func tag(for staple: CDSupply?) -> Tag {
+        guard let staple else {
+            return Tag(text: "One-off", fill: Color(.tertiarySystemFill), foreground: .primary)
+        }
+        switch staple.level {
+        case .out: return Tag(text: "Out", fill: Self.level(.out).fill, foreground: .white)
+        case .low: return Tag(text: "Low", fill: Self.level(.low).fill, foreground: Self.level(.low).text)
+        case .stocked: return Tag(text: staple.name, fill: Color(.tertiarySystemFill), foreground: .primary)
         }
     }
 

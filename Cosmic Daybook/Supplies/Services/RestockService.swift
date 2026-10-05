@@ -69,9 +69,12 @@ nonisolated enum RestockService {
         var title: String { place.isEmpty ? "No place yet" : place }
     }
 
-    /// What `checkOff` changed, for `undoCheckOff`.
+    /// What `checkOff` changed, for `undoCheckOff` (while `canUndo`).
     struct CheckOff {
         let need: CDOrderItem
+        /// When it was checked off: the need's `receivedAt`, and the
+        /// staple's `levelChangedAt` when it put one back to Stocked.
+        let checkedAt: Date
         /// The staple put back to Stocked, with what it held before.
         var staple: CDSupply?
         var levelBefore = RestockLevel.stocked
@@ -125,6 +128,26 @@ nonisolated enum RestockService {
         request.predicate = NSPredicate(format: "supplyID ==[c] %@", id)
         request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
         return context.safeFetch(request)
+    }
+
+    /// The ids (upper-cased) of the staples with any history: the saved
+    /// lines read as ids alone, and any line still waiting for its save.
+    static func stapleIDsWithHistory(
+        in context: NSManagedObjectContext,
+        store: NSPersistentStore? = nil
+    ) -> Set<String> {
+        let request = NSFetchRequest<NSDictionary>(entityName: "SupplyTransaction")
+        request.resultType = .dictionaryResultType
+        request.propertiesToFetch = ["supplyID"]
+        request.returnsDistinctResults = true
+        request.includesPendingChanges = false
+        if let store { request.affectedStores = [store] }
+        let rows = (try? context.fetch(request)) ?? []
+        var ids = Set(rows.compactMap { ($0["supplyID"] as? String)?.uppercased() })
+        for case let entry as CDSupplyTransaction in context.insertedObjects {
+            ids.insert(entry.supplyID.uppercased())
+        }
+        return ids
     }
 
     /// How many open needs are for the office run and how many are to order,

@@ -57,7 +57,8 @@ struct MarkSupplyLowIntent: AppIntent {
 /// Anything at all, so it takes what she says rather than a name from the
 /// shelf: an App Shortcut phrase can only carry a name Siri already knows,
 /// so Siri asks "What do we need from the office?" A staple's name marks the
-/// staple low instead of adding it twice.
+/// staple low instead of adding it twice; words in several staples' names
+/// ("paper") are added as said, rather than marking one of them at a guess.
 struct AddToOfficeRunIntent: AppIntent {
     static let title: LocalizedStringResource = "Add to Office Run"
     static let description = IntentDescription(

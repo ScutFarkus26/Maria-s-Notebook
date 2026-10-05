@@ -1,19 +1,19 @@
 import CoreData
 
-/// Keeps the early-pickup reminders up to date without the attendance
-/// screen. The screen's own follower (`ArrivalReminderFollower`) runs only
-/// while it is on screen, so a pickup the guide set, moved or removed, a
-/// child marked Left Early, or Back in Class, on another device while this
-/// iPhone was locked left a stale reminder ringing, or a new pickup silent,
-/// until the app was opened.
+/// Keeps the reminders up to date without the attendance screen. The
+/// screen's own follower (`ArrivalReminderFollower`) runs only while it is
+/// on screen, so a pickup the guide set, moved or removed, a child marked
+/// Left Early, or Back in Class, on another device while this iPhone was
+/// locked left a stale reminder ringing, or a new pickup silent, until the
+/// app was opened. The arrival and front-desk reminders were the same: a
+/// roll finished or an email sent on another device still rang here.
 ///
 /// `changed` comes on every import from iCloud (the remote-change stream
 /// `AssistantBootstrapper` already follows, which a CloudKit push that wakes
 /// the suspended app feeds too) and, from `AssistantApp`, on every
-/// scene-phase change. A burst settles for `delay`, then one
-/// `EarlyPickupReminder.reschedule` compares and changes only what differs. Each wait holds a background
-/// task assertion (`SiriSyncKeepAlive`), so leaving the app or a push wake
-/// still finishes it.
+/// scene-phase change. A burst settles for `delay`, then one `refresh`
+/// brings all three up to date. Each wait holds a background task assertion
+/// (`SiriSyncKeepAlive`), so leaving the app or a push wake still finishes it.
 @MainActor
 final class EarlyPickupReminderUpkeep {
 
@@ -29,16 +29,35 @@ final class EarlyPickupReminderUpkeep {
     func changed(context: @escaping @MainActor () -> NSManagedObjectContext?) {
         generation &+= 1
         let mine = generation
-        SiriSyncKeepAlive.run(named: "Update pickup reminders") { [weak self] in
+        SiriSyncKeepAlive.run(named: "Update reminders") { [weak self] in
             try? await Task.sleep(for: Self.delay)
             guard let self, mine == generation, let context = context() else { return }
-            await EarlyPickupReminder.reschedule(in: context, asksPermission: false)
+            await Self.refresh(in: context)
         }
+    }
+
+    /// What a settled change runs: the pickups and, for a real class, the
+    /// arrival and front-desk reminders, which an import changes just as
+    /// often (the guide's days off and email settings, a send or the last
+    /// marks from another device). None asks for permission: the alert
+    /// belongs on screen.
+    static func refresh(
+        in context: NSManagedObjectContext,
+        isSample: Bool = AssistantSampleClass.isActive,
+        center: any ReminderCenter = SystemReminderCenter()
+    ) async {
+        await EarlyPickupReminder.reschedule(in: context, asksPermission: false, center: center)
+        // As on screen: nothing for a class whose children haven't arrived
+        // from iCloud yet.
+        let children = AssistantDayRoll.classroomStudents(in: context)
+        guard !isSample, ((try? context.count(for: children)) ?? 0) > 0 else { return }
+        await ArrivalReminder.reschedule(in: context, center: center)
+        await FrontDeskEmailReminder.reschedule(in: context, center: center)
     }
 }
 
 extension AssistantBootstrapper {
-    /// Something may have changed a pickup while the attendance screen
+    /// Something may have changed a reminder while the attendance screen
     /// isn't running: an import, or the app coming or going. The reminders
     /// follow the class in use (the sample's, when it's open), once there
     /// is one.

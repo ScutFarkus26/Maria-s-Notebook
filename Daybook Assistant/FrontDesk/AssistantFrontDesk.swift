@@ -72,11 +72,15 @@ final class AssistantFrontDesk {
     }
 
     /// The day's email in the guide's format: on time, tardy, left early and
-    /// absent, as the notebook writes it.
+    /// absent, as the notebook writes it. A child who arrived late and then
+    /// left is under Left Early, "(arrived late)".
     func draft(for rows: [AssistantAttendanceViewModel.Row]) -> AttendanceEmailDraft? {
         guard let settings, settings.canSend else { return nil }
+        let cameLate = AttendanceEmailStudent.lateThenLeftEarly(on: date, in: context)
         func students(_ status: AttendanceStatus) -> [AttendanceEmailStudent] {
-            rows.filter { $0.status == status && !$0.studentIsGone }.map { AttendanceEmailStudent($0.student) }
+            rows.filter { $0.status == status && !$0.studentIsGone }.map { row in
+                AttendanceEmailStudent(row.student, arrivedLate: cameLate.contains(row.id.uuidString))
+            }
         }
         return settings.draft(
             for: date, present: students(.present), tardy: students(.tardy), absent: students(.absent),

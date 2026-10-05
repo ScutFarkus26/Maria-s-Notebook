@@ -71,6 +71,15 @@ final class UnsentChangesKeepAlive {
             guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                     as? NSPersistentCloudKitContainer.Event,
                   event.type == .export, event.succeeded, event.endDate != nil else { return }
+            #if ASSISTANT_APP
+            // Her marks go to the classroom share: the private store's export
+            // says nothing about them, and counting it let Leave purge marks
+            // that hadn't gone (`AssistantBootstrapper.unsentMarks`).
+            let container = note.object as? NSPersistentCloudKitContainer
+            let configuration = container?.persistentStoreCoordinator.persistentStores
+                .first { $0.identifier == event.storeIdentifier }?.configurationName
+            guard configuration == CoreDataStack.sharedConfiguration else { return }
+            #endif
             let started = event.startDate
             MainActor.assumeIsolated { self?.exported(startedAt: started) }
         })

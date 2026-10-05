@@ -19,11 +19,13 @@ extension AssistantAttendanceViewModel {
     }
 
     /// Whether the bar offers Close Arrival (someone still unmarked) or shows
-    /// Late. Never on a locked day or a day ahead.
+    /// Late. Never on a locked day or a day ahead. Reopened while Close
+    /// Arrival's absences still stand, it's offered with nobody unmarked
+    /// too, as the way back to Late.
     var showsArrivalControl: Bool {
         guard canMark, !isFuture else { return false }
         switch phase {
-        case .arrival: return !unmarkedNames.isEmpty
+        case .arrival: return !unmarkedNames.isEmpty || hasAutomaticAbsences
         case .late: return true
         }
     }
@@ -47,15 +49,23 @@ extension AssistantAttendanceViewModel {
         myName: String?,
         guideName: String?
     ) -> String? {
-        AttendanceRules.markerName(for: row, myRecordName: myRecordName, myName: myName, guideName: guideName)
+        AttendanceRules.markerName(
+            for: row, myRecordName: myRecordName, myName: myName, guideName: guideName, viewerRole: .assistant
+        )
     }
 
     /// Why `date` has no school, if it hasn't: a day off in the guide's
-    /// calendar (with its reason), else a weekend.
+    /// calendar (with its reason), else a weekend. Any day off dated within
+    /// `date` counts, as `SchoolDayChecker` reads them: one stored at another
+    /// time than midnight (an older build, another time zone) read as a
+    /// weekend here.
     static func dayOff(on date: Date, in context: NSManagedObjectContext) -> DayOff? {
         guard SchoolDayChecker.isNonSchoolDay(date, using: context) else { return nil }
+        let day = AppCalendar.startOfDay(date)
         let request = CDFetchRequest(CDNonSchoolDay.self)
-        request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(date) as NSDate)
+        request.predicate = NSPredicate(
+            format: "date >= %@ AND date < %@", day as NSDate, AppCalendar.addingDays(1, to: day) as NSDate
+        )
         request.fetchLimit = 1
         if let holiday = context.safeFetchFirst(request) {
             let reason = holiday.reason?.trimmed() ?? ""

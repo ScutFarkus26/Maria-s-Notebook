@@ -21,7 +21,7 @@ import AppIntents
 struct MarkHereIntent: AppIntent {
     static let title: LocalizedStringResource = "Mark Student Here"
     static let description = IntentDescription(
-        "Mark a student present today, or late once arrival has closed in Daybook Assistant.",
+        "Mark a student present today, or late once arrival has closed.",
         categoryName: "Attendance"
     )
     static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed

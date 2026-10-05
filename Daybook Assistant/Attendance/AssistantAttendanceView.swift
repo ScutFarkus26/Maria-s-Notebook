@@ -12,10 +12,11 @@ import CoreData
 /// thumb reach. On a phone, three columns of
 /// one-line tiles fit a class of 22 on an SE: on a phone with a home button
 /// the status bar steps aside and the top bar shows its own clock, which gives
-/// the grid those 20 points. A taller phone (a Pro Max, say) grows the tiles
-/// to fill its screen instead of leaving the space under the grid empty.
-/// Anything longer scrolls, with a fade above the bar, and closing arrival
-/// asks first either way.
+/// the grid those 20 points, and its tiles and gaps shrink a little (to 46
+/// and 6 points) so eight rows fit above iOS 26's taller bottom bar. A taller
+/// phone (a Pro Max, say) grows the tiles to fill its screen instead of
+/// leaving the space under the grid empty. Anything longer scrolls, with a
+/// fade above the bar, and closing arrival asks first either way.
 ///
 /// It opens on today. The ‹ › arrows, or a sideways swipe on the grid, step
 /// through school days (skipping weekends and the guide's days off), tapping
@@ -40,6 +41,9 @@ struct AssistantAttendanceView: View {
     @State var showingClassroom = false
     @State var showingDatePicker = false
     @State private var noteRow: AssistantAttendanceViewModel.Row?
+    /// The day on screen when the note sheet opened: the note goes there,
+    /// even if the grid moves on meanwhile (a tapped reminder, the morning).
+    @State private var noteDay: Date?
     /// The child whose pickup time is being set (Leaving Early…).
     @State private var pickupRow: AssistantAttendanceViewModel.Row?
     /// The "Marked 3 absent · Undo" line after closing arrival. It stays
@@ -64,7 +68,10 @@ struct AssistantAttendanceView: View {
     @State private var gridSpace: CGSize = .zero
     /// The locked-day and error lines above the grid, while shown.
     @State private var noticesHeight: CGFloat = 0
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    /// The count line's own height: taller than `classTotalHeight` at large
+    /// text sizes.
+    @State private var classTotalMeasured = AssistantAttendanceView.classTotalHeight
     @AppStorage(AssistantWallpaper.key) private var wallpaperRaw = AssistantWallpaper.standard.rawValue
     /// Alphabetical across the rows or down the columns.
     @AppStorage(AssistantGridOrder.key) private var gridOrderRaw = AssistantGridOrder.across.rawValue
@@ -75,7 +82,7 @@ struct AssistantAttendanceView: View {
     private var backdropIsQuiet: Bool { AssistantWallpaper.resolved(wallpaperRaw).isQuiet }
 
     private static let phoneColumnWidth: CGFloat = 105
-    private var gridSpacing: CGFloat { usesShortNames ? 8 : 10 }
+    private var gridSpacing: CGFloat { usesShortNames ? Self.phoneGridSpacing(isSE: hidesStatusBar) : 10 }
 
     /// Phones: three columns of short names. Wider screens have room for
     /// full names.
@@ -120,11 +127,8 @@ struct AssistantAttendanceView: View {
     }
 
     /// A level heading, slimmer on a phone so the class still fits.
-    private var levelHeaderHeight: CGFloat { usesShortNames ? 20 : 26 }
-    private var levelHeaderSpacing: CGFloat { usesShortNames ? 4 : 6 }
-    /// How far phone tiles may shrink to make room for the level headings:
-    /// still a full tap target.
-    static let smallestGroupedTileHeight: CGFloat = 44
+    private var levelHeaderHeight: CGFloat { usesShortNames ? Self.phoneLevelHeaderHeight : 26 }
+    private var levelHeaderSpacing: CGFloat { usesShortNames ? Self.phoneLevelHeaderSpacing : 6 }
 
     /// How many lines of tiles the grid takes: each level block starts its
     /// own line.
@@ -134,29 +138,19 @@ struct AssistantAttendanceView: View {
         return counts.reduce(0) { $0 + ($1 + columns - 1) / columns }
     }
 
-    /// The SE keeps its fixed tiles; any other phone fills the room it has.
-    /// Grouped by level, any phone (the SE too) may shrink its tiles to
-    /// `smallestGroupedTileHeight` so the headings don't push children out
-    /// of sight; the SE's never grow past their usual size.
+    /// Phone tiles sized to the screen, below any notices and the count.
     private func phoneTileHeight(_ viewModel: AssistantAttendanceViewModel) -> CGFloat {
-        let blocks = CGFloat(levelGroups(viewModel).count)
-        guard usesShortNames, !hidesStatusBar || blocks > 0, !dynamicTypeSize.isAccessibilitySize else {
-            return AttendanceTile.phoneHeight
-        }
+        guard usesShortNames, !dynamicTypeSize.isAccessibilitySize else { return AttendanceTile.phoneHeight }
         let columns = gridColumnCount
         let notices = (AssistantDayNotices.shows(for: viewModel) ? noticesHeight + 12 : 0)
-            + Self.classTotalHeight + Self.classTotalSpacing
-        // Each block's heading, and the wider gap between blocks.
-        let headings = blocks == 0 ? 0
-            : blocks * (levelHeaderHeight + levelHeaderSpacing) + (blocks - 1) * (12 - gridSpacing)
-        let height = AttendanceTile.fittedPhoneHeight(
-            visibleHeight: gridSpace.height - notices - headings,
+            + classTotalMeasured + Self.classTotalSpacing
+        return Self.phoneTileHeight(
+            gridHeight: gridSpace.height - notices,
             columns: columns,
-            count: tileLines(viewModel, columns: columns) * columns,
-            spacing: gridSpacing,
-            minimum: blocks > 0 ? Self.smallestGroupedTileHeight : AttendanceTile.phoneHeight
+            lines: tileLines(viewModel, columns: columns),
+            levelBlocks: levelGroups(viewModel).count,
+            isSE: hidesStatusBar
         )
-        return hidesStatusBar ? min(height, AttendanceTile.phoneHeight) : height
     }
 
     var body: some View {
@@ -217,12 +211,15 @@ struct AssistantAttendanceView: View {
                 studentName: row.name,
                 initialText: row.note,
                 sharedWith: "Your guide sees this note too.",
-                onSave: { viewModel?.setNote($0, for: row) }
+                onSave: { viewModel?.setNote($0, for: row, on: noteDay) }
             )
         }
         .modifier(AssistantPickupSheet(row: $pickupRow, viewModel: viewModel))
         .task {
-            if viewModel == nil { startDay() }
+            // Every time the screen comes back (another tab, say), not just
+            // the first: SwiftUI ends this task while it's away, so imports
+            // in between were never shown.
+            if let viewModel { viewModel.load() } else { startDay() }
             // The class, the guide's marks and locked days all arrive by
             // import; without this the screen shows them only when reloaded.
             if let viewModel, let storeID = coreDataStack.sharedPersistentStore?.identifier {
@@ -243,6 +240,7 @@ struct AssistantAttendanceView: View {
             lateUndo = nil
         }
         .onChange(of: noteRow?.id) { _, editing in
+            noteDay = editing == nil ? nil : viewModel?.date
             viewModel?.pauseRemoteReloads(editing != nil)
         }
         .modifier(AssistantReloadOnReturn(viewModel: viewModel) {
@@ -271,6 +269,8 @@ struct AssistantAttendanceView: View {
         if let dayOff = viewModel.dayOff {
             AssistantDayOffView(dayOff: dayOff, isToday: viewModel.isToday) { viewModel.load() }
                 .background { AssistantBackdrop(isToday: viewModel.isToday, isLate: false, date: viewModel.date) }
+        } else if viewModel.rows.isEmpty, bootstrapper.removedFromClass {
+            AssistantRemovedFromClassView()
         } else if viewModel.rows.isEmpty {
             ContentUnavailableView {
                 Label("No students yet", systemImage: "person.3")
@@ -321,11 +321,25 @@ struct AssistantAttendanceView: View {
     static let classTotalHeight: CGFloat = 20
     static let classTotalSpacing: CGFloat = 8
 
-    /// "17 of 22 here", above the grid in the room the top padding had.
+    /// "17 of 22 here", above the grid in the room the top padding had. It
+    /// grows with large text rather than spill onto the tiles. On an SE on
+    /// another day, where the Today button takes the top bar's clock, the
+    /// time sits at its end (under it at accessibility text sizes, where
+    /// beside it would cut the count to "0…").
     private func classTotal(_ viewModel: AssistantAttendanceViewModel) -> some View {
-        AssistantClassCount(rows: viewModel.rows, isFuture: viewModel.isFuture)
-            .frame(height: Self.classTotalHeight)
-            .modifier(AssistantGridLabelStyle(isCompact: usesShortNames))
+        let showsClock = hidesStatusBar && !viewModel.isToday
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 10))
+        return layout {
+            AssistantClassCount(rows: viewModel.rows, isFuture: viewModel.isFuture)
+            if showsClock {
+                AssistantCountClock()
+            }
+        }
+        .frame(minHeight: Self.classTotalHeight)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { classTotalMeasured = $0 }
+        .modifier(AssistantGridLabelStyle(isCompact: usesShortNames))
     }
 
     /// One block of tiles, or one per level with its heading.
@@ -429,6 +443,56 @@ struct AssistantAttendanceView: View {
     private func rippleDelay(at index: Int) -> Double {
         let columns = gridColumnCount
         return Double(index / columns) * 0.07 + Double(index % columns) * 0.035
+    }
+}
+
+// MARK: - Phone tile sizing
+
+extension AssistantAttendanceView {
+
+    /// The gap between phone tiles: a little tighter on an SE, so eight rows
+    /// fit.
+    static func phoneGridSpacing(isSE: Bool) -> CGFloat { isSE ? 6 : 8 }
+
+    static let phoneLevelHeaderHeight: CGFloat = 20
+    static let phoneLevelHeaderSpacing: CGFloat = 4
+    /// How far phone tiles may shrink to make room for the level headings:
+    /// still a full tap target.
+    static let smallestGroupedTileHeight: CGFloat = 44
+    /// How far an SE's tiles may shrink so a class of 22 fits ungrouped:
+    /// eight rows of 46 with 6-point gaps are 410 of the about 413 points
+    /// between the count and iOS 26's bottom bar. Only the SE's: the
+    /// notebook's iPhone grid keeps `AttendanceTile.phoneHeight`.
+    static let smallestSETileHeight: CGFloat = 46
+
+    /// A phone tile's height for `lines` lines of tiles in `gridHeight`
+    /// (the room below the count). Any phone but the SE fills the room it
+    /// has. The SE never grows past its usual size, and shrinks to
+    /// `smallestSETileHeight` so 22 fit. Grouped by level, any phone may
+    /// shrink to `smallestGroupedTileHeight` so the headings don't push
+    /// children out of sight.
+    static func phoneTileHeight(
+        gridHeight: CGFloat,
+        columns: Int,
+        lines: Int,
+        levelBlocks: Int,
+        isSE: Bool
+    ) -> CGFloat {
+        let spacing = phoneGridSpacing(isSE: isSE)
+        let blocks = CGFloat(levelBlocks)
+        // Each block's heading, and the wider gap between blocks.
+        let headings = blocks == 0 ? 0
+            : blocks * (phoneLevelHeaderHeight + phoneLevelHeaderSpacing) + (blocks - 1) * (12 - spacing)
+        let minimum = levelBlocks > 0 ? smallestGroupedTileHeight
+            : isSE ? smallestSETileHeight : AttendanceTile.phoneHeight
+        let height = AttendanceTile.fittedPhoneHeight(
+            visibleHeight: gridHeight - headings,
+            columns: columns,
+            count: lines * columns,
+            spacing: spacing,
+            minimum: minimum
+        )
+        return isSE ? min(height, AttendanceTile.phoneHeight) : height
     }
 }
 

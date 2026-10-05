@@ -68,7 +68,7 @@ struct AttendanceGrid: View {
                     current: row.leavesAt,
                     suggested: AttendanceRules.suggestedPickup(for: row, on: viewModel.selectedDate),
                     sharedWith: "Anyone you share your classroom with sees this too, "
-                        + "and the Daybook Assistant reminds them before it.",
+                        + "and Daybook Assistant reminds them before it.",
                     onSave: { actions.savePickup(row, $0) }
                 )
             }

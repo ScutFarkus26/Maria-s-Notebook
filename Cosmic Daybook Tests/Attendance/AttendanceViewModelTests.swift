@@ -92,6 +92,30 @@ struct AttendanceViewModelTests {
         #expect(status(roll, "Maya") == .unmarked)
     }
 
+    // Two devices marked the child before they synced: clearing the mark has
+    // to clear the other copy too, or it wins the child straight back
+    // (bug hunt 2026-10-04, Phase 1 step 5, the notebook's side).
+    @Test("Clearing a mark clears the day's duplicate copy as well")
+    func unmarkClearsDuplicateCopy() throws {
+        let maya = student("Maya")
+        let store = CDAttendanceStore(context: context)
+        let older = try #require(try store.ensureRecord(for: maya, on: today))
+        #expect(store.updateStatus(older, to: .present))
+        older.modifiedAt = Date().addingTimeInterval(-120)
+        let newer = CDAttendanceRecord(context: context)
+        newer.studentID = try #require(maya.id?.uuidString)
+        newer.date = today
+        newer.status = .tardy
+        newer.modifiedAt = Date().addingTimeInterval(-60)
+
+        let roll = model(students: [maya])
+        #expect(status(roll, "Maya") == .tardy)
+        #expect(roll.setStatus(.unmarked, for: try #require(roll.rows.first), modelContext: context))
+        #expect(older.status == .unmarked && newer.status == .unmarked)
+        roll.load(students: [maya], modelContext: context)
+        #expect(status(roll, "Maya") == .unmarked)
+    }
+
     @Test("Ahead of the day only absences, reasons and notes are taken")
     func aheadOfTheDay() throws {
         let roll = model(on: tomorrow, students: [student("Maya")])

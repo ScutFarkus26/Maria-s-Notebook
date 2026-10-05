@@ -71,4 +71,17 @@ struct AssistantMenuTests {
         #expect(who(try row(.unmarked, by: assistant, id: "me"), myName: nil) == nil)
         #expect(who(try row(by: nil), myName: nil) == nil)
     }
+
+    @Test("A locked day's long-press still says the mark and who made it, or that there's none")
+    func lockedDayHeader() throws {
+        let eight = try #require(Calendar.current.date(bySettingHour: 8, minute: 2, second: 0, of: Date()))
+        let marked = try row(by: "leadGuide", at: eight)
+        let header = AttendanceTile.readOnlyHeader(for: marked, markedBy: "your guide")
+        #expect(header.hasPrefix("Present"))
+        #expect(header.hasSuffix("by your guide"))
+        #expect(header == AttendanceStatusMenu.header(for: marked, markedBy: "your guide"))
+
+        #expect(AttendanceTile.readOnlyHeader(for: try row(.unmarked, by: nil), markedBy: nil) == "Not marked")
+        #expect(!AttendanceTile.lockedLine.isEmpty)
+    }
 }

@@ -115,11 +115,10 @@ enum EarlyPickupReminder {
 
     /// Asks for permission once, the first time a pickup is set with the
     /// reminder on.
-    static func requestPermissionIfNeeded() async {
+    static func requestPermissionIfNeeded(center: any ReminderCenter = SystemReminderCenter()) async {
         guard isEnabled() else { return }
-        let center = UNUserNotificationCenter.current()
-        guard await center.notificationSettings().authorizationStatus == .notDetermined else { return }
-        _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        guard await center.authorizationStatus() == .notDetermined else { return }
+        _ = await center.requestAuthorization()
     }
 
     /// A pickup's request identifier: the child, the day and the time, so a
@@ -200,37 +199,42 @@ enum EarlyPickupReminder {
     static func reschedule(
         in context: NSManagedObjectContext,
         now: Date = Date(),
-        asksPermission: Bool = true
+        asksPermission: Bool = true,
+        center: any ReminderCenter = SystemReminderCenter()
     ) async {
         let previous = lastRun
         let run = Task {
             await previous?.value
-            await bringUpToDate(in: context, now: now, asksPermission: asksPermission)
+            await bringUpToDate(in: context, now: now, asksPermission: asksPermission, center: center)
         }
         lastRun = run
         await run.value
     }
 
-    private static func bringUpToDate(in context: NSManagedObjectContext, now: Date, asksPermission: Bool) async {
+    private static func bringUpToDate(
+        in context: NSManagedObjectContext,
+        now: Date,
+        asksPermission: Bool,
+        center: any ReminderCenter
+    ) async {
         // Read once: leaving the sample mid-run mustn't file its children
         // under the real class's prefix.
         let isSample = AssistantSampleClass.isActive
-        let center = UNUserNotificationCenter.current()
         var wanted: [Reminder] = []
         let pickups = isEnabled() ? pendingPickups(in: context, now: now) : []
         if !pickups.isEmpty {
-            if asksPermission { await requestPermissionIfNeeded() }
-            let status = await center.notificationSettings().authorizationStatus
+            if asksPermission { await requestPermissionIfNeeded(center: center) }
+            let status = await center.authorizationStatus()
             if status == .authorized || status == .provisional {
                 wanted = reminders(for: pickups, leadMinutes: leadMinutes(), now: now, isSample: isSample)
             }
         }
-        let pending = await center.pendingNotificationRequests().compactMap { request in
+        let pending = await center.pendingRequests().compactMap { request in
             pendingReminder(request, isSample: isSample)
         }
         let diff = changes(wanted: wanted, pending: pending)
         if !diff.remove.isEmpty {
-            center.removePendingNotificationRequests(withIdentifiers: diff.remove)
+            center.removePendingRequests(withIdentifiers: diff.remove)
         }
         let calendar = AppCalendar.shared
         for reminder in diff.add {
