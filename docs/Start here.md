@@ -12,6 +12,7 @@ run `docs-index`; edit only the Other documents section by hand.
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Restock](<Plans/Plan - Restock.md>) | Supplies and orders as one page, shared with the Daybook Assistant; shipped to TestFlight, device checks open. | Working on it | 2026-10-03 |
 | [Plan - School year separation](<Plans/Plan - School year separation.md>) | A school-year lens across the app; reports, exports and the activity stamp were never built. | Working on it | 2026-09-30 |
+| [Plan - Who made a change](<Plans/Plan - Who made a change.md>) | Each device saves CloudKit's stand-in name for "the person using this device" as its own ID, so the guide's changes read "you" on the assistant's phone; save the real ID instead and read the stand-in as no ID. | Not started | 2026-10-04 |
 | [Plan - Widgets and Control Center](<Plans/Plan - Widgets and Control Center.md>) | Widgets and Control Center recipe; no widget target exists yet. | Not started | 2026-09-30 |
 | [Plan - macOS Human Interface Guidelines](<Plans/Plan - macOS Human Interface Guidelines.md>) | Making the Mac app follow Apple's Mac design guidelines; phase 4 and sweeps are still open. | Working on it | 2026-09-30 |
 
