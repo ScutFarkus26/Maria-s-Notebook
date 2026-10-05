@@ -1,6 +1,6 @@
 # Names you set yourself
 
-> **Working on it.** Phases 1–4 on main and schema 16 deployed to Production 2026-10-05; Phase 5 (Danny's roll-out, names and device check) left. Written 2026-10-05, after the who-made-a-change fix (main 826a8214); Danny wants his own name, not "your guide", and everyone's name changeable.
+> **Working on it.** On main (24567b2a), schema 16 in CloudKit Production, rolled out 2026-10-05: TestFlight notebook 1.1 (300000000007), Daybook Assistant 1.1 (13) to the Assistants group. Left: Danny sets his name and checks her phone, in Tide (Cosmic Daybook › Check on a device).
 > In short: A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included.
 
 ## Goal

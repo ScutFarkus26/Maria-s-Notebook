@@ -1,6 +1,6 @@
 # Who made a change: every device thinks it is "you"
 
-> **Working on it.** Phases 1–4 on main 2026-10-05; Phase 5 (Danny's roll-out and device check) left. Written 2026-10-04, from Danny's screenshot of his assistant's office run; revised the same evening after the design review and mockups.
+> **Working on it.** On main (826a8214) and rolled out 2026-10-05 with the names work: TestFlight notebook 1.1 (300000000007), Daybook Assistant 1.1 (13) to the Assistants group. Left: Danny's device checks, in Tide (Cosmic Daybook › Check on a device).
 > In short: Save each device's real CloudKit ID instead of the shared stand-in, show who added something only when it isn't you, and make the office run a plain errand list (what, how urgent, where it goes).
 
 ## Goal
