@@ -33,10 +33,17 @@ enum AssistantNameStore {
     @discardableResult
     static func save(_ name: String, in stack: CoreDataStack?) -> Bool {
         save(name)
-        guard let stack, !AssistantSampleClass.isActive else { return true }
-        return setInList(name, in: stack.viewContext) { context, created in
+        guard let stack, !AssistantSampleClass.isActive else {
+            // No real classroom to write to now: the name waits for the next
+            // launch on hers, or a rename would never reach the guide's devices.
+            ClassroomNames.markWaiting(as: .assistant)
+            return true
+        }
+        let saved = setInList(name, in: stack.viewContext) { context, created in
             saveList(context, created: created, container: stack.container)
         }
+        if !saved { ClassroomNames.markWaiting(as: .assistant) }
+        return saved
     }
 
     /// Sets her row in the classroom's list (`ClassroomNames.setMyName`) and

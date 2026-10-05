@@ -125,6 +125,14 @@ enum ClassroomNames {
         return true
     }
 
+    /// Her name was saved where it couldn't go into the list (no classroom
+    /// open yet, or the Sample Class): it waits, and the next launch on the
+    /// real classroom writes it (`writeWaitingName`), even over a row she
+    /// already has.
+    static func markWaiting(as role: CDClassroomMembership.ClassroomRole) {
+        ClassroomIdentity.nameWaitingAs = role
+    }
+
     /// What this person's own name field starts with: a name still waiting for
     /// the record name, else their row's (the same on all their devices, not
     /// this device's own copy), else the name on this device, else empty.
@@ -144,8 +152,8 @@ enum ClassroomNames {
     static func foldMyRows(role: CDClassroomMembership.ClassroomRole, in context: NSManagedObjectContext) -> Int {
         guard let me = ClassroomIdentity.currentUserRecordName else { return 0 }
         let rows = myRows(me, role: role, in: context)
-        fold(rows, in: context)
-        return max(0, rows.count - 1)
+        guard let kept = fold(rows, in: context) else { return 0 }
+        return rows.filter { $0 !== kept && $0.id != kept.id }.count
     }
 
     // MARK: - Reading
@@ -162,7 +170,12 @@ enum ClassroomNames {
             if let kept = newest[id], !isNewer(row, kept) { continue }
             newest[id] = row
         }
-        let guide = newest.values.filter { $0.role == .leadGuide }.min(by: isNewer)
+        // The classroom's owner when her membership row names them: a shared
+        // store can still hold a guide's row from a class she was in before.
+        let owner = ClassroomIdentity.realRecordName(CDClassroomMembership.current(in: context)?.ownerIdentity)
+        let guides = newest.values.filter { $0.role == .leadGuide }
+        let ownersRow = owner.flatMap { owner in guides.first { $0.recordName == owner } }
+        let guide = ownersRow ?? guides.min(by: isNewer)
         let guideName = guide.map { $0.displayName.trimmed() }.flatMap { $0.isEmpty ? nil : $0 }
         return Snapshot(
             names: newest.mapValues { $0.displayName.trimmed() },
@@ -276,7 +289,12 @@ enum ClassroomNames {
             kept.roleRaw = newest.roleRaw
             kept.modifiedAt = newest.modifiedAt
         }
-        for row in rows where row !== kept { context.delete(row) }
+        // A copy of the survivor itself (a restore beside the row CloudKit
+        // brings back: same id, same createdAt) is never deleted. No order
+        // tells two such copies apart the same way on every device, so each
+        // device could keep a different one and delete the other, and the
+        // name would vanish. Reads take the newest copy meanwhile.
+        for row in rows where row !== kept && row.id != kept.id { context.delete(row) }
         return kept
     }
 

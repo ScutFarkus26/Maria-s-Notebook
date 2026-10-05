@@ -282,9 +282,10 @@ extension BackupRestoreRun {
     }
 
     /// v38+ entities: the names people set for themselves. Matched on `id`
-    /// like every row; a duplicate a restore makes (a person's row restored
-    /// beside the one their other device wrote since) is folded by the owner
-    /// (`ClassroomNames.foldMyRows`), and reads take the newest meanwhile.
+    /// like every row. A row restored beside one their other device wrote
+    /// since is folded by the owner (`ClassroomNames.foldMyRows`); a copy of
+    /// the same row (same `id`, as when CloudKit brings back the original) is
+    /// kept, never folded, and reads take the newest.
     func importV38Entities() throws {
         let viewContext = context
         let index = self.index
