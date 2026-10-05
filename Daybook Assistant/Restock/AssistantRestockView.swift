@@ -64,7 +64,7 @@ struct AssistantRestockView: View {
             AttendanceNoteSheet(
                 studentName: staple.name,
                 initialText: staple.notes,
-                sharedWith: "Your guide sees this note too.",
+                sharedWith: model.seesNoteToo,
                 onSave: { model.setNote($0, for: staple) }
             )
         }
@@ -175,7 +175,7 @@ struct AssistantRestockView: View {
                 .foregroundStyle(.secondary)
             Text("Nothing on the shelf yet")
                 .font(.headline)
-            Text("Your guide adds the things the class always needs. Tap + to ask for something else.")
+            Text(model.emptyShelfMessage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

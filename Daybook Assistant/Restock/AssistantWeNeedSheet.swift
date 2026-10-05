@@ -93,13 +93,13 @@ struct AssistantWeNeedSheet: View {
 
     private var goLabel: String {
         if staple != nil { return "Mark It Out" }
-        return source == .office ? "Add to Office Run" : "Ask Your Guide to Order"
+        return source == .office ? "Add to Office Run" : model.askToOrder
     }
 
     private var sourcePicker: some View {
         HStack(spacing: 10) {
             sourceOption(.office, title: "From the office", detail: "On the next office run", icon: "building.2")
-            sourceOption(.order, title: "Needs ordering", detail: "Your guide sends the order", icon: "cart")
+            sourceOption(.order, title: "Needs ordering", detail: model.sendsTheOrder, icon: "cart")
         }
     }
 

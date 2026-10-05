@@ -263,7 +263,7 @@ struct AssistantClassroomSheet: View {
 
     // MARK: - Values
 
-    private var guideName: String { bootstrapper.guideName ?? "Your guide" }
+    private var guideName: String { bootstrapper.guideNameToShow ?? "Your guide" }
 
     private var joined: Date? {
         guard let context = bootstrapper.coreDataStack?.viewContext else { return nil }

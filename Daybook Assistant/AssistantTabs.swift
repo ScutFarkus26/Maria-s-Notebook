@@ -15,6 +15,7 @@ struct AssistantTabs: View {
         case restock
     }
 
+    @Environment(AssistantBootstrapper.self) private var bootstrapper
     @State private var selection = Choice.attendance
     @State private var restock: AssistantRestockModel?
 
@@ -34,7 +35,7 @@ struct AssistantTabs: View {
         }
         .task {
             let model = restock ?? makeRestock()
-            // Staples, needs and levels all arrive by import.
+            // Staples, needs, levels and names all arrive by import.
             if let storeID = coreDataStack.sharedPersistentStore?.identifier {
                 await model.followRemoteImports(into: storeID)
             }
@@ -58,7 +59,8 @@ struct AssistantTabs: View {
         let isSample = AssistantSampleClass.isActive
         let model = AssistantRestockModel.live(
             context: coreDataStack.viewContext,
-            container: isSample ? nil : coreDataStack.container
+            container: isSample ? nil : coreDataStack.container,
+            guideName: { [bootstrapper] in bootstrapper.guideName }
         )
         model.load()
         restock = model

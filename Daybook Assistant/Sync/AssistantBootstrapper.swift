@@ -129,8 +129,12 @@ final class AssistantBootstrapper {
 
         refreshMembership()
         // Who she is, for "you" on her marks, sends and Restock changes. Again
-        // on each rebuild, which is when an iCloud account arrives late.
-        Task { await ClassroomIdentity.refreshRecordName() }
+        // on each rebuild, which is when an iCloud account arrives late. Then
+        // a name she gave before that was known joins the classroom's list.
+        Task {
+            await ClassroomIdentity.refreshRecordName()
+            AssistantNameStore.writeWaitingName(on: stack)
+        }
     }
 
     /// Builds the stack again: once iCloud is signed in (see

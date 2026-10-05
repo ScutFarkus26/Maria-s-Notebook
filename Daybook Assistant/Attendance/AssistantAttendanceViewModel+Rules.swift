@@ -47,10 +47,12 @@ extension AssistantAttendanceViewModel {
         for row: Row,
         myRecordName: String?,
         myName: String?,
-        guideName: String?
+        guideName: String?,
+        names: ClassroomNames.Snapshot = ClassroomNames.Snapshot()
     ) -> String? {
         AttendanceRules.markerName(
-            for: row, myRecordName: myRecordName, myName: myName, guideName: guideName, viewerRole: .assistant
+            for: row, myRecordName: myRecordName, myName: myName, guideName: guideName, viewerRole: .assistant,
+            names: names
         )
     }
 

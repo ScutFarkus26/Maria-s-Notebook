@@ -150,7 +150,7 @@ struct AssistantSetupDonePage: View {
             systemImage: "checkmark.seal.fill",
             tint: .green,
             title: name.isEmpty ? "You're all set" : "You're all set, \(name)",
-            message: "You're taking attendance for \(bootstrapper.guideName.map { "\($0)'s" } ?? "your guide's") "
+            message: "You're taking attendance for \(bootstrapper.guideNameToShow.map { "\($0)'s" } ?? "your guide's") "
                 + "classroom."
         ) {
             OnboardingCard {

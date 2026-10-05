@@ -128,7 +128,8 @@ struct AssistantFrontDeskRow: View {
             viewerRole: .assistant,
             myRecordName: ClassroomIdentity.currentUserRecordName,
             myName: ClassroomIdentity.displayName,
-            guideName: bootstrapper.guideName
+            guideName: bootstrapper.guideName,
+            names: viewModel.names
         )
         let summary = send.summary(senderName: name, for: viewModel.date, deadlineMinutes: deadlineMinutes)
         return Menu {

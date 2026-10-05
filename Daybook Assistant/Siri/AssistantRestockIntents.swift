@@ -25,7 +25,8 @@ struct MarkSupplyOutIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: try AssistantSiriRestock().mark(supply.id, as: .out).dialog)
+        let siri = try AssistantSiriRestock()
+        return .result(dialog: try siri.mark(supply.id, as: .out).dialog(guideName: siri.guideName))
     }
 }
 
@@ -48,7 +49,8 @@ struct MarkSupplyLowIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: try AssistantSiriRestock().mark(supply.id, as: .low).dialog)
+        let siri = try AssistantSiriRestock()
+        return .result(dialog: try siri.mark(supply.id, as: .low).dialog(guideName: siri.guideName))
     }
 }
 
@@ -76,6 +78,7 @@ struct AddToOfficeRunIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: try AssistantSiriRestock().addToOfficeRun(item).dialog)
+        let siri = try AssistantSiriRestock()
+        return .result(dialog: try siri.addToOfficeRun(item).dialog(guideName: siri.guideName))
     }
 }

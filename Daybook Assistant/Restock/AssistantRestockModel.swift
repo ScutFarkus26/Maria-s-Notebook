@@ -64,10 +64,20 @@ final class AssistantRestockModel {
 
     let context: NSManagedObjectContext
     /// Who this phone's changes are stamped with, and who "you" are when
-    /// they're read back. Read again on every load and before every change,
-    /// so a name she gives after the tab opened (or the record name iCloud
-    /// sends later) counts at once.
-    @ObservationIgnored private(set) var author: RestockAuthor
+    /// they're read back, with the classroom's names (`ClassroomNames`).
+    /// Read again on every load and before every change, so a name she gives
+    /// after the tab opened (or the record name iCloud sends later, or a
+    /// rename on another device) counts at once.
+    @ObservationIgnored private(set) var author: RestockAuthor {
+        didSet {
+            if guideName != author.names.guideName { guideName = author.names.guideName }
+        }
+    }
+    /// The guide's name for the tab's fixed sentences ("Danny is ordering"):
+    /// the one he set, then Apple's name for the share's owner. Nil without
+    /// either, and they say "your guide". Observed, so they redraw when a
+    /// name arrives.
+    private(set) var guideName: String?
     private let currentAuthor: @MainActor () -> RestockAuthor
     private let saveDelay: Duration
     /// The time now; tests fix it.
@@ -93,7 +103,9 @@ final class AssistantRestockModel {
     ) {
         self.context = context
         self.currentAuthor = author
-        self.author = author()
+        let first = author()
+        self.author = first
+        self.guideName = first.names.guideName
         self.saveDelay = saveDelay
         self.now = now
         self.saveChanges = save ?? { context, created in
@@ -103,12 +115,18 @@ final class AssistantRestockModel {
     }
 
     /// The tab's model on the app's stack: this phone's assistant, with the
-    /// classroom's owner, as they are at each change.
+    /// classroom's owner and everyone's names, as they are at each change.
+    /// The guide's name is the one he set in the classroom's list, then
+    /// `guideName` (Apple's name for the share's owner, display only).
     static func live(
         context: NSManagedObjectContext,
-        container: NSPersistentCloudKitContainer?
+        container: NSPersistentCloudKitContainer?,
+        guideName: @escaping @MainActor () -> String? = { nil }
     ) -> AssistantRestockModel {
-        AssistantRestockModel(context: context, container: container, author: { RestockAuthor.assistant(in: context) })
+        AssistantRestockModel(context: context, container: container, author: {
+            RestockAuthor.assistant(in: context)
+                .reading(ClassroomNames.snapshot(in: context).fallingBack(toGuideName: guideName()))
+        })
     }
 
     /// The classroom share's store. On an Apple Account that also keeps a

@@ -34,7 +34,7 @@ struct AssistantOfficeRunView: View {
                 }
             }
             if !model.ordering.isEmpty {
-                Section("Your guide is ordering") {
+                Section(model.orderingTitle) {
                     ForEach(model.ordering, id: \.objectID) { need in
                         orderRow(need)
                     }

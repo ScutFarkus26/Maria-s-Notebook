@@ -162,6 +162,16 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
     /// load; every tile reads it on every redraw.
     private(set) var canMark = false
 
+    /// Everyone's names as the classroom's list has them, read once per load
+    /// (an import reloads, so a rename on another device shows), for who
+    /// made each mark and who sent the front-desk email.
+    private(set) var names = ClassroomNames.Snapshot()
+
+    private func refreshNames() {
+        let current = ClassroomNames.snapshot(in: context)
+        if current != names { names = current }
+    }
+
     var isToday: Bool { Calendar.current.isDateInToday(date) }
 
     /// A day after today: only absences (a known vacation, an appointment)
@@ -197,6 +207,7 @@ final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_l
         isLocked = store.isLocked(date)
         canMark = store.canWrite(on: date)
         frontDesk.load(date)
+        refreshNames()
 
         let fetched: [CDAttendanceRecord]
         do {

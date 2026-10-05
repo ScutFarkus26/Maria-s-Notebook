@@ -408,7 +408,8 @@ struct AssistantAttendanceView: View {
                 for: row,
                 myRecordName: ClassroomIdentity.currentUserRecordName,
                 myName: ClassroomIdentity.displayName,
-                guideName: bootstrapper.guideName
+                guideName: bootstrapper.guideName,
+                names: viewModel.names
             ),
             onSetStatus: {
                 lateUndo = nil
