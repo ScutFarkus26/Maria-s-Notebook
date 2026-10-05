@@ -38,6 +38,9 @@ struct AttendanceExpandedView: View {
     @State var showMailSheet = false
     /// The day's newest front-desk email, from any device in the classroom.
     @State var frontDeskSend: AttendanceEmailLog.Send?
+    /// The names people set for themselves (`ClassroomNames`), for who made
+    /// a mark and who sent the email.
+    @State var classroomNames = ClassroomNames.Snapshot()
     /// Mail couldn't say whether the email went (another Mail app on iOS, or
     /// the Mac's Mail not answering): ask.
     @State var askingWhetherSent = false
@@ -129,7 +132,8 @@ struct AttendanceExpandedView: View {
                     rang(after: row)
                 }
             ),
-            onStepDay: onStepDay
+            onStepDay: onStepDay,
+            names: classroomNames
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -195,6 +199,10 @@ struct AttendanceExpandedView: View {
             in: viewContext, catchUpOnAppear: false
         ) {
             loadData()
+        }
+        // Someone renamed themselves: their marks and email read the new name.
+        .onPresentationDataChangeWhenVisible(of: ["ClassroomPerson"], in: viewContext, catchUpOnAppear: false) {
+            classroomNames = ClassroomNames.snapshot(in: viewContext)
         }
         // A mark made with Siri while the roll is open.
         .onReceive(NotificationCenter.default.publisher(for: .attendanceChangedBySiri)) { _ in
@@ -268,6 +276,7 @@ struct AttendanceExpandedView: View {
         isEditing = !isLocked(for: date)
         localSortKey = viewModel.sortKey
         frontDeskSend = AttendanceEmailLog.latestSend(on: date, in: viewContext)
+        classroomNames = ClassroomNames.snapshot(in: viewContext)
     }
 
     func students(for status: AttendanceStatus) -> [AttendanceEmailStudent] {

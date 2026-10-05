@@ -36,6 +36,9 @@ struct ClassroomSharingView: View {
                 ClassroomLastYearCard(contents: contents) { await refreshContents() }
             }
             roleGroup
+            if service?.currentRole == .leadGuide {
+                ClassroomYourNameCard()
+            }
             ClassroomAssistantCard(service: service, contents: contents)
             ClassroomMembersCard(service: service)
             sharingGroup

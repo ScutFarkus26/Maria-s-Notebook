@@ -140,7 +140,8 @@ enum SettingsCopy {
                         "Grade guidelines", "Florida"]
             case .classroomSharing:
                 return ["Your assistant", "Assistant", "Members", "Set up classroom sharing",
-                        "Manage sharing", "Stop sharing", "Leave classroom", "Invite", "Share"]
+                        "Manage sharing", "Stop sharing", "Leave classroom", "Invite", "Share",
+                        YourName.title, "Name"]
             case .ageIndicators:
                 return ["Lesson age", "Work age", "Warn after", "Overdue after",
                         "Colors", "Fresh color", "Warning color", "Overdue color", "School days", "Reset to defaults"]
@@ -221,5 +222,17 @@ enum SettingsCopy {
             guard !query.isEmpty else { return true }
             return ([title] + keywords).contains { $0.localizedStandardContains(query) }
         }
+    }
+
+    /// The Classroom pane's "Your name" card (`ClassroomYourNameCard`): the
+    /// name the lead guide's assistants see. Search finds it through the
+    /// Classroom sharing card's keywords.
+    enum YourName {
+        static let title = "Your name"
+        static let systemImage = "person.text.rectangle"
+        static let prompt = "First name"
+        static let footer = "Your assistants see this name in attendance and Restock, in place of "
+            + "\u{201C}your guide.\u{201D} Change it any time; their phones follow, old entries included."
+        static let waiting = "Saved on this device. Your assistants will see it once iCloud is reachable."
     }
 }
