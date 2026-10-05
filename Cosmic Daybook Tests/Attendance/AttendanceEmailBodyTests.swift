@@ -171,6 +171,30 @@ struct AttendanceEmailBodyTests {
         ])
     }
 
+    // A child who came late and then went home was listed under Left Early with nothing
+    // to say they had been late, so the office's tardy count missed them.
+    @Test("A child who arrived late and then left early is listed once, under Left Early, marked as late")
+    func lateThenLeftEarly() {
+        let lines = sections(
+            present: [student("Ada", "Zeller")],
+            leftEarly: [
+                AttendanceEmailStudent(firstName: "Bo", lastName: "Adams", level: .upper, arrivedLate: true),
+                student("Cy", "Nolan")
+            ]
+        )
+        #expect(lines.contains("    • Bo Adams (arrived late)"))
+        #expect(lines.contains("    • Cy Nolan"))
+        #expect(lines.filter { $0.contains("Bo Adams") }.count == 1)
+        #expect(lines.contains("TARDY (0)"))
+
+        let grouped = sections(
+            leftEarly: [AttendanceEmailStudent(firstName: "Bo", lastName: "Adams", level: .upper, arrivedLate: true)],
+            nameOrder: .lastFirst,
+            groupByLevel: true
+        )
+        #expect(grouped.contains("    • Adams, Bo (arrived late)"))
+    }
+
     @Test("Left Early is left out on a day nobody left")
     func noLeftEarlyList() {
         let lines = sections(present: [student("Ada", "Zeller")])

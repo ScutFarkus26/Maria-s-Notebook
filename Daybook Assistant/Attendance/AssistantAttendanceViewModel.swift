@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import CoreData
 import OSLog
@@ -17,7 +18,7 @@ import Observation
 /// devices opened the same day, and a third device would only make it worse.
 @MainActor
 @Observable
-final class AssistantAttendanceViewModel {
+final class AssistantAttendanceViewModel { // swiftlint:disable:this type_body_length
 
     private static let logger = Logger.app(category: "attendance")
 
@@ -91,6 +92,18 @@ final class AssistantAttendanceViewModel {
     /// another device, which shows as Close Arrival's automatic absences
     /// (`AttendanceLatePhase`). Reopening it here holds on this phone.
     private(set) var phase: Phase = .arrival
+    /// Bumped when her own Close Arrival, Reopen or Undo changes the phase,
+    /// for the bar's tap of feedback. `phase` itself is worked out again by
+    /// every load, so an import that closed arrival elsewhere buzzed too.
+    private(set) var phaseSwitches = 0
+    /// Close Arrival's automatic absence stands on a record of the day
+    /// (closed here or on another device), so after Reopen Arrival the bar
+    /// still offers the way back to Late with nobody left unmarked.
+    private(set) var hasAutomaticAbsences = false
+    /// Set by a tapped front-desk reminder with children still unmarked: the
+    /// bar asks its Mark N Absent & Email question (`AssistantFrontDeskMail`),
+    /// and clears it.
+    var asksToCloseAndEmail = false
     /// The front-desk email for the day on screen.
     let frontDesk: AssistantFrontDesk
     /// The records the last Close Arrival marked absent, for its Undo.
@@ -197,6 +210,7 @@ final class AssistantAttendanceViewModel {
         // Closed here, or on another device: its automatic absences, as
         // `CDAttendanceStore.arrivalClosed` reads them.
         let closedAnywhere = fetched.contains(where: AttendanceDeduplication.isAutomaticAbsence)
+        hasAutomaticAbsences = closedAnywhere
         phase = AttendanceLatePhase.isLate(on: date, closedAnywhere: closedAnywhere, defaults: defaults)
             ? .late : .arrival
         let records = fetched.deduplicatedPerStudentDay()
@@ -247,7 +261,9 @@ final class AssistantAttendanceViewModel {
             guard let record = try store.ensureRecord(for: row.student, on: date) else { return }
             if record.isInserted { createdSinceSave.append(record) }
             let wasHere = Self.isHere(record.status)
-            _ = store.updateStatus(record, to: status)
+            // Clearing goes through every copy of the day, or a duplicate's
+            // mark would win the child straight back (`CDAttendanceStore.unmark`).
+            _ = status == .unmarked ? store.unmark(record) : store.updateStatus(record, to: status)
             persist(updating: [record])
             if row.daysAway != nil, !wasHere, Self.isHere(status), saveError == nil {
                 welcome = Welcome(name: row.shortName)
@@ -263,6 +279,13 @@ final class AssistantAttendanceViewModel {
     @discardableResult
     func beginLate() -> Int {
         guard canMark, !isFuture, phase == .arrival else { return 0 }
+        // Locked since the day loaded: the store would mark no one, and
+        // arrival used to close anyway. The reload shows the lock ("Your
+        // guide has locked this day.") and takes the control away.
+        guard store.canWrite(on: date) else {
+            load()
+            return 0
+        }
         let changed: [CDAttendanceRecord]
         do {
             let students = rows.filter { !$0.studentIsGone }.map(\.student)
@@ -275,6 +298,7 @@ final class AssistantAttendanceViewModel {
             return 0
         }
         phase = .late
+        phaseSwitches += 1
         AttendanceLatePhase.setLate(true, on: date, defaults: defaults)
         // Siri's last change is from before arrival closed: "Undo that" now
         // would put back an older voice mark, not this.
@@ -285,28 +309,43 @@ final class AssistantAttendanceViewModel {
         return changed.count
     }
 
-    /// Back to Arrival, even if another device closed it. Marks stay as they
-    /// are unless `undo` is set, when the children the last Close Arrival
-    /// marked absent (and still are) go back to unmarked.
+    /// Back to Arrival. Reopen Arrival (no `undo`) is on purpose: marks stay
+    /// as they are, and it holds on this phone even where another device's
+    /// Close Arrival shows on the records (`AttendanceLatePhase.reopen`).
+    /// Close Arrival's Undo (`undo`) puts the children it marked absent (and
+    /// still are) back to unmarked, and the day follows the records again:
+    /// a Close Arrival made on another device since still counts. Undo used
+    /// to reopen on purpose, and the guide's later close was ignored here.
     func returnToArrival(undo: Bool = false) {
         // A day locked since arrival closed stays as it was: its absences
         // can't be put back, so reopening arrival would only mislead.
         guard canMark else { return }
-        phase = .arrival
-        AttendanceLatePhase.reopen(on: date, defaults: defaults)
+        guard store.canWrite(on: date) else {
+            load()
+            return
+        }
+        let before = phase
         let batch = lastLateBatch
         lastLateBatch = []
-        guard undo, !batch.isEmpty else { return }
+        guard undo else {
+            phase = .arrival
+            if before != phase { phaseSwitches += 1 }
+            AttendanceLatePhase.reopen(on: date, defaults: defaults)
+            return
+        }
+        AttendanceLatePhase.setLate(false, on: date, defaults: defaults)
         var reverted: [CDAttendanceRecord] = []
         for id in batch {
             // Still Close Arrival's own absence: a child marked "Absent,
             // Sick" since keeps the reason, rather than going back to unmarked.
             guard let record = try? context.existingObject(with: id) as? CDAttendanceRecord,
-                  AttendanceDeduplication.isAutomaticAbsence(record) else { continue }
-            store.updateStatus(record, to: .unmarked)
+                  store.undoAutomaticAbsence(record) else { continue }
             reverted.append(record)
         }
         persist(updating: reverted)
+        // The copies the Undo cleared too, and the phase the records now give.
+        load()
+        if before != phase { phaseSwitches += 1 }
     }
 
     /// Absent with a reason (or none), in one save: the menu's Absent
@@ -326,10 +365,10 @@ final class AssistantAttendanceViewModel {
         }
     }
 
-    /// Writes the day's note for a student, creating the record if there is
-    /// none yet. Empty text removes the note.
-    func setNote(_ text: String?, for row: Row) {
-        editRecord(for: row, failure: "Couldn't save that note. Try again.") { store, record in
+    /// Writes `day`'s note for a student (the day on screen when nil),
+    /// creating the record if there is none yet. Empty text removes the note.
+    func setNote(_ text: String?, for row: Row, on day: Date? = nil) {
+        editRecord(for: row, on: day, failure: "Couldn't save that note. Try again.") { store, record in
             store.updateNote(record, to: text)
         }
     }
@@ -339,22 +378,30 @@ final class AssistantAttendanceViewModel {
     /// returns whether it changed anything; when it didn't, a record made
     /// just for it is dropped rather than left blank for the next save.
     /// Returns whether it saved.
+    ///
+    /// `day` is the day the sheet was opened on (the day on screen when
+    /// nil): a reminder tapped or the morning coming round while it was
+    /// open moves the grid on, and the note used to land on the new day.
     @discardableResult
     func editRecord(
         for row: Row,
+        on day: Date? = nil,
         failure: String,
         _ update: (CDAttendanceStore, CDAttendanceRecord) -> Bool
     ) -> Bool {
-        guard !reloadIfGone(row), canMark else { return false }
+        let day = day.map { Calendar.current.startOfDay(for: $0) } ?? date
+        let isOnScreen = day == date
+        guard !reloadIfGone(row), isOnScreen ? canMark : store.canWrite(on: day) else { return false }
         do {
-            guard let record = try store.ensureRecord(for: row.student, on: date) else { return false }
+            guard let record = try store.ensureRecord(for: row.student, on: day) else { return false }
             let isNew = record.isInserted
             guard update(store, record) else {
                 if isNew { context.delete(record) }
                 return false
             }
             if isNew { createdSinceSave.append(record) }
-            persist(updating: [record])
+            // Another day's record is no row on screen.
+            persist(updating: isOnScreen ? [record] : [])
             return saveError == nil
         } catch {
             Self.logger.error("Saving a record failed: \(error.localizedDescription, privacy: .public)")
@@ -378,6 +425,14 @@ final class AssistantAttendanceViewModel {
         }
         saveError = nil
         createdSinceSave = []
+        // A record made since the load joins the day's copies, so Close
+        // Arrival's own absences count until the next load.
+        for record in records where copiesByStudentID[record.studentID]?.contains(record) != true {
+            copiesByStudentID[record.studentID, default: []].append(record)
+        }
+        hasAutomaticAbsences = copiesByStudentID.values.contains {
+            $0.contains(where: AttendanceDeduplication.isAutomaticAbsence)
+        }
         let wasOpen = unmarkedCount > 0
         updateRows(for: records)
         if wasOpen, unmarkedCount == 0, !rows.isEmpty, !isFuture { completions += 1 }

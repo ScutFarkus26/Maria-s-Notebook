@@ -56,8 +56,23 @@ struct AssistantDayOffView: View {
     @State private var appeared = false
 
     var body: some View {
+        // At the largest text sizes the message runs taller than the screen
+        // and was cut off ("Enjoy the w…"); then it scrolls instead.
+        ViewThatFits(in: .vertical) {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollView {
+                content
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .onAppear { appeared.toggle() }
+    }
+
+    private var content: some View {
         let art = AssistantDayOffArt.art(for: dayOff)
-        VStack(spacing: 14) {
+        return VStack(spacing: 14) {
             Image(systemName: art.symbol)
                 .font(.system(size: 64))
                 .foregroundStyle(art.color.gradient)
@@ -77,8 +92,5 @@ struct AssistantDayOffView: View {
             }
         }
         .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .contain)
-        .onAppear { appeared.toggle() }
     }
 }

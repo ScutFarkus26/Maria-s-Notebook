@@ -33,6 +33,15 @@ struct AssistantOnboardingTests {
         #expect(!AssistantOnboarding.needsSetup(isSample: true, defaults: defaults))
     }
 
+    @Test("A name restored from iCloud fills an empty name field, never over what she's typed")
+    func restoredNameFills() {
+        #expect(AssistantNameSheet.restoredName(typed: "", stored: "Rivka") == "Rivka")
+        #expect(AssistantNameSheet.restoredName(typed: "  ", stored: " Rivka ") == "Rivka")
+        #expect(AssistantNameSheet.restoredName(typed: "Chana", stored: "Rivka") == nil)
+        #expect(AssistantNameSheet.restoredName(typed: "", stored: nil) == nil)
+        #expect(AssistantNameSheet.restoredName(typed: "", stored: "   ") == nil)
+    }
+
     // MARK: - Practice grid
 
     @Test("During arrival a tap marks here and a second tap takes it back")

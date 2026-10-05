@@ -39,6 +39,10 @@ struct AssistantTabs: View {
                 await model.followRemoteImports(into: storeID)
             }
         }
+        .onChange(of: selection) { _, choice in
+            // Back on Restock: the check-offs from before are done with.
+            if choice == .restock { restock?.forgetCheckOffs() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .assistantShowToday)) { _ in
             selection = .attendance
         }
@@ -52,10 +56,9 @@ struct AssistantTabs: View {
     private func makeRestock() -> AssistantRestockModel {
         // The sample class's changes go into no share.
         let isSample = AssistantSampleClass.isActive
-        let model = AssistantRestockModel(
+        let model = AssistantRestockModel.live(
             context: coreDataStack.viewContext,
-            container: isSample ? nil : coreDataStack.container,
-            author: RestockAuthor.current(role: .assistant)
+            container: isSample ? nil : coreDataStack.container
         )
         model.load()
         restock = model
@@ -64,18 +67,25 @@ struct AssistantTabs: View {
 }
 
 /// A burst of Restock taps saves before the app goes, and coming back reads
-/// what changed meanwhile. A modifier of its own, so the scene phase's four
-/// changes on every trip away and back redraw only this, not the tabs
+/// what changed meanwhile; back from the background, this phone's check-offs
+/// are done with. A modifier of its own, so the scene phase's four changes on
+/// every trip away and back redraw only this, not the tabs
 /// (`AssistantReloadOnReturn`).
 private struct RestockFollowsScene: ViewModifier {
     let model: AssistantRestockModel?
     @Environment(\.scenePhase) private var scenePhase
+    /// Whether the app went to the background since it was last active: a
+    /// glance at Control Center only passes through inactive.
+    @State private var wentAway = false
 
     func body(content: Content) -> some View {
         content.onChange(of: scenePhase) { oldPhase, phase in
             if phase == .active, oldPhase != .active {
+                if wentAway { model?.forgetCheckOffs() }
+                wentAway = false
                 model?.load()
             } else if phase != .active {
+                if phase == .background { wentAway = true }
                 model?.flush()
             }
         }

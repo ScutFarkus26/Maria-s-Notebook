@@ -25,7 +25,9 @@ struct AssistantOfficeRunView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(subLine)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        // The header is already dimmed: a plain `.secondary`
+                        // here would dim it again, to a very light gray.
+                        .foregroundStyle(Color(.secondaryLabel))
                         .textCase(nil)
                     Text("Grab these")
                 }
@@ -60,7 +62,7 @@ struct AssistantOfficeRunView: View {
         // changes the same object, so nothing else tells the row to redraw.
         _ = model.revision
         let done = model.isCheckedOff(need)
-        let tag = AssistantRestockStyle.tag(for: model.staple(for: need)?.level)
+        let tag = AssistantRestockStyle.tag(for: model.staple(for: need))
         return Button {
             withAnimation(.smooth(duration: 0.2)) { model.toggleCheckOff(need) }
         } label: {
@@ -89,6 +91,7 @@ struct AssistantOfficeRunView: View {
                 if !done {
                     Text(tag.text)
                         .font(.caption.weight(.semibold))
+                        .lineLimit(1)
                         .foregroundStyle(tag.foreground)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
@@ -100,10 +103,17 @@ struct AssistantOfficeRunView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title(need)), \(done ? "got it" : tag.text)")
+        .accessibilityLabel(spokenTitle(need, done: done, tag: tag))
         .accessibilityValue(model.runDetail(need))
         .accessibilityHint(done ? "Double tap to put it back on the run" : "Double tap when you have it")
         .accessibilityAddTraits(.isButton)
+    }
+
+    /// "Toilet Paper, Out", "Toilet Paper, got it": the tag is left out when
+    /// it only repeats the name (a Stocked staple's need).
+    private func spokenTitle(_ need: CDOrderItem, done: Bool, tag: AssistantRestockStyle.Tag) -> String {
+        if done { return "\(title(need)), got it" }
+        return tag.text == need.displayTitle ? title(need) : "\(title(need)), \(tag.text)"
     }
 
     /// One of the guide's orders: what, how many, where it stands, and its link.

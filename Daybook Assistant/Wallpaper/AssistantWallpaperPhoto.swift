@@ -44,11 +44,13 @@ final class AssistantWallpaperPhoto {
         FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false))
     }
 
-    /// Reads the saved photo the first time it's wanted.
+    /// Reads the saved photo the first time it's wanted. A read that finds
+    /// nothing (no photo yet, or the file still locked just after a restart)
+    /// is tried again next time.
     func loadIfNeeded() {
         guard !didLoad else { return }
-        didLoad = true
         image = UIImage(contentsOfFile: fileURL.path(percentEncoded: false))
+        didLoad = image != nil
     }
 
     /// Shrinks and blurs the picked photo off the main thread, saves it, and

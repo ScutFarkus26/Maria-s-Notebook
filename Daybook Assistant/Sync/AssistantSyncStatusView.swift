@@ -36,6 +36,9 @@ struct AssistantSyncStatusView: View {
         case sent, sending, waitingForNetwork
     }
 
+    /// When iCloud sync has stopped on this iPhone (`AssistantBootstrapper.sendingStopped`).
+    static let sendingStoppedMessage = "Marks aren't sending. Quit the app and open it again."
+
     private var status: Status {
         Self.status(
             hasUnsavedChanges: hasUnsavedChanges,
@@ -115,6 +118,12 @@ struct AssistantSyncStatusView: View {
                 // "sending" would be untrue.
                 Image(systemName: "icloud.slash")
                 Text(problem)
+                    .foregroundStyle(.orange)
+            } else if bootstrapper.sendingStopped {
+                // iCloud sync stopped, and rebuilding the stack once didn't
+                // bring it back: only reopening the app does.
+                Image(systemName: "exclamationmark.icloud")
+                Text(Self.sendingStoppedMessage)
                     .foregroundStyle(.orange)
             } else {
                 switch status {

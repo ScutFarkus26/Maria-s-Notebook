@@ -20,21 +20,23 @@ struct AssistantStartupProblem: Equatable {
     /// (`AssistantStack.isOpen`).
     init(_ error: Error, storesOpen: Bool = false) {
         canRebuild = !storesOpen
+        // "Assistant", as the Home Screen names the app; TestFlight's
+        // "Daybook Assistant" only where she installs it from there.
         guard canRebuild else {
-            message = "Daybook Assistant needs to restart. Quit it and open it again."
+            message = "Assistant needs to restart. Quit it and open it again."
             return
         }
         switch error {
         case CoreDataStackError.storeFromNewerBuild:
             // A TestFlight tester can install an earlier build over a later
             // one; the later build's data would be destroyed by opening it.
-            message = "This copy of Daybook Assistant is older than the one that last opened "
+            message = "This copy of Assistant is older than the one that last opened "
                 + "your class on this iPhone. Install the latest version from TestFlight, "
                 + "or rebuild your class from iCloud."
         case CoreDataStackError.storeSchemaIncoherent:
             message = "Your class's copy on this iPhone is damaged. Rebuild it from iCloud to carry on."
         default:
-            message = "Daybook Assistant couldn't open your class on this iPhone. "
+            message = "Assistant couldn't open your class on this iPhone. "
                 + "Quit and reopen the app, or rebuild your class from iCloud."
         }
     }

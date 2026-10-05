@@ -1,5 +1,6 @@
 import Foundation
 import CoreData
+import Synchronization
 import Testing
 @testable import Daybook_Assistant
 
@@ -86,6 +87,53 @@ struct AssistantSiriRestockTests {
         #expect(RestockService.openNeeds(in: context).count == 2)
 
         #expect(throws: AssistantRestockSiriError.noName) { try siri.addToOfficeRun("  ") }
+    }
+
+    @Test("A word in two staples' names marks neither: \"paper\" is a one-off, \"towels\" is Paper Towels")
+    func ambiguousNameIsAOneOff() throws {
+        let towels = try staple("Paper Towels")
+        let paper = try staple("Toilet Paper")
+
+        #expect(try siri.addToOfficeRun("paper") == .added("paper"))
+        #expect(towels.level == .stocked)
+        #expect(paper.level == .stocked)
+        #expect(RestockService.openNeeds(in: context).map(\.title) == ["paper"])
+
+        #expect(try siri.addToOfficeRun("towels") == .marked("Paper Towels", .low, .office))
+        #expect(towels.level == .low)
+    }
+
+    @Test("A failed save takes back Siri's change alone: the tab's taps waiting to save stay, and it reloads")
+    func failedSaveKeepsTheTabsTaps() throws {
+        let paper = try staple("Toilet Paper")
+        let towels = try staple("Paper Towels")
+        let tab = AssistantRestockModel(
+            context: context, container: nil, author: { Self.ana }, saveDelay: .seconds(600)
+        )
+        tab.load()
+        tab.tap(paper)
+        let reloads = ReloadCount()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .restockChangedBySiri, object: nil, queue: nil
+        ) { _ in reloads.count.withLock { $0 += 1 } }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let failing = AssistantSiriRestock(stack: stack, author: Self.ana, save: { _ in false })
+        #expect(throws: AssistantRestockSiriError.saveFailed) { try failing.mark(id(towels), as: .out) }
+        #expect(throws: AssistantRestockSiriError.saveFailed) { try failing.addToOfficeRun("Glue sticks") }
+
+        #expect(towels.level == .stocked)
+        #expect(RestockService.openNeeds(for: towels, in: context).isEmpty)
+        #expect(RestockService.history(for: towels, in: context).isEmpty)
+        #expect(RestockService.openNeeds(in: context).map(\.title) == ["Toilet Paper"])
+        #expect(paper.level == .low, "the tab's tap is still waiting for its save")
+        #expect(context.hasChanges)
+        #expect(reloads.count.withLock { $0 } == 2)
+    }
+
+    /// How many times the Restock tab was told to reload.
+    private final class ReloadCount: Sendable {
+        let count = Mutex(0)
     }
 
     @Test("A spoken name finds its staple: any case, a plural, a leading 'the', or one word of it")

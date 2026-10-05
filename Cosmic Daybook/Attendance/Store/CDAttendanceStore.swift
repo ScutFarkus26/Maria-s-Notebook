@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import CoreData
 
@@ -16,7 +17,7 @@ import CoreData
 /// never in bulk on screen-open. Two devices opening the same day used to each
 /// insert a full roster of unmarked rows, which is exactly the duplicate flood the
 /// dedup passes exist to clean up.
-struct CDAttendanceStore {
+struct CDAttendanceStore { // swiftlint:disable:this type_body_length
     let context: NSManagedObjectContext
     var calendar: Calendar = .current
     /// The role stamped onto mutations and checked against the permission matrix.
@@ -88,8 +89,16 @@ struct CDAttendanceStore {
     /// Only a mark made on the day it's for gets a time: correcting Monday
     /// on Wednesday would otherwise record Wednesday's clock as Monday's
     /// arrival, and a vacation marked ahead has no time of day at all.
+    ///
+    /// Any change of status is a person's, so Close Arrival's automatic
+    /// marker goes with it (`markUnmarkedAbsent` sets it again after): left
+    /// on a record, a later plain Absent would read as arrival closed on
+    /// every device (`arrivalClosed`).
     private func mark(_ record: CDAttendanceRecord, as status: AttendanceStatus, at now: Date) {
         let previous = record.status
+        if record.absenceReasonRaw == AttendanceDeduplication.automaticAbsenceRaw {
+            record.absenceReason = .none
+        }
         record.status = status
         let time = isToday(record, now) ? now : nil
         record.returnedAt = nil
@@ -212,6 +221,39 @@ struct CDAttendanceStore {
         return true
     }
 
+    /// A person clearing a child's mark (a tap, the menu's Unmarked):
+    /// `record` and the day's other copies for that child go to unmarked.
+    /// Clearing `record` alone let a CloudKit duplicate's mark win
+    /// (`AttendanceDeduplication.wins`), so the child showed marked again.
+    /// Notes and pickup times stay. Not for an Undo, which puts back one
+    /// record: another device's mark on a copy is newer than the one undone.
+    /// Returns whether anything changed.
+    @discardableResult
+    func unmark(_ record: CDAttendanceRecord) -> Bool {
+        unmark(record, copiesWhere: { $0.status != .unmarked })
+    }
+
+    /// Close Arrival's Undo for one child: `record`, still its automatic
+    /// absence, goes back to unmarked with any copy of the day that is one
+    /// too (another device closed arrival on the child before they synced),
+    /// which would otherwise win the child back to absent and keep the day
+    /// closed everywhere (`arrivalClosed`). A real mark on a copy stays.
+    @discardableResult
+    func undoAutomaticAbsence(_ record: CDAttendanceRecord) -> Bool {
+        guard AttendanceDeduplication.isAutomaticAbsence(record) else { return false }
+        return unmark(record, copiesWhere: AttendanceDeduplication.isAutomaticAbsence)
+    }
+
+    private func unmark(_ record: CDAttendanceRecord, copiesWhere clears: (CDAttendanceRecord) -> Bool) -> Bool {
+        guard canWrite(on: record.date) else { return false }
+        let now = Date()
+        let copies = otherCopies(of: record).filter(clears)
+        for copy in copies { mark(copy, as: .unmarked, at: now) }
+        guard record.status != .unmarked else { return !copies.isEmpty }
+        mark(record, as: .unmarked, at: now)
+        return true
+    }
+
     /// Update a record's note and return whether it changed. The note is on
     /// the shared record, so the guide and an assistant both see it.
     @discardableResult
@@ -257,13 +299,15 @@ struct CDAttendanceStore {
     }
 
     /// Update a record's absence reason and return whether it changed.
+    ///
+    /// Compared as stored: Close Arrival's automatic marker reads as no
+    /// reason, so No Reason on an automatic absence compared equal, and the
+    /// record lost its marker without being stamped as hers.
     @discardableResult
     func updateAbsenceReason(_ record: CDAttendanceRecord, to newReason: AbsenceReason) -> Bool {
         guard canWrite(on: record.date) else { return false }
-        guard record.status == .absent else { return false }
-        let old = record.absenceReason
+        guard record.status == .absent, record.absenceReasonRaw != newReason.rawValue else { return false }
         record.absenceReason = newReason
-        guard old != newReason else { return false }
         stamp(record)
         return true
     }

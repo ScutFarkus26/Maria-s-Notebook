@@ -335,11 +335,12 @@ enum CoreDataStackError: LocalizedError {
     /// a command can't open the class.
     var errorDescription: String? {
         #if ASSISTANT_APP
+        // Siri says these: "the app", since Siri knows it by two names.
         switch self {
         case .modelNotFound:
-            return "This copy of Daybook Assistant is damaged. Reinstall it."
+            return "This copy of the app is damaged. Reinstall it."
         default:
-            return "Daybook Assistant couldn't open your class. Open the app to fix it."
+            return "Couldn't open your class. Open the app to fix it."
         }
         #else
         switch self {

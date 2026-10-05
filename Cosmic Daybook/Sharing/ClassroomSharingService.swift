@@ -22,8 +22,11 @@ final class ClassroomSharingService {
     private(set) var shareError: String?
     private(set) var currentShare: CKShare?
     /// True while an opened invitation is being joined, which can take a
-    /// while; the Daybook Assistant shows "Joining your classroom…".
+    /// while; the Daybook Assistant shows "Joining your classroom…". Gives
+    /// up after `joinTimeout`.
     private(set) var isJoining = false
+    /// Numbers each join (`beginJoin`).
+    @ObservationIgnored private var joinAttempt = 0
 
     /// Record name of whoever is using this device, so the members list can
     /// mark its own row. CloudKit withholds your own name components, which
@@ -347,54 +350,49 @@ final class ClassroomSharingService {
     /// leaves the invitation for the real notebook's service.
     private func acceptPendingInvitation() {
         guard sharedStore != nil, let metadata = ShareInvitationInbox.take() else { return }
-        isJoining = true
-        shareError = nil
+        let attempt = beginJoin()
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.joinTimeout)
+            self?.joinTimedOut(attempt)
+        }
         Task {
-            defer { isJoining = false }
+            defer { endJoin(attempt) }
             do {
                 try await acceptShare(metadata: metadata)
             } catch {
                 Self.logger.error("Share acceptance failed: \(error.localizedDescription)")
+                // A later invitation's join owns the screen now.
+                guard attempt == joinAttempt else { return }
                 let message = AppErrorMessages.joinMessage(for: error) + " " + Self.joinAdvice(for: error)
                 shareError = message
                 ToastService.shared.showError(message)
             }
         }
     }
-}
 
-// MARK: - Notification Name
+    // MARK: - Join timeout
 
-extension Notification.Name {
-    /// Posted by `ShareInvitationInbox` when an invitation is waiting.
-    static let didAcceptCloudKitShare = Notification.Name("didAcceptCloudKitShare")
-    /// Posted once an accepted invitation has been joined and the membership
-    /// row written.
-    static let didJoinClassroom = Notification.Name("didJoinClassroom")
-}
-
-// MARK: - Invitation Inbox
-
-/// Holds an accepted share invitation until a `ClassroomSharingService` can
-/// act on it.
-///
-/// The system can hand the invitation over before any service exists: tapping
-/// the link can be what launches the app, and the notebook only builds its
-/// service when something asks for it. A bare notification posted then would
-/// reach nobody, so the invitation waits here, and whichever comes second — the
-/// invitation or the service — picks it up. `take()` hands it out once.
-enum ShareInvitationInbox {
-    private static var pending: CKShare.Metadata?
-
-    static var hasPending: Bool { pending != nil }
-
-    static func deliver(_ metadata: CKShare.Metadata) {
-        pending = metadata
-        NotificationCenter.default.post(name: .didAcceptCloudKitShare, object: nil)
+    /// Starts showing a join; its number keeps a later invitation's join from
+    /// being ended by an earlier one's timeout or finish.
+    func beginJoin() -> Int {
+        joinAttempt += 1
+        isJoining = true
+        shareError = nil
+        return joinAttempt
     }
 
-    static func take() -> CKShare.Metadata? {
-        defer { pending = nil }
-        return pending
+    /// CloudKit's accept has no timeout and can't be cancelled, so a join
+    /// that never answered left "Joining your classroom…" up for good. After
+    /// `joinTimeout` the screen lets go; a late success still saves the
+    /// membership row and posts `.didJoinClassroom`.
+    func joinTimedOut(_ attempt: Int) {
+        guard attempt == joinAttempt, isJoining else { return }
+        Self.logger.error("Joining the classroom timed out; the accept may still finish")
+        isJoining = false
+        shareError = Self.joinTimeoutMessage
+    }
+
+    func endJoin(_ attempt: Int) {
+        if attempt == joinAttempt { isJoining = false }
     }
 }

@@ -115,10 +115,14 @@ enum AttendanceSchoolDayCount {
 }
 
 /// Keeps the grid from recounting on every reload: it counts when the day
-/// changes, or while the count isn't known yet (the year's first marks may
-/// still be on their way from iCloud), and remembers each year's first day
-/// once found. Both apps count the same way, so the guide's notebook and her
+/// changes, while the count isn't known yet, or when the year's first day
+/// has moved. Both apps count the same way, so the guide's notebook and her
 /// assistant's phone always show the same day number.
+///
+/// The first day found is checked again on each reload (one small fetch):
+/// the year's marks come down from iCloud in pieces on a first download, and
+/// a first day found among the early pieces used to stand for good, leaving
+/// the day number short until a relaunch.
 struct AttendanceDayCounter {
     /// Each school year's first day, by its July 1.
     private var firstDays: [Date: Date] = [:]
@@ -138,10 +142,17 @@ struct AttendanceDayCounter {
         current: Int?,
         in context: NSManagedObjectContext
     ) -> Outcome {
+        let yearStart = AttendanceSchoolDayCount.yearStart(for: day)
+        if !isDayOff, let known = firstDays[yearStart] {
+            let found = AttendanceSchoolDayCount.firstDay(inYearStarting: yearStart, in: context)
+            if found != known {
+                firstDays[yearStart] = found
+                countedDay = nil
+            }
+        }
         guard countedDay != day || (current == nil && !isDayOff) else { return .unchanged }
         countedDay = day
         guard !isDayOff else { return .counted(nil) }
-        let yearStart = AttendanceSchoolDayCount.yearStart(for: day)
         if firstDays[yearStart] == nil {
             firstDays[yearStart] = AttendanceSchoolDayCount.firstDay(inYearStarting: yearStart, in: context)
         }

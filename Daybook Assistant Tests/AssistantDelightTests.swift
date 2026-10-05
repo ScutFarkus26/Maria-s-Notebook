@@ -221,4 +221,25 @@ struct AssistantDelightTests {
             #expect(abs(from - to) == 1)
         }
     }
+
+    @Test("Children who ring the same bell share one tune: eight bells, not one per child")
+    func bellTunesByNote() {
+        let tunes = Set((1...30).map { AttendanceBells.tune(for: .here(count: $0)) })
+        #expect(tunes.count == AttendanceBells.scale.count)
+        #expect(AttendanceBells.tune(for: .here(count: 1)) == AttendanceBells.tune(for: .here(count: 15)))
+        #expect(AttendanceBells.tune(for: .here(count: 1)) != AttendanceBells.tune(for: .here(count: 2)))
+        #expect(AttendanceBells.Tune.allCases.count == 11)
+    }
+
+    @Test("Every tune is built away from the main actor, ringing out and never clipping")
+    func bellTunesRendered() async {
+        let rate = 8_000.0
+        let rendered = await AttendanceBells.renderAll(sampleRate: rate)
+        #expect(Set(rendered.keys) == Set(AttendanceBells.Tune.allCases))
+        for (tune, samples) in rendered {
+            #expect(samples.count >= Int(2.2 * rate), "\(tune) is too short")
+            #expect(samples.allSatisfy { abs($0) <= 0.9001 }, "\(tune) clips")
+            #expect(samples.contains { abs($0) > 0.01 }, "\(tune) is silent")
+        }
+    }
 }

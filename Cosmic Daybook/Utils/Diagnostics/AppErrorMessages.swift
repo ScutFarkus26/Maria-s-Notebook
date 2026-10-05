@@ -109,12 +109,43 @@ enum AppErrorMessages {
         }
     }
 
+    /// The error that says what went wrong, out of the wrappers it arrives
+    /// in: a CloudKit partial failure (code 2) holds one error per record,
+    /// and a Core Data error holds CloudKit's under `NSUnderlyingErrorKey`.
+    /// Matched as they came, a join that failed for want of a network read
+    /// "The classroom couldn't be joined" with advice to ask for a new
+    /// invitation.
+    nonisolated static func innermostError(_ error: Error) -> NSError {
+        var current = error as NSError
+        for _ in 0..<4 {
+            if current.domain == "CKErrorDomain", current.code == 2,
+               // CKPartialErrorsByItemIDKey; CloudKit isn't imported here.
+               let byItem = current.userInfo["CKPartialErrors"] as? [AnyHashable: Error],
+               let item = byItem.values.map({ $0 as NSError }).min(by: { partialRank($0) < partialRank($1) }) {
+                current = item
+            } else if current.domain == NSCocoaErrorDomain,
+                      let underlying = current.userInfo[NSUnderlyingErrorKey] as? NSError {
+                current = underlying
+            } else {
+                break
+            }
+        }
+        return current
+    }
+
+    /// A record's own error before "batch request failed" (code 22), which
+    /// only says another record in the batch failed; then by code, so the
+    /// pick doesn't depend on the dictionary's order.
+    nonisolated private static func partialRank(_ error: NSError) -> Int {
+        error.domain == "CKErrorDomain" && error.code == 22 ? 1_000 + error.code : error.code
+    }
+
     /// Why joining a classroom from an invitation failed. Unlike
     /// `userMessage` it never says "saved locally": a failed join saves
     /// nothing and nothing retries it. Each message is one sentence, and the
     /// screen showing it adds the fix (a fresh invitation).
     static func joinMessage(for error: Error) -> String {
-        let nsError = error as NSError
+        let nsError = innermostError(error)
         switch (nsError.domain, nsError.code) {
         case (NSURLErrorDomain, _), ("CKErrorDomain", 3), ("CKErrorDomain", 4):
             return "This device couldn't reach iCloud to join the classroom."
@@ -135,11 +166,12 @@ enum AppErrorMessages {
     /// member, stopping sharing, leaving — failed. Like `joinMessage` it never
     /// says "saved locally": a failed sharing action saved nothing and nothing
     /// retries it. `action` is the verb phrase: "add Sam", "stop sharing".
+    /// Looks inside the same wrappers as `joinMessage`.
     static func sharingMessage(for error: Error, action: String) -> String {
         if let localized = appDefinedDescription(of: error) {
             return localized
         }
-        let nsError = error as NSError
+        let nsError = innermostError(error)
         switch (nsError.domain, nsError.code) {
         case (NSURLErrorDomain, _), ("CKErrorDomain", 3), ("CKErrorDomain", 4):
             return "Couldn't \(action). This device couldn't reach iCloud. Check you're online and try again."

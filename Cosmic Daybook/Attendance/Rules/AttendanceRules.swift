@@ -48,12 +48,13 @@ enum AttendanceRules {
     /// Who made the mark: "you", another assistant's name, or "your guide"
     /// (the owner's name when CloudKit gives it; the guide's own marks carry
     /// no name). Nil while unmarked, and for old marks made before
-    /// attribution existed.
+    /// attribution existed. `viewerRole` is whose screen it is.
     static func markerName(
         for row: AttendanceRow,
         myRecordName: String?,
         myName: String?,
-        guideName: String?
+        guideName: String?,
+        viewerRole: CDClassroomMembership.ClassroomRole = .leadGuide
     ) -> String? {
         guard row.status != .unmarked else { return nil }
         switch row.recordedBy {
@@ -62,6 +63,12 @@ enum AttendanceRules {
         case CDClassroomMembership.ClassroomRole.assistant.rawValue:
             if let id = row.recordedByID, let mine = myRecordName {
                 return id == mine ? "you" : (row.recordedByName ?? "another assistant")
+            } else if viewerRole == .assistant, row.recordedByName == myName,
+                      row.recordedByID == nil || row.recordedByID == myRecordName {
+                // Her own mark from a phone with no record name yet (or the
+                // Sample Class, which has neither a name nor an id), read as
+                // the front-desk line reads her send (`AttendanceEmailLog.Send`).
+                return "you"
             } else if let name = row.recordedByName {
                 return name == myName ? "you" : name
             }

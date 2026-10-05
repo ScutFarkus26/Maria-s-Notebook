@@ -17,7 +17,7 @@ struct AssistantWelcomePage: View {
 
     var body: some View {
         AssistantOnboardingPage(
-            title: "Daybook Assistant",
+            title: "Assistant",
             message: "Take the morning roll for your classroom. Your guide sees each mark the moment you make it."
         ) {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
@@ -241,6 +241,9 @@ struct AssistantInvitationPage: View {
         .animation(.smooth, value: isJoining)
     }
 
+    /// Check Again and the sample stay in reach while joining: a join can
+    /// hang (it gives up after a minute, `ClassroomSharingService.joinTimeout`),
+    /// and one that finishes later still lands here.
     private var joining: some View {
         AssistantOnboardingPage(
             systemImage: "house",
@@ -251,24 +254,50 @@ struct AssistantInvitationPage: View {
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 24)
+        } actions: {
+            wayOut
         }
     }
+
+    /// Check Again finds a join that finished, and the iCloud account.
+    @ViewBuilder
+    private var wayOut: some View {
+        Button {
+            bootstrapper.refreshMembership()
+            Task { await bootstrapper.refreshAccountStatus() }
+        } label: {
+            Text("Check Again")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: 16))
+        .controlSize(.large)
+        SampleClassButton()
+    }
+
+    /// A join that outlasted its minute isn't a wrong invitation.
+    private var joinTimedOut: Bool { joinError == ClassroomSharingService.joinTimeoutMessage }
 
     private var waiting: some View {
         AssistantOnboardingPage(
             systemImage: joinError == nil ? "link" : "exclamationmark.triangle",
             tint: joinError == nil ? .accentColor : .orange,
-            title: joinError == nil ? "Open your guide's invitation" : "That invitation didn't work",
+            title: joinError == nil ? "Open your guide's invitation"
+                : joinTimedOut ? "Joining didn't finish" : "That invitation didn't work",
             message: joinError == nil
                 ? "Your guide sends it from the notebook. Open it on this iPhone and it brings you straight back here."
                 : nil
         ) {
             if let joinError {
                 OnboardingNotice(text: joinError, systemImage: "exclamationmark.triangle")
-                Text("Your guide invites you by the email or phone number on your Apple Account. If they used a "
-                    + "different one, the link won't open here: ask them to use the one this iPhone is "
-                    + "signed in with.")
-                    .fixedSize(horizontal: false, vertical: true)
+                if !joinTimedOut {
+                    Text("Your guide invites you by the email or phone number on your Apple Account. If they used a "
+                        + "different one, the link won't open here: ask them to use the one this iPhone is "
+                        + "signed in with.")
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             } else {
                 if let iCloudProblem {
                     OnboardingNotice(text: iCloudProblem, systemImage: "icloud.slash")
@@ -288,21 +317,7 @@ struct AssistantInvitationPage: View {
                 .accessibilityElement(children: .combine)
             }
         } actions: {
-            if !isJoining {
-                Button {
-                    bootstrapper.refreshMembership()
-                    Task { await bootstrapper.refreshAccountStatus() }
-                } label: {
-                    Text("Check Again")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle(radius: 16))
-                .controlSize(.large)
-                SampleClassButton()
-            }
+            wayOut
         }
     }
 }

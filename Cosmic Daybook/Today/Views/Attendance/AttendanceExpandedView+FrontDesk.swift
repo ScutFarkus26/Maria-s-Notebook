@@ -94,11 +94,22 @@ extension AttendanceExpandedView {
         Task { await FrontDeskEmailReminder.reschedule(in: context) }
     }
 
+    /// The children with `status`, as the email lists them: a child who
+    /// arrived late and then left is under Left Early, "(arrived late)", as
+    /// in the Daybook Assistant's email.
+    func emailStudents(for status: AttendanceStatus) -> [AttendanceEmailStudent] {
+        guard status == .leftEarly else { return students(for: status) }
+        let cameLate = AttendanceEmailStudent.lateThenLeftEarly(on: date, in: viewContext)
+        return viewModel.rows.filter { $0.status == .leftEarly }.map { row in
+            AttendanceEmailStudent(row.student, arrivedLate: cameLate.contains(row.id.uuidString))
+        }
+    }
+
     func prepareAttendanceEmail() {
-        let present = students(for: .present)
-        let tardy = students(for: .tardy)
-        let absent = students(for: .absent)
-        let leftEarly = students(for: .leftEarly)
+        let present = emailStudents(for: .present)
+        let tardy = emailStudents(for: .tardy)
+        let absent = emailStudents(for: .absent)
+        let leftEarly = emailStudents(for: .leftEarly)
 #if os(iOS)
         if MFMailComposeViewController.canSendMail() {
             showMailSheet = true

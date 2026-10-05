@@ -82,8 +82,9 @@ struct SiriAttendance {
         self.today = Calendar.current.startOfDay(for: today)
     }
 
+    /// Today on the class's own calendar (`SiriHost.isSchoolDay`).
     var isSchoolDay: Bool {
-        !SchoolDayChecker.isNonSchoolDay(today, using: context)
+        SiriHost.isSchoolDay(today, in: context)
     }
 
     /// The child `entity` names, if she's on today's roll as the grid shows
@@ -290,13 +291,13 @@ struct SiriAttendance {
         }
         if reverted.isEmpty, !change.marks.isEmpty {
             SiriAttendanceChange.forget()
-            if change.closedArrival { reopenArrival() }
+            if change.closedArrival { undoCloseArrival() }
             throw SiriAttendanceError.changedSince(change.changedSinceDialog)
         }
         if !reverted.isEmpty {
             try await commit(reverted, created: [], summary: "undo of \(change.summary)")
         }
-        if change.closedArrival { reopenArrival() }
+        if change.closedArrival { undoCloseArrival() }
         // An undo is not itself undoable: "Undo that" twice shouldn't flip back.
         SiriAttendanceChange.forget()
         return change.undoneDialog
@@ -311,7 +312,9 @@ struct SiriAttendance {
     /// A change remembered without the record (before 2026-10-03, or Close
     /// Arrival's) puts back its status, and the reason it set. A
     /// reason-only change ("absent, sick" on a child already absent) has the
-    /// same status before and after, so only the reason goes back.
+    /// same status before and after, so only the reason goes back. Close
+    /// Arrival's absence goes back to unmarked on the day's other copies
+    /// that are one too (`CDAttendanceStore.undoAutomaticAbsence`).
     private func undo(_ mark: SiriAttendanceChange.Mark, on record: CDAttendanceRecord) -> Bool {
         if let before = mark.before, let after = mark.after {
             return store.revert(
@@ -322,6 +325,9 @@ struct SiriAttendance {
         }
         guard record.status == mark.to else { return false }
         if let toRaw = mark.toReasonRaw, record.absenceReasonRaw != toRaw { return false }
+        if mark.from == .unmarked, mark.toReasonRaw == AttendanceDeduplication.automaticAbsenceRaw {
+            return store.undoAutomaticAbsence(record)
+        }
         var changed = false
         if mark.from != mark.to {
             guard store.updateStatus(record, to: mark.from) else { return false }
@@ -333,9 +339,10 @@ struct SiriAttendance {
         return changed
     }
 
-    /// Back to arrival, and an open grid shows it.
-    private func reopenArrival() {
-        SiriHost.arrivalReopened(on: today)
+    /// Close Arrival undone: back to following the records, and an open
+    /// grid shows it (`SiriHost.closeArrivalUndone`).
+    private func undoCloseArrival() {
+        SiriHost.closeArrivalUndone(on: today)
         NotificationCenter.default.post(name: .attendanceChangedBySiri, object: nil)
     }
 }
@@ -354,6 +361,8 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
     case nothingToUndo
     /// Carries the whole sentence (`SiriAttendanceChange.changedSinceDialog`).
     case changedSince(String)
+    /// Arrival closed (on the grid, say) while Siri waited for her yes.
+    case arrivalAlreadyClosed
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
@@ -377,6 +386,8 @@ enum SiriAttendanceError: Error, CustomLocalizedStringResourceConvertible {
             return "There's no attendance mark from Siri today to undo."
         case .changedSince(let dialog):
             return "\(dialog)"
+        case .arrivalAlreadyClosed:
+            return "Arrival is already closed."
         }
     }
 }

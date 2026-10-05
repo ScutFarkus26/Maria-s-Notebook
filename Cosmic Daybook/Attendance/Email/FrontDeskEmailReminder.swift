@@ -18,7 +18,8 @@ import OSLog
 /// Local notifications can't look at the store when they fire, so this keeps
 /// one request per school day for the next `daysAhead` days and rebuilds them
 /// whenever the answer could change: launch, the attendance screen loading or
-/// taking an import, a send recorded here, the setting. Once today's email has
+/// taking an import, a send recorded here, the setting, and in the Assistant
+/// every import with the screen closed (`EarlyPickupReminderUpkeep`). Once today's email has
 /// gone, today's request is withdrawn. A device that hasn't heard yet that
 /// someone else sent it can still ring; its tap then shows who did.
 @MainActor
@@ -94,35 +95,53 @@ enum FrontDeskEmailReminder {
 
     /// Asks for permission, when the switch is turned on. Returns whether
     /// notifications may show.
-    static func requestPermission() async -> Bool {
-        let center = UNUserNotificationCenter.current()
-        let status = await center.notificationSettings().authorizationStatus
+    static func requestPermission(center: any ReminderCenter = SystemReminderCenter()) async -> Bool {
+        let status = await center.authorizationStatus()
         if status == .notDetermined {
-            return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+            return await center.requestAuthorization()
         }
         return status == .authorized || status == .provisional
     }
 
-    /// Removes every pending front-desk reminder.
-    static func cancelAll() async {
-        let center = UNUserNotificationCenter.current()
-        let ours = await center.pendingNotificationRequests().map(\.identifier).filter(isReminder)
-        center.removePendingNotificationRequests(withIdentifiers: ours)
+    /// One rebuild at a time (`ReminderRuns`).
+    private static let runs = ReminderRuns()
+
+    /// Removes every pending front-desk reminder, after any rebuild already
+    /// going.
+    static func cancelAll(center: any ReminderCenter = SystemReminderCenter()) async {
+        await runs.run {
+            await ReminderRuns.replace(where: isReminder, with: [], center: center, logger: logger)
+        }
     }
 
     /// Replaces this device's pending reminders with the ones that should be
     /// there now. Nothing is scheduled while the guide's email isn't set up
     /// (no settings in the share, turned off, or no one to send to).
-    static func reschedule(in context: NSManagedObjectContext, now: Date = Date()) async {
-        await cancelAll()
-        guard isEnabled(), let settings = AttendanceEmailLog.settings(in: context), settings.canSend else { return }
-        let center = UNUserNotificationCenter.current()
-        let status = await center.notificationSettings().authorizationStatus
-        guard status == .authorized || status == .provisional else { return }
+    static func reschedule(
+        in context: NSManagedObjectContext,
+        now: Date = Date(),
+        center: any ReminderCenter = SystemReminderCenter()
+    ) async {
+        await runs.run {
+            let requests = await wantedRequests(in: context, now: now, center: center)
+            await ReminderRuns.replace(where: isReminder, with: requests, center: center, logger: logger)
+        }
+    }
+
+    /// The requests that should be pending now: none while the email isn't
+    /// set up, the switch is off, or notifications aren't allowed.
+    private static func wantedRequests(
+        in context: NSManagedObjectContext,
+        now: Date,
+        center: any ReminderCenter
+    ) async -> [UNNotificationRequest] {
+        guard isEnabled(), let settings = AttendanceEmailLog.settings(in: context), settings.canSend else { return [] }
+        let status = await center.authorizationStatus()
+        guard status == .authorized || status == .provisional else { return [] }
 
         let calendar = AppCalendar.shared
         let start = calendar.startOfDay(for: now)
-        guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return }
+        guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
         let nonSchoolDays = SchoolDayChecker.nonSchoolDaySet(in: start..<end, using: context, calendar: calendar)
         let sentToday = AttendanceEmailLog.latestSend(on: start, in: context) != nil
         let deadline = settings.deadlineMinutes
@@ -133,12 +152,11 @@ enum FrontDeskEmailReminder {
             Kind(suffix: "due", minutes: deadline, title: "Front desk email is late",
                  body: "It was due at \(dueAt). Close arrival and email the front desk.")
         ]
-        for kind in kinds {
-            let dates = fireDates(
+        return kinds.flatMap { kind in
+            fireDates(
                 from: now, minutes: kind.minutes, nonSchoolDays: nonSchoolDays,
                 todayIsDone: sentToday, calendar: calendar
-            )
-            for date in dates {
+            ).map { date in
                 let content = UNMutableNotificationContent()
                 content.title = kind.title
                 content.body = kind.body
@@ -146,15 +164,7 @@ enum FrontDeskEmailReminder {
                 let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
                 let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
                 let id = idPrefix + AppCalendar.dayID(date) + "-" + kind.suffix
-                // A newer reschedule has started: it decides now, and adding
-                // after its removal would bring back a reminder it meant to drop.
-                guard !Task.isCancelled else { return }
-                do {
-                    try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
-                } catch {
-                    let reason = error.localizedDescription
-                    logger.error("Scheduling \(id, privacy: .public) failed: \(reason, privacy: .public)")
-                }
+                return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
             }
         }
     }
@@ -172,6 +182,89 @@ enum FrontDeskEmailReminder {
         let midnight = calendar.startOfDay(for: Date())
         let time = calendar.date(byAdding: .minute, value: minutes, to: midnight) ?? midnight
         return time.formatted(date: .omitted, time: .shortened)
+    }
+}
+
+/// The parts of the notification center the reminders use: the system's
+/// (`SystemReminderCenter`), or a stand-in in the tests, where the
+/// simulator's own center has no permission to schedule anything.
+@MainActor
+protocol ReminderCenter {
+    func authorizationStatus() async -> UNAuthorizationStatus
+    /// Asks for alerts and sounds; returns whether they were allowed.
+    func requestAuthorization() async -> Bool
+    func pendingRequests() async -> [UNNotificationRequest]
+    func removePendingRequests(withIdentifiers identifiers: [String])
+    func add(_ request: UNNotificationRequest) async throws
+}
+
+/// The system's notification center.
+struct SystemReminderCenter: ReminderCenter {
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
+    func requestAuthorization() async -> Bool {
+        (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
+    }
+
+    func pendingRequests() async -> [UNNotificationRequest] {
+        await UNUserNotificationCenter.current().pendingNotificationRequests()
+    }
+
+    func removePendingRequests(withIdentifiers identifiers: [String]) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
+    func add(_ request: UNNotificationRequest) async throws {
+        try await UNUserNotificationCenter.current().add(request)
+    }
+}
+
+/// Rebuilds of one kind of reminder, one at a time and each to the end.
+///
+/// The attendance screen starts a rebuild from a task that SwiftUI cancels on
+/// a tab switch or a newer change. A rebuild that stopped there, after
+/// removing the old reminders and before adding the new ones, left none:
+/// no reminder the next morning. So a rebuild runs in a task of its own that
+/// a cancelled caller doesn't stop, after any rebuild already going, so an
+/// older one can never put back what a newer one removed.
+@MainActor
+final class ReminderRuns {
+    private var last: Task<Void, Never>?
+
+    /// Runs `work` after the rebuild before it, and waits for it.
+    func run(_ work: @escaping @MainActor () async -> Void) async {
+        let previous = last
+        let task = Task {
+            await previous?.value
+            await work()
+        }
+        last = task
+        await task.value
+    }
+
+    /// Makes the pending requests that `isOurs` picks out exactly `requests`,
+    /// built beforehand: ones no longer wanted are removed and the rest added,
+    /// which replaces a pending one with the same identifier.
+    static func replace(
+        where isOurs: (String) -> Bool,
+        with requests: [UNNotificationRequest],
+        center: any ReminderCenter,
+        logger: Logger
+    ) async {
+        let wanted = Set(requests.map(\.identifier))
+        let stale = await center.pendingRequests().map(\.identifier).filter { isOurs($0) && !wanted.contains($0) }
+        if !stale.isEmpty { center.removePendingRequests(withIdentifiers: stale) }
+        for request in requests {
+            do {
+                try await center.add(request)
+            } catch {
+                let id = request.identifier
+                let reason = error.localizedDescription
+                logger.error("Scheduling \(id, privacy: .public) failed: \(reason, privacy: .public)")
+            }
+        }
     }
 }
 

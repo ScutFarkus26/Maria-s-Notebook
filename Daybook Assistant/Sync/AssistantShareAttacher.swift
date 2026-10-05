@@ -57,6 +57,12 @@ final class AssistantShareAttacher {
     /// wait out the full rest rather than riding along with every tap.
     private var triedEarly = false
     private var earlyTryFailed = false
+    /// Told when a pass finds CloudKit mirroring stopped on `container`. The
+    /// bootstrapper rebuilds the stack once then
+    /// (`AssistantBootstrapper.mirroringStopped(in:)`): only a rebuilt stack
+    /// or a relaunch sends again, and until then the sync line said
+    /// "Sending to iCloud…" for good.
+    var onMirroringStopped: (@MainActor (NSPersistentCloudKitContainer) -> Void)?
     private let defaults: UserDefaults
     private let now: @MainActor () -> Date
     private let sleep: Sleep
@@ -187,14 +193,7 @@ final class AssistantShareAttacher {
             forget(found.gone + found.ids.map { $0.uriRepresentation() })
             remember(left.map { $0.uriRepresentation() })
             if result.mirroringStopped {
-                stoppedContainer = container
-                retryTask?.cancel()
-                Self.logger.error(
-                    "CloudKit mirroring stopped; \(self.pending.count, privacy: .public) mark(s) wait for a relaunch"
-                )
-                if lastContainer === container { return }
-                // A rebuilt stack arrived meanwhile: it can try them.
-                runAgain = true
+                guard mirroringStopped(on: container) else { return }
             } else if left.isEmpty {
                 failuresInARow = 0
                 if backlogDue {
@@ -221,6 +220,21 @@ final class AssistantShareAttacher {
                 )
             }
         } while runAgain
+    }
+
+    /// No pass runs on `container` again; the bootstrapper hears of it.
+    /// Returns whether a rebuilt stack arrived meanwhile, which can try the
+    /// marks now.
+    private func mirroringStopped(on container: NSPersistentCloudKitContainer) -> Bool {
+        stoppedContainer = container
+        retryTask?.cancel()
+        Self.logger.error(
+            "CloudKit mirroring stopped; \(self.pending.count, privacy: .public) mark(s) wait for a new stack"
+        )
+        onMirroringStopped?(container)
+        guard lastContainer !== container else { return false }
+        runAgain = true
+        return true
     }
 
     /// The waiting records that still exist (`ids`), and those that are

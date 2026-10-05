@@ -9,6 +9,14 @@ import CoreData
 enum AssistantStack {
     private static var stack: CoreDataStack?
 
+    /// What the open stack has saved and not yet sent. Kept here rather than
+    /// through `UnsentChangesKeepAlive.install`, so Leave can ask it whether
+    /// marks are still on their way (`AssistantBootstrapper.unsentMarks`).
+    private(set) static var keepAlive: UnsentChangesKeepAlive?
+
+    /// The open stack, if any, without opening one.
+    static var current: CoreDataStack? { stack }
+
     static func shared() throws -> CoreDataStack {
         if let stack { return stack }
         // The launch-argument sample only (Debug). The join screen's sample
@@ -18,9 +26,11 @@ enum AssistantStack {
             : try CoreDataStack()
         stack = made
         if !AssistantSampleClass.isRequested {
-            // A mark tapped just before the phone locks still goes out.
-            UnsentChangesKeepAlive.install(
-                for: made,
+            // A mark tapped just before the phone locks still goes out. One
+            // at a time, as `install` keeps it: a rebuilt stack's replaces
+            // the old one's.
+            keepAlive = UnsentChangesKeepAlive(
+                viewContext: made.viewContext,
                 isBusy: { AssistantShareAttacher.shared.isRunning },
                 waitForWork: { await AssistantShareAttacher.shared.waitUntilIdle() }
             )

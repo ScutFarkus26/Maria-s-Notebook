@@ -17,10 +17,15 @@ struct AssistantDatePickerSheet: View {
 
     var body: some View {
         NavigationStack {
-            picker
-                .datePickerStyle(.graphical)
-                .padding()
-                .navigationTitle("Choose a Day")
+            // Scrolls only when the calendar is taller than the sheet, as
+            // with large text.
+            ScrollView {
+                picker
+                    .datePickerStyle(.graphical)
+                    .padding()
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .navigationTitle("Choose a Day")
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -34,7 +39,18 @@ struct AssistantDatePickerSheet: View {
                     }
                 }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.custom(CalendarDetent.self), .large])
+    }
+
+    /// Opens tall enough for the whole month: half the screen on a tall
+    /// phone, nearly all of an SE's (whose half cut the calendar off).
+    nonisolated struct CalendarDetent: CustomPresentationDetent {
+        /// The navigation bar, the graphical calendar and its padding.
+        static let calendarHeight: CGFloat = 470
+
+        static func height(in context: Context) -> CGFloat? {
+            min(max(context.maxDetentValue / 2, calendarHeight), context.maxDetentValue)
+        }
     }
 
     @ViewBuilder

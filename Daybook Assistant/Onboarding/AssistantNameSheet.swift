@@ -17,6 +17,9 @@ struct AssistantNameSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ClassroomIdentity.displayName ?? ""
+    /// Where `ClassroomIdentity.displayName` is kept, watched so a name
+    /// restored from iCloud while the sheet is open fills it in.
+    @AppStorage(UserDefaultsKeys.classroomIdentityDisplayName) private var storedName: String?
 
     private var trimmed: String { name.trimmed() }
 
@@ -51,6 +54,16 @@ struct AssistantNameSheet: View {
             }
         }
         .interactiveDismissDisabled(isRequired)
+        .onChange(of: storedName) { _, stored in
+            if let restored = Self.restoredName(typed: name, stored: stored) { name = restored }
+        }
+    }
+
+    /// The name to fill in when one arrives from iCloud while she's being
+    /// asked: only into an empty field, never over what she's typing.
+    static func restoredName(typed: String, stored: String?) -> String? {
+        guard typed.trimmed().isEmpty, let stored = stored?.trimmed(), !stored.isEmpty else { return nil }
+        return stored
     }
 
     private func save() {

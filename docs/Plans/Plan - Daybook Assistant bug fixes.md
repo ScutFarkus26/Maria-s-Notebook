@@ -1,8 +1,8 @@
 # Daybook Assistant bug fixes (hunt of 2026-10-04)
 
-> **Not started.** Written 2026-10-04.
+> **Working on it.** Written 2026-10-04; all five fix phases started 2026-10-04 after the weekly reset.
 > In short: Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases.
-> Waiting on Danny's choice of which phases to run before the weekly usage reset (see Estimated cost and Open questions).
+> Build board: https://claude.ai/artifact/39K63NUK4t7kmwbsTn1C1c
 
 ## Goal
 Every finding from the 2026-10-04 Daybook Assistant bug hunt (five code reviewers + a Sample Class simulator walk over main 44389d4d) is fixed, each behavior fix with a regression test that fails on the old code, the layout fixes checked on an SE and an iPhone 17 simulator, everything squashed onto main, pushed, and rolled out to TestFlight (notebook + Assistant), with the Assistant build added to the TestFlight group "Assistants".

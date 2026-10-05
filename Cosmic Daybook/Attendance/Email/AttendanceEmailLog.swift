@@ -138,6 +138,7 @@ enum AttendanceEmailLog {
         let request = CDFetchRequest(CDAttendanceEmailSend.self)
         request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(day) as NSDate)
         request.sortDescriptors = [NSSortDescriptor(key: "sentAt", ascending: false)]
+        scopeToClassroom(request, in: context)
         return context.safeFetch(request)
     }
 
@@ -147,6 +148,7 @@ enum AttendanceEmailLog {
         request.predicate = NSPredicate(format: "date == %@", AppCalendar.startOfDay(day) as NSDate)
         request.sortDescriptors = [NSSortDescriptor(key: "sentAt", ascending: false)]
         request.fetchLimit = 1
+        scopeToClassroom(request, in: context)
         return context.safeFetchFirst(request).map(Send.init)
     }
 
@@ -236,10 +238,26 @@ enum AttendanceEmailLog {
         let request = CDFetchRequest(CDAttendanceEmailSettings.self)
         request.sortDescriptors = [NSSortDescriptor(key: "modifiedAt", ascending: false)]
         request.fetchLimit = 1
+        scopeToClassroom(request, in: context)
         return context.safeFetchFirst(request)
     }
 
     // MARK: - Stores
+
+    /// In the Assistant, reads only the classroom share (the shared store),
+    /// as the roll does (`AssistantDayRoll`): on an Apple Account that also
+    /// keeps a notebook of its own, the private store holds that notebook's
+    /// settings and sends, which would send her email to the wrong people or
+    /// say it had gone. The notebook reads both stores (the guide's own
+    /// records live in the private store); a single store reads everything.
+    private static func scopeToClassroom<T>(_ request: NSFetchRequest<T>, in context: NSManagedObjectContext) {
+        #if ASSISTANT_APP
+        let shared = context.persistentStoreCoordinator?.persistentStores.first {
+            $0.configurationName == CoreDataStack.sharedConfiguration
+        }
+        if let shared { request.affectedStores = [shared] }
+        #endif
+    }
 
     /// Where a new record goes: the guide's own records live in the private
     /// store and join the share from there (`SharedStoreOrphanGuard`); an

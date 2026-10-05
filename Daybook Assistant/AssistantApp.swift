@@ -40,9 +40,14 @@ struct AssistantApp: App {
         }
         // Coming back, or leaving for the background: the pickup reminders
         // catch up with changes made while the attendance screen wasn't
-        // running (`EarlyPickupReminderUpkeep`).
-        .onChange(of: scenePhase) {
+        // running (`EarlyPickupReminderUpkeep`). Coming back also asks about
+        // iCloud again: she may have signed in from Settings meanwhile, and
+        // `CKAccountChanged` doesn't always arrive.
+        .onChange(of: scenePhase) { _, phase in
             bootstrapper.pickupRemindersMayHaveChanged()
+            if phase == .active, !AssistantBootstrapper.isRunningUnitTests {
+                Task { await bootstrapper.refreshAccountStatus() }
+            }
         }
     }
 }

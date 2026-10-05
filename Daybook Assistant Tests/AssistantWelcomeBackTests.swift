@@ -66,6 +66,28 @@ struct AssistantWelcomeBackTests {
         #expect(returning[try #require(maya.id?.uuidString)] == 3)
     }
 
+    @Test("A child marked absent on the day itself isn't back, ahead of time too")
+    func absentOnTheDay() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let maya = AssistantTestSupport.student("Maya", "Stone", in: context)
+        let ari = AssistantTestSupport.student("Ari", "Cedar", in: context)
+        try mark(maya, .absent, on: ["2026-09-23", "2026-09-24", "2026-09-25", "2026-09-28"], in: context)
+        try mark(ari, .absent, on: ["2026-09-23", "2026-09-24", "2026-09-25"], in: context)
+        try mark(ari, .present, on: ["2026-09-28"], in: context)
+        #expect(context.safeSave())
+
+        // Ari came back; Maya is still away on the 28th, so no wave for her.
+        let returning = Welcome.returning(on: try day("2026-09-28"), in: context)
+        #expect(returning == [try #require(ari.id?.uuidString): 3])
+
+        // An absence entered ahead: a week out, after three absent days.
+        let later = AssistantTestSupport.student("Eli", "Moss", in: context)
+        try mark(later, .absent, on: ["2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16"], in: context)
+        #expect(context.safeSave())
+        #expect(Welcome.returning(on: try day("2026-10-16"), in: context)[try #require(later.id?.uuidString)] == nil)
+    }
+
     @Test("A school day with no mark ends the run")
     func unmarkedDayEndsRun() throws {
         let stack = try AssistantTestSupport.makeStack()

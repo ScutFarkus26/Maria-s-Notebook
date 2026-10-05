@@ -49,7 +49,7 @@ enum SiriSyncKeepAlive {
     #endif
 }
 
-/// Waits for the next CloudKit export to finish, or a time limit. Created
+/// Waits for the next CloudKit export to go up (`ends`), or a time limit. Created
 /// before the save it follows, so an export that finishes quickly is caught;
 /// an export that started earlier doesn't hold that save, so it doesn't count.
 @MainActor
@@ -67,10 +67,37 @@ final class SiriExportWatch {
         ) { [weak self] note in
             let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
                 as? NSPersistentCloudKitContainer.Event
-            guard let event, event.type == .export, event.endDate != nil,
-                  event.startDate >= created else { return }
+            guard let event else { return }
+            let container = note.object as? NSPersistentCloudKitContainer
+            let configuration = container?.persistentStoreCoordinator.persistentStores
+                .first { $0.identifier == event.storeIdentifier }?.configurationName
+            guard Self.ends(
+                type: event.type, ended: event.endDate != nil, succeeded: event.succeeded,
+                startedSinceWatching: event.startDate >= created, storeConfiguration: configuration
+            ) else { return }
             MainActor.assumeIsolated { self?.stop() }
         }
+    }
+
+    /// Whether a CloudKit event ends the wait: an export that started after
+    /// the watch began and went up. A failed one (offline, a quota, a
+    /// conflict) keeps it waiting, since the marks are still on the phone.
+    /// In the Assistant it must also be the shared store's: her marks go to
+    /// the classroom share, and her private store's export says nothing about
+    /// them. Pure, for the tests.
+    nonisolated static func ends(
+        type: NSPersistentCloudKitContainer.EventType,
+        ended: Bool,
+        succeeded: Bool,
+        startedSinceWatching: Bool,
+        storeConfiguration: String?
+    ) -> Bool {
+        guard type == .export, ended, succeeded, startedSinceWatching else { return false }
+        #if ASSISTANT_APP
+        return storeConfiguration == CoreDataStack.sharedConfiguration
+        #else
+        return true
+        #endif
     }
 
     func wait(upTo limit: Duration) async {

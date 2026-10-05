@@ -78,10 +78,11 @@ struct AssistantFirstRunPrompts: ViewModifier {
 // MARK: - Name
 
 /// Required: Continue waits for a name. A name restored from iCloud (a new
-/// iPhone) is already filled in.
+/// iPhone) is already filled in, or fills in when it arrives.
 struct AssistantSetupNamePage: View {
     let onContinue: () -> Void
     @State private var name = ClassroomIdentity.displayName ?? ""
+    @AppStorage(UserDefaultsKeys.classroomIdentityDisplayName) private var storedName: String?
     @FocusState private var isFocused: Bool
 
     private var trimmed: String { name.trimmed() }
@@ -121,6 +122,9 @@ struct AssistantSetupNamePage: View {
             OnboardingPrimaryButton("Continue", isEnabled: !trimmed.isEmpty, action: save)
         }
         .onAppear { if trimmed.isEmpty { isFocused = true } }
+        .onChange(of: storedName) { _, stored in
+            if let restored = AssistantNameSheet.restoredName(typed: name, stored: stored) { name = restored }
+        }
     }
 
     private func marked(
@@ -205,7 +209,8 @@ struct AssistantSetupReminderPage: View {
                 .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text("Daybook Assistant")
+                    // As the notification shows it: the Home Screen name.
+                    Text("Assistant")
                     Spacer()
                     Text(FrontDeskEmailReminder.timeString(reminderMinutes))
                 }

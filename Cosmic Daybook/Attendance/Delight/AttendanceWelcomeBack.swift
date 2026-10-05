@@ -7,7 +7,9 @@ import CoreData
 ///
 /// Only marked absences count. A school day with no record for the child (the
 /// roll wasn't taken, or they weren't in the class yet) ends the run, so a
-/// week without attendance never makes the whole class "back".
+/// week without attendance never makes the whole class "back". A child marked
+/// absent on the day itself (an absence entered ahead included) isn't back,
+/// so gets no wave.
 enum AttendanceWelcomeBack {
     /// Away this many school days in a row before a welcome.
     static let threshold = 3
@@ -50,8 +52,10 @@ enum AttendanceWelcomeBack {
         }
         guard schoolDays.count >= threshold, let oldest = schoolDays.last else { return [:] }
 
+        // Through the day itself, for its own absences.
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: day) else { return [:] }
         let request = CDFetchRequest(CDAttendanceRecord.self)
-        request.predicate = NSPredicate(format: "date >= %@ AND date < %@", oldest as NSDate, day as NSDate)
+        request.predicate = NSPredicate(format: "date >= %@ AND date < %@", oldest as NSDate, dayEnd as NSDate)
         var statuses: [String: [Date: AttendanceStatus]] = [:]
         for record in context.safeFetch(request).deduplicatedPerStudentDay() {
             guard let recordDate = record.date else { continue }
@@ -59,7 +63,7 @@ enum AttendanceWelcomeBack {
         }
 
         var result: [String: Int] = [:]
-        for (student, byDay) in statuses {
+        for (student, byDay) in statuses where byDay[day] != .absent {
             let away = daysAway(statuses: schoolDays.map { byDay[$0] })
             if away >= threshold { result[student] = away }
         }

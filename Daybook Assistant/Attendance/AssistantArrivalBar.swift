@@ -70,12 +70,27 @@ struct AssistantArrivalBar: View {
             AssistantSyncStatusView(coreDataStack: coreDataStack)
         }
         .frame(maxWidth: .infinity)
+        // Bar text stops growing at the first accessibility size: at the
+        // largest one the bar took half an SE's screen and left the grid
+        // half a row.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 6)
         .background(.bar)
         .overlay(alignment: .top) { fillLine }
-        .sensoryFeedback(.impact(weight: .light), trigger: viewModel.phase)
+        // Her own close, reopen or Undo only: an import moving the phase
+        // (another device closing arrival) used to buzz too.
+        .sensoryFeedback(.impact(weight: .light), trigger: viewModel.phaseSwitches)
+        .onChange(of: viewModel.asksToCloseAndEmail, initial: true) { _, asks in
+            // A tapped front-desk reminder with children still unmarked
+            // (`AssistantFrontDeskMail`): the same question as Close
+            // Arrival & Email, rather than an email that leaves them out.
+            guard asks else { return }
+            viewModel.asksToCloseAndEmail = false
+            emailAfterClose = true
+            confirmingClose = true
+        }
         .onChange(of: viewModel.completions) {
             finishedLine = AssistantAttendanceViewModel.completionText(
                 viewModel.rows, at: viewModel.isToday ? Date() : nil, milestone: viewModel.milestone
@@ -198,9 +213,10 @@ struct AssistantArrivalBar: View {
         }
     }
 
-    /// Close Arrival while anyone's unmarked; "Late" once closed. Nothing
-    /// ahead of the day (there's no arrival yet) or on a locked day, and no
-    /// Close Arrival while the email button below offers it
+    /// Close Arrival while anyone's unmarked, or after Reopen Arrival while
+    /// Close Arrival's absences stand; "Late" once closed. Nothing ahead of
+    /// the day (there's no arrival yet) or on a locked day, and no Close
+    /// Arrival while the email button below offers it
     /// (`AssistantFrontDesk.offersCloseAndEmail`).
     private var showsArrivalControl: Bool { viewModel.showsArrivalControl }
 
@@ -215,13 +231,20 @@ struct AssistantArrivalBar: View {
         if showsArrivalControl {
             switch viewModel.phase {
             case .arrival:
-                if !unmarkedNames.isEmpty {
-                    Button("Close Arrival") { confirmingClose = true }
-                        .font(.subheadline.weight(.semibold))
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .accessibilityHint("Asks before marking everyone not here yet absent")
+                // With nobody left to mark (reopened while Close Arrival's
+                // absences stand), it goes straight back to Late: there's
+                // no one to ask about.
+                Button("Close Arrival") {
+                    if unmarkedNames.isEmpty { closeArrival() } else { confirmingClose = true }
                 }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .accessibilityHint(
+                    unmarkedNames.isEmpty
+                        ? "Back to Late: a tap marks a child late"
+                        : "Asks before marking everyone not here yet absent"
+                )
             case .late:
                 Menu {
                     Button("Reopen Arrival", systemImage: "arrow.uturn.backward") {

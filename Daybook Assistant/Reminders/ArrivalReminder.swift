@@ -10,8 +10,9 @@ import OSLog
 ///
 /// Local notifications can't check the roll when they fire, so this keeps
 /// one request per school day for the next `daysAhead` days and rebuilds them
-/// whenever something could change the answer: launch, coming back to the
-/// app, the setting, the guide's calendar arriving, and today's roll filling
+/// whenever something could change the answer: launch, coming and going
+/// from the app, every import from iCloud, screen or no screen
+/// (`EarlyPickupReminderUpkeep`), the setting, and today's roll filling
 /// up (once nobody is unmarked, today's request is withdrawn). Weekends and
 /// the guide's days off come from the same `SchoolDayChecker` rule as the
 /// grid's arrows.
@@ -55,49 +56,57 @@ enum ArrivalReminder {
         )
     }
 
-    /// What the attendance screen calls as its roll changes: asks for
-    /// notifications the first time a class is on screen, then rebuilds the
-    /// reminders. The sample class schedules nothing.
-    static func update(hasClass: Bool, in context: NSManagedObjectContext) async {
-        if AssistantSampleClass.isActive { return }
-        guard hasClass else { return }
-        // Setup's reminder page asks, in its own words. Until setup is done
-        // the alert would land on top of it instead.
-        if AssistantOnboarding.setupDone() { await requestPermissionIfNeeded() }
-        await reschedule(in: context)
-    }
-
     /// Asks for permission once, the first time a class is on screen with the
     /// reminder on.
-    static func requestPermissionIfNeeded() async {
+    static func requestPermissionIfNeeded(center: any ReminderCenter = SystemReminderCenter()) async {
         guard isEnabled() else { return }
-        let center = UNUserNotificationCenter.current()
-        guard await center.notificationSettings().authorizationStatus == .notDetermined else { return }
-        _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        guard await center.authorizationStatus() == .notDetermined else { return }
+        _ = await center.requestAuthorization()
     }
 
     /// Removes every pending arrival reminder: before rescheduling, and when
     /// she leaves the classroom (they would otherwise go on firing for up to
     /// `daysAhead` school days, and a tap on one opened onboarding).
-    static func cancelAll() async {
-        let center = UNUserNotificationCenter.current()
-        let ours = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(idPrefix) }
-        center.removePendingNotificationRequests(withIdentifiers: ours)
+    static func cancelAll(center: any ReminderCenter = SystemReminderCenter()) async {
+        await runs.run {
+            await ReminderRuns.replace(where: isOurs, with: [], center: center, logger: logger)
+        }
     }
+
+    /// One rebuild at a time, each to the end (`ReminderRuns`): a rebuild
+    /// the attendance screen's task started used to stop at a tab switch
+    /// after removing the old reminders, leaving none.
+    private static let runs = ReminderRuns()
+
+    private static func isOurs(_ id: String) -> Bool { id.hasPrefix(idPrefix) }
 
     /// Replaces this app's pending reminders with the ones that should be
     /// there now.
-    static func reschedule(in context: NSManagedObjectContext, now: Date = Date()) async {
-        await cancelAll()
-        let center = UNUserNotificationCenter.current()
+    static func reschedule(
+        in context: NSManagedObjectContext,
+        now: Date = Date(),
+        center: any ReminderCenter = SystemReminderCenter()
+    ) async {
+        await runs.run {
+            let requests = await wantedRequests(in: context, now: now, center: center)
+            await ReminderRuns.replace(where: isOurs, with: requests, center: center, logger: logger)
+        }
+    }
 
-        guard isEnabled() else { return }
-        let status = await center.notificationSettings().authorizationStatus
-        guard status == .authorized || status == .provisional else { return }
+    /// The requests that should be pending now: none while the reminder is
+    /// off or notifications aren't allowed.
+    private static func wantedRequests(
+        in context: NSManagedObjectContext,
+        now: Date,
+        center: any ReminderCenter
+    ) async -> [UNNotificationRequest] {
+        guard isEnabled() else { return [] }
+        let status = await center.authorizationStatus()
+        guard status == .authorized || status == .provisional else { return [] }
 
         let calendar = AppCalendar.shared
         let start = calendar.startOfDay(for: now)
-        guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return }
+        guard let end = calendar.date(byAdding: .day, value: daysAhead * 3, to: start) else { return [] }
         let nonSchoolDays = SchoolDayChecker.nonSchoolDaySet(in: start..<end, using: context, calendar: calendar)
         let dates = fireDates(
             from: now,
@@ -106,7 +115,7 @@ enum ArrivalReminder {
             todayIsDone: isRollComplete(on: start, in: context),
             calendar: calendar
         )
-        for date in dates {
+        return dates.map { date in
             let content = UNMutableNotificationContent()
             content.title = notificationTitle
             content.body = notificationBody
@@ -114,16 +123,7 @@ enum ArrivalReminder {
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             let id = idPrefix + AppCalendar.dayID(date)
-            // A newer reschedule has started (the roll changed): it decides
-            // now, and adding after its removal would bring back a reminder
-            // it meant to drop.
-            guard !Task.isCancelled else { return }
-            do {
-                try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
-            } catch {
-                let reason = error.localizedDescription
-                logger.error("Scheduling \(id, privacy: .public) failed: \(reason, privacy: .public)")
-            }
+            return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         }
     }
 
@@ -195,18 +195,34 @@ struct ArrivalReminderFollower: ViewModifier {
 
     func body(content: Content) -> some View {
         content.task(id: signature) {
-            await ArrivalReminder.update(hasClass: viewModel?.rows.isEmpty == false, in: context)
-            guard viewModel?.rows.isEmpty == false else { return }
-            // The sample class rings its pickups, so Leaving Early… can be
-            // tried there, and schedules nothing else.
-            await EarlyPickupReminder.reschedule(in: context)
-            guard !AssistantSampleClass.isActive else { return }
-            if AssistantOnboarding.setupDone(), FrontDeskEmailReminder.isEnabled(),
-               AttendanceEmailLog.settings(in: context)?.canSend == true {
-                _ = await FrontDeskEmailReminder.requestPermission()
-            }
-            await FrontDeskEmailReminder.reschedule(in: context)
+            await Self.refresh(hasClass: viewModel?.rows.isEmpty == false, in: context)
         }
+    }
+
+    /// Asks for notifications the first time a class is on screen, then
+    /// brings all three reminders up to date. The sample class rings its
+    /// pickups, so Leaving Early… can be tried there, and schedules nothing
+    /// else.
+    static func refresh(
+        hasClass: Bool,
+        in context: NSManagedObjectContext,
+        setupDone: Bool = AssistantOnboarding.setupDone(),
+        isSample: Bool = AssistantSampleClass.isActive,
+        center: any ReminderCenter = SystemReminderCenter()
+    ) async {
+        guard hasClass else { return }
+        // Setup's reminder page asks, in its own words. Until setup is done
+        // an alert would land on top of it instead, the pickups' included.
+        if !isSample {
+            if setupDone { await ArrivalReminder.requestPermissionIfNeeded(center: center) }
+            await ArrivalReminder.reschedule(in: context, center: center)
+        }
+        await EarlyPickupReminder.reschedule(in: context, asksPermission: setupDone, center: center)
+        guard !isSample else { return }
+        if setupDone, FrontDeskEmailReminder.isEnabled(), AttendanceEmailLog.settings(in: context)?.canSend == true {
+            _ = await FrontDeskEmailReminder.requestPermission(center: center)
+        }
+        await FrontDeskEmailReminder.reschedule(in: context, center: center)
     }
 }
 

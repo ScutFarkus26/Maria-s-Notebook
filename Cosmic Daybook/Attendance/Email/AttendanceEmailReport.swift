@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import SwiftUI
 
 // The attendance email's text and the pieces that send it, shared with the
@@ -47,11 +48,15 @@ public struct AttendanceEmailStudent: Sendable, Hashable {
     public let lastName: String
     /// nil when the student's level isn't one the report groups by.
     public let level: AttendanceEmailLevel?
+    /// A child under Left Early who had arrived late: listed there once, with
+    /// "(arrived late)" after the name, not under Tardy too.
+    public let arrivedLate: Bool
 
-    public init(firstName: String, lastName: String, level: AttendanceEmailLevel?) {
+    public init(firstName: String, lastName: String, level: AttendanceEmailLevel?, arrivedLate: Bool = false) {
         self.firstName = firstName
         self.lastName = lastName
         self.level = level
+        self.arrivedLate = arrivedLate
     }
 
     /// The name written in the requested order, tolerating a missing half.
@@ -68,12 +73,24 @@ public struct AttendanceEmailStudent: Sendable, Hashable {
 }
 
 extension AttendanceEmailStudent {
-    init(_ student: CDStudent) {
+    init(_ student: CDStudent, arrivedLate: Bool = false) {
         self.init(
             firstName: student.firstName,
             lastName: student.lastName,
-            level: AttendanceEmailLevel(rawValue: student.level.rawValue)
+            level: AttendanceEmailLevel(rawValue: student.level.rawValue),
+            arrivedLate: arrivedLate
         )
+    }
+
+    /// The children marked Left Early on `day` who had arrived late, by
+    /// student id: the email lists them under Left Early with "(arrived
+    /// late)". Read from the day's records (the dedup winner per child),
+    /// since the grid's rows don't carry what came before Left Early.
+    @MainActor
+    static func lateThenLeftEarly(on day: Date, in context: NSManagedObjectContext) -> Set<String> {
+        let records = (try? CDAttendanceStore(context: context).loadRecords(for: day)) ?? []
+        let late = records.deduplicatedPerStudentDay().filter { $0.status == .leftEarly && $0.cameLate }
+        return Set(late.map(\.studentID))
     }
 }
 
@@ -182,7 +199,7 @@ public struct AttendanceEmailReport {
         let heading = "\(title) (\(students.count))"
         guard !students.isEmpty else { return [heading, "\(nameIndent)None"] }
         return [heading] + sorted(students, by: nameOrder).map {
-            "\(nameIndent)\u{2022} \($0.name(order: nameOrder))"
+            "\(nameIndent)\u{2022} \($0.name(order: nameOrder))" + ($0.arrivedLate ? " (arrived late)" : "")
         }
     }
 

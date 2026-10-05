@@ -61,15 +61,20 @@ struct AssistantTileKey: View {
                     Capsule().fill(Color.green).frame(width: 44, height: 4),
                     "Green line",
                     "Along the top of the bottom bar: how much of the class is here so far, "
-                        + "and in purple, anyone who has left early."
+                        + "in purple anyone who has left early, and in gray anyone absent."
                 )
                 row(
                     Label("Late", systemImage: "clock.fill")
+                        // Both, always: the automatic style drops the word
+                        // at accessibility text sizes.
+                        .labelStyle(.titleAndIcon)
                         .font(.caption.weight(.semibold))
+                        .lineLimit(1)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color.lateAmber.opacity(0.16), in: Capsule())
                         .foregroundStyle(Color.lateAmber),
+                    sizesItself: true,
                     "Late button",
                     "In the bottom bar once arrival is closed: a tap now marks a child late. "
                         + "Tap the button to reopen arrival."
@@ -101,11 +106,25 @@ struct AssistantTileKey: View {
         )
     }
 
-    private func row(_ sample: some View, _ title: String, _ detail: String) -> some View {
+    /// A row: the sample in a 72-point column, or at least that wide for a
+    /// sample with words in it (`sizesItself`), which a fixed column would
+    /// break mid-word at large text sizes ("La/te"). A sample is a picture
+    /// (VoiceOver skips it), so its text stops growing at the largest
+    /// non-accessibility size, where a tile still shows its name rather
+    /// than "…".
+    private func row(
+        _ sample: some View, sizesItself: Bool = false, _ title: String, _ detail: String
+    ) -> some View {
         HStack(spacing: 14) {
-            sample
-                .frame(width: 72)
-                .accessibilityHidden(true)
+            Group {
+                if sizesItself {
+                    sample.fixedSize().frame(minWidth: 72)
+                } else {
+                    sample.frame(width: 72)
+                }
+            }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body.weight(.medium))
