@@ -8,7 +8,6 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
-| [Plan - Data model and launch repair fixes](<Plans/Plan - Data model and launch repair fixes.md>) | Fix all 64 findings of that hunt, each behavior fix with a regression test, in six agent phases run in two parallel waves, then restore from the error screen, off-main store loading, a review and one squash onto main. | Not started | 2026-10-05 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
@@ -22,6 +21,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Data model and launch repair fixes](<Plans/Plan - Data model and launch repair fixes.md>) | Fix all 64 findings of that hunt, each behavior fix with a regression test, in six agent phases run in two parallel waves, then restore from the error screen, off-main store loading, a review and one squash onto main. | Done (0ab967ff) | 2026-10-06 |
 | [Plan - iPad Sample Class banner overlap](<Plans/Plan - iPad Sample Class banner overlap.md>) | iPad: the class and year control no longer covers Return to My Class. | Done (62682481) | 2026-10-03 |
 | [Plan - Plain English messages](<Plans/Plan - Plain English messages.md>) | Every message the apps show says what happened and what to do. | Done (9503d7f2) | 2026-10-03 |
 | [Plan - Groups page simulator check](<Plans/Plan - Groups page simulator check.md>) | Simulator check of the Groups page on iPad and iPhone, with three layout fixes. | Done (b0c2a6f0) | 2026-10-03 |
