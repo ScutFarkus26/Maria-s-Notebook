@@ -114,9 +114,11 @@ enum ClassroomAttendanceCatchUp {
     }
 
     /// Attaches them, holding the attach lock so no other pass shares the
-    /// same marks meanwhile. Throws `ClassroomShareError` when it can't start.
+    /// same marks meanwhile. Throws `ClassroomShareError` when it can't start,
+    /// including when an earlier pass is stuck holding the lock (waiting behind
+    /// it left the card spinning until relaunch).
     static func run(coreDataStack: CoreDataStack) async throws -> Report {
-        try await ClassroomShareAttachLock.shared.run {
+        let report = try await ClassroomShareAttachLock.shared.runUnlessStuck { () async throws -> Report in
             if let blocker = blocker(coreDataStack: coreDataStack) { throw blocker }
             guard let store = coreDataStack.privatePersistentStore else {
                 throw ClassroomShareError.sharedStoreUnavailable
@@ -139,5 +141,7 @@ enum ClassroomAttendanceCatchUp {
             logger.notice("This year's attendance: attached \(report.attached), failed \(report.failed)")
             return report
         }
+        guard let report else { throw ClassroomShareError.earlierAttachStillRunning }
+        return report
     }
 }

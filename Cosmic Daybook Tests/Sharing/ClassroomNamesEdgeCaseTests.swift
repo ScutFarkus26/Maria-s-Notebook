@@ -38,7 +38,7 @@ struct ClassroomNamesEdgeCaseTests {
         // A genuinely different row of his still folds away.
         Support.person("_guide", "Daniel", role: .leadGuide, created: at(5), modified: at(90), in: context)
         #expect(context.safeSave())
-        Support.asDevice(recordName: "_guide") { ClassroomNames.foldMyRows(role: .leadGuide, in: context) }
+        _ = Support.asDevice(recordName: "_guide") { ClassroomNames.foldMyRows(role: .leadGuide, in: context) }
         #expect(context.safeSave())
         #expect(rows("_guide", in: context).count == 2)
         #expect(rows("_guide", in: context).allSatisfy { $0.id == id })

@@ -96,7 +96,10 @@ nonisolated public enum BackupWriter {
     /// - v38: `ClassroomPerson` entries (schema 16) under `shared/`, the name
     ///   each person in the classroom set for themselves. Purely additive; a
     ///   v37 reader would skip them silently, hence the version.
-    public static let formatVersion: Int = 38
+    /// - v39: `SupplyTransaction` entries carry `changedByID` (schema 17), who
+    ///   set a staple's level, so its history names them as they go by now.
+    ///   Purely additive; restoring an older backup leaves a line's own value.
+    public static let formatVersion: Int = 39
 
     public enum WriterError: LocalizedError {
         case entityEncodingFailed(entityName: String, underlying: Error)

@@ -158,3 +158,23 @@ nonisolated struct RestockAuthor: Sendable, Equatable {
         return "You"
     }
 }
+
+/// A line of a staple's history as both apps' history sheets show it, naming
+/// whoever made the change by the name they go by now.
+///
+/// A level change's `reason` is written as "Low · Ana", the name stamped then,
+/// which older builds show as is; from schema 17 the line also carries who made
+/// it (`CDSupplyTransaction.changedByID`). A newer build keeps what happened
+/// ("Low") and adds the person's current name (`names`), so a rename reaches
+/// old lines too. Without a current name the line reads as stamped; lines from
+/// before schema 17 (no ID) and counted changes read as written.
+nonisolated enum RestockHistoryLine {
+    static let separator = " · "
+
+    static func text(reason: String, changedByID: String?, names: ClassroomNames.Snapshot) -> String {
+        let reason = reason.trimmed()
+        guard !reason.isEmpty, let current = names.name(forRecordName: changedByID) else { return reason }
+        let what = reason.range(of: separator).map { String(reason[..<$0.lowerBound]) } ?? reason
+        return what + separator + current
+    }
+}

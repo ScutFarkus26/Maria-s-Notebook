@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 /// A staple's history, newest first: "Low · Ana", "Out", "Restocked", with
-/// when each happened.
+/// when each happened, each person named as they go by now.
 struct AssistantRestockHistorySheet: View {
     let model: AssistantRestockModel
     let staple: CDSupply
@@ -11,6 +11,7 @@ struct AssistantRestockHistorySheet: View {
 
     var body: some View {
         let entries = model.history(for: staple)
+        let names = model.author.names
         NavigationStack {
             List {
                 if entries.isEmpty {
@@ -19,7 +20,7 @@ struct AssistantRestockHistorySheet: View {
                 } else {
                     ForEach(entries, id: \.objectID) { entry in
                         HStack(alignment: .firstTextBaseline) {
-                            Text(entry.reason.isEmpty ? change(entry) : entry.reason)
+                            Text(Self.line(for: entry, names: names))
                             Spacer(minLength: 8)
                             if let date = entry.date {
                                 Text(date.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
@@ -41,8 +42,11 @@ struct AssistantRestockHistorySheet: View {
         .presentationDetents([.medium, .large])
     }
 
-    /// A counted change with no reason: "+3", "−2".
-    private func change(_ entry: CDSupplyTransaction) -> String {
-        entry.quantityChange > 0 ? "+\(entry.quantityChange)" : "−\(abs(entry.quantityChange))"
+    /// The entry's reason, naming who made it as they go by now (`names`,
+    /// `RestockHistoryLine`); a counted change with no reason: "+3", "−2".
+    static func line(for entry: CDSupplyTransaction, names: ClassroomNames.Snapshot) -> String {
+        let reason = RestockHistoryLine.text(reason: entry.reason, changedByID: entry.changedByID, names: names)
+        guard reason.isEmpty else { return reason }
+        return entry.quantityChange > 0 ? "+\(entry.quantityChange)" : "−\(abs(entry.quantityChange))"
     }
 }

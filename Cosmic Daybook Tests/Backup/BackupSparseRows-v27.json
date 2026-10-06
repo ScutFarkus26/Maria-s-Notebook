@@ -280,8 +280,8 @@
       "{\"createdAt\":\"<now>\",\"id\":\"<new id>\",\"isActive\":true,\"studentID\":\"\",\"trackID\":\"\"}"
     ],
     "SupplyTransaction" : [
-      "{\"id\":\"00000000-0000-4000-8000-000000000020\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
-      "{\"id\":\"<new id>\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}"
+      "{\"changedByID\":\"\",\"id\":\"00000000-0000-4000-8000-000000000020\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}",
+      "{\"changedByID\":\"\",\"id\":\"<new id>\",\"quantityChange\":0,\"reason\":\"\",\"supplyID\":\"\"}"
     ],
     "TodoSubtask" : [
       "{\"createdAt\":\"<now>\",\"id\":\"00000000-0000-4000-8000-000000000018\",\"isCompleted\":false,\"orderIndex\":0,\"title\":\"\"}",

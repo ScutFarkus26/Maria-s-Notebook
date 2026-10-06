@@ -94,6 +94,30 @@ struct AttendanceEmailLogTests {
         #expect(summary.contains("13"), "another day's send carries its date: \(summary)")
     }
 
+    @Test("Outside the classroom (MCP) an assistant's send names her as she goes by now")
+    func thirdPersonSenderByCurrentName() throws {
+        let ctx = try CoreDataTestHelpers.makeContext()
+        let monday = try day("2026-10-12")
+        let record = AttendanceEmailLog.recordSend(
+            on: monday, role: .assistant, now: monday.addingTimeInterval(8 * 3_600), in: ctx
+        )
+        record.sentByID = "_sarah"
+        record.sentByName = "Sarah"
+        #expect(CoreDataTestHelpers.save(ctx))
+        #expect(AttendanceEmailLog.thirdPersonSummary(on: monday, in: ctx)?.hasSuffix(" by Sarah") == true)
+
+        ClassroomNamesTestSupport.person(
+            "_sarah", "Sarah K", role: .assistant, created: monday, in: ctx
+        )
+        #expect(CoreDataTestHelpers.save(ctx))
+        #expect(AttendanceEmailLog.thirdPersonSummary(on: monday, in: ctx)?.hasSuffix(" by Sarah K") == true)
+
+        record.sentByID = nil
+        record.sentByName = nil
+        #expect(CoreDataTestHelpers.save(ctx))
+        #expect(AttendanceEmailLog.thirdPersonSummary(on: monday, in: ctx)?.hasSuffix(" by an assistant") == true)
+    }
+
     // MARK: - Settings
 
     @Test("Only the lead guide writes the settings, and an unchanged write does nothing")

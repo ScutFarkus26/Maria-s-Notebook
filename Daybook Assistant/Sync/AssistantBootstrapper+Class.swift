@@ -40,21 +40,24 @@ extension AssistantBootstrapper {
     // MARK: - CloudKit mirroring stopped
 
     enum MirroringStopResponse: Equatable {
-        case ignore, rebuild, giveUp
+        case ignore, later, rebuild, giveUp
     }
 
     /// What a stop the share attacher reports calls for. Only a new
     /// container sends again, so the first stop on the open stack rebuilds
     /// it, as the iCloud account arriving does. A stop on a stack that's
-    /// gone since, or while the app is starting, failed or leaving, is
-    /// ignored. If the rebuilt stack stops too within
+    /// gone since is ignored. One on the open stack while the app is
+    /// starting, failed or leaving waits until it isn't
+    /// (`settleDeferredStop`): dropped, the marks stalled with nothing said
+    /// until a relaunch. If the rebuilt stack stops too within
     /// `mirroringRebuildWindow` it isn't rebuilt again (that could go round
     /// for good): the sync line says to reopen the app. A stop long after,
     /// on a stack that worked meanwhile, gets its own rebuild.
     nonisolated static func mirroringStopResponse(
         onOpenStack: Bool, settled: Bool, rebuiltBefore: Bool
     ) -> MirroringStopResponse {
-        guard onOpenStack, settled else { return .ignore }
+        guard onOpenStack else { return .ignore }
+        guard settled else { return .later }
         return rebuiltBefore ? .giveUp : .rebuild
     }
 
@@ -85,6 +88,8 @@ extension AssistantBootstrapper {
         ) {
         case .ignore:
             break
+        case .later:
+            deferredStop = container
         case .rebuild:
             rebuiltForMirroringStopAt = Date()
             Task { await rebuildStack(because: "CloudKit mirroring stopped") }
@@ -92,6 +97,31 @@ extension AssistantBootstrapper {
             Self.classLogger.error("CloudKit mirroring stopped again on the rebuilt stack")
             sendingStopped = true
         }
+    }
+
+    /// A stop held back while the app was starting, failed or leaving, now
+    /// that it may not be: at the end of each membership read, opening the
+    /// sample and Leave. Still unsettled, it waits again; a stack rebuilt
+    /// meanwhile makes it moot.
+    func settleDeferredStop() {
+        guard let container = deferredStop else { return }
+        deferredStop = nil
+        mirroringStopped(in: container)
+    }
+
+    // MARK: - Rebuilding the stack
+
+    /// Before a rebuild takes the stores off: a running attach finishes on
+    /// the old stack (one cut off read "no shared store" and dropped its
+    /// marks), up to a limit, since a `share(_:to:)` can hang. At least as
+    /// long as the screens had before to let go of the old stack's objects.
+    func waitForAttachBeforeRebuild(_ attacher: AssistantShareAttacher) async {
+        let started = ContinuousClock.now
+        if !(await attacher.waitUntilIdle(upTo: .seconds(10))) {
+            Self.classLogger.notice("An attach still running; rebuilding anyway, its marks stay waiting")
+        }
+        let grace = Duration.milliseconds(300) - (ContinuousClock.now - started)
+        if grace > .zero { try? await Task.sleep(for: grace) }
     }
 
     // MARK: - Leaving with marks not sent
@@ -136,6 +166,94 @@ extension AssistantBootstrapper {
         }
         await AssistantStack.keepAlive?.waitUntilSent(upTo: max(.zero, deadline - ContinuousClock.now))
         return unsentMarks()
+    }
+
+    /// How long Leave waits for a running attach before saying to try again.
+    nonisolated static let leaveWaitLimit: Duration = .seconds(20)
+
+    /// Once the class is off this iPhone: the marks that were still waiting
+    /// to go into its share are given up. The purge takes only the class's
+    /// share zone, and these were never in it, so they stayed in the shared
+    /// store and went into whichever class she joined next. Deleted only
+    /// where CloudKit confirms they're in no share
+    /// (`CDAttendanceStore.deleteUnsharedRecords`): one in a share is the
+    /// guide's, and its delete would reach him. Call it with the attacher
+    /// held and idle.
+    func giveUpWaitingMarks(_ waiting: [URL]) async {
+        if let stack = AssistantStack.current, let sharedStore = stack.sharedPersistentStore, !waiting.isEmpty {
+            let coordinator = stack.container.persistentStoreCoordinator
+            let ids = waiting.compactMap { coordinator.managedObjectID(forURIRepresentation: $0) }
+                .filter { $0.persistentStore === sharedStore }
+            do {
+                let deleted = try await CDAttendanceStore.deleteUnsharedRecords(ids, container: stack.container)
+                Self.classLogger.notice("Leave deleted \(deleted, privacy: .public) mark(s) the guide never had")
+            } catch {
+                let detail = error.localizedDescription
+                Self.classLogger.error("Couldn't tell which waiting marks were shared: \(detail, privacy: .public)")
+                Self.leaveBehind(waiting)
+            }
+        } else {
+            Self.leaveBehind(waiting)
+        }
+        AssistantShareAttacher.shared.forgetWaiting()
+        AssistantStack.keepAlive?.forgetUnsent()
+    }
+
+    // MARK: - Marks left behind
+
+    /// Waiting marks Leave couldn't sort: CloudKit couldn't say which were
+    /// already shared, or the running attach never finished. Forgotten, they
+    /// stayed in the shared store, unfiled and on no list, and could go into
+    /// the next class she joined. They're kept apart from the attach list (so
+    /// they never go into a share) and deleted once CloudKit can say which are
+    /// in no share, at the next launch or join (`deleteLeftBehindMarks`).
+    nonisolated static var leftBehindKey: String { CloudKitEnvironment.scoped("Assistant.leftBehindMarks") }
+
+    nonisolated static func leaveBehind(_ uris: [URL], defaults: UserDefaults = .standard) {
+        guard !uris.isEmpty else { return }
+        let known = defaults.stringArray(forKey: leftBehindKey) ?? []
+        let added = uris.map(\.absoluteString).filter { !known.contains($0) }
+        defaults.set(Array((known + added).suffix(500)), forKey: leftBehindKey)
+    }
+
+    private static var deletingLeftBehind = false
+
+    /// Deletes the marks Leave left behind that are in no share; a mark in a
+    /// share is the guide's and stays. Kept for the next try while CloudKit
+    /// can't say.
+    func deleteLeftBehindMarks(defaults: UserDefaults = .standard) async {
+        let uris = (defaults.stringArray(forKey: Self.leftBehindKey) ?? []).compactMap(URL.init(string:))
+        guard !uris.isEmpty, !Self.deletingLeftBehind, let stack = AssistantStack.current,
+              let sharedStore = stack.sharedPersistentStore else { return }
+        Self.deletingLeftBehind = true
+        defer { Self.deletingLeftBehind = false }
+        let coordinator = stack.container.persistentStoreCoordinator
+        let ids = uris.compactMap { coordinator.managedObjectID(forURIRepresentation: $0) }
+            .filter { $0.persistentStore === sharedStore }
+        do {
+            let deleted = try await CDAttendanceStore.deleteUnsharedRecords(ids, container: stack.container)
+            defaults.removeObject(forKey: Self.leftBehindKey)
+            Self.classLogger.notice("Deleted \(deleted, privacy: .public) mark(s) left behind by Leave")
+        } catch {
+            let detail = error.localizedDescription
+            Self.classLogger.error("Marks left behind by Leave wait for the next try: \(detail, privacy: .public)")
+        }
+    }
+
+    /// Leave on another of her iPhones: the same, once the running attach
+    /// has finished (if it hasn't by the limit, the marks are only
+    /// forgotten).
+    func dropWaitingMarks() async {
+        let attacher = AssistantShareAttacher.shared
+        attacher.hold()
+        defer { attacher.release() }
+        if await attacher.waitUntilIdle(upTo: Self.leaveWaitLimit) {
+            await giveUpWaitingMarks(attacher.pending)
+        } else {
+            Self.leaveBehind(attacher.pending)
+            attacher.forgetWaiting()
+            AssistantStack.keepAlive?.forgetUnsent()
+        }
     }
 
     // MARK: - Taken out of the class
@@ -210,6 +328,20 @@ extension AssistantBootstrapper {
             try? await Task.sleep(for: .seconds(5))
             guard let container = AssistantStack.current?.container else { return }
             await AssistantHistoryTrim.trim(container)
+        }
+    }
+}
+
+/// Why Leave didn't start, said on the Classroom screen.
+enum AssistantLeaveError: LocalizedError {
+    /// Her marks were still going into the class's share when she tapped
+    /// Leave, and still were after `leaveWaitLimit`.
+    case stillSending
+
+    var errorDescription: String? {
+        switch self {
+        case .stillSending:
+            "Your marks are still on their way to your guide, so nothing was removed. Try Leave again in a minute."
         }
     }
 }

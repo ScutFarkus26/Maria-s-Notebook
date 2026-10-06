@@ -187,10 +187,15 @@ enum AttendanceEmailLog {
     }
 
     /// The day's send as someone outside the classroom reads it ("Sent
-    /// 8:42 AM by Sarah (late)", the guide's own "by the guide"), for MCP.
+    /// 8:42 AM by Sarah (late)", the guide's own "by the guide"), for MCP. An
+    /// assistant is named as she goes by now (the classroom's list, by the
+    /// send's record name, so a rename reaches old sends), then by the name
+    /// stamped on the send, then "an assistant".
     static func thirdPersonSummary(on day: Date, in context: NSManagedObjectContext) -> String? {
         guard let send = latestSend(on: day, in: context) else { return nil }
-        let name = send.sentBy == .leadGuide ? "the guide" : (send.sentByName ?? "an assistant")
+        let name = send.sentBy == .leadGuide
+            ? "the guide"
+            : (ClassroomNames.name(forRecordName: send.sentByID, in: context) ?? send.sentByName ?? "an assistant")
         return send.summary(senderName: name, for: day, deadlineMinutes: settings(in: context)?.deadlineMinutes)
     }
 

@@ -91,6 +91,39 @@ struct ClassroomNamesWordingTests {
         #expect(beasOnHerPhone == "Bea")
     }
 
+    @Test("An unnamed assistant's mark reads 'an assistant' on the guide's screens, 'another assistant' on hers")
+    func unnamedAssistantMark() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let dees = Support.mark(by: .assistant, id: "_dee", name: nil, in: context)
+        let onMac = AttendanceRules.markerName(
+            for: dees, myRecordName: "_guide", myName: nil, guideName: "you", names: names
+        )
+        #expect(onMac == "an assistant")
+        let onHerPhone = AttendanceRules.markerName(
+            for: dees, myRecordName: "_ana", myName: "Ana B", guideName: nil, viewerRole: .assistant, names: names
+        )
+        #expect(onHerPhone == "another assistant")
+    }
+
+    @Test("A staple's history names each person as they go by now; old lines read as written")
+    func stapleHistoryLines() {
+        // Stamped "Ana" back then, "Ana B" now; the guide's lines carry no name.
+        #expect(RestockHistoryLine.text(reason: "Low · Ana", changedByID: "_ana", names: names) == "Low · Ana B")
+        #expect(RestockHistoryLine.text(reason: "Out", changedByID: "_guide", names: names) == "Out · Danny")
+        // No row for her: the stamped name stands.
+        #expect(RestockHistoryLine.text(reason: "Low · Cal", changedByID: "_cal", names: names) == "Low · Cal")
+        // Before schema 17 (no ID), or a stand-in: as written.
+        #expect(RestockHistoryLine.text(reason: "Low · Ana", changedByID: "", names: names) == "Low · Ana")
+        #expect(RestockHistoryLine.text(reason: "Low · Ana", changedByID: nil, names: names) == "Low · Ana")
+        #expect(
+            RestockHistoryLine.text(reason: "Restocked", changedByID: CKCurrentUserDefaultName, names: names)
+                == "Restocked"
+        )
+        // A counted change's reason stays; an empty one stays empty for the sheet to word.
+        #expect(RestockHistoryLine.text(reason: "Used for art", changedByID: nil, names: names) == "Used for art")
+        #expect(RestockHistoryLine.text(reason: " ", changedByID: "_ana", names: names).isEmpty)
+    }
+
     @Test("Before a device knows its record name, its own stamps still read as its own")
     func ownStampsWithoutRecordNameYet() {
         let newIPad = RestockAuthor(role: .leadGuide, names: names)

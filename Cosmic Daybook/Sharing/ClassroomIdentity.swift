@@ -49,9 +49,19 @@ enum ClassroomIdentity {
     /// per launch; offline, it keeps what was saved before. Callers then run
     /// `ClassroomNames.writeWaitingName`, which writes a name typed before the
     /// record name was known.
+    ///
+    /// The first call also starts following Apple Account changes
+    /// (`followAccountChanges`), and noting CloudKit's imports for
+    /// `ClassroomNames.Arrival`, as early in the launch as both apps get.
     static func refreshRecordName(container: CKContainer = CloudKitConfigurationService.container) async {
         // Unit tests never ask iCloud.
-        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        guard !isRunningUnitTests else { return }
+        ClassroomNames.Arrival.shared.start()
+        followAccountChanges(container: container)
+        await readRecordName(from: container)
+    }
+
+    private static func readRecordName(from container: CKContainer) async {
         do {
             let recordID = try await container.userRecordID()
             currentUserRecordName = recordID.recordName
@@ -59,6 +69,41 @@ enum ClassroomIdentity {
             let detail = error.localizedDescription
             logger.notice("Couldn't read this account's CloudKit record name: \(detail, privacy: .public)")
         }
+    }
+
+    // MARK: - Account changes
+
+    private static var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    /// The account-change observer, once `followAccountChanges` has started it.
+    private static var accountObserver: (any NSObjectProtocol)?
+
+    /// Reads the record name again whenever the Apple Account changes
+    /// (`.CKAccountChanged`): the saved one goes at once, so nothing new is
+    /// stamped with the last account's ID (the "you" and name rows), and the
+    /// new account's is asked for. Signed out, or offline, it stays unknown
+    /// until an answer comes; changes meanwhile fall back to role and name,
+    /// as before it was known. Started by the first `refreshRecordName()`;
+    /// never under unit tests.
+    static func followAccountChanges(container: CKContainer = CloudKitConfigurationService.container) {
+        guard accountObserver == nil, !isRunningUnitTests else { return }
+        accountObserver = NotificationCenter.default.addObserver(
+            forName: .CKAccountChanged, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated {
+                _ = Task { await accountChanged { await readRecordName(from: container) } }
+            }
+        }
+    }
+
+    /// What an account change does: forget the saved record name, then read
+    /// the new one with `reread`. Tests pass their own read.
+    static func accountChanged(reread: () async -> Void) async {
+        logger.notice("The Apple Account changed; reading this account's record name again")
+        currentUserRecordName = nil
+        await reread()
     }
 
     /// The label this person wants beside their marks. Empty is stored as nil so

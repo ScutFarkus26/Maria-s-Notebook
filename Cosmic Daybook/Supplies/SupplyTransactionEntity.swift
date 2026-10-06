@@ -10,7 +10,14 @@ nonisolated public class CDSupplyTransaction: NSManagedObject {
     @NSManaged public var supplyID: String
     @NSManaged public var date: Date?
     @NSManaged public var quantityChange: Int64
+    /// What happened, as written: "Low · Ana" (the name stamped then), "Out",
+    /// "Restocked", or a counted change's reason. Older builds show it as is.
     @NSManaged public var reason: String
+    /// Who made a level change: their CloudKit record name (schema 17), so
+    /// the history names them as they go by now (`RestockHistoryLine`).
+    /// Empty on older lines and counted changes; never a stand-in such as
+    /// `__defaultOwner__`.
+    @NSManaged public var changedByID: String?
 
     @NSManaged public var supply: CDSupply?
 
@@ -21,5 +28,6 @@ nonisolated public class CDSupplyTransaction: NSManagedObject {
         self.id = UUID()
         self.supplyID = ""
         self.reason = ""
+        self.changedByID = ""
     }
 }

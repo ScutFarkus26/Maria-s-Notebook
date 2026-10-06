@@ -13,6 +13,7 @@ run `docs-index`; edit only the Other documents section by hand.
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
 | [Plan - Restock](<Plans/Plan - Restock.md>) | Supplies and orders as one page, shared with the Daybook Assistant; shipped to TestFlight, device checks open. | Working on it | 2026-10-03 |
 | [Plan - School year separation](<Plans/Plan - School year separation.md>) | A school-year lens across the app; reports, exports and the activity stamp were never built. | Working on it | 2026-09-30 |
+| [Plan - Sync and sharing fixes](<Plans/Plan - Sync and sharing fixes.md>) | fix every finding of the 2026-10-05 sync and sharing bug hunt in six parallel agents, add who-changed-it to staple history (schema 17), and land it all on main. | Working on it | 2026-10-05 |
 | [Plan - Who made a change](<Plans/Plan - Who made a change.md>) | Save each device's real CloudKit ID instead of the shared stand-in, show who added something only when it isn't you, and make the office run a plain errand list (what, how urgent, where it goes). | Working on it | 2026-10-05 |
 | [Plan - Widgets and Control Center](<Plans/Plan - Widgets and Control Center.md>) | Widgets and Control Center recipe; no widget target exists yet. | Not started | 2026-09-30 |
 | [Plan - macOS Human Interface Guidelines](<Plans/Plan - macOS Human Interface Guidelines.md>) | Making the Mac app follow Apple's Mac design guidelines; phase 4 and sweeps are still open. | Working on it | 2026-09-30 |
@@ -77,7 +78,7 @@ Cosmic Daybook (the notebook app for macOS, iPad and iPhone) and the Daybook Ass
   - [ADR-003](<Technical notes/Decision records/ADR-003-repository-pattern.md>): when to use repositories versus `@FetchRequest` (accepted 2026-01).
   - [ADR-004](<Technical notes/Decision records/ADR-004-dependency-injection.md>): dependency injection through `AppDependencies` (accepted 2026-02).
 - [Performance baselines](<Technical notes/Performance baselines/>): 16 dated performance measurements (2026-09-04 to 2026-09-29): clean build, launch, energy waves, build-speed levers. Covers both apps.
-- [Reviews](<Reviews/>): [2026-10-02](<Reviews/Organization audit 2026-10-02.md>) is the organization audit of the repo with the changes applied.
+- [Reviews](<Reviews/>): [2026-10-02](<Reviews/Organization audit 2026-10-02.md>) is the organization audit of the repo with the changes applied; [2026-10-05](<Reviews/Sync and sharing bug hunt 2026-10-05.md>) is the sync and sharing bug hunt (findings only, nothing fixed yet).
 
 ### Manuals (these stay in `Documentation/`)
 

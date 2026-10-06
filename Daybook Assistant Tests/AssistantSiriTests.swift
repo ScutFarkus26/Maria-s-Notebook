@@ -210,6 +210,28 @@ struct AssistantSiriTests {
         #expect(try siri.status(of: #require(kids["Ari"])) == .present)
     }
 
+    // Sync and sharing bug hunt 2026-10-05, #6: only the sync line's own
+    // listener noted a save, so a Siri mark made with the app closed and
+    // sent while offline later read "All marks sent".
+    @Test("A Siri mark made with no window open counts as unsent until an export after it")
+    func siriMarkIsUnsent() async throws {
+        defer { cleanUp() }
+        let kids = try classOfThree()
+        let record = AssistantSyncRecord(viewContext: context, defaults: AssistantTestSupport.makeDefaults())
+        let keepAlive = UnsentChangesKeepAlive(viewContext: context)
+        record.record(.init(isExport: true, start: Date(), end: Date(), succeeded: true))
+        try await Task.sleep(for: .milliseconds(10))
+
+        try await session().mark(try #require(kids["Maya"]), as: .present)
+        #expect(record.lastSave > record.lastExportStart)
+        #expect(keepAlive.hasUnsentWork)
+        let line = AssistantSyncStatusView.status(
+            hasUnsavedChanges: false, lastSave: record.lastSave, lastExportStart: record.lastExportStart,
+            lastExportFailed: record.lastExportFailed
+        )
+        #expect(line == .sending)
+    }
+
     // MARK: - Membership
 
     @Test("Only an assistant row counts: a lead guide's row on the same account is not a class")

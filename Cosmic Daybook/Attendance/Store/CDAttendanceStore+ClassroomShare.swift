@@ -40,15 +40,24 @@ extension CDAttendanceStore {
     /// share are left alone. Returns the ones to try again later (those that
     /// failed, and all of them when there is no share to put them in yet or
     /// it couldn't be read), and whether mirroring stopped.
+    ///
+    /// A container with no stores open is a stack closed for a rebuild
+    /// (`AssistantStack.rebuild`), not a sign there's nothing to do: its
+    /// records wait for the new stack. Reading that as "done" dropped them.
+    /// (A stack open on one store, as in tests, has no share to put
+    /// anything in.)
     @discardableResult
     static func attachNewRecordsToClassroomShare(
         _ ids: [NSManagedObjectID],
         container: NSPersistentCloudKitContainer,
         pinContext: NSManagedObjectContext
     ) async -> ShareAttachResult {
-        let sharedStore = container.persistentStoreCoordinator.persistentStores.first {
-            $0.configurationName == CoreDataStack.sharedConfiguration
+        let stores = container.persistentStoreCoordinator.persistentStores
+        guard !stores.isEmpty else {
+            shareLogger.notice("No store open; \(ids.count, privacy: .public) record(s) wait for the next try")
+            return ShareAttachResult(left: ids.filter { !$0.isTemporaryID })
         }
+        let sharedStore = stores.first { $0.configurationName == CoreDataStack.sharedConfiguration }
         let permanent = ids.filter { !$0.isTemporaryID && $0.persistentStore === sharedStore }
         guard let sharedStore, let sharedStoreID = sharedStore.identifier, !permanent.isEmpty else {
             return ShareAttachResult(left: [])
@@ -86,6 +95,43 @@ extension CDAttendanceStore {
         } catch {
             shareLogger.error("Couldn't check the new records' share: \(error.localizedDescription, privacy: .public)")
             return ShareAttachResult(left: permanent)
+        }
+    }
+
+    /// The share zone each of `ids` is in, read off the caller's actor: a
+    /// record in no share has no entry. Throws when CloudKit can't say.
+    @concurrent
+    nonisolated static func shareZoneNames(
+        of ids: [NSManagedObjectID],
+        container: NSPersistentCloudKitContainer
+    ) async throws -> [NSManagedObjectID: String] {
+        guard !ids.isEmpty else { return [:] }
+        return try container.fetchShares(matching: ids).mapValues(\.recordID.zoneID.zoneName)
+    }
+
+    /// Deletes those of `ids` that still exist and are in no share, on a
+    /// fresh background context (a view context can still hold objects a
+    /// purge removed), and returns how many. For the Assistant's marks that
+    /// never went into the share when she leaves: the purge takes only the
+    /// class's zone. A record in a share is never deleted here: its delete
+    /// would reach the guide. Throws, deleting nothing, when CloudKit can't
+    /// say which are shared.
+    @concurrent
+    nonisolated static func deleteUnsharedRecords(
+        _ ids: [NSManagedObjectID],
+        container: NSPersistentCloudKitContainer
+    ) async throws -> Int {
+        guard !ids.isEmpty else { return 0 }
+        let context = container.newBackgroundContext()
+        let existing = context.performAndWait { ids.filter { (try? context.existingObject(with: $0)) != nil } }
+        guard !existing.isEmpty else { return 0 }
+        let inShare = try container.fetchShares(matching: existing)
+        let outside = existing.filter { inShare[$0] == nil }
+        guard !outside.isEmpty else { return 0 }
+        return try context.performAndWait {
+            for id in outside { context.delete(try context.existingObject(with: id)) }
+            try context.save()
+            return outside.count
         }
     }
 }

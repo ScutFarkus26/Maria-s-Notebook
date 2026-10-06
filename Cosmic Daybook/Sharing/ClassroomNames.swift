@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 // ClassroomNames.swift
 // The classroom's shared list of names: each person sets their own, and every
 // screen looks names up when it words a line, so a rename reaches old entries.
@@ -24,7 +25,9 @@ import Foundation
 ///   owner folds their own duplicates into the oldest by (`createdAt`, `id`),
 ///   the survivor every device agrees on, carrying the newest name over; a row
 ///   already in the classroom's share zone goes first, and rows in another
-///   classroom's zone are never theirs to fold.
+///   classroom's zone are never theirs to fold. At launch nothing is folded
+///   until the class has arrived (`Arrival`), so a stale name never goes up
+///   over a rename still on its way down.
 /// - **Clearing keeps the row.** A cleared name is stored empty; deleting the
 ///   row would let another device's older one bring the old name back.
 /// - **Display only.** Names are what people typed, shown as typed; nothing is
@@ -81,6 +84,14 @@ enum ClassroomNames {
     /// context. A no-op while the record name is still unknown, or when nothing
     /// waits and nothing needs folding.
     ///
+    /// Nothing is written or folded until the class is on this device
+    /// (`Arrival.classIsHere`): a classroom membership, and this launch's first
+    /// successful import into the store this person's rows live in since that
+    /// membership was pinned. Before then a fold could send an older name over
+    /// a rename still on its way down, and her row was written where no class
+    /// could take it. Until then the write waits, and runs again after the
+    /// next import.
+    ///
     /// An assistant who named herself before the list existed has a name on her
     /// phone and no row; that counts as waiting too, so her name joins the list
     /// without her typing it again.
@@ -95,12 +106,23 @@ enum ClassroomNames {
         role: CDClassroomMembership.ClassroomRole? = nil,
         now: Date = Date(),
         in context: NSManagedObjectContext,
-        save: (_ context: NSManagedObjectContext, _ created: [NSManagedObject]) -> Bool = { context, _ in
+        arrival: Arrival = .shared,
+        save: @escaping (_ context: NSManagedObjectContext, _ created: [NSManagedObject]) -> Bool = { context, _ in
             context.safeSave()
         }
     ) -> Bool {
-        guard let me = ClassroomIdentity.currentUserRecordName else { return false }
+        guard let me = ClassroomIdentity.currentUserRecordName,
+              context.persistentStoreCoordinator?.persistentStores.isEmpty == false else { return false }
         let deviceRole = role ?? CDClassroomMembership.currentRole(in: context)
+        arrival.start()
+        guard arrival.classIsHere(role: deviceRole, in: context) else {
+            arrival.holdUntilNextImport(for: me) { [weak context, weak arrival] in
+                guard let context, let arrival else { return }
+                writeWaitingName(role: role, in: context, arrival: arrival, save: save)
+            }
+            return false
+        }
+        refreshUnchangedRows(in: context)
         var waitingRole = ClassroomIdentity.nameWaitingAs
         if waitingRole == nil, deviceRole == .assistant, ClassroomIdentity.displayName != nil,
            myRows(me, role: deviceRole, in: context).isEmpty {
@@ -172,12 +194,16 @@ enum ClassroomNames {
             if let kept = newest[id], !isNewer(row, kept) { continue }
             newest[id] = row
         }
-        // The classroom's owner when her membership row names them: a shared
-        // store can still hold a guide's row from a class she was in before.
-        let owner = ClassroomIdentity.realRecordName(CDClassroomMembership.current(in: context)?.ownerIdentity)
-        let guides = newest.values.filter { $0.role == .leadGuide }
-        let ownersRow = owner.flatMap { owner in guides.first { $0.recordName == owner } }
-        let guide = ownersRow ?? guides.min(by: isNewer)
+        // The classroom's owner, when known, and only the owner: a store can
+        // still hold a guide's row from another class (one she was in before),
+        // and an owner who hasn't named himself yet must not read as that
+        // guide. Not known, the newest guide's row in the pinned classroom.
+        let guide: CDClassroomPerson?
+        if let owner = ownerRecordName(in: context) {
+            guide = newest[owner]
+        } else {
+            guide = inPinnedClassroom(newest.values.filter { $0.role == .leadGuide }, in: context).min(by: isNewer)
+        }
         let guideName = guide.map { $0.displayName.trimmed() }.flatMap { $0.isEmpty ? nil : $0 }
         return Snapshot(
             names: newest.mapValues { $0.displayName.trimmed() },
@@ -349,8 +375,16 @@ enum ClassroomNames {
         let request = CDFetchRequest(CDClassroomPerson.self)
         request.predicate = NSPredicate(format: "recordName == %@", recordName)
         if let store = RestockService.destinationStore(for: role, in: context) { request.affectedStores = [store] }
-        let rows = context.safeFetch(request)
-        guard let pinned = CDClassroomMembership.pinnedZoneName(in: context) else { return rows }
+        return inPinnedClassroom(context.safeFetch(request), in: context)
+    }
+
+    /// `rows` without those in another classroom's share zone: the pinned
+    /// classroom's, and those in no share yet (not sent, or waiting in the
+    /// guide's own zone to be filed). All of them when nothing is pinned.
+    private static func inPinnedClassroom(
+        _ rows: [CDClassroomPerson], in context: NSManagedObjectContext
+    ) -> [CDClassroomPerson] {
+        guard !rows.isEmpty, let pinned = CDClassroomMembership.pinnedZoneName(in: context) else { return rows }
         return rows.filter { row in
             guard let zone = zoneName(of: row, in: context) else { return true }
             return !zone.hasPrefix(shareZonePrefix) || zone == pinned

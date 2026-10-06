@@ -897,7 +897,7 @@ final class Backup2RoundTripTests {
         )
     }
 
-    @Test("v31: supply transactions survive a Replace restore and re-link to their supply")
+    @Test("v31: supply transactions survive a Replace restore, linked to their supply by supplyID only")
     func v31SupplyTransactionsRoundTrip() async throws {
         let sourceStack = try CoreDataTestHelpers.makeInMemoryStack()
         let ctx = sourceStack.viewContext
@@ -945,7 +945,9 @@ final class Backup2RoundTripTests {
         #expect(restoredStocked.date == stocked.date)
         #expect(restoredStocked.quantityChange == 1)
         #expect(restoredStocked.reason == "Initial stock")
-        #expect(restoredStocked.supply?.id == supplyID, "Transaction -> supply relationship was not restored")
+        // Never through the `supply` relationship: filing a restored line into
+        // the classroom share would take its already-shared staple along.
+        #expect(restoredStocked.supply == nil, "a restored line is linked by supplyID only")
 
         let restoredUsed = try #require(
             try BackupTestUtil.fetchByID(
@@ -954,9 +956,9 @@ final class Backup2RoundTripTests {
         )
         #expect(restoredUsed.date == nil)
         #expect(restoredUsed.quantityChange == -2)
-        #expect(restoredUsed.supply?.id == supplyID)
+        #expect(restoredUsed.supply == nil)
 
-        let history = restoredSupply.mutableSetValue(forKey: "transactions")
-        #expect(history.count == 2, "Supply -> transactions inverse was not populated")
+        let history = RestockService.history(for: restoredSupply, in: dctx)
+        #expect(Set(history.map(\.id)) == Set([stocked.id, used.id]), "the staple's history, found by supplyID")
     }
 }

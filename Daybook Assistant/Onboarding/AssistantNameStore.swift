@@ -15,6 +15,12 @@ enum AssistantNameStore {
     private static let key = "Assistant.displayName"
     private static let logger = Logger.app(category: "names")
 
+    /// Set from an iCloud account change until the account has been read
+    /// again (`AssistantBootstrapper.readAccountAgain`): her row would go
+    /// under the last account's record name, which may be someone else's.
+    /// Her name waits on this iPhone meanwhile.
+    static var writesHeld = false
+
     static func save(_ name: String) {
         ClassroomIdentity.displayName = name
         let store = NSUbiquitousKeyValueStore.default
@@ -33,9 +39,11 @@ enum AssistantNameStore {
     @discardableResult
     static func save(_ name: String, in stack: CoreDataStack?) -> Bool {
         save(name)
-        guard let stack, !AssistantSampleClass.isActive else {
-            // No real classroom to write to now: the name waits for the next
-            // launch on hers, or a rename would never reach the guide's devices.
+        guard let stack, !AssistantSampleClass.isActive, !writesHeld else {
+            // No real classroom to write to now (or no account to write it
+            // under): the name waits for the next chance on hers
+            // (`AssistantBootstrapper.writeWaitingName`), or a rename would
+            // never reach the guide's devices.
             ClassroomNames.markWaiting(as: .assistant)
             return true
         }
@@ -61,22 +69,26 @@ enum AssistantNameStore {
         return save(context, written.isNew ? [written.person] : [])
     }
 
-    /// At launch, once her record name has been asked for: a name she gave
-    /// before it was known (or before the classroom's list of names existed)
-    /// joins the list, into the share (`ClassroomNames.writeWaitingName`).
-    /// Never for the Debug launch's sample class, whose stack `stack` is then.
+    /// At launch once her record name has been asked for, after joining,
+    /// after leaving the Sample Class and on coming back to the app: a name
+    /// she gave before it was known (or before the classroom's list of names
+    /// existed, or where it couldn't go in) joins the list, into the share
+    /// (`ClassroomNames.writeWaitingName`). Never for the Debug launch's
+    /// sample class, whose stack `stack` is then.
     static func writeWaitingName(on stack: CoreDataStack) {
         guard !AssistantSampleClass.isRequested else { return }
         writeWaitingName(in: stack.viewContext, container: stack.container)
     }
 
     /// `writeWaitingName(on:)`'s work; tests pass no container (no share).
+    /// Nothing while `writesHeld`.
     @discardableResult
     static func writeWaitingName(
         in context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer?
     ) -> Bool {
-        ClassroomNames.writeWaitingName(role: .assistant, in: context) { context, created in
+        guard !writesHeld else { return false }
+        return ClassroomNames.writeWaitingName(role: .assistant, in: context) { context, created in
             saveList(context, created: created, container: container)
         }
     }
@@ -106,5 +118,23 @@ enum AssistantNameStore {
         else { return false }
         ClassroomIdentity.displayName = stored
         return true
+    }
+
+    /// Another Apple Account signed in on this iPhone: the name kept here
+    /// was the last account's. Hers comes from the new account's iCloud copy
+    /// when it has one (`restoreIfNeeded`), or she's asked again. Nothing in
+    /// the classroom's list changes: the last account's row stays its own.
+    static func forgetForNewAccount() {
+        ClassroomIdentity.displayName = nil
+        restoreIfNeeded()
+    }
+
+    /// Whether the account CloudKit now names is another one than before.
+    /// Not when either is unknown: an account that couldn't be read is no
+    /// reason to ask her name again.
+    nonisolated static func isAnotherAccount(before: String?, now: String?) -> Bool {
+        guard let before = ClassroomIdentity.realRecordName(before),
+              let now = ClassroomIdentity.realRecordName(now) else { return false }
+        return before != now
     }
 }

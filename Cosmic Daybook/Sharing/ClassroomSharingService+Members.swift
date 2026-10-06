@@ -2,16 +2,24 @@ import Foundation
 import CoreData
 import CloudKit
 
-/// Adding and removing classroom members without the system sharing UI.
+/// Adding and removing classroom members without the system sharing UI, on
+/// every device (`ClassroomMembersSheet`).
 ///
 /// macOS has no `UICloudSharingController`, and the share popover
 /// `NSSharingServicePicker` offers for a registered `CKShare` comes up empty for
 /// this app (the share sheet logs "No items to share after sandbox filtering").
-/// The Mac's Settings → Classroom sheet manages members through these instead.
+/// On iPhone and iPad, `UICloudSharingController` always offers the owner its
+/// own Stop Sharing, which deletes the share, and nothing can hide it: after
+/// it, the pin named a zone that was gone and setup refused for good (bug hunt
+/// 2026-10-05).
 ///
 /// Sharing stays on throughout: the one classroom share is set up once and
 /// pinned (see `setUpClassroomSharing`), so "stop sharing" here means removing
 /// everyone else, never deleting the share — a new one would be a second zone.
+///
+/// Each change starts from the latest copy of the share (`latestShare`):
+/// saving the store's copy after another device changed the share is the
+/// stale-copy failure 0f312b91 fixed for attaching.
 extension ClassroomSharingService {
 
     // MARK: - Permission Queries
@@ -50,7 +58,6 @@ extension ClassroomSharingService {
     func addMember(_ address: String, permission: CKShare.ParticipantPermission) async throws {
         let address = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !address.isEmpty else { throw MemberError.emptyAddress }
-        guard let share = try fetchExistingShare() else { throw MemberError.noShare }
 
         let lookup = address.contains("@")
             ? CKUserIdentity.LookupInfo(emailAddress: address)
@@ -59,6 +66,7 @@ extension ClassroomSharingService {
         guard let participant = try results.values.first?.get() else {
             throw MemberError.noAccount(address)
         }
+        let share = try await latestShare()
         // Adding the same Apple Account twice is a silent no-op on the share,
         // so say so instead of reporting a success that changed nothing.
         if let existing = share.participants.first(where: { isSamePerson($0, participant) }),
@@ -113,23 +121,48 @@ extension ClassroomSharingService {
     }
 
     private func removeMembers(where matches: (CKShare.Participant) -> Bool) async throws {
-        guard let share = try fetchExistingShare() else { throw MemberError.noShare }
-        let leaving = share.participants.filter { $0.role != .owner && matches($0) }
+        let share = try await latestShare()
+        let leaving = Self.membersToRemove(from: share, where: matches)
         guard !leaving.isEmpty else { return }
         leaving.forEach(share.removeParticipant)
         try await save(share)
     }
 
-    private func save(_ share: CKShare) async throws {
-        guard let storeIdentifier = container.persistentStoreCoordinator.persistentStores
+    /// The people `matches` picks out of `share`, never its owner: Stop
+    /// Sharing removes everyone else and keeps the share.
+    static func membersToRemove(
+        from share: CKShare,
+        where matches: (CKShare.Participant) -> Bool
+    ) -> [CKShare.Participant] {
+        share.participants.filter { $0.role != .owner && matches($0) }
+    }
+
+    /// The lead guide's share lives in the private store.
+    private var ownerStoreIdentifier: String? {
+        container.persistentStoreCoordinator.persistentStores
             .first(where: { $0.configurationName == CoreDataStack.privateConfiguration })?.identifier
+    }
+
+    /// The pinned share as the server has it now (the store's copy when the
+    /// server doesn't answer), read off the main actor.
+    private func latestShare() async throws -> CKShare {
+        guard let storeIdentifier = ownerStoreIdentifier,
+              let stored = try await ClassroomShareAttach.classroomShare(
+                  inStoreWithIdentifier: storeIdentifier, container: container, pinContext: context
+              )
         else { throw MemberError.noShare }
+        return await ClassroomShareAttach.current(stored, container: container)
+    }
+
+    private func save(_ share: CKShare) async throws {
+        guard let storeIdentifier = ownerStoreIdentifier else { throw MemberError.noShare }
         // Off the main actor: the call blocks its thread until the export resolves.
         let saved = try await ClassroomShareAttach.persistUpdatedShareOffMain(
             share, storeIdentifier: storeIdentifier, container: container
         )
         updateShareState(saved)
-        try refreshParticipants()
+        // The change is saved; reading the members back is a nicety.
+        await refreshShareInBackground()
     }
 
     private var cloudKitContainer: CKContainer {

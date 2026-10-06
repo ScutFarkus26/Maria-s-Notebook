@@ -63,6 +63,112 @@ struct BackupRestockRoundTripTests {
         #expect(restoredGlue.supplyID == nil)
     }
 
+    @Test("v39: who set each level comes back with its line, linked to its staple by supplyID only")
+    func historyWhoRoundTrips() async throws {
+        let source = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let staple = try RestockTestSupport.staple("Paper Towels", in: source)
+        let guide = RestockTestSupport.guide
+        RestockService.setLevel(staple, to: .low, by: ana, at: RestockTestSupport.at(10), in: source)
+        RestockService.setLevel(staple, to: .out, by: guide, at: RestockTestSupport.at(20), in: source)
+        #expect(CoreDataTestHelpers.save(source))
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: source, to: url)
+
+        let restored = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        try await BackupTestUtil.importCurrentBackup(from: url, into: restored, mode: .replace)
+        let back = try #require(
+            try BackupTestUtil.fetchByID(CDSupply.self, staple.id, entityName: "Supply", in: restored)
+        )
+        let lines = RestockService.history(for: back, in: restored)
+        #expect(lines.map(\.reason) == ["Out", "Low · Ana"])
+        #expect(lines.map(\.changedByID) == ["_guide", "_ana"])
+        #expect(lines.allSatisfy { $0.supply == nil }, "never re-linked through `supply`")
+
+        // Ana renamed herself since: the restored line names her as she is now.
+        ClassroomNamesTestSupport.person(
+            "_ana", "Annie", role: .assistant, created: RestockTestSupport.at(30), in: restored
+        )
+        #expect(CoreDataTestHelpers.save(restored))
+        let names = ClassroomNames.snapshot(in: restored)
+        #expect(lines.map { StapleHistorySheet.line(for: $0, names: names) } == ["Out", "Low · Annie"])
+    }
+
+    @Test("A Merge restore puts a missing history line back without linking its staple, already in the share")
+    func mergeRestoreLeavesTheStapleUnlinked() async throws {
+        let source = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let staple = try RestockTestSupport.staple("Paper Towels", in: source)
+        RestockService.setLevel(staple, to: .low, by: ana, at: RestockTestSupport.at(10), in: source)
+        #expect(CoreDataTestHelpers.save(source))
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: source, to: url)
+
+        // The notebook as it is now: the staple is there, its line went missing.
+        let target = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        try await BackupTestUtil.importCurrentBackup(from: url, into: target, mode: .replace)
+        let there = try #require(
+            try BackupTestUtil.fetchByID(CDSupply.self, staple.id, entityName: "Supply", in: target)
+        )
+        RestockService.history(for: there, in: target).forEach(target.delete)
+        #expect(CoreDataTestHelpers.save(target))
+
+        try await BackupTestUtil.importCurrentBackup(from: url, into: target, mode: .merge)
+        let line = try #require(RestockService.history(for: there, in: target).first)
+        #expect(line.reason == "Low · Ana")
+        #expect(line.changedByID == "_ana")
+        #expect(line.supply == nil, "filing the line must not carry the shared staple along")
+        #expect(((there.value(forKey: "transactions") as? NSSet)?.count ?? 0) == 0)
+    }
+
+    @Test("A v38 line without who set it keeps the one already stored; a new one has none")
+    func olderLineKeepsStoredWho() async throws {
+        let target = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let staple = try RestockTestSupport.staple("Paper Towels", in: target)
+        RestockService.setLevel(staple, to: .low, by: ana, at: RestockTestSupport.at(10), in: target)
+        #expect(CoreDataTestHelpers.save(target))
+        let stored = try #require(RestockService.history(for: staple, in: target).first)
+        let storedID = try #require(stored.id)
+        let supplyID = try #require(staple.id?.uuidString)
+        let newID = UUID()
+
+        let rows = [storedID, newID].map { id in
+            #"{"date":"2026-09-30T12:00:00Z","id":"\#(id.uuidString)","quantityChange":0,"#
+                + #""reason":"Low · Ana","supplyID":"\#(supplyID)"}"#
+        }
+        let entry = BackupEntityEntry(
+            entityName: "SupplyTransaction", storeName: "shared", count: 2,
+            ndjson: Data((rows.joined(separator: "\n") + "\n").utf8)
+        )
+        let decoded = BackupReader.DecodedBackup(
+            manifest: BackupArchiveManifest(
+                formatVersion: 38, createdAt: Date(),
+                appVersion: "", appBuild: "", device: "", entityCounts: [:], originStores: [:]
+            ),
+            entries: [entry],
+            preferences: nil
+        )
+        let (payload, warnings) = BackupImporter.reconstructPayload(from: decoded)
+        #expect(warnings.isEmpty, "\(warnings)")
+        _ = try await BackupService().importPayload(
+            payload: payload,
+            envelope: BackupEnvelope(
+                formatVersion: 38, encrypted: false, createdAt: Date(), fileName: "v38", entityCounts: [:]
+            ),
+            viewContext: target,
+            mode: .merge,
+            appRouter: AppRouter.shared,
+            progress: { _, _ in }
+        )
+
+        #expect(stored.changedByID == "_ana", "a v38 row has no changedByID to put over it")
+        let added = try #require(
+            try BackupTestUtil.fetchByID(CDSupplyTransaction.self, newID, entityName: "SupplyTransaction", in: target)
+        )
+        #expect(added.changedByID == "")
+        #expect(added.reason == "Low · Ana")
+    }
+
     @Test("A v36 backup restores: its orders are orders, and its staples get levels from their counts")
     func olderBackupRestores() async throws {
         let supplyID = UUID(), orderID = UUID()

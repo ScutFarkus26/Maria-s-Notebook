@@ -22,6 +22,8 @@ extension SharedStoreOrphanGuard {
 
     private static var pendingKey: String { UserDefaultsKeys.classroomSharePendingAttach }
     private static var stampsKey: String { UserDefaultsKeys.classroomSharePendingAttachStamps }
+    private static var pinSeenKey: String { UserDefaultsKeys.classroomSharePinSeen }
+    private static var pinSeenAtKey: String { UserDefaultsKeys.classroomSharePinSeenAt }
 
     /// One record waiting, and when it was last added.
     struct Entry: Equatable, Sendable {
@@ -100,6 +102,57 @@ extension SharedStoreOrphanGuard {
             guard let stamp = takenStamps[entry.uri], stamp == entry.stamp else { return true }
             return keeping.contains(entry.uri)
         }
+    }
+
+    // MARK: - A pin made on another device
+
+    /// The first time this device sees a pin made elsewhere (Set Up Classroom
+    /// Sharing run on the guide's Mac, say), it forgets what it listed before
+    /// that pin was made. That setup took every classroom record it had, and
+    /// this device's view of which are shared may still be half downloaded, so
+    /// attaching them here could ask CloudKit to share records already in the
+    /// share (2026-10-05 hunt). One that never reached the other device stays
+    /// unshared, and Settings › Classroom counts it ("Add them to the share").
+    /// Entries listed before stamps were kept (stamp 0) can't be dated, and
+    /// stay. Setup on this device notes its own pin first (`notePinMadeHere`),
+    /// so its list is never touched here.
+    func forgetWhatSetupElsewhereTook(pinnedZone: String, pinnedAt: Date?) {
+        guard defaults.string(forKey: Self.pinSeenKey) != pinnedZone else { return }
+        defaults.set(pinnedZone, forKey: Self.pinSeenKey)
+        defaults.set(Date().timeIntervalSinceReferenceDate, forKey: Self.pinSeenAtKey)
+        guard let pinnedAt else { return }
+        let made = pinnedAt.timeIntervalSinceReferenceDate
+        let entries = pendingEntries
+        let kept = entries.filter { $0.stamp == 0 || $0.stamp >= made }
+        guard kept.count < entries.count else { return }
+        let forgotten = entries.count - kept.count
+        Self.logger.notice(
+            "Classroom share pinned on another device: forgot \(forgotten, privacy: .public) listed before it"
+        )
+        write(kept)
+    }
+
+    /// Set Up Classroom Sharing on this device: the pin in `zone` is this
+    /// device's own, and what it listed stays for setup and the guard to settle.
+    func notePinMadeHere(zone: String) {
+        defaults.set(zone, forKey: Self.pinSeenKey)
+        defaults.removeObject(forKey: Self.pinSeenAtKey)
+    }
+
+    /// Whether a pin made on another device arrived here so recently that no
+    /// import into the notebook has finished since. Until one has, this device
+    /// may not yet hold the records that setup there moved into the share, so
+    /// they'd look unshared here and be shared a second time. Clears itself
+    /// once such an import is in.
+    func waitingForImportAfterPin(notebookStoreID: String) -> Bool {
+        guard defaults.object(forKey: Self.pinSeenAtKey) != nil else { return false }
+        let seen = Date(timeIntervalSinceReferenceDate: defaults.double(forKey: Self.pinSeenAtKey))
+        if let imported = ImportWatermark.lastImport(intoStoreWithIdentifier: notebookStoreID, defaults: defaults),
+           imported >= seen {
+            defaults.removeObject(forKey: Self.pinSeenAtKey)
+            return false
+        }
+        return true
     }
 
     // MARK: - Keeping it small

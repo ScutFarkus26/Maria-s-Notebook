@@ -40,6 +40,26 @@ struct ClassroomIdentityTests {
         #expect(UserDefaults.standard.string(forKey: key) == nil)
     }
 
+    @Test("An Apple Account change forgets the saved record name at once, then reads the new one")
+    func accountChangeReadsAgain() async {
+        let key = UserDefaultsKeys.classroomIdentityRecordName
+        let previous = UserDefaults.standard.string(forKey: key)
+        defer { UserDefaults.standard.set(previous, forKey: key) }
+
+        ClassroomIdentity.currentUserRecordName = "_lastAccount"
+        var seenWhileReading: String?
+        await ClassroomIdentity.accountChanged {
+            seenWhileReading = ClassroomIdentity.currentUserRecordName
+            ClassroomIdentity.currentUserRecordName = "_newAccount"
+        }
+        #expect(seenWhileReading == nil, "nothing is stamped with the last account's ID meanwhile")
+        #expect(ClassroomIdentity.currentUserRecordName == "_newAccount")
+
+        // Signed out or offline: the read finds nothing, and no ID stays.
+        await ClassroomIdentity.accountChanged {}
+        #expect(ClassroomIdentity.currentUserRecordName == nil)
+    }
+
     // MARK: - Restock
 
     @Test("The guide's stand-in-stamped need reads 'your guide' on her phone and 'You' on his")

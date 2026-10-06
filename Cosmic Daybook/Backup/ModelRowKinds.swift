@@ -192,12 +192,19 @@ public enum AttendanceDayLockBackupRow: ModelRowKind {
 public typealias SupplyTransactionDTO = ModelRow<SupplyTransactionBackupRow>
 
 /// One change to a supply's stock (format v31+). `supplyID` is an attribute,
-/// so the row carries it as is; the restore re-links `supply` from it. No
-/// date is made up for a transaction without one.
+/// so the row carries it as is, and it is the only link the restore makes: it
+/// never sets the `supply` relationship. Filing a restored line into the
+/// classroom share would take a linked staple along, and a staple already in
+/// the share must never be shared again (as `RestockService.historyEntry`
+/// writes lines). No date is made up for a transaction without one. Who set a
+/// level (`changedByID`, format v39) is left as it is when an older backup's
+/// row lacks it: listed under `addedLater` although optional, because its
+/// default is "" and `BackupFieldsAddedLater` puts a value back only over the
+/// default, never over the nil an older row would leave.
 public enum SupplyTransactionBackupRow: ModelRowKind {
     public static let spec = ModelRowSpec(
         "SupplyTransaction",
-        parents: [ParentLink(key: "supplyID", relationship: "supply")]
+        addedLater: ["changedByID"]
     )
 }
 

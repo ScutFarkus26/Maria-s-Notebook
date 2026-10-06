@@ -931,12 +931,12 @@ extension BackupService {
                 existing: { try index.existing(CDAttendanceDayLock.self, id: $0) }
             )
         }
-        // v31: supply transactions, kept in step with the live restore.
+        // v31: supply transactions, kept in step with the live restore (linked
+        // by supplyID only since 2026-10-06).
         if let transactions = payload.supplyTransactions {
             BackupEntityImporter.importRows(
                 transactions, as: CDSupplyTransaction.self, into: viewContext,
-                existing: { try index.existing(CDSupplyTransaction.self, id: $0) },
-                parents: ["supply": { try index.related(CDSupply.self, id: $0) }]
+                existing: { try index.existing(CDSupplyTransaction.self, id: $0) }
             )
         }
         // v34: front-desk attendance emails and their settings.
@@ -952,10 +952,14 @@ extension BackupService {
                 existing: { try index.existing(CDAttendanceEmailSettings.self, id: $0) }
             )
         }
-        // v38: the names people set for themselves.
+        // v38: the names people set for themselves, kept in step with the
+        // live restore (a newer rename stands since 2026-10-06).
         if let people = payload.classroomPeople {
+            let renamedSince = BackupRestoreRun.rowsOlderThanStored(people) {
+                try index.existing(CDClassroomPerson.self, id: $0)
+            }
             BackupEntityImporter.importRows(
-                people, as: CDClassroomPerson.self, into: viewContext,
+                people.filter { !renamedSince.contains($0.id) }, as: CDClassroomPerson.self, into: viewContext,
                 existing: { try index.existing(CDClassroomPerson.self, id: $0) }
             )
         }

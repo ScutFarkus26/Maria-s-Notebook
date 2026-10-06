@@ -543,7 +543,7 @@ Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-02 so that file keeps 
 
 Moved verbatim from `Cosmic Daybook/CLAUDE.md` on 2026-10-04 so that file keeps only a pointer and the few rules a session needs before touching this area. These are still rules: follow them.
 
-**89 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 16): 70 private-only, 11 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`), 8 dormant tombstones.
+**89 entities** defined in `CosmicDaybook.xcdatamodeld` (schema 17): 70 private-only, 11 in the classroom share (schema 16 added `ClassroomPerson`, the shared list of names people set for themselves; `Sharing/ClassroomNames.swift`; schema 17 added `SupplyTransaction.changedByID`, who changed a staple's level, so its history line shows that person's current name), 8 dormant tombstones.
 
 **Core Models:**
 

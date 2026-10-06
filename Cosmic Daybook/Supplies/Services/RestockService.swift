@@ -274,7 +274,10 @@ nonisolated enum RestockService {
         }
     }
 
-    /// Writes the staple's current level to its history.
+    /// Writes the staple's current level to its history, with who set it.
+    /// The stamped name stays in `reason` ("Low · Ana"), which older builds
+    /// show as is; newer ones name the person as they go by now, by their
+    /// record name (`changedByID`, `RestockHistoryLine`).
     @discardableResult
     static func recordLevel(
         _ supply: CDSupply,
@@ -286,6 +289,7 @@ nonisolated enum RestockService {
         let entry = historyEntry(for: supply, at: now, store: store, in: context)
         entry.quantityChange = 0
         entry.reason = historyReason(for: supply.level, by: author)
+        entry.changedByID = ClassroomIdentity.realRecordName(author.recordName) ?? ""
         return entry
     }
 

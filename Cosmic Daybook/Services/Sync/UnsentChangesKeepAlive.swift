@@ -24,8 +24,12 @@ final class UnsentChangesKeepAlive {
 
     private static var installed: UnsentChangesKeepAlive?
 
-    /// When the view context last saved changes no finished export has
-    /// covered yet: an export counts only if it started after the save.
+    /// When the view context last saved changes, while no finished export
+    /// has covered that save: an export counts only if it started after the
+    /// newest save. Keeping the first save instead let an export that began
+    /// between two saves cover both (2026-10-05): she marks A, an upload
+    /// starts, she marks B, the upload finishes, and Leave counted B as
+    /// gone.
     private(set) var unsentSince: Date?
     private let isBusy: @MainActor () -> Bool
     private let waitForWork: @MainActor () async -> Void
@@ -59,9 +63,7 @@ final class UnsentChangesKeepAlive {
         observers.append(center.addObserver(
             forName: .NSManagedObjectContextDidSave, object: viewContext, queue: nil
         ) { [weak self] note in
-            let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
-            let changed = keys.contains { !((note.userInfo?[$0] as? Set<NSManagedObject>)?.isEmpty ?? true) }
-            guard changed else { return }
+            guard Self.leavesSomethingToSend(Self.changedObjects(in: note)) else { return }
             let now = Date()
             MainActor.assumeIsolated { self?.saved(at: now) }
         })
@@ -100,13 +102,45 @@ final class UnsentChangesKeepAlive {
     var hasUnsentWork: Bool { unsentSince != nil || isBusy() }
 
     func saved(at date: Date) {
-        if unsentSince == nil { unsentSince = date }
+        unsentSince = date
     }
 
     func exported(startedAt start: Date) {
         guard let since = unsentSince, start >= since else { return }
         unsentSince = nil
         settle()
+    }
+
+    /// The changes waiting to go were taken off this device (the Assistant's
+    /// Leave): there is nothing left to send.
+    func forgetUnsent() {
+        unsentSince = nil
+        settle()
+    }
+
+    /// Everything a save changed, from its `NSManagedObjectContextDidSave`.
+    nonisolated static func changedObjects(in note: Notification) -> [NSManagedObject] {
+        [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey].flatMap { key in
+            Array((note.userInfo?[key] as? Set<NSManagedObject>) ?? [])
+        }
+    }
+
+    /// Whether a save of `changed` leaves something for CloudKit to send.
+    /// In the Assistant only the shared store's changes go anywhere that
+    /// matters: her membership row lives in her private store, and counting
+    /// it made Leave warn of unsent marks right after she joined. A stack
+    /// with one store (the tests') has no other store to tell them from.
+    nonisolated static func leavesSomethingToSend(_ changed: [NSManagedObject]) -> Bool {
+        guard !changed.isEmpty else { return false }
+        #if ASSISTANT_APP
+        let touched = changed.compactMap { $0.objectID.persistentStore }
+        let isShared = { (store: NSPersistentStore) in store.configurationName == CoreDataStack.sharedConfiguration }
+        let stores = touched.first?.persistentStoreCoordinator?.persistentStores ?? []
+        guard stores.contains(where: isShared) else { return true }
+        return touched.contains(where: isShared)
+        #else
+        return true
+        #endif
     }
 
     /// Returns once CloudKit has exported the saves made so far, or `limit`

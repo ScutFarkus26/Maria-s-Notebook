@@ -56,4 +56,32 @@ struct SyncedPreferencesStoreTests {
             #expect(UserDefaults.standard.object(forKey: Self.syncedKey) == nil)
         }
     }
+
+    @Test("iCloud's first values redraw the settings and announce nothing; a later change announces")
+    func initialSyncRedrawsWithoutAnnouncing() {
+        let store = SyncedPreferencesStore.shared
+        let heard = AnnouncementCount()
+        let token = NotificationCenter.default.addObserver(
+            forName: .syncedPreferencesDidChange, object: store, queue: nil
+        ) { _ in MainActor.assumeIsolated { heard.bump() } }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        let before = store.changeCount
+        store.handleExternalChange(
+            reason: NSUbiquitousKeyValueStoreInitialSyncChange, changedKeys: [Self.syncedKey]
+        )
+        #expect(store.changeCount == before &+ 1, "views holding a setting redraw with iCloud's values")
+        #expect(heard.count == 0, "nothing answers a half-downloaded set of settings with a write")
+
+        store.handleExternalChange(reason: NSUbiquitousKeyValueStoreServerChange, changedKeys: [Self.syncedKey])
+        #expect(heard.count == 1)
+    }
+}
+
+/// How many `.syncedPreferencesDidChange` announcements a test heard; they
+/// are posted on the main actor here.
+@MainActor
+private final class AnnouncementCount {
+    private(set) var count = 0
+    func bump() { count += 1 }
 }

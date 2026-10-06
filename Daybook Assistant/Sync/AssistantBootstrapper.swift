@@ -31,10 +31,11 @@ final class AssistantBootstrapper {
     /// `.available`, instead of a generic "check iCloud" tip.
     private(set) var accountStatus: CKAccountStatus?
 
-    private var acceptanceObserver: (any NSObjectProtocol)?
-    private var accountObserver: Task<Void, Never>?
-    private var nameObserver: (any NSObjectProtocol)?
-    private var remoteChangeObserver: Task<Void, Never>?
+    @ObservationIgnored var acceptanceObserver: (any NSObjectProtocol)?
+    @ObservationIgnored var accountObserver: Task<Void, Never>?
+    @ObservationIgnored var nameObserver: (any NSObjectProtocol)?
+    @ObservationIgnored var foregroundObserver: (any NSObjectProtocol)?
+    @ObservationIgnored var remoteChangeObserver: Task<Void, Never>?
     /// Set when the first account check after building the stack found no
     /// usable iCloud account. `NSPersistentCloudKitContainer` fails its setup
     /// then, and although it later imports once the account appears, sharing
@@ -53,6 +54,17 @@ final class AssistantBootstrapper {
 
     /// Asks CloudKit for the account's status; tests pass their own.
     @ObservationIgnored private let fetchAccountStatus: @MainActor () async throws -> CKAccountStatus
+    /// Asks CloudKit who is signed in, after an account change.
+    @ObservationIgnored let fetchUserRecordName: @MainActor () async throws -> String
+    /// The account's record name as last read here, which an account change
+    /// is compared with (`readAccountAgain`).
+    @ObservationIgnored var knownRecordName: String?
+    /// Another Apple Account signed in: the name here was the last one's,
+    /// so she's asked for hers (`AssistantTabs`).
+    var askForNameAgain = false
+    /// A mirroring stop reported while the app was starting, failing or
+    /// leaving, looked at again once it isn't (`settleDeferredStop`).
+    @ObservationIgnored weak var deferredStop: NSPersistentCloudKitContainer?
     /// Numbers each account check: an answer that arrives after a newer one
     /// began is dropped (the slowest answer used to win, however old).
     @ObservationIgnored private var accountCheck = 0
@@ -70,10 +82,16 @@ final class AssistantBootstrapper {
     @ObservationIgnored var exportRecorder: Task<Void, Never>?
     @ObservationIgnored var historyTrimmed = false
 
-    init(fetchAccountStatus: @escaping @MainActor () async throws -> CKAccountStatus = {
-        try await CloudKitConfigurationService.container.accountStatus()
-    }) {
+    init(
+        fetchAccountStatus: @escaping @MainActor () async throws -> CKAccountStatus = {
+            try await CloudKitConfigurationService.container.accountStatus()
+        },
+        fetchUserRecordName: @escaping @MainActor () async throws -> String = {
+            try await CloudKitConfigurationService.container.userRecordID().recordName
+        }
+    ) {
         self.fetchAccountStatus = fetchAccountStatus
+        self.fetchUserRecordName = fetchUserRecordName
     }
 
     func start() async {
@@ -103,6 +121,7 @@ final class AssistantBootstrapper {
             observeAcceptance()
             observeRemoteChanges()
             observeAccountChanges()
+            observeReturnToForeground()
             observeMirroringStops()
             startHistoryUpkeep()
             if reopenSample { await resumeSample() }
@@ -131,22 +150,32 @@ final class AssistantBootstrapper {
         // Who she is, for "you" on her marks, sends and Restock changes. Again
         // on each rebuild, which is when an iCloud account arrives late. Then
         // a name she gave before that was known joins the classroom's list.
+        // Only once she's in the class: before, it was written at launch with
+        // no class to write it to.
         Task {
+            // Read before the refresh overwrites it: an account that changed
+            // while the app was closed shows only here.
+            let before = ClassroomIdentity.currentUserRecordName
             await ClassroomIdentity.refreshRecordName()
-            AssistantNameStore.writeWaitingName(on: stack)
+            noteAccountAtLaunch(before: before)
+            if coreDataStack === stack { writeWaitingName() }
         }
     }
 
     /// Builds the stack again: once iCloud is signed in (see
     /// `stackNeedsAccount`), or once after CloudKit mirroring stopped
     /// (`mirroringStopped(in:)`). The screens let go of the old one first,
-    /// so nothing reads its objects once its stores are gone.
+    /// so nothing reads its objects once its stores are gone, and a running
+    /// attach finishes on it (`waitForAttachBeforeRebuild`).
     func rebuildStack(because reason: String) async {
         Self.logger.info("\(reason, privacy: .public); rebuilding the Core Data stack")
         phase = .starting
         sharingService = nil
         coreDataStack = nil
-        try? await Task.sleep(for: .milliseconds(300))
+        let attacher = AssistantShareAttacher.shared
+        attacher.hold()
+        defer { attacher.release() }
+        await waitForAttachBeforeRebuild(attacher)
         do {
             install(try AssistantStack.rebuild())
             await resumeSample()
@@ -175,6 +204,7 @@ final class AssistantBootstrapper {
             Self.logger.warning("Rebuilding the class from iCloud after a failed start")
             CoreDataStack.performLocalCacheReset()
             AssistantClassroomLocalState.forget()
+            AssistantShareAttacher.shared.forgetWaiting()
         }
         await start()
     }
@@ -189,11 +219,14 @@ final class AssistantBootstrapper {
     /// private store, so the guide's name never showed.
     func refreshMembership() {
         guard let context = coreDataStack?.viewContext else { return }
+        defer { settleDeferredStop() }
         let request = CDClassroomMembership.ownRowsRequest()
         request.fetchLimit = 1
         let hasMembership = context.safeFetchFirst(request) != nil
         let wasReady = if case .ready = phase { true } else { false }
         phase = hasMembership ? .ready : .needsClassroom
+        // Marks an earlier Leave couldn't sort go before anything new is filed.
+        Task { await deleteLeftBehindMarks() }
         guard let service = sharingService else { return }
         service.loadCurrentMembership()
         guard hasMembership, !wasReady else { return }
@@ -212,11 +245,26 @@ final class AssistantBootstrapper {
     /// Leaves the classroom: the class comes off this iPhone and the screen
     /// goes back to joining. Her marks stay with the guide. Taken out of the
     /// class, the share read at launch is gone: Leave reads the store afresh.
+    ///
+    /// Nothing goes into the share while it runs: it waits for the running
+    /// attach, and the marks still waiting are deleted once the class is off
+    /// (`giveUpWaitingMarks`), so none goes into the next class she joins.
     func leaveClassroom() async throws {
         isLeavingHere = true
-        defer { isLeavingHere = false }
+        let attacher = AssistantShareAttacher.shared
+        attacher.hold()
+        defer {
+            attacher.release()
+            isLeavingHere = false
+            settleDeferredStop()
+        }
+        guard await attacher.waitUntilIdle(upTo: Self.leaveWaitLimit) else { throw AssistantLeaveError.stillSending }
         if removedFromClass { sharingService?.updateShareState(nil) }
         try await sharingService?.leaveClassroom()
+        // Nothing came off (no service yet, or a row it wouldn't leave): the
+        // class and its waiting marks stay.
+        guard !hasOwnMembership() else { return }
+        await giveUpWaitingMarks(attacher.pending)
         await backToJoining()
     }
 
@@ -224,14 +272,21 @@ final class AssistantBootstrapper {
     /// deletion reaches this one by sync. Nothing followed it: this iPhone
     /// stayed on a class it had left. Now it goes back to joining, as if she
     /// had left here; CloudKit takes the class's copy off by itself.
-    private func followLeaveElsewhere() async {
-        guard let context = coreDataStack?.viewContext else { return }
+    func followLeaveElsewhere() async {
+        guard coreDataStack != nil else { return }
+        guard Self.leftElsewhere(hasOwnRow: hasOwnMembership(), leavingHere: isLeavingHere) else { return }
+        Self.logger.notice("Left the classroom on another device; back to joining")
+        await dropWaitingMarks()
+        await backToJoining()
+    }
+
+    /// Whether this iPhone's own membership row is here; true with no stack
+    /// to read, which can't say it's gone.
+    func hasOwnMembership() -> Bool {
+        guard let context = coreDataStack?.viewContext else { return true }
         let request = CDClassroomMembership.ownRowsRequest()
         request.fetchLimit = 1
-        let hasOwnRow = context.safeFetchFirst(request) != nil
-        guard Self.leftElsewhere(hasOwnRow: hasOwnRow, leavingHere: isLeavingHere) else { return }
-        Self.logger.notice("Left the classroom on another device; back to joining")
-        await backToJoining()
+        return context.safeFetchFirst(request) != nil
     }
 
     /// After a Leave, here or elsewhere: this iPhone's classroom state and
@@ -272,94 +327,6 @@ final class AssistantBootstrapper {
         stackNeedsAccount = decision.needsAccount
         if decision.rebuild { await rebuildStack(because: "iCloud account arrived after launch") }
     }
-
-    /// Asks now, and again whenever the account changes (signed out in
-    /// Settings, say), for as long as the app runs.
-    private func observeAccountChanges() {
-        guard accountObserver == nil else { return }
-        accountObserver = Task { [weak self] in
-            await self?.refreshAccountStatus()
-            let changes = NotificationCenter.default.notifications(named: .CKAccountChanged).map { _ in () }
-            for await _ in changes {
-                await self?.refreshAccountStatus()
-            }
-        }
-    }
-
-    /// Her name from iCloud on a new iPhone, now or when key-value storage
-    /// catches up, so setup's name page is already filled in.
-    private func restoreName() {
-        AssistantNameStore.restoreIfNeeded()
-        guard nameObserver == nil else { return }
-        nameObserver = NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: NSUbiquitousKeyValueStore.default,
-            queue: .main
-        ) { _ in
-            MainActor.assumeIsolated { _ = AssistantNameStore.restoreIfNeeded() }
-        }
-        NSUbiquitousKeyValueStore.default.synchronize()
-    }
-
-    /// A membership row can also arrive by sync rather than by accepting a
-    /// link here: on a new iPhone, or after signing in, for an Apple Account
-    /// that joined before. Nothing posts `.didJoinClassroom` then, so until
-    /// this device has a classroom every import re-reads the row; once it
-    /// has one, every import checks the rows are still there
-    /// (`followLeaveElsewhere`), and each of the class's imports that its
-    /// share is still there (`checkStillInClass`). Every import, the
-    /// sample's included, also brings the pickup reminders up to date
-    /// (`pickupRemindersMayHaveChanged`).
-    private func observeRemoteChanges() {
-        guard remoteChangeObserver == nil else { return }
-        remoteChangeObserver = Task { [weak self] in
-            // Only the store's identifier comes across: `Notification` isn't Sendable.
-            let changes = NotificationCenter.default
-                .notifications(named: .NSPersistentStoreRemoteChange)
-                .map { $0.userInfo?[NSStoreUUIDKey] as? String }
-            for await storeID in changes {
-                guard let self else { return }
-                pickupRemindersMayHaveChanged()
-                if AssistantSampleClass.isChosen {
-                    // The sample has no membership row of its own, so reading
-                    // it here took every import (the real class's on coming
-                    // back to the app, or the sample's own saves) for a Leave
-                    // elsewhere and threw her back to joining. Only a
-                    // classroom arriving underneath matters now.
-                    if AssistantSampleClass.realClassHasMembership() { leaveSampleClass() }
-                    continue
-                }
-                switch phase {
-                case .needsClassroom:
-                    refreshMembership()
-                case .ready:
-                    await followLeaveElsewhere()
-                    if storeID == nil || storeID == coreDataStack?.sharedPersistentStore?.identifier {
-                        checkStillInClass()
-                    }
-                case .starting, .failed:
-                    break
-                }
-            }
-        }
-    }
-
-    /// ClassroomSharingService does the accepting and posts once the
-    /// membership row is written, however long CloudKit took.
-    private func observeAcceptance() {
-        guard acceptanceObserver == nil else { return }
-        acceptanceObserver = NotificationCenter.default.addObserver(
-            forName: .didJoinClassroom,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                // Joined while looking at the sample: the real class wins.
-                self?.leaveSampleClass()
-                self?.refreshMembership()
-            }
-        }
-    }
 }
 
 // MARK: - Sample class
@@ -377,6 +344,7 @@ extension AssistantBootstrapper {
             AssistantSampleClass.wasOpen = true
             coreDataStack = sample
             phase = .ready
+            settleDeferredStop()
         } catch {
             Self.logger.error("Sample class failed: \(error.localizedDescription, privacy: .public)")
             ToastService.shared.showError("Couldn't open the sample class. Try again, or restart the app.")
@@ -405,5 +373,7 @@ extension AssistantBootstrapper {
         coreDataStack = AssistantStack.isOpen ? try? AssistantStack.shared() : nil
         refreshMembership()
         if coreDataStack == nil { phase = .needsClassroom }
+        // A name set in the sample went nowhere: it goes into the class's list.
+        writeWaitingName()
     }
 }

@@ -13,6 +13,9 @@ enum AssistantStack {
     /// through `UnsentChangesKeepAlive.install`, so Leave can ask it whether
     /// marks are still on their way (`AssistantBootstrapper.unsentMarks`).
     private(set) static var keepAlive: UnsentChangesKeepAlive?
+    /// What the sync line goes by, recorded from launch: Siri's saves too,
+    /// with no window open.
+    private(set) static var syncRecord: AssistantSyncRecord?
 
     /// The open stack, if any, without opening one.
     static var current: CoreDataStack? { stack }
@@ -34,6 +37,7 @@ enum AssistantStack {
                 isBusy: { AssistantShareAttacher.shared.isRunning },
                 waitForWork: { await AssistantShareAttacher.shared.waitUntilIdle() }
             )
+            syncRecord = AssistantSyncRecord(viewContext: made.viewContext)
         }
         return made
     }

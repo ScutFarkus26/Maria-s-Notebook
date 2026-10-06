@@ -1,7 +1,7 @@
 // StapleHistorySheet.swift
 // A staple's history, newest first: "Low · Ana", "Out", "Restocked", with
-// when. Read once when the sheet opens, not from the tile's menu (a menu's
-// closure runs on every pass of the tile).
+// when, each person named as they go by now. Read once when the sheet opens,
+// not from the tile's menu (a menu's closure runs on every pass of the tile).
 
 import SwiftUI
 import CoreData
@@ -31,7 +31,7 @@ struct StapleHistorySheet: View {
                     }
                     ForEach(entries, id: \.objectID) { entry in
                         HStack(alignment: .firstTextBaseline) {
-                            Text(Self.line(for: entry))
+                            Text(Self.line(for: entry, names: viewer.names))
                             Spacer()
                             if let date = entry.date {
                                 Text(DateFormatters.mediumDateTime.string(from: date))
@@ -60,9 +60,10 @@ struct StapleHistorySheet: View {
         #endif
     }
 
-    /// The entry's reason; a counted change without one reads as its count.
-    static func line(for entry: CDSupplyTransaction) -> String {
-        let reason = entry.reason.trimmed()
+    /// The entry's reason, naming who made it as they go by now (`names`,
+    /// `RestockHistoryLine`); a counted change without one reads as its count.
+    static func line(for entry: CDSupplyTransaction, names: ClassroomNames.Snapshot) -> String {
+        let reason = RestockHistoryLine.text(reason: entry.reason, changedByID: entry.changedByID, names: names)
         if !reason.isEmpty { return reason }
         let change = entry.quantityChange
         return change > 0 ? "Added \(change)" : change < 0 ? "Used \(-change)" : "Changed"

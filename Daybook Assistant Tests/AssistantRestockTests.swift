@@ -264,7 +264,7 @@ extension AssistantRestockTests {
         for (name, level, hours) in [
             ("Hand Soap", RestockLevel.low, 1.0), ("Tissues", .out, 2), ("Toilet Paper", .out, 3), ("Sponges", .low, 4)
         ] {
-            try #require(RestockService.addStaple(
+            _ = try #require(RestockService.addStaple(
                 .init(name: name, place: "Sink"), level: level, by: Self.guide, at: at(hours), in: context
             ))
         }
@@ -309,7 +309,7 @@ extension AssistantRestockTests {
         let bea = RestockAuthor(role: .assistant, recordName: "_bea", name: "Bea")
         let cal = RestockAuthor(role: .assistant, recordName: "_cal")
         func staple(_ name: String, level: RestockLevel, by author: RestockAuthor, at: Date) throws {
-            try #require(RestockService.addStaple(.init(name: name), level: level, by: author, at: at, in: context))
+            _ = try #require(RestockService.addStaple(.init(name: name), level: level, by: author, at: at, in: context))
         }
         try staple("Toilet Paper", level: .out, by: Self.guide, at: earlier)
         try staple("Hand Soap", level: .low, by: bea, at: earlier)

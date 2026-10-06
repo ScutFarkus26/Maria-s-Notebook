@@ -28,7 +28,8 @@ import OSLog
 /// once they can be (a remote change, the end of the first download, or launch
 /// sets off the attempt). Set Up Classroom Sharing on this device takes
 /// everything anyway, so it forgets the entries it found, except those its
-/// attach failed on.
+/// attach failed on; when the pin was made on another device, this device
+/// forgets what it listed before then (`forgetWhatSetupElsewhereTook`).
 final class SharedStoreOrphanGuard {
 
     static let shared = SharedStoreOrphanGuard()
@@ -48,6 +49,12 @@ final class SharedStoreOrphanGuard {
     var pruneTask: Task<Void, Never>?
     /// Which school year the share holds; a test sets its own.
     var scope: () -> ClassroomShareScope = { ClassroomShareScope() }
+    /// The lock every attach on this device takes; a test sets its own.
+    var attachLock = ClassroomShareAttachLock.shared
+    /// How long the guard waits for one pass. Only the waiting stops:
+    /// `container.share(_:to:)` can block for good and can't be cancelled, so
+    /// the pass keeps the attach lock until it returns. A test sets its own.
+    var attachPassTimeout: Duration = .seconds(120)
 
     private var saveObservation: NotificationCenter.ObservationToken?
     private var remoteChangeTask: Task<Void, Never>?
@@ -170,25 +177,69 @@ final class SharedStoreOrphanGuard {
         }
         guard !FirstDownloadGate.isPending(),
               !CloudKitSyncStatusService.shared.mirroringDelegateFailed else { return }
-        let context = stack.viewContext
         // No pin yet: not shared, or the setup hasn't reached this device.
         // Keep waiting; setup here, or the pin's arrival, settles it.
-        guard CDClassroomMembership.pinnedZoneName(in: context) != nil else { return }
+        guard let pin = CDClassroomMembership.current(in: stack.viewContext),
+              !pin.classroomZoneID.isEmpty else { return }
+        forgetWhatSetupElsewhereTook(pinnedZone: pin.classroomZoneID, pinnedAt: pin.modifiedAt ?? pin.joinedAt)
+        // A pin from another device: wait for an import that began after it
+        // arrived, so what setup there shared reads as shared here. The next
+        // remote change tries again.
+        guard !waitingForImportAfterPin(notebookStoreID: store.identifier) else { return }
 
-        // Never beside Set Up Classroom Sharing (and "Add them to the share")
-        // or the one-time attendance step: two passes could each find a
-        // record unshared and ask CloudKit to share it twice.
-        await ClassroomShareAttachLock.shared.acquire()
-        defer { ClassroomShareAttachLock.shared.release() }
+        await attachWaiting { [weak self] taken in
+            await self?.attachToPinnedShare(taken, storeID: store.identifier)
+        }
+    }
+
+    /// Takes the attach lock and runs `pass` over what is waiting. Never
+    /// beside Set Up Classroom Sharing (and "Add them to the share") or the
+    /// one-time attendance step: two passes could each find a record unshared
+    /// and ask CloudKit to share it twice.
+    ///
+    /// Waits for `pass` at most `attachPassTimeout`, so one attach that never
+    /// returns doesn't hold up filing (and Siri's wait for it) until the next
+    /// launch. The pass keeps the lock until it does return, and anything
+    /// waiting stays listed: each later attempt finds the lock stuck and
+    /// leaves without waiting, and the late pass looks again when it ends.
+    func attachWaiting(_ pass: @escaping @Sendable @MainActor ([Entry]) async -> Void) async {
+        let lock = attachLock
+        guard await lock.acquireUnlessStuck() else {
+            Self.logger.notice("Classroom attach: an earlier pass hasn't returned; records stay listed")
+            return
+        }
         let taken = pendingEntries
-        guard !taken.isEmpty else { return }
+        guard !taken.isEmpty else {
+            lock.release()
+            return
+        }
+        let returned = await lock.hand(
+            to: { await pass(taken) },
+            waitingAtMost: attachPassTimeout,
+            afterStuck: { [weak self] in
+                guard let self, !self.pendingURIs.isEmpty else { return }
+                Self.logger.notice("Classroom attach: the late pass returned; trying what's listed")
+                self.flushPendingIfPossible()
+            }
+        )
+        if !returned {
+            let seconds = attachPassTimeout.components.seconds
+            Self.logger.error(
+                "Classroom attach pass still running after \(seconds, privacy: .public) s; records stay listed"
+            )
+        }
+    }
 
+    /// One pass, holding the attach lock: reads the pinned share and attaches
+    /// what belongs.
+    private func attachToPinnedShare(_ taken: [Entry], storeID: String) async {
+        guard let stack = coreDataStack else { return }
         let share: CKShare?
         do {
             // Off the main actor: `fetchShares(in:)` waits while an import or
             // export holds the store.
             share = try await ClassroomShareAttach.classroomShare(
-                inStoreWithIdentifier: store.identifier, container: stack.container, pinContext: context
+                inStoreWithIdentifier: storeID, container: stack.container, pinContext: stack.viewContext
             )
         } catch {
             Self.logger.error("Couldn't read the classroom share: \(error.localizedDescription, privacy: .public)")
@@ -196,7 +247,7 @@ final class SharedStoreOrphanGuard {
         }
         // Pinned, but its CKShare hasn't imported yet: keep waiting.
         guard let share else { return }
-        await attach(taken, to: share, storeID: store.identifier, container: stack.container)
+        await attach(taken, to: share, storeID: storeID, container: stack.container)
     }
 
     /// One pass over `taken`. This school year only (`ClassroomShareScope`): a

@@ -40,16 +40,21 @@ extension ClassroomSharingService {
     /// out of another share.
     ///
     /// Holds `ClassroomShareAttachLock` throughout, so the orphan guard's pass
-    /// waits rather than sharing the same records beside it.
+    /// waits rather than sharing the same records beside it. Refuses, rather
+    /// than wait, while a guard pass that outlived its time limit holds the
+    /// lock: its call to CloudKit may never return.
     func setUpClassroomSharing(coreDataStack: CoreDataStack) async throws -> ClassroomShareSetupReport {
-        try await ClassroomShareAttachLock.shared.run {
+        let report = try await ClassroomShareAttachLock.shared.runUnlessStuck {
             try await self.setUpHoldingTheLock(coreDataStack: coreDataStack)
         }
+        guard let report else { throw ClassroomShareError.earlierAttachStillRunning }
+        return report
     }
 
     private func setUpHoldingTheLock(coreDataStack: CoreDataStack) async throws -> ClassroomShareSetupReport {
         let (store, pinned) = try await setupPreflight(coreDataStack: coreDataStack)
         let viewContext = coreDataStack.viewContext
+        if let pinned { try resumePin(pinned, in: viewContext) }
         // What this device was holding for the share, as it found it.
         // Everything of these types is shared below, so these go, except any
         // the attach failed on; anything added meanwhile stays.
@@ -159,17 +164,39 @@ extension ClassroomSharingService {
             Self.setupLogger.error("Classroom share creation failed: \(detail, privacy: .public)")
             throw error
         }
-        let repo = ClassroomRepository(context: viewContext)
-        repo.pinClassroom(
-            zoneName: share.recordID.zoneID.zoneName,
+        let zone = share.recordID.zoneID.zoneName
+        Self.setupLogger.notice("Created the classroom share in zone \(zone, privacy: .public)")
+        // Before the pin is saved: the save sets off a guard pass, which must
+        // know this pin is this device's own (`forgetWhatSetupElsewhereTook`).
+        SharedStoreOrphanGuard.shared.notePinMadeHere(zone: zone)
+        ClassroomRepository(context: viewContext).pinClassroom(
+            zoneName: zone,
             role: .leadGuide,
             ownerIdentity: share.owner.userIdentity.userRecordID?.recordName ?? "self"
         )
-        _ = repo.save(reason: "Pin classroom share")
-        let zone = share.recordID.zoneID.zoneName
-        Self.setupLogger.notice("Created the classroom share in zone \(zone, privacy: .public)")
+        try savePin(in: viewContext)
         updateShareState(share)
         return share
+    }
+
+    /// A setup resumed here: the pin is this device's to settle, and a pin
+    /// whose save failed last time is saved before anything else.
+    private func resumePin(_ pinned: CKShare, in viewContext: NSManagedObjectContext) throws {
+        SharedStoreOrphanGuard.shared.notePinMadeHere(zone: pinned.recordID.zoneID.zoneName)
+        if CDClassroomMembership.current(in: viewContext)?.hasChanges == true {
+            try savePin(in: viewContext)
+        }
+    }
+
+    /// Saves the pin. Without it the share would be one no pin names: nothing
+    /// could be filed into it, and the next launch would refuse to set up
+    /// again. A failed save leaves the pin pending in the view context, so
+    /// running setup again while the app stays open saves it then.
+    private func savePin(in viewContext: NSManagedObjectContext) throws {
+        guard ClassroomRepository(context: viewContext).save(reason: "Pin classroom share") else {
+            Self.setupLogger.error("Couldn't save the classroom share's pin; setup stopped")
+            throw ClassroomShareError.pinNotSaved
+        }
     }
 
     // MARK: - Invitations
@@ -179,9 +206,17 @@ extension ClassroomSharingService {
     /// 2026-09-28 failure). Returns what it holds, for the sheet to show.
     func shareForInvitations(coreDataStack: CoreDataStack) async throws -> (CKShare, ClassroomShareContents) {
         guard let share = try fetchExistingShare() else { throw ClassroomShareError.notSetUp }
-        let contents = await Self.shareContents(coreDataStack: coreDataStack)
-        guard (contents?.inShare["Student"] ?? 0) > 0 else { throw ClassroomShareError.shareHasNoStudents }
-        return (share, contents ?? ClassroomShareContents())
+        let contents = try Self.invitable(await Self.shareContents(coreDataStack: coreDataStack))
+        return (share, contents)
+    }
+
+    /// What the share holds, if an assistant can be invited into it: it holds
+    /// students. When CloudKit couldn't say (nil), that's "couldn't check",
+    /// never "no students".
+    static func invitable(_ contents: ClassroomShareContents?) throws -> ClassroomShareContents {
+        guard let contents else { throw ClassroomShareError.shareContentsUnknown }
+        guard (contents.inShare["Student"] ?? 0) > 0 else { throw ClassroomShareError.shareHasNoStudents }
+        return contents
     }
 }
 
@@ -267,7 +302,10 @@ enum ClassroomShareError: LocalizedError {
     case otherShareZonesExist(Int)
     case notSetUp
     case shareHasNoStudents
+    case shareContentsUnknown
     case anotherCopyOpen
+    case pinNotSaved
+    case earlierAttachStillRunning
 
     var errorDescription: String? {
         switch self {
@@ -295,8 +333,16 @@ enum ClassroomShareError: LocalizedError {
         case .shareHasNoStudents:
             return "No students are shared yet, so an assistant would see an empty class. " +
                 "Nothing was sent. Choose Set Up Classroom Sharing first."
+        case .shareContentsUnknown:
+            return "Couldn't check what your classroom share holds, so sharing didn't open. Try again in a moment."
         case .anotherCopyOpen:
             return "Another copy of Cosmic Daybook has the notebook open. Quit the other copy, then try again."
+        case .pinNotSaved:
+            return "Classroom sharing was started, but this device couldn't save it. Keep Cosmic Daybook open " +
+                "and choose Set Up Classroom Sharing again to finish."
+        case .earlierAttachStillRunning:
+            return "Cosmic Daybook is still adding earlier changes to the classroom share. Try again in a " +
+                "few minutes. If this keeps happening, quit and reopen the app."
         }
     }
 }

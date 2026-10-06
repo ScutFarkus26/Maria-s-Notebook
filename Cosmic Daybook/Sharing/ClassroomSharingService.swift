@@ -12,7 +12,7 @@ final class ClassroomSharingService {
     private static let logger = Logger.classroomSharing
 
     let container: NSPersistentCloudKitContainer
-    private let context: NSManagedObjectContext
+    let context: NSManagedObjectContext
 
     // MARK: - Observable State
 
@@ -244,18 +244,17 @@ final class ClassroomSharingService {
         NotificationCenter.default.post(name: .didJoinClassroom, object: nil)
     }
 
-    /// Resynchronizes published share state after the owner ends sharing from
-    /// the system sharing UI.
+    /// Resynchronizes published share state once the share turns out to be
+    /// gone: deleted on another device (an older build's system sharing sheet,
+    /// whose Stop Sharing deletes it). This app's own Stop Sharing removes
+    /// everyone and keeps the share (`removeAllMembers`).
     ///
-    /// Since iOS 16.4, `NSPersistentCloudKitContainer` observes the system
-    /// sharing UI and updates the share it maintains in the store, so no
-    /// store-level cleanup is needed here — but the service's published state
-    /// (`currentShare`/`isSharing`/`participants`) would otherwise keep
-    /// reporting the dead share until the next `fetchExistingShare` call.
-    /// Clearing eagerly also prevents further exports from targeting the
-    /// deleted share's zone through stale cached state.
+    /// The service's published state (`currentShare`/`isSharing`/
+    /// `participants`) would otherwise keep reporting the dead share until the
+    /// next `fetchExistingShare` call. Clearing eagerly also prevents further
+    /// exports from targeting the deleted share's zone through stale cached state.
     func handleSharingStopped() {
-        Self.logger.info("Sharing stopped from system UI — resynchronizing share state")
+        Self.logger.info("The classroom share is gone; resynchronizing share state")
         currentShare = nil
         participants = []
         isSharing = false

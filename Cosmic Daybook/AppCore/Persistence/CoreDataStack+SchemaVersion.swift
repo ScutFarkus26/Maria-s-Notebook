@@ -108,7 +108,11 @@ nonisolated extension CoreDataStack {
     /// - `16` — `ClassroomPerson` (shared): the name each person goes by, one row
     ///   per CloudKit record name, looked up when a line is worded (`ClassroomNames`)
     ///   so a rename reaches old entries. Additive entity.
-    nonisolated static let currentSchemaVersion = 16
+    /// - `17` — `SupplyTransaction.changedByID` (shared): who set a staple's
+    ///   level, by CloudKit record name, so its history names them as they go
+    ///   by now, not only as stamped in `reason` (`RestockHistoryLine`).
+    ///   Additive optional String, default empty.
+    nonisolated static let currentSchemaVersion = 17
 
     /// Store-metadata key holding the writing build's ``currentSchemaVersion``.
     nonisolated static let schemaVersionMetadataKey = "MNSchemaVersion"

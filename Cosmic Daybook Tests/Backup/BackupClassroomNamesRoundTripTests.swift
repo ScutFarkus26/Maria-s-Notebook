@@ -81,4 +81,32 @@ struct BackupClassroomNamesRoundTripTests {
         #expect(left.map(\.id) == [rowID], "the oldest row stays")
         #expect(left.first?.displayName == "Daniel")
     }
+
+    @Test("A Merge restore never puts an old name back over a rename made since the backup")
+    func mergeKeepsANewerRename() async throws {
+        let guideID = UUID(), anaID = UUID(), beaID = UUID()
+        let source = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        Support.person("_guide", "Danny", role: .leadGuide, created: at(0), modified: at(10), id: guideID, in: source)
+        Support.person("_ana", "Ana", role: .assistant, created: at(0), modified: at(10), id: anaID, in: source)
+        Support.person("_bea", "Bea", role: .assistant, created: at(0), modified: at(10), id: beaID, in: source)
+        #expect(CoreDataTestHelpers.save(source))
+        let url = BackupTestUtil.tempBackupURL()
+        defer { BackupTestUtil.cleanup(url) }
+        try await BackupTestUtil.writeCurrentBackup(from: source, to: url)
+
+        // Since the backup: Ana renamed herself, and the guide's row is the
+        // same as backed up. Bea's row went missing.
+        let target = try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        Support.person("_guide", "Danny", role: .leadGuide, created: at(0), modified: at(10), id: guideID, in: target)
+        Support.person("_ana", "Annie", role: .assistant, created: at(0), modified: at(50), id: anaID, in: target)
+        #expect(CoreDataTestHelpers.save(target))
+        try await BackupTestUtil.importCurrentBackup(from: url, into: target, mode: .merge)
+
+        let ana = try #require(try row(anaID, in: target))
+        #expect(ana.displayName == "Annie", "her newer rename stands")
+        #expect(ana.modifiedAt == at(50))
+        #expect(try row(guideID, in: target)?.displayName == "Danny")
+        #expect(try row(beaID, in: target)?.displayName == "Bea", "a missing row comes back")
+        #expect(target.safeFetch(CDFetchRequest(CDClassroomPerson.self)).count == 3)
+    }
 }

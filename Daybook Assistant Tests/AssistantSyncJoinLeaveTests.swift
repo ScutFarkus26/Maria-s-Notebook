@@ -39,14 +39,20 @@ struct AssistantSyncJoinLeaveTests {
         #expect(told.containers.first === stack.container)
     }
 
-    @Test("The first stop on the open stack rebuilds it; a second gives up; others are ignored")
+    // Sync and sharing bug hunt 2026-10-05: a stop reported while the app
+    // was starting, failed or leaving was dropped, and marks stalled with
+    // nothing said until a relaunch. Now it waits until the app settles.
+    @Test("The first stop on the open stack rebuilds it; a second gives up; one while unsettled waits")
     func mirroringStopResponse() {
         let respond = AssistantBootstrapper.mirroringStopResponse
         #expect(respond(true, true, false) == .rebuild)
         #expect(respond(true, true, true) == .giveUp)
-        // A stack rebuilt since, or the app starting, failed or leaving.
+        // The app starting, failed or leaving: looked at again once it isn't.
+        #expect(respond(true, false, false) == .later)
+        #expect(respond(true, false, true) == .later)
+        // A stack rebuilt since.
         #expect(respond(false, true, false) == .ignore)
-        #expect(respond(true, false, false) == .ignore)
+        #expect(respond(false, false, false) == .ignore)
     }
 
     // MARK: - Leave
@@ -79,6 +85,39 @@ struct AssistantSyncJoinLeaveTests {
             NSUnderlyingErrorKey: CKError(.notAuthenticated) as NSError
         ])
         #expect(message(wrapped).contains("isn't signed in to iCloud"))
+        // Leave waits for marks still going into the share; past its limit
+        // it says so, in plain words.
+        let stillSending = AssistantLeaveError.stillSending
+        #expect(message(stillSending) == stillSending.errorDescription)
+        #expect(message(stillSending).contains("Try Leave again"))
+    }
+
+    // MARK: - Her name and the account
+
+    @Test("Another account is a different record name; an unknown one isn't")
+    func anotherAccount() {
+        let another = AssistantNameStore.isAnotherAccount
+        #expect(another("_ana", "_rivka"))
+        #expect(!another("_ana", "_ana"))
+        #expect(!another(nil, "_rivka"))
+        #expect(!another("_ana", nil))
+        // The stand-in owner name names nobody.
+        #expect(!another(CKCurrentUserDefaultName, "_rivka"))
+    }
+
+    // Sync and sharing bug hunt 2026-10-05: after an Apple Account change,
+    // her row could go under the last account's record name.
+    @Test("While an account change is read, a waiting name isn't written")
+    func namesWaitForTheAccount() throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
+            AssistantNameStore.writesHeld = true
+            defer { AssistantNameStore.writesHeld = false }
+            #expect(!AssistantNameStore.writeWaitingName(in: context, container: nil))
+            #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).isEmpty)
+            #expect(!context.hasChanges)
+        }
     }
 
     // MARK: - Taken out of the class

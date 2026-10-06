@@ -47,8 +47,8 @@ nonisolated enum ClassroomShareAttach {
 
     /// The classroom share among the shares in `store`: the pinned one. With
     /// `onlyShareFallback`, a store holding exactly one share answers with it
-    /// when the pin names nothing that matches — safe only where one share is
-    /// all there can be (an assistant's shared store in the two-zone layout).
+    /// when nothing is pinned yet — safe only where one share is all there can
+    /// be (an assistant's shared store in the two-zone layout).
     static func classroomShare(
         in store: NSPersistentStore,
         container: NSPersistentCloudKitContainer,
@@ -93,7 +93,10 @@ nonisolated enum ClassroomShareAttach {
         if let pinned = CDClassroomMembership.classroomShare(among: shares, in: pinContext) {
             return pinned
         }
-        if onlyShareFallback, shares.count == 1 {
+        // Only when nothing is pinned: with a pin and no share matching it
+        // (taken out of that class, one other share left behind), the records
+        // wait rather than go into another class's share.
+        if onlyShareFallback, shares.count == 1, CDClassroomMembership.pinnedZoneName(in: pinContext) == nil {
             return shares.first
         }
         return nil

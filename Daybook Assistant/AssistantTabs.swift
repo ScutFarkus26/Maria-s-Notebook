@@ -52,6 +52,18 @@ struct AssistantTabs: View {
             restock?.load(reconcile: false)
         }
         .modifier(RestockFollowsScene(model: restock))
+        // Another Apple Account signed in on this iPhone: the name here was
+        // the last one's (`AssistantBootstrapper.readAccountAgain`).
+        .sheet(isPresented: askingForName) {
+            AssistantNameSheet(isRequired: true)
+        }
+    }
+
+    private var askingForName: Binding<Bool> {
+        Binding(
+            get: { bootstrapper.askForNameAgain },
+            set: { if !$0 { bootstrapper.askForNameAgain = false } }
+        )
     }
 
     private func makeRestock() -> AssistantRestockModel {

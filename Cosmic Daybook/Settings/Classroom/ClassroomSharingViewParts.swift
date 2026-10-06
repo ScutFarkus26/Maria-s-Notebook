@@ -175,39 +175,6 @@ struct ClassroomRoleSummary: View {
     }
 }
 
-/// Where the lead guide adds and removes people: the Mac's own members sheet,
-/// or the system sharing sheet on iPad and iPhone.
-struct ClassroomSharingSheet: View {
-    let service: ClassroomSharingService
-    let contents: ClassroomShareContents?
-    let onDismiss: () -> Void
-
-    var body: some View {
-        #if os(macOS)
-        ClassroomMembersSheet(service: service, contents: contents, onDone: onDismiss)
-        #else
-        if let share = service.currentShare {
-            CloudSharingSheet(
-                share: share,
-                container: CloudKitConfigurationService.container,
-                onShareSaved: {
-                    // Resync right away rather than waiting for Core Data to
-                    // surface the saved share.
-                    _ = try? service.fetchExistingShare()
-                },
-                onStopSharing: {
-                    // Owner ended the share inside the sheet — resync
-                    // published share state immediately instead of reporting
-                    // the dead share until the next launch.
-                    service.handleSharingStopped()
-                },
-                onDismiss: onDismiss
-            )
-        }
-        #endif
-    }
-}
-
 /// Classroom › Your assistant: what an assistant can do and see, said once.
 /// There is nothing to switch: the Daybook Assistant takes attendance and
 /// nothing else, and the rest of the notebook never reaches the classroom share.

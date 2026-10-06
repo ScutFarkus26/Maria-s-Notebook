@@ -249,6 +249,10 @@ extension BackupRestoreRun {
     }
 
     /// v31+ entities: supply transactions, after the supplies they belong to.
+    /// Linked by `supplyID` only, never through `supply`: filing a restored
+    /// line into the classroom share would carry a linked staple along, and a
+    /// staple already in the share must never be shared again (2026-09-27;
+    /// the 2026-10-05 sync and sharing hunt, #5).
     func importV31Entities() throws {
         let viewContext = context
         let index = self.index
@@ -256,8 +260,7 @@ extension BackupRestoreRun {
         if let transactions = try rows(\.supplyTransactions) {
             BackupEntityImporter.importRows(
                 transactions, as: CDSupplyTransaction.self, into: viewContext,
-                existing: { try index.existing(CDSupplyTransaction.self, id: $0) },
-                parents: ["supply": { try index.related(CDSupply.self, id: $0) }]
+                existing: { try index.existing(CDSupplyTransaction.self, id: $0) }
             )
         }
     }
@@ -285,16 +288,36 @@ extension BackupRestoreRun {
     /// like every row. A row restored beside one their other device wrote
     /// since is folded by the owner (`ClassroomNames.foldMyRows`); a copy of
     /// the same row (same `id`, as when CloudKit brings back the original) is
-    /// kept, never folded, and reads take the newest.
+    /// kept, never folded, and reads take the newest. A row the store already
+    /// holds with a newer `modifiedAt` (a rename since the backup) is left as
+    /// it is: a Merge restore must not put an old name back over a new one,
+    /// which would then go to every device as the newest.
     func importV38Entities() throws {
         let viewContext = context
         let index = self.index
 
         if let people = try rows(\.classroomPeople) {
+            let renamedSince = Self.rowsOlderThanStored(people) { try index.existing(CDClassroomPerson.self, id: $0) }
             BackupEntityImporter.importRows(
-                people, as: CDClassroomPerson.self, into: viewContext,
+                people.filter { !renamedSince.contains($0.id) }, as: CDClassroomPerson.self, into: viewContext,
                 existing: { try index.existing(CDClassroomPerson.self, id: $0) }
             )
         }
+    }
+
+    /// The ids of `rows` whose record the store already holds with a newer
+    /// `modifiedAt` than the row's (or the row has none). Only a Merge restore
+    /// finds any: a Replace has cleared the store first.
+    static func rowsOlderThanStored(
+        _ rows: [ClassroomPersonDTO],
+        existing: (UUID) throws -> CDClassroomPerson?
+    ) -> Set<UUID> {
+        var older = Set<UUID>()
+        for row in rows {
+            guard let stored = try? existing(row.id), let storedAt = stored.modifiedAt else { continue }
+            let restoredAt: Date? = if case .date(let date) = row.values["modifiedAt"] { date } else { nil }
+            if restoredAt.map({ storedAt > $0 }) ?? true { older.insert(row.id) }
+        }
+        return older
     }
 }

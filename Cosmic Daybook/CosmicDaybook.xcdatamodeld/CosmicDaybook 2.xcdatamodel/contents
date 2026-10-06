@@ -488,6 +488,7 @@
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="quantityChange" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="reason" attributeType="String" defaultValueString=""/>
+        <attribute name="changedByID" optional="YES" attributeType="String" defaultValueString=""/>
         <relationship name="supply" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Supply" inverseName="transactions" inverseEntity="Supply"/>
     </entity>
     <!-- ==================== TodayAgendaOrder ==================== -->

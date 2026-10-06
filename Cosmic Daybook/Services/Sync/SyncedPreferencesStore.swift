@@ -155,10 +155,21 @@ public final class SyncedPreferencesStore {
         return (reason, userInfo[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String])
     }
 
-    private func handleExternalChange(reason: Int, changedKeys: [String]?) {
+    /// Internal for the tests, which hand it a reason as the notification would.
+    func handleExternalChange(reason: Int, changedKeys: [String]?) {
         // NSUbiquitousKeyValueStoreChangeReasonKey values:
         // 0 = serverChange, 1 = initialSyncChange, 2 = quotaViolationChange, 3 = accountChange
-        if reason == 0 { // serverChange - changes came from another device
+        if reason == NSUbiquitousKeyValueStoreInitialSyncChange {
+            // iCloud's values arrived on a device that had none (a new device,
+            // or after an account switch), and the first download may still be
+            // under way: Apple says not to write during it. Redraw with what's
+            // there now, and announce nothing, so no listener answers a
+            // half-downloaded set of preferences with a write. A later server
+            // change carries the rest.
+            logger.info("iCloud's preferences arrived on this device for the first time")
+            noteChange()
+            updateQuotaUsage()
+        } else if reason == 0 { // serverChange - changes came from another device
             if let changedKeys {
                 logger.info("Received \(changedKeys.count) preference changes from iCloud")
                 // Post notification so views can update

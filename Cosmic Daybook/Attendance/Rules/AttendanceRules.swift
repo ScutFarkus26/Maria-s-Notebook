@@ -45,8 +45,9 @@ enum AttendanceRules {
         [.present, .absent, .tardy, .leftEarly, .unmarked].filter { allows($0, on: day, now: now) }
     }
 
-    /// Who made the mark: "you", another assistant's name, or the guide.
-    /// Names come from the classroom's list first (`names`, by the mark's
+    /// Who made the mark: "you", another assistant's name (unnamed: "another
+    /// assistant" on an assistant's phone, "an assistant" on the guide's
+    /// screens), or the guide. Names come from the classroom's list first (`names`, by the mark's
     /// record name, so a rename reaches old marks), then from the mark. On an
     /// assistant's phone the guide reads as the name he set, then `guideName`
     /// (the owner's name when CloudKit gives it; the guide's own marks carry
@@ -72,7 +73,8 @@ enum AttendanceRules {
             return current ?? names.guideName ?? guideName ?? "your guide"
         case CDClassroomMembership.ClassroomRole.assistant.rawValue:
             if let id = markedByID, let mine = myRecordName {
-                return id == mine ? "you" : (current ?? row.recordedByName ?? "another assistant")
+                let unnamed = viewerRole == .assistant ? "another assistant" : "an assistant"
+                return id == mine ? "you" : (current ?? row.recordedByName ?? unnamed)
             } else if viewerRole == .assistant, row.recordedByName == myName,
                       markedByID == nil || markedByID == myRecordName {
                 // Her own mark from a phone with no record name yet (or the

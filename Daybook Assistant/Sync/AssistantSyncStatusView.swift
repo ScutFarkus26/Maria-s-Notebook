@@ -10,27 +10,17 @@ import CoreData
 /// "Away" means CloudKit says so. A saved context only means the marks are on
 /// this phone; they have reached the guide once an export of the shared store
 /// (the only store her marks are written to, see `CDAttendanceStore`) that
-/// began after the save finishes successfully.
+/// began after the save finishes successfully, and none waits to go into the
+/// classroom share (`AssistantShareAttacher`). The saves and exports are
+/// recorded for the whole app (`AssistantSyncRecord`), not by this line.
 struct AssistantSyncStatusView: View {
     let coreDataStack: CoreDataStack
     @Environment(AssistantBootstrapper.self) private var bootstrapper
-
-    /// Kept across launches: marks saved just before the app was closed are
-    /// still unsent until the next launch's export says otherwise. These
-    /// describe one store's sync, so like every such key they are per CloudKit
-    /// environment: a Development build on the same iPhone keeps its own.
-    @AppStorage(Self.lastSharedSaveKey) private var lastSharedSave: Double = 0
-    @AppStorage(Self.lastSharedExportStartKey) private var lastSharedExportStart: Double = 0
-    /// When the last successful import into the shared store ended: the
-    /// guide's changes (and the class) as of then. Pull-to-refresh only
-    /// re-reads this iPhone, so this is how she knows how fresh it is.
-    @AppStorage(Self.lastSharedImportEndKey) private var lastSharedImportEnd: Double = 0
     @State private var hasUnsavedChanges = false
-    @State private var lastExportFailed = false
 
-    static var lastSharedSaveKey: String { CloudKitEnvironment.scoped("Assistant.lastSharedSave") }
-    static var lastSharedExportStartKey: String { CloudKitEnvironment.scoped("Assistant.lastSharedExportStart") }
-    static var lastSharedImportEndKey: String { CloudKitEnvironment.scoped("Assistant.lastSharedImportEnd") }
+    static var lastSharedSaveKey: String { AssistantSyncRecord.lastSharedSaveKey }
+    static var lastSharedExportStartKey: String { AssistantSyncRecord.lastSharedExportStartKey }
+    static var lastSharedImportEndKey: String { AssistantSyncRecord.lastSharedImportEndKey }
 
     enum Status: Equatable {
         case sent, sending, waitingForNetwork
@@ -39,24 +29,31 @@ struct AssistantSyncStatusView: View {
     /// When iCloud sync has stopped on this iPhone (`AssistantBootstrapper.sendingStopped`).
     static let sendingStoppedMessage = "Marks aren't sending. Quit the app and open it again."
 
+    /// The open stack's record; none for the Debug launch's sample class,
+    /// whose line says nothing goes to iCloud anyway.
+    private var record: AssistantSyncRecord? { AssistantStack.syncRecord }
+
     private var status: Status {
         Self.status(
             hasUnsavedChanges: hasUnsavedChanges,
-            lastSave: lastSharedSave,
-            lastExportStart: lastSharedExportStart,
-            lastExportFailed: lastExportFailed
+            lastSave: record?.lastSave ?? 0,
+            lastExportStart: record?.lastExportStart ?? 0,
+            lastExportFailed: record?.lastExportFailed ?? false,
+            waitingForShare: AssistantShareAttacher.shared.pendingCount
         )
     }
 
-    /// Sent once an export that began after the last save has finished; until
-    /// then sending, or waiting for the network when the last export failed.
+    /// Sent once an export that began after the last save has finished and
+    /// nothing waits to go into the share; until then sending, or waiting for
+    /// the network when the last export failed.
     static func status(
         hasUnsavedChanges: Bool,
         lastSave: Double,
         lastExportStart: Double,
-        lastExportFailed: Bool
+        lastExportFailed: Bool,
+        waitingForShare: Int = 0
     ) -> Status {
-        if hasUnsavedChanges || lastSave > lastExportStart {
+        if hasUnsavedChanges || waitingForShare > 0 || lastSave > lastExportStart {
             return lastExportFailed ? .waitingForNetwork : .sending
         }
         return .sent
@@ -97,14 +94,7 @@ struct AssistantSyncStatusView: View {
             NotificationCenter.default.publisher(
                 for: .NSManagedObjectContextDidSave, object: coreDataStack.viewContext
             )
-        ) { note in
-            refreshUnsavedChanges()
-            if savedIntoSharedStore(note) {
-                lastSharedSave = Date().timeIntervalSince1970
-            }
-        }
-        .task { await observeSharedExports() }
-        .task { await observeSharedImports() }
+        ) { _ in refreshUnsavedChanges() }
     }
 
     @ViewBuilder
@@ -126,11 +116,12 @@ struct AssistantSyncStatusView: View {
                 Text(Self.sendingStoppedMessage)
                     .foregroundStyle(.orange)
             } else {
+                let importEnd = record?.lastImportEnd ?? 0
                 switch status {
                 case .sent:
                     Image(systemName: "checkmark.icloud")
-                    Text(lastSharedImportEnd > 0 ? "All marks sent" : "All marks sent to iCloud")
-                    classUpdated
+                    Text(importEnd > 0 ? "All marks sent" : "All marks sent to iCloud")
+                    classUpdated(importEnd)
                 case .sending:
                     Image(systemName: "arrow.triangle.2.circlepath")
                     Text("Sending to iCloud…")
@@ -144,9 +135,9 @@ struct AssistantSyncStatusView: View {
 
     /// "· class updated 2 min ago", redrawn each minute only while on screen.
     @ViewBuilder
-    private var classUpdated: some View {
-        if lastSharedImportEnd > 0 {
-            let date = Date(timeIntervalSince1970: lastSharedImportEnd)
+    private func classUpdated(_ importEnd: Double) -> some View {
+        if importEnd > 0 {
+            let date = Date(timeIntervalSince1970: importEnd)
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 Text("· class updated \(Self.relative(date, now: context.date))")
             }
@@ -166,67 +157,5 @@ struct AssistantSyncStatusView: View {
     private func refreshUnsavedChanges() {
         let pending = coreDataStack.viewContext.hasChanges
         if pending != hasUnsavedChanges { hasUnsavedChanges = pending }
-    }
-
-    /// Whether the save touched the shared store. Her name and membership
-    /// rows live in her private store and never go to the guide, so a save of
-    /// only those must not leave the line stuck on "Sending".
-    private func savedIntoSharedStore(_ note: Notification) -> Bool {
-        guard let shared = coreDataStack.sharedPersistentStore else { return false }
-        let keys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
-        return keys.contains { key in
-            ((note.userInfo?[key] as? Set<NSManagedObject>) ?? []).contains {
-                $0.objectID.persistentStore === shared
-            }
-        }
-    }
-
-    private func observeSharedExports() async {
-        guard let storeID = coreDataStack.sharedPersistentStore?.identifier else { return }
-        let exports = NotificationCenter.default
-            .notifications(named: NSPersistentCloudKitContainer.eventChangedNotification)
-            .compactMap { Self.finishedExport(in: $0, storeID: storeID) }
-        for await export in exports {
-            lastExportFailed = !export.succeeded
-            if export.succeeded {
-                lastSharedExportStart = max(lastSharedExportStart, export.startDate.timeIntervalSince1970)
-            }
-        }
-    }
-
-    private func observeSharedImports() async {
-        guard let storeID = coreDataStack.sharedPersistentStore?.identifier else { return }
-        let imports = NotificationCenter.default
-            .notifications(named: NSPersistentCloudKitContainer.eventChangedNotification)
-            .compactMap { Self.finishedImportEnd(in: $0, storeID: storeID) }
-        for await end in imports {
-            lastSharedImportEnd = max(lastSharedImportEnd, end.timeIntervalSince1970)
-        }
-    }
-
-    /// When a successful import into the shared store ended, if `note` says one did.
-    private nonisolated static func finishedImportEnd(in note: Notification, storeID: String) -> Date? {
-        guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                as? NSPersistentCloudKitContainer.Event,
-              event.type == .import, event.succeeded,
-              event.storeIdentifier == storeID
-        else { return nil }
-        return event.endDate
-    }
-
-    private struct FinishedExport: Sendable {
-        let startDate: Date
-        let succeeded: Bool
-    }
-
-    /// Read off the notification before it reaches the main actor:
-    /// `Notification` isn't Sendable.
-    private nonisolated static func finishedExport(in note: Notification, storeID: String) -> FinishedExport? {
-        guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                as? NSPersistentCloudKitContainer.Event,
-              event.type == .export, event.endDate != nil,
-              event.storeIdentifier == storeID
-        else { return nil }
-        return FinishedExport(startDate: event.startDate, succeeded: event.succeeded)
     }
 }

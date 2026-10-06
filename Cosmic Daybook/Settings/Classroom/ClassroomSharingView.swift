@@ -17,9 +17,7 @@ struct ClassroomSharingView: View {
     @State private var sharingService: ClassroomSharingService?
     @State private var showingSharingSheet = false
     @State private var showingLeaveConfirmation = false
-    #if os(macOS)
     @State private var showingStopSharingConfirmation = false
-    #endif
     @State private var showingSetupConfirmation = false
     @State private var errorMessage: String?
     @State private var resultMessage: String?
@@ -228,40 +226,34 @@ struct ClassroomSharingView: View {
         .disabled(isPreparingShare)
         .sheet(isPresented: $showingSharingSheet) {
             if let svc = service {
-                ClassroomSharingSheet(service: svc, contents: contents) {
+                // The app's own members sheet on every device: the system
+                // sharing sheet's Stop Sharing deletes the share.
+                ClassroomMembersSheet(service: svc, contents: contents) {
                     showingSharingSheet = false
-                    try? svc.refreshParticipants()
+                    Task { await svc.refreshShareInBackground() }
                 }
             }
         }
     }
 
-    /// On the Mac this removes everyone, so it asks first. On iPad and iPhone
-    /// it opens the system sharing sheet, whose own Stop Sharing asks — a
-    /// dialog here as well would make the guide confirm twice.
+    /// Removes everyone, so it asks first. The share itself stays, on every
+    /// device: a new one would be a second zone, and the pin would name one
+    /// that was gone, so setup could never run again.
     private var stopSharingButton: some View {
         Button(role: .destructive) {
-            #if os(macOS)
             showingStopSharingConfirmation = true
-            #else
-            showingSharingSheet = true
-            #endif
         } label: {
             Label("Stop sharing…", systemImage: "xmark.circle")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        #if os(macOS)
         .confirmationDialog(
             "Stop sharing?",
             isPresented: $showingStopSharingConfirmation,
             titleVisibility: .visible
         ) {
             Button("Stop sharing", role: .destructive) {
-                // The Mac has no system sharing UI to end the share in, and
-                // the share itself has to stay (a new one would be a second
-                // zone) — so remove everyone.
                 Task {
                     do {
                         try await service?.removeAllMembers()
@@ -273,7 +265,6 @@ struct ClassroomSharingView: View {
         } message: {
             Text("Your assistant will lose access to your students, attendance and school calendar.")
         }
-        #endif
     }
 
     private func setUpSharing() async {

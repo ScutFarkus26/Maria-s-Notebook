@@ -68,6 +68,29 @@ struct RestockStapleTests {
         #expect(RestockService.history(for: towels, in: context).allSatisfy { $0.quantityChange == 0 })
     }
 
+    @Test("Each level line carries who set it, so a rename reaches it; a stand-in or a count carries no one")
+    func historyCarriesWhoSetTheLevel() throws {
+        let context = try makeContext()
+        let towels = try staple("Paper Towels", in: context)
+        RestockService.setLevel(towels, to: .low, by: ana, at: at(10), in: context)
+        RestockService.setLevel(towels, to: .out, by: guide, at: at(20), in: context)
+        let standIn = RestockAuthor(role: .leadGuide, recordName: "__defaultOwner__")
+        RestockService.setLevel(towels, to: .stocked, by: standIn, at: at(30), in: context)
+        RestockService.setCount(towels, to: 4, reason: "Counted", at: at(40), in: context)
+        #expect(CoreDataTestHelpers.save(context))
+
+        let lines = RestockService.history(for: towels, in: context)
+        #expect(lines.map(\.reason) == ["Counted", "Restocked", "Out", "Low · Ana"])
+        #expect(lines.map(\.changedByID) == ["", "", "_guide", "_ana"])
+
+        // Ana goes by "Annie" now, and the guide set "Danny" for himself.
+        let names = ClassroomNames.Snapshot(
+            names: ["_ana": "Annie", "_guide": "Danny"], roles: ["_ana": .assistant, "_guide": .leadGuide]
+        )
+        let shown = lines.map { StapleHistorySheet.line(for: $0, names: names) }
+        #expect(shown == ["Counted", "Restocked", "Out · Danny", "Low · Annie"])
+    }
+
     @Test("Stocked marks a need already asked for as received instead of deleting it")
     func restockingAnAskedForNeed() throws {
         let context = try makeContext()

@@ -180,7 +180,7 @@ struct AssistantRestockWordingTests {
         )).object
         let time = AssistantRestockModel.when(now, now: Date())
 
-        try AssistantRestockTestSupport.asIdentity("_cal", named: "Cal") {
+        AssistantRestockTestSupport.asIdentity("_cal", named: "Cal") {
             let tab = AssistantRestockModel.live(context: context, container: nil)
             tab.load()
             #expect(tab.markedBy(towels) == "Ana · \(time)")
@@ -199,6 +199,30 @@ struct AssistantRestockWordingTests {
             #expect(context.safeSave())
             tab.load()
             #expect(tab.markedBy(towels) == "Ana · \(time)")
+        }
+    }
+
+    @Test("A staple's history names each person as they go by now; a count with no reason reads as its number")
+    func historyNamesCurrentNames() throws {
+        let now = try AssistantTestSupport.day("2026-10-03").addingTimeInterval(8 * 3_600)
+        let towels = try #require(RestockService.addStaple(
+            .init(name: "Paper Towels"), level: .low, by: AssistantRestockTestSupport.ana, at: now, in: context
+        )).object
+        RestockService.setLevel(towels, to: .out, by: Self.guide, at: now.addingTimeInterval(60), in: context)
+        let counted = CDSupplyTransaction(context: context)
+        counted.supplyID = towels.id?.uuidString ?? ""
+        counted.date = now.addingTimeInterval(180)
+        counted.quantityChange = -2
+        #expect(context.safeSave())
+        AssistantRestockTestSupport.person("_ana", "Anna", at: now, in: context)
+
+        AssistantRestockTestSupport.asIdentity("_ana", named: "Anna") {
+            let tab = AssistantRestockModel.live(context: context, container: nil)
+            tab.load()
+            let lines = tab.history(for: towels).map {
+                AssistantRestockHistorySheet.line(for: $0, names: tab.author.names)
+            }
+            #expect(lines == ["−2", "Out", "Low · Anna"], "stamped 'Ana', she goes by 'Anna' now")
         }
     }
 

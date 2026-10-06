@@ -124,8 +124,8 @@ classroom share holding the share types above, this school year's only (see
   `fetchShares(in:)` has no order. `CDClassroomMembership.classroomShare(among:in:)`
   returns the pinned one and nothing else: no pin, or no share matching it,
   means "not shared yet". Never take `.first`.
-- **Invite preflight.** Manage Sharing (Mac members sheet and iOS
-  `UICloudSharingController`) goes through `shareForInvitations`, which refuses
+- **Invite preflight.** Manage Sharing (the app's own members sheet, on every
+  platform) goes through `shareForInvitations`, which refuses
   unless the pinned share exists and holds students, and shows what it holds.
 - **Inviting (Mac).** `ClassroomMembersSheet` is the Mac's own members sheet.
   It looks the person up with `shareParticipants(for:)`, adds them, and saves
@@ -134,7 +134,10 @@ classroom share holding the share types above, this school year's only (see
   - The server's `participantAlreadyInvited` (iOS/macOS 26) becomes "already invited".
   - "Remove Everyone" removes participants but keeps the share: a new one
     would be a second zone.
-- **Inviting (iOS).** `UICloudSharingController`.
+- **Inviting (iOS).** The same members sheet, with the share link sent by
+  `ShareLink`. Not `UICloudSharingController`: its Stop Sharing deletes the
+  share for the owner and can't be hidden (2026-10-06). Stop Sharing on every
+  platform removes everyone and keeps the share (`removeAllMembers()`).
 - **Invite-only.** The share has no public permission. Since iOS/macOS 26 a
   share rejects access requests by default (`allowsAccessRequests == false`),
   and the server won't even confirm to an uninvited person that it exists.
