@@ -237,10 +237,9 @@ Format v39; rules: `docs/Technical notes/BACKUP_SYSTEM.md`. A new entity or attr
 
 ## Todos for Danny
 
-Todos go in Tide: the Daybook Assistant's own in `Areas/App Development/Daybook Assistant/TODO.md`
+Todos go in Tide: the Daybook Assistant's own in `Areas/App Development/Daybook Assistant/To do.md`
 (from 2026-10-04), Cosmic Daybook's and those about both apps in
-`Areas/App Development/Cosmic Daybook/TODO.md` — never in the old single
-`Areas/App Development/TODO.md`, which is gone. Add them with Tide's `add_action`,
+`Areas/App Development/Cosmic Daybook/To do.md`. Add them with Tide's `add_action`,
 giving the file and one of its five headings:
 
 - `Release` — getting a build onto devices or TestFlight, uploading an archive, importing data into CloudKit.
@@ -252,4 +251,4 @@ giving the file and one of its five headings:
 Put a row last in its heading unless it is urgent or blocks the rows below it;
 the file's first two open rows are this app's next actions. A row for another
 of Danny's apps goes in that app's folder; the full rules are in
-`~/Documents/My Documents/Areas/App Development/README.md`.
+`~/Documents/My Documents/Areas/App Development/About App Development.md`.
