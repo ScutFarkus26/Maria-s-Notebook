@@ -73,8 +73,25 @@ final class CoreDataStack {
         let container: NSPersistentCloudKitContainer
         let isCloudKitActive: Bool
         /// The app's own on-disk stores (not in memory, Sample Class or a
-        /// test's file): only they get the history processor.
+        /// test's file).
         let isAppNotebook: Bool
+        /// Whether the stack gets the history processor
+        /// (`makesHistoryProcessor`).
+        let getsHistoryProcessor: Bool
+    }
+
+    /// Whether a stack gets the history processor: the app's own notebook in
+    /// its two-store layout (private and shared, with iCloud or the cached
+    /// copy without it). Not the no-iCloud single-store fallback: a pass keeps
+    /// positions only for the stores its container loaded, and that one loads
+    /// neither, so its first pass wiped both stores' positions and the next
+    /// normal launch re-read all their history (2026-10-05 sync hunt).
+    nonisolated static func makesHistoryProcessor(
+        opensAppStores: Bool,
+        enableCloudKit: Bool,
+        preserveSplitStoreLayout: Bool
+    ) -> Bool {
+        opensAppStores && (enableCloudKit || preserveSplitStoreLayout)
     }
 
     /// Creates the Core Data stack, opening its stores on the calling thread.
@@ -264,7 +281,12 @@ final class CoreDataStack {
         return OpenedStores(
             container: container,
             isCloudKitActive: enableCloudKit && !inMemory,
-            isAppNotebook: opensAppStores
+            isAppNotebook: opensAppStores,
+            getsHistoryProcessor: makesHistoryProcessor(
+                opensAppStores: opensAppStores,
+                enableCloudKit: enableCloudKit,
+                preserveSplitStoreLayout: preserveSplitStoreLayout
+            )
         )
     }
 
@@ -289,8 +311,9 @@ final class CoreDataStack {
         // must not create one: all processors persist their per-store positions
         // under the same UserDefaults key, and a pass keeps positions only for
         // the stores its own container loaded, so a secondary stack's pass
-        // would erase the primary stack's cursor.
-        if opened.isAppNotebook {
+        // would erase the primary stack's cursor. The single-store fallback
+        // is left out for the same reason (`makesHistoryProcessor`).
+        if opened.getsHistoryProcessor {
             historyProcessor = PersistentHistoryProcessor(container: container)
         }
 

@@ -172,7 +172,8 @@ struct RemoteChangeDebounceTests {
         #expect(service.remoteChangeHandlingCount == 0)
         try await waitUntil { service.remoteChangeHandlingCount >= 1 }
         #expect(service.remoteChangeHandlingCount == 1)
-        #expect(service.lastOperation == "Remote changes received")
+        // A remote change proves nothing about iCloud (own saves post one too).
+        #expect(service.lastOperation != "Remote changes received")
         // Nothing else was queued behind it.
         try await Task.sleep(for: .milliseconds(300))
         #expect(service.remoteChangeHandlingCount == 1)

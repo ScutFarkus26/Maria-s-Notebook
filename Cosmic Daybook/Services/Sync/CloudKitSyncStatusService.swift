@@ -46,6 +46,12 @@ final class CloudKitSyncStatusService {
         healthCheck.isICloudAvailable
     }
 
+    /// CloudKit says no usable iCloud account is signed in (not just the
+    /// iCloud Drive hint `isICloudAvailable` starts from).
+    var isICloudSignedOut: Bool {
+        healthCheck.isSignedOut
+    }
+
     /// Timestamp when the service was initialized (used for startup grace period)
     let initializationTime: Date = Date()
 
@@ -62,15 +68,29 @@ final class CloudKitSyncStatusService {
     var hasPendingRetry: Bool { retryLogic.hasPendingRetry }
 
     /// True when one of `NSPersistentCloudKitContainer`'s mirroring delegates
-    /// failed this session: a setup-event failure, `NSCocoaErrorDomain`
-    /// 134421 / 134406, or "never successfully initialized". When true, that
-    /// store syncs nothing more for the rest of the process. Deliberately one
-    /// flag, not per store: attaching records to the classroom share also sets
-    /// it and has no store to name. `storeHealth` names the store and the cause
+    /// failed: a setup-event failure (not one for want of an iCloud account or
+    /// a network), `NSCocoaErrorDomain` 134421 / 134406, or "never
+    /// successfully initialized". Apple documents no recovery from these, so
+    /// it holds until the store that set it imports or exports successfully
+    /// again (`stoppedStores`). Deliberately one flag, not per store:
+    /// attaching records to the classroom share also sets it and has no store
+    /// to name. `storeHealth` names the store and the cause
     /// (`SyncStoppedAdvice`): re-downloading fixes a damaged local copy, but
     /// not a server refusal such as a schema missing from Production, where
     /// it would throw away the unsent changes.
-    var mirroringDelegateFailed: Bool = false
+    var mirroringDelegateFailed: Bool = false {
+        didSet {
+            // Set from outside (attaching records to the share), with no
+            // event to name the store: the classroom share's is the one it used.
+            if mirroringDelegateFailed, stoppedStores.isEmpty { stoppedStores = [.classroomShare] }
+            if !mirroringDelegateFailed { stoppedStores = [] }
+        }
+    }
+
+    /// The stores whose failures set `mirroringDelegateFailed`. Each leaves
+    /// on its own store's next successful import or export; the flag clears
+    /// once none is left.
+    @ObservationIgnored var stoppedStores: Set<SyncedStore> = []
 
     /// Failed setup/import/export events per store (notebook, classroom share)
     /// that no later success of the same kind on the same store has cleared.
@@ -86,32 +106,32 @@ final class CloudKitSyncStatusService {
     /// `setup` or `import` of data from iCloud. Drives the "Syncing from iCloud…"
     /// overlay so a freshly launched or freshly signed-in device shows progress
     /// instead of an empty-looking screen. Apple notes the first import on a new
-    /// device "can take minutes, or longer" (TN3163). Only ever set when
-    /// ``hadSyncedBeforeLaunch`` is false — a device that has synced before
-    /// already holds its data locally and must not re-show the overlay.
+    /// device "can take minutes, or longer" (TN3163). Only ever set while
+    /// ``isFirstDownload`` — a device that holds its data locally must not
+    /// re-show the overlay.
     var isImportingFromCloud: Bool = false
 
-    /// Whether this device had already completed at least one successful CloudKit
-    /// sync in a previous session, captured at launch before any syncing happens
-    /// this session. `NSPersistentCloudKitContainer` fires a `setup` event on
-    /// *every* launch (and routine `import` events for incremental changes), so
-    /// keying the "Syncing from iCloud…" overlay off those events made it flash
-    /// on every launch. We instead show the overlay only on a device that has
-    /// never synced — the genuine first import, when the screen would otherwise
-    /// look empty (Apple TN3163). Once a device has its data, the overlay stays
-    /// suppressed.
-    let hadSyncedBeforeLaunch: Bool
+    /// Whether the private store's first download is still under way
+    /// (`FirstDownloadGate`: a new device, or after Reset Local Cache).
+    /// `NSPersistentCloudKitContainer` fires a `setup` event on *every* launch
+    /// (and routine `import` events for incremental changes), so keying the
+    /// "Syncing from iCloud…" overlay off those events made it flash on every
+    /// launch; it shows only for the genuine first import, when the screen
+    /// would otherwise look empty (TN3163). It used to be "never synced
+    /// before", read from the last sync date, which Reset Local Cache keeps,
+    /// so the overlay never showed after a reset.
+    var isFirstDownload: Bool { FirstDownloadGate.isPending() }
 
     // MARK: - Specialized Services
 
     let networkMonitor = NetworkMonitoring()
-    let retryLogic = SyncRetryLogic()
+    let retryLogic: SyncRetryLogic
     let healthCheck = CloudKitHealthCheck()
 
     // MARK: - Internal State (accessed by extensions)
 
-    /// One task per typed message stream (remote change, store change,
-    /// CloudKit event); cancelling it ends the stream.
+    /// One task per typed message stream (remote change, store change, and
+    /// the wait before the latter); cancelling it ends the stream.
     var messageObservationTasks: [Task<Void, Never>] = []
     var saveObserver: NSObjectProtocol?
     var syncStartTime: Date?
@@ -166,24 +186,27 @@ final class CloudKitSyncStatusService {
     /// Diagnostics: how many debounced remote-change passes have run this session.
     private(set) var remoteChangeHandlingCount = 0
 
+    /// The CloudKit event stream: one per process, made by whichever comes
+    /// first, the stores opening (`beginEarlyEventCapture`) or `configure`.
+    /// Outside `messageObservationTasks`, so reconfiguring doesn't end it.
+    @ObservationIgnored var cloudKitEventTask: Task<Void, Never>?
+    /// False until `configure`: events that arrive before it wait in `bufferedEvents`.
+    @ObservationIgnored var handlesCloudKitEvents = false
+    @ObservationIgnored var bufferedEvents: [CloudKitEventValues] = []
+    /// The stack whose stores opened while the events were buffered.
+    @ObservationIgnored weak var earlyCaptureStack: CoreDataStack?
+
     // MARK: - Initialization
 
-    init(coreDataStack: CoreDataStack? = nil) {
+    init(coreDataStack: CoreDataStack? = nil, retryLogic: SyncRetryLogic = SyncRetryLogic()) {
         self.coreDataStack = coreDataStack
+        self.retryLogic = retryLogic
 
         // Load persisted state
         let syncDateKey = UserDefaultsKeys.cloudKitLastSuccessfulSyncDate
-        let persistedSyncDate: Date?
         if let timestamp = UserDefaults.standard.object(forKey: syncDateKey) as? TimeInterval {
-            persistedSyncDate = Date(timeIntervalSince1970: timestamp)
-        } else {
-            persistedSyncDate = nil
+            lastSuccessfulSync = Date(timeIntervalSince1970: timestamp)
         }
-        lastSuccessfulSync = persistedSyncDate
-        // Capture, before this launch performs any syncing, whether the device
-        // already completed a successful sync in a prior session. Drives
-        // suppression of the "Syncing from iCloud…" overlay on routine launches.
-        hadSyncedBeforeLaunch = (persistedSyncDate != nil)
         loadPersistedSyncError()
 
         // Setup network monitoring using AsyncStream
@@ -197,8 +220,9 @@ final class CloudKitSyncStatusService {
         // Setup iCloud account monitoring using AsyncStream
         Task { [weak self] in
             guard let self else { return }
-            for await isAvailable in self.healthCheck.observeICloudChanges() {
-                self.handleICloudAccountChange(isAvailable: isAvailable)
+            for await change in self.healthCheck.observeICloudChanges() {
+                if change.isDifferentAccount { self.resetForNewAccount() }
+                self.handleICloudAccountChange(isAvailable: change.isAvailable)
             }
         }
 
@@ -236,24 +260,26 @@ final class CloudKitSyncStatusService {
         self.coreDataStack = stack
         watchForFirstDownloadIfPending()
 
-        // Delay starting observers to allow CloudKit initialization to complete
-        // Core Data creates temporary stores during CloudKit setup that get torn down
-        // We don't want to report these expected teardowns as errors
-        Task { [weak self] in
-            // Wait 2 seconds for initial CloudKit setup to complete
+        // CloudKit's events, saves and remote changes from now on (and the
+        // events buffered since the stores opened): a setup failure at launch
+        // used to land in the 2-second gap below and go unseen.
+        startHandlingCloudKitEvents(for: stack)
+        startObserving()
+        healthCheck.startICloudAccountMonitoring()
+        updateSyncHealth()
+
+        // Only the store-change listener waits: Core Data adds and tears down
+        // temporary stores during CloudKit setup, and those expected
+        // teardowns aren't errors.
+        messageObservationTasks.append(Task { [weak self] in
             do {
                 try await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { return }
-            } catch is CancellationError {
-                return  // Task was cancelled — expected during reconfiguration
             } catch {
-                return
+                return  // Cancelled: expected during reconfiguration
             }
-            guard let self else { return }
-            self.startObserving()
-            self.healthCheck.startICloudAccountMonitoring()
-            self.updateSyncHealth()
-        }
+            self?.startObservingStoreChanges()
+        })
     }
 
     // MARK: - Remote-change debounce
@@ -293,12 +319,10 @@ final class CloudKitSyncStatusService {
             // committed to the store (and thus queued for CloudKit mirroring).
             try viewContext.save()
 
-            // Update success state
+            // Saved for iCloud to send; only a successful import or export
+            // says it went (handleSuccessfulCloudKitEvent stamps and clears).
             let now = Date()
-            clearSyncErrorInMemory()
             SyncEventLogger.shared.log("cloudkit", status: "success", message: "Saved your changes for iCloud to send")
-            // User-initiated: written through at once, as before.
-            recordSuccessfulSync(at: now, persistNow: true)
 
             // Keep syncing indicator briefly to show activity
             do {
@@ -307,7 +331,7 @@ final class CloudKitSyncStatusService {
                 // CancellationError or other — just proceed
             }
             isSyncing = false
-            lastOperation = "Manual sync succeeded"
+            lastOperation = "Changes saved for iCloud"
             lastOperationDate = now
             currentOperation = nil
             updateSyncHealth()
@@ -348,43 +372,5 @@ final class CloudKitSyncStatusService {
         retryLogic.resetRetryCount()
         Self.removePersistedSyncError()
         updateSyncHealth()
-    }
-
-    // MARK: - Retry Logic
-
-    /// Schedules a retry with exponential backoff (delegated to SyncRetryLogic)
-    func scheduleRetry() {
-        retryLogic.scheduleRetry(
-            canRetry: { [weak self] in
-                guard let self else { return false }
-                return self.isNetworkAvailable
-            },
-            syncAction: { [weak self] in
-                guard let self else { return false }
-                return await self.syncNow()
-            },
-            onMaxRetriesReached: { [weak self] in
-                Task { [weak self] in
-                    self?.reportRetriesExhausted()
-                }
-            }
-        )
-    }
-
-    /// Called when network is restored to trigger pending retries
-    func retryPendingSync() {
-        retryLogic.retryPendingSync(
-            canRetry: { [weak self] in
-                guard let self else { return false }
-                return self.isNetworkAvailable
-            },
-            hasPendingWork: { [weak self] in
-                guard let self else { return false }
-                return self.lastSyncError != nil || self.pendingSyncCount > 0
-            },
-            syncAction: { [weak self] in
-                _ = await self?.syncNow()
-            }
-        )
     }
 }

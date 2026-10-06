@@ -24,12 +24,12 @@ nonisolated enum UserDefaultsKeys {
         CloudKitEnvironment.scoped("CloudKitSync.lastSuccessfulSyncDate")
     }
     /// The plain-English sync error shown in Settings.
-    static let cloudKitLastSyncError = "CloudKitSync.lastSyncError"
+    static var cloudKitLastSyncError: String { CloudKitEnvironment.scoped("CloudKitSync.lastSyncError") }
     /// The raw text behind `cloudKitLastSyncError`, for the Details disclosure and `sync_status`.
-    static let cloudKitLastSyncErrorDetail = "CloudKitSync.lastSyncErrorDetail"
+    static var cloudKitLastSyncErrorDetail: String { CloudKitEnvironment.scoped("CloudKitSync.lastSyncErrorDetail") }
     /// What kind of problem `cloudKitLastSyncError` is (`CloudKitSyncStatusService.SyncErrorKind`),
     /// so coming back online or signing in clears the right one.
-    static let cloudKitLastSyncErrorKind = "CloudKitSync.lastSyncErrorKind"
+    static var cloudKitLastSyncErrorKind: String { CloudKitEnvironment.scoped("CloudKitSync.lastSyncErrorKind") }
     static var cloudKitErrorLog: String { CloudKitEnvironment.scoped("cloudKitErrorLog") }
     /// The history processor's position in each store: archived
     /// `NSPersistentHistoryToken` data keyed by `NSPersistentStore.identifier`.

@@ -73,6 +73,60 @@ nonisolated enum DedupSyncState {
         return false
     }
 
+    // MARK: - Tied copies of one id
+
+    /// Test seam: when a row's CloudKit record last changed in iCloud, instead of asking the
+    /// container.
+    @TaskLocal static var recordChangedOverride: (@Sendable (NSManagedObjectID) -> Date?)?
+
+    /// When the CloudKit record behind `objectID` last changed in iCloud (the server's time, the
+    /// same on every device); nil before the row has reached iCloud.
+    static func recordChanged(of objectID: NSManagedObjectID, container: NSPersistentCloudKitContainer?) -> Date? {
+        if let recordChangedOverride { return recordChangedOverride(objectID) }
+        return container?.record(for: objectID)?.modificationDate
+    }
+
+    /// True while copies of one id whose `createdAt` ties can't yet be folded safely. Their keeper
+    /// then falls to the record name, and mid-way through a Replace restore on another device
+    /// (the old copies' deletes and the restored copies not all here yet) that can keep the
+    /// outgoing copy and delete the incoming one; both deletes sync and the record is gone
+    /// (2026-10-05 hunt). So the group waits while:
+    /// - any copy has no record in iCloud yet, or
+    /// - a copy changed in iCloud within `settleInterval`, or no import that began after that
+    ///   change has finished into its store: the rest of the restore may still be on its way.
+    /// The keeper rule itself is unchanged and the same on every device; only when it runs
+    /// waits, and waiting deletes nothing. Without a container (the tests' default) nothing is
+    /// looked up and the group folds at once.
+    static func tieStillSettling(
+        _ objects: [NSManagedObject],
+        container: NSPersistentCloudKitContainer?,
+        now: Date = Date()
+    ) -> Bool {
+        guard container != nil || recordNameOverride != nil else { return false }
+        let entity = objects.first?.entity.name ?? "record"
+        if objects.contains(where: { recordName(of: $0.objectID, container: container) == nil }) {
+            logger.info("Left \(objects.count) tied copies of one \(entity, privacy: .public): one isn't in iCloud yet")
+            return true
+        }
+        guard let newest = objects.compactMap({ recordChanged(of: $0.objectID, container: container) }).max() else {
+            return false
+        }
+        var settling = now.timeIntervalSince(newest) < settleInterval
+        if !settling {
+            let stores = Set(objects.compactMap { $0.objectID.persistentStore?.identifier })
+            settling = stores.contains { store in
+                let lastImport = lastImportOverride.map { $0(store) }
+                    ?? ImportWatermark.lastImport(intoStoreWithIdentifier: store, now: now)
+                guard let lastImport else { return true }
+                return lastImport <= newest
+            }
+        }
+        if settling {
+            logger.info("Left \(objects.count) tied copies of one \(entity, privacy: .public): one changed lately")
+        }
+        return settling
+    }
+
     /// True when none of `objects` (copies of one record) has reached iCloud yet, so the group is
     /// left for a pass after they have.
     static func noCopySent(_ objects: [NSManagedObject], container: NSPersistentCloudKitContainer?) -> Bool {

@@ -221,13 +221,17 @@ struct SyncStoppedAdviceTests {
 
     @Test("A setup failure for another reason suggests reopening, not re-downloading; details quote it")
     func otherSetupFailure() {
-        let advice = advice([Failed(.notebook, .setup, ckError(.networkFailure, "The network connection was lost"))])
+        // (A network or no-account setup failure doesn't stop sync at all; see SyncStatusTruthTests.)
+        let threw = NSError(domain: NSCocoaErrorDomain, code: 134_060, userInfo: [
+            NSLocalizedDescriptionKey: "A Core Data error occurred."
+        ])
+        let advice = advice([Failed(.notebook, .setup, threw)])
         #expect(advice.diagnosis == .other)
         #expect(!advice.suggestsRedownload)
         #expect(advice.message.hasPrefix("iCloud couldn't start syncing your notebook. "))
         #expect(advice.message.contains("Reopen the app"))
         expectPlain(advice)
-        #expect(advice.details.contains("\u{201C}The network connection was lost\u{201D} (CKError 4)"))
+        #expect(advice.details.contains("\u{201C}A Core Data error occurred.\u{201D} (NSCocoaErrorDomain 134060)"))
     }
 
     @Test("A setup failure with no error quotes nothing")

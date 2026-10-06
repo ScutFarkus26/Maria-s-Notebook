@@ -186,8 +186,10 @@ earlier attendance of children who stay, and a checklist. It refuses to start
 unless sync is healthy, online and caught up (0 pending), this is the lead
 guide's only running copy, and no attendance sits in the two weeks before the
 school-year start (a start set later than the real first day). It then makes a
-manual backup and checks it (`BackupReader.verifyStructure`, student and
-attendance counts equal to the store) before touching anything.
+manual backup, plans again (refusing, with the new preview, if the start date
+changed or the plan holds records the preview didn't), and checks the backup
+record by record (`BackupRecordCheck`: every record the run touches, by `id`)
+before touching anything.
 
 There is no API to unshare a record, so each is **copied**: an identical object
 (same `id`, every attribute, `copyAttributes`) goes into the private default

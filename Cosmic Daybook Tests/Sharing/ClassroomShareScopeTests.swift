@@ -114,6 +114,44 @@ struct ClassroomShareScopeTests {
         #expect(scope.attendanceJustBeforeCutoff(in: ctx, store: nil) == day(-1))
     }
 
+    @Test(
+        "The attendance predicate matches a student id in any case and with spaces around it, in SQLite too",
+        arguments: [false, true]
+    )
+    func predicateMatchesAnySpelling(sqlite: Bool) throws {
+        let ctx = sqlite
+            ? try CoreDataTestHelpers.makeSplitStoreContext()
+            : try CoreDataTestHelpers.makeInMemoryStack().viewContext
+        let child = student(in: ctx, status: .enrolled, withdrawn: nil)
+        let id = try #require(child.id?.uuidString)
+        let mixed = id.prefix(8).lowercased() + id.dropFirst(8)
+        var matching: [CDAttendanceRecord] = []
+        for spelling in [id, id.lowercased(), mixed, " \(id) ", "\(id.lowercased())\n"] {
+            let record = mark(child, on: day(5), in: ctx)
+            record.studentID = spelling
+            matching.append(record)
+        }
+        let other = mark(child, on: day(5), in: ctx)
+        other.studentID = "x\(id)" // not the same id once trimmed
+        mark(child, on: day(-5), in: ctx) // before the start
+        #expect(CoreDataTestHelpers.save(ctx))
+
+        let belonging = scope.belongingStudentIDs(in: ctx, store: nil)
+        let request = NSFetchRequest<NSManagedObjectID>(entityName: "AttendanceRecord")
+        request.resultType = .managedObjectIDResultType
+        request.predicate = scope.predicate(for: "AttendanceRecord", belongingStudentIDs: belonging)
+        #expect(Set(try ctx.fetch(request)) == Set(matching.map(\.objectID)))
+        // The release's own rule agrees on every one.
+        for record in matching {
+            let studentID = record.studentID
+            #expect(scope.attendanceBelongs(date: record.date, studentID: studentID, belongingStudentIDs: belonging))
+        }
+
+        // No one belongs: nothing matches (not every blank id).
+        request.predicate = scope.predicate(for: "AttendanceRecord", belongingStudentIDs: [])
+        #expect(try ctx.fetch(request).isEmpty)
+    }
+
     // MARK: - Helpers
 
     private func student(

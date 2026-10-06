@@ -40,6 +40,15 @@ nonisolated enum ClassroomShareRelease {
         let isShared: Bool
         /// Belongs in this school year's share.
         let belongs: Bool
+        /// Why a backup can't hold this record, or nil. Such a record is never planned: the
+        /// run's backup check would refuse every time. The preview names it instead.
+        var backupGap: BackupGap?
+    }
+
+    /// What keeps a record out of a backup: `BackupServiceHelpers.toDTOs` leaves out a
+    /// record with no `id`, and a mark with no date or a `studentID` that isn't an id.
+    enum BackupGap: Sendable, Equatable {
+        case noID, noDate, noChild
     }
 
     /// One record to take out of the share: the shared original(s) and the private copy
@@ -122,8 +131,9 @@ nonisolated enum ClassroomShareRelease {
         for group in groups.values {
             let shared = group.filter(\.isShared).sorted(by: rowOrder)
             // Only records the share holds and shouldn't: a copy's `belongs` matches its
-            // original's, since both carry the same values.
-            guard let source = shared.first, !source.belongs else { continue }
+            // original's, since both carry the same values. One a backup can't hold stays
+            // (`leftShared`).
+            guard let source = shared.first, !source.belongs, source.backupGap == nil else { continue }
             let twin = group.filter { !$0.isShared }.sorted(by: rowOrder).first
             moves.append(Move(
                 entity: source.entity,
@@ -134,6 +144,18 @@ nonisolated enum ClassroomShareRelease {
             ))
         }
         return moves.sorted(by: moveOrder)
+    }
+
+    /// The shared records that don't belong but stay in the share, because a backup can't
+    /// hold them (`Row.backupGap`), for the preview to name.
+    static func leftShared(in rows: [Row]) -> [Row] {
+        var seen = Set<String>()
+        return rows.filter { $0.isShared && !$0.belongs && $0.backupGap != nil }
+            .sorted(by: rowOrder)
+            .filter { row in
+                guard let id = row.recordID else { return true }
+                return seen.insert("\(row.entity)|\(id.uuidString)").inserted
+            }
     }
 
     private static func rowOrder(_ lhs: Row, _ rhs: Row) -> Bool {

@@ -3,7 +3,11 @@
 // Data persistent history — the same change-tracking machinery
 // NSPersistentCloudKitContainer already keeps enabled for mirroring.
 //
-// After each successful auto-backup the current history token is recorded.
+// Before each auto-backup collects its rows the current history token is
+// taken, and once the file is written that token is recorded. Taken after the
+// write instead, a change saved while the backup was being written (an
+// assistant's marks arriving) counted as backed up and waited for some other
+// change before the next backup (2026-10-05 sync hunt).
 // Before the next one, a single fetch-limit-1 history query answers "has any
 // transaction (local edit OR change synced down from CloudKit) touched the
 // stores since?". If not, the backup is skipped — a 4-hourly schedule on an
@@ -23,6 +27,12 @@ final class BackupChangeTracker {
     /// Per CloudKit environment: a token from the other notebook names a
     /// different store.
     private static let tokenDefaultsKey = CloudKitEnvironment.scoped("AutoBackup.lastHistoryToken")
+
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     /// True when at least one persistent-history transaction exists after the
     /// recorded token — or when that can't be determined.
@@ -53,23 +63,28 @@ final class BackupChangeTracker {
         }
     }
 
-    /// Records the current history token as the new baseline. Call after a
-    /// successful auto-backup.
-    func recordBackupPoint(context: NSManagedObjectContext) {
-        guard let coordinator = context.persistentStoreCoordinator else { return }
+    /// The stores' current history token: everything saved up to now. Take it
+    /// before the backup collects its rows and hand it to `recordBackupPoint`
+    /// once the file is written. Nil when the stores keep no history (in-memory
+    /// test stores), and then no baseline is recorded.
+    func currentHistoryToken(context: NSManagedObjectContext) -> NSPersistentHistoryToken? {
+        guard let coordinator = context.persistentStoreCoordinator else { return nil }
         // SQLite stores only — in-memory test stores don't track history.
         let stores = coordinator.persistentStores.filter { $0.type == NSSQLiteStoreType }
-        guard !stores.isEmpty,
-              let token = coordinator.currentPersistentHistoryToken(fromStores: stores) else {
-            return
-        }
+        guard !stores.isEmpty else { return nil }
+        return coordinator.currentPersistentHistoryToken(fromStores: stores)
+    }
 
+    /// Records `token`, taken before the backup collected its rows, as the new
+    /// baseline. Call after a successful auto-backup.
+    func recordBackupPoint(_ token: NSPersistentHistoryToken?) {
+        guard let token else { return }
         do {
             let data = try NSKeyedArchiver.archivedData(
                 withRootObject: token,
                 requiringSecureCoding: true
             )
-            UserDefaults.standard.set(data, forKey: Self.tokenDefaultsKey)
+            defaults.set(data, forKey: Self.tokenDefaultsKey)
         } catch {
             Self.logger.warning(
                 "Could not persist history token: \(error.localizedDescription, privacy: .public)"
@@ -80,7 +95,7 @@ final class BackupChangeTracker {
     // MARK: - Token Persistence
 
     private func loadToken() -> NSPersistentHistoryToken? {
-        guard let data = UserDefaults.standard.data(forKey: Self.tokenDefaultsKey) else { return nil }
+        guard let data = defaults.data(forKey: Self.tokenDefaultsKey) else { return nil }
         do {
             return try NSKeyedUnarchiver.unarchivedObject(
                 ofClass: NSPersistentHistoryToken.self,
@@ -95,6 +110,6 @@ final class BackupChangeTracker {
     }
 
     private func clearToken() {
-        UserDefaults.standard.removeObject(forKey: Self.tokenDefaultsKey)
+        defaults.removeObject(forKey: Self.tokenDefaultsKey)
     }
 }

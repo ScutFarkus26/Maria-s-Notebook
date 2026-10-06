@@ -19,6 +19,9 @@ final class ClassroomReleaseModel {
     }
 
     private(set) var stage: Stage = .loading
+    /// Why the last press didn't start, shown above a preview made again: what would leave
+    /// changed after the guide read it (`ClassroomShareRelease.changeSincePreview`).
+    private(set) var notice: String?
     private let dependencies: AppDependencies
     private let isRestoring: () -> Bool
     private static let logger = Logger.classroomSharing
@@ -39,6 +42,7 @@ final class ClassroomReleaseModel {
 
     func load() async {
         stage = .loading
+        notice = nil
         let stack = dependencies.coreDataStack
         do {
             guard let preview = try await ClassroomShareRelease.preview(coreDataStack: stack) else {
@@ -59,14 +63,14 @@ final class ClassroomReleaseModel {
         if let reason = ClassroomShareRelease.blocker(coreDataStack: stack, isRestoring: isRestoring()) {
             return reason
         }
-        let scope = ClassroomShareScope(cutoff: preview.cutoff)
-        if let early = scope.attendanceJustBeforeCutoff(in: stack.viewContext, store: stack.privatePersistentStore) {
-            let day = early.formatted(.dateTime.weekday(.wide).month(.wide).day())
-            let start = preview.cutoff.formatted(.dateTime.month(.wide).day())
-            return "Attendance was taken on \(day), before your school-year start (\(start)). "
-                + "Set the start to the first day of school in Settings › School year, then come back."
-        }
-        return nil
+        return cutoffBlocker(for: preview)
+    }
+
+    private func cutoffBlocker(for preview: ClassroomShareRelease.Preview) -> String? {
+        let stack = dependencies.coreDataStack
+        return ClassroomShareRelease.cutoffBlocker(
+            preview.cutoff, context: stack.viewContext, store: stack.privatePersistentStore
+        )
     }
 
     // MARK: - Running
@@ -75,7 +79,8 @@ final class ClassroomReleaseModel {
         guard case .ready(let preview, nil) = stage,
               !preview.isEmpty || ClassroomShareRelease.stoppedPartway else { return }
         let stack = dependencies.coreDataStack
-        // Checked again: time passed while the guide read the preview.
+        // Checked again: time passed while the guide read the preview. It includes a run
+        // already going in another window, and nothing suspends between it and the claim.
         if let reason = ClassroomShareRelease.blocker(coreDataStack: stack, isRestoring: isRestoring()) {
             stage = .ready(preview, blocker: reason)
             return
@@ -85,15 +90,26 @@ final class ClassroomReleaseModel {
             stage = .failed(Self.unreadable)
             return
         }
-        if preview.isEmpty {
-            await finishStoppedRun(zone: zone)
+        guard ClassroomShareRelease.claimRun() else {
+            stage = .ready(preview, blocker: ClassroomShareRelease.runningMessage)
             return
         }
+        defer { ClassroomShareRelease.endRun() }
+        notice = nil
+        if preview.isEmpty {
+            await finishStoppedRun(zone: zone, storeID: store.identifier)
+        } else {
+            await backUpAndRun(confirmed: preview, storeID: store.identifier, zone: zone)
+        }
+    }
 
+    private func backUpAndRun(confirmed preview: ClassroomShareRelease.Preview, storeID: String, zone: String) async {
+        let stack = dependencies.coreDataStack
         stage = .backingUp
         // The backup is made before anything is touched; then the plan is made again, since
         // the preview may be minutes old, and the backup must hold every record it names.
         guard let backup = await makeBackup(), let fresh = await replan(),
+              stillAsConfirmed(fresh, confirmed: preview),
               await checkBackup(backup, holds: fresh) else { return }
 
         let activity = ProcessInfo.processInfo.beginActivity(
@@ -107,7 +123,7 @@ final class ClassroomReleaseModel {
         let report = await ClassroomShareRelease.run(
             fresh.batches,
             container: stack.container,
-            storeID: store.identifier,
+            storeID: storeID,
             environment: .live(container: stack.container)
         ) { [weak self] done, total in
             await MainActor.run { self?.stage = .running(done: done, total: total) }
@@ -118,13 +134,36 @@ final class ClassroomReleaseModel {
         stage = .finished(report, shareNow: await serverSummary(zone: zone))
     }
 
+    /// False (with the new preview shown, and why) when `fresh`, planned again after the
+    /// backup, isn't what the guide confirmed (another start date, records she wasn't shown),
+    /// or fails the start-date check run again on its own start: attendance may have been
+    /// taken since the preview.
+    private func stillAsConfirmed(
+        _ fresh: ClassroomShareRelease.Preview, confirmed preview: ClassroomShareRelease.Preview
+    ) -> Bool {
+        let early = cutoffBlocker(for: fresh)
+        if let change = ClassroomShareRelease.changeSincePreview(fresh, confirmed: preview) {
+            Self.logger.notice("Release: the plan changed since the preview; not started")
+            notice = change
+            stage = .ready(fresh, blocker: early)
+            return false
+        }
+        if let early {
+            stage = .ready(fresh, blocker: early)
+            return false
+        }
+        return true
+    }
+
     /// A run that stopped after its last deletes were saved here leaves nothing to plan, and
     /// the flag would never clear: only iCloud's confirmation is left to wait for. Nothing in
     /// the notebook changes, so no backup is made.
-    private func finishStoppedRun(zone: String) async {
+    private func finishStoppedRun(zone: String, storeID: String) async {
         let container = dependencies.coreDataStack.container
         stage = .running(done: 0, total: 1)
-        let report = await ClassroomShareRelease.finishStopped(environment: .live(container: container))
+        let report = await ClassroomShareRelease.finishStopped(
+            container: container, storeID: storeID, environment: .live(container: container)
+        )
         if report.stoppedBecause == nil {
             UserDefaults.standard.removeObject(forKey: ClassroomShareRelease.inProgressKey)
         }
@@ -190,12 +229,15 @@ final class ClassroomReleaseModel {
         )
     }
 
-    /// What the share holds now, as the CloudKit server itself counts it.
+    /// What the share holds now, as the CloudKit server itself counts it. Nil when the server
+    /// doesn't answer in time (`CloudKitServerCheck.requestTimeout`): the sheet must reach
+    /// its Done button either way.
     private func serverSummary(zone: String) async -> String? {
         let database = CloudKitConfigurationService.container.privateCloudDatabase
-        guard let counts = try? await CloudKitServerCheck.recordTypeCounts(inZone: zone, database: database) else {
-            return nil
+        let read = try? await CloudKitServerCheck.withTimeout {
+            try await CloudKitServerCheck.recordTypeCounts(inZone: zone, database: database)
         }
+        guard let counts = read else { return nil }
         let students = counts["CD_Student", default: 0]
         let marks = counts["CD_AttendanceRecord", default: 0]
         return "Your assistants now see \(students) child\(students == 1 ? "" : "ren") and "

@@ -200,7 +200,9 @@ struct CloudKitStatusSettingsView: View {
             case .healthy, .unknown: return "iCloud sync is on"
             case .warning: return "iCloud sync is having trouble"
             case .error: return "Sync problem"
-            case .offline: return "Offline"
+            case .offline:
+                return syncService.isNetworkAvailable && syncService.isICloudSignedOut
+                    ? "iCloud isn't available" : "Offline"
             }
         } else if isCloudKitEnabled {
             return "iCloud sync isn't running"

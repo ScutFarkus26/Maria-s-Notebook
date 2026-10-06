@@ -16,6 +16,11 @@ extension AppBootstrapping {
         SharedStoreOrphanGuard.shared.start(coreDataStack: stack)
         // An import can finish before any window has configured sync status.
         CloudKitSyncStatusService.watchForFirstDownload(on: stack)
+        // So can a failed setup: hold CloudKit's events until `configure`.
+        // Not in the test host, whose suites drive the service themselves.
+        if !isRunningUnitTests {
+            CloudKitSyncStatusService.shared.beginEarlyEventCapture(for: stack)
+        }
     }
 
     /// Builds the shared stack with `create`. A stack that loads is handed to

@@ -25,10 +25,18 @@ The fixes follow [Plan - Sync and sharing fixes](<../Plans/Plan - Sync and shari
   - Daybook Assistant sync (`2f163a80`): #6's fourth bullet, #8, every smaller Daybook Assistant finding.
   - Share setup (`a5888b34`): #3, #11a, #11c, the "no students" nil read, the pin save, the pre-pin re-file.
   - Names and schema 17 (`29d16f32`): #5, the names findings, the account-change ID, staple history names.
-- **Waiting for the weekly reset (Sun Oct 11):**
-  - sync status: #6's first three bullets, #7, the smaller monitoring list
-  - the remaining stack items: the Replace-restore tie-break, the auto-backup token, the single-store processor, backups during a first download
-  - Remove Last Year: #9 and its smaller list
+- **Fixed on main 2026-10-06, second squash** (Danny chose to finish before the reset):
+  - Sync status: #6's first three bullets, #7, and the smaller monitoring list.
+  - The remaining stack items: the Replace-restore tie-break, the auto-backup token, the single-store processor, backups during a first download.
+  - Remove Last Year: #9 and its smaller list.
+  - Five more from an Opus review of that work:
+    - Sync Now claimed success.
+    - Events posted before the stores opened went unheard.
+    - A setup left the spinner on.
+    - An account change kept the old account's dates.
+    - The backup wait had no time limit.
+
+  **Every finding in this report is now fixed.**
 
 ## Verdict
 

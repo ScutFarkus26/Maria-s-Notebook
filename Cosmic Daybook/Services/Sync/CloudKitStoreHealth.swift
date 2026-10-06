@@ -86,7 +86,7 @@ nonisolated struct StoreSyncFailure: Equatable, Sendable {
         /// Network trouble, throttling, a busy zone: the container retries.
         case transient
         /// CloudKit refused the request: a CloudKit code outside
-        /// `CloudKitStoreHealth.retryingCodes` (invalid arguments such as a
+        /// `CloudKitStoreHealth.retryingCodes` and `neutralCodes` (invalid arguments such as a
         /// schema the server doesn't have, a rejected request, permission,
         /// quota). Re-downloading sends the same thing and gets the same answer.
         case serverRefusal(ckCode: Int)
@@ -175,6 +175,10 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
     /// symptoms, so they don't replace it (on 2026-09-30 the schema refusal was
     /// followed by "never successfully initialized", which on its own reads as
     /// a damaged local store).
+    ///
+    /// A successful import or export also clears the store's failed setup: the
+    /// store is evidently syncing again. A setup that failed for want of an
+    /// iCloud account or a network is waiting, not stopped.
     mutating func recordFinishedEvent(
         store: SyncedStore,
         type: NSPersistentCloudKitContainer.EventType,
@@ -185,12 +189,18 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
         let key = Key(store: store, eventType: type)
         if succeeded {
             failures[key] = nil
+            if type == .import || type == .export {
+                failures[Key(store: store, eventType: .setup)] = nil
+            }
             lastSuccess[store] = date
             return
         }
         let detail = error.map(Self.detail(of:))
         if failures[key]?.cause.isServerRefusal == true, detail?.cause.isServerRefusal != true { return }
-        let severity: StoreSyncFailure.Severity = (type == .setup || detail?.stops == true) ? .stopped : .retrying
+        let stops = type == .setup
+            ? !(error.map(Self.isAccountOrNetworkFailure) ?? false)
+            : detail?.stops == true
+        let severity: StoreSyncFailure.Severity = stops ? .stopped : .retrying
         failures[key] = StoreSyncFailure(
             store: store,
             eventType: type,
@@ -226,13 +236,37 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
     // MARK: - Reading the error
 
     /// Transient CloudKit codes: the container retries these by itself. Any
-    /// other CloudKit code is a refusal.
-    static let retryingCodes: Set<CKError.Code> = [
+    /// other CloudKit code is a refusal, except the `neutralCodes`.
+    static let retryingCodes: Set<CKError.Code> = temporaryCodes.union([
+        .operationCancelled, .serverRecordChanged, .changeTokenExpired, .unknownItem,
+        .limitExceeded, .assetFileModified, .batchRequestFailed, .partialFailure, .internalError
+    ])
+
+    /// "Not now": the network, throttling, a busy zone, a lost response, an
+    /// account that is still signing in. The container recovers from these on
+    /// its own (TN3162). `limitExceeded` only means the batch gets split, which
+    /// the container also does itself, so it is in `retryingCodes`.
+    static let temporaryCodes: Set<CKError.Code> = [
         .networkUnavailable, .networkFailure, .serviceUnavailable, .requestRateLimited,
-        .zoneBusy, .operationCancelled, .serverRecordChanged, .changeTokenExpired, .unknownItem,
-        .limitExceeded, .assetFileModified, .accountTemporarilyUnavailable, .batchRequestFailed,
-        .partialFailure, .internalError
+        .zoneBusy, .serverResponseLost, .accountTemporarilyUnavailable
     ]
+
+    /// Codes Apple gives no retry guidance for that aren't a refusal of the
+    /// store's data either: neither "stopped" nor "the app needs an update".
+    static let neutralCodes: Set<CKError.Code> = [.zoneNotFound, .tooManyParticipants]
+
+    /// True when `error` is about the iCloud account (none signed in, Core
+    /// Data's 134400, or one still signing in) or the network rather than the
+    /// store. A setup that fails this way runs again once that's back, so it
+    /// neither stops the store nor marks its mirroring delegate dead.
+    static func isAccountOrNetworkFailure(_ error: any Error) -> Bool {
+        leafErrors(of: error as NSError).contains { leaf in
+            if leaf.domain == NSURLErrorDomain { return true }
+            if leaf.domain == NSCocoaErrorDomain { return leaf.code == 134_400 }
+            guard leaf.domain == CKErrorDomain, let code = CKError.Code(rawValue: leaf.code) else { return false }
+            return code == .notAuthenticated || temporaryCodes.contains(code)
+        }
+    }
 
     struct Detail: Equatable, Sendable {
         let message: String
@@ -282,12 +316,16 @@ nonisolated struct CloudKitStoreHealth: Equatable, Sendable {
             .flatMap { $0.isEmpty ? nil : $0 }
         let message = server ?? error.localizedDescription
         if error.domain == CKErrorDomain {
-            let retries = CKError.Code(rawValue: error.code).map(retryingCodes.contains) ?? false
-            return Detail(
-                message: message,
-                code: "CKError \(error.code)",
-                cause: retries ? .transient : .serverRefusal(ckCode: error.code)
-            )
+            let code = CKError.Code(rawValue: error.code)
+            let cause: StoreSyncFailure.Cause
+            if code.map(retryingCodes.contains) ?? false {
+                cause = .transient
+            } else if code.map(neutralCodes.contains) ?? false {
+                cause = .other
+            } else {
+                cause = .serverRefusal(ckCode: error.code)
+            }
+            return Detail(message: message, code: "CKError \(error.code)", cause: cause)
         }
         let delegateDead = error.domain == NSCocoaErrorDomain && (error.code == 134421 || error.code == 134406)
         let neverInitialized = message.range(of: "never successfully initialized", options: .caseInsensitive) != nil

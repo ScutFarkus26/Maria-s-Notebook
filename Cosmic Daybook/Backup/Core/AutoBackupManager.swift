@@ -60,8 +60,9 @@ final class AutoBackupManager {
     enum BackupResult {
         case success(Date, URL)
         case failure(Date, Error)
-        /// No persistent-history transactions since the last auto-backup —
-        /// nothing new to protect, so no file was written.
+        /// No file was written: no persistent-history transactions since the
+        /// last auto-backup (nothing new to protect), or the first download
+        /// from iCloud is still under way (`waitsForFirstDownload`).
         case skippedNoChanges(Date)
 
     }
@@ -327,12 +328,17 @@ final class AutoBackupManager {
         isPerformingBackup = true
         defer { isPerformingBackup = false }
 
+        if Self.waitsForFirstDownload(trigger) {
+            Self.logger.info(
+                "Auto-backup (\(trigger.rawValue, privacy: .public)) skipped \u{2014} first download not finished"
+            )
+            return .skippedNoChanges(Date())
+        }
         // Skip automatic backups when persistent history shows no transactions
         // since the last one — nothing new to protect. Manual and
         // pre-destructive backups always run. (The schedule clock advances in
         // performScheduledBackup, after every scheduled attempt.)
-        let automaticTriggers: Set<BackupTrigger> = [.appQuit, .scheduled, .background]
-        if automaticTriggers.contains(trigger),
+        if Self.automaticTriggers.contains(trigger),
            !changeTracker.hasChangesSinceLastBackup(in: viewContext) {
             Self.logger.info(
                 "Auto-backup (\(trigger.rawValue, privacy: .public)) skipped \u{2014} no changes since last backup"
@@ -391,6 +397,11 @@ final class AutoBackupManager {
         let filename = "\(prefix)-\(timestamp).\(BackupFile.fileExtension)"
         let url = backupDir.appendingPathComponent(filename)
 
+        // The change-detection baseline is what the stores held before the
+        // rows were collected: a change saved during the write comes after it,
+        // so the next automatic backup still sees it.
+        let baseline = changeTracker.currentHistoryToken(context: viewContext)
+
         do {
             _ = try await coordinator.exportBackup(
                 viewContext: viewContext,
@@ -401,7 +412,7 @@ final class AutoBackupManager {
             }
 
             // New change-detection baseline: the data just backed up.
-            changeTracker.recordBackupPoint(context: viewContext)
+            changeTracker.recordBackupPoint(baseline)
 
             // Cleanup old backups (Retention Policy)
             cleanupOldBackups(in: backupDir, keeping: retentionCount)
@@ -519,6 +530,25 @@ final class AutoBackupManager {
 }
 
 extension AutoBackupManager {
+    // MARK: - Automatic Triggers
+
+    /// The backups made without being asked for: change-gated, and held back
+    /// during a first download.
+    nonisolated static let automaticTriggers: Set<BackupTrigger> = [.appQuit, .scheduled, .background]
+
+    /// Whether an automatic backup waits because the private store is still
+    /// downloading from iCloud for the first time (`FirstDownloadGate`): a
+    /// backup of a half-filled notebook counts toward the ones kept and can
+    /// push out complete ones (2026-10-05 sync hunt). Manual and
+    /// pre-destructive backups always run.
+    nonisolated static func waitsForFirstDownload(
+        _ trigger: BackupTrigger,
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+            && FirstDownloadGate.armedRecently(within: 24 * 60 * 60)
+    ) -> Bool {
+        firstDownloadPending && automaticTriggers.contains(trigger)
+    }
+
     // MARK: - Manual Backup
 
     /// A backup the guide asked for by name — from the MCP `create_backup`

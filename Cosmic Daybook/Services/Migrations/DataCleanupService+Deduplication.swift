@@ -75,6 +75,14 @@ nonisolated extension DataCleanupService {
         return recordNameThenURIPrecedes(lhs, rhs, container: container)
     }
 
+    /// Whether `precedesAsCanonical` can't tell `lhs` and `rhs` apart by `createdAt` (no such
+    /// attribute, or the same millisecond), so the record name decides.
+    static func createdAtTies(_ lhs: NSManagedObject, _ rhs: NSManagedObject) -> Bool {
+        guard lhs.entity.attributesByName["createdAt"] != nil else { return true }
+        return millisecondKey(lhs.value(forKey: "createdAt") as? Date)
+            == millisecondKey(rhs.value(forKey: "createdAt") as? Date)
+    }
+
     /// Generic deduplication for any NSManagedObject with an id property.
     /// Keeps a deterministically chosen canonical instance and deletes duplicates,
     /// so every synced device converges on the same survivor.
@@ -142,6 +150,12 @@ nonisolated extension DataCleanupService {
         if DedupSyncState.noCopySent(items, container: container) { return 0 }
         let ordered = items.sorted { precedesAsCanonical($0, $1, container: container) }
         guard let canonical = ordered.first else { return 0 }
+        // A `createdAt` tie leaves the keeper to the record name, which isn't safe to act on
+        // while a Replace restore may still be arriving (DedupSyncState.tieStillSettling).
+        if ordered.count > 1, createdAtTies(canonical, ordered[1]),
+           DedupSyncState.tieStillSettling(items, container: container) {
+            return 0
+        }
         for duplicate in ordered.dropFirst() {
             merge?(canonical, duplicate)
             context.delete(duplicate)

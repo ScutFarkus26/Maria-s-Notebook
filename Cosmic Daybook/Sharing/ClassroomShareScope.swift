@@ -151,9 +151,16 @@ nonisolated struct ClassroomShareScope: Sendable, Equatable {
         case "Student":
             return NSPredicate(format: "id IN %@", belongingStudentIDs.compactMap(UUID.init(uuidString:)))
         case "AttendanceRecord":
-            // `IN` is case-sensitive, so the ids are matched in both cases a string can take.
-            let spellings = Array(belongingStudentIDs) + belongingStudentIDs.map { $0.lowercased() }
-            return NSPredicate(format: "date >= %@ AND studentID IN %@", cutoff as NSDate, spellings)
+            // As `normalizedID` compares: any case, any whitespace around the id. `IN` is
+            // case-sensitive (the SQLite store ignores `IN[c]`), so a mixed-case `studentID`
+            // the release counts as this year's read as last year's here, and Settings showed
+            // a count with nothing to remove. `MATCHES` runs in the SQLite store too.
+            guard !belongingStudentIDs.isEmpty else {
+                return NSPredicate(format: "date >= %@ AND studentID IN %@", cutoff as NSDate, [String]())
+            }
+            let ids = belongingStudentIDs.sorted().map(NSRegularExpression.escapedPattern(for:))
+            let pattern = "(?i)\\s*(?:" + ids.joined(separator: "|") + ")\\s*"
+            return NSPredicate(format: "date >= %@ AND studentID MATCHES %@", cutoff as NSDate, pattern)
         default:
             return nil
         }

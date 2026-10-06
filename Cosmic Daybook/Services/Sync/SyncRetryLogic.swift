@@ -15,8 +15,13 @@ final class SyncRetryLogic {
     private let maxRetryAttempts: Int = 5
     
     /// Base delay for exponential backoff (in seconds)
-    private let baseRetryDelay: Double = 2.0
-    
+    private let baseRetryDelay: Double
+
+    /// `baseRetryDelay` is shorter only in tests.
+    init(baseRetryDelay: Double = 2.0) {
+        self.baseRetryDelay = baseRetryDelay
+    }
+
     /// Task for retry operations
     private var retryTask: Task<Void, Never>?
 
@@ -59,28 +64,29 @@ final class SyncRetryLogic {
         retryTask = Task { [weak self] in
             guard let self else { return }
 
-            // Wait for the backoff delay
+            // Wait for the backoff delay. A cancel means a newer retry or a
+            // reset replaced this one, and owns `retryTask` now.
             do {
                 try await Task.sleep(for: .seconds(delay))
                 guard !Task.isCancelled else { return }
             } catch {
-                Self.logger.warning("Task sleep interrupted during retry: \(error.localizedDescription)")
                 return
             }
-            
-            // Check if conditions are now favorable
+
+            // Offline: this attempt never ran, so it isn't used up. Coming
+            // back online runs the retry (`retryPendingSync`), so nothing is
+            // scheduled meanwhile; offline waits used to spend all five.
             guard canRetry() else {
-                // Still offline, schedule another retry
-                self.scheduleRetry(
-                    canRetry: canRetry,
-                    syncAction: syncAction,
-                    onMaxRetriesReached: onMaxRetriesReached
-                )
+                Self.logger.debug("Sync retry waits for the network to come back")
+                self.retryAttempt = max(0, self.retryAttempt - 1)
+                self.retryTask = nil
                 return
             }
-            
-            // Attempt sync
+
             let success = await syncAction()
+            guard !Task.isCancelled else { return }
+            // Finished: "Trying again soon" ends here unless another retry follows.
+            self.retryTask = nil
             if !success && self.retryAttempt < self.maxRetryAttempts {
                 self.scheduleRetry(
                     canRetry: canRetry,

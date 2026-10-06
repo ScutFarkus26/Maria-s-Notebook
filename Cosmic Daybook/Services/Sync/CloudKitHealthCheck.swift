@@ -13,9 +13,29 @@ final class CloudKitHealthCheck {
     
     /// Whether iCloud account is available
     private(set) var isICloudAvailable: Bool = true
-    
+
+    /// True once CloudKit itself has answered (`accountStatus`). Until then
+    /// `isICloudAvailable` is only the iCloud Drive hint, which is off
+    /// whenever iCloud Drive is, so it can't say "signed out" on its own.
+    private(set) var isAccountStatusKnown = false
+
+    /// CloudKit says no usable iCloud account is signed in: sync health reads
+    /// as offline, and Settings says "iCloud isn't available. Sign in…".
+    var isSignedOut: Bool { isAccountStatusKnown && !isICloudAvailable }
+
+    /// The signed-in account's user record name, the last time one was read
+    /// this session: tells a switch to another Apple Account from a sign-in.
+    private var lastUserRecordName: String?
+
     // MARK: - Types
-    
+
+    /// What `observeICloudChanges` reports.
+    struct AccountChange: Equatable, Sendable {
+        let isAvailable: Bool
+        /// Another Apple Account than the one seen before this session.
+        let isDifferentAccount: Bool
+    }
+
     enum SyncHealth: Equatable, Sendable {
         case healthy          // Recent successful sync, no errors
         case syncing          // Currently syncing
@@ -64,7 +84,7 @@ final class CloudKitHealthCheck {
     /// The `.CKAccountChanged` listener; there is only ever one (see `listenForAccountChanges`).
     private(set) var iCloudAccountTask: Task<Void, Never>?
     private var pendingICloudTask: Task<Void, Never>?
-    private var iCloudChangeContinuation: AsyncStream<Bool>.Continuation?
+    private var iCloudChangeContinuation: AsyncStream<AccountChange>.Continuation?
     
     // MARK: - Initialization
     
@@ -108,8 +128,9 @@ final class CloudKitHealthCheck {
     
     // MARK: - Public API
     
-    /// Observe iCloud account status changes as an AsyncStream
-    func observeICloudChanges() -> AsyncStream<Bool> {
+    /// Observe iCloud account status changes as an AsyncStream: availability
+    /// flips, CloudKit's first answer, and a switch to another account.
+    func observeICloudChanges() -> AsyncStream<AccountChange> {
         AsyncStream { [weak self] continuation in
             guard let self else {
                 continuation.finish()
@@ -184,7 +205,7 @@ final class CloudKitHealthCheck {
         isActive: Bool,
         storeFailure: StoreSyncFailure? = nil
     ) {
-        guard isEnabled, isActive, isNetworkAvailable else {
+        guard isEnabled, isActive, isNetworkAvailable, !isSignedOut else {
             syncHealth = .offline
             return
         }
@@ -228,11 +249,44 @@ final class CloudKitHealthCheck {
     
     private func handleICloudAccountChange() async {
         guard let status = await Self.fetchAccountStatus() else { return }
-        let wasAvailable = isICloudAvailable
-        isICloudAvailable = status == .available
+        let available = status == .available
+        let recordName = available ? await Self.fetchUserRecordName() : nil
+        if let change = recordAccountStatus(available: available, userRecordName: recordName) {
+            iCloudChangeContinuation?.yield(change)
+        }
+    }
 
-        if wasAvailable != isICloudAvailable {
-            iCloudChangeContinuation?.yield(isICloudAvailable)
+    /// Takes CloudKit's answer. Returns what to report: availability that
+    /// flipped, the first answer this session (the Drive hint may have been
+    /// right, but health still has to hear it), or another account's record
+    /// name than the last one read. Nil when nothing changed.
+    func recordAccountStatus(available: Bool, userRecordName: String?) -> AccountChange? {
+        let wasAvailable = isICloudAvailable
+        let wasKnown = isAccountStatusKnown
+        let isDifferentAccount = Self.isDifferentAccount(previous: lastUserRecordName, current: userRecordName)
+        isICloudAvailable = available
+        isAccountStatusKnown = true
+        if let userRecordName { lastUserRecordName = userRecordName }
+        guard wasAvailable != available || !wasKnown || isDifferentAccount else { return nil }
+        return AccountChange(isAvailable: available, isDifferentAccount: isDifferentAccount)
+    }
+
+    /// A different record name than the last one read: another Apple
+    /// Account, whether switched directly or signed out and in again as
+    /// someone else. Either name unknown says nothing.
+    nonisolated static func isDifferentAccount(previous: String?, current: String?) -> Bool {
+        guard let previous, let current else { return false }
+        return previous != current
+    }
+
+    /// The signed-in account's user record name; nil when it can't be read
+    /// (offline, say), which leaves the last one in place.
+    private static func fetchUserRecordName() async -> String? {
+        do {
+            return try await CloudKitConfigurationService.container.userRecordID().recordName
+        } catch {
+            Logger.cloudKitHealthCheck.warning("userRecordID failed: \(error.localizedDescription)")
+            return nil
         }
     }
 

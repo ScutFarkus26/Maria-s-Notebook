@@ -6,34 +6,10 @@ import os
 import AppKit
 #endif
 
-// The release as the app runs it: the checks before it may start, the preview the guide
-// reads, and the environment that reaches CloudKit.
+// The release as the app runs it: the checks before it may start, the backup, and the
+// environment that reaches CloudKit. The preview the guide reads is `+Preview`.
 
 extension ClassroomShareRelease {
-
-    /// A child leaving the share, with how many marks go with her.
-    struct DepartingChild: Sendable, Equatable, Identifiable {
-        let id: String
-        let name: String
-        let departed: Date?
-        let attendanceRecords: Int
-    }
-
-    /// What pressing the button would do, for the guide to read before confirming.
-    struct Preview: Sendable, Equatable {
-        /// The school year's first day: everything from it on stays shared.
-        let cutoff: Date
-        /// Children leaving the share, with how many marks go with each.
-        let children: [DepartingChild]
-        /// Earlier-year attendance of children who stay.
-        let olderAttendance: Int
-        /// Records a stopped run left on both sides; this run finishes them.
-        let unfinished: Int
-        let batches: [Batch]
-
-        var isEmpty: Bool { batches.isEmpty }
-        var recordCount: Int { batches.reduce(0) { $0 + $1.moves.count } }
-    }
 
     /// The release runs on the Mac. A Debug build takes `-AllowShareReleaseOnIOS` so the
     /// rehearsal can run it in a simulator signed into a test account.
@@ -50,6 +26,7 @@ extension ClassroomShareRelease {
     /// Why the release can't start right now, in the guide's words, or nil.
     @MainActor
     static func blocker(coreDataStack: CoreDataStack, isRestoring: Bool) -> String? {
+        if isRunning { return runningMessage }
         guard isAvailableHere else { return "Remove last year from the share on your Mac." }
         let context = coreDataStack.viewContext
         if !coreDataStack.isCloudKitActive {
@@ -70,18 +47,20 @@ extension ClassroomShareRelease {
     }
 
     /// Another instance of the app on this Mac (a hidden one opened for Claude, say) holds the
-    /// same store; a run that changes many records waits until it's quit.
+    /// same store; a run that changes many records waits until it's quit. Also while this
+    /// copy opened the store second (`StoreProcessLock`) and hasn't taken over yet: it does
+    /// once the other has quit and this one is brought forward.
     static func anotherCopyBlocker() -> String? {
+        guard CoreDataStack.isSecondaryProcess || anotherInstanceRunning else { return nil }
+        return "Cosmic Daybook is also open in the background (Claude may have opened it). Quit that copy first."
+    }
+
+    private static var anotherInstanceRunning: Bool {
         #if os(macOS)
-        let running = NSRunningApplication.runningApplications(
-            withBundleIdentifier: Bundle.main.bundleIdentifier ?? ""
-        )
-        if running.count > 1 {
-            return "Cosmic Daybook is also open in the background (Claude may have opened it). "
-                + "Quit that copy first."
-        }
+        NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "").count > 1
+        #else
+        false
         #endif
-        return nil
     }
 
     /// Sync must be healthy, online and caught up: the release waits on iCloud at every step.
@@ -105,47 +84,6 @@ extension ClassroomShareRelease {
         return nil
     }
 
-    /// Reads the store and plans the release. Nil when the share can't be read.
-    @MainActor
-    static func preview(coreDataStack: CoreDataStack) async throws -> Preview? {
-        guard let store = coreDataStack.privatePersistentStore,
-              let pinned = CDClassroomMembership.pinnedZoneName(in: coreDataStack.viewContext) else { return nil }
-        let scope = ClassroomShareScope()
-        let container = coreDataStack.container
-        let rows = try await rows(
-            container: container, storeID: store.identifier, pinnedZone: pinned, scope: scope,
-            environment: .live(container: container)
-        )
-        let batches = plan(rows)
-        let unfinished = batches.flatMap(\.moves).filter { $0.existingTwin != nil }.count
-        let children = await describeChildren(batches, container: container)
-        let older = batches.filter { $0.studentKey == nil }.reduce(0) { $0 + $1.moves.count }
-        return Preview(
-            cutoff: scope.cutoff, children: children, olderAttendance: older,
-            unfinished: unfinished, batches: batches
-        )
-    }
-
-    @concurrent
-    private static func describeChildren(
-        _ batches: [Batch], container: NSPersistentCloudKitContainer
-    ) async -> [DepartingChild] {
-        let context = container.newBackgroundContext()
-        return await context.perform {
-            batches.compactMap { batch -> DepartingChild? in
-                guard let key = batch.studentKey,
-                      let studentMove = batch.moves.first(where: { $0.entity == "Student" }),
-                      let student = try? context.existingObject(with: studentMove.source) as? CDStudent
-                else { return nil }
-                return DepartingChild(
-                    id: key, name: student.fullName, departed: student.dateWithdrawn,
-                    attendanceRecords: batch.moves.filter { $0.entity == "AttendanceRecord" }.count
-                )
-            }
-            .sorted { $0.name < $1.name }
-        }
-    }
-
     /// Makes a manual backup; throws when it didn't finish. `checkBackup` checks it against
     /// the plan made after it.
     @MainActor
@@ -162,10 +100,7 @@ extension ClassroomShareRelease {
     static func checkBackup(
         _ url: URL, holds batches: [Batch], container: NSPersistentCloudKitContainer
     ) async throws {
-        let records = batches.flatMap(\.moves).flatMap { move in
-            move.sharedRows + [move.existingTwin].compactMap { $0 }
-        }
-        try await BackupRecordCheck.check(url, holds: records, context: container.newBackgroundContext())
+        try await BackupRecordCheck.check(url, holds: records(in: batches), context: container.newBackgroundContext())
     }
 
     struct BackupCheckError: LocalizedError {
@@ -224,6 +159,7 @@ nonisolated extension ClassroomShareRelease.Environment {
                     return nil
                 }
             },
+            anotherCopyOpen: { await MainActor.run { ClassroomShareRelease.anotherCopyBlocker() != nil } },
             sleep: { try await Task.sleep(for: $0) },
             patience: .seconds(10 * 60),
             exportIdle: { await exports.waitUntilIdle() },

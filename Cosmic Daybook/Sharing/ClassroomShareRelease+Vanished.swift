@@ -58,13 +58,13 @@ nonisolated extension ClassroomShareRelease {
         if !deleted.isEmpty {
             let copies = Set(deleted.compactMap { keepers[$0.source] })
             await env.exportIdle()
-            let saved = Date()
             try await context.perform {
                 for id in copies {
                     if let copy = try? context.existingObject(with: id) { context.delete(copy) }
                 }
                 if context.hasChanges { try context.save() }
             }
+            let saved = Date() // once the save has returned, as in `runBatch`
             let survivor = keepers.values.first { !copies.contains($0) }
             try await makeSureItExports(after: saved, nudging: survivor, context: context, environment: env)
             logger.notice("\(deleted.count) record(s) deleted elsewhere during the run; their copies went too")

@@ -313,7 +313,9 @@ extension ClassroomShareReleaseTests {
         #expect(cloud.awaiting.count == 2)
 
         cloud.stop = nil
-        let finished = await ClassroomShareRelease.finishStopped(environment: cloud.environment())
+        let finished = await ClassroomShareRelease.finishStopped(
+            container: fix.stack.container, storeID: fix.storeID, environment: cloud.environment()
+        )
         #expect(finished.stoppedBecause == nil)
         #expect(cloud.awaiting.isEmpty)
     }
@@ -324,7 +326,9 @@ extension ClassroomShareReleaseTests {
         let records = await fix.cloud.environment().recordIDs(fix.departedMarks.map(\.objectID))
         fix.cloud.awaiting = Array(records.values) // still on the server
         let env = fix.cloud.environment(patience: .milliseconds(300)) // gives up on purpose
-        let report = await ClassroomShareRelease.finishStopped(environment: env)
+        let report = await ClassroomShareRelease.finishStopped(
+            container: fix.stack.container, storeID: fix.storeID, environment: env
+        )
         #expect(report.stoppedBecause != nil)
         #expect(fix.cloud.awaiting.count == 3)
     }

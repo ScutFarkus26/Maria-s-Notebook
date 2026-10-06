@@ -36,6 +36,19 @@ nonisolated enum FirstDownloadGate {
 
     private static let liftedForSession = Mutex(false)
 
+    /// When the gate was armed; nil for one armed by an older build.
+    static var armedAtKey: String { key + ".armedAt" }
+
+    /// Whether the gate was armed within `interval`. A first download that
+    /// never finishes (imports refused) mustn't hold back what only waits
+    /// politely, like automatic backups, for days.
+    static func armedRecently(within interval: TimeInterval, now: Date = Date(),
+                              defaults: UserDefaults = .standard) -> Bool {
+        guard defaults.object(forKey: armedAtKey) != nil else { return false }
+        let armed = Date(timeIntervalSinceReferenceDate: defaults.double(forKey: armedAtKey))
+        return now.timeIntervalSince(armed) < interval
+    }
+
     /// Lets maintenance run for the rest of this session while the gate itself
     /// stays armed: no iCloud account is signed in, so nothing will download
     /// now. Opening the gate for good on that answer left the whole download
@@ -48,6 +61,7 @@ nonisolated enum FirstDownloadGate {
     /// Holds maintenance back until the private store's first import finishes.
     static func arm(defaults: UserDefaults = .standard) {
         defaults.set(true, forKey: key)
+        defaults.set(Date().timeIntervalSinceReferenceDate, forKey: armedAtKey)
         logger.notice("First download from iCloud pending: zone repair and template seeding wait for it")
     }
 
@@ -57,6 +71,7 @@ nonisolated enum FirstDownloadGate {
     static func open(defaults: UserDefaults = .standard) -> Bool {
         guard defaults.bool(forKey: key) else { return false }
         defaults.removeObject(forKey: key)
+        defaults.removeObject(forKey: armedAtKey)
         return true
     }
 

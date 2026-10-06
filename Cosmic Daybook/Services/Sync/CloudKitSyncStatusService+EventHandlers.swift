@@ -109,10 +109,10 @@ extension CloudKitSyncStatusService {
     /// overlay flash for a single frame (or never paint at all). Keeping it set
     /// until that activity quiets keeps the overlay visible for the whole import.
     func noteCloudImportActivity() {
-        // A device that has synced before already holds its data locally, so the
-        // `setup`/`import` events CloudKit fires on every launch are just noise.
-        // Show the overlay only during a never-synced device's first import.
-        guard !hadSyncedBeforeLaunch else { return }
+        // A device that holds its data locally gets `setup`/`import` events on
+        // every launch, which are just noise. Show the overlay only during the
+        // first download into a fresh store (a new device, or after Reset Local Cache).
+        guard isFirstDownload else { return }
         isImportingFromCloud = true
         cloudImportDebounceTask?.cancel()
         cloudImportDebounceTask = Task { [weak self] in
@@ -126,30 +126,17 @@ extension CloudKitSyncStatusService {
         }
     }
 
+    /// A burst of remote-change notifications has gone quiet. Core Data posts
+    /// one for every write to the store, this device's own saves included, so
+    /// it proves nothing about iCloud: it doesn't stamp a sync, clear the
+    /// error, zero the waiting count or cancel the save's offline check. Only
+    /// a successful import or export event does (`handleSuccessfulCloudKitEvent`).
     func handleRemoteChange() {
-        // A remote change was received from CloudKit - this confirms sync is working.
-        // `@Observable` notifies on every assignment, equal or not, and the
-        // toolbar indicators observe this service — so write only real changes.
-        SyncEventLogger.shared.log("cloudkit", status: "success", message: "Got changes from iCloud")
-        let now = Date()
-        recordSuccessfulSync(at: now)
-        clearSyncErrorInMemory()
-        if isSyncing { isSyncing = false }
-        if currentOperation != nil { currentOperation = nil }
-        if lastOperation != "Remote changes received" { lastOperation = "Remote changes received" }
-        lastOperationDate = now
-        if pendingSyncCount != 0 { pendingSyncCount = 0 }
-        retryLogic.resetRetryCount()
-        syncingTask?.cancel()
-        syncingTask = nil
-
         // If an import is in flight, this remote change is part of its incoming
         // stream — keep the "Syncing from iCloud…" overlay alive until it quiets.
         if isImportingFromCloud {
             noteCloudImportActivity()
         }
-
-        updateSyncHealth()
     }
 
     func handleLocalSave() {
@@ -168,9 +155,9 @@ extension CloudKitSyncStatusService {
         syncingTask?.cancel()
 
         // Wait for either:
-        // 1. A remote change notification (confirming sync completed)
+        // 1. A successful import or export event (confirming sync completed)
         // 2. A longer timeout (10 seconds) to account for network latency
-        // The handleRemoteChange() method will cancel this task if sync completes
+        // handleSuccessfulCloudKitEvent cancels this task if sync completes
         syncingTask = Task { [weak self] in
             // Use longer timeout for more accurate sync status
             do {
@@ -242,13 +229,7 @@ extension CloudKitSyncStatusService {
             return
         }
 
-        let typeDescription: String
-        switch type {
-        case .setup:  typeDescription = "Setup"
-        case .import: typeDescription = "Import"
-        case .export: typeDescription = "Export"
-        @unknown default: typeDescription = "Unknown"
-        }
+        let typeDescription = Self.eventTypeName(type)
         if currentOperation != nil { currentOperation = nil }
         // Don't clear `isImportingFromCloud` on the event boundary — the brief
         // event is finished but the record stream it started keeps arriving.
@@ -263,7 +244,8 @@ extension CloudKitSyncStatusService {
 
         if succeeded {
             handleSuccessfulCloudKitEvent(
-                type: type, typeDescription: typeDescription, startDate: startDate, storeIdentifier: storeIdentifier
+                type: type, store: store, typeDescription: typeDescription,
+                startDate: startDate, storeIdentifier: storeIdentifier
             )
         } else {
             handleFailedCloudKitEvent(
@@ -277,8 +259,12 @@ extension CloudKitSyncStatusService {
 
     // MARK: - CloudKit Event Sub-handlers
 
+    /// A successful import or export is the one thing that says sync worked:
+    /// it stamps the sync, clears the error, the waiting count and the save's
+    /// offline check, and lets a store that had stopped count as syncing again.
     private func handleSuccessfulCloudKitEvent(
         type: NSPersistentCloudKitContainer.EventType,
+        store: SyncedStore,
         typeDescription: String,
         startDate: Date,
         storeIdentifier: String?
@@ -286,7 +272,15 @@ extension CloudKitSyncStatusService {
         Self.logger.debug("CloudKit \(typeDescription) succeeded")
         SyncEventLogger.shared.log("cloudkit", status: "success", message: Self.historyLine(succeeded: type))
 
-        guard type != .setup else { return }
+        // A setup that succeeds says nothing about a delegate that died (TN3164),
+        // and isn't a sync; it only ends the spinner its start turned on.
+        guard type != .setup else {
+            if isSyncing { isSyncing = false }
+            updateSyncHealth()
+            return
+        }
+
+        clearMirroringStopped(by: store)
 
         // Per store: when an import last caught it up, and how far its history
         // has been exported (the bound for purging it).
@@ -380,39 +374,9 @@ extension CloudKitSyncStatusService {
     ) {
         recordEventFailure(type: type, store: store, typeDescription: typeDescription, error: error)
         if let error {
-            let nsError = error as NSError
-            let errorDesc = nsError.localizedDescription
             CloudKitConfigurationService.storeError(error, retryCount: retryLogic.retryAttempt)
-
-            // Detect the catastrophic "mirroring delegate never initialized"
-            // condition. After this fires, NSPersistentCloudKitContainer
-            // permanently refuses to export or import until the process
-            // relaunches with clean local state.
-            //
-            // Two signals:
-            //   1. Setup-event failure — the delegate threw during init
-            //   2. NSCocoaErrorDomain 134421 — "Export encountered an
-            //      unhandled exception while analyzing history in the store"
-            //   3. NSCocoaErrorDomain 134406 — a request "was aborted because
-            //      the mirroring delegate never successfully initialized".
-            //      This is the shape seen when the store becomes unreadable
-            //      mid-session (e.g. another process migrated it underneath us).
-            //   4. Underlying message mentions "never successfully initialized"
-            //      (belt-and-braces). Matched case-insensitively: Core Data
-            //      spells it lower-case inside 134406's localizedDescription,
-            //      so an exact-case check silently missed this whole family.
-            let isSetupFailure = (type == .setup)
-            let isDelegateDeadCode = nsError.domain == NSCocoaErrorDomain
-                && (nsError.code == 134421 || nsError.code == 134406)
-            let mentionsNeverInitialized = errorDesc.range(
-                of: "never successfully initialized",
-                options: .caseInsensitive
-            ) != nil
-            if isSetupFailure || isDelegateDeadCode || mentionsNeverInitialized {
-                mirroringDelegateFailed = true
-                Self.logger.error(
-                    "CloudKit mirroring delegate marked as failed for this session"
-                )
+            if Self.marksMirroringDead(type: type, error: error) {
+                markMirroringStopped(by: store)
             }
         }
         lastOperation = "\(typeDescription) failed"

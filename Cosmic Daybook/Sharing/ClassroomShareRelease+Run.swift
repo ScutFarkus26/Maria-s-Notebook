@@ -28,6 +28,9 @@ nonisolated extension ClassroomShareRelease {
         var serverRecords: @Sendable ([CKRecord.ID]) async throws -> [CKRecord.ID: Date]
         /// A reason to stop right now (a store stopped syncing), or nil.
         var stopReason: @Sendable () async -> String?
+        /// Another copy of the app has the notebook open (`anotherCopyBlocker`): checked with
+        /// `stopReason`, since a copy can open after the run began.
+        var anotherCopyOpen: @Sendable () async -> Bool = { false }
         var sleep: @Sendable (Duration) async throws -> Void
         /// How long one step may wait for the server before the run stops.
         var patience: Duration
@@ -41,7 +44,9 @@ nonisolated extension ClassroomShareRelease {
         var afterStep: @Sendable (Step, Batch) async -> Void = { _, _ in }
         /// The originals whose delete was saved here but not yet confirmed gone from iCloud
         /// (steps 4–5), kept across launches: once they're deleted here no plan can name them,
-        /// so a run stopped there is finished from this list (`finishStopped`).
+        /// so a run stopped there is finished from this list (`finishStopped`). Each batch
+        /// adds its own and takes them off once confirmed, never the others': a stopped run's
+        /// are confirmed at the end of the next (`run`).
         var awaitingGone: @Sendable () -> [CKRecord.ID] = { [] }
         var setAwaitingGone: @Sendable ([CKRecord.ID]) -> Void = { _ in }
     }
@@ -50,76 +55,15 @@ nonisolated extension ClassroomShareRelease {
     struct Report: Sendable, Equatable {
         var studentsMoved = 0
         var attendanceMoved = 0
+        /// Records another device deleted during the run: their copies went too
+        /// (`settleVanished`), so they aren't counted as moved.
+        var deletedElsewhere = 0
         var batchesDone = 0
         var batchesPlanned = 0
         /// Why the run stopped, in plain words; nil when it finished.
         var stoppedBecause: String?
         /// The technical reason it stopped, for the Details disclosure.
         var stopDetails: String?
-    }
-
-    // MARK: - Reading the store
-
-    /// The planner's rows: every Student and AttendanceRecord in the private store, with
-    /// where each lives and whether it belongs. Records in some other share are left out:
-    /// nothing here ever touches another share.
-    static func rows(
-        container: NSPersistentCloudKitContainer,
-        storeID: String,
-        pinnedZone: String,
-        scope: ClassroomShareScope,
-        environment: Environment
-    ) async throws -> [Row] {
-        let context = container.newBackgroundContext()
-        let read: (ids: [NSManagedObjectID], facts: [NSManagedObjectID: Facts])? = await context.perform {
-            guard let store = store(storeID, in: context) else { return nil }
-            let belonging = scope.belongingStudentIDs(in: context, store: store)
-            var ids: [NSManagedObjectID] = []
-            var facts: [NSManagedObjectID: Facts] = [:]
-            for entity in ["Student", "AttendanceRecord"] {
-                let request = NSFetchRequest<NSManagedObject>(entityName: entity)
-                request.affectedStores = [store]
-                for object in (try? context.fetch(request)) ?? [] {
-                    ids.append(object.objectID)
-                    facts[object.objectID] = Facts(object, belonging: belonging, scope: scope)
-                }
-            }
-            return (ids, facts)
-        }
-        guard let read else { throw RunError.storeUnavailable }
-        let zones = try await environment.shareZones(read.ids)
-        return read.ids.compactMap { id in
-            guard let facts = read.facts[id] else { return nil }
-            let zone = zones[id]
-            if let zone, zone != pinnedZone { return nil } // another share: never touched
-            return Row(
-                objectID: id, entity: facts.entity, recordID: facts.recordID,
-                studentKey: facts.studentKey, isShared: zone != nil, belongs: facts.belongs
-            )
-        }
-    }
-
-    /// What the planner needs of one object, read on its context's queue.
-    struct Facts: Sendable {
-        let entity: String
-        let recordID: UUID?
-        let studentKey: String
-        let belongs: Bool
-
-        init(_ object: NSManagedObject, belonging: Set<String>, scope: ClassroomShareScope) {
-            entity = object.entity.name ?? ""
-            recordID = object.value(forKey: "id") as? UUID
-            if entity == "Student" {
-                studentKey = ClassroomShareScope.normalizedID(recordID?.uuidString ?? "")
-                belongs = belonging.contains(studentKey)
-            } else {
-                let studentID = object.value(forKey: "studentID") as? String ?? ""
-                studentKey = ClassroomShareScope.normalizedID(studentID)
-                belongs = scope.attendanceBelongs(
-                    date: object.value(forKey: "date") as? Date, studentID: studentID, belongingStudentIDs: belonging
-                )
-            }
-        }
     }
 
     // MARK: - Running
@@ -134,20 +78,36 @@ nonisolated extension ClassroomShareRelease {
         progress: @escaping @Sendable (Int, Int) async -> Void = { _, _ in }
     ) async -> Report {
         var report = Report(batchesPlanned: batches.count)
+        func stopped(by error: Error) -> Report {
+            let stop = stopMessage(for: error)
+            report.stoppedBecause = stop.message
+            report.stopDetails = stop.details
+            logger.error("Release stopped: \(stop.details, privacy: .public)")
+            return report
+        }
         for batch in batches {
+            let settled: Set<NSManagedObjectID>
             do {
-                try await runBatch(batch, container: container, storeID: storeID, environment: environment)
+                settled = try await runBatch(batch, container: container, storeID: storeID, environment: environment)
             } catch {
-                let stop = stopMessage(for: error)
-                report.stoppedBecause = stop.message
-                report.stopDetails = stop.details
-                logger.error("Release stopped: \(stop.details, privacy: .public)")
-                return report
+                return stopped(by: error)
             }
             report.batchesDone += 1
-            report.studentsMoved += batch.moves.filter { $0.entity == "Student" }.count
-            report.attendanceMoved += batch.moves.filter { $0.entity == "AttendanceRecord" }.count
+            let moved = batch.moves.filter { !settled.contains($0.source) }
+            report.studentsMoved += moved.filter { $0.entity == "Student" }.count
+            report.attendanceMoved += moved.filter { $0.entity == "AttendanceRecord" }.count
+            report.deletedElsewhere += batch.moves.count - moved.count
             await progress(report.batchesDone, report.batchesPlanned)
+        }
+        // A stopped run's deletes still awaiting iCloud: this run's saves exported them.
+        let leftover = environment.awaitingGone()
+        if !leftover.isEmpty {
+            do {
+                try await waitForGone(leftover, environment: environment)
+                removeAwaitingGone(leftover, environment: environment)
+            } catch {
+                return stopped(by: error)
+            }
         }
         logger.notice(
             "Release finished: \(report.studentsMoved) students, \(report.attendanceMoved) attendance records"
@@ -155,23 +115,39 @@ nonisolated extension ClassroomShareRelease {
         return report
     }
 
-    /// One batch, in the five steps.
+    /// Takes `records` off the awaiting list, leaving any others on it.
+    static func removeAwaitingGone(_ records: [CKRecord.ID], environment env: Environment) {
+        let done = Set(records)
+        env.setAwaitingGone(env.awaitingGone().filter { !done.contains($0) })
+    }
+
+    /// Throws when the run must stop now: a store stopped syncing, or another copy of the
+    /// app opened the notebook.
+    static func checkCanGoOn(_ env: Environment) async throws {
+        if let reason = await env.stopReason() { throw RunError.stopped(reason) }
+        if await env.anotherCopyOpen() { throw RunError.anotherCopyOpen }
+    }
+
+    /// One batch, in the five steps. Returns the sources of the moves another device
+    /// deleted meanwhile (`settleVanished`): those went, copy and all, rather than moved.
+    @discardableResult
     static func runBatch(
         _ batch: Batch,
         container: NSPersistentCloudKitContainer,
         storeID: String,
         environment env: Environment
-    ) async throws {
-        if let reason = await env.stopReason() { throw RunError.stopped(reason) }
+    ) async throws -> Set<NSManagedObjectID> {
+        try await checkCanGoOn(env)
         let context = container.newBackgroundContext()
         // The originals' iCloud records, read while they're all here: one that another device
         // deletes during the batch can't be looked up once the delete reaches this Mac.
         let startRecords = await env.recordIDs(batch.moves.flatMap(\.sharedRows))
 
-        // 1. The private copies (or the ones an earlier run made).
+        // 1. The private copies (or the ones an earlier run made). Each `saved` is taken once
+        // the save has returned: an export that began during a save may have missed it.
         await env.exportIdle()
-        var saved = Date()
         let keepers = try await makeCopies(batch, context: context, storeID: storeID)
+        var saved = Date()
         try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
         await env.afterStep(.copied, batch)
 
@@ -181,8 +157,8 @@ nonisolated extension ClassroomShareRelease {
 
         // 3. Each copy is still here; anything the original changed since is brought over.
         await env.exportIdle()
-        saved = Date()
         let checked = try await checkCopies(batch.moves, keepers: keepers, context: context)
+        saved = Date()
         if !checked.changed.isEmpty {
             try await makeSureItExports(
                 after: saved, nudging: checked.changed.first, context: context, environment: env
@@ -199,24 +175,30 @@ nonisolated extension ClassroomShareRelease {
         // own pass: a copy another device deleted after step 3 keeps its original.
         let remaining = batch.moves.filter { !settled.contains($0.source) }
         let originals = remaining.flatMap(\.sharedRows)
-        let originalRecords = await env.recordIDs(originals)
+        let originalRecords = Array(await env.recordIDs(originals).values)
         guard originalRecords.count == originals.count else { throw RunError.originalNotMirrored }
         await env.exportIdle()
-        saved = Date()
-        env.setAwaitingGone(Array(originalRecords.values))
+        // Added to the list, never in place of it: an earlier stopped run's deletes on it
+        // still need iCloud's confirmation.
+        let awaiting = env.awaitingGone()
+        let onList = Set(awaiting)
+        let added = originalRecords.filter { !onList.contains($0) }
+        env.setAwaitingGone(awaiting + added)
         do {
             try await deleteOriginals(originals, keeping: remaining.compactMap { keepers[$0.source] }, context: context)
+            saved = Date()
         } catch {
-            env.setAwaitingGone([]) // nothing was deleted
+            removeAwaitingGone(added, environment: env) // this batch deleted nothing
             throw error
         }
         try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
         await env.afterStep(.originalsDeleted, batch)
 
         // 5. iCloud no longer has them.
-        try await waitForGone(Array(originalRecords.values), environment: env)
-        env.setAwaitingGone([])
+        try await waitForGone(originalRecords, environment: env)
+        removeAwaitingGone(originalRecords, environment: env)
         await env.afterStep(.originalsGone, batch)
+        return settled
     }
 
     // MARK: - The steps
@@ -234,7 +216,6 @@ nonisolated extension ClassroomShareRelease {
         guard let keeper else { return }
         logger.notice("No export started after the save; nudging one")
         await env.exportIdle()
-        let nudged = Date()
         try await context.perform {
             guard let object = try? context.existingObject(with: keeper),
                   object.entity.attributesByName["modifiedAt"] != nil else { return }
@@ -242,6 +223,7 @@ nonisolated extension ClassroomShareRelease {
             object.setValue(stamp.addingTimeInterval(0.001), forKey: "modifiedAt")
             if context.hasChanges { try context.save() }
         }
+        let nudged = Date() // once the save has returned
         if !(await env.exportStarted(nudged)) {
             logger.error("Still no export after the nudge; the server checks will wait for one")
         }
@@ -334,7 +316,7 @@ nonisolated extension ClassroomShareRelease {
         let deadline = clock.now.advanced(by: env.patience)
         var pause = Duration.seconds(2)
         while true {
-            if let reason = await env.stopReason() { throw RunError.stopped(reason) }
+            try await checkCanGoOn(env)
             do {
                 if let value = try await attempt() { return value }
             } catch let error where CloudKitServerCheck.isTransient(error) {

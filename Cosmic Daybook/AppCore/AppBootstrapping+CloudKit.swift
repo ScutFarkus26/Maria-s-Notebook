@@ -151,6 +151,10 @@ extension AppBootstrapping {
               !UserDefaults.standard.bool(forKey: UserDefaultsKeys.useInMemoryStoreOnce) else { return }
         // With iCloud sync off the chain starts at the cached split stores.
         let enableCloudKit = launchUsesCloudKit()
+        // Listen before the stores start opening: a setup that fails fast (no
+        // account, 134400) posts its event while they open, and messages
+        // aren't replayed. The events wait for `configure` (EarlyEvents).
+        CloudKitSyncStatusService.shared.startCloudKitEventStream()
         earlyOpening = EarlyOpening(
             enableCloudKit: enableCloudKit,
             preserveSplitStoreLayout: !enableCloudKit,

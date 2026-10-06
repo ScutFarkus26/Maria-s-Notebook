@@ -128,7 +128,7 @@ enum CloudKitConfigurationService {
     // Uses CKError.Code enum rather than raw integers so the compiler catches
     // any code values that change or are removed across SDK versions.
     // swiftlint:disable:next cyclomatic_complexity
-    private static func categorizeError(_ error: NSError) -> ErrorCategory {
+    static func categorizeError(_ error: NSError) -> ErrorCategory {
         // Only treat CKErrorDomain errors as CloudKit errors
         guard error.domain == CKErrorDomain,
               let ckCode = CKError.Code(rawValue: error.code) else {
@@ -160,11 +160,16 @@ enum CloudKitConfigurationService {
         case .changeTokenExpired:               return .conflict
         case .batchRequestFailed:               return categoryFromPartialFailure(error) ?? .conflict
         case .zoneBusy:                         return .network
+        case .serverResponseLost:               return .network
         case .quotaExceeded:                    return .quota
-        case .zoneNotFound:                     return .schema
-        case .limitExceeded:                    return .quota
+        // Neutral: `limitExceeded` only means the batch gets split (the
+        // container does that itself), not that storage is full; Apple gives
+        // no retry guidance for the other two, and neither means the app
+        // needs an update or that storage is full.
+        case .zoneNotFound:                     return .unknown
+        case .limitExceeded:                    return .unknown
         case .userDeletedZone:                  return .conflict
-        case .tooManyParticipants:              return .quota
+        case .tooManyParticipants:              return .unknown
         case .alreadyShared:                    return .conflict
         case .managedAccountRestricted:         return .authentication
         case .participantMayNeedVerification:   return .authentication

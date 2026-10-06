@@ -50,17 +50,99 @@ struct DedupSafetyTests {
         #expect(waited.isEmpty)
         #expect(context.safeFetch(CDFetchRequest(CDStudent.self)).count == 2)
 
-        // Once one copy has gone up, the next pass folds them.
+        // Students have no creation time, so the record name picks the keeper: with one copy
+        // still unsent the group keeps waiting (2026-10-05 sync hunt, the Replace-restore tie).
         let students = context.safeFetch(CDFetchRequest(CDStudent.self))
         let sent = try #require(students.first).objectID
         let oneSent: @Sendable (NSManagedObjectID) -> String? = { $0 == sent ? "A-record" : nil }
-        let folded = DedupSyncState.$syncsOverride.withValue(true) {
+        let stillWaiting = DedupSyncState.$syncsOverride.withValue(true) {
             DedupSyncState.$recordNameOverride.withValue(oneSent) {
+                DataCleanupService.deduplicateAllModels(using: context)
+            }
+        }
+        #expect(stillWaiting.isEmpty)
+        #expect(context.safeFetch(CDFetchRequest(CDStudent.self)).count == 2)
+
+        // Once both have gone up, the next pass folds them onto the lower record name.
+        let bothSent: @Sendable (NSManagedObjectID) -> String? = { $0 == sent ? "A-record" : "B-record" }
+        let folded = DedupSyncState.$syncsOverride.withValue(true) {
+            DedupSyncState.$recordNameOverride.withValue(bothSent) {
                 DataCleanupService.deduplicateAllModels(using: context)
             }
         }
         #expect(folded == ["Student": 1])
         #expect(context.safeFetch(CDFetchRequest(CDStudent.self)).map(\.objectID) == [sent])
+    }
+
+    // MARK: - A tie mid-way through a Replace restore (2026-10-05 sync hunt)
+
+    private func twinNotes(
+        in context: NSManagedObjectContext, createdAt: (Date, Date)
+    ) throws -> (first: NSManagedObjectID, second: NSManagedObjectID) {
+        let id = UUID()
+        let first = CoreDataTestHelpers.seedNote(in: context, body: "Traced the sandpaper letters")
+        let second = CoreDataTestHelpers.seedNote(in: context, body: "Traced the sandpaper letters")
+        first.id = id
+        second.id = id
+        first.createdAt = createdAt.0
+        second.createdAt = createdAt.1
+        #expect(CoreDataTestHelpers.save(context))
+        return (first.objectID, second.objectID)
+    }
+
+    private func notesLeft(in context: NSManagedObjectContext) -> [NSManagedObjectID] {
+        context.safeFetch(CDFetchRequest(CDNote.self)).map(\.objectID)
+    }
+
+    @Test("Tied copies wait while one changed in iCloud lately, and fold once an import after it has finished")
+    func tiedCopiesWaitForTheRestoreToSettle() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let created = Date(timeIntervalSince1970: 1_790_000_000)
+        let (first, second) = try twinNotes(in: context, createdAt: (created, created))
+        let now = Date()
+        let names: @Sendable (NSManagedObjectID) -> String? = { $0 == first ? "A-record" : "B-record" }
+
+        func pass(changed: Date, lastImport: Date?) -> Int {
+            let changedAt: @Sendable (NSManagedObjectID) -> Date? = { $0 == second ? changed : created }
+            let imported: @Sendable (String) -> Date? = { _ in lastImport }
+            return DedupSyncState.$recordNameOverride.withValue(names) {
+                DedupSyncState.$recordChangedOverride.withValue(changedAt) {
+                    DedupSyncState.$lastImportOverride.withValue(imported) {
+                        DataCleanupService.deduplicate(CDNote.self, using: context)
+                    }
+                }
+            }
+        }
+
+        // The restored copy came up a minute ago.
+        #expect(pass(changed: now.addingTimeInterval(-60), lastImport: now) == 0)
+        // An hour ago, but no import that began after it has finished here.
+        #expect(pass(changed: now.addingTimeInterval(-3600), lastImport: now.addingTimeInterval(-7200)) == 0)
+        #expect(pass(changed: now.addingTimeInterval(-3600), lastImport: nil) == 0)
+        #expect(notesLeft(in: context).count == 2)
+
+        // Settled: the keeper is the lower record name, as on every device.
+        #expect(pass(changed: now.addingTimeInterval(-3600), lastImport: now.addingTimeInterval(-1800)) == 1)
+        #expect(notesLeft(in: context) == [first])
+    }
+
+    @Test("Copies with different creation times fold at once, even mid-restore")
+    func untiedCopiesDoNotWait() throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let created = Date(timeIntervalSince1970: 1_790_000_000)
+        let (first, second) = try twinNotes(in: context, createdAt: (created.addingTimeInterval(5), created))
+        let now = Date()
+        // The later copy is the one in iCloud, and it changed a moment ago: neither matters,
+        // since the earlier creation time decides the keeper the same way everywhere.
+        let names: @Sendable (NSManagedObjectID) -> String? = { $0 == first ? "A-record" : nil }
+        let changedAt: @Sendable (NSManagedObjectID) -> Date? = { _ in now }
+        let removed = DedupSyncState.$recordNameOverride.withValue(names) {
+            DedupSyncState.$recordChangedOverride.withValue(changedAt) {
+                DataCleanupService.deduplicate(CDNote.self, using: context)
+            }
+        }
+        #expect(removed == 1)
+        #expect(notesLeft(in: context) == [second])
     }
 
     // MARK: - A failed save (#62)
