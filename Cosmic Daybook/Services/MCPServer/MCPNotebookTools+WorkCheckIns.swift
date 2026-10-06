@@ -2,7 +2,7 @@
 //  MCPNotebookTools+WorkCheckIns.swift
 //  Cosmic Daybook
 //
-//  Completing and moving a scheduled check-in, for update_work.
+//  Scheduling, completing and moving a check-in, for update_work.
 //
 //  A check-in is named by its day — there is no id for one over MCP — so
 //  `move_check_in_from` finds it the same way `complete_check_in_on` does:
@@ -15,6 +15,11 @@
 //  together by default. A copy whose check-in was already completed keeps its
 //  day — the guide saw that child — and the receipt names it, so the group
 //  never ends up split across two days without the reply saying so.
+//
+//  Adding one follows the same rules: every linked copy by default, a closed
+//  day lands on the next open one, and it is made through the same helper
+//  assign_work uses, so a check-in added later is the same record as one
+//  made with the work.
 //
 
 import CoreData
@@ -57,6 +62,107 @@ extension MCPNotebookTools {
             ? "It has no check-ins."
             : "Its check-ins are on \(days.joined(separator: ", "))."
         throw MCPToolError("No check-in is scheduled on \(dayString(day)) for this work. \(hint)")
+    }
+
+    // MARK: - Scheduling
+
+    /// The one way MCP makes a check-in — assign_work's and add_check_in_on's
+    /// both — so the two can never write different records.
+    @discardableResult
+    static func scheduleCheckIn(
+        for work: CDWorkModel, on day: Date, purpose: String,
+        in modelContext: NSManagedObjectContext
+    ) -> CDWorkCheckIn {
+        CDWorkCheckIn.make(for: work, on: AppCalendar.startOfDay(day), purpose: purpose, in: modelContext)
+    }
+
+    /// A check-in on `day` that a new one would duplicate: scheduled or
+    /// completed. A skipped one doesn't count — putting the day back is a
+    /// fresh decision.
+    private static func blockingCheckIn(
+        of work: CDWorkModel, on day: Date, in modelContext: NSManagedObjectContext
+    ) -> CDWorkCheckIn? {
+        checkIns(of: work, on: day, in: modelContext).first { $0.status != .skipped }
+    }
+
+    /// `add_check_in_on` / `add_check_in_purpose`. Returns one receipt line for
+    /// this row and one for each linked copy, as a move does.
+    static func applyCheckInAdd(
+        _ arguments: [String: JSONValue], to work: CDWorkModel,
+        in modelContext: NSManagedObjectContext
+    ) throws -> [String] {
+        let purpose = nonEmpty(arguments["add_check_in_purpose"]?.stringValue)
+        guard let day = try dayArgument(arguments, "add_check_in_on").map(AppCalendar.startOfDay) else {
+            if purpose != nil {
+                throw MCPToolError("add_check_in_purpose needs add_check_in_on — the day of the check-in.")
+            }
+            return []
+        }
+        // Closed work is off the schedule; a check-in on it would show up
+        // under the day's check-ins for work nobody is doing any more.
+        if work.isClosed {
+            throw MCPToolError(
+                "This work is already closed (\(work.status.displayName)), so it can't get a new check-in. "
+                    + "Set its status back to active first if it's still going."
+            )
+        }
+
+        let landing = YearPlanPacing.schoolDay(onOrAfter: day, in: modelContext)
+        let on = dayString(landing)
+        let detour = landing == day
+            ? ""
+            : " (\(dayString(day)) is not a school day, so it moved forward to \(on))"
+
+        var changes: [String]
+        if let existing = blockingCheckIn(of: work, on: landing, in: modelContext) {
+            changes = [
+                "already has a \(existing.status.rawValue.lowercased()) check-in on \(on)\(detour), "
+                    + "so no new one was added"
+            ]
+        } else {
+            scheduleCheckIn(for: work, on: landing, purpose: purpose ?? "", in: modelContext)
+            changes = ["added a check-in on \(on)\(detour)"]
+        }
+
+        let siblings = WorkGrouping.group(containing: work, in: modelContext).siblings
+        guard !siblings.isEmpty else { return changes }
+        if arguments["add_check_in_for_this_child_only"]?.boolValue == true {
+            let count = siblings.count
+            changes.append(
+                "this child only — \(count) linked "
+                    + (count == 1 ? "copy got" : "copies got")
+                    + " no check-in on \(on)"
+            )
+            return changes
+        }
+        for sibling in siblings {
+            changes.append(addSiblingCheckIn(to: sibling, on: landing, purpose: purpose ?? "", in: modelContext))
+        }
+        return changes
+    }
+
+    /// One linked copy's line of the receipt: added, skipped because the copy
+    /// is closed, or left alone because it already has one that day.
+    private static func addSiblingCheckIn(
+        to sibling: CDWorkModel, on landing: Date, purpose: String,
+        in modelContext: NSManagedObjectContext
+    ) -> String {
+        let label = linkedCopyLabel(sibling, in: modelContext)
+        if sibling.isClosed {
+            return "\(label) is closed (\(sibling.status.displayName)), so it got no check-in"
+        }
+        if let existing = blockingCheckIn(of: sibling, on: landing, in: modelContext) {
+            return "\(label) already has a \(existing.status.rawValue.lowercased()) check-in on "
+                + dayString(landing)
+        }
+        scheduleCheckIn(for: sibling, on: landing, purpose: purpose, in: modelContext)
+        return "also added to \(label)"
+    }
+
+    /// "Eli Test's linked copy [work id=…]", for a receipt line.
+    private static func linkedCopyLabel(_ sibling: CDWorkModel, in modelContext: NSManagedObjectContext) -> String {
+        let owner = WorkGrouping.owner(of: sibling).map { "\(studentNames(for: [$0], in: modelContext))'s" }
+        return "\(owner ?? "an unowned") linked copy [work id=\(sibling.id?.uuidString ?? "unknown")]"
     }
 
     // MARK: - Completing
@@ -134,8 +240,7 @@ extension MCPNotebookTools {
         of sibling: CDWorkModel, from fromDay: Date, to landing: Date,
         in modelContext: NSManagedObjectContext
     ) -> String {
-        let owner = WorkGrouping.owner(of: sibling).map { "\(studentNames(for: [$0], in: modelContext))'s" }
-        let label = "\(owner ?? "an unowned") linked copy [work id=\(sibling.id?.uuidString ?? "unknown")]"
+        let label = linkedCopyLabel(sibling, in: modelContext)
         let onDay = checkIns(of: sibling, on: fromDay, in: modelContext)
         if let scheduled = onDay.first(where: { $0.status == .scheduled }) {
             move(scheduled, toDay: landing)

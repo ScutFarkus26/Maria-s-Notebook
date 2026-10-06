@@ -3,9 +3,9 @@ import Foundation
 import Testing
 @testable import CosmicDaybook
 
-/// update_work's check-in arguments: completing one and moving one.
+/// update_work's check-in arguments: adding one, completing one and moving one.
 ///
-/// Moves are verified the way a caller would verify them — by reading the
+/// Adds and moves are verified the way a caller would verify them — by reading the
 /// schedule back for both days — not by trusting the receipt alone.
 @Suite("MCP Work Check-In Tools")
 @MainActor
@@ -82,6 +82,231 @@ struct MCPWorkCheckInToolsTests {
         } catch {
             return "unexpected: \(error)"
         }
+    }
+
+    // MARK: - Adding
+
+    /// The check-ins on one day, as the tests read them back.
+    private func checkIns(
+        of work: CDWorkModel, on dayText: String, in context: NSManagedObjectContext
+    ) -> [CDWorkCheckIn] {
+        checkIns(of: work, in: context).filter { $0.date.map { AppCalendar.isSameDay($0, day(dayText)) } ?? false }
+    }
+
+    @Test("adding a check-in puts it on the schedule and in work_detail, like assign_work's")
+    func addShowsOnScheduleAndInDetail() async throws {
+        let (tools, context) = try makeTools()
+        let rows = try await assignWithCheckIn(to: ["Maya"], tools: tools, context: context)
+        let work = try #require(rows["Maya"])
+        let workID = try id(of: work)
+
+        let receipt = try await tool(named: "update_work", in: tools).handler([
+            "work_id": .string(workID),
+            "add_check_in_on": .string("2026-09-24"),
+            "add_check_in_purpose": .string("  Look at her indirect-object sentence diagrams ")
+        ])
+        #expect(receipt.contains("added a check-in on 2026-09-24"))
+        #expect(!receipt.contains("not a school day"))
+
+        // The same record assign_work makes: start of day, scheduled, purpose
+        // trimmed, both links to the work set, not student-initiated.
+        let added = try #require(checkIns(of: work, on: "2026-09-24", in: context).first)
+        let original = try #require(checkIns(of: work, on: "2026-09-18", in: context).first)
+        #expect(added.date == day("2026-09-24"))
+        #expect(original.date == day("2026-09-18"))
+        #expect(added.status == .scheduled)
+        #expect(added.purpose == "Look at her indirect-object sentence diagrams")
+        #expect(added.work === work)
+        #expect(added.workID == workID)
+        #expect(added.studentInitiated == original.studentInitiated)
+        #expect(checkIns(of: work, in: context).count == 2)
+        #expect(!context.hasChanges)
+
+        let schedule = try await tool(named: "schedule_for_range", in: tools).handler([
+            "start_date": .string("2026-09-24"),
+            "end_date": .string("2026-09-24")
+        ])
+        let dayBlock = section(for: "2026-09-24", in: schedule)
+        #expect(dayBlock.contains("Work check-ins due:"))
+        #expect(dayBlock.contains(
+            "[work id=\(workID)] Checkerboard practice — Maya Test (scheduled) — "
+                + "Look at her indirect-object sentence diagrams"
+        ))
+
+        let detail = try await tool(named: "work_detail", in: tools).handler(["work_id": .string(workID)])
+        #expect(detail.contains("2026-09-24 scheduled — Look at her indirect-object sentence diagrams"))
+        #expect(detail.contains("2026-09-18 scheduled — see the long multiplication laid out"))
+    }
+
+    @Test("adding a check-in on a closed day lands on the next open day and says so")
+    func addOnClosedDayLandsOnNextOpenDay() async throws {
+        let (tools, context) = try makeTools()
+        let service = SchoolCalendarService.shared
+        service.invalidateCache()
+        defer { service.invalidateCache() }
+        let rows = try await assignWithCheckIn(to: ["Maya"], tools: tools, context: context)
+        let work = try #require(rows["Maya"])
+
+        // 2026-09-26 is a Saturday.
+        let receipt = try await tool(named: "update_work", in: tools).handler([
+            "work_id": .string(try id(of: work)),
+            "add_check_in_on": .string("2026-09-26")
+        ])
+        #expect(receipt.contains("added a check-in on 2026-09-28"))
+        #expect(receipt.contains("2026-09-26 is not a school day, so it moved forward to 2026-09-28"))
+        #expect(checkIns(of: work, on: "2026-09-26", in: context).isEmpty)
+        #expect(checkIns(of: work, on: "2026-09-28", in: context).count == 1)
+    }
+
+    @Test("every linked copy gets the new check-in; a closed copy is skipped and named")
+    func addCarriesSiblingsAndSkipsClosedOnes() async throws {
+        let (tools, context) = try makeTools()
+        let rows = try await assignWithCheckIn(to: ["Maya", "Eli", "Ana"], tools: tools, context: context)
+        let maya = try #require(rows["Maya"])
+        let eli = try #require(rows["Eli"])
+        let ana = try #require(rows["Ana"])
+        let update = try tool(named: "update_work", in: tools)
+
+        // Ana has mastered it; her copy is closed.
+        _ = try await update.handler([
+            "work_id": .string(try id(of: ana)),
+            "status": .string("mastered"),
+            "students": .array([.string("Ana Test")])
+        ])
+        #expect(ana.isClosed)
+        #expect(!maya.isClosed)
+
+        let receipt = try await update.handler([
+            "work_id": .string(try id(of: maya)),
+            "add_check_in_on": .string("2026-09-24"),
+            "add_check_in_purpose": .string("check the products")
+        ])
+        #expect(receipt.contains("added a check-in on 2026-09-24"))
+        #expect(receipt.contains("also added to Eli Test's linked copy [work id=\(try id(of: eli))]"))
+        #expect(receipt.contains(
+            "Ana Test's linked copy [work id=\(try id(of: ana))] is closed (Mastered), so it got no check-in"
+        ))
+
+        #expect(checkIns(of: maya, on: "2026-09-24", in: context).count == 1)
+        let elis = try #require(checkIns(of: eli, on: "2026-09-24", in: context).first)
+        #expect(elis.purpose == "check the products")
+        #expect(elis.status == .scheduled)
+        #expect(checkIns(of: ana, on: "2026-09-24", in: context).isEmpty)
+
+        let schedule = try await tool(named: "schedule_for_range", in: tools).handler([
+            "start_date": .string("2026-09-24"),
+            "end_date": .string("2026-09-24")
+        ])
+        let dayBlock = section(for: "2026-09-24", in: schedule)
+        #expect(dayBlock.components(separatedBy: "Checkerboard practice").count - 1 == 2)
+    }
+
+    @Test("add_check_in_for_this_child_only leaves the linked copies and says so")
+    func addThisChildOnlyLeavesSiblings() async throws {
+        let (tools, context) = try makeTools()
+        let rows = try await assignWithCheckIn(to: ["Maya", "Eli", "Ana"], tools: tools, context: context)
+        let maya = try #require(rows["Maya"])
+        let eli = try #require(rows["Eli"])
+        let ana = try #require(rows["Ana"])
+
+        let receipt = try await tool(named: "update_work", in: tools).handler([
+            "work_id": .string(try id(of: maya)),
+            "add_check_in_on": .string("2026-09-24"),
+            "add_check_in_for_this_child_only": .bool(true)
+        ])
+        #expect(receipt.contains("added a check-in on 2026-09-24"))
+        #expect(receipt.contains("this child only — 2 linked copies got no check-in on 2026-09-24"))
+        #expect(checkIns(of: maya, on: "2026-09-24", in: context).count == 1)
+        #expect(checkIns(of: eli, on: "2026-09-24", in: context).isEmpty)
+        #expect(checkIns(of: ana, on: "2026-09-24", in: context).isEmpty)
+    }
+
+    @Test("a day that already has a check-in gets no second one, here or on a linked copy")
+    func addOnDayWithCheckInMakesNoDuplicate() async throws {
+        let (tools, context) = try makeTools()
+        let rows = try await assignWithCheckIn(to: ["Maya", "Eli"], tools: tools, context: context)
+        let maya = try #require(rows["Maya"])
+        let eli = try #require(rows["Eli"])
+        let update = try tool(named: "update_work", in: tools)
+
+        // Eli's check-in on the day is already done; Maya's is still scheduled.
+        _ = try await update.handler([
+            "work_id": .string(try id(of: eli)),
+            "complete_check_in_on": .string("2026-09-18")
+        ])
+
+        let receipt = try await update.handler([
+            "work_id": .string(try id(of: maya)),
+            "add_check_in_on": .string("2026-09-18"),
+            "add_check_in_purpose": .string("a different purpose")
+        ])
+        #expect(receipt.contains("already has a scheduled check-in on 2026-09-18, so no new one was added"))
+        #expect(receipt.contains(
+            "Eli Test's linked copy [work id=\(try id(of: eli))] already has a completed check-in on 2026-09-18"
+        ))
+        #expect(!receipt.contains("added a check-in"))
+
+        let mayas = checkIns(of: maya, on: "2026-09-18", in: context)
+        #expect(mayas.count == 1)
+        #expect(mayas.first?.purpose == "see the long multiplication laid out")
+        #expect(checkIns(of: eli, on: "2026-09-18", in: context).count == 1)
+    }
+
+    @Test("a skipped check-in on the day doesn't block a new one")
+    func addOverSkippedCheckInMakesNewOne() async throws {
+        let (tools, context) = try makeTools()
+        let rows = try await assignWithCheckIn(to: ["Maya"], tools: tools, context: context)
+        let work = try #require(rows["Maya"])
+        let skipped = try #require(checkIns(of: work, on: "2026-09-18", in: context).first)
+        skipped.status = .skipped
+        CoreDataTestHelpers.save(context)
+
+        let receipt = try await tool(named: "update_work", in: tools).handler([
+            "work_id": .string(try id(of: work)),
+            "add_check_in_on": .string("2026-09-18")
+        ])
+        #expect(receipt.contains("added a check-in on 2026-09-18"))
+        let onDay = checkIns(of: work, on: "2026-09-18", in: context)
+        #expect(onDay.count == 2)
+        #expect(onDay.filter { $0.status == .scheduled }.count == 1)
+    }
+
+    @Test("closed work can't get a new check-in")
+    func addToClosedWorkIsRefused() async throws {
+        let (tools, context) = try makeTools()
+        let rows = try await assignWithCheckIn(to: ["Maya"], tools: tools, context: context)
+        let work = try #require(rows["Maya"])
+        let update = try tool(named: "update_work", in: tools)
+        _ = try await update.handler([
+            "work_id": .string(try id(of: work)),
+            "status": .string("mastered")
+        ])
+        let before = checkIns(of: work, in: context).count
+
+        let refusal = await message {
+            try await update.handler([
+                "work_id": .string(try id(of: work)),
+                "add_check_in_on": .string("2026-09-24")
+            ])
+        }
+        #expect(refusal.contains("already closed (Mastered)"))
+        #expect(checkIns(of: work, in: context).count == before)
+    }
+
+    @Test("a purpose without a day names the missing day")
+    func addPurposeNeedsDay() async throws {
+        let (tools, context) = try makeTools()
+        let rows = try await assignWithCheckIn(to: ["Maya"], tools: tools, context: context)
+        let work = try #require(rows["Maya"])
+
+        let refusal = await message {
+            try await tool(named: "update_work", in: tools).handler([
+                "work_id": .string(try id(of: work)),
+                "add_check_in_purpose": .string("look at the diagrams")
+            ])
+        }
+        #expect(refusal.contains("add_check_in_purpose needs add_check_in_on"))
+        #expect(checkIns(of: work, in: context).count == 1)
     }
 
     // MARK: - Moving

@@ -163,9 +163,8 @@ extension MCPNotebookTools {
                     saveImmediately: false
                 )
                 if let checkInDate = assignment.checkInDate {
-                    CDWorkCheckIn.make(
-                        for: work, on: AppCalendar.startOfDay(checkInDate),
-                        purpose: assignment.checkInPurpose, in: modelContext
+                    scheduleCheckIn(
+                        for: work, on: checkInDate, purpose: assignment.checkInPurpose, in: modelContext
                     )
                 }
                 created.append(work)
@@ -214,8 +213,9 @@ extension MCPNotebookTools {
                 + "active and review keep it open; mastered, keepPracticing and incomplete close "
                 + "it, record the completion, mark the day's check-in done and skip later ones, so "
                 + "it leaves the schedule), set or clear its due date, record which student "
-                + "finished it, complete a scheduled check-in, or move a scheduled check-in to "
-                + "another day. A status applies to every linked copy of the work unless "
+                + "finished it, schedule a new check-in, complete a scheduled check-in, or move a "
+                + "scheduled check-in to another day. A new or moved check-in goes on every linked "
+                + "copy unless this child only is asked for. A status applies to every linked copy of the work unless "
                 + "students names some of them. Only the fields provided are changed.",
             inputSchema: updateWorkSchema,
             annotations: .idempotentWrite,
@@ -278,6 +278,24 @@ extension MCPNotebookTools {
                 "description": .string("Move only this row's check-in and leave the linked copies "
                     + "on their day; the reply says how many stayed")
             ],
+            "add_check_in_on": [
+                "type": "string",
+                "description": .string("Schedule a new check-in on this day, YYYY-MM-DD. A day the school "
+                    + "is closed moves forward to the next open one, and the reply says so. A day that "
+                    + "already has a scheduled or completed check-in gets no second one. On work assigned "
+                    + "to several children every linked copy gets it unless "
+                    + "add_check_in_for_this_child_only is set")
+            ],
+            "add_check_in_purpose": [
+                "type": "string",
+                "description": .string("What the new check-in is for, e.g. \"Look at her indirect-object "
+                    + "sentence diagrams\"; pair with add_check_in_on")
+            ],
+            "add_check_in_for_this_child_only": [
+                "type": "boolean",
+                "description": .string("Add the new check-in to this row only, not the linked copies; "
+                    + "the reply says how many got none")
+            ],
             "students": [
                 "type": "array",
                 "items": ["type": "string"],
@@ -307,6 +325,7 @@ extension MCPNotebookTools {
             changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
             changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
             changes += try applyCheckInMove(arguments, to: work, in: modelContext)
+            changes += try applyCheckInAdd(arguments, to: work, in: modelContext)
             changes += try applyDueDate(arguments, to: work)
             changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
             return changes

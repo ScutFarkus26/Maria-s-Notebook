@@ -8,6 +8,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Add a check-in to existing work](<Plans/Plan - Add a check-in to existing work.md>) | `update_work` gets `add_check_in_on` / `add_check_in_purpose` / `add_check_in_for_this_child_only`, so a check-in can be scheduled on work that already exists. | Working on it | 2026-10-06 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
