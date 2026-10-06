@@ -11,17 +11,46 @@ import OSLog
 /// 2. Detect remote inserts and trigger DeduplicationCoordinator
 /// 3. Persist each store's position to UserDefaults
 /// 4. Occasionally purge months-old history that the CloudKit mirroring
-///    delegate has provably finished exporting (see `purgeOldHistory`)
+///    delegate has provably finished exporting (`purgeOldHistory`, in
+///    `+Purge`, which the Daybook Assistant doesn't compile: it trims its own,
+///    `AssistantHistoryTrim`)
 ///
-/// CDNote: The view context has `automaticallyMergesChangesFromParent = true`,
-/// which handles merging remote changes automatically. This processor only
-/// inspects history to detect inserts for deduplication — it does NOT call
-/// `mergeChanges(fromContextDidSave:)` (that would be redundant).
+/// The view context has `automaticallyMergesChangesFromParent = true`, which
+/// merges what this process saves, CloudKit's imports included. Saves by
+/// another process on the same store (a second copy of the app on the Mac, an
+/// intent run elsewhere) reach no context here that way: a pass hands their
+/// object IDs back (`ForeignChanges`) for the caller to merge into the view
+/// context (`merge(_:into:)`), and announces them like an import's.
 actor PersistentHistoryProcessor {
 
     // MARK: - Constants
 
-    static let transactionAuthor = "CosmicDaybook"
+    /// The author every context of the app stamps on its saves: the app's name
+    /// and this process's own suffix. With one name for every process, a save by
+    /// another running copy of the app read as this one's own and was skipped:
+    /// never merged into this copy's view context, never announced (2026-10-05
+    /// hunt, #64). Only this exact author is "own" now, and the bare old one.
+    nonisolated static let transactionAuthor =
+        "\(legacyTransactionAuthor).\(ProcessInfo.processInfo.processIdentifier).\(UUID().uuidString.prefix(8))"
+
+    /// What every process wrote before 2026-10-05. Still counted as own, so the
+    /// first launch of this build doesn't react to all of its own history again.
+    nonisolated static let legacyTransactionAuthor = "CosmicDaybook"
+
+    /// Whether `author` is this process's own (or the old shared one).
+    nonisolated static func isOwnAuthor(_ author: String?, own: String = transactionAuthor) -> Bool {
+        author == own || author == legacyTransactionAuthor
+    }
+
+    /// Whether a transaction was saved by another running copy of the app: the
+    /// app's author with another process's suffix. Not by its `processID`, which
+    /// is the process's name ("Cosmic Daybook" for every copy). CloudKit's own
+    /// imports are this process's, and its contexts merge them already.
+    nonisolated static func isFromAnotherProcess(author: String?, own: String = transactionAuthor) -> Bool {
+        guard let author, !isOwnAuthor(author, own: own) else { return false }
+        return author.hasPrefix(legacyTransactionAuthor + ".")
+    }
+
     nonisolated static let logger = Logger.historyProcessor
 
     /// Entities whose remote changes must invalidate the school-day caches.
@@ -54,11 +83,11 @@ actor PersistentHistoryProcessor {
 
     // MARK: - State
 
-    private let container: NSPersistentCloudKitContainer
+    let container: NSPersistentCloudKitContainer
     /// Where the cursor is kept and the export and purge dates are read:
     /// `.standard` in the app, a suite of its own in a test, since the test
     /// host's own processor keeps its cursor under the same key.
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
 
     /// How far each store's history has been read, keyed by
     /// `NSPersistentStore.identifier`. One token cannot stand for both
@@ -89,20 +118,27 @@ actor PersistentHistoryProcessor {
     /// Callers that arrive while a pass is running are folded into a single follow-up
     /// pass rather than each running their own. Nothing is dropped: the follow-up reads
     /// from the same positions, so it still sees every transaction written in the meantime.
-    func processRemoteChanges() async {
+    ///
+    /// Returns what other processes changed in the passes it ran, for the caller to
+    /// merge into its view context (`merge(_:into:)`); a caller folded into a running
+    /// pass gets nothing back, since that pass's caller gets it.
+    @discardableResult
+    func processRemoteChanges() async -> ForeignChanges {
         guard !isProcessing else {
             needsAnotherPass = true
-            return
+            return ForeignChanges()
         }
         isProcessing = true
         defer { isProcessing = false }
+        var foreign = ForeignChanges()
         repeat {
             needsAnotherPass = false
-            await performProcessingPass()
+            foreign.formUnion(await performProcessingPass())
         } while needsAnotherPass
+        return foreign
     }
 
-    private func performProcessingPass() async {
+    private func performProcessingPass() async -> ForeignChanges {
         let context = container.newBackgroundContext()
         context.transactionAuthor = Self.transactionAuthor
         let currentPositions = positions
@@ -137,6 +173,18 @@ actor PersistentHistoryProcessor {
             Self.postEntityNotifications(for: Self.schoolDayEntityNames.union(Self.presentationEntityNames))
             Self.requestFullDeduplication()
         }
+        if !pass.foreignChanges.isEmpty {
+            Self.logger.info("Another copy of the app changed \(pass.foreignChanges.count) object(s)")
+        }
+        return pass.foreignChanges
+    }
+
+    /// Merges what other processes changed into `context` (the view context):
+    /// their saves reach this process only through the store's history.
+    @MainActor
+    static func merge(_ foreign: ForeignChanges, into context: NSManagedObjectContext) {
+        guard !foreign.isEmpty else { return }
+        NSManagedObjectContext.mergeChanges(fromRemoteContextSave: foreign.remoteSave, into: [context])
     }
 
     /// What a processed batch triggers: the school-day cache invalidation and
@@ -209,69 +257,6 @@ actor PersistentHistoryProcessor {
                     userInfo: [changedEntityNamesKey: touched]
                 )
             }
-        }
-    }
-
-    // MARK: - Public: Purge Old History
-
-    /// How old a transaction must be before it is eligible for purging.
-    /// Apple: "long enough for the history to become irrelevant, which can be
-    /// several months for apps that people use on a regular basis."
-    private static let purgeRetention: TimeInterval = 180 * 24 * 3600
-
-    /// Minimum interval between purges. Apple: "Apps generally only need to
-    /// purge the history several times a year."
-    private static let purgeInterval: TimeInterval = 60 * 24 * 3600
-
-    /// Purge persistent history following Apple's documented pattern for
-    /// CloudKit-backed stores ("Sharing Core Data objects between iCloud
-    /// users"): delete only transactions that predate BOTH the start of the
-    /// last successful `.export` event AND a several-month retention window.
-    ///
-    /// `NSCloudKitMirroringDelegate` keeps its own history cursor that this
-    /// process cannot read. Purging transactions it hasn't exported yet
-    /// invalidates that cursor and forces a full reset against the CloudKit
-    /// server — and any deletion whose only record was the purged tombstone
-    /// resurrects on the next import. The export-date gate guarantees the
-    /// delegate consumed everything we delete; the retention window keeps the
-    /// history available for other consumers (BackupChangeTracker) and for
-    /// devices that re-enable sync after running in the degraded local mode.
-    func purgeOldHistory() async {
-        // Never purge before CloudKit has demonstrably exported. On stores
-        // that have never synced this keeps all history for a future first
-        // export; disk cost is acceptable at this app's write volume.
-        guard let exportStart = defaults.object(
-            forKey: UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate
-        ) as? TimeInterval else {
-            Self.logger.debug("Skipping history purge — no successful CloudKit export recorded")
-            return
-        }
-
-        if let lastPurge = defaults.object(
-            forKey: UserDefaultsKeys.persistentHistoryLastPurgeDate
-        ) as? TimeInterval,
-           Date().timeIntervalSince1970 - lastPurge < Self.purgeInterval {
-            return
-        }
-
-        let retentionCutoff = Date().addingTimeInterval(-Self.purgeRetention)
-        let cutoff = min(Date(timeIntervalSince1970: exportStart), retentionCutoff)
-
-        let context = container.newBackgroundContext()
-        let purged: Bool = await context.perform {
-            let purgeRequest = NSPersistentHistoryChangeRequest.deleteHistory(before: cutoff)
-            do {
-                try context.execute(purgeRequest)
-                return true
-            } catch {
-                Self.logger.error("Failed to purge history: \(error.localizedDescription)")
-                return false
-            }
-        }
-
-        if purged {
-            defaults.set(Date().timeIntervalSince1970, forKey: UserDefaultsKeys.persistentHistoryLastPurgeDate)
-            Self.logger.info("Purged persistent history older than \(cutoff, privacy: .public)")
         }
     }
 }

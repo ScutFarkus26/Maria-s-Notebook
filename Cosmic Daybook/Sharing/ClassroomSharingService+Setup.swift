@@ -36,13 +36,24 @@ extension ClassroomSharingService {
     /// finished, and the server holds no share zone at all. Run again once the
     /// share exists (the server holding that one zone and no other), it adds
     /// whatever of those types is in no share yet — the way to finish a setup
-    /// that stopped partway. It never moves a record out of another share.
+    /// that stopped partway ("Add them to the share"). It never moves a record
+    /// out of another share.
+    ///
+    /// Holds `ClassroomShareAttachLock` throughout, so the orphan guard's pass
+    /// waits rather than sharing the same records beside it.
     func setUpClassroomSharing(coreDataStack: CoreDataStack) async throws -> ClassroomShareSetupReport {
+        try await ClassroomShareAttachLock.shared.run {
+            try await self.setUpHoldingTheLock(coreDataStack: coreDataStack)
+        }
+    }
+
+    private func setUpHoldingTheLock(coreDataStack: CoreDataStack) async throws -> ClassroomShareSetupReport {
         let (store, pinned) = try await setupPreflight(coreDataStack: coreDataStack)
         let viewContext = coreDataStack.viewContext
-        // What this device was holding for the share. Everything of these
-        // types is shared below, so these go; anything added meanwhile stays.
-        let waitingAtStart = SharedStoreOrphanGuard.shared.pendingURIs
+        // What this device was holding for the share, as it found it.
+        // Everything of these types is shared below, so these go, except any
+        // the attach failed on; anything added meanwhile stays.
+        let waitingAtStart = SharedStoreOrphanGuard.shared.pendingEntries
 
         // This school year's records only (`ClassroomShareScope`): earlier years stay private.
         let byEntity = await Self.classroomRecordIDs(in: store, container: container, scope: ClassroomShareScope())
@@ -80,7 +91,15 @@ extension ClassroomSharingService {
         if outcome.mirroringDelegateDied {
             CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
         }
-        SharedStoreOrphanGuard.shared.removePending(waitingAtStart)
+        let failed = Set(outcome.failed.map { $0.uriRepresentation().absoluteString })
+        // Before this school year's start reaches the device, setup goes by the
+        // September 1 fallback and can skip this year's first days as last
+        // year's; the guard keeps those waiting (#31), so the list stays as it
+        // is. The guard's next pass finds what setup attached already shared
+        // and drops it then.
+        if !ClassroomShareScope().isProvisional {
+            SharedStoreOrphanGuard.shared.forget(waitingAtStart, except: failed)
+        }
 
         let contents = await Self.shareContents(coreDataStack: coreDataStack)
         let report = ClassroomShareSetupReport(
@@ -100,6 +119,9 @@ extension ClassroomSharingService {
     private func setupPreflight(coreDataStack: CoreDataStack) async throws -> (NSPersistentStore, CKShare?) {
         guard coreDataStack.isCloudKitActive else { throw ClassroomShareError.cloudKitInactive }
         guard let store = coreDataStack.privatePersistentStore else { throw ClassroomShareError.sharedStoreUnavailable }
+        // The attach lock is this process's only: a second copy of the app
+        // could share the same records beside the first.
+        guard !CoreDataStack.isSecondaryProcess else { throw ClassroomShareError.anotherCopyOpen }
         let viewContext = coreDataStack.viewContext
         guard CDClassroomMembership.currentRole(in: viewContext) == .leadGuide else {
             throw ClassroomShareError.assistantCannotCreateShare
@@ -165,12 +187,19 @@ extension ClassroomSharingService {
 
 /// What one run of Set Up Classroom Sharing did.
 nonisolated struct ClassroomShareSetupReport: Sendable {
-    /// Students first: the first record becomes the share's seed.
-    static let orderedEntityNames = [
-        "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
-        "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem",
-        "ClassroomPerson"
-    ]
+    /// Every classroom-share type (`CoreDataStack.sharedEntityNames`), in the
+    /// order setup takes them and the summary names them. Students first: the
+    /// first record becomes the share's seed. Built from the share's own list,
+    /// so a type added to the share is set up and counted too, after these.
+    static let orderedEntityNames: [String] = {
+        let order = [
+            "Student", "AttendanceRecord", "NonSchoolDay", "SchoolDayOverride", "AttendanceDayLock",
+            "AttendanceEmailSend", "AttendanceEmailSettings", "Supply", "SupplyTransaction", "OrderItem",
+            "ClassroomPerson"
+        ]
+        let shared = CoreDataStack.sharedEntityNames
+        return order.filter(shared.contains) + shared.subtracting(order).sorted()
+    }()
 
     let created: Bool
     let attached: Int
@@ -238,6 +267,7 @@ enum ClassroomShareError: LocalizedError {
     case otherShareZonesExist(Int)
     case notSetUp
     case shareHasNoStudents
+    case anotherCopyOpen
 
     var errorDescription: String? {
         switch self {
@@ -265,6 +295,8 @@ enum ClassroomShareError: LocalizedError {
         case .shareHasNoStudents:
             return "No students are shared yet, so an assistant would see an empty class. " +
                 "Nothing was sent. Choose Set Up Classroom Sharing first."
+        case .anotherCopyOpen:
+            return "Another copy of Cosmic Daybook has the notebook open. Quit the other copy, then try again."
         }
     }
 }

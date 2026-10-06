@@ -200,6 +200,15 @@ final class SettingsViewModel {
 
     // MARK: - Import / Preview
     func previewImportedURL(viewContext: NSManagedObjectContext, url: URL) async {
+        // Said before the preview, so the guide isn't asked to confirm a
+        // restore that would be refused (`BackupCoordinator.importBackup`
+        // refuses it too).
+        if let reason = BackupRestoreGate.blocker(in: viewContext) {
+            resultSummary = nil
+            importErrorTitle = "Can't Restore"
+            importError = reason
+            return
+        }
         let needsAccess = url.startAccessingSecurityScopedResource()
         defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
         do {

@@ -60,26 +60,138 @@ final class DatabaseErrorCoordinator {
         self.errorDetails = ""
     }
     
-    /// Resets the local database by deleting the store file
-    /// This only deletes local data on this device and does NOT delete CloudKit data.
-    func resetLocalDatabase() throws {
-        do {
-            // Delete the persistent store (includes logging)
-            try AppBootstrapping.resetPersistentStore()
-        } catch {
-            Self.logger.warning("Failed to reset persistent store: \(error)")
-            throw error
-        }
+    // MARK: - Recovery
 
-        // Clear error state
-        clearError()
-        AppBootstrapping.initError = nil
-
-        // Clear error flags
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
-        DatabaseInitializationService.markInMemorySession(false)
+    /// What the screen offers in place of "Re-download from iCloud…".
+    enum RedownloadOffer: Equatable {
+        /// The button.
+        case button
+        /// Nothing: re-downloading can't help here, or would do harm.
+        case hidden
+        /// No button; this sentence says why.
+        case unavailable(String)
     }
-    
+
+    /// Why there's no Re-download while iCloud sync is off.
+    static let redownloadNeedsSyncMessage = "iCloud sync is off on this device, so there's no copy in iCloud "
+        + "to download again. Your notebook here is left as it is."
+
+    /// Re-download throws this device's copy away and downloads the iCloud
+    /// one at the next launch. Not offered for a notebook a newer version last
+    /// opened (an older copy of the app is the problem, and the download would
+    /// land in a store it can't keep), while another copy of the app has the
+    /// notebook open (closing it is the fix), or for a damaged app (reinstall).
+    /// With iCloud sync off, this device's copy is the only one: the screen
+    /// says so instead.
+    static func redownloadOffer(for error: (any Error)?, syncPreferred: Bool) -> RedownloadOffer {
+        switch error as? CoreDataStackError {
+        case .storeFromNewerBuild?, .storeInUseByAnotherCopy?, .modelNotFound?, .restoreUnfinished?:
+            return .hidden
+        default:
+            return syncPreferred ? .button : .unavailable(redownloadNeedsSyncMessage)
+        }
+    }
+
+    /// What the screen offers for restoring a backup.
+    enum RestoreOffer: Equatable {
+        /// "Restore from a Backup…", into a fresh notebook (`FreshNotebookRestore`).
+        case button
+        /// No button; this sentence says how to restore instead.
+        case guidance(String)
+        /// Nothing: a restore can't help here, or would do harm.
+        case hidden
+    }
+
+    /// Restoring here puts a backup in place of the notebook that wouldn't
+    /// open, which is moved aside and kept (`FreshNotebookRestore`). Not
+    /// offered for a notebook a newer version last opened (a restore would
+    /// replace its newer data with older), while another copy of the app has
+    /// the notebook open, or for a damaged app (it can't read a backup either).
+    ///
+    /// With iCloud sync on, the notebook in iCloud would download into the
+    /// restored one at the next launch and every record would arrive twice.
+    /// Re-download is the way back then (it's offered whenever this is), and
+    /// a backup restores safely from Settings once the download has finished,
+    /// so the screen says that instead.
+    static func restoreOffer(for error: (any Error)?, syncPreferred: Bool) -> RestoreOffer {
+        switch error as? CoreDataStackError {
+        case .storeFromNewerBuild?, .storeInUseByAnotherCopy?, .modelNotFound?, .restoreUnfinished?:
+            return .hidden
+        default:
+            return syncPreferred ? .guidance(FreshNotebookRestore.syncOnGuidance) : .button
+        }
+    }
+
+    /// Whether the screen says anything about restoring a backup, the button
+    /// or how to (`restoreOffer`).
+    static func offersRestoreBackup(for error: (any Error)?) -> Bool {
+        restoreOffer(for: error, syncPreferred: false) != .hidden
+    }
+
+    var redownloadOffer: RedownloadOffer {
+        Self.redownloadOffer(for: error, syncPreferred: CoreDataStack.syncPreferred(in: .standard))
+    }
+
+    var restoreOffer: RestoreOffer {
+        Self.restoreOffer(for: error, syncPreferred: CoreDataStack.syncPreferred(in: .standard))
+    }
+
+    /// Whether a restore from this screen is under way, in any window.
+    private(set) var isRestoringBackup = false
+
+    /// Restores the backup at `url` in place of the notebook that wouldn't
+    /// open (`FreshNotebookRestore`); the caller then quits, and the next
+    /// launch opens the restored notebook. Throws, with the old notebook where
+    /// it was, when the restore is refused or fails.
+    func restoreBackupIntoFreshNotebook(
+        from url: URL,
+        appRouter: AppRouter,
+        progress: @escaping BackupService.ProgressCallback
+    ) async throws -> FreshNotebookRestore.Result {
+        guard !isRestoringBackup else { throw FreshNotebookRestore.Failure.alreadyRunning }
+        isRestoringBackup = true
+        defer { isRestoringBackup = false }
+        // The file picker's file, outside the app's own folders on iOS, as
+        // Settings' restore reads it.
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        let restore = try FreshNotebookRestore.forThisDevice()
+        let coordinator = BackupCoordinator(
+            backupService: BackupService(),
+            transactionManager: BackupTransactionManager(),
+            appRouter: appRouter
+        )
+        Self.logger.warning("Restoring a backup from the database-error screen into a fresh notebook")
+        return try await restore.run(backup: url, restoringWith: coordinator, progress: progress)
+    }
+
+    /// What the screen says once the backup is restored.
+    static func restoredMessage(warnings: [String]) -> String {
+        var lines = [
+            "Open Cosmic Daybook again to use your notebook. The notebook that wouldn't open is kept "
+                + "on this device, set aside. iCloud sync stays off."
+        ]
+        lines += warnings
+        return lines.joined(separator: "\n\n")
+    }
+
+    /// What the screen says when a restore from it didn't happen.
+    static func restoreFailureMessage(for error: any Error) -> String {
+        AppErrorMessages.backupMessage(for: error, operation: "restore your backup")
+    }
+
+    /// Arms "Re-download from iCloud" for the next launch, which destroys the
+    /// stores before anything opens them; the caller then quits. Nothing is
+    /// deleted here, with the app running. False, and nothing armed, while
+    /// iCloud sync is off.
+    func armRedownload(defaults: UserDefaults = .standard) -> Bool {
+        guard CoreDataStack.armLocalCacheReset(source: "DatabaseErrorView", defaults: defaults) else {
+            return false
+        }
+        Self.logger.warning("Re-download armed from the database-error screen; the app quits now")
+        return true
+    }
+
     // Exports diagnostic information about the error
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     func exportDiagnostics() -> String {

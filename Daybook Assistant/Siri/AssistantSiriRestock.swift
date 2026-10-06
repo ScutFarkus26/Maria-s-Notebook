@@ -17,7 +17,7 @@ struct AssistantSiriRestock {
 
     /// The app's stack, once the phone has joined a class.
     init() throws {
-        let stack = try SiriHost.stack()
+        let stack = try AssistantStack.shared()
         try SiriHost.checkReady(in: stack.viewContext)
         let names = ClassroomNames.snapshot(in: stack.viewContext)
         self.init(stack: stack, author: RestockAuthor.current(role: .assistant).reading(names))

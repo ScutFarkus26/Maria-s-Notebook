@@ -14,12 +14,13 @@
 import SwiftUI
 
 /// The app-wide objects every detail window injects into its host view.
+/// The classroom workspace and save coordinator come from the open notebook,
+/// which exists only once its stores are open.
 struct DetailWindowDependencies {
     let bootstrapper: AppBootstrapper
     let restoreCoordinator: RestoreCoordinator
-    let classroomWorkspace: ClassroomWorkspaceStore
+    let notebookOpener: NotebookOpener
     let appRouter: AppRouter
-    let saveCoordinator: SaveCoordinator
 }
 
 /// How a detail window looks while the store is loading or restoring.
@@ -115,16 +116,17 @@ private struct DetailWindowGate<Host: View>: View {
     private var isRestoring: Bool { dependencies.restoreCoordinator.isRestoring }
 
     var body: some View {
-        if dependencies.bootstrapper.state != .ready || isRestoring {
-            loadingView
-                .frame(minWidth: minimumSize.width, minHeight: minimumSize.height)
-        } else {
+        if dependencies.bootstrapper.state == .ready, !isRestoring,
+           let notebook = dependencies.notebookOpener.notebook {
             host()
-                .activeClassroomEnvironment(dependencies.classroomWorkspace)
+                .activeClassroomEnvironment(notebook.classroomWorkspace)
                 .environment(\.calendar, AppCalendar.shared)
                 .environment(\.appRouter, dependencies.appRouter)
-                .environment(dependencies.saveCoordinator)
+                .environment(notebook.saveCoordinator)
                 .environment(dependencies.restoreCoordinator)
+        } else {
+            loadingView
+                .frame(minWidth: minimumSize.width, minHeight: minimumSize.height)
         }
     }
 

@@ -61,9 +61,13 @@ final class DeduplicationCoordinator {
 
     private var pendingScope: PendingScope = .unreported
 
-    /// A cycle fired while a pass was running; its scope waits in
-    /// `pendingScope` and the cycle re-arms once the pass finishes.
+    /// A cycle fired while a pass was running (or the launch pass held the
+    /// coordinator); its scope waits in `pendingScope` and the cycle re-arms
+    /// once the pass finishes.
     private var rerunAfterPass = false
+
+    /// Callers of `holdingPasses` waiting for a running pass to finish.
+    private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private var lastPolicy: EnergyPolicy = .shared
 
     /// One pass over `scope`; the app sweeps on the given context's queue.
@@ -135,6 +139,24 @@ final class DeduplicationCoordinator {
     /// that wrote rows always produces a report.
     func requestDeduplicationAfterImport(policy: EnergyPolicy = .shared) {
         armDebounce(policy: policy)
+    }
+
+    /// Runs `operation` while no pass of this coordinator can: it first waits
+    /// for one already running to finish, and a cycle that fires meanwhile
+    /// keeps its scope and runs once `operation` returns (bug hunt 2026-10-05,
+    /// #62).
+    ///
+    /// For the launch pass (`MigrationRunner`), which dedups and repairs on a
+    /// context of its own: a post-import pass on another context at the same
+    /// time could fold the same rows, each from a view the other is changing.
+    func holdingPasses<T>(_ operation: () async -> T) async -> T {
+        while isRunning {
+            await withCheckedContinuation { idleWaiters.append($0) }
+        }
+        isRunning = true
+        let result = await operation()
+        finishRun()
+        return result
     }
 
     private func armDebounce(policy: EnergyPolicy) {
@@ -218,7 +240,8 @@ final class DeduplicationCoordinator {
         // the pass wrote rather than only the final one.
         let saved = SavedEntityNames(observing: context)
         let results = DataCleanupService.deduplicateAllModels(using: context, container: container, scope: scope)
-        if !results.isEmpty, context.safeSave() {
+        // A failed save is rolled back rather than left on the context (#62).
+        if !results.isEmpty, DataCleanupService.saveFolds(in: context) {
             let removed: Int = results.values.reduce(0, +)
             logger.info("Post-import deduplication removed \(removed) duplicates")
         }
@@ -238,6 +261,9 @@ final class DeduplicationCoordinator {
 
     private func finishRun() {
         isRunning = false
+        let waiting = idleWaiters
+        idleWaiters = []
+        waiting.forEach { $0.resume() }
         if rerunAfterPass {
             rerunAfterPass = false
             armDebounce(policy: lastPolicy)

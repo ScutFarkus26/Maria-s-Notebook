@@ -55,10 +55,24 @@ enum AlbumIdentityRepair {
 
     /// Carries annotations across for any album that changed filename since
     /// the last load. Returns the renames it applied, oldID → newID.
+    ///
+    /// Waits while any album is still downloading or being copied onto the
+    /// shelf (`pendingNames`, 2026-10-05): until it lands, the "old" name of a
+    /// renamed album may simply not have arrived, a copy of it under another
+    /// name would take its annotations, and the map would drop its fingerprint
+    /// as gone. Nothing is judged or trimmed then; the library loads again, and
+    /// runs this again, when the download lands.
     @discardableResult
     static func repairRenamedAlbums(_ albums: [Album],
-                                    in context: NSManagedObjectContext) -> [String: String] {
-        var known = (UserDefaults.standard.dictionary(forKey: UserDefaultsKeys.albumsFingerprints)
+                                    pendingNames: Set<String> = [],
+                                    in context: NSManagedObjectContext,
+                                    defaults: UserDefaults = .standard) -> [String: String] {
+        guard pendingNames.isEmpty else {
+            Logger.albums.info(
+                "Album rename check waits: \(pendingNames.count, privacy: .public) album(s) still downloading")
+            return [:]
+        }
+        var known = (defaults.dictionary(forKey: UserDefaultsKeys.albumsFingerprints)
                         as? [String: String]) ?? [:]
         let currentIDs = Set(albums.map(\.id))
         var applied: [String: String] = [:]
@@ -76,7 +90,7 @@ enum AlbumIdentityRepair {
             guard !currentIDs.contains(previousID) else { continue }
 
             remap(from: previousID, to: album.id, in: context)
-            carryOverLastSeen(from: previousID, to: album.id)
+            carryOverLastSeen(from: previousID, to: album.id, in: defaults)
             known[print] = album.id
             applied[previousID] = album.id
         }
@@ -85,7 +99,7 @@ enum AlbumIdentityRepair {
         // the map doesn't grow without bound across years of use.
         let live = Set(albums.map(\.fingerprint))
         known = known.filter { live.contains($0.key) }
-        UserDefaults.standard.set(known, forKey: UserDefaultsKeys.albumsFingerprints)
+        defaults.set(known, forKey: UserDefaultsKeys.albumsFingerprints)
 
         if !applied.isEmpty {
             Logger.albums.notice("Repaired \(applied.count, privacy: .public) renamed album(s)")
@@ -121,11 +135,11 @@ enum AlbumIdentityRepair {
     }
 
     /// The "Updated" badge baseline is keyed by filename too.
-    private static func carryOverLastSeen(from oldID: String, to newID: String) {
+    private static func carryOverLastSeen(from oldID: String, to newID: String, in defaults: UserDefaults) {
         let key = UserDefaultsKeys.albumsLastSeenModDates
-        guard var seen = UserDefaults.standard.dictionary(forKey: key) as? [String: Double],
+        guard var seen = defaults.dictionary(forKey: key) as? [String: Double],
               let value = seen.removeValue(forKey: oldID) else { return }
         seen[newID] = value
-        UserDefaults.standard.set(seen, forKey: key)
+        defaults.set(seen, forKey: key)
     }
 }

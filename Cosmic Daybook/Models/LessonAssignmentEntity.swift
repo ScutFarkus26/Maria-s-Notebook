@@ -155,13 +155,21 @@ nonisolated extension CDLessonAssignment {
     var isGiven: Bool { state == .presented }
 
     /// Cross-store relationship accessor (fetch via FK).
+    ///
+    /// Setting nil, or a lesson with no id, leaves `lessonID` as it is: a
+    /// lookup that found nothing (a lesson not downloaded yet, or a stale
+    /// list) used to blank the id and orphan the presentation for good.
+    /// Write `lessonID` directly to clear it on purpose.
     var lesson: CDLesson? {
         get {
             guard !lessonID.isEmpty, let ctx = managedObjectContext else { return nil }
             guard let uuid = UUID(uuidString: lessonID) else { return nil }
             return ctx.object(CDLesson.self, id: uuid)
         }
-        set { lessonID = newValue?.id?.uuidString ?? "" }
+        set {
+            guard let id = newValue?.id else { return }
+            lessonID = id.uuidString
+        }
     }
 }
 

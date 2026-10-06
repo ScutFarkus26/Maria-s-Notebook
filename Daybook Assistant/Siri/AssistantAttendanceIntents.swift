@@ -19,7 +19,7 @@ struct CloseArrivalIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let session = try SiriAttendance()
+        let session = try await SiriAttendance()
         let check = try await SiriAttendance.plainly("checking arrival") {
             try AssistantSiriCommands.checkClose(session)
         }
@@ -62,7 +62,7 @@ struct WhoIsMissingIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let session = try SiriAttendance()
+        let session = try await SiriAttendance()
         let names = try await SiriAttendance.plainly("reading who's missing") {
             try AssistantSiriCommands.missingNames(session)
         }

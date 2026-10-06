@@ -62,6 +62,7 @@
 		DA58A879F09CBF23DFB1BB96 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7737014313A0622D0B7569 /* CoreDataStack.swift */; };
 		DA5A11C0A3F4B2E9C7D60001 /* LaunchSignposts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5A11C0A3F4B2E9C7D60002 /* LaunchSignposts.swift */; };
 		DA5B1C7E2A9F4D3E8B6C1F02 /* CoreDataStack+PrimaryKeyRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5B1C7E2A9F4D3E8B6C1F01 /* CoreDataStack+PrimaryKeyRepair.swift */; };
+		DA5B1C7E2A9F4D3E8B6C1F12 /* StoreProcessLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5B1C7E2A9F4D3E8B6C1F11 /* StoreProcessLock.swift */; };
 		DA601CA3998CD10B1685C417 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA28F51BB683F0DDC5138A7E /* AttendanceModels.swift */; };
 		DA6F1B2C3D4E5A7B8C9D0E02 /* CoreDataStack+Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6F1B2C3D4E5A7B8C9D0E01 /* CoreDataStack+Model.swift */; };
 		DA6F1B2C3D4E5A7B8C9D0E04 /* CoreDataStack+Stores.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6F1B2C3D4E5A7B8C9D0E03 /* CoreDataStack+Stores.swift */; };
@@ -164,6 +165,7 @@
 		DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+OrphanCleanup.swift"; path = "Cosmic Daybook/AppCore/Persistence/CoreDataStack+OrphanCleanup.swift"; sourceTree = SOURCE_ROOT; };
 		DA5A11C0A3F4B2E9C7D60002 /* LaunchSignposts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LaunchSignposts.swift; path = "Cosmic Daybook/Utils/Diagnostics/LaunchSignposts.swift"; sourceTree = SOURCE_ROOT; };
 		DA5B1C7E2A9F4D3E8B6C1F01 /* CoreDataStack+PrimaryKeyRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+PrimaryKeyRepair.swift"; path = "Cosmic Daybook/AppCore/Persistence/CoreDataStack+PrimaryKeyRepair.swift"; sourceTree = SOURCE_ROOT; };
+		DA5B1C7E2A9F4D3E8B6C1F11 /* StoreProcessLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreProcessLock.swift; path = "Cosmic Daybook/AppCore/Persistence/StoreProcessLock.swift"; sourceTree = SOURCE_ROOT; };
 		DA6503C3D85AC2C51E58119B /* CosmicDaybook 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "CosmicDaybook 2.xcdatamodel"; sourceTree = "<group>"; };
 		DA6F1B2C3D4E5A7B8C9D0E01 /* CoreDataStack+Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Model.swift"; path = "Cosmic Daybook/AppCore/Persistence/CoreDataStack+Model.swift"; sourceTree = SOURCE_ROOT; };
 		DA6F1B2C3D4E5A7B8C9D0E03 /* CoreDataStack+Stores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CoreDataStack+Stores.swift"; path = "Cosmic Daybook/AppCore/Persistence/CoreDataStack+Stores.swift"; sourceTree = SOURCE_ROOT; };
@@ -362,6 +364,7 @@
 				DAA80B8AE6F5033A02C3BFB1 /* CoreDataStack+SchemaVersion.swift */,
 				DA4D54D6AD04715722787D25 /* CoreDataStack+OrphanCleanup.swift */,
 				DA5B1C7E2A9F4D3E8B6C1F01 /* CoreDataStack+PrimaryKeyRepair.swift */,
+				DA5B1C7E2A9F4D3E8B6C1F11 /* StoreProcessLock.swift */,
 				DA6F1B2C3D4E5A7B8C9D0E01 /* CoreDataStack+Model.swift */,
 				DA6F1B2C3D4E5A7B8C9D0E03 /* CoreDataStack+Stores.swift */,
 				DA6F1B2C3D4E5A7B8C9D0E05 /* CoreDataStack+Contexts.swift */,
@@ -656,6 +659,7 @@
 				DA89C2C39C4BABC2B7921AE2 /* CoreDataStack+SchemaVersion.swift in Sources */,
 				DAA55AECD10FDC0407F08505 /* CoreDataStack+OrphanCleanup.swift in Sources */,
 				DA5B1C7E2A9F4D3E8B6C1F02 /* CoreDataStack+PrimaryKeyRepair.swift in Sources */,
+				DA5B1C7E2A9F4D3E8B6C1F12 /* StoreProcessLock.swift in Sources */,
 				DA6F1B2C3D4E5A7B8C9D0E02 /* CoreDataStack+Model.swift in Sources */,
 				DA6F1B2C3D4E5A7B8C9D0E04 /* CoreDataStack+Stores.swift in Sources */,
 				DA6F1B2C3D4E5A7B8C9D0E06 /* CoreDataStack+Contexts.swift in Sources */,

@@ -120,6 +120,17 @@ nonisolated enum BackupPreferencesService {
         "Attendance.locked."
     ]
 
+    private static let preferenceKeySet = Set(preferenceKeys)
+
+    /// True for a key a backup carries and a restore applies: one of
+    /// `preferenceKeys`, or one under `preferenceKeyPrefixes`. A backup can
+    /// hold others (an older list's, or a hand-edited file's); a restore
+    /// leaves those alone rather than writing device settings it never chose
+    /// to carry.
+    static func isBackedUp(_ key: String) -> Bool {
+        preferenceKeySet.contains(key) || preferenceKeyPrefixes.contains { key.hasPrefix($0) }
+    }
+
     // MARK: - Merge Policy
 
     /// How a restored value combines with whatever the device already holds.
@@ -201,12 +212,14 @@ nonisolated enum BackupPreferencesService {
 
     // MARK: - Import
 
-    /// Applies a PreferencesDTO to user preferences.
+    /// Applies a PreferencesDTO to user preferences: only the keys backups
+    /// carry (`isBackedUp`). The school-year settings an older backup kept
+    /// under another key are read by `applySchoolYearSettings`.
     @MainActor static func applyPreferencesDTO(_ dto: PreferencesDTO) {
         let syncedStore = SyncedPreferencesStore.shared
         let defaults = UserDefaults.standard
 
-        for (key, value) in dto.values {
+        for (key, value) in dto.values where isBackedUp(key) {
             guard let restored = nativeValue(for: value) else { continue }
             let synced = syncedStore.isSynced(key: key)
             let local: Any? = synced ? syncedStore.get(key: key) : defaults.object(forKey: key)

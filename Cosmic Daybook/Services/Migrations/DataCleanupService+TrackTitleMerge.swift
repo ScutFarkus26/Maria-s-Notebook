@@ -88,7 +88,7 @@ nonisolated extension DataCleanupService {
         guard !groups.isEmpty else { return 0 }
 
         var removed: Int = 0
-        for group in groups {
+        for group in groups where !DedupSyncState.noCopySent(group, container: container) {
             let ordered: [CDTrackEntity] = group.sorted { (lhs: CDTrackEntity, rhs: CDTrackEntity) -> Bool in
                 olderTrackPrecedes(lhs, rhs, container: container)
             }
@@ -96,7 +96,7 @@ nonisolated extension DataCleanupService {
             for duplicate in ordered.dropFirst() {
                 let summary: String = "\"\(duplicate.title)\" \(duplicate.id?.uuidString ?? "?") "
                     + "into \(canonical.id?.uuidString ?? "?")"
-                merge(duplicateTrack: duplicate, into: canonical, in: context)
+                merge(duplicateTrack: duplicate, into: canonical, container: container, in: context)
                 removed += 1
                 logger.info("Folded duplicate track \(summary, privacy: .public)")
             }
@@ -126,12 +126,13 @@ nonisolated extension DataCleanupService {
             break
         }
 
-        let lhsLocal = lhs.createdAt ?? .distantFuture
-        let rhsLocal = rhs.createdAt ?? .distantFuture
+        // To the millisecond, as CloudKit keeps it (`millisecondKey`).
+        let lhsLocal = millisecondKey(lhs.createdAt) ?? .max
+        let rhsLocal = millisecondKey(rhs.createdAt) ?? .max
         if lhsLocal != rhsLocal { return lhsLocal < rhsLocal }
 
-        let lhsName = container?.recordID(for: lhs.objectID)?.recordName
-        let rhsName = container?.recordID(for: rhs.objectID)?.recordName
+        let lhsName = DedupSyncState.recordName(of: lhs.objectID, container: container)
+        let rhsName = DedupSyncState.recordName(of: rhs.objectID, container: container)
         if let lhsName, let rhsName, lhsName != rhsName {
             return lhsName < rhsName
         }
@@ -144,13 +145,16 @@ nonisolated extension DataCleanupService {
     /// Moves everything that names `duplicate` onto `canonical` and deletes
     /// the duplicate.
     static func merge(
-        duplicateTrack duplicate: CDTrackEntity, into canonical: CDTrackEntity, in context: NSManagedObjectContext
+        duplicateTrack duplicate: CDTrackEntity,
+        into canonical: CDTrackEntity,
+        container: NSPersistentCloudKitContainer? = nil,
+        in context: NSManagedObjectContext
     ) {
         guard duplicate !== canonical, !duplicate.isDeleted else { return }
 
         mergeSequenceTrack(from: duplicate, into: canonical, in: context)
         let stepRemap = mergeSteps(from: duplicate, into: canonical, in: context)
-        mergeEnrollments(from: duplicate, into: canonical, in: context)
+        mergeEnrollments(from: duplicate, into: canonical, container: container, in: context)
 
         if let oldID = duplicate.id?.uuidString, let newID = canonical.id?.uuidString {
             repointTrackReferences(from: oldID, to: newID, steps: stepRemap, in: context)
@@ -203,9 +207,14 @@ nonisolated extension DataCleanupService {
     }
 
     /// Enrollments move to the survivor, and a child then enrolled twice
-    /// keeps one: active over inactive, then the earlier start.
+    /// keeps one, chosen by identity so every device keeps the same one (bug
+    /// hunt 2026-10-05, #40). It takes the standing of the enrollment that
+    /// reads as hers: active over inactive, then the earlier start.
     private static func mergeEnrollments(
-        from duplicate: CDTrackEntity, into canonical: CDTrackEntity, in context: NSManagedObjectContext
+        from duplicate: CDTrackEntity,
+        into canonical: CDTrackEntity,
+        container: NSPersistentCloudKitContainer?,
+        in context: NSManagedObjectContext
     ) {
         guard let oldID = duplicate.id?.uuidString, let newID = canonical.id?.uuidString else { return }
         let byRelationship = (duplicate.enrollments?.allObjects as? [CDStudentTrackEnrollmentEntity]) ?? []
@@ -218,14 +227,12 @@ nonisolated extension DataCleanupService {
         let all = fetch(CDStudentTrackEnrollmentEntity.self, where: "trackID == %@", newID, in: context)
         let byChild = Dictionary(grouping: all, by: \.studentID)
         for enrollments in byChild.values where enrollments.count > 1 {
-            let ordered = enrollments.sorted { lhs, rhs in
-                if lhs.isActive != rhs.isActive { return lhs.isActive }
-                let lhsStart = lhs.startedAt ?? lhs.createdAt ?? .distantFuture
-                let rhsStart = rhs.startedAt ?? rhs.createdAt ?? .distantFuture
-                if lhsStart != rhsStart { return lhsStart < rhsStart }
-                return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
-            }
+            let ordered = enrollments.sorted { identityPrecedes($0, $1, container: container) }
             guard let keeper = ordered.first, let keeperID = keeper.id?.uuidString else { continue }
+            if let standing = ordered.min(by: enrollmentReadsFirst), standing !== keeper {
+                keeper.isActive = standing.isActive
+                keeper.startedAt = standing.startedAt
+            }
             for extra in ordered.dropFirst() {
                 if let extraID = extra.id?.uuidString {
                     for note in fetch(CDNote.self, where: "studentTrackEnrollmentID == %@", extraID, in: context) {
@@ -234,6 +241,46 @@ nonisolated extension DataCleanupService {
                 }
                 context.delete(extra)
             }
+        }
+    }
+
+    /// Whether `lhs` is the enrollment that reads as the child's, over `rhs`:
+    /// active first, then the earlier start, to the millisecond.
+    private static func enrollmentReadsFirst(
+        _ lhs: CDStudentTrackEnrollmentEntity, _ rhs: CDStudentTrackEnrollmentEntity
+    ) -> Bool {
+        if lhs.isActive != rhs.isActive { return lhs.isActive }
+        let lhsStart = millisecondKey(lhs.startedAt ?? lhs.createdAt) ?? .max
+        let rhsStart = millisecondKey(rhs.startedAt ?? rhs.createdAt) ?? .max
+        return lhsStart < rhsStart
+    }
+
+    // MARK: - Same-id copies
+
+    /// CloudKit's own duplicates of one track (one id, two rows), from the
+    /// id-based pass. Steps and enrollments cascade with the copy that holds
+    /// them, so they move to the kept one first (bug hunt 2026-10-05, #12);
+    /// copies of a step or enrollment are folded by their own passes after.
+    static func mergeTrack(canonical: CDTrackEntity, duplicate: CDTrackEntity) {
+        var existingStepIDs = Set((canonical.steps as? Set<CDTrackStep>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.steps,
+            addTo: canonical,
+            relationshipKey: "steps",
+            existingIDs: &existingStepIDs,
+            setter: { (step: CDTrackStep) in step.track = canonical }
+        )
+        let enrolled = canonical.enrollments as? Set<CDStudentTrackEnrollmentEntity>
+        var existingEnrollmentIDs = Set(enrolled?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.enrollments,
+            addTo: canonical,
+            relationshipKey: "enrollments",
+            existingIDs: &existingEnrollmentIDs,
+            setter: { (enrollment: CDStudentTrackEnrollmentEntity) in enrollment.track = canonical }
+        )
+        if canonical.sequenceTrack == nil, let sequenceTrack = duplicate.sequenceTrack {
+            canonical.sequenceTrack = sequenceTrack
         }
     }
 

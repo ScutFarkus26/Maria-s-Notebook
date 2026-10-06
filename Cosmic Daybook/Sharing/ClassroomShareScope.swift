@@ -27,8 +27,24 @@ nonisolated struct ClassroomShareScope: Sendable, Equatable {
     /// Start of the first day of the school year the share holds.
     let cutoff: Date
 
-    init(cutoff: Date = YearPlanStaleness.currentYearStart()) {
+    /// The cutoff is only the September 1 fallback: the class's school-year start
+    /// hasn't reached this device yet (`YearPlanStaleness.hasConfiguredStart`; a
+    /// new device before iCloud key-value storage arrives). Marks it calls last
+    /// year's may be this year's first days (in 2026 the class began August 25),
+    /// so the classroom share's waiting list keeps them instead of dropping them.
+    let isProvisional: Bool
+
+    init(cutoff: Date, isProvisional: Bool = false) {
         self.cutoff = AppCalendar.startOfDay(cutoff)
+        self.isProvisional = isProvisional
+    }
+
+    /// This school year, as this device knows it.
+    init() {
+        self.init(
+            cutoff: YearPlanStaleness.currentYearStart(),
+            isProvisional: !YearPlanStaleness.hasConfiguredStart
+        )
     }
 
     /// Zone-name prefix `NSPersistentCloudKitContainer` gives the zones that back a `CKShare`

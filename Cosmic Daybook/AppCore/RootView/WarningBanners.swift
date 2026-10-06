@@ -9,6 +9,9 @@ import SwiftUI
 /// Warning banner displayed when using ephemeral/in-memory store.
 struct EphemeralStoreWarningBanner: View {
     @Environment(\.appRouter) private var appRouter
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #endif
 
     /// Read from the flag the launch sets when it falls back to an in-memory
     /// store, not from the stored reason's wording (which is free to change).
@@ -61,10 +64,15 @@ struct EphemeralStoreWarningBanner: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            // Opens Settings › Sync and backup, whose Back Up Now does it and
+            // says how it went; the route this used to post went nowhere.
             Button {
-                appRouter.requestCreateBackup()
+                appRouter.showSyncBackupSettings()
+                #if os(macOS)
+                openSettings()
+                #endif
             } label: {
-                Label("Backup Now", systemImage: "externaldrive.badge.plus")
+                Label("Back Up…", systemImage: "externaldrive.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)

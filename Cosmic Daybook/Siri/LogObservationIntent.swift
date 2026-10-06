@@ -40,7 +40,7 @@ struct LogObservationIntent: AppIntent {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw LogObservationError.emptyText }
 
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = try await AppBootstrapping.sharedCoreDataStackForIntent().viewContext
 
         // Confirm the student still exists (could have been removed/synced away).
         guard let cdStudent = context.object(CDStudent.self, id: student.id),

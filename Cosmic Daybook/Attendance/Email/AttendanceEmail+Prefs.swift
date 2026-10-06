@@ -56,15 +56,32 @@ extension AttendanceEmail {
     }
 
     /// Copies the guide's settings into the classroom share, so an
-    /// assistant's email goes to the same people in the same format. Only on
-    /// the lead guide's devices, and not during a first download (the share's
-    /// row may be on its way). Returns whether anything changed; the caller
-    /// saves.
+    /// assistant's email goes to the same people in the same format: the
+    /// settings screen's write, after an edit. Only on the lead guide's
+    /// devices, and not during a first download (the share's row may be on its
+    /// way). Returns whether anything changed; the caller saves.
     @discardableResult
     static func shareSettings(in context: NSManagedObjectContext) -> Bool {
         guard !FirstDownloadGate.isPending() else { return false }
         return AttendanceEmailLog.saveSettings(
             storedSettings(), role: CDClassroomMembership.currentRole(in: context), in: context
+        )
+    }
+
+    /// The launch's write: the guide's settings go into the share only when it
+    /// has none yet (an older notebook, a first launch since schema 12). Never
+    /// over a row already there: this device's preferences may not have caught
+    /// up with an edit made on another of the guide's devices (2026-10-05).
+    /// Returns whether it wrote; the caller saves.
+    @discardableResult
+    static func shareSettingsIfMissing(
+        in context: NSManagedObjectContext,
+        settings: AttendanceEmailLog.Settings = AttendanceEmail.storedSettings(),
+        firstDownloadPending: Bool = FirstDownloadGate.isPending()
+    ) -> Bool {
+        guard !firstDownloadPending else { return false }
+        return AttendanceEmailLog.saveSettingsIfMissing(
+            settings, role: CDClassroomMembership.currentRole(in: context), in: context
         )
     }
 

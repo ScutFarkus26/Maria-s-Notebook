@@ -29,7 +29,11 @@ final class CoreDataSchemaVersionTests {
     /// Bump `CoreDataStack.currentSchemaVersion`, add a line to its version
     /// history, and paste the digest from the failure message here — in that
     /// order. Updating only this constant defeats the guard.
-    static let expectedModelDigest = "09d8700ad515476dc98a581f4ac32a45e0cd25b3fb5cd8a3a7050597468ff1f7"
+    ///
+    /// (2026-10-05: the digest took in the Shared and Private entity lists, so
+    /// a move between stores trips it too. The model and the stores didn't
+    /// change, so the version didn't either.)
+    static let expectedModelDigest = "1b7ba848c49544bd3c56339e8b68ceb726306e50c64a804d0fbb7da48c64e4e9"
 
     // MARK: - Version Tracking
 

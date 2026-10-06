@@ -6,9 +6,8 @@ import OSLog
 // MARK: - Restore Errors
 
 /// Error thrown when a `.replace` restore cannot fully clear existing data.
-/// It propagates through `BackupTransactionManager.executeWithRollback`, which
-/// rolls back to the safety checkpoint — returning the user to their pre-restore
-/// state instead of leaving a half-cleared store.
+/// Nothing is saved by then (the clear is saved with the import), so the
+/// restore's own changes are discarded and the notebook is as it was.
 nonisolated private enum RestoreClearError: ExplainedBackupError {
     case replaceClearIncomplete([String])
 
@@ -129,8 +128,16 @@ extension BackupService {
         progress(RestoreProgress.deduplication, "Deduplicating records\u{2026}")
         try saveEditsMadeBeforeRestore(in: viewContext)
 
-        let run = try discardingChangesOnFailure(in: viewContext) {
-            try importEverything(from: source, into: viewContext, mode: mode, appRouter: appRouter, progress: progress)
+        let run: BackupRestoreRun
+        do {
+            run = try discardingChangesOnFailure(in: viewContext) {
+                try importEverything(
+                    from: source, into: viewContext, mode: mode, appRouter: appRouter, progress: progress
+                )
+            }
+        } catch {
+            endUnsavedReplace(mode, appRouter: appRouter)
+            throw error
         }
 
         // Subscribe to CloudKit export events BEFORE saving — a fast export
@@ -142,12 +149,14 @@ extension BackupService {
         }
         defer { cloudExportWait.cancel() }
 
-        try discardingChangesOnFailure(in: viewContext) {
-            progress(RestoreProgress.saving, "Saving\u{2026}")
-            try viewContext.save()
-
-            progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
-            try repairDenormalizedFields(viewContext: viewContext)
+        do {
+            try saveRestore(in: viewContext, progress: progress)
+        } catch let error as BackupRestoreSavedError {
+            // Saved: the checkpoint's rollback follows, and it signals on its own.
+            throw error
+        } catch {
+            endUnsavedReplace(mode, appRouter: appRouter)
+            throw error
         }
 
         applyPreferencesDTO(source.preferences)
@@ -165,7 +174,9 @@ extension BackupService {
         // when possible; on timeout, surface that sync is continuing in the background.
         progress(RestoreProgress.cloudSync, "Syncing to iCloud\u{2026}")
         let cloudResult = await cloudExportWait.value
-        let warnings = restoreWarnings(albumIDs: run.albumIDs, cloudResult: cloudResult)
+        let warnings = restoreWarnings(
+            albumIDs: run.albumIDs, notesMissingTheirReminder: run.notesMissingTheirReminder, cloudResult: cloudResult
+        )
 
         progress(RestoreProgress.done, "Done")
         let envelope = source.envelope
@@ -178,6 +189,38 @@ extension BackupService {
             entityCounts: envelope.entityCounts,
             warnings: warnings
         )
+    }
+
+    /// The restore's one save and the repair after it. A failure before the
+    /// save completes throws the save's own error, with every unsaved change
+    /// discarded; one after it throws `BackupRestoreSavedError`.
+    private func saveRestore(in viewContext: NSManagedObjectContext, progress: ProgressCallback) throws {
+        try discardingChangesOnFailure(in: viewContext) {
+            progress(RestoreProgress.saving, "Saving\u{2026}")
+            BackupRestoreScope.assignInsertsToPrivateStore(in: viewContext)
+            // The restore's one save: replace mode's clear and every record
+            // together. Until it succeeds the store holds none of the restore.
+            try viewContext.save()
+
+            do {
+                try BackupPipelineProbe.reachOrFail("saved")
+                progress(RestoreProgress.denormalizedRepair, "Repairing denormalized fields\u{2026}")
+                try repairDenormalizedFields(viewContext: viewContext)
+            } catch {
+                throw BackupRestoreSavedError(underlying: error)
+            }
+        }
+    }
+
+    /// A Replace that stops before its save leaves the notebook as it was, but
+    /// the screens were told it was being replaced
+    /// (`signalAppDataWillBeReplaced`): tell them it's over, or they wait on
+    /// "Restoring your backup…" until the app is relaunched (2026-10-05
+    /// review). A failure after the save goes on to the checkpoint's rollback,
+    /// which signals on its own.
+    private func endUnsavedReplace(_ mode: RestoreMode, appRouter: AppRouter) {
+        guard mode == .replace else { return }
+        appRouter.signalAppDataDidRestore()
     }
 
     /// Saves edits the view context held before this restore began. The
@@ -223,10 +266,9 @@ extension BackupService {
             let failedEntities = try deleteAll(viewContext: viewContext)
             if !failedEntities.isEmpty {
                 // Replace mode must fully clear the store before importing. If some
-                // types couldn't be cleared, abort so the transaction manager rolls
-                // back to the safety checkpoint instead of importing on top of a
-                // half-cleared store. The checkpoint is guaranteed for .replace, so
-                // the user is returned to their pre-restore state.
+                // types couldn't be cleared, abort rather than import on top of a
+                // half-cleared store; the clear isn't saved, so it is discarded
+                // with the rest and the notebook stays as it was.
                 throw RestoreClearError.replaceClearIncomplete(failedEntities)
             }
         }
@@ -236,11 +278,17 @@ extension BackupService {
         // same restore (see BackupEntityIndex).
         let run = BackupRestoreRun(source: source, context: viewContext)
         try importEveryType(run, progress: progress)
+        // An older backup's rows lack attributes added since; the records it
+        // updated keep their own values for those.
+        run.index.predatedValues.putBack()
 
         // Notes import early, but many of their relationship targets (work,
         // check-ins, meetings, etc.) import in later phases — relink them now
         // that every target type is in the store.
-        try BackupEntityImporter.relinkNoteRelationships(run.noteLinks, index: run.index)
+        run.notesMissingTheirReminder = try BackupEntityImporter.relinkNoteRelationships(
+            run.noteLinks, index: run.index
+        )
+        try run.matchStudentLinksToScope()
         return run
     }
 
@@ -293,16 +341,23 @@ extension BackupService {
     }
 
     /// The restore's own warnings for the summary: the album reattach warning,
-    /// then how the post-restore CloudKit export went.
-    private func restoreWarnings(albumIDs: Set<String>, cloudResult: CloudExportWaitResult) -> [String] {
+    /// notes whose reminder isn't on this device, then how the post-restore
+    /// CloudKit export went.
+    private func restoreWarnings(
+        albumIDs: Set<String>, notesMissingTheirReminder: Int, cloudResult: CloudExportWaitResult
+    ) -> [String] {
         var warnings: [String] = []
         if let albumWarning = albumReattachWarning(for: albumIDs) {
             warnings.append(albumWarning)
+        }
+        if notesMissingTheirReminder > 0 {
+            warnings.append(BackupWarningText.notesMissingTheirReminder(notesMissingTheirReminder))
         }
         switch cloudResult {
         case .completed:
             break
         case .failed(let reason):
+            // Raw for Details; `BackupWarningText.plain` words it for the screen.
             let detail = reason ?? "unknown error"
             warnings.append(
                 "iCloud sync reported a failure: \(detail). " +
@@ -317,31 +372,20 @@ extension BackupService {
         return warnings
     }
 
-    // MARK: - Album Reattachment
-
-    /// Album bookmarks, notes, highlights, and ink key on the album PDF's
-    /// filename. They restore intact, but on a device with no album folder
-    /// registered they have nothing to attach to until the guide adds one —
-    /// say so, rather than letting them look lost. `albumIDs` holds every
-    /// album the restored bookmarks, page notes, highlights, ink and reading
-    /// positions name (`BackupRestoreRun.albumIDs`).
-    private func albumReattachWarning(for albumIDs: Set<String>) -> String? {
-        guard !albumIDs.isEmpty, !AlbumLibrary.hasResolvableFolderBookmark() else { return nil }
-        let noun = albumIDs.count == 1 ? "album" : "albums"
-        return "This backup includes bookmarks, notes, highlights, or drawings for "
-            + "\(albumIDs.count) \(noun). Open Albums and add your album folder to reattach them."
-    }
-
     // MARK: - CloudKit Export Wait
 
     /// Waits for an `NSPersistentCloudKitContainer` `.export` event to complete after a restore.
-    /// Returns immediately if no CloudKit-backed store is attached (e.g., test in-memory stack).
+    /// Returns at once when the restore went into a notebook that doesn't sync (see the guard).
     private func awaitCloudKitExport(
         viewContext: NSManagedObjectContext,
         timeout: Duration
     ) async -> CloudExportWaitResult {
-        // Skip the wait when there's no CloudKit-mirrored store (in-memory tests, local-only fallback).
-        guard isCloudKitMirrored(viewContext: viewContext) else { return .completed }
+        // Skip the wait unless the restore went into the app's notebook while it
+        // syncs: in-memory tests, iCloud sync off, the local-only fallback and
+        // the database-error screen's fresh notebook (`FreshNotebookRestore`)
+        // never export, and would only wait 30 seconds to say sync is "still
+        // running in the background".
+        guard BackupRestoreScope.syncsWithICloud(viewContext) else { return .completed }
 
         let events = NotificationCenter.default.messages(
             of: NSPersistentCloudKitContainer.self, for: .eventChanged, bufferSize: 256
@@ -367,37 +411,6 @@ extension BackupService {
             let first = await group.next() ?? .timedOut
             group.cancelAll()
             return first
-        }
-    }
-
-    /// True when `viewContext` is attached to at least one CloudKit-mirrored persistent store.
-    /// Detects the in-memory test stack and skips the export wait.
-    private func isCloudKitMirrored(viewContext: NSManagedObjectContext) -> Bool {
-        guard let stores = viewContext.persistentStoreCoordinator?.persistentStores else { return false }
-        for store in stores {
-            if store.type == NSInMemoryStoreType { continue }
-            // Any non-memory SQLite store in this app is CloudKit-mirrored by configuration.
-            if store.type == NSSQLiteStoreType { return true }
-        }
-        return false
-    }
-
-    // MARK: - Denormalized Fields
-
-    private func repairDenormalizedFields(viewContext: NSManagedObjectContext) throws {
-        let assignmentsForRepair = try viewContext.fetch(
-            CDFetchRequest(CDLessonAssignment.self)
-        )
-        var repairedCount = 0
-        for la in assignmentsForRepair {
-            let correct = la.scheduledFor.map { AppCalendar.startOfDay($0) } ?? Date.distantPast
-            if la.scheduledForDay != correct {
-                la.scheduledForDay = correct
-                repairedCount += 1
-            }
-        }
-        if repairedCount > 0 {
-            try viewContext.save()
         }
     }
 }

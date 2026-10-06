@@ -2,7 +2,6 @@
 import AppKit
 import CoreData
 import CloudKit
-import OSLog
 import SwiftUI
 
 /// AppDelegate that performs the automatic backup before the app quits.
@@ -41,13 +40,11 @@ final class AutoBackupAppDelegate: NSObject, NSApplicationDelegate {
         idleQuitController = controller
         controller.start()
         // The main window's task is what normally starts the services, and an
-        // MCP-only launch suppresses the main window.
+        // MCP-only launch suppresses the main window. The MCP server starts
+        // with them, once the notebook's stores are open.
         Task {
-            guard let launcher = AppServicesLauncher.current else {
-                Logger.startup.error("MCP-only launch: no services launcher registered")
-                return
-            }
-            await launcher.startIfNeeded(quitBackupDelegate: self)
+            let notebook = await NotebookOpener.shared.open()
+            await notebook.servicesLauncher.startIfNeeded(quitBackupDelegate: self)
         }
     }
 

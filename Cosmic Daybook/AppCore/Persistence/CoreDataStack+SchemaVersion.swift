@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import CoreData
 import CryptoKit
 import Foundation
@@ -29,7 +30,7 @@ import SQLite3
 // `.xcdatamodel` is edited in place. Names cannot be trusted, so this guard
 // keys off an explicit monotonic stamp instead.
 
-extension CoreDataStack {
+nonisolated extension CoreDataStack {
 
     private static var schemaLogger: Logger { Logger.coreDataSchemaVersion }
 
@@ -122,11 +123,21 @@ extension CoreDataStack {
     /// not (renaming a fetch request, moving an entity in the editor) leaves it
     /// alone. That makes it the right tripwire for "the model changed but
     /// nobody bumped ``currentSchemaVersion``".
+    ///
+    /// Which store each entity lives in is schema too, and the hashes don't
+    /// see it: schema 15 moved Restock into the classroom share by
+    /// configuration alone, and an older build opening the shared store would
+    /// have dropped its new tables. So the sorted Shared and Private entity
+    /// lists are part of the digest.
     nonisolated static func modelSchemaDigest(_ model: NSManagedObjectModel) -> String {
-        let joined = model.entityVersionHashesByName
+        var lines = model.entityVersionHashesByName
             .sorted { $0.key < $1.key }
             .map { "\($0.key):\($0.value.base64EncodedString())" }
-            .joined(separator: "\n")
+        for configuration in [sharedConfiguration, privateConfiguration] {
+            let names = (model.entities(forConfigurationName: configuration) ?? []).compactMap(\.name).sorted()
+            lines.append("\(configuration)=\(names.joined(separator: ","))")
+        }
+        let joined = lines.joined(separator: "\n")
         return SHA256.hash(data: Data(joined.utf8))
             .map { String(format: "%02x", $0) }
             .joined()
@@ -141,19 +152,32 @@ extension CoreDataStack {
     /// model has dropped. Run against a store from a newer build it would do
     /// the opposite favour — smoothing the path for the destructive backwards
     /// migration this guard exists to prevent. So the guard runs first, and the
-    /// stamp goes on last.
+    /// stamp goes on last — and only on a store that isn't about to migrate:
+    /// stamped first, a store whose migration then failed would claim this
+    /// build's format while still holding the old one.
+    ///
+    /// Everything here but the checks edits the store file, so it needs the
+    /// files to this copy of the app (`surgeryAllowed`, from the store lock).
+    /// Without them the routine repairs are skipped; a store that must
+    /// migrate (or be moved aside) isn't opened at all.
     /// - Returns: store URL → rollback-copy URL, for every store this pass was
     ///   about to migrate. The caller restores these if the load still fails,
     ///   so a failed recovery attempt leaves the user exactly where they began.
     @discardableResult
-    static func prepareStoresForLoad(
+    static func prepareStoresForLoad( // swiftlint:disable:this cyclomatic_complexity function_body_length
         container: NSPersistentContainer,
-        model: NSManagedObjectModel
+        model: NSManagedObjectModel,
+        surgeryAllowed: Bool = true
     ) throws -> [URL: URL] {
         var backups: [URL: URL] = [:]
 
         for description in container.persistentStoreDescriptions {
             guard let url = description.url, description.type == NSSQLiteStoreType else { continue }
+            // A restore that couldn't put the notebook back left it in a folder
+            // beside the stores: opening here would make an empty one over it.
+            if let folder = unfinishedRestoreFolder(in: url.deletingLastPathComponent()) {
+                throw CoreDataStackError.restoreUnfinished(folderName: folder)
+            }
             try verifyStoreIsNotFromNewerBuild(storeURL: url)
 
             // Migration is in-place and irreversible, and both cleanups below
@@ -164,7 +188,14 @@ extension CoreDataStack {
                 configuration: description.configuration,
                 model: model
             )
-            let backup = migrating ? backUpStoreBeforeMigration(storeURL: url) : nil
+            if migrating && !surgeryAllowed {
+                let name = url.lastPathComponent
+                schemaLogger.error("\(name, privacy: .public) needs migrating while another copy has it open")
+                throw CoreDataStackError.storeInUseByAnotherCopy
+            }
+            let backup = migrating
+                ? backUpStoreBeforeMigration(storeURL: url, model: model, options: surgeryOptions(for: description))
+                : nil
             if let backup { backups[url] = backup }
 
             // A store whose metadata claims compatibility can still be missing
@@ -190,9 +221,23 @@ extension CoreDataStack {
                             recordSchemaCoherenceVerified(storeURL: url, key: coherenceKey)
                         }
                     } else if description.configuration == sharedConfiguration {
+                        #if ASSISTANT_APP
+                        // An assistant's shared store holds her marks not yet
+                        // sent; moving it aside would lose them without a
+                        // word. Her startup screen says so and offers the
+                        // rebuild instead.
+                        throw CoreDataStackError.storeSchemaIncoherent(
+                            storeName: url.lastPathComponent,
+                            detail: findings.sorted().joined(separator: ", ")
+                        )
+                        #else
                         // The shared store mirrors the CloudKit shared
                         // database; a rebuilt store re-imports from the server.
+                        // Moving it aside under another copy would pull it
+                        // from under that copy's connection.
+                        guard surgeryAllowed else { throw CoreDataStackError.storeInUseByAnotherCopy }
                         quarantineIncoherentStore(storeURL: url, findings: findings)
+                        #endif
                     } else {
                         // Never silently rebuild the store that holds the
                         // user's primary data — surface it instead.
@@ -204,6 +249,12 @@ extension CoreDataStack {
                 }
             }
 
+            guard surgeryAllowed else {
+                let skipMsg = "\(url.lastPathComponent): another copy of the app has it open, " +
+                    "so the routine store repairs and the schema stamp wait for a launch that has it alone"
+                schemaLogger.notice("\(skipMsg, privacy: .public)")
+                continue
+            }
             cleanOrphanEntityMetadata(storeURL: url, model: model, configuration: description.configuration)
             // A counter below an occupied Z_PK makes the next insert fail
             // outright; raise any that are behind before Core Data reads them.
@@ -214,7 +265,10 @@ extension CoreDataStack {
                 logCloudKitMetadataShape(storeURL: url)
             }
 
-            stampSchemaVersion(storeURL: url)
+            // A migrating store is stamped after it loads (`restampSchemaVersion`).
+            if !migrating {
+                stampSchemaVersion(storeURL: url)
+            }
         }
 
         return backups
@@ -372,7 +426,12 @@ extension CoreDataStack {
     /// nothing to stamp) and one that *migrates* a store (lightweight migration
     /// rewrites store metadata, dropping the pre-load stamp — precisely the
     /// launch after which the store is newest and most in need of the guard).
-    static func restampSchemaVersion(in container: NSPersistentContainer) {
+    /// A migrating store isn't stamped before it loads at all, so this is
+    /// where it gets its stamp.
+    ///
+    /// `writingToDisk` false (another copy of the app has the files) keeps
+    /// the stamp to the coordinator's copy, which its next save writes out.
+    static func restampSchemaVersion(in container: NSPersistentContainer, writingToDisk: Bool = true) {
         let coordinator = container.persistentStoreCoordinator
         for store in coordinator.persistentStores where store.type == NSSQLiteStoreType {
             guard let url = store.url else { continue }
@@ -383,6 +442,7 @@ extension CoreDataStack {
             // Keep the coordinator's in-memory copy in step, so its next save
             // writes the stamp back out rather than over it…
             coordinator.setMetadata(metadata, for: store)
+            guard writingToDisk else { continue }
 
             // …and put it on disk now. `setMetadata(_:for:)` defers the write
             // to that next save, which on a launch that only reads may never

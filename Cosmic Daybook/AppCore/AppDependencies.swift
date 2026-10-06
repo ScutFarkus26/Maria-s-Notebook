@@ -319,12 +319,19 @@ final class AppDependencies {
 // MARK: - Environment Key
 
 struct AppDependenciesKey: @preconcurrency EnvironmentKey {
-    // Use the real, already-initialized stack from AppBootstrapping if available.
-    // This prevents a second in-memory stack from being created during window restoration.
-    static let defaultValue: AppDependencies = {
-        let stack = AppBootstrapping.getSharedCoreDataStack()
-        return AppDependencies(coreDataStack: stack)
-    }()
+    /// The open notebook's dependencies, the same instance every scene gets.
+    /// Asked for before the notebook's stores are open (which nothing should
+    /// do: the window waits for them), it answers a stand-in on an empty
+    /// in-memory stack, but never keeps it: a `static let` here pinned
+    /// whichever it got first for the whole process, so one early read would
+    /// have left every later default reader on an empty notebook (2026-10-05
+    /// review).
+    static var defaultValue: AppDependencies {
+        if let notebook = NotebookOpener.shared.notebook { return notebook.dependencies }
+        return notOpenYet
+    }
+
+    private static let notOpenYet = AppDependencies(coreDataStack: AppBootstrapping.getSharedCoreDataStack())
 }
 
 extension EnvironmentValues {

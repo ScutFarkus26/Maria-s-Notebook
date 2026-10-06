@@ -2,6 +2,7 @@
 // The classroom's shared list of names: each person sets their own, and every
 // screen looks names up when it words a line, so a rename reaches old entries.
 
+import CloudKit
 import CoreData
 import Foundation
 
@@ -21,7 +22,9 @@ import Foundation
 /// - **Newest wins.** Two of the guide's devices can each write a row before the
 ///   other's arrives, so reads take the newest `modifiedAt` per record name. The
 ///   owner folds their own duplicates into the oldest by (`createdAt`, `id`),
-///   the survivor every device agrees on, carrying the newest name over.
+///   the survivor every device agrees on, carrying the newest name over; a row
+///   already in the classroom's share zone goes first, and rows in another
+///   classroom's zone are never theirs to fold.
 /// - **Clearing keeps the row.** A cleared name is stored empty; deleting the
 ///   row would let another device's older one bring the old name back.
 /// - **Display only.** Names are what people typed, shown as typed; nothing is
@@ -152,8 +155,7 @@ enum ClassroomNames {
     static func foldMyRows(role: CDClassroomMembership.ClassroomRole, in context: NSManagedObjectContext) -> Int {
         guard let me = ClassroomIdentity.currentUserRecordName else { return 0 }
         let rows = myRows(me, role: role, in: context)
-        guard let kept = fold(rows, in: context) else { return 0 }
-        return rows.filter { $0 !== kept && $0.id != kept.id }.count
+        return foldCounting(rows, in: context).deleted
     }
 
     // MARK: - Reading
@@ -279,23 +281,48 @@ enum ClassroomNames {
     }
 
     /// Keeps the survivor of `rows`, with the newest name, and deletes the
-    /// rest. Returns the survivor, or nil when there are no rows.
+    /// copies it safely can. Returns the survivor, or nil when there are no rows.
+    ///
+    /// The survivor is the oldest row by (`createdAt`, `id`) on every device,
+    /// whatever each knows about zones: choosing it by zone let two devices
+    /// with different views each keep a different row and delete the other's,
+    /// and both deletes synced (2026-10-05 review). A copy is deleted only when
+    /// it is in the survivor's zone, or has never been sent to iCloud (this
+    /// device's own, so deleting it reaches no other device). A copy in
+    /// another zone stays: on the guide's devices a row written before the pin
+    /// arrived sits in his default zone until the orphan guard attaches it, and
+    /// deleting the shared copy meanwhile took his name out of the assistants'
+    /// list (#24). Reads take the newest copy, so the name shows either way.
     @discardableResult
     private static func fold(_ rows: [CDClassroomPerson], in context: NSManagedObjectContext) -> CDClassroomPerson? {
-        guard let kept = rows.min(by: isOlder) else { return nil }
-        guard rows.count > 1, let newest = rows.min(by: isNewer) else { return kept }
+        foldCounting(rows, in: context).kept
+    }
+
+    /// `fold`, also saying how many copies it deleted.
+    private static func foldCounting(
+        _ rows: [CDClassroomPerson], in context: NSManagedObjectContext
+    ) -> (kept: CDClassroomPerson?, deleted: Int) {
+        guard let kept = rows.min(by: isOlder) else { return (nil, 0) }
+        guard rows.count > 1, let newest = rows.min(by: isNewer) else { return (kept, 0) }
         if newest !== kept {
             kept.displayName = newest.displayName
             kept.roleRaw = newest.roleRaw
             kept.modifiedAt = newest.modifiedAt
         }
+        let keptZone = zoneName(of: kept, in: context)
         // A copy of the survivor itself (a restore beside the row CloudKit
         // brings back: same id, same createdAt) is never deleted. No order
         // tells two such copies apart the same way on every device, so each
         // device could keep a different one and delete the other, and the
-        // name would vanish. Reads take the newest copy meanwhile.
-        for row in rows where row !== kept && row.id != kept.id { context.delete(row) }
-        return kept
+        // name would vanish.
+        var deleted = 0
+        for row in rows where row !== kept && row.id != kept.id {
+            let zone = zoneName(of: row, in: context)
+            guard zone == nil || zone == keptZone else { continue }
+            context.delete(row)
+            deleted += 1
+        }
+        return (kept, deleted)
     }
 
     /// The name is in the list now: nothing waits. The guide's own copy on the
@@ -309,7 +336,11 @@ enum ClassroomNames {
     /// This person's own rows, in the store their role writes to (the guide's
     /// private store, an assistant's shared store; everything with one store).
     /// Never the other store: there a row with the same record name belongs to
-    /// another classroom this account is in.
+    /// another classroom this account is in. Nor, in that store, another share
+    /// zone than the pinned classroom's: an assistant's shared store can hold
+    /// a classroom she was in before, and folding there deleted her row in it
+    /// (2026-10-05 hunt, #24). A row not yet sent to iCloud has no zone yet; it
+    /// is this device's own.
     private static func myRows(
         _ recordName: String,
         role: CDClassroomMembership.ClassroomRole,
@@ -318,7 +349,27 @@ enum ClassroomNames {
         let request = CDFetchRequest(CDClassroomPerson.self)
         request.predicate = NSPredicate(format: "recordName == %@", recordName)
         if let store = RestockService.destinationStore(for: role, in: context) { request.affectedStores = [store] }
-        return context.safeFetch(request)
+        let rows = context.safeFetch(request)
+        guard let pinned = CDClassroomMembership.pinnedZoneName(in: context) else { return rows }
+        return rows.filter { row in
+            guard let zone = zoneName(of: row, in: context) else { return true }
+            return !zone.hasPrefix(shareZonePrefix) || zone == pinned
+        }
+    }
+
+    /// `ClassroomShareScope.shareZonePrefix`, which the Daybook Assistant
+    /// doesn't compile: the zones behind a `CKShare`.
+    private static let shareZonePrefix = "com.apple.coredata.cloudkit.share."
+
+    /// Test seam: the zone a row lives in, instead of asking CloudKit.
+    @TaskLocal static var zoneNameOverride: (@Sendable (NSManagedObjectID) -> String?)?
+
+    /// The CloudKit zone `row` is mirrored to, or nil when it hasn't been
+    /// exported yet (or the store doesn't sync).
+    private static func zoneName(of row: CDClassroomPerson, in context: NSManagedObjectContext) -> String? {
+        if let zoneNameOverride { return zoneNameOverride(row.objectID) }
+        guard !row.objectID.isTemporaryID else { return nil }
+        return CoreDataStack.cloudKitContainer(for: context)?.recordID(for: row.objectID)?.zoneID.zoneName
     }
 
     /// Oldest first by (`createdAt`, `id`): the row every device keeps.

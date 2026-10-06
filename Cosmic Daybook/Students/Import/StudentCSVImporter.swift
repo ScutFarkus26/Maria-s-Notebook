@@ -277,16 +277,13 @@ enum StudentCSVImporter {
             let student = CDStudent(context: context)
             student.firstName = r.firstName
             student.lastName = r.lastName
-            student.birthday = r.birthday ?? Date()
+            student.birthday = r.birthday
             student.level = r.level ?? .lower
             student.dateStarted = r.dateStarted
             inserted += 1
 
             // Update indexes so subsequent rows can merge into this newly created student
-            let newFullKey = duplicateKey(
-                first: r.firstName, last: r.lastName,
-                birthday: r.birthday ?? student.birthday
-            )
+            let newFullKey = duplicateKey(first: r.firstName, last: r.lastName, birthday: r.birthday)
             byFullKey[newFullKey] = student
             let newNameKey = "\(r.firstName) \(r.lastName)".normalizedNameKey()
             if byNameKey[newNameKey] == nil { byNameKey[newNameKey] = student }

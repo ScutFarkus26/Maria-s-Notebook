@@ -261,7 +261,8 @@ private struct ProjectWorkNoteField: View {
     init(work: CDWorkModel, onSave: @escaping (String) -> Void) {
         self.work = work
         self.onSave = onSave
-        text = work.latestUnifiedNoteText
+        // The field note `persist` saves back, not the newest observation.
+        text = work.legacyNoteText
     }
 
     var body: some View {
@@ -274,7 +275,7 @@ private struct ProjectWorkNoteField: View {
 
     private func persist() {
         let trimmed = text.trimmed()
-        guard trimmed != work.latestUnifiedNoteText.trimmed() else { return }
+        guard trimmed != work.legacyNoteText.trimmed() else { return }
         work.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
         work.lastTouchedAt = Date()
         onSave("Save Project Observation")

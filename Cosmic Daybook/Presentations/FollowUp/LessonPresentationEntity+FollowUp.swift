@@ -26,19 +26,23 @@ nonisolated extension CDLessonPresentation {
         set { followUpResolutionRaw = newValue?.rawValue }
     }
 
+    /// Tokens this build doesn't know (written by a newer one) are kept on
+    /// write-back, so editing the known ones here doesn't erase them.
     var followUpEvidence: Set<PresentationFollowUpEvidence> {
         get {
-            Set((followUpEvidenceRaw ?? "")
-                .split(separator: ",")
-                .compactMap { PresentationFollowUpEvidence(rawValue: String($0)) })
+            Set(followUpEvidenceTokens.compactMap(PresentationFollowUpEvidence.init(rawValue:)))
         }
         set {
-            followUpEvidenceRaw = newValue
-                .map(\.rawValue)
+            let unknown = followUpEvidenceTokens.filter { PresentationFollowUpEvidence(rawValue: $0) == nil }
+            followUpEvidenceRaw = Set(newValue.map(\.rawValue) + unknown)
                 .sorted()
                 .joined(separator: ",")
                 .nilIfEmpty
         }
+    }
+
+    private var followUpEvidenceTokens: [String] {
+        (followUpEvidenceRaw ?? "").split(separator: ",").map(String.init).filter { !$0.isEmpty }
     }
 
     var hasOpenFollowUp: Bool {

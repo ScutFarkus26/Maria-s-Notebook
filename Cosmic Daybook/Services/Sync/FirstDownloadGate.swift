@@ -1,5 +1,7 @@
+import CloudKit
 import Foundation
 import OSLog
+import Synchronization
 
 /// Holds classroom maintenance back while the private store downloads from
 /// iCloud for the first time — after Reset Local Cache, or on a new device.
@@ -16,9 +18,11 @@ import OSLog
 /// The gate is armed when `CoreDataStack` loads without a private store file
 /// and CloudKit on, and it opens on the first import event for the private
 /// store that finishes successfully — an import event ends only once
-/// everything it fetched is in the store. It is persisted, so a relaunch
-/// mid-download stays held. While it is armed: zone repair (automatic and
-/// manual) and the orphan guard do nothing, and the template seeder waits.
+/// everything it fetched is in the store — or straight away when no iCloud
+/// account is signed in, since then nothing will download. It is persisted, so
+/// a relaunch mid-download stays held. While it is armed: zone repair
+/// (automatic and manual) and the orphan guard do nothing, and the template
+/// seeder waits.
 nonisolated enum FirstDownloadGate {
 
     static let key = UserDefaultsKeys.firstDownloadPending
@@ -27,7 +31,18 @@ nonisolated enum FirstDownloadGate {
 
     /// True while the first download into a fresh private store is still under way.
     static func isPending(defaults: UserDefaults = .standard) -> Bool {
-        defaults.bool(forKey: key)
+        defaults.bool(forKey: key) && !liftedForSession.withLock { $0 }
+    }
+
+    private static let liftedForSession = Mutex(false)
+
+    /// Lets maintenance run for the rest of this session while the gate itself
+    /// stays armed: no iCloud account is signed in, so nothing will download
+    /// now. Opening the gate for good on that answer left the whole download
+    /// unguarded once the account signed in, or when the answer was only
+    /// momentary at login (2026-10-05 review); the next launch asks again.
+    static func liftForSession() {
+        liftedForSession.withLock { $0 = true }
     }
 
     /// Holds maintenance back until the private store's first import finishes.
@@ -43,5 +58,12 @@ nonisolated enum FirstDownloadGate {
         guard defaults.bool(forKey: key) else { return false }
         defaults.removeObject(forKey: key)
         return true
+    }
+
+    /// Whether nothing will ever download into the fresh store: iCloud sync is
+    /// on (`cloudKitActive`) but no iCloud account is signed in. The gate
+    /// opens then, rather than hold maintenance back for good.
+    static func nothingWillDownload(accountStatus: CKAccountStatus, cloudKitActive: Bool) -> Bool {
+        cloudKitActive && accountStatus == .noAccount
     }
 }

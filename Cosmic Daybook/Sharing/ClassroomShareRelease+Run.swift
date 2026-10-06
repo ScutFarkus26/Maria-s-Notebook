@@ -194,14 +194,22 @@ nonisolated extension ClassroomShareRelease {
         )
         await env.afterStep(.copiesChecked, batch)
 
-        // 4. The shared originals go (but not those deleted elsewhere, settled above).
-        let originals = batch.moves.filter { !settled.contains($0.source) }.flatMap(\.sharedRows)
+        // 4. The shared originals go (but not those deleted elsewhere, settled above),
+        // each only while its private copy is still here, checked again in the delete's
+        // own pass: a copy another device deleted after step 3 keeps its original.
+        let remaining = batch.moves.filter { !settled.contains($0.source) }
+        let originals = remaining.flatMap(\.sharedRows)
         let originalRecords = await env.recordIDs(originals)
         guard originalRecords.count == originals.count else { throw RunError.originalNotMirrored }
         await env.exportIdle()
         saved = Date()
         env.setAwaitingGone(Array(originalRecords.values))
-        try await deleteOriginals(originals, context: context)
+        do {
+            try await deleteOriginals(originals, keeping: remaining.compactMap { keepers[$0.source] }, context: context)
+        } catch {
+            env.setAwaitingGone([]) // nothing was deleted
+            throw error
+        }
         try await makeSureItExports(after: saved, nudging: keepers.values.first, context: context, environment: env)
         await env.afterStep(.originalsDeleted, batch)
 
@@ -295,10 +303,16 @@ nonisolated extension ClassroomShareRelease {
         }
     }
 
+    /// Deletes `originals`, unless one of `copies` has gone from this Mac since it
+    /// was checked: then nothing is deleted and the run stops (`copyVanished`).
     private static func deleteOriginals(
-        _ originals: [NSManagedObjectID], context: NSManagedObjectContext
+        _ originals: [NSManagedObjectID], keeping copies: [NSManagedObjectID], context: NSManagedObjectContext
     ) async throws {
         try await context.perform {
+            context.refreshAllObjects()
+            guard copies.allSatisfy({ (try? context.existingObject(with: $0)) != nil }) else {
+                throw RunError.copyVanished
+            }
             for id in originals {
                 // Gone already (another run finished it): nothing to delete.
                 if let object = try? context.existingObject(with: id) { context.delete(object) }

@@ -25,8 +25,10 @@ final class AppBootstrapping {
     /// CDTrackEntity initialization errors to show in the UI
     static var initError: Error?
 
-    /// Core Data stack with NSPersistentCloudKitContainer.
-    /// Initialized on first access via the static factory method.
+    /// Core Data stack with NSPersistentCloudKitContainer: set once its
+    /// stores are open (`sharedCoreDataStack()`), or to the in-memory stack
+    /// behind the database-error screen when they can't be. Nil while they
+    /// are still opening, off the main thread.
     static var _sharedCoreDataStack: CoreDataStack?
 
     /// Runtime-only CloudKit disable flag used during XCTest runs.
@@ -34,18 +36,12 @@ final class AppBootstrapping {
     static var disableCloudKitForCurrentLaunch: Bool = false
 
     // MARK: - Store Management
-    
-    /// Deletes the persistent store file/package.
-    /// This only deletes local data on this device and does NOT delete CloudKit data.
-    static func resetPersistentStore() throws {
-        try DatabaseInitializationService.resetPersistentStore()
-    }
 
     #if DEBUG
-    /// Resets the local database by deleting store files and clearing related state.
-    /// This is a DEBUG-only function that performs a complete reset.
-    static func resetLocalDatabaseInDebug() throws {
-        try DatabaseInitializationService.resetLocalDatabaseInDebug()
+    /// Arms a reset of the local database for the next launch
+    /// (`DatabaseInitializationService.armLocalDatabaseResetInDebug`).
+    static func armLocalDatabaseResetInDebug() -> Bool {
+        DatabaseInitializationService.armLocalDatabaseResetInDebug()
     }
     
     #if os(macOS)
@@ -54,28 +50,23 @@ final class AppBootstrapping {
     static func requestResetLocalDatabaseWithConfirmation() {
         let alert = NSAlert()
         alert.messageText = "Reset Local Database?"
-        alert.informativeText = "This deletes local data on this device."
-            + " CloudKit data is preserved and will re-sync after restart."
-            + " The app will restart automatically."
+        alert.informativeText = "This removes the notebook from this device when the app next opens."
+            + " Your notebook in iCloud stays and downloads again. The app quits now."
         alert.alertStyle = .critical
         alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Delete").hasDestructiveAction = true
-        
-        let response = alert.runModal()
-        if response == .alertSecondButtonReturn {
-            // User confirmed - perform reset
-            do {
-                try resetLocalDatabaseInDebug()
-                // Terminate app to restart cleanly
-                NSApplication.shared.terminate(nil)
-            } catch {
-                // Show error alert
-                let errorAlert = NSAlert(error: error)
-                errorAlert.messageText = "Reset Failed"
-                errorAlert.informativeText = "Failed to reset local database: \(error.localizedDescription)"
-                errorAlert.runModal()
-            }
+        alert.addButton(withTitle: "Reset").hasDestructiveAction = true
+
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        guard armLocalDatabaseResetInDebug() else {
+            let refused = NSAlert()
+            refused.messageText = "Can't Reset While Sync Is Off"
+            refused.informativeText = "iCloud sync is off, so this device has the only copy of the notebook."
+                + " Nothing was changed."
+            refused.runModal()
+            return
         }
+        // Quit; the next launch removes the stores before anything opens them.
+        NSApplication.shared.terminate(nil)
     }
     #endif
     #endif
@@ -140,10 +131,15 @@ final class AppBootstrapping {
         // These are normal Core Data/SQLite maintenance operations and do not indicate errors.
         // They are enabled by default in Debug builds via Xcode's diagnostics and cannot be
         // suppressed from Swift code. These logs can be safely ignored.
-        
-        #if DEBUG
-        // TEST: Simulate database initialization failure for testing recovery flow
-        // Set this UserDefaults key to trigger a simulated failure
+    }
+
+    #if DEBUG
+    /// TEST: Simulates a database initialization failure, for trying the
+    /// recovery flow: set the UserDefaults key and relaunch. Applied once the
+    /// real stores are open (`openSharedStack`), so the error screen's
+    /// restore finds them open and refuses, rather than racing a load still
+    /// under way.
+    static func simulateDatabaseFailureIfRequested() {
         if UserDefaults.standard.bool(forKey: UserDefaultsKeys.debugSimulateDatabaseInitFailure) {
             let testError = NSError(
                 domain: "CosmicDaybook",
@@ -161,6 +157,6 @@ final class AppBootstrapping {
                 details: "This is a simulated error for testing purposes."
             )
         }
-        #endif
     }
+    #endif
 }

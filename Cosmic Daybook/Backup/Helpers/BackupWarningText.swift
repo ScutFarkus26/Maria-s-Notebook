@@ -43,7 +43,22 @@ nonisolated enum BackupWarningText {
         if raw.hasPrefix("This backup includes bookmarks, notes, highlights, or drawings") {
             return raw // already plain (`albumReattachWarning`)
         }
+        if raw.contains(remindersNotHere) {
+            return raw // already plain (`notesMissingTheirReminder`)
+        }
         return fallback
+    }
+
+    private static let remindersNotHere = "this device doesn't have"
+
+    /// Notes the backup links to a reminder this device doesn't have: reminders
+    /// aren't restored (they come from Apple's Reminders), so the link stays off.
+    static func notesMissingTheirReminder(_ count: Int) -> String {
+        count == 1
+            ? "1 note was linked to a reminder \(remindersNotHere), so that link is off for now. "
+                + "The note itself is back."
+            : "\(count.formatted()) notes were linked to reminders \(remindersNotHere), so those links are "
+                + "off for now. The notes themselves are all back."
     }
 
     /// What a warning this file doesn't know reads as.

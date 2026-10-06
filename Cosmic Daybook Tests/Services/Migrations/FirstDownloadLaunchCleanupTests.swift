@@ -36,8 +36,8 @@ struct FirstDownloadLaunchCleanupTests {
         #expect(result.workStudents == seeded.workStudents)
         #expect(result.participantStudents == seeded.participantStudents)
         #expect(result.assignmentStudents == seeded.assignmentStudents)
-        // The scheduled-day mirror doesn't judge by other rows, so it still runs.
-        #expect(result.assignmentDays != seeded.assignmentDays)
+        // The scheduled-day mirror isn't rewritten at launch any more (2026-10-05).
+        #expect(result.assignmentDays == seeded.assignmentDays)
     }
 
     @Test("Once the download is done the same pass cleans as before")
@@ -49,7 +49,8 @@ struct FirstDownloadLaunchCleanupTests {
             on: stack.newBackgroundContext(), includeIntegrityRepairs: true, firstDownloadPending: false
         ) { _ in [:] }
 
-        #expect(outcome.workRowsCleaned == 5)
+        // Lower-cased Cy on work 5 is a real student, so 4, not 5 (2026-10-05).
+        #expect(outcome.workRowsCleaned == 4)
     }
 
     @Test("The check-in repair relinks but keeps orphans while the download is pending, and doesn't count the run")
@@ -77,19 +78,28 @@ struct FirstDownloadLaunchCleanupTests {
         #expect(linked.work === work)
         #expect(!orphan.isDeleted)
 
-        // A first run during the download doesn't count as the first run.
+        // A first run during the download doesn't count as the first run, or
+        // start the orphan's grace.
         defaults.removeObject(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
         _ = DataMigrations.repairWorkCheckInLinks(using: context, firstDownloadPending: true, defaults: defaults)
+        DataMigrations.markCheckInLinkRepairRun(firstDownloadPending: true, defaults: defaults)
         #expect(!defaults.bool(forKey: UserDefaultsKeys.checkInLinkRepairHasRun))
+        #expect(OrphanStudentGrace.load(from: defaults, kind: .checkInWork).isEmpty)
 
-        // After the download: the lenient first run, then orphans go.
+        // After the download: the lenient first run, counted once the pass has
+        // saved; the orphan goes once its work has been missing a day with an
+        // import since.
+        let firstSeen = Date()
         let first = DataMigrations.repairWorkCheckInLinks(
-            using: context, firstDownloadPending: false, defaults: defaults
+            using: context, firstDownloadPending: false, defaults: defaults, now: firstSeen
         )
         #expect(first.orphansKept == 1)
+        DataMigrations.markCheckInLinkRepairRun(firstDownloadPending: false, defaults: defaults)
         #expect(defaults.bool(forKey: UserDefaultsKeys.checkInLinkRepairHasRun))
+        let dayLater = firstSeen.addingTimeInterval(86_400)
         let second = DataMigrations.repairWorkCheckInLinks(
-            using: context, firstDownloadPending: false, defaults: defaults
+            using: context, firstDownloadPending: false, defaults: defaults, now: dayLater,
+            lastImport: { _ in dayLater }
         )
         #expect(second.orphansDeleted == 1)
     }

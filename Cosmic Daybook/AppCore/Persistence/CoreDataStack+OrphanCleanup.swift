@@ -3,7 +3,7 @@ import Foundation
 import OSLog
 import SQLite3
 
-extension CoreDataStack {
+nonisolated extension CoreDataStack {
     private static let cleanupLogger = Logger.coreDataOrphanCleanup
 
     /// Prepares an on-disk store so NSPersistentCloudKitContainer's lightweight migration
@@ -165,7 +165,7 @@ extension CoreDataStack {
 // it holds that record's CKRecord name, and discarding it would make Core Data
 // re-upload the record under a fresh name and duplicate it in CloudKit.
 
-extension CoreDataStack {
+nonisolated extension CoreDataStack {
 
     /// True when `storeURL`'s recorded model hashes differ from `model`'s, i.e.
     /// opening it will trigger a migration. Used to keep the backup and repair
@@ -191,27 +191,37 @@ extension CoreDataStack {
         }
     }
 
-    /// Copies `storeURL` (and its `-wal`/`-shm` companions) alongside itself
-    /// before a migration runs, replacing any previous backup of that store.
+    /// Copies `storeURL` alongside itself before a migration runs, replacing
+    /// any previous backup of that store.
     ///
     /// Migration is in-place and irreversible, and the repair below edits the
     /// file. One rollback copy is the difference between "retry something else"
     /// and "restore from a week-old backup". Returns the backup base URL, or
     /// `nil` if the copy could not be made — in which case the caller must not
     /// attempt any repair.
-    static func backUpStoreBeforeMigration(storeURL: URL) -> URL? {
+    ///
+    /// The copy goes through Core Data (`replacePersistentStore`), which reads
+    /// the store with its WAL as SQLite sees it; copying the three files one by
+    /// one can catch them mid-checkpoint and lose data (QA1809). `options` are
+    /// the ones the store is added with, which Core Data wants here too.
+    static func backUpStoreBeforeMigration(
+        storeURL: URL,
+        model: NSManagedObjectModel = NSManagedObjectModel(),
+        options: [String: NSObject]? = nil
+    ) -> URL? {
         let backupURL = storeURL.deletingPathExtension()
             .appendingPathExtension("premigration.sqlite")
+        guard FileManager.default.fileExists(atPath: storeURL.path) else { return nil }
         do {
+            // An earlier backup is ours alone; nothing else ever opens it.
             try removeStoreFiles(at: backupURL)
-            for suffix in storeFileSuffixes {
-                let source = URL(fileURLWithPath: storeURL.path + suffix)
-                guard FileManager.default.fileExists(atPath: source.path) else { continue }
-                try FileManager.default.copyItem(
-                    at: source,
-                    to: URL(fileURLWithPath: backupURL.path + suffix)
-                )
-            }
+            try NSPersistentStoreCoordinator(managedObjectModel: model).replacePersistentStore(
+                at: backupURL,
+                destinationOptions: options,
+                withPersistentStoreFrom: storeURL,
+                sourceOptions: options,
+                type: .sqlite
+            )
             cleanupLogger.info(
                 "Backed up \(storeURL.lastPathComponent, privacy: .public) before migration"
             )
@@ -225,21 +235,27 @@ extension CoreDataStack {
         }
     }
 
-    /// Puts a backup made by ``backUpStoreBeforeMigration(storeURL:)`` back in
-    /// place. Used when a repaired store still fails to load, so a failed
-    /// recovery attempt never leaves the user worse off than before it ran.
+    /// Puts a backup made by ``backUpStoreBeforeMigration(storeURL:model:options:)``
+    /// back in place. Used when a repaired store still fails to load, so a
+    /// failed recovery attempt never leaves the user worse off than before it
+    /// ran. Through Core Data too, which replaces the store and its journal
+    /// together; the store must not be open in any coordinator
+    /// (``rollBackFailedLoad(coordinator:backups:model:options:)``).
     @discardableResult
-    static func restoreStoreBackup(_ backupURL: URL, to storeURL: URL) -> Bool {
+    static func restoreStoreBackup(
+        _ backupURL: URL,
+        to storeURL: URL,
+        model: NSManagedObjectModel = NSManagedObjectModel(),
+        options: [String: NSObject]? = nil
+    ) -> Bool {
         do {
-            try removeStoreFiles(at: storeURL)
-            for suffix in storeFileSuffixes {
-                let source = URL(fileURLWithPath: backupURL.path + suffix)
-                guard FileManager.default.fileExists(atPath: source.path) else { continue }
-                try FileManager.default.copyItem(
-                    at: source,
-                    to: URL(fileURLWithPath: storeURL.path + suffix)
-                )
-            }
+            try NSPersistentStoreCoordinator(managedObjectModel: model).replacePersistentStore(
+                at: storeURL,
+                destinationOptions: options,
+                withPersistentStoreFrom: backupURL,
+                sourceOptions: options,
+                type: .sqlite
+            )
             cleanupLogger.warning(
                 "Restored \(storeURL.lastPathComponent, privacy: .public) from its pre-migration backup"
             )
@@ -250,6 +266,60 @@ extension CoreDataStack {
             cleanupLogger.fault("\(msg, privacy: .public)")
             return false
         }
+    }
+
+    /// After a failed `loadPersistentStores`: closes every store the
+    /// coordinator did open, then puts the pre-migration backups back.
+    ///
+    /// With two stores, one can load (and migrate) while the other fails.
+    /// Restoring a backup over a store this coordinator still has open
+    /// corrupts it, so nothing is restored unless every store is confirmed
+    /// closed; then the stores stay as they are, and the log says so.
+    /// Returns whether the backups went back (true with none to restore).
+    @discardableResult
+    static func rollBackFailedLoad(
+        coordinator: NSPersistentStoreCoordinator,
+        backups: [URL: URL],
+        model: NSManagedObjectModel,
+        options: [URL: [String: NSObject]]
+    ) -> Bool {
+        for store in coordinator.persistentStores {
+            do {
+                try coordinator.remove(store)
+            } catch {
+                let name = store.url?.lastPathComponent ?? "store"
+                cleanupLogger.error("Could not close \(name, privacy: .public): \(error.localizedDescription)")
+            }
+        }
+        guard coordinator.persistentStores.isEmpty else {
+            cleanupLogger.fault("A store stayed open after a failed load; its pre-migration backup was not restored")
+            return false
+        }
+        var restoredAll = true
+        for (storeURL, backupURL) in backups {
+            restoredAll = restoreStoreBackup(
+                backupURL, to: storeURL, model: model, options: options[storeURL]
+            ) && restoredAll
+        }
+        return restoredAll
+    }
+
+    /// The options a store was added with, for copying or replacing it
+    /// (`replacePersistentStore` wants the same ones). The CloudKit container
+    /// options stay out: a copy is a file, not a mirrored store.
+    static func surgeryOptions(for description: NSPersistentStoreDescription) -> [String: NSObject] {
+        description.options.filter { !($0.value is NSPersistentCloudKitContainerOptions) }
+    }
+
+    /// ``surgeryOptions(for:)`` for each store of a container, by its URL.
+    static func surgeryOptions(
+        byURLIn descriptions: [NSPersistentStoreDescription]
+    ) -> [URL: [String: NSObject]] {
+        var options: [URL: [String: NSObject]] = [:]
+        for description in descriptions {
+            if let url = description.url { options[url] = surgeryOptions(for: description) }
+        }
+        return options
     }
 
     /// Deletes ANSCKRECORDMETADATA rows whose record no longer exists.
@@ -339,7 +409,7 @@ extension CoreDataStack {
 
 // MARK: - Migration Diagnostics
 
-extension CoreDataStack {
+nonisolated extension CoreDataStack {
 
     /// Logs the structural facts needed to diagnose a migration that dies on
     /// `UNIQUE constraint failed: ANSCKRECORDMETADATA.ZENTITYID, ZENTITYPK`.
@@ -399,7 +469,7 @@ extension CoreDataStack {
 
 // MARK: - Duplicated Entity Registrations
 
-extension CoreDataStack {
+nonisolated extension CoreDataStack {
 
     /// Collapses ANSCKRECORDMETADATA twins in a store whose `Z_PRIMARYKEY`
     /// registers the same entity name under two `Z_ENT` ids — the scar of an
@@ -508,7 +578,7 @@ extension CoreDataStack {
 
 // MARK: - Physical Schema Coherence
 
-extension CoreDataStack {
+nonisolated extension CoreDataStack {
 
     /// Columns the model requires that the store file physically lacks, or
     /// `[]` for a healthy store.

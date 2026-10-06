@@ -35,7 +35,7 @@ struct MarkHereIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let session = try SiriAttendance()
+        let session = try await SiriAttendance()
         let child = try session.student(for: student)
         let name = session.spokenName(for: child)
         try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
@@ -76,7 +76,7 @@ struct MarkLateIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let session = try SiriAttendance()
+        let session = try await SiriAttendance()
         let child = try session.student(for: student)
         let name = session.spokenName(for: child)
         try await SiriAttendance.confirmIfNoSchool(session, marking: name, for: self)
@@ -113,7 +113,7 @@ struct MarkAbsentIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let session = try SiriAttendance()
+        let session = try await SiriAttendance()
         let child = try session.student(for: student)
         let name = session.spokenName(for: child)
         if session.isSchoolDay {

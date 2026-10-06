@@ -8,6 +8,10 @@ import os
 // context, inside its `perform`: they are synchronous and must run on the
 // context's own queue. They used to run on the main-actor view context,
 // yielding every 100 rows.
+//
+// Ids are compared trimmed and upper-cased (`OrphanStudentGrace.normalizedID`,
+// 2026-10-05): a row that names a real student in lower case, as a hand-typed
+// or older path can, is not an orphan. The rows keep the spelling they have.
 
 nonisolated extension DataCleanupService {
 
@@ -29,13 +33,14 @@ nonisolated extension DataCleanupService {
         let laFetch = CDFetchRequest(CDLessonAssignment.self)
         let allLAs = context.safeFetch(laFetch)
 
-        let missing = Set(allLAs.flatMap(\.studentIDs)).subtracting(validStudentIDs)
+        let missing = Set(allLAs.flatMap(\.studentIDs).map(OrphanStudentGrace.normalizedID))
+            .subtracting(validStudentIDs)
         let removable = grace?.admit(missing: missing, validIDs: validStudentIDs) ?? missing
 
         var cleaned = 0
         for la in allLAs {
             let originalIDs = la.studentIDs
-            let cleanedIDs = originalIDs.filter { !removable.contains($0) }
+            let cleanedIDs = originalIDs.filter { !removable.contains(OrphanStudentGrace.normalizedID($0)) }
 
             if cleanedIDs.count != originalIDs.count {
                 la.studentIDs = cleanedIDs
@@ -75,14 +80,16 @@ nonisolated extension DataCleanupService {
             var modified = false
 
             // Check work.studentID - if not empty and missing long enough, clear it
-            if !work.studentID.isEmpty && removable.contains(work.studentID) {
+            if !work.studentID.isEmpty && removable.contains(OrphanStudentGrace.normalizedID(work.studentID)) {
                 work.studentID = ""
                 modified = true
             }
 
             // Check work.participants - remove any whose student is missing long enough
             if let participantsSet = work.participants as? Set<CDWorkParticipantEntity>, !participantsSet.isEmpty {
-                let orphanedParticipants = participantsSet.filter { removable.contains($0.studentID) }
+                let orphanedParticipants = participantsSet.filter {
+                    removable.contains(OrphanStudentGrace.normalizedID($0.studentID))
+                }
 
                 if !orphanedParticipants.isEmpty {
                     for participant in orphanedParticipants {
@@ -103,13 +110,13 @@ nonisolated extension DataCleanupService {
         return cleaned
     }
 
-    /// Every student id the rows name, as owner or participant.
+    /// Every student id the rows name, as owner or participant, normalized.
     private static func studentIDsNamed(by works: [CDWorkModel]) -> Set<String> {
         var named = Set<String>()
         for work in works {
-            if !work.studentID.isEmpty { named.insert(work.studentID) }
+            if !work.studentID.isEmpty { named.insert(OrphanStudentGrace.normalizedID(work.studentID)) }
             for participant in (work.participants as? Set<CDWorkParticipantEntity>) ?? [] {
-                named.insert(participant.studentID)
+                named.insert(OrphanStudentGrace.normalizedID(participant.studentID))
             }
         }
         return named

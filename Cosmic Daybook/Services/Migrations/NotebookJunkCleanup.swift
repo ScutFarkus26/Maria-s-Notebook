@@ -19,14 +19,16 @@
 //    (`CDAttendanceStore.ensureRecords`), and nothing marked them. Only
 //    days before today, never a locked day, and only rows holding nothing.
 //  - Empty unlinked copies of a reminder (same title, due date and
-//    completion; no notes) that also exists linked to Apple Reminders or
-//    with notes (or, with neither, every empty copy but the oldest). An open
-//    reminder is never a copy of a completed one. `EventKitMirror` only ever
-//    cleans up linked rows.
+//    completion moment; no notes) that also exists linked to Apple Reminders
+//    or with notes (or, with neither, every empty copy but the oldest). An
+//    open reminder is never a copy of a completed one. `EventKitMirror` only
+//    ever cleans up linked rows.
 //  - Notes with no text, photo or tags that aren't pinned, flagged or in a report.
 //  - Tracks with no steps that nothing points at.
 //  - Work steps with no work, sample-work steps with no sample work, and
-//    completion records whose work is gone.
+//    completion records whose work is gone. Notes written on such a record
+//    are kept: they're detached first (the relationship cascades), so they
+//    stay in the child's notes, and the preview says how many.
 //
 //  And, by Danny's choice (2026-09-30):
 //  - Planned year-plan entries of children who have left are skipped (not
@@ -65,6 +67,8 @@ nonisolated enum NotebookJunkCleanup {
         var orphanWorkSteps = 0
         var orphanSampleWorkSteps = 0
         var completionRecordsOfDeletedWork = 0
+        /// Notes on those completion records, kept (detached, not removed).
+        var completionNotesKept = 0
         var presentationsOfDeletedLessons = 0
         var departedPlansSkipped = 0
         var enrollmentsRelinked = 0
@@ -88,54 +92,6 @@ nonisolated enum NotebookJunkCleanup {
         var changed: Int { departedPlansSkipped + enrollmentsRelinked }
 
         var isEmpty: Bool { removed == 0 && changed == 0 }
-
-        /// One line per kind, in the guide's words, for the sheet and the log; kinds with
-        /// nothing are left out.
-        var lines: [String] {
-            [
-                Self.line(orphanTrackSteps, "track step with no track", "track steps with no track"),
-                Self.line(
-                    blankPresentations,
-                    "lesson given with no child or lesson", "lessons given with no child or lesson"
-                ),
-                Self.line(
-                    presentationsOfDeletedLessons,
-                    "lesson given whose lesson was deleted", "lessons given whose lesson was deleted"
-                ),
-                Self.line(
-                    detachedWorkParticipants,
-                    "child on work that no longer exists", "children on work that no longer exists"
-                ),
-                Self.line(blankAttendance, "empty attendance entry", "empty attendance entries"),
-                Self.line(
-                    departedPlansSkipped,
-                    "planned lesson for a child who's left, marked skipped",
-                    "planned lessons for children who've left, marked skipped"
-                ),
-                Self.line(
-                    enrollmentsRelinked,
-                    "old track enrollment linked to its track", "old track enrollments linked to their tracks"
-                ),
-                Self.line(enrollmentsRemoved, "old track enrollment removed", "old track enrollments removed"),
-                Self.line(duplicateReminders, "duplicate reminder", "duplicate reminders"),
-                Self.line(emptyNotes, "empty note", "empty notes"),
-                Self.line(documentsWithoutFile, "document with no file", "documents with no file"),
-                Self.line(emptyTracks, "empty track", "empty tracks"),
-                Self.line(orphanWorkSteps + orphanSampleWorkSteps, "work step with no work", "work steps with no work"),
-                Self.line(
-                    completionRecordsOfDeletedWork,
-                    "completed-work entry for work that was deleted",
-                    "completed-work entries for work that was deleted"
-                )
-            ]
-            .compactMap { $0 }
-        }
-
-        /// "1 empty note", "3 empty notes", or nil for none.
-        private static func line(_ count: Int, _ one: String, _ many: String) -> String? {
-            guard count > 0 else { return nil }
-            return "\(count.formatted()) \(count == 1 ? one : many)"
-        }
     }
 
     /// Finds the junk and, with `apply`, removes or fixes it; given `preview`, only records
@@ -194,6 +150,7 @@ nonisolated enum NotebookJunkCleanup {
         counts.departedPlansSkipped = departedPlans.count
         counts.removing = Set(doomed.map(\.objectID))
         counts.changing = Set(relinks.map(\.enrollment.objectID) + departedPlans.map(\.objectID))
+        counts.completionNotesKept = notesKept(on: doomed, removing: counts.removing).count
 
         guard apply else { return counts }
         carryOut(relinks: relinks, departedPlans: departedPlans, doomed: doomed, in: context)
@@ -214,9 +171,23 @@ nonisolated enum NotebookJunkCleanup {
         for entry in departedPlans where entry.isPlanned {
             entry.status = .skipped
         }
+        // Every note on a doomed completion record, not only the ones the preview counted:
+        // the delete cascades, and a note that arrived since must not go with it.
+        for note in notesKept(on: doomed, removing: []) where !note.isDeleted {
+            note.workCompletionRecord = nil
+        }
         for object in doomed where !object.isDeleted {
             context.delete(object)
         }
+    }
+
+    /// Notes on the completion records in `doomed` that aren't themselves being removed
+    /// (an empty note goes as an empty note). `WorkCompletionRecord.notes` cascades, so
+    /// these are detached before the delete.
+    private static func notesKept(on doomed: [NSManagedObject], removing: Set<NSManagedObjectID>) -> [CDNote] {
+        doomed.compactMap { $0 as? CDWorkCompletionRecord }
+            .flatMap { ($0.notes as? Set<CDNote>) ?? [] }
+            .filter { !$0.isDeleted && !removing.contains($0.objectID) }
     }
 
     // MARK: - Buckets
@@ -244,11 +215,15 @@ nonisolated enum NotebookJunkCleanup {
     /// Empty unlinked copies of a reminder (same title, due date and
     /// completion): all of them when a linked copy or one with notes exists,
     /// otherwise all but the oldest. A copy with notes text or note items is
-    /// never a copy, and an open reminder never groups with a completed one.
+    /// never a copy, an open reminder never groups with a completed one, and
+    /// completed ones group only when they were completed at the same moment
+    /// (a weekly "Order paper" done on two days is two reminders, not copies).
     static func duplicateReminders(in context: NSManagedObjectContext) -> [CDReminder] {
         let reminders = fetch(CDReminder.self, nil, in: context)
         let groups = Dictionary(grouping: reminders) { reminder in
-            "\(reminder.title.folded())|\(reminder.dueDate?.timeIntervalSince1970 ?? -1)|\(reminder.isCompleted)"
+            let completion = reminder.isCompleted
+                ? "done@\(reminder.completedAt?.timeIntervalSince1970 ?? -1)" : "open"
+            return "\(reminder.title.folded())|\(reminder.dueDate?.timeIntervalSince1970 ?? -1)|\(completion)"
         }
         var doomed: [CDReminder] = []
         for group in groups.values where group.count > 1 {

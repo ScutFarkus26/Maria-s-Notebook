@@ -2,33 +2,14 @@ import CoreData
 import Foundation
 @testable import CosmicDaybook
 
-/// The three launch repairs as they were until 2026-09-26, kept verbatim so
-/// `LaunchRepairPassTests` can check the background pass against them. The
-/// bootstrapper awaited them on the main actor with the view context; each
-/// yielded every 100 rows and saved the view context when it changed a row.
+/// The two orphaned-student launch repairs as they were until 2026-09-26,
+/// kept verbatim so `LaunchRepairPassTests` can check the background pass
+/// against them. The bootstrapper awaited them on the main actor with the
+/// view context; each yielded every 100 rows and saved the view context when
+/// it changed a row. (The third, the scheduled-day mirror, left the launch
+/// pass on 2026-10-05.)
 @MainActor
 enum LaunchRepairOldCode {
-
-    /// `DataCleanupService.repairScheduledForDayMirror`.
-    static func repairScheduledForDayMirror(using context: NSManagedObjectContext) async {
-        let fetch = CDFetchRequest(CDLessonAssignment.self)
-        let assignments = context.safeFetch(fetch)
-        var repaired = 0
-
-        for (index, la) in assignments.enumerated() {
-            if index % 100 == 0 { await Task.yield() }
-
-            let correctMirror = la.scheduledFor.map(AppCalendar.startOfDay) ?? Date.distantPast
-            if la.scheduledForDay != correctMirror {
-                la.scheduledForDay = correctMirror
-                repaired += 1
-            }
-        }
-
-        if repaired > 0 {
-            context.safeSave()
-        }
-    }
 
     /// `DataCleanupService.cleanOrphanedStudentIDs`.
     static func cleanOrphanedStudentIDs(using context: NSManagedObjectContext) async {

@@ -15,8 +15,9 @@ nonisolated extension DataCleanupService {
     /// through CloudKit (and on a newly set-up device, long before the first
     /// import finishes). Judged from one device's store, every such photo looks
     /// orphaned, and deleting it there would delete it on all devices. Photos in
-    /// iCloud are removed only with their note (`CDNote.prepareForDeletion`) or
-    /// by the editor that wrote them.
+    /// iCloud are removed only by the code that deletes their note, which calls
+    /// `CDNote.deleteAssociatedImage()` first (`CDNote` has no
+    /// `prepareForDeletion`), or by the editor that wrote them.
     ///
     /// **Never judged by a store that isn't all there.** A store still
     /// downloading (`FirstDownloadGate`) or holding no notes at all — a Reset
@@ -63,7 +64,9 @@ nonisolated extension DataCleanupService {
     // MARK: - Denormalized Field Repair
 
     /// Repairs the `scheduledForDay` mirror so it always equals start-of-day of
-    /// `scheduledFor`. Runs at launch; idempotent.
+    /// `scheduledFor`. Idempotent. No longer run at launch (2026-10-05): no
+    /// fetch reads the mirror, schedule writes keep it, and rewriting it on
+    /// every device made synced writes for nothing.
     ///
     /// **It must never write `scheduledFor` itself.** It used to: it snapped the
     /// stored value to midnight to enforce a day-only model. `scheduledFor` now
@@ -74,8 +77,7 @@ nonisolated extension DataCleanupService {
     /// same mirror-only shape used after a restore in
     /// `BackupService+Restoration`.
     ///
-    /// Synchronous, on `context`'s queue: the launch pass runs it inside
-    /// `perform` on a background context (see `MigrationRunner.runPass`).
+    /// Synchronous, on `context`'s queue.
     static func repairScheduledForDayMirror(using context: NSManagedObjectContext) {
         let fetch = CDFetchRequest(CDLessonAssignment.self)
         let assignments = context.safeFetch(fetch)

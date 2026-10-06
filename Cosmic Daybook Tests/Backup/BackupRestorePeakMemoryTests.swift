@@ -121,4 +121,39 @@ struct BackupRestorePeakMemoryTests {
         Self.report("app", app)
         #expect(app.map(\.rise.overall).sorted()[3] < onePass.map(\.rise.overall).sorted()[3])
     }
+
+    /// A Replace over a notebook that already holds everything: since
+    /// 2026-10-05 its clear and its import go into one save, so the deletes
+    /// and the inserts are held together (2026-10-05 review). Measured, not
+    /// gated, like the restore above; the numbers say whether a full notebook
+    /// can still be replaced on an iPhone.
+    @Test("Peak heap and main-thread time: Replace over a full notebook")
+    func measureReplaceOverFullStore() async throws {
+        let store = try BackupStreamingFixtures.makeStore()
+        defer { store.remove() }
+        try BackupStreamingFixtures.seedEveryType(in: store.context, bulk: 12_000)
+        try Peak.seedPresentations(in: store.context, count: 8_000)
+        let url = store.archiveURL("Source")
+        try await BackupRestoreFixtures.writeBackup(of: store.context, to: url)
+
+        var runs: [Run] = []
+        for _ in 0..<6 {
+            let target = try CoreDataTestHelpers.makeInMemoryStack()
+            _ = try await BackupImporter.restore(
+                from: url, into: target.viewContext, mode: .merge, appRouter: AppRouter(), progress: { _, _ in }
+            )
+            let watch = Stopwatch()
+            var untilReturn: Duration = .zero
+            let rise = try await Peak.peakRise {
+                _ = try await BackupImporter.restore(
+                    from: url, into: target.viewContext, mode: .replace, appRouter: AppRouter(),
+                    progress: { watch.progress($0, $1) }
+                )
+                untilReturn = watch.untilNow()
+            }
+            runs.append(Run(rise: rise, turn: watch.turn, untilReturn: untilReturn))
+        }
+        Self.report("replace over full", runs)
+        #expect(runs.count == 6)
+    }
 }

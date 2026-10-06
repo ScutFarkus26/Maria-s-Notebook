@@ -130,6 +130,16 @@ nonisolated enum YearPlanStaleness {
         cachedYear = nil
     }
 
+    /// Whether this device holds a school-year start: set here, or adopted
+    /// from iCloud (`SchoolYearSync`). Until one arrives, `currentYearStart`
+    /// answers with the September 1 fallback, which can fall days after the
+    /// class's real first day (`ClassroomShareScope.isProvisional`).
+    static var hasConfiguredStart: Bool {
+        let defaults = UserDefaults.standard
+        return defaults.object(forKey: UserDefaultsKeys.schoolYearStartMonth) is Int
+            && defaults.object(forKey: UserDefaultsKeys.schoolYearStartDay) is Int
+    }
+
     /// The configured start month/day, defaulted exactly as `SchoolYearStore`
     /// defaults them so the two can never disagree.
     private static func configuredStart() -> (month: Int, day: Int) {

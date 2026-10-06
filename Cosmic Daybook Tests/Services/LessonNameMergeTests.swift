@@ -118,11 +118,14 @@ struct LessonNameMergeTests {
         let studentID = UUID()
         let mastered = Date()
 
+        // The kept mark is the lower id (DedupKeeperTests covers the other way round).
         let onOlder = CDLessonPresentation(context: context)
+        onOlder.id = UUID(uuidString: "00000000-0000-0000-0000-000000000001")
         onOlder.lessonID = try #require(older.id).uuidString
         onOlder.studentID = studentID.uuidString
         onOlder.createdAt = mastered.addingTimeInterval(-86_400)
         let onNewer = CDLessonPresentation(context: context)
+        onNewer.id = UUID(uuidString: "FFFFFFFF-0000-0000-0000-000000000001")
         onNewer.lessonID = try #require(newer.id).uuidString
         onNewer.studentID = studentID.uuidString
         onNewer.createdAt = mastered

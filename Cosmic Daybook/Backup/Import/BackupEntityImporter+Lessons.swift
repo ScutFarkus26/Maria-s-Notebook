@@ -130,8 +130,10 @@ extension BackupEntityImporter {
             assignment.notes = dto.notes
             assignment.trackID = dto.trackID
             assignment.trackStepID = dto.trackStepID
-            assignment.manuallyUnblocked = dto.manuallyUnblocked ?? false
-            assignment.confirmedStudentIDs = dto.confirmedStudentIDs ?? []
+            // Rows from before these (v19) have neither: an assignment already
+            // here keeps its own, a new one the defaults.
+            if let unblocked = dto.manuallyUnblocked { assignment.manuallyUnblocked = unblocked }
+            if let confirmed = dto.confirmedStudentIDs { assignment.confirmedStudentIDs = confirmed }
 
             // Update modifiedAt
             assignment.modifiedAt = dto.modifiedAt

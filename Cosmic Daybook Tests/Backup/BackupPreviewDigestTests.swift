@@ -48,7 +48,7 @@ struct BackupPreviewDigestTests {
             mode: mode,
             entityExists: { type, id in idIndex.exists(type, id: id) }
         )
-        return RestorePreview(
+        var preview = RestorePreview(
             mode: mode.rawValue,
             entityInserts: analysis.inserts,
             entitySkips: analysis.skips,
@@ -57,6 +57,17 @@ struct BackupPreviewDigestTests {
             totalDeletes: analysis.totalDeletes,
             warnings: analysis.warnings + archive.warnings
         )
+        // Since 2026-10-05 a Replace leaves this device's pin and the mirrored
+        // Apple reminders and events as they are, and its preview no longer
+        // counts them; the old analyzer still did.
+        if mode == .replace {
+            for kept in BackupEntityRegistry.keptOnRestoreEntityNames {
+                preview.totalInserts -= preview.entityInserts.removeValue(forKey: kept) ?? 0
+                preview.totalDeletes -= preview.entityDeletes.removeValue(forKey: kept) ?? 0
+                preview.entitySkips.removeValue(forKey: kept)
+            }
+        }
+        return preview
     }
 
     private static func preview(

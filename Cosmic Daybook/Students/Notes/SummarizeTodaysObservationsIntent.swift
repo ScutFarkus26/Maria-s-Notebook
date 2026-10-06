@@ -55,8 +55,10 @@ struct SummarySnippetView: View {
 /// Loads a glanceable list of today's observation notes for the snippet.
 enum TodayObservationsData {
     @MainActor
-    static func todayBullets(limit: Int = 8) -> [String] {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+    static func todayBullets(limit: Int = 8) async -> [String] {
+        // Nothing to list while the notebook is still opening, or couldn't be.
+        guard let stack = try? await AppBootstrapping.sharedCoreDataStackForIntent() else { return [] }
+        let context = stack.viewContext
         let (start, end) = AppCalendar.dayRange(for: Date())
 
         let request = CDFetchRequest(CDNote.self)
@@ -108,7 +110,7 @@ struct TodayObservationsSnippetView: View {
         }
         .task {
             guard !didLoad else { return }
-            bullets = TodayObservationsData.todayBullets()
+            bullets = await TodayObservationsData.todayBullets()
             didLoad = true
         }
     }

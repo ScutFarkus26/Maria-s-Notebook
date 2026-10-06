@@ -35,7 +35,7 @@ struct MarkLessonPresentedIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = try await AppBootstrapping.sharedCoreDataStackForIntent().viewContext
 
         guard let cdLesson = context.object(CDLesson.self, id: lesson.id), cdLesson.id != nil else {
             throw MarkLessonPresentedError.lessonNotFound(lesson.name)

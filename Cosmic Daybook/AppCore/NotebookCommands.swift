@@ -14,7 +14,17 @@ struct NotebookCommands: Commands {
     private static let logger = Logger.app_
 
     let appRouter: AppRouter
-    let classroomWorkspace: ClassroomWorkspaceStore
+    let notebookOpener: NotebookOpener
+
+    /// Nil while the notebook's stores are still opening: the items that
+    /// need it wait, disabled.
+    private var classroomWorkspace: ClassroomWorkspaceStore? {
+        notebookOpener.notebook?.classroomWorkspace
+    }
+
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #endif
 
     var body: some Commands {
         // 0. ALBUM READING COMMANDS
@@ -37,13 +47,23 @@ struct NotebookCommands: Commands {
             }
 
             Section {
-                Button("Back Up Now") { appRouter.requestCreateBackup() }
+                // Backing up and restoring are Settings › Sync and backup's
+                // job (its Back Up Now shows how it went); nothing handled the
+                // routes these used to post. Not while the notebook couldn't be
+                // opened: the error screen has its own way back.
+                Button("Back Up…") { openSyncBackupSettings() }
                     .keyboardShortcut("b", modifiers: [.command])
-                    .disabled(classroomWorkspace.isShowingSampleClass)
+                    .disabled(
+                        classroomWorkspace?.isShowingSampleClass != false
+                            || DatabaseErrorCoordinator.shared.error != nil
+                    )
 
-                Button("Restore Data…") { appRouter.requestRestoreBackup() }
+                Button("Restore Data…") { openSyncBackupSettings() }
                     .keyboardShortcut("b", modifiers: [.command, .shift])
-                    .disabled(classroomWorkspace.isShowingSampleClass)
+                    .disabled(
+                        classroomWorkspace?.isShowingSampleClass != false
+                            || DatabaseErrorCoordinator.shared.error != nil
+                    )
             }
         }
 
@@ -59,16 +79,15 @@ struct NotebookCommands: Commands {
 
         CommandMenu("Classroom") {
             Button("My Class") {
-                Task { await classroomWorkspace.select(.myClass) }
+                Task { await classroomWorkspace?.select(.myClass) }
             }
-            .disabled(classroomWorkspace.selection == .myClass)
+            .disabled(classroomWorkspace.map { $0.selection == .myClass } ?? true)
 
             Button("Sample Class") {
-                Task { await classroomWorkspace.select(.sampleClass) }
+                Task { await classroomWorkspace?.select(.sampleClass) }
             }
             .disabled(
-                classroomWorkspace.selection == .sampleClass
-                    || classroomWorkspace.isPreparingSample
+                classroomWorkspace.map { $0.selection == .sampleClass || $0.isPreparingSample } ?? true
             )
         }
 
@@ -124,15 +143,23 @@ struct NotebookCommands: Commands {
                     #if os(macOS)
                     AppBootstrapping.requestResetLocalDatabaseWithConfirmation()
                     #else
-                    do {
-                        try AppBootstrapping.resetLocalDatabaseInDebug()
-                    } catch {
-                        Self.logger.warning("Failed to reset local database: \(error)")
+                    // Takes effect the next time the app opens.
+                    if !AppBootstrapping.armLocalDatabaseResetInDebug() {
+                        Self.logger.warning("Local database reset not armed: iCloud sync is off")
                     }
                     #endif
                 }
             }
             #endif
         }
+    }
+
+    /// Settings › Sync and backup, where restore lives: the Mac's Settings
+    /// window, or the Settings page.
+    private func openSyncBackupSettings() {
+        appRouter.showSyncBackupSettings()
+        #if os(macOS)
+        openSettings()
+        #endif
     }
 }

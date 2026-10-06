@@ -44,8 +44,6 @@ extension BackupEntityImporter {
             existing: existing,
             idExtractor: { $0.id },
             entityBuilder: { dto, current in
-                let absenceReason = dto.absenceReason
-                    .flatMap { AbsenceReason(rawValue: $0) } ?? .none
                 let status = AttendanceStatus(
                     rawValue: dto.status
                 ) ?? .unmarked
@@ -54,7 +52,9 @@ extension BackupEntityImporter {
                 record.studentID = dto.studentID.uuidString
                 record.date = dto.date
                 record.statusRaw = status.rawValue
-                record.absenceReasonRaw = absenceReason.rawValue
+                // As stored, so Close Arrival's automatic absences
+                // ("closeArrival", no typed case) come back as themselves.
+                record.absenceReasonRaw = dto.absenceReason ?? AbsenceReason.none.rawValue
                 record.recordedBy = dto.recordedBy
                 record.recordedByID = dto.recordedByID
                 record.recordedByName = dto.recordedByName

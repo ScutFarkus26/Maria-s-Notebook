@@ -5,20 +5,6 @@ import OSLog
 struct LifecycleService {
     static let logger = Logger.lifecycle
 
-    /// Cleans orphaned student IDs from a CDLessonAssignment by removing IDs that no longer exist in the database.
-    /// This ensures referential integrity when using manual ID management instead of Core Data relationships.
-    static func cleanOrphanedStudentIDs(
-        for lessonAssignment: CDLessonAssignment,
-        validStudentIDs: Set<String>,
-        modelContext: NSManagedObjectContext
-    ) {
-        let originalIDs = lessonAssignment.studentIDs
-        let cleanedIDs = originalIDs.filter { validStudentIDs.contains($0) }
-        if cleanedIDs.count != originalIDs.count {
-            lessonAssignment.studentIDs = cleanedIDs
-        }
-    }
-
     // MARK: - Fetch Helpers
 
     static func fetchWorkModel(

@@ -29,8 +29,8 @@ struct SiriAttendance {
 
     var context: NSManagedObjectContext { stack.viewContext }
 
-    init() throws {
-        let stack = try Self.openStack()
+    init() async throws {
+        let stack = try await Self.openStack()
         try SiriHost.checkReady(in: stack.viewContext)
         self.init(stack: stack, role: SiriHost.role)
     }
@@ -38,9 +38,10 @@ struct SiriAttendance {
     /// The app's store, or Siri's plain "couldn't open your class"
     /// (`SiriHost.cannotOpenMessage`): the store's own error is raw system
     /// text, so it goes to the log. The student lookups open it this way too.
-    static func openStack() throws -> CoreDataStack {
+    /// It waits while the notebook's stores are still opening.
+    static func openStack() async throws -> CoreDataStack {
         do {
-            return try SiriHost.stack()
+            return try await SiriHost.stack()
         } catch {
             log(error, while: "opening the class")
             throw SiriAttendanceError.cannotOpen

@@ -114,16 +114,38 @@ nonisolated enum ClassroomShareAttach {
 
     // MARK: - Attaching
 
+    /// What one attach pass asks of CloudKit, so a test can stand in for it.
+    struct Steps: Sendable {
+        /// The records among these in no share yet (`unshared`); throws when
+        /// CloudKit can't say.
+        var unshared: @Sendable ([NSManagedObjectID]) async throws -> [NSManagedObjectID]
+        /// Puts these records into the share (`container.share(_:to:)`).
+        var share: @Sendable ([NSManagedObjectID]) async throws -> Void
+
+        /// CloudKit's, for `share` in `container`. Each call is handed the
+        /// latest copy of the share (`current`), never the one passed in.
+        static func live(_ share: CKShare, container: NSPersistentCloudKitContainer) -> Steps {
+            Steps(
+                unshared: { ids in try await ClassroomShareAttach.unshared(ids, container: container) },
+                share: { ids in
+                    let latest = await ClassroomShareAttach.current(share, container: container)
+                    try await ClassroomShareAttach.shareOffMain(ids, to: latest, container: container)
+                }
+            )
+        }
+    }
+
     /// Attaches `ids` to `share` in chunks, retrying a failed chunk one record
     /// at a time so one bad record doesn't cost the rest. Stops early — with
     /// the remainder in `failed` — when the delegate dies or CloudKit times out.
     ///
     /// A record goes into the share with everything related to it (a staple
     /// takes its history along), so one can already be in by the time its own
-    /// call comes up. Before every call after the first, what is now shared is
-    /// dropped from it (and counted as attached): `share(_:to:)` is never
-    /// asked to share a record twice. If CloudKit can't say, that call's
-    /// records wait as failed.
+    /// call comes up, and another pass (on this device or another) can have
+    /// shared it since the caller looked. Before every call, the first
+    /// included, what is now shared is dropped from it (and counted as
+    /// attached): `share(_:to:)` is never asked to share a record twice. If
+    /// CloudKit can't say, that call's records wait as failed.
     ///
     /// Each call is handed the latest copy of the share (`current`), never the
     /// one passed in: every `container.share(_:to:)` saves the share record,
@@ -136,22 +158,24 @@ nonisolated enum ClassroomShareAttach {
         to share: CKShare,
         container: NSPersistentCloudKitContainer
     ) async -> Outcome {
+        await attach(ids, using: .live(share, container: container))
+    }
+
+    /// `attach(_:to:container:)` with CloudKit's part as `steps`.
+    static func attach(_ ids: [NSManagedObjectID], using steps: Steps) async -> Outcome {
         var outcome = Outcome()
         var start = 0
         while start < ids.count {
             let end = min(start + chunkSize, ids.count)
             let taken = Array(ids[start..<end])
-            let outside = start == 0
-                ? taken
-                : await stillOutside(taken, container: container, outcome: &outcome)
-            guard let chunk = outside else {
+            guard let chunk = await stillOutside(taken, steps: steps, outcome: &outcome) else {
                 outcome.failed += taken
                 start = end
                 continue
             }
             if !chunk.isEmpty {
                 do {
-                    try await shareOffMain(chunk, to: await current(share, container: container), container: container)
+                    try await steps.share(chunk)
                     outcome.attached += chunk.count
                 } catch {
                     let ns = error as NSError
@@ -162,7 +186,7 @@ nonisolated enum ClassroomShareAttach {
                         outcome.failed += chunk + ids[end...]
                         return outcome
                     }
-                    let stopped = await attachOneByOne(chunk, to: share, container: container, outcome: &outcome)
+                    let stopped = await attachOneByOne(chunk, steps: steps, outcome: &outcome)
                     if stopped {
                         outcome.failed += ids[end...]
                         return outcome
@@ -179,18 +203,17 @@ nonisolated enum ClassroomShareAttach {
     /// the pass must stop, with what's left in `failed`.
     private static func attachOneByOne(
         _ chunk: [NSManagedObjectID],
-        to share: CKShare,
-        container: NSPersistentCloudKitContainer,
+        steps: Steps,
         outcome: inout Outcome
     ) async -> Bool {
         for (index, id) in chunk.enumerated() {
-            guard let single = await stillOutside([id], container: container, outcome: &outcome) else {
+            guard let single = await stillOutside([id], steps: steps, outcome: &outcome) else {
                 outcome.failed.append(id)
                 continue
             }
             guard !single.isEmpty else { continue }
             do {
-                try await shareOffMain(single, to: await current(share, container: container), container: container)
+                try await steps.share(single)
                 outcome.attached += 1
             } catch {
                 let failure = error as NSError
@@ -211,10 +234,10 @@ nonisolated enum ClassroomShareAttach {
     /// can't say.
     private static func stillOutside(
         _ candidates: [NSManagedObjectID],
-        container: NSPersistentCloudKitContainer,
+        steps: Steps,
         outcome: inout Outcome
     ) async -> [NSManagedObjectID]? {
-        guard let outside = try? await unshared(candidates, container: container) else { return nil }
+        guard let outside = try? await steps.unshared(candidates) else { return nil }
         outcome.attached += candidates.count - outside.count
         return outside
     }

@@ -12,40 +12,29 @@ enum DatabaseInitializationService {
     /// Returns the URL of the primary on-disk store (the private store).
     ///
     /// This is used only by the error-diagnostics export so it can report a
-    /// real, existing store file. The actual reset path uses
-    /// `CoreDataStack.resetStores()`, which removes every store. This used to
-    /// return a single `SwiftData.store` path — a leftover from the
-    /// pre-Core-Data migration that never exists on disk.
+    /// real, existing store file. The reset itself is
+    /// `CoreDataStack.performLocalCacheReset()`, armed for the next launch.
+    /// This used to return a single `SwiftData.store` path — a leftover from
+    /// the pre-Core-Data migration that never exists on disk.
     static func storeFileURL() -> URL {
         CoreDataStack.privateStoreURL()
     }
 
     // MARK: - Reset Operations
 
-    /// Deletes the on-disk persistent stores.
-    /// This only deletes local data on this device and does NOT delete CloudKit data.
-    static func resetPersistentStore() throws {
-        // Delegate to the canonical reset, which removes the real
-        // private/shared/unified SQLite stores plus their WAL/SHM companions.
-        // This previously deleted a single "SwiftData.store" file — a leftover
-        // from the pre-Core-Data migration that never exists on disk — so the
-        // user-facing "Reset Local Database" recovery silently did nothing,
-        // leaving users stuck on the database-error screen.
-        try CoreDataStack.resetStores()
-    }
-
     #if DEBUG
-    /// Resets the local database by deleting store files and clearing related state.
-    /// This is a DEBUG-only function that performs a complete reset.
-    static func resetLocalDatabaseInDebug() throws {
-        try resetPersistentStore()
-
+    /// Arms the reset for the next launch (`CoreDataStack.armLocalCacheReset`),
+    /// which destroys the stores under the store lock before anything opens
+    /// them; the caller quits. It used to delete the files here, with the
+    /// stores open in this process and perhaps in another copy of the app (a
+    /// Debug build opens the real notebook). False, and nothing armed, while
+    /// iCloud sync is off: this device's copy would be the only one.
+    static func armLocalDatabaseResetInDebug() -> Bool {
+        guard CoreDataStack.armLocalCacheReset(source: "Debug.ResetLocalDatabase") else { return false }
         UserDefaults.standard.removeObject(forKey: UserDefaultsKeys.lastStoreErrorDescription)
         markInMemorySession(false)
         UserDefaults.standard.set(false, forKey: UserDefaultsKeys.useInMemoryStoreOnce)
-
-        AppBootstrapping.initError = nil
-        DatabaseErrorCoordinator.shared.clearError()
+        return true
     }
     #endif
 

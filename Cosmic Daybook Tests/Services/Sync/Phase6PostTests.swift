@@ -78,7 +78,8 @@ final class Phase6PostTests {
 
     @Test("Transaction author constant is set correctly")
     func transactionAuthorConstant() {
-        #expect(PersistentHistoryProcessor.transactionAuthor == "CosmicDaybook")
+        // The app's name and this process's own suffix (2026-10-05, #64).
+        #expect(PersistentHistoryProcessor.transactionAuthor.hasPrefix("CosmicDaybook."))
     }
 
     @Test("View context has transactionAuthor set")
@@ -102,9 +103,13 @@ final class Phase6PostTests {
         defer { stores.cleanUp() }
         let defaults = try IsolatedDefaults()
         defer { defaults.cleanUp() }
-        // An export on record, so the purge goes as far as the history.
+        // An export of each store on record, so the purge goes as far as the history.
         let exported = Date().timeIntervalSince1970
-        defaults.store.set(exported, forKey: UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate)
+        for store in stores.container.persistentStoreCoordinator.persistentStores {
+            PersistentHistoryProcessor.recordExportStart(
+                Date(timeIntervalSince1970: exported), storeIdentifier: store.identifier, defaults: defaults.store
+            )
+        }
         let processor = try makeProcessor(over: stores, keepingIn: defaults)
 
         await processor.purgeOldHistory()

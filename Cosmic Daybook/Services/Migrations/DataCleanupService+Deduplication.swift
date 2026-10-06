@@ -55,7 +55,9 @@ nonisolated extension DataCleanupService {
     /// opposite copies and each delete the other's, and both deletes sync (Apple's
     /// dedup guidance: pick the winner by a globally unique key so "all peers
     /// eventually reserve the same" record). Ordering:
-    /// 1. Earliest `createdAt`, matching the draft-assignment dedup precedent above.
+    /// 1. Earliest `createdAt` to the whole millisecond (`millisecondKey`), matching
+    ///    the draft-assignment dedup precedent above. CloudKit keeps milliseconds, so
+    ///    the device that made a record and every other device read it the same.
     /// 2. Lowest CloudKit record name — the same for a given record on every device.
     ///    A synced record outranks a local-only copy.
     /// 3. Object URI, reached only when neither record has been exported yet — such
@@ -66,26 +68,11 @@ nonisolated extension DataCleanupService {
         container: NSPersistentCloudKitContainer?
     ) -> Bool {
         if lhs.entity.attributesByName["createdAt"] != nil {
-            let lhsDate = lhs.value(forKey: "createdAt") as? Date ?? .distantFuture
-            let rhsDate = rhs.value(forKey: "createdAt") as? Date ?? .distantFuture
+            let lhsDate = millisecondKey(lhs.value(forKey: "createdAt") as? Date) ?? .max
+            let rhsDate = millisecondKey(rhs.value(forKey: "createdAt") as? Date) ?? .max
             if lhsDate != rhsDate { return lhsDate < rhsDate }
         }
-
-        let lhsName = container?.recordID(for: lhs.objectID)?.recordName
-        let rhsName = container?.recordID(for: rhs.objectID)?.recordName
-        switch (lhsName, rhsName) {
-        case let (.some(lhsRecord), .some(rhsRecord)) where lhsRecord != rhsRecord:
-            return lhsRecord < rhsRecord
-        case (.some, .none):
-            return true
-        case (.none, .some):
-            return false
-        default:
-            break
-        }
-
-        return lhs.objectID.uriRepresentation().absoluteString
-            < rhs.objectID.uriRepresentation().absoluteString
+        return recordNameThenURIPrecedes(lhs, rhs, container: container)
     }
 
     /// Generic deduplication for any NSManagedObject with an id property.
@@ -132,25 +119,34 @@ nonisolated extension DataCleanupService {
         }
 
         var deletedCount = 0
-
         for (_, items) in byID where items.count > 1 {
-            // A record moving out of the classroom share has a copy on each side until
-            // the move finishes; deleting either here could leave none (DedupShareBoundary).
-            if DedupShareBoundary.spansShare(items, container: container) { continue }
-            let ordered = items.sorted { precedesAsCanonical($0, $1, container: container) }
-            guard let canonical = ordered.first else { continue }
-            for duplicate in ordered.dropFirst() {
-                merge?(canonical, duplicate)
-                context.delete(duplicate)
-                deletedCount += 1
-            }
+            deletedCount += foldSameID(items, container: container, in: context, merge: merge)
         }
 
-        if deletedCount > 0 {
-            context.safeSave()
-        }
+        guard deletedCount > 0 else { return 0 }
+        return saveFolds(in: context) ? deletedCount : 0
+    }
 
-        return deletedCount
+    /// Folds one id's copies into the canonical one and deletes the rest; returns
+    /// how many went (none for a group the cleanup must leave alone).
+    private static func foldSameID<T: NSManagedObject>(
+        _ items: [T],
+        container: NSPersistentCloudKitContainer?,
+        in context: NSManagedObjectContext,
+        merge: ((T, T) -> Void)?
+    ) -> Int {
+        // A record moving out of the classroom share has a copy on each side until
+        // the move finishes; deleting either here could leave none (DedupShareBoundary).
+        if DedupShareBoundary.spansShare(items, container: container) { return 0 }
+        // No copy in iCloud yet: no record name to agree on (DedupSyncState).
+        if DedupSyncState.noCopySent(items, container: container) { return 0 }
+        let ordered = items.sorted { precedesAsCanonical($0, $1, container: container) }
+        guard let canonical = ordered.first else { return 0 }
+        for duplicate in ordered.dropFirst() {
+            merge?(canonical, duplicate)
+            context.delete(duplicate)
+        }
+        return ordered.count - 1
     }
 
     /// IDs that appear on more than one row of `type`, found by reading just the
@@ -192,7 +188,14 @@ nonisolated extension DataCleanupService {
     // MARK: - NSSet Merge Helper
 
     /// Merges NSSet-based to-many relationships from source into destination.
-    /// Re-parents each child by calling the setter, and adds to canonical's set.
+    /// Re-parents every child by calling the setter, and adds it to canonical's set.
+    ///
+    /// Every child moves, including one whose id the survivor already has: left
+    /// on the dropped parent, it was deleted with it by the cascade, taking a
+    /// subtask ticked on that copy, a check-in's notes or a track's steps
+    /// (2026-10-05 review). Two children with one id are then both on the
+    /// survivor, and the child type's own id pass folds them, merging what each
+    /// carries. `existingIDs` still collects the ids seen, for callers that read it.
     static func mergeNSSetRelationship<T: NSManagedObject>(
         from source: NSSet?,
         addTo canonical: NSManagedObject,
@@ -203,11 +206,9 @@ nonisolated extension DataCleanupService {
         guard let sourceSet = source as? Set<T>, !sourceSet.isEmpty else { return }
         let mutableSet = canonical.mutableSetValue(forKey: relationshipKey)
         for item in sourceSet {
-            let itemID = item.value(forKey: "id") as? UUID ?? UUID()
-            if existingIDs.insert(itemID).inserted {
-                setter(item)
-                mutableSet.add(item)
-            }
+            if let itemID = item.value(forKey: "id") as? UUID { existingIDs.insert(itemID) }
+            setter(item)
+            mutableSet.add(item)
         }
     }
 
@@ -231,13 +232,19 @@ nonisolated extension DataCleanupService {
     ///
     /// Pass the owning `NSPersistentCloudKitContainer` whenever it is available:
     /// it lets survivor selection fall back to the CloudKit record name so every
-    /// synced device converges on the same canonical record.
+    /// synced device converges on the same canonical record. A notebook whose
+    /// stores opened without iCloud has no record names at all, so nothing is
+    /// folded there (`DedupSyncState`, bug hunt 2026-10-05 #20).
     @discardableResult
     static func deduplicateAllModels(
         using context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer? = nil,
         scope: DeduplicationScope = .everything
     ) -> [String: Int] {
+        guard DedupSyncState.mayDeduplicate(container: container) else {
+            logger.notice("Skipped the duplicate cleanup: iCloud sync is off, so no copy is known to be the one kept")
+            return [:]
+        }
         // Every step is gated on `scope` inside `deduplicate`; the two name-based
         // merges are gated on the entity they read.
         var results = curriculumDuplicates(in: context, container: container, scope: scope)
@@ -309,7 +316,7 @@ nonisolated extension DataCleanupService {
         )
 
         // CDProject models
-        results["Project"] = deduplicate(CDProject.self, using: context, container: c, scope: s)
+        results["Project"] = deduplicate(CDProject.self, using: context, container: c, scope: s, merge: mergeProject)
         results["ProjectRole"] = deduplicate(CDProjectRole.self, using: context, container: c, scope: s)
         results["ProjectSession"] = deduplicate(
             CDProjectSession.self, using: context, container: c, scope: s, merge: mergeProjectSession
@@ -318,7 +325,7 @@ nonisolated extension DataCleanupService {
         // deduplication removed — these entities are deprecated
 
         // CDTrackEntity models
-        results["Track"] = deduplicate(CDTrackEntity.self, using: context, container: c, scope: s)
+        results["Track"] = deduplicate(CDTrackEntity.self, using: context, container: c, scope: s, merge: mergeTrack)
         // One title defined twice under two ids — see +TrackTitleMerge.
         if s.includes(CDTrackEntity.self) {
             results["Track (same title)"] = mergeSameTitleTracks(using: context, container: c)
@@ -357,7 +364,9 @@ nonisolated extension DataCleanupService {
         results["SchoolDayOverride"] = deduplicate(CDSchoolDayOverride.self, using: context, container: c, scope: s)
 
         // Community models
-        results["CommunityTopic"] = deduplicate(CDCommunityTopicEntity.self, using: context, container: c, scope: s)
+        results["CommunityTopic"] = deduplicate(
+            CDCommunityTopicEntity.self, using: context, container: c, scope: s, merge: mergeCommunityTopic
+        )
         results["ProposedSolution"] = deduplicate(
             CDProposedSolutionEntity.self, using: context, container: c, scope: s
         )
@@ -369,7 +378,7 @@ nonisolated extension DataCleanupService {
         results["Reminder"] = deduplicate(
             CDReminder.self, using: context, container: c, scope: s, merge: mergeReminder
         )
-        results["TodoItem"] = deduplicate(CDTodoItem.self, using: context, container: c, scope: s)
+        results["TodoItem"] = deduplicate(CDTodoItem.self, using: context, container: c, scope: s, merge: mergeTodoItem)
         results["TodoSubtask"] = deduplicate(CDTodoSubtask.self, using: context, container: c, scope: s)
         return results
     }

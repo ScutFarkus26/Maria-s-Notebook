@@ -41,10 +41,11 @@ nonisolated public class CDReminder: NSManagedObject {
 // MARK: - Computed Properties
 
 nonisolated extension CDReminder {
-    /// Mark this reminder as completed
+    /// Mark this reminder as completed, at the moment it was done (not the
+    /// start of its day: two completions on one day are two moments).
     func markCompleted() {
         self.isCompleted = true
-        self.completedAt = AppCalendar.shared.startOfDay(for: Date())
+        self.completedAt = Date()
         self.updatedAt = Date()
     }
 

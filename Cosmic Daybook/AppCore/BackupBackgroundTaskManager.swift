@@ -25,8 +25,10 @@ enum BackupBackgroundTaskManager {
     private static let logger = Logger.backup
 
     /// Registers the launch handler. Must run before the app finishes
-    /// launching — called from `CosmicDaybookApp.init()`.
-    static func register(dependencies: AppDependencies, coreDataStack: CoreDataStack) {
+    /// launching — called from `CosmicDaybookApp.init()`, before the
+    /// notebook's stores have opened, so the handler waits for them through
+    /// `notebook`.
+    static func register(notebook: @escaping @MainActor () async -> OpenNotebook) {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: taskIdentifier,
             using: .main
@@ -37,7 +39,7 @@ enum BackupBackgroundTaskManager {
                     task.setTaskCompleted(success: false)
                     return
                 }
-                handle(processingTask, dependencies: dependencies, coreDataStack: coreDataStack)
+                handle(processingTask, notebook: notebook)
             }
         }
     }
@@ -74,18 +76,21 @@ enum BackupBackgroundTaskManager {
 
     private static func handle(
         _ task: BGProcessingTask,
-        dependencies: AppDependencies,
-        coreDataStack: CoreDataStack
+        notebook: @escaping @MainActor () async -> OpenNotebook
     ) {
         task.expirationHandler = startWork({
             // Keep the chain alive for the next opportunity.
             await schedule()
+            let opened = await notebook()
+            // Never back up the empty stand-in behind the error screen: a
+            // newest empty backup would push a real one out of the ten kept.
+            guard AppBootstrapping.initError == nil else { return }
             // The overnight window ignores the scene-phase gap (it is 12 h
             // apart anyway) but still waits out a hot device; ask again in an
             // hour rather than twelve when it did. When iPadOS ends the task
             // early the export stops between record types and writes nothing.
-            let outcome = await dependencies.autoBackupManager.performBackgroundBackup(
-                viewContext: coreDataStack.viewContext,
+            let outcome = await opened.dependencies.autoBackupManager.performBackgroundBackup(
+                viewContext: opened.coreDataStack.viewContext,
                 enforcingMinimumGap: false,
                 stopsWhenCancelled: true
             )

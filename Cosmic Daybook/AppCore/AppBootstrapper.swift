@@ -84,8 +84,13 @@ final class AppBootstrapper {
         state = .ready
         LaunchSignposts.event("UIReady")
 
-        // 5.5. Initialize post-sync deduplication coordinator
-        DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
+        // 5.5. Initialize post-sync deduplication coordinator — in the one copy
+        // of the app that had the store files to itself at launch. A second copy
+        // (the Mac can run several) leaves duplicate cleanup and the launch
+        // repairs to that one, so two copies never fold the same rows.
+        if CoreDataStack.isPrimaryProcess {
+            DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
+        }
 
         // 5.6. Start the orphan guard, which puts each classroom record this
         // device creates into the classroom share as it is saved.
@@ -114,6 +119,26 @@ final class AppBootstrapper {
         BuiltInTemplateSeeder.seedIfNeeded(context: context)
     }
 
+    /// A second copy of the app (the Mac can run several) takes over duplicate
+    /// cleanup and sharing new classroom records once it has the store files
+    /// to itself: the copy that had that job has quit. Primary was otherwise
+    /// decided once, at launch, so relaunching the installed app beside a
+    /// Debug run left it a second copy all day (2026-10-05 review).
+    static func takeOverIfAlone(coreDataStack: CoreDataStack) {
+        guard CoreDataStack.isSecondaryProcess, CoreDataStack.promoteToPrimaryIfAlone() else { return }
+        logger.notice("The other copy of the app has quit: this one now runs duplicate cleanup and shares new records")
+        DeduplicationCoordinator.shared.persistentContainer = coreDataStack.container
+        SharedStoreOrphanGuard.shared.flushPendingIfPossible()
+    }
+
+    /// When the launch counts the notebook as caught up with iCloud without
+    /// an import: now, when iCloud sync is turned off (nothing is on its way
+    /// down); otherwise nil, and each store's import watermark decides, even
+    /// when CloudKit failed to start this launch.
+    nonisolated static func caughtUpWithoutImports(syncPreferred: Bool, now: Date = Date()) -> Date? {
+        syncPreferred ? nil : now
+    }
+
     private static func runPostLaunchMigrations(coreDataStack: CoreDataStack) async {
         let start = Date()
         let migrations = LaunchSignposts.begin("PostLaunchMigrations")
@@ -136,38 +161,64 @@ final class AppBootstrapper {
         // this sequence as before, but no longer on the view context.
         let includeIntegrityRepairs = Int.random(in: 1...10) == 1
 
-        await MigrationRunner.runIfNeeded(
-            coreDataStack: coreDataStack, includeIntegrityRepairs: includeIntegrityRepairs
-        )
+        // The orphan graces act on a missing student or work row only once an
+        // import from iCloud that began after it went missing has finished
+        // (`ImportWatermark`). Read here, on the main actor, and handed to the
+        // background pass as plain dates. With iCloud sync turned off nothing
+        // is on its way down, so the notebook counts as caught up now and only
+        // the day of grace applies. Not when sync is on but CloudKit didn't
+        // start this launch: everything still to come is then on its way, and
+        // a missing row must keep waiting (2026-10-05 review).
+        let caughtUpNow = caughtUpWithoutImports(syncPreferred: CoreDataStack.syncPreferred(in: .standard))
+        let notebookImport = caughtUpNow ?? ImportWatermark.lastImport(into: .notebook, of: coreDataStack)
+        let shareImport = caughtUpNow ?? ImportWatermark.lastImport(into: .classroomShare, of: coreDataStack)
+        let lastImport: @Sendable (ImportStoreKind) -> Date? = { kind in
+            switch kind {
+            case .privateStore: return notebookImport
+            case .sharedStore: return shareImport
+            }
+        }
+        if CoreDataStack.isPrimaryProcess {
+            await MigrationRunner.runIfNeeded(
+                coreDataStack: coreDataStack,
+                includeIntegrityRepairs: includeIntegrityRepairs,
+                lastImport: lastImport
+            )
+        } else {
+            logger.notice("Post-launch: another copy of the app runs the launch repairs")
+        }
 
         // Drop the Claude/OpenAI API keys and model choices the Apple-only AI
-        // change left on this device. Once per device; retried if the
-        // Keychain refuses.
-        RetiredAIKeysCleanup.runIfNeeded()
+        // change left on this device. Once per device, off the main thread;
+        // retried if the Keychain refuses, for up to three launches.
+        await RetiredAIKeysCleanup.runOffMainThread()
 
-        // Locked attendance days moved from an iCloud setting to shared lock
-        // records (schema 9); carry this device's old ones over, once.
-        AttendanceDayLocks.migrateStoredLegacyKeysIfNeeded(in: coreDataStack.viewContext)
+        // The one-time steps below write on the view context and save as one
+        // batch; their done flags count only once that batch has saved.
+        let viewContext = coreDataStack.viewContext
+        runLaunchBatch(
+            in: viewContext,
+            oneShotFlags: [UserDefaultsKeys.attendanceLocksCarriedOver, UserDefaultsKeys.restockLevelsFromCounts]
+        ) {
+            // Locked attendance days moved from an iCloud setting to shared lock
+            // records (schema 9); carry this device's old ones over, once.
+            AttendanceDayLocks.migrateStoredLegacyKeysIfNeeded(in: viewContext)
 
-        // Staples kept as counts before Restock's levels (schema 15) get a level
-        // from their count, once, on the Mac only: an iPad that hadn't caught up
-        // with the Mac could set a staple restocked there back to Out. On the view
-        // context, so the needs it opens join the classroom share when the batch
-        // below saves.
-        #if os(macOS)
-        RestockLevelBackfill.runIfNeeded(in: coreDataStack.viewContext)
-        #endif
+            // Staples kept as counts before Restock's levels (schema 15) get a level
+            // from their count, once, on the Mac only: an iPad that hadn't caught up
+            // with the Mac could set a staple restocked there back to Out. On the view
+            // context, so the needs it opens join the classroom share when the batch
+            // saves.
+            #if os(macOS)
+            RestockLevelBackfill.runIfNeeded(in: viewContext)
+            #endif
 
-        // The front-desk email's settings travel to the assistants in the
-        // classroom share (schema 12); this device's may have changed on
-        // another of the guide's devices since the last launch.
-        AttendanceEmail.shareSettings(in: coreDataStack.viewContext)
-
-        // Save all migration changes in one batch to minimize store coordinator changes
-        if coreDataStack.viewContext.hasChanges {
-            if coreDataStack.viewContext.safeSave() {
-                logger.info("Post-launch migrations: saved all changes successfully")
-            }
+            // The front-desk email's settings travel to the assistants in the
+            // classroom share (schema 12). Written here only when the share has
+            // none yet; after that only the settings screen's edits change them.
+            // This device's preferences may not have caught up with an edit made
+            // on another of the guide's devices.
+            AttendanceEmail.shareSettingsIfMissing(in: viewContext)
         }
 
         // Classroom records this device created before the classroom share's
@@ -205,6 +256,55 @@ final class AppBootstrapper {
         let searchIndex = LaunchSignposts.begin("SearchIndexRebuild")
         await SearchIndexService.shared.refresh(container: coreDataStack.container)
         LaunchSignposts.end("SearchIndexRebuild", searchIndex)
+    }
+
+    /// Runs the launch's one-time view-context steps and saves what they
+    /// changed as one batch (with whatever else the view context holds, as
+    /// before). Returns whether the batch saved.
+    ///
+    /// `oneShotFlags` are the steps' done flags: the steps set them as they
+    /// run, and they are held back and set only once the save has gone
+    /// through. If the save fails, only what the steps changed is undone: rows
+    /// they added are dropped and rows they changed go back to their saved
+    /// values, so one bad row doesn't stay behind to fail every later save of
+    /// the view context, and the guide's unsaved edits aren't rolled back with
+    /// it. Their flags stay as they were, so the steps run again next launch
+    /// (2026-10-05). The steps only insert and update.
+    @discardableResult
+    static func runLaunchBatch(
+        in context: NSManagedObjectContext,
+        oneShotFlags: [String],
+        defaults: UserDefaults = .standard,
+        steps: () -> Void
+    ) -> Bool {
+        context.processPendingChanges()
+        let pendingBefore = context.insertedObjects.union(context.updatedObjects).union(context.deletedObjects)
+        let flagsBefore = oneShotFlags.map { ($0, defaults.object(forKey: $0)) }
+        steps()
+        context.processPendingChanges()
+        let flagsAfter = oneShotFlags.map { ($0, defaults.object(forKey: $0)) }
+        for (key, value) in flagsBefore {
+            defaults.set(value, forKey: key)
+        }
+        let inserted = context.insertedObjects.subtracting(pendingBefore)
+        let changed = context.updatedObjects.union(context.deletedObjects).subtracting(pendingBefore)
+
+        guard !context.hasChanges || context.safeSave() else {
+            for object in inserted {
+                context.delete(object)
+            }
+            for object in changed {
+                context.refresh(object, mergeChanges: false)
+            }
+            context.processPendingChanges()
+            let undone = inserted.count + changed.count
+            logger.error("Post-launch migrations: the batch didn't save; undid \(undone) row(s), will retry")
+            return false
+        }
+        for (key, value) in flagsAfter {
+            defaults.set(value, forKey: key)
+        }
+        return true
     }
 
     private static func formatSeconds(_ interval: TimeInterval) -> String {

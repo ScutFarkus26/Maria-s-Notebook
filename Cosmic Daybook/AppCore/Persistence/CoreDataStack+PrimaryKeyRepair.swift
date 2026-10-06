@@ -25,7 +25,7 @@ import SQLite3
 // always safe. A higher counter only skips keys, and gaps in `Z_PK` are
 // normal after any delete.
 
-extension CoreDataStack {
+nonisolated extension CoreDataStack {
     private static let primaryKeyLogger = Logger.coreDataPrimaryKeyRepair
 
     /// One counter that was behind its table, and where it was moved to.

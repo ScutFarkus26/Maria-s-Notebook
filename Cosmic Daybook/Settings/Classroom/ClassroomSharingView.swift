@@ -34,6 +34,9 @@ struct ClassroomSharingView: View {
             shareStatusCard
             if service?.currentRole == .leadGuide, service?.isSharing == true {
                 ClassroomLastYearCard(contents: contents) { await refreshContents() }
+                if ClassroomAttendanceCatchUp.isAvailableHere {
+                    ClassroomAttendanceCatchUpCard { await refreshContents() }
+                }
             }
             roleGroup
             if service?.currentRole == .leadGuide {

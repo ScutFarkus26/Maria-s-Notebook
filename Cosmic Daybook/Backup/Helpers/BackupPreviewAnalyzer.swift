@@ -85,6 +85,10 @@ enum BackupPreviewAnalyzer {
             let registryName = BackupEntityRegistry.entityName(for: type)
             guard !BackupEntityRegistry.notYetBackedUpEntityNames.contains(registryName) else { continue }
             let key = displayName(forEntityTypeName: registryName)
+            // Types the restore leaves as they are (this device's pin, the
+            // mirrored Apple reminders and events) are neither cleared nor
+            // restored, so the consent numbers don't count them.
+            guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(key) else { continue }
             assign(key, insertCounts[key] ?? 0, 0, existingCount(of: type, model: model, in: viewContext))
         }
 

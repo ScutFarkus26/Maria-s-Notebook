@@ -107,7 +107,7 @@ nonisolated extension DataCleanupService {
         guard !groups.isEmpty else { return 0 }
 
         var removed: Int = 0
-        for group in groups {
+        for group in groups where !DedupSyncState.noCopySent(group, container: container) {
             let ordered: [CDLesson] = group.sorted { (lhs: CDLesson, rhs: CDLesson) -> Bool in
                 olderLessonPrecedes(lhs, rhs, container: container)
             }
@@ -115,7 +115,7 @@ nonisolated extension DataCleanupService {
             for duplicate in ordered.dropFirst() {
                 let summary: String = "\"\(duplicate.name)\" in \(duplicate.area) › \(duplicate.sequence) "
                     + "into \(canonical.id?.uuidString ?? "?")"
-                merge(duplicate: duplicate, into: canonical, in: context)
+                merge(duplicate: duplicate, into: canonical, container: container, in: context)
                 removed += 1
                 logger.info("Folded duplicate lesson \(summary, privacy: .public)")
             }
@@ -150,8 +150,8 @@ nonisolated extension DataCleanupService {
             return lhs.sortIndex < rhs.sortIndex
         }
 
-        let lhsName = container?.recordID(for: lhs.objectID)?.recordName
-        let rhsName = container?.recordID(for: rhs.objectID)?.recordName
+        let lhsName = DedupSyncState.recordName(of: lhs.objectID, container: container)
+        let rhsName = DedupSyncState.recordName(of: rhs.objectID, container: container)
         if let lhsName, let rhsName, lhsName != rhsName {
             return lhsName < rhsName
         }
@@ -163,7 +163,12 @@ nonisolated extension DataCleanupService {
 
     /// Moves everything that names `duplicate` onto `canonical`, fills the
     /// survivor's empty fields from the duplicate, and deletes the duplicate.
-    static func merge(duplicate: CDLesson, into canonical: CDLesson, in context: NSManagedObjectContext) {
+    static func merge(
+        duplicate: CDLesson,
+        into canonical: CDLesson,
+        container: NSPersistentCloudKitContainer? = nil,
+        in context: NSManagedObjectContext
+    ) {
         guard duplicate !== canonical, !duplicate.isDeleted else { return }
         mergeLesson(canonical: canonical, duplicate: duplicate)
         if !canonical.isKeyLesson, duplicate.isKeyLesson { canonical.isKeyLesson = true }
@@ -178,22 +183,21 @@ nonisolated extension DataCleanupService {
         ] where canonical[keyPath: field].trimmed().isEmpty {
             canonical[keyPath: field] = duplicate[keyPath: field]
         }
-
-        for attachment in (duplicate.attachments?.allObjects as? [CDLessonAttachment]) ?? [] {
-            attachment.lesson = canonical
-        }
-        for sampleWork in (duplicate.sampleWorks?.allObjects as? [CDSampleWork]) ?? [] {
-            sampleWork.lesson = canonical
-        }
+        // `mergeLesson` has moved the attachments and sample works.
 
         if let duplicateID = duplicate.id, let canonicalID = canonical.id {
-            repointLessonReferences(from: duplicateID, to: canonicalID, in: context)
+            repointLessonReferences(from: duplicateID, to: canonicalID, container: container, in: context)
         }
         context.delete(duplicate)
     }
 
     /// Every record that keys a lesson by its id string, moved from `old` to `new`.
-    static func repointLessonReferences(from old: UUID, to new: UUID, in context: NSManagedObjectContext) {
+    static func repointLessonReferences(
+        from old: UUID,
+        to new: UUID,
+        container: NSPersistentCloudKitContainer? = nil,
+        in context: NSManagedObjectContext
+    ) {
         let oldID = old.uuidString
         let newID = new.uuidString
 
@@ -214,8 +218,8 @@ nonisolated extension DataCleanupService {
         }
         repointLessonLinks(from: oldID, to: newID, in: context)
         repointTrackSteps(from: old, to: new, in: context)
-        repointMarks(from: oldID, to: newID, in: context)
-        repointYearPlanEntries(from: oldID, to: newID, in: context)
+        repointMarks(from: oldID, to: newID, container: container, in: context)
+        repointYearPlanEntries(from: oldID, to: newID, container: container, in: context)
     }
 
     /// The lesson-to-lesson, resource and story links, which hold ids singly
@@ -245,9 +249,15 @@ nonisolated extension DataCleanupService {
 
     /// Mastery and presentation marks (`CDLessonPresentation`) move to the
     /// survivor. A child who then holds two marks for one lesson from the same
-    /// presentation keeps the earlier one, carrying forward any mastery or
-    /// observation date the later one recorded.
-    private static func repointMarks(from oldID: String, to newID: String, in context: NSManagedObjectContext) {
+    /// presentation keeps one, chosen by identity (`identityPrecedes`) so every
+    /// device keeps the same one whatever it has seen (bug hunt 2026-10-05,
+    /// #40), with what the other recorded folded onto it: the earlier
+    /// presentation, the further state, and the dates, notes and follow-up
+    /// `mergeLessonPresentation` carries.
+    private static func repointMarks(
+        from oldID: String, to newID: String,
+        container: NSPersistentCloudKitContainer?, in context: NSManagedObjectContext
+    ) {
         let moved = fetch(CDLessonPresentation.self, where: "lessonID == %@", oldID, in: context)
         guard !moved.isEmpty else { return }
         for mark in moved { mark.lessonID = newID }
@@ -255,24 +265,42 @@ nonisolated extension DataCleanupService {
         let all = fetch(CDLessonPresentation.self, where: "lessonID == %@", newID, in: context)
         let byChild = Dictionary(grouping: all) { "\($0.studentID)|\($0.presentationID ?? "")" }
         for marks in byChild.values where marks.count > 1 {
-            let ordered = marks.sorted { ($0.createdAt ?? .distantFuture) < ($1.createdAt ?? .distantFuture) }
+            let ordered = marks.sorted { identityPrecedes($0, $1, container: container) }
             guard let keeper = ordered.first else { continue }
             for extra in ordered.dropFirst() {
-                if keeper.presentedAt == nil { keeper.presentedAt = extra.presentedAt }
-                if keeper.masteredAt == nil { keeper.masteredAt = extra.masteredAt }
-                if keeper.lastObservedAt == nil { keeper.lastObservedAt = extra.lastObservedAt }
-                if (keeper.notes ?? "").trimmed().isEmpty { keeper.notes = extra.notes }
+                if let presented = extra.presentedAt, presented < (keeper.presentedAt ?? .distantFuture) {
+                    keeper.presentedAt = presented
+                }
+                if let further = progress(extra.stateRaw), let kept = progress(keeper.stateRaw), further > kept {
+                    keeper.stateRaw = extra.stateRaw
+                }
+                mergeLessonPresentation(canonical: keeper, duplicate: extra)
                 context.delete(extra)
             }
         }
     }
 
+    /// How far a mark's state has gone; nil for one this build doesn't know,
+    /// which is left as it is.
+    private static func progress(_ stateRaw: String) -> Int? {
+        switch LessonPresentationState(rawValue: stateRaw) {
+        case .presented: return 0
+        case .practicing: return 1
+        case .readyForAssessment: return 2
+        case .proficient: return 3
+        case nil: return nil
+        }
+    }
+
     /// Year-plan entries move to the survivor, and a child left with two
-    /// entries for one lesson keeps one: a promoted entry (a presentation was
-    /// scheduled from it) over a planned one, and planned over skipped — a
-    /// guide who noticed the double and skipped one copy meant the other.
+    /// entries for one lesson keeps one, chosen by identity (#40). It takes the
+    /// plan of the entry that reads as the child's: a promoted entry (a
+    /// presentation was scheduled from it) over a planned one, and planned
+    /// over skipped — a guide who noticed the double and skipped one copy meant
+    /// the other.
     private static func repointYearPlanEntries(
-        from oldID: String, to newID: String, in context: NSManagedObjectContext
+        from oldID: String, to newID: String,
+        container: NSPersistentCloudKitContainer?, in context: NSManagedObjectContext
     ) {
         let moved = fetch(CDYearPlanEntry.self, where: "lessonID == %@", oldID, in: context)
         guard !moved.isEmpty else { return }
@@ -281,16 +309,38 @@ nonisolated extension DataCleanupService {
         let all = fetch(CDYearPlanEntry.self, where: "lessonID == %@", newID, in: context)
         let byChild = Dictionary(grouping: all, by: \.studentID)
         for entries in byChild.values where entries.count > 1 {
-            let ordered = entries.sorted { lhs, rhs in
-                let lhsRank = yearPlanKeepRank(lhs.status)
-                let rhsRank = yearPlanKeepRank(rhs.status)
-                if lhsRank != rhsRank { return lhsRank < rhsRank }
-                return (lhs.createdAt ?? .distantFuture) < (rhs.createdAt ?? .distantFuture)
-            }
+            let ordered = entries.sorted { identityPrecedes($0, $1, container: container) }
+            guard let keeper = ordered.first else { continue }
+            if let plan = ordered.min(by: planReadsFirst), plan !== keeper { copyPlan(from: plan, onto: keeper) }
             for extra in ordered.dropFirst() {
                 context.delete(extra)
             }
         }
+    }
+
+    /// Whether `lhs` is the entry the child's plan reads as, over `rhs`: by
+    /// `yearPlanKeepRank`, then the latest change (a re-planned date on one
+    /// copy beats the other's older one; 2026-10-05 review), then the earlier
+    /// creation, to the millisecond.
+    private static func planReadsFirst(_ lhs: CDYearPlanEntry, _ rhs: CDYearPlanEntry) -> Bool {
+        let lhsRank = yearPlanKeepRank(lhs.status)
+        let rhsRank = yearPlanKeepRank(rhs.status)
+        if lhsRank != rhsRank { return lhsRank < rhsRank }
+        let lhsChanged = millisecondKey(lhs.modifiedAt) ?? .min
+        let rhsChanged = millisecondKey(rhs.modifiedAt) ?? .min
+        if lhsChanged != rhsChanged { return lhsChanged > rhsChanged }
+        return (millisecondKey(lhs.createdAt) ?? .max) < (millisecondKey(rhs.createdAt) ?? .max)
+    }
+
+    /// The plan an entry holds, onto the kept one; `modifiedAt` only moves forward.
+    private static func copyPlan(from plan: CDYearPlanEntry, onto keeper: CDYearPlanEntry) {
+        keeper.statusRaw = plan.statusRaw
+        keeper.promotedAssignmentID = plan.promotedAssignmentID
+        keeper.plannedDate = plan.plannedDate
+        keeper.spacingSchoolDays = plan.spacingSchoolDays
+        keeper.sequenceGroupKey = plan.sequenceGroupKey
+        keeper.orderInSequence = plan.orderInSequence
+        if let stamp = plan.modifiedAt, stamp > (keeper.modifiedAt ?? .distantPast) { keeper.modifiedAt = stamp }
     }
 
     private static func yearPlanKeepRank(_ status: YearPlanEntryStatus) -> Int {

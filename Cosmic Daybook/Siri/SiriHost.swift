@@ -14,8 +14,12 @@ import UIKit
 
 @MainActor
 enum SiriHost {
-    static func stack() throws -> CoreDataStack {
-        AppBootstrapping.getSharedCoreDataStack()
+    /// The notebook, once its stores are open. An intent can launch the app
+    /// in the background while they're still opening (off the main thread),
+    /// so this waits for them, no longer than an intent may, and throws when
+    /// they couldn't be opened (`AppBootstrapping.sharedCoreDataStackForIntent`).
+    static func stack() async throws -> CoreDataStack {
+        try await AppBootstrapping.sharedCoreDataStackForIntent()
     }
 
     /// What Siri says when the notebook can't be opened (the raw error is logged).
@@ -75,7 +79,11 @@ enum SiriHost {
         !SchoolDayChecker.isNonSchoolDay(day, using: context)
     }
 
-    /// Nothing to do: `SharedStoreOrphanGuard` files the guide's new records
-    /// into the classroom share from the save itself.
-    static func didSave(created: [NSManagedObjectID], in stack: CoreDataStack) async {}
+    /// The guide's new records go into the classroom share through
+    /// `SharedStoreOrphanGuard`, whose save observer the window bootstrap
+    /// starts. An intent run in the background brings up no window, so this
+    /// starts it, queues the records and waits for the pass (2026-10-05 hunt, #2).
+    static func didSave(created: [NSManagedObjectID], in stack: CoreDataStack) async {
+        await SharedStoreOrphanGuard.shared.siriDidSave(created: created, in: stack)
+    }
 }

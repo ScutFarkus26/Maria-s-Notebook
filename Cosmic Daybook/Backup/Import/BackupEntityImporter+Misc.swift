@@ -38,7 +38,8 @@ extension BackupEntityImporter {
             note.needsFollowUp = dto.needsFollowUp ?? false
             note.imagePath = dto.imagePath
             note.isPinned = dto.isPinned
-            note.includeInReport = dto.includeInReport ?? false
+            // A row from before the flag (v19) has none: a note already here keeps its own.
+            if let include = dto.includeInReport { note.includeInReport = include }
             note.reportedBy = dto.reportedBy
             note.reporterName = dto.reporterName
             note.communityTopicID = dto.communityTopicID
@@ -74,7 +75,11 @@ extension BackupEntityImporter {
     /// target type is in the store, and wires them up by id. It gets only the
     /// notes that point at something (`BackupNoteLinks`), so the notes' rows
     /// need not be kept until the end of the restore.
-    static func relinkNoteRelationships(_ notes: [BackupNoteLinks], index: BackupEntityIndex) throws {
+    /// Returns how many notes name a reminder this device doesn't have and
+    /// weren't already linked to one.
+    @discardableResult
+    static func relinkNoteRelationships(_ notes: [BackupNoteLinks], index: BackupEntityIndex) throws -> Int {
+        var missingReminder = 0
         for links in notes {
             guard let note = try index.related(CDNote.self, id: links.noteID) else { continue }
             if let id = links.workID {
@@ -100,8 +105,12 @@ extension BackupEntityImporter {
             if let id = links.projectSessionID {
                 note.projectSession = try index.related(CDProjectSession.self, id: id)
             }
+            // Reminders aren't restored (the device's EventKit copies stay as
+            // they are), so a reminder the backup names but this device lacks
+            // leaves the note's link alone rather than clearing it.
             if let id = links.reminderID {
-                note.reminder = try index.related(CDReminder.self, id: id)
+                note.reminder = try index.related(CDReminder.self, id: id) ?? note.reminder
+                if note.reminder == nil { missingReminder += 1 }
             }
             if let id = links.practiceSessionID {
                 note.practiceSession = try index.related(CDPracticeSession.self, id: id)
@@ -110,6 +119,7 @@ extension BackupEntityImporter {
                 note.issue = try index.related(CDIssue.self, id: id)
             }
         }
+        return missingReminder
     }
 
     // MARK: - CDNote Templates

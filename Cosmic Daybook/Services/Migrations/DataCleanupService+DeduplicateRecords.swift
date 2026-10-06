@@ -21,19 +21,18 @@ nonisolated extension DataCleanupService {
     ///
     /// Unlike the generic id-based `deduplicate(_:)`, this collapses records that
     /// represent the *same logical fact* — one student's attendance on one calendar
-    /// day — even when they carry different `id` UUIDs. Repeated CloudKit re-imports
-    /// can create several such rows (each a distinct CloudKit record) for a single
-    /// student/day, which the id-based pass cannot detect because every row has a
-    /// unique id.
+    /// day — even when they carry different `id` UUIDs. Two devices marking the same
+    /// day before syncing each create their own record, which the id-based pass
+    /// cannot detect because every row has a unique id.
     ///
-    /// For each (studentID, day) group it keeps the ``AttendanceDeduplication/wins(_:over:)``
-    /// winner — the same deterministic ordering the read-side `deduplicatedPerStudentDay()`
-    /// uses, so the record the grid was already showing is the one that survives —
-    /// folds any real attendance mark (non-`unmarked` status + absence reason) from
-    /// the duplicates into the survivor so nothing is lost, re-points the
-    /// duplicates' notes to the survivor (the `notes` relationship is Cascade-delete,
-    /// so moving them first prevents note loss), then deletes the duplicates. The
-    /// context-level deletes produce proper CloudKit delete tombstones.
+    /// For each (studentID, day) group the copy kept is chosen by identity
+    /// (`identityPrecedes`: the lowest id string), the same on every device whatever
+    /// edits it has seen. Chosen by content, a device that hadn't yet seen an edit
+    /// kept the copy another device deleted, and both deletes synced (bug hunt
+    /// 2026-10-05, #1). The ``AttendanceDeduplication/wins(_:over:)`` winner, the
+    /// record the grid shows, gives the kept copy its mark (`foldMark`); the day's
+    /// notes and planned pickup are read across every copy, and private notes still
+    /// linked by id follow. The context-level deletes produce CloudKit tombstones.
     @discardableResult
     static func deduplicateAttendanceRecordsStrong(
         using context: NSManagedObjectContext,
@@ -74,62 +73,76 @@ nonisolated extension DataCleanupService {
             // A record moving out of the classroom share has a copy on each side until
             // the move finishes; deleting either here could leave none (DedupShareBoundary).
             if DedupShareBoundary.spansShare(group, container: container) { continue }
-            // Deterministic survivor: the shared comparator's winner, so all
-            // devices — and the read-side dedup — agree on the same record. Two
-            // copies it can't tell apart (same mark, time and id) fall back to the
-            // CloudKit record name, the same on every device; before, fetch order
-            // decided, and two devices could each delete a different copy.
-            let sorted = group.sorted { lhs, rhs in
-                if AttendanceDeduplication.wins(lhs, over: rhs) { return true }
-                if AttendanceDeduplication.wins(rhs, over: lhs) { return false }
-                return precedesAsCanonical(lhs, rhs, container: container)
-            }
-            guard let canonical = sorted.first else { continue }
-
-            for duplicate in sorted.dropFirst() {
-                // Preserve a real attendance mark if the survivor is still unmarked.
-                // (The comparator already prefers marked records, so this only fires
-                // for groups that are entirely unmarked — where it's a no-op — but it
-                // stays as a belt-and-braces guard against comparator drift.)
-                if canonical.status == .unmarked && duplicate.status != .unmarked {
-                    canonical.status = duplicate.status
-                    canonical.absenceReason = duplicate.absenceReason
-                    canonical.markedAt = duplicate.markedAt
-                    canonical.leftAt = duplicate.leftAt
-                    canonical.returnedAt = duplicate.returnedAt
-                    canonical.statusBeforeLeavingRaw = duplicate.statusBeforeLeavingRaw
-                }
-
-                // Keep the duplicate's note: two devices can each have written
-                // one on their own copy of the day.
-                canonical.note = AttendanceNoteMove.merged(canonical.note, duplicate.note)
-
-                // Re-point any private note still linked by id (an older build
-                // on another device can write one until it updates) so
-                // `AttendanceNoteMove` finds it on the survivor.
-                if let duplicateID = duplicate.id?.uuidString {
-                    let linked = CDFetchRequest(CDNote.self)
-                    linked.predicate = NSPredicate(format: "attendanceRecordID == %@", duplicateID)
-                    for note in context.safeFetch(linked) {
-                        note.attendanceRecordID = canonical.id?.uuidString
-                    }
-                }
-
-                context.delete(duplicate)
-                deletedCount += 1
-            }
-            // The pickup the grid showed, read across every copy: one still
-            // planned on a duplicate (an assistant can plan one on a copy made
-            // before the guide's mark arrived) is kept, but not one that Left
-            // Early or Back in Class ended on another copy. Copying the time
-            // over whenever the survivor had none brought those back.
-            canonical.leavesAt = AttendanceDeduplication.plannedPickup(among: group)
+            if DedupSyncState.noCopySent(group, container: container) { continue }
+            // Folded only once the day has settled here (`DedupSyncState.stillSettling`).
+            if DedupSyncState.stillSettling(group, container: container) { continue }
+            deletedCount += foldAttendanceDay(group, container: container, in: context)
         }
 
-        if deletedCount > 0 {
-            context.safeSave()
+        guard deletedCount > 0 else { return 0 }
+        return saveFolds(in: context) ? deletedCount : 0
+    }
+
+    /// Folds one child's copies of one day into the copy kept by identity and
+    /// deletes the rest; returns how many went.
+    private static func foldAttendanceDay(
+        _ group: [CDAttendanceRecord],
+        container: NSPersistentCloudKitContainer?,
+        in context: NSManagedObjectContext
+    ) -> Int {
+        let byIdentity = group.sorted { identityPrecedes($0, $1, container: container) }
+        guard let kept = byIdentity.first else { return 0 }
+        // The record the grid shows: the read side's rule, identity breaking its ties.
+        let winner = byIdentity.reduce(kept) { best, candidate in
+            AttendanceDeduplication.wins(candidate, over: best) ? candidate : best
         }
-        return deletedCount
+        // The pickup the grid showed, read across every copy before the fold
+        // changes one: one still planned on a duplicate (an assistant can plan
+        // one on a copy made before the guide's mark arrived) is kept, but not
+        // one that Left Early or Back in Class ended on another copy.
+        let pickup = AttendanceDeduplication.plannedPickup(among: group)
+        if winner !== kept { foldMark(from: winner, onto: kept) }
+
+        for duplicate in byIdentity.dropFirst() {
+            // Keep the duplicate's note: two devices can each have written
+            // one on their own copy of the day.
+            kept.note = AttendanceNoteMove.merged(kept.note, duplicate.note)
+
+            // Re-point any private note still linked by id (an older build
+            // on another device can write one until it updates) so
+            // `AttendanceNoteMove` finds it on the survivor.
+            if let duplicateID = duplicate.id?.uuidString {
+                let linked = CDFetchRequest(CDNote.self)
+                linked.predicate = NSPredicate(format: "attendanceRecordID == %@", duplicateID)
+                for note in context.safeFetch(linked) {
+                    note.attendanceRecordID = kept.id?.uuidString
+                }
+            }
+            context.delete(duplicate)
+        }
+        kept.leavesAt = pickup
+        return byIdentity.count - 1
+    }
+
+    /// Gives the kept copy the winner's mark and who made it, raw: a status a
+    /// newer build added reads as unmarked here, and the typed setter would have
+    /// written that (#42). `modifiedAt` only moves forward, so a device that
+    /// hasn't seen the kept copy's latest change never dates it earlier; a mark
+    /// that wins by kind (any mark over none, a person's over Close Arrival's)
+    /// is copied even when older, as the grid already shows it.
+    private static func foldMark(from winner: CDAttendanceRecord, onto kept: CDAttendanceRecord) {
+        kept.statusRaw = winner.statusRaw
+        kept.absenceReasonRaw = winner.absenceReasonRaw
+        kept.markedAt = winner.markedAt
+        kept.leftAt = winner.leftAt
+        kept.returnedAt = winner.returnedAt
+        kept.statusBeforeLeavingRaw = winner.statusBeforeLeavingRaw
+        kept.recordedBy = winner.recordedBy
+        kept.recordedByID = winner.recordedByID
+        kept.recordedByName = winner.recordedByName
+        if let stamp = winner.modifiedAt, stamp > (kept.modifiedAt ?? .distantPast) {
+            kept.modifiedAt = stamp
+        }
     }
 
     /// The (student, calendar day) identity two attendance rows must share to be
@@ -196,6 +209,9 @@ nonisolated extension DataCleanupService {
         if canonical.projectSession == nil { canonical.projectSession = duplicate.projectSession }
         if canonical.communityTopic == nil { canonical.communityTopic = duplicate.communityTopic }
         if canonical.reminder == nil { canonical.reminder = duplicate.reminder }
+        if canonical.practiceSession == nil { canonical.practiceSession = duplicate.practiceSession }
+        if canonical.issue == nil { canonical.issue = duplicate.issue }
+        if canonical.goingOutID == nil { canonical.goingOutID = duplicate.goingOutID }
         if canonical.schoolDayOverride == nil { canonical.schoolDayOverride = duplicate.schoolDayOverride }
         if canonical.studentTrackEnrollment == nil {
             canonical.studentTrackEnrollment = duplicate.studentTrackEnrollment
@@ -230,6 +246,40 @@ nonisolated extension DataCleanupService {
             relationshipKey: "workReviews",
             existingIDs: &existingReviewIDs,
             setter: { (review: CDMeetingWorkReview) in review.meeting = canonical }
+        )
+    }
+
+    /// A todo's subtasks cascade with the copy that holds them (#12).
+    static func mergeTodoItem(canonical: CDTodoItem, duplicate: CDTodoItem) {
+        var existingSubtaskIDs = Set((canonical.subtasks as? Set<CDTodoSubtask>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.subtasks,
+            addTo: canonical,
+            relationshipKey: "subtasks",
+            existingIDs: &existingSubtaskIDs,
+            setter: { (subtask: CDTodoSubtask) in subtask.todo = canonical }
+        )
+    }
+
+    /// A topic's proposed solutions and attachments cascade with the copy that
+    /// holds them (#12).
+    static func mergeCommunityTopic(canonical: CDCommunityTopicEntity, duplicate: CDCommunityTopicEntity) {
+        let solutions = canonical.proposedSolutions as? Set<CDProposedSolutionEntity>
+        var existingSolutionIDs = Set(solutions?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.proposedSolutions,
+            addTo: canonical,
+            relationshipKey: "proposedSolutions",
+            existingIDs: &existingSolutionIDs,
+            setter: { (solution: CDProposedSolutionEntity) in solution.topic = canonical }
+        )
+        var existingAttachmentIDs = Set((canonical.attachments as? Set<CDCommunityAttachment>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.attachments,
+            addTo: canonical,
+            relationshipKey: "attachments",
+            existingIDs: &existingAttachmentIDs,
+            setter: { (attachment: CDCommunityAttachment) in attachment.topic = canonical }
         )
     }
 

@@ -140,6 +140,8 @@ nonisolated extension DataCleanupService {
         }
         var deleted = 0
         for (_, group) in groups where group.count > 1 {
+            // No copy in iCloud yet: no record name to agree on (DedupSyncState).
+            if DedupSyncState.noCopySent(group, container: container) { continue }
             let ordered = group.sorted { precedesAsCanonical($0, $1, container: container) }
             guard let canonical = ordered.first else { continue }
             for duplicate in ordered.dropFirst() {
@@ -148,10 +150,8 @@ nonisolated extension DataCleanupService {
                 deleted += 1
             }
         }
-        if deleted > 0 {
-            context.safeSave()
-        }
-        return deleted
+        guard deleted > 0 else { return 0 }
+        return saveFolds(in: context) ? deleted : 0
     }
 
     /// Whether two rows of `type` share a key, read from `columns` alone so a

@@ -41,14 +41,26 @@ nonisolated public class CDWorkModel: NSManagedObject {
     /// relationship cascades on its own; this sweeps the check-ins that carry
     /// only the `workID` string, which older creation paths wrote without the
     /// relationship and a relationship cascade cannot see.
+    ///
+    /// Not while another copy of the work (a CloudKit duplicate, which the
+    /// cleanup is folding into it) still has the id: those check-ins are that
+    /// copy's too, and the sweep took them from the copy kept (bug hunt
+    /// 2026-10-05, #11).
     public override func prepareForDeletion() {
         super.prepareForDeletion()
-        guard let context = managedObjectContext, let workID = id?.uuidString, !workID.isEmpty else { return }
+        guard let context = managedObjectContext, let id, !hasLiveCopy(of: id, in: context) else { return }
         let request = CDFetchRequest(CDWorkCheckIn.self)
-        request.predicate = NSPredicate(format: "workID == %@ AND work == nil", workID)
+        request.predicate = NSPredicate(format: "workID == %@ AND work == nil", id.uuidString)
         for checkIn in context.safeFetch(request) where !checkIn.isDeleted {
             context.delete(checkIn)
         }
+    }
+
+    /// Whether a row other than this one, not being deleted, has the work's id.
+    private func hasLiveCopy(of id: UUID, in context: NSManagedObjectContext) -> Bool {
+        let request = CDFetchRequest(CDWorkModel.self)
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return context.safeFetch(request).contains { $0 !== self && !$0.isDeleted }
     }
 
     // MARK: - Convenience Initializer
@@ -93,10 +105,15 @@ nonisolated extension CDWorkModel {
     }
 
     /// The row's one verdict. `completionOutcomeRaw` is legacy — folded into
-    /// this by `WorkStatusMigration` and read by nothing else.
+    /// this by `WorkStatusMigration` and read by nothing else. Setting a status
+    /// clears it: left on a row reopened and marked Done, it folded Done back
+    /// into the old verdict on the next launch (bug hunt 2026-10-05, #8).
     var status: WorkStatus {
         get { WorkStatus(rawValue: statusRaw) ?? .active }
-        set { statusRaw = newValue.rawValue }
+        set {
+            statusRaw = newValue.rawValue
+            if completionOutcomeRaw != nil { completionOutcomeRaw = nil }
+        }
     }
 
     /// Source context type (e.g., projectSession)

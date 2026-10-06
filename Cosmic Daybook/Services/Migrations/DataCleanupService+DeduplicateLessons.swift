@@ -102,6 +102,14 @@ nonisolated extension DataCleanupService {
         if canonical.personalKindRaw == nil { canonical.personalKindRaw = duplicate.personalKindRaw }
         if canonical.defaultWorkKindRaw == nil { canonical.defaultWorkKindRaw = duplicate.defaultWorkKindRaw }
 
+        // Attachments and sample works cascade with the lesson that holds them (#12).
+        for attachment in (duplicate.attachments?.allObjects as? [CDLessonAttachment]) ?? [] {
+            attachment.lesson = canonical
+        }
+        for sampleWork in (duplicate.sampleWorks?.allObjects as? [CDSampleWork]) ?? [] {
+            sampleWork.lesson = canonical
+        }
+
         // Re-point duplicate lesson's notes to canonical via FK
         if let dupID = duplicate.id?.uuidString, let ctx = canonical.managedObjectContext {
             let noteReq = CDFetchRequest(CDNote.self)
@@ -119,7 +127,7 @@ nonisolated extension DataCleanupService {
         }
     }
 
-    private static func mergeLessonPresentation(canonical: CDLessonPresentation, duplicate: CDLessonPresentation) {
+    static func mergeLessonPresentation(canonical: CDLessonPresentation, duplicate: CDLessonPresentation) {
         if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
         if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
         if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }

@@ -9,18 +9,19 @@ extension LifecycleService {
     /// Record a CDLessonAssignment as presented and upsert CDLessonPresentation records,
     /// but do NOT auto-create CDWorkModel items. Use this when work creation is handled separately
     /// (e.g., via the unified workflow panel or explicit user action).
+    ///
+    /// Every child the assignment names stays on it. One with no student row here (still on
+    /// her way from iCloud, departed, or an id typed by hand) gets no history row until she
+    /// is found; taking her off, as this did until 2026-10-05, synced the loss to every
+    /// device. Ids compare trimmed and upper-cased, and history rows carry the student's own id.
     static func recordPresentation(
         from lessonAssignment: CDLessonAssignment,
         presentedAt: Date,
         modelContext: NSManagedObjectContext,
         beginFollowUp: Bool = true
     ) throws -> CDLessonAssignment {
-        // CRITICAL: Clean orphaned student IDs before processing to prevent ghost data
-        let validStudentIDs = try existingStudentIDStrings(namedBy: lessonAssignment, context: modelContext)
-        cleanOrphanedStudentIDs(for: lessonAssignment, validStudentIDs: validStudentIDs, modelContext: modelContext)
-
         let lessonIDStr = lessonAssignment.lessonID
-        let studentIDStrs = lessonAssignment.studentIDs
+        let studentIDStrs = try knownStudentIDs(namedBy: lessonAssignment, context: modelContext)
 
         // Apply the supplied occurrence date even when this assignment was
         // previously stored as an undated or older presentation. The operation is
@@ -91,11 +92,27 @@ extension LifecycleService {
         namedBy lessonAssignment: CDLessonAssignment,
         context: NSManagedObjectContext
     ) throws -> Set<String> {
-        let named = Array(Set(lessonAssignment.studentIDs.compactMap(UUID.init(uuidString:))))
+        let named = Array(Set(lessonAssignment.studentIDs.compactMap {
+            UUID(uuidString: OrphanStudentGrace.normalizedID($0))
+        }))
         guard !named.isEmpty else { return [] }
         let request = CDFetchRequest(CDStudent.self)
         request.predicate = NSPredicate(format: "id IN %@", named)
         return Set(try context.fetch(request).compactMap { $0.id?.uuidString })
+    }
+
+    /// The students `lessonAssignment` names that exist, as their own ids
+    /// (`uuidString`), in the order it names them, each once. The ids it names
+    /// that aren't here are left out, and left on the assignment.
+    static func knownStudentIDs(
+        namedBy lessonAssignment: CDLessonAssignment,
+        context: NSManagedObjectContext
+    ) throws -> [String] {
+        let existing = try existingStudentIDStrings(namedBy: lessonAssignment, context: context)
+        var seen = Set<String>()
+        return lessonAssignment.studentIDs
+            .map(OrphanStudentGrace.normalizedID)
+            .filter { existing.contains($0) && seen.insert($0).inserted }
     }
 
     // Record a CDLessonAssignment as presented and create per-student CDWorkModel items.
@@ -115,9 +132,9 @@ extension LifecycleService {
         )
 
         let lessonIDStr = la.lessonID
-        let studentIDStrs = la.studentIDs
+        let studentIDStrs = try knownStudentIDs(namedBy: la, context: modelContext)
 
-        // Ensure WorkModels exist per student
+        // Ensure WorkModels exist per student found (an unknown id gets none)
         var workForPresentation: [CDWorkModel] = []
         var createdCount = 0
         var skippedCount = 0

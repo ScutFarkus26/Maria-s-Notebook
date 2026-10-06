@@ -81,14 +81,20 @@ extension SearchIndexService {
     /// A no-op when the store's token has not moved. Concurrent callers share
     /// the pass in flight, then re-check the token, so a save that landed
     /// during it is not missed.
+    ///
+    /// An index built while the store had no history at all (an empty notebook
+    /// at launch) has no token to replay from: once there is history, it is
+    /// rebuilt. It used to stay as built for the rest of the session.
     func catchUp() async {
         while let running = catchUpTask {
             await running.value
         }
-        guard isReady,
-              let container = indexingContainer,
-              let since = indexedHistoryToken else { return }
+        guard isReady, let container = indexingContainer else { return }
         let current = Self.archivedCurrentHistoryToken(of: container)
+        guard let since = indexedHistoryToken else {
+            if current != nil { await refresh(container: container) }
+            return
+        }
         guard let current, current != since else { return }
 
         let task = Task { [weak self] in

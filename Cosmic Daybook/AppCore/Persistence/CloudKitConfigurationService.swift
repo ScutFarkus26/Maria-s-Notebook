@@ -18,9 +18,9 @@ enum CloudKitConfigurationService {
     ///
     /// The spelling is historical: the app has been renamed (Cosmic Daybook)
     /// but CloudKit containers cannot be, and this one holds the live data.
-    static let containerID = "iCloud.DanielSDeBerry.MariasNoteBook"
+    nonisolated static let containerID = "iCloud.DanielSDeBerry.MariasNoteBook"
 
-    static func getContainerID() -> String? {
+    nonisolated static func getContainerID() -> String? {
         containerID
     }
 

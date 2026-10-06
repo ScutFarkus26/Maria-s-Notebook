@@ -23,21 +23,28 @@ extension BackupService {
 
     // MARK: - Data Management
 
-    /// Deletes all backup-managed entities from the persistent store(s).
+    /// Marks every backup-managed record in the restore's store for deletion
+    /// (`BackupRestoreScope`: the private store when there are two — a
+    /// classroom someone else shared into the shared store isn't this
+    /// notebook's to clear).
     ///
     /// Uses context-level `delete(_:)` (not `NSBatchDeleteRequest`) — only the context-level
     /// path emits the change events that `NSPersistentCloudKitContainer` mirrors to CloudKit.
     /// `NSBatchDeleteRequest` writes straight to SQLite and CloudKit re-uploads stale records
     /// on the next sync, resurrecting just-deleted data.
     ///
+    /// Nothing is saved here: the deletes are saved with the import, in the
+    /// restore's one save, so a restore that fails before then leaves the
+    /// notebook exactly as it was. (Until 2026-10-05 each page was saved as
+    /// it was cleared, so a failure part-way left an emptied notebook for the
+    /// checkpoint to rebuild record by record.)
+    ///
     /// Returns the names of any entities that could not be cleared, so callers can surface
     /// them as warnings instead of swallowing them silently.
     @discardableResult
-    func deleteAll(
-        viewContext: NSManagedObjectContext,
-        pageSize: Int = 500
-    ) throws -> [String] {
+    func deleteAll(viewContext: NSManagedObjectContext) throws -> [String] {
         var failedEntities: [String] = []
+        let store = BackupRestoreScope.privateStore(of: viewContext)
 
         for type in BackupEntityRegistry.allTypes {
             // Resolve the MODEL entity name by matching the managed-object class,
@@ -60,11 +67,7 @@ extension BackupService {
             guard !BackupEntityRegistry.keptOnRestoreEntityNames.contains(entityName) else { continue }
 
             do {
-                try deletePagedForEntity(
-                    entityName: entityName,
-                    in: viewContext,
-                    pageSize: pageSize
-                )
+                try deleteEvery(entityName, in: viewContext, store: store)
             } catch {
                 failedEntities.append(entityName)
                 let desc = error.localizedDescription
@@ -77,32 +80,20 @@ extension BackupService {
         return failedEntities
     }
 
-    /// Pages through every object of `entityName`, deleting each via the context so
-    /// CloudKit mirroring sees the change. Saves and refreshes between pages to keep
-    /// memory bounded on large datasets.
-    private func deletePagedForEntity(
-        entityName: String,
+    /// Deletes every record of `entityName` in `store` (every store when nil)
+    /// through the context, so CloudKit mirroring sees each delete once it is
+    /// saved. Reads object IDs only: no record is loaded to be deleted, beyond
+    /// what its delete rules need.
+    private func deleteEvery(
+        _ entityName: String,
         in viewContext: NSManagedObjectContext,
-        pageSize: Int
+        store: NSPersistentStore?
     ) throws {
-        while true {
-            let request = NSFetchRequest<NSManagedObject>(entityName: entityName)
-            request.fetchLimit = pageSize
-            // includesPropertyValues=false fetches faults only — we just need IDs to delete.
-            request.includesPropertyValues = false
-
-            let page = try viewContext.fetch(request)
-            if page.isEmpty { break }
-
-            for object in page {
-                viewContext.delete(object)
-            }
-
-            try viewContext.save()
-            // Drop the deleted objects' faults out of memory before the next page.
-            viewContext.refreshAllObjects()
-
-            if page.count < pageSize { break }
+        let request = NSFetchRequest<NSManagedObjectID>(entityName: entityName)
+        request.resultType = .managedObjectIDResultType
+        if let store { request.affectedStores = [store] }
+        for objectID in try viewContext.fetch(request) {
+            viewContext.delete(viewContext.object(with: objectID))
         }
     }
 }

@@ -65,9 +65,11 @@ nonisolated public class CDNote: NSManagedObject {
         self.imagePath = nil
         self.reportedBy = nil
         self.reporterName = nil
-        self.scopeBlob = nil
-        self.searchIndexStudentID = nil
-        self.scopeIsAll = false
+        // A note with no scope reads as `.all`; write it so, so the search index
+        // (`scopeIsAll`) agrees from the start. Left nil, the index said "a few
+        // students, none known", and whole-class queries missed the note.
+        // Older notes are fixed by `DataCleanupService.repairMissingNoteScopeIndex`.
+        self.scope = .all
     }
 }
 

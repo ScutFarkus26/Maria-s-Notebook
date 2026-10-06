@@ -131,7 +131,10 @@ final class ReportNoteScopingTests {
         let ctx = stack.viewContext
         let alice = CoreDataTestHelpers.seedStudent(in: ctx, firstName: "Alice", lastName: "A")
 
-        makeFlaggedNote(in: ctx, body: "Unscoped legacy note", scope: nil)
+        // New notes start as `.all`; a legacy one has no blob and an unset index.
+        let legacy = makeFlaggedNote(in: ctx, body: "Unscoped legacy note", scope: nil)
+        legacy.scopeBlob = nil
+        legacy.scopeIsAll = false
         #expect(CoreDataTestHelpers.save(ctx))
 
         let service = ReportGeneratorService()

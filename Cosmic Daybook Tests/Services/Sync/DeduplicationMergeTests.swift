@@ -98,7 +98,7 @@ final class DeduplicationMergeTests {
 
     // MARK: - Attendance semantic dedup (same student + same day)
 
-    @Test("Attendance duplicates for one student-day keep the marked record and its real mark")
+    @Test("Attendance duplicates for one student-day keep the lower id, carrying the real mark")
     func attendanceDedupPreservesMark() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let ctx = stack.viewContext
@@ -117,12 +117,13 @@ final class DeduplicationMergeTests {
         marked.date = day.addingTimeInterval(3600) // same calendar day, later time
         marked.status = .absent
 
-        // Attach a note to the record that will be deleted (the unmarked loser).
-        // Nothing cascades now that the link is a string FK, so the note would
-        // dangle on a deleted id unless dedup re-points it at the survivor.
+        // Attach a note to the record that will be deleted (the marked one,
+        // whose id is higher). Nothing cascades now that the link is a string
+        // FK, so the note would dangle on a deleted id unless dedup re-points
+        // it at the survivor.
         let note = CDNote(context: ctx)
         note.body = "Parent called ahead"
-        note.attendanceRecordID = uuid(1).uuidString
+        note.attendanceRecordID = uuid(2).uuidString
 
         #expect(CoreDataTestHelpers.save(ctx))
 
@@ -132,13 +133,14 @@ final class DeduplicationMergeTests {
         let records = ctx.safeFetch(CDFetchRequest(CDAttendanceRecord.self))
         #expect(records.count == 1)
         let survivor = try #require(records.first)
-        // The marked record wins outright — same winner the grid was showing.
-        #expect(survivor.id == uuid(2))
+        // The copy kept is the lower id, the same on every device (bug hunt
+        // 2026-10-05, #1); it carries the mark the grid was showing.
+        #expect(survivor.id == uuid(1))
         #expect(survivor.status == .absent)
 
         let notes = ctx.safeFetch(CDFetchRequest(CDNote.self))
         #expect(notes.count == 1)
-        #expect(notes.first?.attendanceRecordID == uuid(2).uuidString)
+        #expect(notes.first?.attendanceRecordID == uuid(1).uuidString)
     }
 
     @Test("A survivor that already has a mark keeps it over the duplicate's mark")

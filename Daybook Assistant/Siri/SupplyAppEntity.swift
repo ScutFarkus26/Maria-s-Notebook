@@ -53,7 +53,7 @@ struct SupplyEntityQuery: EntityStringQuery {
     /// The classroom's staples, from the classroom share's store.
     @MainActor
     private static func staples() throws -> [CDSupply] {
-        let context = try SiriHost.stack().viewContext
+        let context = try AssistantStack.shared().viewContext
         return RestockService.staples(in: context, store: AssistantSiriRestock.sharedStore(of: context))
     }
 }

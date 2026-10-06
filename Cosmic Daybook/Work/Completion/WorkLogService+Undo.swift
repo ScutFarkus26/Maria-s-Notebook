@@ -13,18 +13,25 @@ extension WorkLogService {
     struct RowSnapshot {
         let objectID: NSManagedObjectID
         let statusRaw: String
+        let completionOutcomeRaw: String?
         let completedAt: Date?
         let lastTouchedAt: Date?
 
         init(_ work: CDWorkModel) {
             objectID = work.objectID
             statusRaw = work.statusRaw
+            completionOutcomeRaw = work.completionOutcomeRaw
             completedAt = work.completedAt
             lastTouchedAt = work.lastTouchedAt
         }
 
+        /// Puts the row's verdict back. A row that still carried the retired
+        /// outcome gets it folded in (`WorkStatusMigration`) and cleared, as
+        /// the launch merge would: written back as a pair, the outcome would
+        /// fold again after a later reopen and Done (2026-10-05).
         func restore(_ work: CDWorkModel) {
-            work.statusRaw = statusRaw
+            work.statusRaw = WorkStatusMigration.merged(statusRaw: statusRaw, outcomeRaw: completionOutcomeRaw)
+            work.completionOutcomeRaw = nil
             work.completedAt = completedAt
             work.lastTouchedAt = lastTouchedAt
         }

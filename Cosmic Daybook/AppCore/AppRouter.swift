@@ -24,8 +24,6 @@ final class AppRouter {
         case importLessons
         case newStudent
         case importStudents
-        case createBackup
-        case restoreBackup
         case openStudentDetail(UUID)
         case backfillIsPresented
         
@@ -35,8 +33,6 @@ final class AppRouter {
             case .importLessons: return "importLessons"
             case .newStudent: return "newStudent"
             case .importStudents: return "importStudents"
-            case .createBackup: return "createBackup"
-            case .restoreBackup: return "restoreBackup"
             case .openStudentDetail(let id): return "openStudentDetail_\(id.uuidString)"
             case .backfillIsPresented: return "backfillIsPresented"
             }
@@ -170,14 +166,17 @@ final class AppRouter {
         navigationDestination = .importStudents
     }
     
-    /// Request to create backup
-    func requestCreateBackup() {
-        navigationDestination = .createBackup
-    }
-    
-    /// Request to restore backup
-    func requestRestoreBackup() {
-        navigationDestination = .restoreBackup
+    /// Shows Settings › Sync and backup, where backing up and restoring live
+    /// (its Back Up Now says how it went). Nothing presented the old
+    /// create-backup route. On the Mac the caller then opens the Settings
+    /// window (`openSettings`); elsewhere Settings is a page of the app.
+    func showSyncBackupSettings() {
+        UserDefaults.standard.set(
+            SettingsCategory.syncBackup.rawValue, forKey: UserDefaultsKeys.settingsSelectedCategory
+        )
+        #if !os(macOS)
+        navigateTo(.settings)
+        #endif
     }
     
     /// Request to show the new-work sheet. RootView owns that sheet, so this

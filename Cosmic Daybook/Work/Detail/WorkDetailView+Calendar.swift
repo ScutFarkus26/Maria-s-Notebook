@@ -111,7 +111,8 @@ extension WorkDetailView {
             checkIn: item,
             onEditNote: { checkIn in
                 viewModel.editingNoteCheckIn = checkIn
-                viewModel.editingNoteDraft = checkIn.latestUnifiedNoteText
+                // The field note the alert saves back, not the newest observation.
+                viewModel.editingNoteDraft = checkIn.legacyNoteText
                 viewModel.showEditNoteAlert = true
             },
             onSetStatus: { id, status in

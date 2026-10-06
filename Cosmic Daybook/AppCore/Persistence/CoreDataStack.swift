@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import CoreData
 import CloudKit
 import OSLog
@@ -64,7 +65,23 @@ final class CoreDataStack {
 
     // MARK: - Initialization
 
-    /// Creates the Core Data stack.
+    /// A container whose stores are open, waiting to become a stack: what
+    /// `openStores` hands back. Sendable (`NSPersistentCloudKitContainer`
+    /// is), so the launch opens the stores on a background thread and the
+    /// main actor finishes the stack (`init(opened:)`).
+    nonisolated struct OpenedStores: Sendable {
+        let container: NSPersistentCloudKitContainer
+        let isCloudKitActive: Bool
+        /// The app's own on-disk stores (not in memory, Sample Class or a
+        /// test's file): only they get the history processor.
+        let isAppNotebook: Bool
+    }
+
+    /// Creates the Core Data stack, opening its stores on the calling thread.
+    ///
+    /// The app's launch opens its notebook with `load` instead, which does
+    /// the same off the main thread; tests, Sample Class and the in-memory
+    /// fallbacks open theirs here.
     ///
     /// - Parameters:
     ///   - enableCloudKit: Whether to enable CloudKit sync. Defaults to the user's preference.
@@ -78,88 +95,110 @@ final class CoreDataStack {
     ///   - managedObjectModel: An already-loaded model to share with another stack.
     ///     Sample Class uses the primary stack's exact model instance so SwiftUI
     ///     fetch controllers remain valid while their context is replaced.
-    init(
+    convenience init(
         enableCloudKit: Bool = true,
         inMemory: Bool = false,
         preserveSplitStoreLayout: Bool = false,
         localStoreURL: URL? = nil,
         managedObjectModel suppliedModel: NSManagedObjectModel? = nil
     ) throws {
+        try self.init(opened: Self.openStores(
+            enableCloudKit: enableCloudKit,
+            inMemory: inMemory,
+            preserveSplitStoreLayout: preserveSplitStoreLayout,
+            localStoreURL: localStoreURL,
+            managedObjectModel: suppliedModel
+        ))
+    }
+
+    /// Opens the app's own stores off the main thread, then finishes the
+    /// stack on the main actor: the launch's way in (2026-10-05 hunt, #19).
+    ///
+    /// Everything `openStores` does can take a while on a real notebook: the
+    /// store lock (up to `storeLockWait`), the pre-migration copy, the schema
+    /// and key repairs, a migration. On the main thread that froze the launch
+    /// before any window could say "Opening your notebook…", and could run
+    /// past the time the system gives an app to launch.
+    static func load(enableCloudKit: Bool, preserveSplitStoreLayout: Bool = false) async throws -> CoreDataStack {
+        try await finish(
+            startOpening(enableCloudKit: enableCloudKit, preserveSplitStoreLayout: preserveSplitStoreLayout)
+        )
+    }
+
+    /// Starts opening the app's own stores on a background thread, at once:
+    /// not on the main actor, which a launch keeps busy setting up its
+    /// first window. `finish` makes the stack once they're open.
+    nonisolated static func startOpening(
+        enableCloudKit: Bool,
+        preserveSplitStoreLayout: Bool = false
+    ) -> Task<OpenedStores, Error> {
+        Task.detached(priority: .userInitiated) {
+            try openStores(
+                enableCloudKit: enableCloudKit,
+                inMemory: false,
+                preserveSplitStoreLayout: preserveSplitStoreLayout,
+                localStoreURL: nil,
+                managedObjectModel: nil
+            )
+        }
+    }
+
+    /// The stack, once `opening`'s stores are open.
+    static func finish(_ opening: Task<OpenedStores, Error>) async throws -> CoreDataStack {
+        CoreDataStack(opened: try await opening.value)
+    }
+
+    /// Opens the stores, with every repair and check that comes first, on
+    /// the calling thread. Touches nothing on the main actor, so the launch
+    /// can run it in the background (`startOpening`); the main actor's part (the
+    /// view context, history, remote changes) is `init(opened:)`.
+    nonisolated static func openStores( // swiftlint:disable:this function_body_length
+        enableCloudKit: Bool,
+        inMemory: Bool,
+        preserveSplitStoreLayout: Bool,
+        localStoreURL: URL?,
+        managedObjectModel suppliedModel: NSManagedObjectModel?
+    ) throws -> OpenedStores {
         let start = Date()
         let initInterval = LaunchSignposts.begin("CoreDataStack.init")
         defer { LaunchSignposts.end("CoreDataStack.init", initInterval) }
-        Self.logger.info("Initializing CoreDataStack (CloudKit: \(enableCloudKit), inMemory: \(inMemory))...")
+        logger.info("Initializing CoreDataStack (CloudKit: \(enableCloudKit), inMemory: \(inMemory))...")
+
+        // The app's own store files (not in-memory, Sample Class or test
+        // stores) may be open in another copy of the app. Store surgery here
+        // needs them to itself (`StoreProcessLock`); a copy that can't have
+        // them skips the routine repairs, and refuses to open when surgery
+        // is due. The exclusive hold ends with this function.
+        let opensAppStores = !inMemory && localStoreURL == nil
+        var holdsStoreLock = false
+        if opensAppStores {
+            holdsStoreLock = try claimStoresForLaunch()
+        }
+        defer {
+            if holdsStoreLock { storeLock.releaseExclusive() }
+        }
+        let surgeryAllowed = !opensAppStores || holdsStoreLock
 
         // Honor a deferred "Reset Local Cache" request, then note whether this
         // launch downloads everything from iCloud — both before the container
         // is created (see `prepareOnDiskStores`).
-        if !inMemory, localStoreURL == nil {
-            Self.prepareOnDiskStores(enableCloudKit: enableCloudKit)
+        if opensAppStores {
+            try prepareOnDiskStores(enableCloudKit: enableCloudKit, surgeryAllowed: surgeryAllowed)
         }
 
         // One model instance per process — see `sharedModel()`. Sample Class
         // may hand in that same instance explicitly so its NSEntityDescriptions
         // keep their identity while SwiftUI swaps the managed-object context.
-        let model = try suppliedModel ?? Self.sharedModel()
-        Self.setActiveModel(model)
+        let model = try suppliedModel ?? sharedModel()
+        setActiveModel(model)
 
-        container = NSPersistentCloudKitContainer(name: Self.modelName, managedObjectModel: model)
-
-        if enableCloudKit && !inMemory {
-            // CloudKit mode: two stores (private + shared) for separate CloudKit databases.
-
-            let privateDesc = Self.makeStoreDescription(
-                url: Self.privateStoreURL(),
-                configuration: Self.privateConfiguration
-            )
-            let sharedDesc = Self.makeStoreDescription(
-                url: Self.sharedStoreURL(),
-                configuration: Self.sharedConfiguration
-            )
-
-            Self.enableHistoryTracking(privateDesc)
-            Self.enableHistoryTracking(sharedDesc)
-            Self.configureCloudKit(privateDescription: privateDesc, sharedDescription: sharedDesc)
-            isCloudKitActive = true
-
-            container.persistentStoreDescriptions = [privateDesc, sharedDesc]
-        } else if preserveSplitStoreLayout && !inMemory {
-            // Degraded local-cached mode: keep using the existing private/shared store
-            // files without CloudKit mirroring so the user can open the last known local
-            // cache immediately when CloudKit startup is unhealthy.
-            let privateDesc = Self.makeStoreDescription(
-                url: Self.privateStoreURL(),
-                configuration: Self.privateConfiguration
-            )
-            let sharedDesc = Self.makeStoreDescription(
-                url: Self.sharedStoreURL(),
-                configuration: Self.sharedConfiguration
-            )
-
-            Self.enableHistoryTracking(privateDesc)
-            Self.enableHistoryTracking(sharedDesc)
-
-            container.persistentStoreDescriptions = [privateDesc, sharedDesc]
-        } else {
-            // Local-only mode: single unified store with ALL entities.
-            // This avoids the "Multiple NSEntityDescriptions" problem that occurs when
-            // entities are split across two configurations — Core Data's +entity lookup
-            // can't disambiguate, causing @FetchRequest crashes.
-            let desc: NSPersistentStoreDescription
-            if inMemory {
-                let url = URL(fileURLWithPath: "/dev/null/unified")
-                desc = NSPersistentStoreDescription(url: url)
-                desc.type = NSInMemoryStoreType
-            } else {
-                desc = Self.makeStoreDescription(
-                    url: localStoreURL ?? Self.unifiedStoreURL(),
-                    configuration: nil
-                )
-            }
-            Self.enableHistoryTracking(desc)
-
-            container.persistentStoreDescriptions = [desc]
-        }
+        let container = NSPersistentCloudKitContainer(name: modelName, managedObjectModel: model)
+        container.persistentStoreDescriptions = makeStoreDescriptions(
+            enableCloudKit: enableCloudKit,
+            inMemory: inMemory,
+            preserveSplitStoreLayout: preserveSplitStoreLayout,
+            localStoreURL: localStoreURL
+        )
 
         // Pre-clean orphan entity rows from on-disk stores. When entities are dropped
         // from the model, CloudKit's ANSCKRECORDMETADATA table retains rows pointing at
@@ -168,7 +207,9 @@ final class CoreDataStack {
         var migrationBackups: [URL: URL] = [:]
         if !inMemory {
             let prepare = LaunchSignposts.begin("PrepareStoresForLoad")
-            migrationBackups = try Self.prepareStoresForLoad(container: container, model: model)
+            migrationBackups = try prepareStoresForLoad(
+                container: container, model: model, surgeryAllowed: surgeryAllowed
+            )
             LaunchSignposts.end("PrepareStoresForLoad", prepare)
         }
 
@@ -178,43 +219,64 @@ final class CoreDataStack {
         defer { LaunchSignposts.end("LoadPersistentStores", load) }
         container.loadPersistentStores { description, error in
             if let error {
-                Self.logger.error("Failed to load store '\(description.configuration ?? "default")': \(error)")
+                logger.error("Failed to load store '\(description.configuration ?? "default")': \(error)")
                 loadErrors.append(error)
             } else {
-                Self.logger.info("Loaded store: \(description.configuration ?? "default")")
+                logger.info("Loaded store: \(description.configuration ?? "default")")
             }
         }
 
-        if !loadErrors.isEmpty {
+        if let loadError = loadErrors.first {
             // The repair did not work. Put the originals back so the next
-            // attempt — and the user — see the store exactly as it was.
-            for (storeURL, backupURL) in migrationBackups {
-                Self.restoreStoreBackup(backupURL, to: storeURL)
-            }
+            // attempt — and the user — see the store exactly as it was; but
+            // only once no store of this container is open (one store can
+            // load, and migrate, while the other fails).
+            rollBackFailedLoad(
+                coordinator: container.persistentStoreCoordinator,
+                backups: migrationBackups,
+                model: model,
+                options: surgeryOptions(byURLIn: container.persistentStoreDescriptions)
+            )
 
             // If CloudKit stores failed, try local-only fallback
             if enableCloudKit && !inMemory {
-                Self.logger.warning("CloudKit store load failed, retrying without CloudKit...")
-                isCloudKitActive = false
-                throw CoreDataStackError.cloudKitLoadFailed(loadErrors.first!)
+                logger.warning("CloudKit store load failed, retrying without CloudKit...")
+                throw CoreDataStackError.cloudKitLoadFailed(loadError)
             }
-            throw CoreDataStackError.storeLoadFailed(loadErrors.first!)
+            throw CoreDataStackError.storeLoadFailed(loadError)
         }
 
-        // Lightweight migration rewrites store metadata, so re-apply the
-        // schema stamp now that the (possibly migrated) stores are open.
+        // Lightweight migration rewrites store metadata, and a migrating store
+        // isn't stamped before it loads, so re-apply the schema stamp now
+        // that the (possibly migrated) stores are open.
         if !inMemory {
-            Self.restampSchemaVersion(in: container)
+            restampSchemaVersion(in: container, writingToDisk: surgeryAllowed)
         }
-
-        // Configure view context
-        configureViewContext()
 
         #if DEBUG
         if enableCloudKit, !inMemory {
-            initializeCloudKitSchemaIfRequested()
+            initializeCloudKitSchemaIfRequested(in: container)
         }
         #endif
+
+        let elapsed = String(format: "%.3f", Date().timeIntervalSince(start))
+        logger.info("CoreDataStack stores opened in \(elapsed)s")
+        return OpenedStores(
+            container: container,
+            isCloudKitActive: enableCloudKit && !inMemory,
+            isAppNotebook: opensAppStores
+        )
+    }
+
+    /// Finishes a stack whose stores `openStores` opened: the view context,
+    /// and (the app's own notebook only) history processing and the
+    /// remote-change listener, all of which belong to the main actor.
+    init(opened: OpenedStores) {
+        container = opened.container
+        isCloudKitActive = opened.isCloudKitActive
+
+        // Configure view context
+        configureViewContext()
 
         // The Daybook Assistant gets neither the processor nor the listener:
         // on every remote-change burst they read history for dedup requests
@@ -228,7 +290,7 @@ final class CoreDataStack {
         // under the same UserDefaults key, and a pass keeps positions only for
         // the stores its own container loaded, so a secondary stack's pass
         // would erase the primary stack's cursor.
-        if localStoreURL == nil && !inMemory {
+        if opened.isAppNotebook {
             historyProcessor = PersistentHistoryProcessor(container: container)
         }
 
@@ -245,9 +307,6 @@ final class CoreDataStack {
             }
         }
         #endif
-
-        let elapsed = String(format: "%.3f", Date().timeIntervalSince(start))
-        Self.logger.info("CoreDataStack initialized in \(elapsed)s")
     }
 
     #if DEBUG
@@ -261,19 +320,19 @@ final class CoreDataStack {
     /// Development build whatever the project's setting: build it with
     /// `CLOUDKIT_ENVIRONMENT=Development` (which also opens the Development
     /// notebook's own store files). A Production build refuses the argument.
-    private func initializeCloudKitSchemaIfRequested() {
+    nonisolated private static func initializeCloudKitSchemaIfRequested(in container: NSPersistentCloudKitContainer) {
         guard ProcessInfo.processInfo.arguments.contains("-InitializeCloudKitSchema") else { return }
         guard CloudKitEnvironment.allowsSchemaInitialization else {
             let refusal = "-InitializeCloudKitSchema ignored: this build syncs with Production. " +
                 "Rebuild with CLOUDKIT_ENVIRONMENT=Development for a schema run."
-            Self.logger.error("\(refusal, privacy: .public)")
+            logger.error("\(refusal, privacy: .public)")
             return
         }
         do {
             try container.initializeCloudKitSchema(options: [])
-            Self.logger.info("CloudKit schema initialized from Core Data model")
+            logger.info("CloudKit schema initialized from Core Data model")
         } catch {
-            Self.logger.error("CloudKit schema initialization failed: \(error.localizedDescription)")
+            logger.error("CloudKit schema initialization failed: \(error.localizedDescription)")
         }
     }
     #endif
@@ -323,6 +382,15 @@ enum CoreDataStackError: LocalizedError {
     case cloudKitLoadFailed(Error)
     case storeFromNewerBuild(storeName: String, storeVersion: Int, appVersion: Int)
     case storeSchemaIncoherent(storeName: String, detail: String)
+    /// Another running copy of the app has the store files, and this launch
+    /// needed them to itself: a migration or an armed Re-download was due
+    /// (`StoreProcessLock`).
+    case storeInUseByAnotherCopy
+    /// A restore from the error screen stopped partway: the notebook is in
+    /// `folderName` beside the stores and wasn't put back
+    /// (`FreshNotebookRestore.unfinishedMarkerName`). Nothing new is made in
+    /// its place, or the next launch would open an empty notebook over it.
+    case restoreUnfinished(folderName: String)
 
     /// What the person sees: plain words, no file names, codes or format
     /// numbers. Those are in `technicalDetail`, for the log and Details.
@@ -355,6 +423,13 @@ enum CoreDataStackError: LocalizedError {
         case .storeSchemaIncoherent:
             return "Your notebook on this device was damaged by an older version of the app, so it was "
                 + "left untouched. Choose \u{201C}Re-download from iCloud\u{2026}\u{201D} to get a fresh copy."
+        case .storeInUseByAnotherCopy:
+            return "Another copy of Cosmic Daybook has your notebook open, and it needs to be closed before "
+                + "this one can finish opening it. Quit the other copy, then open Cosmic Daybook again."
+        case .restoreUnfinished(let folderName):
+            return "A restore stopped partway, and your notebook is safe in a folder named \u{201C}\(folderName)"
+                + "\u{201D} beside the app's data. Nothing was deleted, and nothing new was made in its place. "
+                + "Get help putting it back before using Cosmic Daybook on this device."
         }
         #endif
     }
@@ -377,6 +452,12 @@ enum CoreDataStackError: LocalizedError {
             return "\(storeName) has database format \(storeVersion); this build understands \(appVersion)."
         case .storeSchemaIncoherent(let storeName, let detail):
             return "\(storeName) is internally inconsistent (\(detail))."
+        case .storeInUseByAnotherCopy:
+            return "Another process holds the store lock in \(CoreDataStack.storeLock.directory.path); "
+                + "a migration or a pending local cache reset needs it exclusively."
+        case .restoreUnfinished(let folderName):
+            return "An error-screen restore's swap couldn't be undone; the notebook is in \(folderName) "
+                + "in \(CoreDataStack.storeLock.directory.path)."
         }
     }
 }

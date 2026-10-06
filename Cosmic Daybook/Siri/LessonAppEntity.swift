@@ -67,7 +67,7 @@ extension LessonEntity {
 struct LessonEntityQuery: EntityStringQuery {
     @MainActor
     func entities(for identifiers: [UUID]) async throws -> [LessonEntity] {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = try await AppBootstrapping.sharedCoreDataStackForIntent().viewContext
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(format: "id IN %@", identifiers)
         return context.safeFetch(request).compactMap { LessonEntity(lesson: $0) }
@@ -75,7 +75,7 @@ struct LessonEntityQuery: EntityStringQuery {
 
     @MainActor
     func entities(matching string: String) async throws -> [LessonEntity] {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = try await AppBootstrapping.sharedCoreDataStackForIntent().viewContext
         let request = CDFetchRequest(CDLesson.self)
         request.predicate = NSPredicate(
             format: "name CONTAINS[cd] %@ OR area CONTAINS[cd] %@ OR sequence CONTAINS[cd] %@",
@@ -88,7 +88,7 @@ struct LessonEntityQuery: EntityStringQuery {
 
     @MainActor
     func suggestedEntities() async throws -> [LessonEntity] {
-        let context = AppBootstrapping.getSharedCoreDataStack().viewContext
+        let context = try await AppBootstrapping.sharedCoreDataStackForIntent().viewContext
         let request = CDFetchRequest(CDLesson.self)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CDLesson.name, ascending: true)]
         request.fetchLimit = 100

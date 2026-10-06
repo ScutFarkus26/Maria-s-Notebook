@@ -81,12 +81,15 @@ nonisolated enum BackupRecordCheck {
         for entity in entities {
             do {
                 let blank = NSFetchRequest<NSManagedObjectID>(entityName: entity)
+                // The rows a backup holds: the private store's (`limitToNotebook`).
+                BackupRestoreScope.limitToNotebook(blank, in: context)
                 guard model?.entitiesByName[entity]?.attributesByName["id"] != nil else {
                     counts[entity] = try context.count(for: blank) // no IDs at all: every row
                     continue
                 }
                 blank.predicate = NSPredicate(format: "id == nil")
                 let distinct = NSFetchRequest<NSDictionary>(entityName: entity)
+                BackupRestoreScope.limitToNotebook(distinct, in: context)
                 distinct.resultType = .dictionaryResultType
                 distinct.propertiesToFetch = ["id"]
                 distinct.returnsDistinctResults = true

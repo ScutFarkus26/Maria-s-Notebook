@@ -20,10 +20,12 @@ nonisolated enum DataMigrations {
         DataCleanupService.deduplicateAllModels(using: context, container: container)
     }
 
-    /// Normalizes lesson scheduling to the day-only model (snaps `scheduledFor` to
     /// Repairs the `scheduledForDay` mirror. Does not touch `scheduledFor`,
     /// which carries each lesson's position within its day.
-    /// On `context`'s queue (the launch pass: a background context's `perform`).
+    ///
+    /// No longer part of the launch pass (2026-10-05): nothing fetches by the
+    /// mirror, schedule writes keep it, and rewriting it on every device made
+    /// synced writes for nothing. On `context`'s queue.
     static func repairScheduledForDayMirror(using context: NSManagedObjectContext) {
         DataCleanupService.repairScheduledForDayMirror(using: context)
     }
@@ -49,25 +51,65 @@ nonisolated enum DataMigrations {
     }
 
     /// Relink check-ins that carry only a `workID` string, and drop the ones
-    /// whose work is gone. Orphans are only deleted from the second run on a
-    /// device, so a fresh install still receiving its work rows from CloudKit
-    /// keeps a check-in that arrived a batch ahead of its work. While the
-    /// first download is pending (`FirstDownloadGate`) nothing is deleted and
-    /// the run doesn't count as the first one.
+    /// whose work is gone.
+    ///
+    /// An orphan goes only when all of these hold: the repair has run (and
+    /// saved) on this device before (`markCheckInLinkRepairRun`), the first
+    /// download is done (`FirstDownloadGate`), and its work has been missing
+    /// on passes a day apart with an import into the private store since it
+    /// was first seen missing (`OrphanStudentGrace`, kind `.checkInWork`,
+    /// whose ledger lives in `defaults`). `lastImport` says when a store last
+    /// finished an import; with none known, orphans keep waiting. While the
+    /// first download runs nothing is judged or recorded. Never saves, and
+    /// never sets the "has run" flag itself.
     @discardableResult
     static func repairWorkCheckInLinks(
         using context: NSManagedObjectContext,
         firstDownloadPending: Bool = FirstDownloadGate.isPending(),
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        now: Date = Date(),
+        lastImport: (ImportStoreKind) -> Date? = { _ in nil }
     ) -> DataCleanupService.CheckInRepairReport {
-        let hasRunBefore = defaults.bool(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
-        let report = DataCleanupService.repairWorkCheckInLinks(
-            using: context, deleteOrphans: hasRunBefore && !firstDownloadPending
-        )
-        if !hasRunBefore && !firstDownloadPending {
-            defaults.set(true, forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+        guard !firstDownloadPending else {
+            return DataCleanupService.repairWorkCheckInLinks(using: context, deleteOrphans: false)
         }
+        let hasRunBefore = defaults.bool(forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+        // Work rows live in the private store on every device.
+        let grace = OrphanStudentGrace(
+            ledger: OrphanStudentGrace.load(from: defaults, kind: .checkInWork),
+            now: now,
+            lastImport: lastImport(.privateStore)
+        )
+        let report = DataCleanupService.repairWorkCheckInLinks(
+            using: context, deleteOrphans: hasRunBefore, grace: grace
+        )
+        OrphanStudentGrace.save(grace.ledger, to: defaults, kind: .checkInWork)
         return report
+    }
+
+    /// Counts the check-in repair's first run on this device, once the pass
+    /// that ran it has saved. A run during the first download doesn't count.
+    static func markCheckInLinkRepairRun(firstDownloadPending: Bool, defaults: UserDefaults = .standard) {
+        guard !firstDownloadPending else { return }
+        defaults.set(true, forKey: UserDefaultsKeys.checkInLinkRepairHasRun)
+    }
+
+    /// Whether the one-time note scope index repair should run in this pass:
+    /// not yet done on this device, and not during the first download.
+    static func noteScopeIndexRepairDue(firstDownloadPending: Bool, defaults: UserDefaults = .standard) -> Bool {
+        !firstDownloadPending && !defaults.bool(forKey: UserDefaultsKeys.noteScopeIndexRepairDone)
+    }
+
+    /// Notes saved with no scope blob join the whole-class search index (see
+    /// +NoteScopeIndex). Never saves; the caller marks it done after its save.
+    @discardableResult
+    static func repairMissingNoteScopeIndex(using context: NSManagedObjectContext) -> Int {
+        DataCleanupService.repairMissingNoteScopeIndex(using: context)
+    }
+
+    /// Counts the note scope index repair as done, once the pass that ran it has saved.
+    static func markNoteScopeIndexRepairDone(defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: UserDefaultsKeys.noteScopeIndexRepairDone)
     }
 
     /// Narrow whole-class notes written on a presentation to its roster.
@@ -77,7 +119,8 @@ nonisolated enum DataMigrations {
     }
 
     /// Fold the retired `completionOutcomeRaw` into `statusRaw` on rows that
-    /// still carry the pair. Cheap and idempotent, so it runs every launch.
+    /// still carry the pair, and clear it wherever it is left. Cheap and
+    /// idempotent, so it runs every launch.
     @discardableResult
     static func mergeWorkCompletionOutcomes(using context: NSManagedObjectContext) -> Int {
         DataCleanupService.mergeWorkCompletionOutcomes(using: context)

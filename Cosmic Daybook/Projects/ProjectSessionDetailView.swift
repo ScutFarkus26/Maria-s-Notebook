@@ -23,7 +23,8 @@ struct ProjectSessionDetailView: View {
 
     init(session: CDProjectSession) {
         self.session = session
-        sessionNotesText = session.latestUnifiedNoteText
+        // The field note `saveSessionNotes` saves back, not the newest observation.
+        sessionNotesText = session.legacyNoteText
     }
 
     var students: [CDStudent] {
@@ -273,7 +274,7 @@ struct ProjectSessionDetailView: View {
 
     private func saveSessionNotes() {
         let trimmed = sessionNotesText.trimmed()
-        if trimmed != session.latestUnifiedNoteText.trimmed() {
+        if trimmed != session.legacyNoteText.trimmed() {
             session.setLegacyNoteText(trimmed.isEmpty ? nil : trimmed, in: modelContext)
         }
     }

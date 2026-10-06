@@ -206,7 +206,9 @@ nonisolated enum UserDefaultsKeys {
     /// related migration/sharing flags), then clears it. The container then
     /// reconstitutes from CloudKit. Used to recover from corrupt persistent
     /// history that prevents `NSCloudKitMirroringDelegate` from initializing.
-    static let resetLocalCacheOnLaunch = "AppCore.resetLocalCacheOnLaunch"
+    /// Per store environment: a Development build must never carry out a
+    /// Production notebook's reset, or the other way round.
+    static var resetLocalCacheOnLaunch: String { CloudKitEnvironment.scoped("AppCore.resetLocalCacheOnLaunch") }
 
     /// Set after the first launch-time check-in link repair on this device.
     /// Orphaned check-ins are only deleted from the second run on, so a fresh

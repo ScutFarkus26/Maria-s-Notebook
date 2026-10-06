@@ -316,7 +316,11 @@ final class AlbumLibrary {
     func repairAlbumIdentities(in context: NSManagedObjectContext) {
         guard needsIdentityRepair, state == .ready else { return }
         needsIdentityRepair = false
-        AlbumIdentityRepair.repairRenamedAlbums(albums, in: context)
+        // Albums still on their way (or being copied onto the shelf) hold the
+        // rename check back; the load their arrival starts runs it again.
+        AlbumIdentityRepair.repairRenamedAlbums(
+            albums, pendingNames: pendingShelfAlbumNames.union(albumsBeingKept), in: context
+        )
         // A revised PDF can shift pagination under existing lesson links.
         // The outline title is the anchor, so they re-point themselves.
         for album in albums {

@@ -20,6 +20,12 @@ extension Presentation: DenormalizedSchedulable {
     // Bridge properties for protocol default implementations
     var lessonRelationshipID: UUID? { lesson?.id }
     var studentRelationshipIDStrings: [String] { studentIDs }
+
+    /// The presentation's own id: stable, and no lesson's. (A row with no id
+    /// either falls back to one fixed stand-in.)
+    var placeholderLessonID: UUID { id ?? Self.lessonlessStandIn }
+
+    private static let lessonlessStandIn = UUID(uuidString: "00000000-0000-0000-0000-00000000000F")!
 }
 
 // MARK: - State Helpers

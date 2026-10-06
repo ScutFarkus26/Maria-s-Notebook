@@ -53,7 +53,7 @@ struct WorkStatusMigrationTests {
 
     // MARK: - The launch pass
 
-    @Test("The launch pass rewrites only the legacy pair and keeps the outcome column")
+    @Test("The launch pass rewrites only the legacy pair and clears the outcome column")
     func launchPassRewritesLegacyRows() throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
@@ -74,13 +74,17 @@ struct WorkStatusMigrationTests {
         open.completionOutcomeRaw = "mastered"
         #expect(CoreDataTestHelpers.save(context))
 
-        #expect(DataCleanupService.mergeWorkCompletionOutcomes(using: context) == 2)
+        // Three rows change: the two folded, and the open row's leftover outcome.
+        #expect(DataCleanupService.mergeWorkCompletionOutcomes(using: context) == 3)
         #expect(proficientRow.status == .mastered)
         #expect(practicing.status == .keepPracticing)
         #expect(plainDone.status == .done)
         #expect(open.status == .review)
-        // The old column is the record of what was there; nothing clears it.
-        #expect(proficientRow.completionOutcomeRaw == "mastered")
+        // The folded status is the record of what was there (2026-10-05): a
+        // kept outcome folded again after a reopen and a plain Done.
+        for row in [proficientRow, practicing, plainDone, open] {
+            #expect(row.completionOutcomeRaw == nil)
+        }
 
         // A second pass on a merged store finds nothing to do.
         #expect(DataCleanupService.mergeWorkCompletionOutcomes(using: context) == 0)

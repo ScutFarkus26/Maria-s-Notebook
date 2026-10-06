@@ -53,6 +53,50 @@ extension PersistentHistoryProcessor {
         /// the loaded stores have entries.
         let positions: [String: NSPersistentHistoryToken]
         let outcome: PassOutcome
+        /// What other processes of the app changed, to merge into the view
+        /// context (`PersistentHistoryProcessor.merge(_:into:)`).
+        var foreignChanges = ForeignChanges()
+    }
+
+    /// Objects another process of the app inserted, updated or deleted: its
+    /// saves reach this process's contexts only through the store's history.
+    nonisolated struct ForeignChanges: Sendable, Equatable {
+        var inserted: Set<NSManagedObjectID> = []
+        var updated: Set<NSManagedObjectID> = []
+        var deleted: Set<NSManagedObjectID> = []
+
+        var isEmpty: Bool { inserted.isEmpty && updated.isEmpty && deleted.isEmpty }
+        var count: Int { inserted.count + updated.count + deleted.count }
+
+        mutating func formUnion(_ other: ForeignChanges) {
+            inserted.formUnion(other.inserted)
+            updated.formUnion(other.updated)
+            deleted.formUnion(other.deleted)
+        }
+
+        /// The changes of `transactions` that came from another process.
+        mutating func add(_ transactions: [NSPersistentHistoryTransaction], ownAuthor: String) {
+            for transaction in transactions
+            where PersistentHistoryProcessor.isFromAnotherProcess(author: transaction.author, own: ownAuthor) {
+                for change in transaction.changes ?? [] {
+                    switch change.changeType {
+                    case .insert: inserted.insert(change.changedObjectID)
+                    case .update: updated.insert(change.changedObjectID)
+                    case .delete: deleted.insert(change.changedObjectID)
+                    @unknown default: updated.insert(change.changedObjectID)
+                    }
+                }
+            }
+        }
+
+        /// The shape `NSManagedObjectContext.mergeChanges(fromRemoteContextSave:into:)` takes.
+        var remoteSave: [AnyHashable: Any] {
+            [
+                NSInsertedObjectIDsKey: Array(inserted),
+                NSUpdatedObjectIDsKey: Array(updated),
+                NSDeletedObjectIDsKey: Array(deleted)
+            ]
+        }
     }
 
     /// Reads every loaded store's history after that store's own position.
@@ -69,11 +113,12 @@ extension PersistentHistoryProcessor {
         var changed: Set<String> = []
         var advanced = false
         var failed = false
+        var foreign = ForeignChanges()
 
         for store in context.persistentStoreCoordinator?.persistentStores ?? [] {
             guard let storeID = store.identifier else { continue }
             let position = positions[storeID]
-            switch readHistory(of: store, after: position, author: author, in: context) {
+            switch readHistory(of: store, after: position, author: author, foreign: &foreign, in: context) {
             case .noTransactions:
                 next[storeID] = position
             case let .processed(newToken, storeRemoteCount, storeTotalCount, storeInserted, storeChanged):
@@ -105,15 +150,18 @@ extension PersistentHistoryProcessor {
         } else {
             outcome = .noTransactions
         }
-        return HistoryPass(positions: next, outcome: outcome)
+        return HistoryPass(positions: next, outcome: outcome, foreignChanges: foreign)
     }
 
-    /// One store's transactions after `token`, leaving out `author`'s own
-    /// with predicate-based filtering at the store level (Apple recommended).
+    /// One store's transactions after `token`, leaving out `author`'s own (and
+    /// the old shared author's, `legacyTransactionAuthor`) with predicate-based
+    /// filtering at the store level (Apple recommended). Adds what another
+    /// process of the app changed to `foreign`.
     nonisolated private static func readHistory(
         of store: NSPersistentStore,
         after token: NSPersistentHistoryToken?,
         author: String,
+        foreign: inout ForeignChanges,
         in context: NSManagedObjectContext
     ) -> StoreHistoryResult {
         let request = NSPersistentHistoryChangeRequest.fetchHistory(after: token)
@@ -122,7 +170,9 @@ extension PersistentHistoryProcessor {
 
         // Filter out our own transactions at the store level (more efficient than in-memory)
         if let fetchRequest = NSPersistentHistoryTransaction.fetchRequest {
-            fetchRequest.predicate = NSPredicate(format: "author != %@", author)
+            fetchRequest.predicate = NSPredicate(
+                format: "author != %@ AND author != %@", author, legacyTransactionAuthor
+            )
             request.fetchRequest = fetchRequest
         }
 
@@ -135,6 +185,7 @@ extension PersistentHistoryProcessor {
             }
 
             let (insertedEntityNames, changedEntityNames) = entityNames(in: transactions)
+            foreign.add(transactions, ownAuthor: author)
 
             guard let lastToken = transactions.last?.token else {
                 return .noTransactions
@@ -173,8 +224,9 @@ extension PersistentHistoryProcessor {
     }
 
     /// Moves the store's position past what the filtered fetch leaves out, so
-    /// the next fetch doesn't rescan it: `author`'s own transactions, and nil
-    /// authors, which the store-level `author != %@` leaves out too.
+    /// the next fetch doesn't rescan it: `author`'s own transactions (and the
+    /// old shared author's), and nil authors, which the store-level
+    /// `author != %@` leaves out too.
     ///
     /// Only through their leading run. This is a second read, so a transaction
     /// the filter would return committed after the filtered read ran: most
@@ -195,7 +247,7 @@ extension PersistentHistoryProcessor {
               let transactions = result.result as? [NSPersistentHistoryTransaction] else {
             return .noTransactions
         }
-        let filteredOut = transactions.prefix { $0.author == nil || $0.author == author }
+        let filteredOut = transactions.prefix { $0.author == nil || isOwnAuthor($0.author, own: author) }
         guard let lastToken = filteredOut.last?.token else {
             return .noTransactions
         }

@@ -91,6 +91,7 @@ extension BackupService {
             // Fetch, transform, and release in one autoreleasepool
             let page: (dtos: [DTO], rowCount: Int)? = autoreleasepool {
                 let descriptor = NSFetchRequest<T>(entityName: entityName)
+                BackupRestoreScope.limitToNotebook(descriptor, in: context)
                 descriptor.fetchOffset = offset
                 descriptor.fetchLimit = pageSize  // 0: no limit
                 descriptor.includesPendingChanges = false

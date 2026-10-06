@@ -55,11 +55,22 @@ nonisolated extension CDNote {
 }
 
 // MARK: - setLegacyNoteText on CD entities
+//
+// `latestUnifiedNoteText` is the newest note of any kind, for display.
+// `legacyNoteText` is the record's own field note, the one
+// `setLegacyNoteText` writes: an edit field that saves through
+// `setLegacyNoteText` starts from it. Started from the newest note, saving the
+// field, even unchanged, overwrote the field note with an observation's words,
+// and clearing it deleted the field note (2026-10-05).
 
 nonisolated extension CDProjectSession {
     var latestUnifiedNoteText: String {
         let allNotes = (noteItems?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
+    }
+
+    var legacyNoteText: String {
+        CDNote.legacyFieldBody(in: (noteItems?.allObjects as? [CDNote]) ?? [])
     }
 
     @discardableResult
@@ -88,6 +99,10 @@ nonisolated extension CDWorkModel {
         return CDNote.latestBody(in: allNotes)
     }
 
+    var legacyNoteText: String {
+        CDNote.legacyFieldBody(in: (unifiedNotes?.allObjects as? [CDNote]) ?? [])
+    }
+
     @discardableResult
     func setLegacyNoteText(_ text: String?, in context: NSManagedObjectContext) -> Bool {
         return CDNote.upsertLegacyFieldNote(
@@ -105,6 +120,10 @@ nonisolated extension CDWorkCheckIn {
     var latestUnifiedNoteText: String {
         let allNotes = (notes?.allObjects as? [CDNote]) ?? []
         return CDNote.latestBody(in: allNotes)
+    }
+
+    var legacyNoteText: String {
+        CDNote.legacyFieldBody(in: (notes?.allObjects as? [CDNote]) ?? [])
     }
 
     @discardableResult
@@ -186,6 +205,12 @@ nonisolated extension CDNote {
 
     static func latestBody(in notes: [CDNote], preferredReporter: String? = nil) -> String {
         latestNote(in: notes, preferredReporter: preferredReporter)?.body ?? ""
+    }
+
+    /// The body of the field note `upsertLegacyFieldNote` would write (the
+    /// newest legacy-field note), or "" when there is none.
+    static func legacyFieldBody(in notes: [CDNote]) -> String {
+        latestNote(in: notes.filter { $0.reportedBy == LegacyNoteFieldConstants.reporter })?.body ?? ""
     }
 }
 

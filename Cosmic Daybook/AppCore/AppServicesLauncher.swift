@@ -48,11 +48,6 @@ nonisolated struct AppServicesStartGate: Sendable {
 /// interval backup loop, the Spotlight pass and (macOS) the MCP server.
 @MainActor
 final class AppServicesLauncher {
-    /// The launcher the app registered in `init`. The macOS app delegate
-    /// starts the services through it for an MCP-only launch, which has no
-    /// window whose `.task` could.
-    private(set) static var current: AppServicesLauncher?
-
     /// How long after start-up the Spotlight pass waits, the same pause the
     /// post-launch migrations take, so it never competes with the first render.
     static let spotlightDelay: Duration = .seconds(3)
@@ -69,10 +64,6 @@ final class AppServicesLauncher {
         self.coreDataStack = coreDataStack
         self.dependencies = dependencies
         self.bootstrapper = bootstrapper
-    }
-
-    static func register(_ launcher: AppServicesLauncher) {
-        current = launcher
     }
 
     #if os(macOS)

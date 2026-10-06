@@ -25,6 +25,8 @@ public struct AttendanceEmailSettingsView: View {
     @SyncedAppStorage(AttendanceEmailPrefs.deadlineKey)
     private var deadlineMinutes: Int = AttendanceEmailLog.defaultDeadlineMinutes
     @State private var notificationsDenied = false
+    /// The settings as last seen here: what the screen opened with, then each edit.
+    @State private var seenSignature: String?
     @Environment(\.managedObjectContext) private var viewContext
 
     public init() {}
@@ -96,6 +98,16 @@ public struct AttendanceEmailSettingsView: View {
     /// Carries the settings to the assistants (after typing pauses, not per
     /// keystroke: each write is a CloudKit upload) and rebuilds the reminder.
     private func applyChanges() async {
+        // Only an edit writes. The screen opening, or reappearing with its
+        // state kept (a Mac Settings pane), runs this too with the settings
+        // unchanged; this device's stored settings may be behind an edit made
+        // on another of the guide's devices, so those write nothing (2026-10-05).
+        let signature = changeSignature
+        guard let seen = seenSignature, seen != signature else {
+            seenSignature = signature
+            return
+        }
+        seenSignature = signature
         guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
         if AttendanceEmail.shareSettings(in: viewContext) { viewContext.safeSave() }
         if reminderOn { notificationsDenied = !(await FrontDeskEmailReminder.requestPermission()) }

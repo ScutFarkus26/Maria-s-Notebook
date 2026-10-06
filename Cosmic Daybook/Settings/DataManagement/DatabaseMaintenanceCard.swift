@@ -8,9 +8,11 @@ import OSLog
 ///
 /// The actual reset can't run while the container is loaded, so the button
 /// just arms a UserDefaults flag and asks the user to relaunch. On the next
-/// launch, `CoreDataStack.init` sees the flag, deletes the on-disk stores +
-/// migration flags, then clears the flag. The container reconstitutes from
-/// CloudKit.
+/// launch, `CoreDataStack.init` sees the flag, destroys the on-disk stores and
+/// clears the migration flags, then clears the flag. The container
+/// reconstitutes from CloudKit. With iCloud sync off there is nothing to
+/// download and the reset would delete the only copy, so the card says that
+/// instead.
 struct DatabaseMaintenanceCard: View {
     private static let logger = Logger.databaseMaintenance
 
@@ -20,6 +22,7 @@ struct DatabaseMaintenanceCard: View {
     // @AppStorage, not a computed read of UserDefaults, so arming or cancelling
     // redraws the card straight away.
     @AppStorage(UserDefaultsKeys.resetLocalCacheOnLaunch) private var isResetArmed = false
+    @AppStorage(UserDefaultsKeys.enableCloudKitSync) private var isSyncEnabled = true
     #if DEBUG
     @State private var showingInMemoryConfirmation = false
     @AppStorage(UserDefaultsKeys.useInMemoryStoreOnce) private var isInMemoryArmed = false
@@ -42,6 +45,11 @@ struct DatabaseMaintenanceCard: View {
                         systemImage: "arrow.clockwise.circle.fill",
                         onCancel: clearPendingResetRequest
                     )
+                } else if !isSyncEnabled {
+                    Text(DatabaseErrorCoordinator.redownloadNeedsSyncMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Button(role: .destructive) {
                         showingResetConfirmation = true
@@ -69,8 +77,8 @@ struct DatabaseMaintenanceCard: View {
             titleVisibility: .visible
         ) {
             Button("Re-download next time", role: .destructive) {
-                armResetRequest(source: "Settings.DatabaseMaintenanceCard")
-                showingRelaunchPrompt = true
+                isResetArmed = CoreDataStack.armLocalCacheReset(source: "Settings.DatabaseMaintenanceCard")
+                showingRelaunchPrompt = isResetArmed
             }
             Button("Cancel", role: .cancel) { }
         } message: {
@@ -175,25 +183,12 @@ struct DatabaseMaintenanceCard: View {
         )
     }
 
-    private func armResetRequest(source: String) {
-        let armedAt = Date.now.ISO8601Format()
-        let defaults = UserDefaults.standard
-        isResetArmed = true
-        defaults.set(armedAt, forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
-        defaults.set(source, forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
-        Self.logger.warning(
-            "Local cache reset armed. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
-        )
-    }
-
     private func clearPendingResetRequest() {
         let defaults = UserDefaults.standard
         let armedAt = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedAt) ?? "unknown"
         let source = defaults.string(forKey: UserDefaultsKeys.resetLocalCacheArmedSource) ?? "unknown"
         isResetArmed = false
-        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheOnLaunch)
-        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedAt)
-        defaults.removeObject(forKey: UserDefaultsKeys.resetLocalCacheArmedSource)
+        CoreDataStack.clearLocalCacheResetRequest(in: defaults)
         Self.logger.info(
             "Cancelled local cache reset. source=\(source, privacy: .public), armedAt=\(armedAt, privacy: .public)"
         )

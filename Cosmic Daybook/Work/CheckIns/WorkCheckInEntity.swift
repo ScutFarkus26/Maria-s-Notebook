@@ -18,6 +18,22 @@ nonisolated public class CDWorkCheckIn: NSManagedObject {
     @NSManaged public var work: CDWorkModel?
     @NSManaged public var notes: NSSet?
 
+    // MARK: - Deletion
+
+    /// A check-in's notes go with it (`notes` cascades), but a note that also
+    /// belongs to the work (a note logged on the row lands on that day's
+    /// check-in too, `WorkLogService.addNote`) is the work's: it is let go of
+    /// here, before the cascade, and stays on the work. Every delete comes
+    /// through here: the work detail, the launch orphan repair, dedup, and a
+    /// delete arriving from another device (2026-10-05). Deleting the work
+    /// itself still takes the note, through the work's own cascade.
+    public override func prepareForDeletion() {
+        super.prepareForDeletion()
+        for note in (notes as? Set<CDNote>) ?? [] where note.work != nil && !note.isDeleted {
+            note.workCheckIn = nil
+        }
+    }
+
     // MARK: - Convenience Initializer
     @discardableResult
     convenience init(context: NSManagedObjectContext) {

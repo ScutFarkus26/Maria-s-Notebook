@@ -29,7 +29,9 @@ final class PresentationDetailActions {
         lessonAssignment.notes = notes
         lessonAssignment.needsAnotherPresentation = needsAnotherPresentation
         lessonAssignment.studentIDs = selectedStudentIDs.map(\.uuidString)
-        lessonAssignment.lesson = lessons.first(where: { $0.id == editingLessonID })
+        if let lesson = lessons.first(where: { $0.id == editingLessonID }) {
+            lessonAssignment.lesson = lesson
+        }
 
         // State transitions: presented > scheduled > draft
         if isPresented {

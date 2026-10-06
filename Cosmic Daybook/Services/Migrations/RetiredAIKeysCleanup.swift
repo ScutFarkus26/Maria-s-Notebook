@@ -20,10 +20,19 @@ nonisolated enum RetiredAIKeysCleanup {
         "AI.chatModel", "AI.lessonPlanningModel", "AI.backgroundTasksModel", "LessonPlanning.model"
     ]
 
+    /// The Keychain's answers that mean it won't let this device remove the
+    /// items: locked (interaction not allowed) or not ours to touch (auth
+    /// failed). After `maxRefusals` launches that end in one, the cleanup
+    /// counts as done: an item nobody reads isn't worth asking for, on every
+    /// launch, for good.
+    static let refusals: Set<OSStatus> = [errSecInteractionNotAllowed, errSecAuthFailed]
+    static let maxRefusals = 3
+
     /// Deletes both Keychain items and the UserDefaults entries once. A
     /// Keychain failure (for example, still locked before first unlock) leaves
-    /// the flag unset, so the next launch tries again. Returns whether this
-    /// call finished the cleanup.
+    /// the flag unset, so the next launch tries again; the third launch the
+    /// Keychain refuses counts it done. Returns whether this call finished the
+    /// cleanup.
     @discardableResult
     static func runIfNeeded(
         defaults: UserDefaults = .standard,
@@ -31,10 +40,12 @@ nonisolated enum RetiredAIKeysCleanup {
     ) -> Bool {
         guard !defaults.bool(forKey: UserDefaultsKeys.retiredAIKeysRemovedV1) else { return false }
         var finished = true
+        var refused = false
         for account in keychainAccounts {
             let status = deleteKeychainItem(keychainService, account)
             guard status != errSecSuccess, status != errSecItemNotFound else { continue }
             finished = false
+            refused = refused || refusals.contains(status)
             logger.warning(
                 "Retired API key \(account, privacy: .public) not removed (OSStatus \(status, privacy: .public))"
             )
@@ -42,10 +53,34 @@ nonisolated enum RetiredAIKeysCleanup {
         for key in defaultsKeys {
             defaults.removeObject(forKey: key)
         }
-        guard finished else { return false }
+        if !finished {
+            guard refused else { return false }
+            let count = defaults.integer(forKey: UserDefaultsKeys.retiredAIKeysRefusals) + 1
+            guard count >= maxRefusals else {
+                defaults.set(count, forKey: UserDefaultsKeys.retiredAIKeysRefusals)
+                return false
+            }
+            logger.notice("Retired API keys: the Keychain refused \(count, privacy: .public) launches; leaving them")
+        }
         defaults.set(true, forKey: UserDefaultsKeys.retiredAIKeysRemovedV1)
-        logger.notice("Removed the retired Claude and OpenAI keys and model choices")
+        defaults.removeObject(forKey: UserDefaultsKeys.retiredAIKeysRefusals)
+        if finished {
+            logger.notice("Removed the retired Claude and OpenAI keys and model choices")
+        }
         return true
+    }
+
+    /// The launch's call: `SecItemDelete` can wait on the Keychain (before
+    /// first unlock it does), so it runs off the main thread. `defaultsSuite`
+    /// names the defaults to use; nil is the app's own.
+    @concurrent
+    @discardableResult
+    static func runOffMainThread(
+        defaultsSuite: String? = nil,
+        deleteKeychainItem: @Sendable (_ service: String, _ account: String) -> OSStatus = deleteGenericPassword
+    ) async -> Bool {
+        let defaults = defaultsSuite.flatMap(UserDefaults.init(suiteName:)) ?? .standard
+        return runIfNeeded(defaults: defaults, deleteKeychainItem: deleteKeychainItem)
     }
 
     static func deleteGenericPassword(service: String, account: String) -> OSStatus {

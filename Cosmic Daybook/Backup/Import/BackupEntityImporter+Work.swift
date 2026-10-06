@@ -89,7 +89,8 @@ extension BackupEntityImporter {
             checkIn.date = dto.date
             checkIn.statusRaw = (WorkCheckInStatus(rawValue: dto.statusRaw) ?? .scheduled).rawValue
             checkIn.purpose = dto.purpose
-            checkIn.studentInitiated = dto.studentInitiated ?? false
+            // A row from before the flag (v19) has none: a check-in already here keeps its own.
+            if let initiated = dto.studentInitiated { checkIn.studentInitiated = initiated }
             // Link to work if exists
             do {
                 if let work = try workCheck(workUUID) {

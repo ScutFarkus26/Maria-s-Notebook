@@ -30,7 +30,7 @@ enum SpotlightIndexer {
     /// plain values on a background context, hashed, and only sent when the
     /// hash differs from the last run's.
     static func reindexAll() async {
-        let context = AppBootstrapping.getSharedCoreDataStack().container.newBackgroundContext()
+        let context = await AppBootstrapping.sharedCoreDataStack().container.newBackgroundContext()
         // Read and hash on the context's queue. The fingerprint joins and
         // hashes every indexed row, and it used to be computed back on the
         // main actor after the read.

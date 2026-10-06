@@ -18,6 +18,9 @@ public final class BackupTransactionManager {
         case rollbackFailed(Error)
         case noCheckpointExists
         case importFailed(Error, checkpointURL: URL?)
+        /// A restore with no checkpoint (a Merge) that failed after its records
+        /// were saved: they stay, so "nothing was changed" would be wrong.
+        case importIncompleteAfterSaving(Error)
 
         /// What the guide reads. The underlying errors are logged where they
         /// are wrapped (`executeWithRollback`, `createCheckpoint`).
@@ -37,6 +40,9 @@ public final class BackupTransactionManager {
                 return checkpointURL == nil
                     ? "The restore didn't finish, so nothing was changed. Try again."
                     : "The restore didn't finish, so your notebook was put back the way it was. Nothing was lost."
+            case .importIncompleteAfterSaving:
+                return "The backup's records were restored, but the restore stopped before it finished. "
+                    + "Check your notebook; restoring the same backup again is safe."
             }
         }
     }
@@ -107,7 +113,15 @@ public final class BackupTransactionManager {
     /// Wraps a caller-supplied import closure with the safety-checkpoint +
     /// rollback dance. The closure does the actual import (any format) and
     /// receives a scaled progress callback covering 15–95%.
-    /// On failure, the checkpoint is restored through the current backup flow.
+    ///
+    /// The checkpoint is restored only when the import failed after saving
+    /// its records (`BackupRestoreSavedError`). A failure before that — a
+    /// damaged file, a refusal, a type that wouldn't import — left the
+    /// notebook as it was: the restore saves its clear and its records in one
+    /// save and discards both when it fails first. Rebuilding the notebook
+    /// from the checkpoint then would only delete and re-add every record (on
+    /// every device) and drop the guide's unsaved edits; the unused
+    /// checkpoint is removed instead.
     public func executeWithRollback(
         viewContext: NSManagedObjectContext,
         mode: BackupService.RestoreMode,
@@ -160,26 +174,43 @@ public final class BackupTransactionManager {
 
         } catch {
             Self.logger.error("Restore failed: \(String(describing: error), privacy: .public)")
-            if let checkpointURL {
-                progress(0.96, "Import failed. Attempting rollback…")
-                do {
-                    try await rollback(
-                        viewContext: viewContext,
-                        from: checkpointURL,
-                        progress: { subProgress, message in
-                            progress(0.96 + (subProgress * 0.04), "Rollback: \(message)")
-                        }
-                    )
-                    throw TransactionError.importFailed(error, checkpointURL: checkpointURL)
-                } catch let rollbackError as TransactionError {
-                    throw rollbackError
-                } catch {
-                    Self.logger.fault("Rollback failed: \(String(describing: error), privacy: .public)")
-                    throw TransactionError.rollbackFailed(error)
+            throw await recover(from: error, checkpointURL: checkpointURL, viewContext: viewContext, progress: progress)
+        }
+    }
+
+    /// What a failed import throws, after going back to the checkpoint when
+    /// the import had saved its records (see `executeWithRollback`).
+    private func recover(
+        from error: any Error,
+        checkpointURL: URL?,
+        viewContext: NSManagedObjectContext,
+        progress: @escaping BackupService.ProgressCallback
+    ) async -> TransactionError {
+        let saved = error as? BackupRestoreSavedError
+        let underlying = saved?.underlying ?? error
+        guard let checkpointURL, saved != nil else {
+            if let checkpointURL { cleanupCheckpoint(at: checkpointURL) }
+            activeCheckpointURL = nil
+            // Saved with no checkpoint to go back to (a Merge): its records
+            // stay. Otherwise nothing of the restore reached the store.
+            if saved != nil { return .importIncompleteAfterSaving(underlying) }
+            return .importFailed(underlying, checkpointURL: nil)
+        }
+        progress(0.96, "Import failed. Attempting rollback…")
+        do {
+            try await rollback(
+                viewContext: viewContext,
+                from: checkpointURL,
+                progress: { subProgress, message in
+                    progress(0.96 + (subProgress * 0.04), "Rollback: \(message)")
                 }
-            } else {
-                throw TransactionError.importFailed(error, checkpointURL: nil)
-            }
+            )
+            return .importFailed(underlying, checkpointURL: checkpointURL)
+        } catch let rollbackError as TransactionError {
+            return rollbackError
+        } catch {
+            Self.logger.fault("Rollback failed: \(String(describing: error), privacy: .public)")
+            return .rollbackFailed(error)
         }
     }
 
@@ -198,11 +229,10 @@ public final class BackupTransactionManager {
             throw TransactionError.noCheckpointExists
         }
 
-        // Drop any partial unsaved changes from the failed import before re-importing
-        // the checkpoint — otherwise those zombie inserts/deletes get re-saved alongside
-        // the restore and corrupt it.
-        viewContext.rollback()
-
+        // No `viewContext.rollback()` here: the failed restore already
+        // discarded its own unsaved changes (`BackupService.importRows`), so
+        // anything still unsaved is the guide's, and the checkpoint's restore
+        // saves it first like any restore.
         try await importCheckpoint(
             from: checkpointURL,
             into: viewContext,

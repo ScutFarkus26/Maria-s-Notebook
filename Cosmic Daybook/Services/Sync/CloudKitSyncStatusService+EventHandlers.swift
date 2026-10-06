@@ -288,24 +288,15 @@ extension CloudKitSyncStatusService {
 
         guard type != .setup else { return }
 
+        // Per store: when an import last caught it up, and how far its history
+        // has been exported (the bound for purging it).
+        recordWatermark(type: type, startDate: startDate, storeIdentifier: storeIdentifier)
+
         if type == .import {
             // Arms the dedup cycle; the history processor's report decides what,
             // if anything, it sweeps (see the coordinator).
             DeduplicationCoordinator.shared.requestDeduplicationAfterImport()
             finishFirstDownloadIfNeeded(importedStoreIdentifier: storeIdentifier)
-        }
-
-        if type == .export {
-            // The mirroring delegate has consumed all history transactions that
-            // predate this export's start. PersistentHistoryProcessor uses this
-            // date as the safe upper bound for history purging (Apple's
-            // documented pattern in "Sharing Core Data objects between iCloud
-            // users"). Only move it forward — a stale event must not regress it.
-            let key = UserDefaultsKeys.cloudKitLastSuccessfulExportStartDate
-            let previous = UserDefaults.standard.object(forKey: key) as? TimeInterval ?? 0
-            if startDate.timeIntervalSince1970 > previous {
-                UserDefaults.standard.set(startDate.timeIntervalSince1970, forKey: key)
-            }
         }
 
         let now = Date()

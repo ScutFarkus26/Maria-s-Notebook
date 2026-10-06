@@ -16,6 +16,13 @@ nonisolated enum AttendanceDeduplication {
         record.status == .absent && record.absenceReasonRaw == automaticAbsenceRaw
     }
 
+    /// Whether `record` holds a mark, read from the raw value: a status a
+    /// newer build added reads as unmarked through the typed `status`, and
+    /// lost to a blank copy here (bug hunt 2026-10-05, #42).
+    static func isMarked(_ record: CDAttendanceRecord) -> Bool {
+        !record.statusRaw.isEmpty && record.statusRaw != AttendanceStatus.unmarked.rawValue
+    }
+
     /// Whether `candidate` beats `incumbent` for the same (student, day):
     /// a marked record beats an unmarked one, then a real mark beats Close
     /// Arrival's automatic absence (the device that closed arrival hadn't
@@ -23,8 +30,8 @@ nonisolated enum AttendanceDeduplication {
     /// matching the CloudKit merge policy), then the lowest id string
     /// breaks the remaining tie deterministically.
     static func wins(_ candidate: CDAttendanceRecord, over incumbent: CDAttendanceRecord) -> Bool {
-        let candidateMarked = candidate.status != .unmarked
-        let incumbentMarked = incumbent.status != .unmarked
+        let candidateMarked = isMarked(candidate)
+        let incumbentMarked = isMarked(incumbent)
         if candidateMarked != incumbentMarked { return candidateMarked }
         let candidateAutomatic = isAutomaticAbsence(candidate)
         let incumbentAutomatic = isAutomaticAbsence(incumbent)

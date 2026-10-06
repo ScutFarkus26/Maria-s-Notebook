@@ -149,7 +149,9 @@ enum BackupServiceHelpers {
                 studentID: studentIDUUID,
                 date: aDate,
                 status: a.status.rawValue,
-                absenceReason: a.absenceReason.rawValue == "none" ? nil : a.absenceReason.rawValue,
+                // As stored: the typed reason has no case for Close Arrival's
+                // "closeArrival", which it read as none and the backup dropped.
+                absenceReason: a.absenceReasonRaw == AbsenceReason.none.rawValue ? nil : a.absenceReasonRaw,
                 recordedBy: a.recordedBy,
                 recordedByID: a.recordedByID,
                 recordedByName: a.recordedByName,

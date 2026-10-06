@@ -76,14 +76,22 @@ extension BackupRestoreFixtures {
         }
     }
 
+    /// `rows` without the types a restore leaves as they are
+    /// (`BackupEntityRegistry.keptOnRestoreEntityNames`), which the one-pass
+    /// restore still wrote: since 2026-10-05 a restore leaves the device's
+    /// EventKit copies (reminders, calendar events) to the next sync.
+    private static func restorable<Value>(_ rows: [String: Value]) -> [String: Value] {
+        rows.filter { !BackupEntityRegistry.keptOnRestoreEntityNames.contains($0.key) }
+    }
+
     /// Names every entity whose records differ, with the first differing line.
     static func expectSameStore(
         _ new: NSManagedObjectContext,
         _ old: NSManagedObjectContext,
         _ situation: String
     ) throws {
-        let now = try snapshot(of: new)
-        let before = try snapshot(of: old)
+        let now = restorable(try snapshot(of: new))
+        let before = restorable(try snapshot(of: old))
         #expect(now.keys.sorted() == before.keys.sorted(), "\(situation): entities with records")
         for name in Set(now.keys).union(before.keys).sorted() {
             let rows = now[name] ?? []
@@ -111,8 +119,8 @@ extension BackupRestoreFixtures {
         let comparable = { (rows: [Data]) in
             rows.map { withRecentDates($0, after: recent) }.sorted { $0.lexicographicallyPrecedes($1) }
         }
-        let now = try backedUpRows(of: new).mapValues(comparable)
-        let before = try backedUpRows(of: old).mapValues(comparable)
+        let now = restorable(try backedUpRows(of: new).mapValues(comparable))
+        let before = restorable(try backedUpRows(of: old).mapValues(comparable))
         #expect(now.keys.sorted() == before.keys.sorted(), "\(situation): backed-up types")
         for name in Set(now.keys).union(before.keys).sorted() {
             let rows = now[name] ?? []

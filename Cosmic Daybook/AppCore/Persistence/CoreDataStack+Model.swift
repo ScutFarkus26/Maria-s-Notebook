@@ -6,9 +6,13 @@ extension CoreDataStack {
 
     nonisolated static let modelName = "CosmicDaybook"
 
-    /// MainActor-isolated like the rest of the type, so no lock is needed:
-    /// `sharedModel()` is only ever reached from `init`.
-    private static var _sharedModel: NSManagedObjectModel?
+    /// Lock-guarded: the launch opens its stores off the main actor
+    /// (`CoreDataStack.startOpening`) while tests, Sample Class and the error
+    /// screen's restore ask on it, so every read and write of
+    /// `_sharedModel` holds `sharedModelLock`, the whole load included
+    /// (two first callers must not each load a model).
+    nonisolated(unsafe) private static var _sharedModel: NSManagedObjectModel?
+    nonisolated private static let sharedModelLock = NSLock()
 
     /// The one `NSManagedObjectModel` instance this process ever uses.
     ///
@@ -30,7 +34,9 @@ extension CoreDataStack {
     /// immutable as soon as a coordinator uses it. Stores that want every
     /// entity (unified, in-memory) pass `configuration: nil`, which means the
     /// default configuration — still the model's full entity set.
-    static func sharedModel() throws -> NSManagedObjectModel {
+    nonisolated static func sharedModel() throws -> NSManagedObjectModel {
+        sharedModelLock.lock()
+        defer { sharedModelLock.unlock() }
         if let existing = _sharedModel { return existing }
 
         guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "momd"),
@@ -229,7 +235,7 @@ extension CoreDataStack {
     ///
     /// Everything else (`privateEntityNames`: lessons, notes, work, …) is
     /// exclusive to the Private configuration.
-    private static func assignEntitiesToConfigurations(model: NSManagedObjectModel) {
+    nonisolated private static func assignEntitiesToConfigurations(model: NSManagedObjectModel) {
         let allEntities = model.entities
 
         let sharedEntities = allEntities.filter { sharedEntityNames.contains($0.name ?? "") }
@@ -255,7 +261,7 @@ extension CoreDataStack {
 
     /// Validates that all entity names in our routing tables exist in the model.
     /// Logs warnings for mismatches but does not crash — allows the app to continue.
-    private static func validateEntityRouting(model: NSManagedObjectModel) {
+    nonisolated private static func validateEntityRouting(model: NSManagedObjectModel) {
         let modelEntityNames = Set(model.entities.compactMap(\.name))
         let routedNames = sharedEntityNames.union(privateEntityNames)
 

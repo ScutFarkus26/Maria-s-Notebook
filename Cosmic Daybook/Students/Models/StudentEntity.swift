@@ -32,7 +32,8 @@ nonisolated public class CDStudent: NSManagedObject {
         self.firstName = ""
         self.lastName = ""
         self.nickname = nil
-        self.birthday = Date()
+        // No birthday until one is known: today's date read as a newborn.
+        self.birthday = nil
         self.levelRaw = Level.lower.rawValue
         self.nextLessons = [] as NSArray
         self.manualOrder = 0

@@ -22,7 +22,8 @@ struct LaunchErrorMessageTests {
             .storeLoadFailed(underlying),
             .cloudKitLoadFailed(underlying),
             .storeFromNewerBuild(storeName: "private.sqlite", storeVersion: 15, appVersion: 14),
-            .storeSchemaIncoherent(storeName: "private.sqlite", detail: "ZSTUDENT.ZLEFTAT")
+            .storeSchemaIncoherent(storeName: "private.sqlite", detail: "ZSTUDENT.ZLEFTAT"),
+            .storeInUseByAnotherCopy
         ]
     }
 
@@ -41,6 +42,13 @@ struct LaunchErrorMessageTests {
         #expect(newer.technicalDetail.contains("private.sqlite"))
         #expect(newer.technicalDetail.contains("15"))
         #expect(CoreDataStackError.storeLoadFailed(underlying).technicalDetail.contains("NSCocoaErrorDomain 134110"))
+    }
+
+    @Test("Another copy holding the notebook says to quit that copy")
+    func storeInUseNamesTheFix() {
+        let message = CoreDataStackError.storeInUseByAnotherCopy.errorDescription ?? ""
+        #expect(message.contains("Quit the other copy"))
+        #expect(!message.contains("lock"))
     }
 
     @Test("A damaged store points at the re-download button by its real name")

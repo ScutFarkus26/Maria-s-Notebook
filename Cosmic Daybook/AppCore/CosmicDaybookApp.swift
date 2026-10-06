@@ -22,9 +22,8 @@ struct CosmicDaybookApp: App {
     @State var bootstrapper = AppBootstrapper.shared
     @State var appRouter = AppRouter.shared
     @State var databaseErrorCoordinator = DatabaseErrorCoordinator.shared
-    @State var dependencies: AppDependencies
-    @State var classroomWorkspace: ClassroomWorkspaceStore
-    @State var saveCoordinator: SaveCoordinator
+    /// The notebook's stack and what is built on it, once its stores are open.
+    @State var notebookOpener = NotebookOpener.shared
     @State var restoreCoordinator: RestoreCoordinator
 
     #if os(macOS)
@@ -32,14 +31,6 @@ struct CosmicDaybookApp: App {
     #elseif os(iOS)
     @UIApplicationDelegateAdaptor var appDelegate: ShareAcceptanceAppDelegate
     #endif
-
-    // MARK: - Core Data Stack
-
-    /// The shared Core Data stack — initialized once in init() and used by all scenes.
-    let coreDataStack: CoreDataStack
-
-    /// Starts the app-wide services once per process (see `startAppServicesIfNeeded`).
-    let servicesLauncher: AppServicesLauncher
 
     #if os(macOS)
     /// `.suppressed` only for an MCP-only launch (the Claude bridge started
@@ -65,31 +56,21 @@ struct CosmicDaybookApp: App {
         // Before launch finishes, so a tapped reminder that launched the app
         // is delivered (the front-desk email's opens Attendance).
         UNUserNotificationCenter.current().delegate = NotebookNotificationTaps.shared
-        let stack = AppBootstrapping.getSharedCoreDataStack()
-        coreDataStack = stack
-        let deps = AppDependencies(coreDataStack: stack)
-        dependencies = deps
-        classroomWorkspace = ClassroomWorkspaceStore(
-            primaryStack: stack,
-            primaryDependencies: deps
-        )
-        // One coordinator app-wide: the environment instance every view saves
-        // through must be the one `dependencies.saveCoordinator` hands out, or
-        // failures recorded on one never reach the other's "Couldn't Save" alert.
-        saveCoordinator = deps.saveCoordinator
-        restoreCoordinator = RestoreCoordinator(appRouter: deps.appRouter)
+        restoreCoordinator = RestoreCoordinator(appRouter: AppRouter.shared)
 
-        let launcher = AppServicesLauncher(
-            coreDataStack: stack,
-            dependencies: deps,
-            bootstrapper: AppBootstrapper.shared
-        )
-        servicesLauncher = launcher
-        AppServicesLauncher.register(launcher)
+        // The stores open off the main thread while the window says "Opening
+        // your notebook…"; what needs them waits for them (`NotebookOpener`,
+        // `AppBootstrapping.sharedCoreDataStack()`). Started here, before any
+        // scene, so a launch that brings up none (a background intent) opens
+        // them too, and on a background thread at once, not once the main
+        // actor is through setting up the first window.
+        AppBootstrapping.startOpeningStores()
+        NotebookOpener.shared.start()
 
         #if os(iOS)
-        // BGTaskScheduler handlers must be registered before launch finishes.
-        BackupBackgroundTaskManager.register(dependencies: deps, coreDataStack: stack)
+        // BGTaskScheduler handlers must be registered before launch finishes;
+        // the handler waits for the notebook itself.
+        BackupBackgroundTaskManager.register(notebook: { await NotebookOpener.shared.open() })
         #endif
     }
 
@@ -98,9 +79,8 @@ struct CosmicDaybookApp: App {
         DetailWindowDependencies(
             bootstrapper: bootstrapper,
             restoreCoordinator: restoreCoordinator,
-            classroomWorkspace: classroomWorkspace,
-            appRouter: appRouter,
-            saveCoordinator: saveCoordinator
+            notebookOpener: notebookOpener,
+            appRouter: appRouter
         )
     }
     #endif
@@ -130,7 +110,7 @@ struct CosmicDaybookApp: App {
         .defaultLaunchBehavior(mainWindowLaunchBehavior)
         #endif
         .commands {
-            NotebookCommands(appRouter: appRouter, classroomWorkspace: classroomWorkspace)
+            NotebookCommands(appRouter: appRouter, notebookOpener: notebookOpener)
             #if os(macOS)
             MainWindowOpenerCommands()
             #endif
@@ -141,13 +121,14 @@ struct CosmicDaybookApp: App {
             Group {
                 if bootstrapper.state == .ready,
                    !restoreCoordinator.isRestoring,
-                   hasCompletedOnboarding {
+                   hasCompletedOnboarding,
+                   let notebook = notebookOpener.notebook {
                     SettingsView(showsPageHeader: false)
-                        .environment(\.managedObjectContext, coreDataStack.viewContext)
+                        .environment(\.managedObjectContext, notebook.coreDataStack.viewContext)
                         .environment(\.calendar, AppCalendar.shared)
                         .environment(\.appRouter, appRouter)
-                        .environment(\.dependencies, dependencies)
-                        .environment(saveCoordinator)
+                        .environment(\.dependencies, notebook.dependencies)
+                        .environment(notebook.saveCoordinator)
                         .environment(restoreCoordinator)
                 } else {
                     VStack(spacing: 12) {

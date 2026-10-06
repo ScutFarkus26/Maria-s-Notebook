@@ -14,6 +14,10 @@ extension CosmicDaybookApp {
     // MARK: - Startup
 
     func performStartupBootstrap() async {
+        // The stores open off the main thread; the window says "Opening your
+        // notebook…" until they have (or the error screen, if they can't).
+        let notebook = await notebookOpener.open()
+
         let startup = LaunchSignposts.begin("StartupBootstrap")
         defer { LaunchSignposts.end("StartupBootstrap", startup) }
 
@@ -31,7 +35,7 @@ extension CosmicDaybookApp {
         ])
         #endif
 
-        await startAppServicesIfNeeded()
+        await startAppServicesIfNeeded(in: notebook)
     }
 
     /// Starts the store bootstrap and the app-wide services unless this
@@ -39,11 +43,11 @@ extension CosmicDaybookApp {
     /// windows find it done, and on the Mac an MCP-only launch (no window)
     /// does it from the app delegate. Nothing starts while the store failed
     /// to load.
-    func startAppServicesIfNeeded() async {
+    func startAppServicesIfNeeded(in notebook: OpenNotebook) async {
         #if os(macOS)
-        await servicesLauncher.startIfNeeded(quitBackupDelegate: appDelegate)
+        await notebook.servicesLauncher.startIfNeeded(quitBackupDelegate: appDelegate)
         #else
-        await servicesLauncher.startIfNeeded()
+        await notebook.servicesLauncher.startIfNeeded()
         #endif
     }
 
@@ -55,11 +59,19 @@ extension CosmicDaybookApp {
     /// It is also the idle trim's moment: memory held while suspended decides
     /// which app iOS ends first.
     func handleScenePhaseChange(_ phase: ScenePhase) {
+        // A second copy on the Mac takes over the primary's jobs once it is
+        // the only copy left (`AppBootstrapper.takeOverIfAlone`).
+        if phase == .active, let notebook = notebookOpener.notebook {
+            AppBootstrapper.takeOverIfAlone(coreDataStack: notebook.coreDataStack)
+        }
         #if os(iOS)
         guard phase == .background else { return }
+        // Nothing while the notebook is still opening (a launch's first
+        // moments): the trim and the backup both belong to it.
+        guard let notebook = notebookOpener.notebook else { return }
         // Before the backup starts, and whatever the store's state: the album
         // library's rebuildable caches don't depend on it.
-        dependencies.trimIdleMemory(reason: .appBackgrounded)
+        notebook.dependencies.trimIdleMemory(reason: .appBackgrounded)
         guard bootstrapper.state == .ready,
               AppBootstrapping.initError == nil else { return }
 
@@ -69,8 +81,8 @@ extension CosmicDaybookApp {
         // thread's, which it used to inherit.
         Task(priority: .utility) {
             await BackupBackgroundTaskManager.schedule()
-            await dependencies.autoBackupManager.performBackgroundBackup(
-                viewContext: coreDataStack.viewContext
+            await notebook.dependencies.autoBackupManager.performBackgroundBackup(
+                viewContext: notebook.coreDataStack.viewContext
             )
             assertion.end()
         }

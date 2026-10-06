@@ -164,6 +164,9 @@ struct TrackTitleMergeTests {
             startedAt: try CoreDataTestHelpers.day("2026-01-11"), in: context)
         let live = enroll(student, on: newer, active: true,
             startedAt: try CoreDataTestHelpers.day("2026-02-01"), in: context)
+        // The kept enrollment is the lower id (DedupKeeperTests covers the other way round).
+        retired.id = UUID(uuidString: "FFFFFFFF-0000-0000-0000-000000000001")
+        live.id = UUID(uuidString: "00000000-0000-0000-0000-000000000001")
         enroll(peer, on: newer, in: context)
         let note = CoreDataTestHelpers.seedNote(in: context, body: "Working steadily through the laws.")
         note.studentTrackEnrollmentID = retired.id?.uuidString

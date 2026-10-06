@@ -21,6 +21,28 @@ extension CoreDataStack {
         ctx.undoManager = nil
         // Disable autosave — we use explicit saves via SaveCoordinator
         // (Mirrors the existing SwiftData behavior where autosave was disabled)
+        Self.register(container)
+    }
+
+    // MARK: - From a context to its CloudKit container
+
+    nonisolated private static let containersLock = NSLock()
+    /// Each loaded stack's container by its coordinator, both held weakly.
+    nonisolated(unsafe) private static let containers =
+        NSMapTable<NSPersistentStoreCoordinator, NSPersistentCloudKitContainer>.weakToWeakObjects()
+
+    nonisolated private static func register(_ container: NSPersistentCloudKitContainer) {
+        containersLock.lock(); defer { containersLock.unlock() }
+        containers.setObject(container, forKey: container.persistentStoreCoordinator)
+    }
+
+    /// The CloudKit container `context` belongs to, so code handed only a
+    /// context can ask where a record lives (`ClassroomNames`). Nil for a
+    /// context of a coordinator no stack made.
+    nonisolated static func cloudKitContainer(for context: NSManagedObjectContext) -> NSPersistentCloudKitContainer? {
+        guard let coordinator = context.persistentStoreCoordinator else { return nil }
+        containersLock.lock(); defer { containersLock.unlock() }
+        return containers.object(forKey: coordinator)
     }
 
     // MARK: - Background Context
@@ -53,8 +75,12 @@ extension CoreDataStack {
         // a fixed window rather than a resetting debounce, so a long import
         // still gets a pass at least that often. Downstream the dedup request
         // waits 5 s on its own, and the entity notifications only refresh caches.
-        scheduleCoalescedRemoteChangePass {
-            await processor.processRemoteChanges()
+        // What another running copy of the app saved reaches no context here by
+        // itself; the pass hands it back to merge into the view context.
+        scheduleCoalescedRemoteChangePass { [weak self] in
+            let foreign = await processor.processRemoteChanges()
+            guard let self else { return }
+            PersistentHistoryProcessor.merge(foreign, into: self.viewContext)
         }
     }
 

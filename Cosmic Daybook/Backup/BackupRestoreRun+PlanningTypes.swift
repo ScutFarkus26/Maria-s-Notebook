@@ -27,21 +27,12 @@ extension BackupRestoreRun {
             )
         }
 
-        if let reminders = try rows(\.reminders) {
-            try BackupEntityImporter.importReminders(
-                reminders,
-                into: viewContext,
-                existing: { try index.existing(CDReminder.self, id: $0) }
-            )
-        }
-
-        if let calendarEvents = try rows(\.calendarEvents) {
-            try BackupEntityImporter.importCalendarEvents(
-                calendarEvents,
-                into: viewContext,
-                existing: { try index.existing(CDCalendarEvent.self, id: $0) }
-            )
-        }
+        // Reminders and calendar events are copies of the device's EventKit
+        // lists, carried but never restored
+        // (`BackupEntityRegistry.keptOnRestoreEntityNames`): the next sync
+        // rebuilds them. Taking them still frees them in type order.
+        _ = try rows(\.reminders)
+        _ = try rows(\.calendarEvents)
     }
 
     func importTrackEntities() throws {
@@ -223,6 +214,7 @@ extension BackupRestoreRun {
                 existing: { try index.existing(CDNoteStudentLink.self, id: $0) },
                 parents: ["note": { try index.related(CDNote.self, id: $0) }]
             )
+            restoredLinkIDs = Set(noteStudentLinks.map(\.id))
         }
     }
 }

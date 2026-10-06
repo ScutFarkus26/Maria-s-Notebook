@@ -5,7 +5,8 @@ import CoreData
 /// through `SiriHost`, which Cosmic Daybook defines with the same shape.
 @MainActor
 enum SiriHost {
-    static func stack() throws -> CoreDataStack {
+    /// Async to match the notebook's, whose stores open off the main thread.
+    static func stack() async throws -> CoreDataStack {
         try AssistantStack.shared()
     }
 

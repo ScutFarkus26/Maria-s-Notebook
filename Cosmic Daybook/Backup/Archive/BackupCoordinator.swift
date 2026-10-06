@@ -37,15 +37,19 @@ final class BackupCoordinator {
     private let backupService: BackupService
     private let transactionManager: BackupTransactionManager
     private let appRouter: AppRouter
+    /// Where `BackupRestoreGate` reads this device's first-download flag.
+    private let restoreGateDefaults: UserDefaults
 
     init(
         backupService: BackupService,
         transactionManager: BackupTransactionManager,
-        appRouter: AppRouter
+        appRouter: AppRouter,
+        restoreGateDefaults: UserDefaults = .standard
     ) {
         self.backupService = backupService
         self.transactionManager = transactionManager
         self.appRouter = appRouter
+        self.restoreGateDefaults = restoreGateDefaults
     }
 
     // MARK: - Size Estimation
@@ -133,17 +137,32 @@ final class BackupCoordinator {
 
     // MARK: - Import
 
+    /// Which notebook a restore fills.
+    enum RestoreTarget {
+        /// The notebook open in the app (Settings › Sync and backup).
+        case openNotebook
+        /// A new notebook the database-error screen made for the restore,
+        /// in place of one that wouldn't open (`FreshNotebookRestore`).
+        case freshNotebook
+    }
+
     /// Performs an import with safety-checkpoint + rollback (via the existing
     /// `BackupTransactionManager`). Routes the actual import work to the
-    /// current decode path or rejects legacy manual imports.
+    /// current decode path or rejects legacy manual imports. Refused, before
+    /// any checkpoint, while `BackupRestoreGate` says this device can't
+    /// restore (first download under way, or not the lead guide's notebook).
     @discardableResult
     func importBackup(
         viewContext: NSManagedObjectContext,
         from url: URL,
         mode: BackupService.RestoreMode,
+        target: RestoreTarget = .openNotebook,
         progress: @escaping BackupService.ProgressCallback
     ) async throws -> BackupOperationSummary {
-        try await transactionManager.executeWithRollback(
+        if let reason = restoreBlocker(in: viewContext, target: target) {
+            throw BackupRestoreGate.Refusal(reason: reason)
+        }
+        return try await transactionManager.executeWithRollback(
             viewContext: viewContext,
             mode: mode,
             shouldCreateCheckpoint: mode == .replace,
@@ -156,6 +175,25 @@ final class BackupCoordinator {
                 progress: stepProgress
             )
         }
+    }
+
+    /// `BackupRestoreGate`'s reason this restore can't start, or nil.
+    ///
+    /// The first-download refusal (#32) is waived for a fresh notebook, on
+    /// purpose. It keeps a restore out of a store an iCloud download is still
+    /// filling, where the download would go on adding its copies beside the
+    /// restored ones. The database-error screen's restore fills a new store of
+    /// its own, opened without iCloud and only while iCloud sync is off on
+    /// this device (`FreshNotebookRestore`), so no download reaches it; the
+    /// device's first-download flag, whatever it says, is about the notebook
+    /// that wouldn't open. The waiver holds only while the store really is out
+    /// of iCloud's reach. The lead-guide check applies as everywhere.
+    private func restoreBlocker(in context: NSManagedObjectContext, target: RestoreTarget) -> String? {
+        let waivesFirstDownload = target == .freshNotebook && !BackupRestoreScope.syncsWithICloud(context)
+        return BackupRestoreGate.blocker(
+            firstDownloadPending: !waivesFirstDownload && FirstDownloadGate.isPending(defaults: restoreGateDefaults),
+            role: CDClassroomMembership.currentRole(in: context)
+        )
     }
 
     private func performImport(

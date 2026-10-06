@@ -18,7 +18,9 @@
 //  MCP_SERVER.md for the tool-to-backing-path table.
 //
 //  All handlers run on the main actor and read through the app's shared
-//  Core Data stack, the same entry point the Siri intents use.
+//  Core Data stack. The server starts only once the notebook's stores are
+//  open (AppServicesLauncher, after `AppBootstrapping.sharedCoreDataStack()`),
+//  so the tools read the open stack as it is.
 //
 
 import CoreData

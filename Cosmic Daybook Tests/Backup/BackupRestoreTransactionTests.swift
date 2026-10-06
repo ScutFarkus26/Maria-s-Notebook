@@ -5,7 +5,9 @@ import Testing
 
 // How a restore fails, and what runs where. Broken archives throw the one-pass
 // restore's errors (BackupService+LegacyRestore.swift) and leave the store
-// untouched; a replace restore failing part-way rolls back to its checkpoint;
+// untouched; a replace restore failing part-way changes nothing (its clear is
+// saved with its records, 2026-10-05) and one failing after its save rolls
+// back to its checkpoint;
 // a merge restore failing part-way (2026-09-27; it used to leave its partial
 // changes pending, for the next save anywhere to commit) discards exactly its
 // own changes and keeps the guide's unsaved edits, which it saves first; every
@@ -78,27 +80,23 @@ struct BackupRestoreTransactionTests {
         }
     }
 
-    @Test("A failure part-way through a replace restore rolls back to the checkpoint")
-    func failedReplaceRollsBack() async throws {
-        let (store, url) = try await Restore.makeBackup(bulk: 0)
-        defer { store.remove() }
-        let target = try CoreDataTestHelpers.makeInMemoryStack()
-        _ = try await Restore.restore(url, into: target.viewContext, mode: .merge)
-        let before = try Restore.backedUpRows(of: target.viewContext)
-
-        // Replaced by another notebook's backup, which fails at its work.
+    /// Replaces `target` with another notebook's backup that fails at
+    /// `phase`; returns the checkpoint the failure reported and the recorder.
+    private static func failedReplace(
+        of target: NSManagedObjectContext, at phase: String
+    ) async throws -> (checkpoint: URL?, recorder: BackupPipelineRecorder) {
         let other = try Fixtures.makeStore()
         defer { other.remove() }
         try Fixtures.seedEveryType(in: other.context, bulk: 20)
         let otherURL = other.archiveURL("Other")
         try await Restore.writeBackup(of: other.context, to: otherURL)
-        let recorder = Self.failing(at: "import WorkModel")
+        let recorder = Self.failing(at: phase)
 
         var checkpoint: URL?
         do {
             _ = try await BackupPipelineRecorder.$current.withValue(recorder) {
                 try await Self.coordinator().importBackup(
-                    viewContext: target.viewContext, from: otherURL, mode: .replace, progress: { _, _ in }
+                    viewContext: target, from: otherURL, mode: .replace, progress: { _, _ in }
                 )
             }
             Issue.record("The restore should have failed")
@@ -107,9 +105,46 @@ struct BackupRestoreTransactionTests {
             checkpoint = checkpointURL
         }
         if let checkpoint { try? FileManager.default.removeItem(at: checkpoint) }
-        #expect(checkpoint != nil, "restored from a checkpoint")
+        return (checkpoint, recorder)
+    }
+
+    /// Every Student's and Note's object, to tell kept records from re-added ones.
+    private static func objects(in context: NSManagedObjectContext) throws -> Set<NSManagedObjectID> {
+        let students = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: "Student"))
+        let notes = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: "Note"))
+        return Set((students + notes).map(\.objectID))
+    }
+
+    @Test("A replace restore failing part-way, before its save, changes nothing and needs no checkpoint")
+    func failedReplaceBeforeSavingChangesNothing() async throws {
+        let (store, url) = try await Restore.makeBackup(bulk: 0)
+        defer { store.remove() }
+        let target = try CoreDataTestHelpers.makeInMemoryStack()
+        _ = try await Restore.restore(url, into: target.viewContext, mode: .merge)
+        let before = try Restore.backedUpRows(of: target.viewContext)
+        let objects = try Self.objects(in: target.viewContext)
+
+        let (checkpoint, recorder) = try await Self.failedReplace(of: target.viewContext, at: "import WorkModel")
+
+        #expect(checkpoint == nil, "nothing to go back to: the clear is saved only with the import")
         let importedFirst = Self.imported(before: "import WorkModel", in: recorder)
         #expect(importedFirst.count > 10, "types imported before the failure: \(importedFirst.count)")
+        #expect(try Restore.backedUpRows(of: target.viewContext) == before)
+        #expect(try Self.objects(in: target.viewContext) == objects, "the same records, not re-added copies")
+        #expect(!target.viewContext.hasChanges)
+    }
+
+    @Test("A replace restore failing after its save rolls back to the checkpoint")
+    func failedReplaceAfterSavingRollsBack() async throws {
+        let (store, url) = try await Restore.makeBackup(bulk: 0)
+        defer { store.remove() }
+        let target = try CoreDataTestHelpers.makeInMemoryStack()
+        _ = try await Restore.restore(url, into: target.viewContext, mode: .merge)
+        let before = try Restore.backedUpRows(of: target.viewContext)
+
+        let (checkpoint, _) = try await Self.failedReplace(of: target.viewContext, at: "saved")
+
+        #expect(checkpoint != nil, "restored from a checkpoint")
         #expect(try Restore.backedUpRows(of: target.viewContext) == before)
         #expect(!target.viewContext.hasChanges)
     }
@@ -222,7 +257,7 @@ struct BackupRestoreTransactionTests {
 
         let steps = recorder.reached
         #expect(steps.first == BackupPipelineRecorder.Step(phase: "decode", onMainThread: false))
-        let imports = steps.dropFirst()
+        let imports = steps.dropFirst().filter { $0.phase.hasPrefix("import ") }
         let importedOnMain = imports.allSatisfy(\.onMainThread)
         #expect(importedOnMain, "types imported in the main-actor turn")
         #expect(imports.map { String($0.phase.dropFirst("import ".count)) } == Restore.restoreOrder)

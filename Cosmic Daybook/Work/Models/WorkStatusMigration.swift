@@ -4,9 +4,10 @@
 // Before 2026-09-15 a closed work row said two things: `statusRaw == "complete"`
 // and, sometimes, a `completionOutcomeRaw` naming how it went. `WorkStatus`
 // now says both in one word. This is the one table that translates the old
-// pair into the new raw value; the launch repair and the backup importer both
-// read it, so a row restored from an old backup and a row synced from an old
-// device land in the same place.
+// pair into the new raw value; the launch repair, the backup importer and the
+// work log's undo all read it, so a row restored from an old backup and a row
+// synced from an old device land in the same place. Once folded, the outcome
+// is cleared (2026-10-05): the folded status is the record of it.
 
 import Foundation
 

@@ -57,12 +57,12 @@ extension CosmicDaybookApp {
             .background(Color.clear)
         } else if !hasCompletedOnboarding {
             OnboardingView()
-        } else {
-            RootView(classroomWorkspace: classroomWorkspace)
-                .activeClassroomEnvironment(classroomWorkspace)
+        } else if let notebook = notebookOpener.notebook {
+            RootView(classroomWorkspace: notebook.classroomWorkspace)
+                .activeClassroomEnvironment(notebook.classroomWorkspace)
                 .environment(\.calendar, AppCalendar.shared)
                 .environment(\.appRouter, appRouter)
-                .environment(saveCoordinator)
+                .environment(notebook.saveCoordinator)
                 .environment(restoreCoordinator)
                 .environment(AlbumLibrary.shared)
                 .syncingFromICloudOverlay()

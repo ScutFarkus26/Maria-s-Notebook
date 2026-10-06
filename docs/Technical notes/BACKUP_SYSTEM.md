@@ -126,6 +126,14 @@ that made it: restoring the Development backup into the Production notebook must
 zone, and a Replace restore must not make the device forget the share it has. Restore neither clears nor
 writes those rows; the type is still asked for in order (and freed) like every other.
 
+**Changes of 2026-10-05** (`docs/Plans/Plan - Data model and launch repair fixes.md`, Phase 1E and its review). These override the steps below where they differ:
+- **The notebook's own store only.** A backup (and the backup check) reads only `private.sqlite`, and a restore clears, looks up and inserts only there (`BackupRestoreScope`). A shared store holds classrooms other people shared with this notebook; backing it up brought its rows back as private copies.
+- **Refused** during a first download from iCloud and on a notebook whose role isn't lead guide (`BackupRestoreGate`). The one exception is the error screen's restore into a fresh notebook (`FreshNotebookRestore`, sync off only), which waives the first-download refusal on purpose.
+- **Replace saves its clear with its records**, in the one save. A failure before that save changes nothing and ends the restoring state for the screens; only a failure after it rolls back to the checkpoint. A Merge that saved and then failed says its records were restored (`importIncompleteAfterSaving`).
+- **Kept as they are:** `ClassroomMembership`, and the mirrored `Reminder` and `CalendarEvent` rows (`keptOnRestoreEntityNames`), which the next EventKit sync updates; the Replace preview leaves them out. The summary counts notes linked to a reminder this device doesn't have.
+- **Older backups** keep the attributes their format predates, optional ones included (`BackupPredatedValues`); `absenceReasonRaw` (Close Arrival's marker) round-trips raw; restored notes keep the backup's student links and lose only this device's stale ones; duplicates of one id are resolved the way duplicate cleanup resolves them.
+- `BackupRestorePeakMemoryTests` (on request) also measures a Replace over a full notebook.
+
 1. `BackupCoordinator.importBackup` → `BackupTransactionManager.executeWithRollback`.
 2. For `.replace`, a safety checkpoint (current-format backup) is written first; if it fails, the restore aborts before deleting anything.
 3. `BackupImporter.restore` → `decodeArchive` (off-main, `@concurrent`) reads and decrypts the archive and decodes each entry as it is read, in archive order, into one `BackupPayload` — the same payload and warnings as decoding after the whole read, with no entry's NDJSON outliving its decode. It fails exactly as the reader does (bad entry path, missing manifest, unsupported version).

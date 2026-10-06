@@ -45,6 +45,7 @@ extension BackupRestoreRun {
             existing: { try index.existing(CDNote.self, id: $0) }
         )
         noteLinks = notes.compactMap(BackupNoteLinks.init)
+        restoredNoteIDs = notes.map(\.id)
     }
 
     func importCalendarAndRecordEntities() throws {

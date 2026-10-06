@@ -12,7 +12,7 @@ import Foundation
 ///   `schedule(for:)` / `unschedule()` setters, which mirror it from `scheduledFor`
 /// - `updateDenormalizedKeys()` — rebuilds `studentGroupKeyPersisted` from resolved UUIDs
 /// - `syncSnapshotsFromRelationships()` — copies relationship data into string-based fields
-/// - `resolvedLessonID` — falls back from relationship to stored string ID
+/// - `resolvedLessonID` — the stored string ID, or a stable stand-in when it isn't a UUID
 protocol DenormalizedSchedulable: AnyObject {
     // MARK: - CDStudent Grouping (stored properties)
 
@@ -35,6 +35,10 @@ protocol DenormalizedSchedulable: AnyObject {
 
     /// CDStudent IDs from the relationship array, as CloudKit-compatible strings.
     var studentRelationshipIDStrings: [String] { get }
+
+    /// What `resolvedLessonID` answers for a row whose `lessonID` isn't a UUID:
+    /// the same on every read, and matching no lesson and no other row.
+    var placeholderLessonID: UUID { get }
 }
 
 // MARK: - Default Implementations
@@ -58,8 +62,14 @@ extension DenormalizedSchedulable {
         updateDenormalizedKeys()
     }
 
-    /// CDLesson UUID resolved from relationship (preferred) or stored string ID (fallback).
+    /// The lesson's UUID, from the stored string ID. A row whose `lessonID`
+    /// isn't a UUID (empty, or damaged) answers `placeholderLessonID`.
+    ///
+    /// Until 2026-10-05 this asked the lesson relationship first, which on a
+    /// presentation is a fetch by that same stored ID (one SELECT per read),
+    /// and fell back to a new random UUID on every read, so a lessonless row
+    /// changed identity each time a list grouped or diffed it.
     var resolvedLessonID: UUID {
-        lessonRelationshipID ?? (UUID(uuidString: lessonID) ?? UUID())
+        UUID(uuidString: lessonID) ?? placeholderLessonID
     }
 }

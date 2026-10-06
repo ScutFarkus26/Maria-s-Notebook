@@ -63,14 +63,26 @@ final class BackupRestoreRun {
     /// The links of every restored note that has any, rewired once every type
     /// they point at is in (`BackupEntityImporter.relinkNoteRelationships`).
     var noteLinks: [BackupNoteLinks] = []
+    /// Every restored note, whose student links are made to match its scope
+    /// once the links themselves are in (`matchStudentLinksToScope`).
+    var restoredNoteIDs: [UUID] = []
+    /// Every restored student link: the backup's, which the restore keeps.
+    var restoredLinkIDs = Set<UUID>()
     /// The albums the backup's bookmarks, page notes, highlights, ink and
     /// reading positions belong to, for the reattach warning.
     var albumIDs = Set<String>()
+    /// Notes the backup links to a reminder this device doesn't have, for the
+    /// summary: reminders aren't restored, so those links stay off.
+    var notesMissingTheirReminder = 0
 
     init(source: any BackupRestoreSource, context: NSManagedObjectContext) {
         self.source = source
         self.context = context
-        index = BackupEntityIndex(context: context)
+        index = BackupEntityIndex(
+            context: context,
+            formatVersion: source.envelope.formatVersion,
+            container: BackupRestoreScope.container(for: context)
+        )
     }
 
     enum RunError: LocalizedError {

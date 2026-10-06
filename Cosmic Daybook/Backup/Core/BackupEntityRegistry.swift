@@ -30,7 +30,14 @@ struct BackupEntityRegistry {
     /// Production notebook, a Development row would pin a share that isn't
     /// there; cleared by a Replace restore, the device would forget the share
     /// it really has. So restore leaves the device's own rows as they are.
-    static let keptOnRestoreEntityNames: Set<String> = ["ClassroomMembership"]
+    ///
+    /// `Reminder` and `CalendarEvent` rows are copies of the device's EventKit
+    /// lists (`EventKitMirror` is their only writer), matched to them by
+    /// EventKit identifiers a backup leaves out. Restored, each came back as
+    /// a copy no sync could match, so the next sync added the real one again
+    /// beside it; cleared, the next sync wrote every one again. So restore
+    /// leaves them as they are and the next sync brings them up to date.
+    static let keptOnRestoreEntityNames: Set<String> = ["ClassroomMembership", "Reminder", "CalendarEvent"]
 
     /// Entity type names for progress reporting and error messages
     static func entityName(for type: NSManagedObject.Type) -> String {

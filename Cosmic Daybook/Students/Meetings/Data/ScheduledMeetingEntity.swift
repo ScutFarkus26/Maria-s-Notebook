@@ -51,8 +51,9 @@ nonisolated extension CDScheduledMeeting {
         return studentID.isEmpty ? [] : [studentID]
     }
 
+    /// Nil clears `workID` to nil, as `WorkDeletionService` does, not to "".
     var workIDUUID: UUID? {
         get { UUID(uuidString: workID ?? "") }
-        set { workID = newValue?.uuidString ?? "" }
+        set { workID = newValue?.uuidString }
     }
 }

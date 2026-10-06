@@ -19,20 +19,19 @@ nonisolated extension DataCleanupService {
         }
     }
 
+    /// The duplicate's notes move below, which carries their text; writing it
+    /// again as a new note first (`setLegacyNoteText`) left two (#39). The
+    /// retired `completionOutcomeRaw` isn't copied: on a row the guide has
+    /// since marked Done it folded the status back to the old verdict (#8).
     private static func mergeWorkModel(
         canonical: CDWorkModel,
         duplicate: CDWorkModel,
         context: NSManagedObjectContext
     ) {
         if canonical.title.isEmpty { canonical.title = duplicate.title }
-        let dupNoteText = duplicate.latestUnifiedNoteText.trimmed()
-        if canonical.latestUnifiedNoteText.trimmed().isEmpty && !dupNoteText.isEmpty {
-            canonical.setLegacyNoteText(dupNoteText, in: context)
-        }
         if canonical.completedAt == nil { canonical.completedAt = duplicate.completedAt }
         if canonical.lastTouchedAt == nil { canonical.lastTouchedAt = duplicate.lastTouchedAt }
         if canonical.dueAt == nil { canonical.dueAt = duplicate.dueAt }
-        if canonical.completionOutcomeRaw == nil { canonical.completionOutcomeRaw = duplicate.completionOutcomeRaw }
         if canonical.studentID.isEmpty { canonical.studentID = duplicate.studentID }
         if canonical.lessonID.isEmpty { canonical.lessonID = duplicate.lessonID }
         if canonical.presentationID == nil { canonical.presentationID = duplicate.presentationID }
@@ -78,6 +77,36 @@ nonisolated extension DataCleanupService {
             relationshipKey: "unifiedNotes",
             existingIDs: &existingNoteIDs,
             setter: { (note: CDNote) in note.work = canonical }
+        )
+
+        linkIDOnlyCheckIns(to: canonical, in: context)
+    }
+
+    /// Check-ins that name the work by its id string alone, which older
+    /// creation paths wrote without the relationship, are given it, on the
+    /// copy kept (#11). The id is both copies', so these belong to the kept one
+    /// as much as to the duplicate; `CDWorkModel.prepareForDeletion` also
+    /// leaves them alone while a copy with the id remains.
+    private static func linkIDOnlyCheckIns(to canonical: CDWorkModel, in context: NSManagedObjectContext) {
+        guard let workID = canonical.id?.uuidString else { return }
+        let request = CDFetchRequest(CDWorkCheckIn.self)
+        request.predicate = NSPredicate(format: "workID == %@ AND work == nil", workID)
+        for checkIn in context.safeFetch(request) where !checkIn.isDeleted {
+            checkIn.work = canonical
+        }
+    }
+
+    /// Sessions name their project by id too, but the relationship is what the
+    /// project's screens read, and it only nullifies when the copy holding
+    /// them is deleted (#12).
+    static func mergeProject(canonical: CDProject, duplicate: CDProject) {
+        var existingSessionIDs = Set((canonical.sessions as? Set<CDProjectSession>)?.compactMap(\.id) ?? [])
+        mergeNSSetRelationship(
+            from: duplicate.sessions,
+            addTo: canonical,
+            relationshipKey: "sessions",
+            existingIDs: &existingSessionIDs,
+            setter: { (session: CDProjectSession) in session.project = canonical }
         )
     }
 

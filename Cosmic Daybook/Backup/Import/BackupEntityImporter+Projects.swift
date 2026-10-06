@@ -23,7 +23,8 @@ extension BackupEntityImporter {
                 project.title = dto.title
                 project.bookTitle = dto.bookTitle
                 project.memberStudentIDsArray = dto.memberStudentIDs
-                project.isActive = dto.isActive ?? true
+                // A row from before the flag (v19) has none: a project already here keeps its own.
+                if let active = dto.isActive { project.isActive = active }
                 // Preserve the original modification time (awakeFromInsert stamped
                 // "now"); older backups lack the field and keep the import-time stamp.
                 if let v = dto.modifiedAt { project.modifiedAt = v }
