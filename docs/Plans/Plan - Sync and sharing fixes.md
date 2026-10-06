@@ -1,6 +1,6 @@
 # Sync and sharing fixes
 
-> **Working on it.** Written 2026-10-05 from the read-only hunt in [Sync and sharing bug hunt 2026-10-05](<../Reviews/Sync and sharing bug hunt 2026-10-05.md>). A, C and E are on main with schema 17 in Production (2026-10-06); B, D and F wait for the Oct 11 usage reset.
+> **Done 2026-10-06** (90aedef9). Every finding of the 2026-10-05 hunt is fixed: A, C, E landed as 660219f1 with schema 17 in Production; B, D, F as 90aedef9.
 > In short: fix every finding of the 2026-10-05 sync and sharing bug hunt in six parallel agents, add who-changed-it to staple history (schema 17), and land it all on main.
 
 ## Goal
@@ -35,7 +35,7 @@ Everything ends on main, built and tested on both apps and both platforms, with 
   - Docs are in `d914f908`.
   - **Stopped at schema 17:** the leased simulator has no iCloud account (the init failed with 134400), and CloudKit Console in the browser pane needs Danny's sign-in. A Debug Mac run would open the real Development notebook, so that was ruled out. Main waits, since merging before the deploy risks a roll-out breaking staple-history sync. Danny's row: [Sign in to CloudKit Console, then tell this session to deploy schema 17 and land](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=Sign%20in%20to%20CloudKit%20Console%20in%20Claude%27s%20browser%20pane%2C%20then%20tell%20the%20Sync%20%26%20sharing%20session%20to%20deploy%20schema%2017%20and%20land%20its%20fixes).
   - **Then (done):** the two fields added by hand in Development (the text attribute's String field plus its `_ckAsset` Asset field, with Queryable/Searchable/Sortable on the String, matching `CD_reason`), deployed and confirmed in Production, squashed to main, pushed.
-- [x] Phase 1c + 2b (run 2026-10-06 on Danny's word rather than after the reset, week at 90%): B `95cf040f`, D `b8223d83`, F `52870031`, merged. An Opus review found 7 issues; 5 were real and are fixed. Builds clean on iOS, Mac and Assistant; notebook 2,740 and Assistant 264 tests pass. Squashed to main · Danny's row: [After Sunday's usage reset, finish the sync and sharing fixes](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20Sunday%27s%20usage%20reset%2C%20ask%20Claude%20to%20finish%20the%20sync%20and%20sharing%20fixes%20%28sync%20status%2C%20Remove%20Last%20Year%2C%20four%20small%20stack%20items%29)
+- [x] Phase 1c + 2b (run 2026-10-06 on Danny's word rather than after the reset, week at 90%): B `95cf040f`, D `b8223d83`, F `52870031`, merged. An Opus review found 7 issues; 5 were real and are fixed. Builds clean on iOS, Mac and Assistant; notebook 2,740 and Assistant 264 tests pass. Squashed to main as `90aedef9` · Danny's row: [After Sunday's usage reset, finish the sync and sharing fixes](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20Sunday%27s%20usage%20reset%2C%20ask%20Claude%20to%20finish%20the%20sync%20and%20sharing%20fixes%20%28sync%20status%2C%20Remove%20Last%20Year%2C%20four%20small%20stack%20items%29)
 - [ ] Phase 2 (as written below; split into 2a and 2b above): Combine, schema 17 to Production, full builds and suites, review, docs, main (session: here) · est. ~2–4% weekly
 
 ## Cost
