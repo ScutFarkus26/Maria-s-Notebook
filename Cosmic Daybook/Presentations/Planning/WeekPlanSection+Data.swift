@@ -16,24 +16,99 @@ extension WeekPlanSection {
         return AppCalendar.startOfDay(Date(timeIntervalSinceReferenceDate: startDateRaw))
     }
 
+    /// School days loaded either side of the anchor when the window is built,
+    /// and how many more join an end the guide scrolls near.
+    static let windowDaysBefore = 15
+    static let windowDaysAfter = 30
+    static let windowGrowth = 20
+    /// How close (in days) the leading edge may come to either end of the
+    /// window before more days are loaded there.
+    static let windowEdgeMargin = 5
+
+    /// Builds the window around `startDate` and puts its first school day at
+    /// the leading edge.
     func reloadDays() async {
-        startDateRaw = startDate.timeIntervalSinceReferenceDate
-        days = SchoolDayChecker.nextSchoolDays(
+        let isSchoolDay = { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
+        let first = Self.shiftedStart(
             from: startDate,
-            count: Self.visibleDayCount,
+            bySchoolDays: -Self.windowDaysBefore,
+            calendar: calendar,
+            isSchoolDay: isSchoolDay
+        )
+        days = SchoolDayChecker.nextSchoolDays(
+            from: first,
+            count: Self.windowDaysBefore + Self.windowDaysAfter,
             using: viewContext
         )
+        leadingDay = days.first { $0 >= startDate } ?? days.last
         await refreshCheckIns()
     }
 
-    /// Earlier / Later: one strip's worth of school days back or forward.
+    /// Days on screen now: from the leading day, as many as fit across.
+    var visibleDays: [Date] {
+        let count = Self.visibleColumnCount(forStripWidth: stripWidth, dayCount: Self.visibleDayCount)
+        let start = leadingDay.flatMap { days.firstIndex(of: $0) } ?? 0
+        return Array(days.dropFirst(start).prefix(count))
+    }
+
+    /// The strip came to rest on a new day: remember it for next launch, and
+    /// load more days at an end the guide is nearing.
+    func leadingDayChanged(to day: Date?) {
+        guard let day, let index = days.firstIndex(of: day) else { return }
+        startDateRaw = day.timeIntervalSinceReferenceDate
+        var grew = false
+        if index < Self.windowEdgeMargin, let first = days.first {
+            let earlierStart = Self.shiftedStart(
+                from: first,
+                bySchoolDays: -Self.windowGrowth,
+                calendar: calendar
+            ) { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
+            let earlier = SchoolDayChecker.nextSchoolDays(
+                from: earlierStart, count: Self.windowGrowth, using: viewContext
+            ).filter { $0 < first }
+            if !earlier.isEmpty {
+                days.insert(contentsOf: earlier, at: 0)
+                grew = true
+            }
+        }
+        if days.count - index < Self.visibleDayCount + Self.windowEdgeMargin, let last = days.last {
+            let later = SchoolDayChecker.nextSchoolDays(
+                from: AppCalendar.addingDays(1, to: last), count: Self.windowGrowth, using: viewContext
+            )
+            if !later.isEmpty {
+                days.append(contentsOf: later)
+                grew = true
+            }
+        }
+        if grew {
+            // Re-pin the leading day: days added in front would otherwise push
+            // the strip's content and the day on screen with it.
+            leadingDay = day
+            Task { await refreshCheckIns() }
+        }
+    }
+
+    /// Earlier / Later: one screen of school days back or forward.
     func movePage(by pages: Int) {
-        guard pages != 0 else { return }
-        startDate = Self.shiftedStart(
-            from: days.first ?? startDate,
-            bySchoolDays: pages * Self.visibleDayCount,
-            calendar: calendar
-        ) { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
+        guard pages != 0, !days.isEmpty else { return }
+        let count = Self.visibleColumnCount(forStripWidth: stripWidth, dayCount: Self.visibleDayCount)
+        let current = leadingDay.flatMap { days.firstIndex(of: $0) } ?? 0
+        let target = min(max(current + pages * count, 0), days.count - 1)
+        adaptiveWithAnimation { leadingDay = days[target] }
+    }
+
+    /// Brings `day` (or the first school day after it) to the leading edge:
+    /// a scroll when it is loaded, a fresh window around it when it is not.
+    func jump(to day: Date) {
+        let target = AppCalendar.startOfDay(day)
+        if let loaded = days.first(where: { $0 >= target }),
+           days.first.map({ $0 <= target }) == true {
+            adaptiveWithAnimation { leadingDay = loaded }
+        } else if calendar.isDate(startDate, inSameDayAs: target) {
+            Task { await reloadDays() }
+        } else {
+            startDate = target
+        }
     }
 
     /// The school day `delta` school days from `first`. Counted from the first
@@ -58,11 +133,6 @@ extension WeekPlanSection {
         return cursor
     }
 
-    func scrollToFirstDay(_ proxy: ScrollViewProxy) {
-        guard focusedPresentationID == nil, let first = days.first else { return }
-        adaptiveWithAnimation { proxy.scrollTo(first, anchor: .leading) }
-    }
-
     func revealFocusedPresentation(_ proxy: ScrollViewProxy) async {
         guard let focusedPresentationID,
               let assignment = lessonAssignments.first(where: {
@@ -73,10 +143,8 @@ extension WeekPlanSection {
         }
         let focusedDay = AppCalendar.startOfDay(scheduledFor)
         guard let visibleDay = days.first(where: { calendar.isDate($0, inSameDayAs: focusedDay) }) else {
-            // Off-screen: move the window, which reloads and re-runs this.
-            if !calendar.isDate(startDate, inSameDayAs: focusedDay) {
-                startDate = focusedDay
-            }
+            // Not loaded: build a window around it, with its day leading.
+            jump(to: focusedDay)
             return
         }
         await Task.yield()

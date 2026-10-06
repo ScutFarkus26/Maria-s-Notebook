@@ -44,8 +44,14 @@ struct WeekPlanSection: View {
     /// Check-ins for the whole visible range, fetched once and grouped per day.
     @State var cachedCheckIns: [CDWorkCheckIn] = []
     @State var checkInLookup = CalendarCheckInGrouper.Lookup()
+    /// The day the loaded window is built around. Changing it rebuilds the
+    /// window (Today, a deep link to a far-off day); scrolling does not.
     @State var startDate: Date = AppCalendar.startOfDay(Date())
+    /// Every school day loaded into the strip — a few weeks either side of
+    /// what is on screen, grown as the guide scrolls toward either end.
     @State var days: [Date] = []
+    /// The day at the strip's leading edge, kept in step with the scroll view.
+    @State var leadingDay: Date?
     @State var showClearAllConfirmation = false
     @State var selectedGroup: CalendarCheckInGroup?
     @State var prompt: WorkCheckInPlanPrompt?
@@ -53,9 +59,9 @@ struct WeekPlanSection: View {
     /// Zero until the first layout, which reads as the minimum column width.
     @State var stripWidth: CGFloat = 0
 
-    /// Days built into the strip at once: one school week, which is what the
-    /// guide plans and what the columns divide the pane's width between. The
-    /// arrows page the window.
+    /// Days on screen at once: one school week, which is what the guide plans
+    /// and what the columns divide the pane's width between. The strip scrolls
+    /// through the days either side, and the arrows move it a week at a time.
     static let visibleDayCount = 5
 
     var visibleKinds: CalendarKindFilter {
@@ -81,13 +87,15 @@ struct WeekPlanSection: View {
                 startDate = restoredStartDate()
                 refreshCardData()
                 await reloadDays()
-                scrollToFirstDay(proxy)
             }
             .task(id: focusedPresentationID) {
                 await revealFocusedPresentation(proxy)
             }
             .onChange(of: startDate) { _, _ in
-                Task { await reloadDays(); scrollToFirstDay(proxy) }
+                Task { await reloadDays() }
+            }
+            .onChange(of: leadingDay) { _, day in
+                leadingDayChanged(to: day)
             }
             .onChange(of: visibleKindsRaw) { _, _ in
                 Task { await refreshCheckIns() }
@@ -153,7 +161,7 @@ struct WeekPlanSection: View {
             dateRangeLabel: dateRangeLabel,
             visibleKinds: visibleKinds,
             onShowEverything: { visibleKindsRaw = CalendarKindFilter.everything.rawValue },
-            onToday: { startDate = AppCalendar.startOfDay(Date()) },
+            onToday: { jump(to: AppCalendar.startOfDay(Date())) },
             onEarlier: { movePage(by: -1) },
             onLater: { movePage(by: 1) },
             actions: { bulkActionsMenu }
@@ -214,20 +222,19 @@ struct WeekPlanSection: View {
         }
     }
 
-    /// The first and last of the days the strip holds — read off `days`, the
-    /// same array the columns are built from, so the two cannot disagree.
+    /// The first and last of the days on screen — read off `visibleDays`, the
+    /// slice of the array the columns are built from, so the two cannot disagree.
     private var dateRangeLabel: String {
-        guard let first = days.first, let last = days.last else { return "" }
+        let shown = visibleDays
+        guard let first = shown.first, let last = shown.last else { return "" }
         return Self.rangeLabel(first: first, last: last, calendar: calendar)
     }
 
     // MARK: - Day strip
 
-    /// The week, five equal columns across the pane. Still a horizontal scroll
-    /// view: when the pane is too narrow for five at the minimum width, it
-    /// scrolls, and it is also what the Today and deep-link reveals scroll.
-    /// When they fit, the content is exactly as wide as the pane and there is
-    /// nothing to scroll or bounce.
+    /// Five equal columns across the pane, in a strip that scrolls through the
+    /// school days either side and comes to rest on a day's edge. A pane too
+    /// narrow for five at the minimum width shows fewer.
     private var dayStrip: some View {
         let assignments = Array(lessonAssignments)
         let byDay = Self.scheduledByDay(assignments, days: days, calendar: calendar)
@@ -255,10 +262,14 @@ struct WeekPlanSection: View {
                     .id(day)
                 }
             }
-            .padding(.horizontal, Self.stripPadding)
+            .scrollTargetLayout()
             .padding(.vertical, 8)
         }
-        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        // Margins rather than padding, so a day that comes to rest at the
+        // leading edge keeps the same gap the first one has.
+        .contentMargins(.horizontal, Self.stripPadding, for: .scrollContent)
+        .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
+        .scrollPosition(id: $leadingDay, anchor: .leading)
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
         } action: { width in

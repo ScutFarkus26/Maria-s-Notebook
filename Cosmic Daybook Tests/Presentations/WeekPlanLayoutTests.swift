@@ -37,6 +37,17 @@ struct WeekPlanLayoutTests {
         #expect(WeekPlanSection.columnWidth(forStripWidth: 0, dayCount: 5) == WeekPlanSection.minimumColumnWidth)
     }
 
+    @Test("The range label and the arrows count the days that fit across, at most five")
+    func visibleColumnCount() {
+        #expect(WeekPlanSection.visibleColumnCount(forStripWidth: 1_200, dayCount: 5) == 5)
+        #expect(WeekPlanSection.visibleColumnCount(forStripWidth: 900, dayCount: 5) == 5)
+        // An iPhone: 390 − 20 padding + 10 gap = 380, over 170 per day = 2.
+        #expect(WeekPlanSection.visibleColumnCount(forStripWidth: 390, dayCount: 5) == 2)
+        #expect(WeekPlanSection.visibleColumnCount(forStripWidth: 100, dayCount: 5) == 1)
+        // Not yet measured: assume the full week.
+        #expect(WeekPlanSection.visibleColumnCount(forStripWidth: 0, dayCount: 5) == 5)
+    }
+
     // MARK: - Range label
 
     private var calendar: Calendar {

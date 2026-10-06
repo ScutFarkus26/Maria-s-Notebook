@@ -33,6 +33,16 @@ extension WeekPlanSection {
         return max(minimumColumnWidth, share.rounded(.down))
     }
 
+    /// How many whole days fit across a strip `stripWidth` points wide —
+    /// `dayCount` when the columns share the width, fewer on a narrow pane
+    /// where they sit at `minimumColumnWidth`. Never less than one.
+    static func visibleColumnCount(forStripWidth stripWidth: CGFloat, dayCount: Int) -> Int {
+        guard dayCount > 0, stripWidth > 0 else { return max(dayCount, 1) }
+        let width = columnWidth(forStripWidth: stripWidth, dayCount: dayCount)
+        let fits = Int(((stripWidth - stripPadding * 2 + columnSpacing) / (width + columnSpacing)).rounded(.down))
+        return min(max(fits, 1), dayCount)
+    }
+
     /// The header's range: exactly the first and last day the strip holds.
     ///
     /// "Sep 17 – 23" within a month, "Sep 28 – Oct 2" across two, and the year

@@ -32,7 +32,7 @@ extension WeekPlanSection {
         var restoring: [UUID: Date] = [:]
 
         adaptiveWithAnimation(WeekDayColumn.balanceAnimation) {
-            for day in days {
+            for day in visibleDays {
                 guard let result = DayBalanceService.balance(
                     day: day,
                     assignments: pendingPresentations(on: day),
