@@ -1,6 +1,6 @@
 # Add a check-in to existing work
 
-> **Working on it.** Written 2026-10-06; built and tested the same day on branch claude/cosmic-daybook-add-check-in-636788, not on main yet. Danny asked for it: over MCP, a check-in can only be made when work is first assigned.
+> **Done 2026-10-06** (205bfdd2). Written and built the same day.
 > In short: `update_work` gets `add_check_in_on` / `add_check_in_purpose` / `add_check_in_for_this_child_only`, so a check-in can be scheduled on work that already exists.
 
 ## Goal
