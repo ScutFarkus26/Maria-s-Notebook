@@ -52,7 +52,7 @@ struct AssistantSplitStoreTests {
     }
 
     @Test("Her name goes into the shared store, and names are read only from the classroom share (schema 16)")
-    func namesLiveInTheShare() throws {
+    func namesLiveInTheShare() async throws {
         let model = try CoreDataStack.sharedModel()
         let sharedTypes = model.entities(forConfigurationName: CoreDataStack.sharedConfiguration) ?? []
         #expect(sharedTypes.contains { $0.name == "ClassroomPerson" })
@@ -83,7 +83,7 @@ struct AssistantSplitStoreTests {
             ClassroomIdentity.nameWaitingAs = previous.2
         }
         ClassroomIdentity.currentUserRecordName = "_ana"
-        let written = try #require(ClassroomNames.setMyName("Ana", role: .assistant, in: context))
+        let written = try #require(await ClassroomNames.setMyName("Ana", role: .assistant, in: context).written)
         #expect(written.isNew, "her notebook's row is another classroom's, not hers here")
         #expect(context.safeSave())
         #expect(written.person.objectID.persistentStore == sharedStore)

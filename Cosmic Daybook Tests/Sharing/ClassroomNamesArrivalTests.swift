@@ -51,15 +51,15 @@ struct ClassroomNamesArrivalTests {
     // MARK: - Waiting for the class
 
     @Test("Her name waits until she is in a class and it has come down, then goes in by itself")
-    func assistantNameWaitsForHerClass() throws {
+    func assistantNameWaitsForHerClass() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let shared = try store(CoreDataStack.sharedConfiguration, in: context)
         let sharedID = try #require(shared.identifier)
         let arrival = ClassroomNames.Arrival()
         var created: [NSManagedObject] = []
 
-        Support.asDevice(recordName: "_ana", displayName: "Ana") {
-            let wrote = ClassroomNames.writeWaitingName(
+        await Support.asDevice(recordName: "_ana", displayName: "Ana") {
+            let wrote = await ClassroomNames.writeWaitingName(
                 role: .assistant, in: context, arrival: arrival
             ) { context, new in
                 created += new
@@ -72,10 +72,12 @@ struct ClassroomNamesArrivalTests {
             pin(.assistant, at: at(100), in: context)
             #expect(context.safeSave())
             arrival.noteImport(intoStoreWithIdentifier: sharedID, startedAt: at(90))
+            await arrival.importWork?.value
             #expect(rows("_ana", in: context).isEmpty)
 
             // The one that began after she joined did: the held write runs.
             arrival.noteImport(intoStoreWithIdentifier: sharedID, startedAt: at(110))
+            await arrival.importWork?.value
             let row = rows("_ana", in: context).first
             #expect(row?.displayName == "Ana")
             #expect(row?.objectID.persistentStore == shared)
@@ -85,7 +87,7 @@ struct ClassroomNamesArrivalTests {
     }
 
     @Test("The launch fold waits for this launch's first import into his own store")
-    func guideFoldWaitsForHisImport() throws {
+    func guideFoldWaitsForHisImport() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let privateStore = try store(CoreDataStack.privateConfiguration, in: context)
         let shared = try store(CoreDataStack.sharedConfiguration, in: context)
@@ -99,15 +101,17 @@ struct ClassroomNamesArrivalTests {
         #expect(context.safeSave())
         let arrival = ClassroomNames.Arrival()
 
-        Support.asDevice(recordName: "_guide") {
-            #expect(!ClassroomNames.writeWaitingName(in: context, arrival: arrival))
+        await Support.asDevice(recordName: "_guide") {
+            #expect(await !ClassroomNames.writeWaitingName(in: context, arrival: arrival))
             #expect(rows("_guide", in: context).count == 2, "nothing folded before this launch's import")
 
             // An import into the other store says nothing about his rows.
             arrival.noteImport(intoStoreWithIdentifier: shared.identifier ?? "", startedAt: at(110))
+            await arrival.importWork?.value
             #expect(rows("_guide", in: context).count == 2)
 
             arrival.noteImport(intoStoreWithIdentifier: privateStore.identifier ?? "", startedAt: at(120))
+            await arrival.importWork?.value
             #expect(rows("_guide", in: context).map(\.id) == [oldest.id], "folded into the oldest row")
             #expect(oldest.displayName == "Daniel", "carrying the newest name")
             #expect(!context.hasChanges, "saved")
@@ -115,7 +119,7 @@ struct ClassroomNamesArrivalTests {
     }
 
     @Test("A fold as an import finishes carries the rename it brought, not the context's older copy")
-    func foldReadsTheStoreNotAnOlderCopy() throws {
+    func foldReadsTheStoreNotAnOlderCopy() async throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let context = stack.viewContext
         pin(.leadGuide, at: at(100), in: context)
@@ -137,32 +141,33 @@ struct ClassroomNamesArrivalTests {
         for store in context.persistentStoreCoordinator?.persistentStores ?? [] {
             arrival.noteImport(intoStoreWithIdentifier: store.identifier ?? "", startedAt: at(110))
         }
-        Support.asDevice(recordName: "_guide") {
-            #expect(ClassroomNames.writeWaitingName(in: context, arrival: arrival))
+        await Support.asDevice(recordName: "_guide") {
+            #expect(await ClassroomNames.writeWaitingName(in: context, arrival: arrival))
         }
         #expect(rows("_guide", in: context).map(\.id) == [oldest.id])
         #expect(oldest.displayName == "Daniel", "the rename stands; the older 'Dan' never goes up over it")
     }
 
     @Test("A write held for one Apple Account is dropped once another signs in")
-    func heldWriteDroppedForAnotherAccount() throws {
+    func heldWriteDroppedForAnotherAccount() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let shared = try store(CoreDataStack.sharedConfiguration, in: context)
         let arrival = ClassroomNames.Arrival()
 
-        Support.asDevice(recordName: "_ana", displayName: "Ana") {
-            #expect(!ClassroomNames.writeWaitingName(role: .assistant, in: context, arrival: arrival))
+        await Support.asDevice(recordName: "_ana", displayName: "Ana") {
+            #expect(await !ClassroomNames.writeWaitingName(role: .assistant, in: context, arrival: arrival))
         }
         pin(.assistant, at: at(100), in: context)
         #expect(context.safeSave())
-        Support.asDevice(recordName: "_bea", displayName: "Ana") {
+        await Support.asDevice(recordName: "_bea", displayName: "Ana") {
             arrival.noteImport(intoStoreWithIdentifier: shared.identifier ?? "", startedAt: at(110))
+            await arrival.importWork?.value
         }
         #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).isEmpty)
     }
 
     @Test("Once the class is here a waiting name is written at once")
-    func classAlreadyHere() throws {
+    func classAlreadyHere() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let shared = try store(CoreDataStack.sharedConfiguration, in: context)
         pin(.assistant, at: at(100), in: context)
@@ -170,8 +175,8 @@ struct ClassroomNamesArrivalTests {
         let arrival = ClassroomNames.Arrival()
         arrival.noteImport(intoStoreWithIdentifier: shared.identifier ?? "", startedAt: at(110))
 
-        Support.asDevice(recordName: "_ana", displayName: "Ana") {
-            #expect(ClassroomNames.writeWaitingName(role: .assistant, in: context, arrival: arrival))
+        await Support.asDevice(recordName: "_ana", displayName: "Ana") {
+            #expect(await ClassroomNames.writeWaitingName(role: .assistant, in: context, arrival: arrival))
         }
         #expect(ClassroomNames.name(forRecordName: "_ana", in: context) == "Ana")
     }
@@ -210,7 +215,7 @@ struct ClassroomNamesArrivalTests {
     }
 
     @Test("With the owner unknown, only guides in the pinned classroom count")
-    func unknownOwnerKeepsToThePinnedClassroom() throws {
+    func unknownOwnerKeepsToThePinnedClassroom() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         pin(.assistant, at: at(100), owner: "unknown", in: context)
         let before = Support.person(
@@ -219,10 +224,12 @@ struct ClassroomNamesArrivalTests {
         let now = Support.person("_guide", "Danny", role: .leadGuide, created: at(0), modified: at(10), in: context)
         #expect(context.safeSave())
         let zones = [before.objectID: lastClassroom, now.objectID: classroom]
-        let lookup: @Sendable (NSManagedObjectID) -> String? = { zones[$0] }
+        let lookup: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String] = { _ in zones }
 
-        let guideName = ClassroomNames.$zoneNameOverride.withValue(lookup) {
-            ClassroomNames.snapshot(in: context).guideName
+        // The read never asks iCloud: it uses the zones the warm-up looked up.
+        let guideName = await ClassroomNames.$zoneLookupOverride.withValue(lookup) {
+            await ClassroomNames.warmZones(in: context, arrival: nil)
+            return ClassroomNames.snapshot(in: context).guideName
         }
         #expect(guideName == "Danny")
     }

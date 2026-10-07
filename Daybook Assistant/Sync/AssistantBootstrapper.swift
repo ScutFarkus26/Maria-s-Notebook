@@ -147,6 +147,10 @@ final class AssistantBootstrapper {
         removedFromClass = false
 
         refreshMembership()
+        // Where each name row lives, for the screens' reads: a new stack has
+        // new stores and new object IDs. Asked of CloudKit off the main thread.
+        let viewContext = stack.viewContext
+        Task { await ClassroomNames.warmZones(in: viewContext) }
         // Who she is, for "you" on her marks, sends and Restock changes. Again
         // on each rebuild, which is when an iCloud account arrives late. Then
         // a name she gave before that was known joins the classroom's list.

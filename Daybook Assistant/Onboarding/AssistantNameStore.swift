@@ -37,7 +37,7 @@ enum AssistantNameStore {
     /// kept on this iPhone, and the next launch writes it to the list
     /// (`ClassroomNames.writeWaitingName`).
     @discardableResult
-    static func save(_ name: String, in stack: CoreDataStack?) -> Bool {
+    static func save(_ name: String, in stack: CoreDataStack?) async -> Bool {
         save(name)
         guard let stack, !AssistantSampleClass.isActive, !writesHeld else {
             // No real classroom to write to now (or no account to write it
@@ -47,7 +47,7 @@ enum AssistantNameStore {
             ClassroomNames.markWaiting(as: .assistant)
             return true
         }
-        let saved = setInList(name, in: stack.viewContext) { context, created in
+        let saved = await setInList(name, in: stack.viewContext) { context, created in
             saveList(context, created: created, container: stack.container)
         }
         if !saved { ClassroomNames.markWaiting(as: .assistant) }
@@ -57,14 +57,18 @@ enum AssistantNameStore {
     /// Sets her row in the classroom's list (`ClassroomNames.setMyName`) and
     /// saves it with `save`, passing a new row so it goes into the share.
     /// Before her record name is known the name waits instead, and nothing
-    /// is saved. Tests pass their own save.
+    /// is saved; so too when her account changed while the list was being
+    /// looked at, or `writesHeld` was set meanwhile, and when a newer name
+    /// overtook this one. Tests pass their own save.
     @discardableResult
     static func setInList(
         _ name: String,
         in context: NSManagedObjectContext,
         save: (_ context: NSManagedObjectContext, _ created: [NSManagedObject]) -> Bool
-    ) -> Bool {
-        guard let written = ClassroomNames.setMyName(name, role: .assistant, in: context) else { return true }
+    ) async -> Bool {
+        guard let written = await ClassroomNames.setMyName(name, role: .assistant, in: context).written else {
+            return true
+        }
         guard written.isNew || written.person.hasChanges else { return true }
         return save(context, written.isNew ? [written.person] : [])
     }
@@ -75,20 +79,21 @@ enum AssistantNameStore {
     /// existed, or where it couldn't go in) joins the list, into the share
     /// (`ClassroomNames.writeWaitingName`). Never for the Debug launch's
     /// sample class, whose stack `stack` is then.
-    static func writeWaitingName(on stack: CoreDataStack) {
+    static func writeWaitingName(on stack: CoreDataStack) async {
         guard !AssistantSampleClass.isRequested else { return }
-        writeWaitingName(in: stack.viewContext, container: stack.container)
+        await writeWaitingName(in: stack.viewContext, container: stack.container)
     }
 
     /// `writeWaitingName(on:)`'s work; tests pass no container (no share).
-    /// Nothing while `writesHeld`.
+    /// Nothing while `writesHeld`, checked again after the zone lookup
+    /// (`ClassroomNames.mayStillWrite`).
     @discardableResult
     static func writeWaitingName(
         in context: NSManagedObjectContext,
         container: NSPersistentCloudKitContainer?
-    ) -> Bool {
+    ) async -> Bool {
         guard !writesHeld else { return false }
-        return ClassroomNames.writeWaitingName(role: .assistant, in: context) { context, created in
+        return await ClassroomNames.writeWaitingName(role: .assistant, in: context) { context, created in
             saveList(context, created: created, container: container)
         }
     }

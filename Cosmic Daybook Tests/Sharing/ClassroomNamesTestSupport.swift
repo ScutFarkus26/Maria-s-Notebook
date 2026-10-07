@@ -33,6 +33,28 @@ enum ClassroomNamesTestSupport {
         return try body()
     }
 
+    /// `asDevice`, for a body that waits (the name list's writes do). The
+    /// suites that use it run serialized, so no other test's identity lands
+    /// in between.
+    static func asDevice<T>(
+        recordName: String?,
+        displayName: String? = nil,
+        _ body: () async throws -> T
+    ) async rethrows -> T {
+        let saved = (
+            ClassroomIdentity.currentUserRecordName, ClassroomIdentity.displayName, ClassroomIdentity.nameWaitingAs
+        )
+        defer {
+            ClassroomIdentity.currentUserRecordName = saved.0
+            ClassroomIdentity.displayName = saved.1
+            ClassroomIdentity.nameWaitingAs = saved.2
+        }
+        ClassroomIdentity.currentUserRecordName = recordName
+        ClassroomIdentity.displayName = displayName
+        ClassroomIdentity.nameWaitingAs = nil
+        return try await body()
+    }
+
     /// A row as a device wrote it: made at `created`, last changed at
     /// `modified` (`created` when nil).
     @discardableResult

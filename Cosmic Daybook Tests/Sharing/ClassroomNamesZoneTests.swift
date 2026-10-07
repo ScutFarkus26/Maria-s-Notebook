@@ -5,7 +5,8 @@ import Testing
 
 /// Your own row is read only in the pinned classroom's zone, and the fold
 /// keeps the oldest row on every device, deleting only copies in its zone or
-/// never sent to iCloud (2026-10-05 hunt, #24, and its review). Where a row lives comes from `ClassroomNames.zoneNameOverride`.
+/// never sent to iCloud (2026-10-05 hunt, #24, and its review). Where a row
+/// lives comes from `ClassroomNames.zoneLookupOverride`.
 @Suite("Classroom names: the pinned classroom's zone", .serialized)
 @MainActor
 struct ClassroomNamesZoneTests {
@@ -27,18 +28,18 @@ struct ClassroomNamesZoneTests {
     }
 
     @Test("Her row in a classroom she was in before is neither renamed nor folded away")
-    func anotherClassroomsRowIsLeftAlone() throws {
+    func anotherClassroomsRowIsLeftAlone() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         pin(.assistant, in: context)
         let before = Support.person("_ana", "Ana B.", role: .assistant, created: at(0), in: context)
         let now = Support.person("_ana", "Ana", role: .assistant, created: at(100), in: context)
         #expect(context.safeSave())
         let zones = [before.objectID: lastClassroom, now.objectID: classroom]
-        let lookup: @Sendable (NSManagedObjectID) -> String? = { zones[$0] }
+        let lookup: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String] = { _ in zones }
 
-        ClassroomNames.$zoneNameOverride.withValue(lookup, operation: {
-            Support.asDevice(recordName: "_ana", displayName: "Annie") {
-                ClassroomNames.setMyName("Annie", role: .assistant, in: context)
+        await ClassroomNames.$zoneLookupOverride.withValue(lookup, operation: {
+            await Support.asDevice(recordName: "_ana", displayName: "Annie") {
+                await ClassroomNames.setMyName("Annie", role: .assistant, in: context)
             }
         })
         #expect(context.safeSave())
@@ -48,7 +49,7 @@ struct ClassroomNamesZoneTests {
     }
 
     @Test("The guide's fold never deletes his shared row for an older one still in his own zone")
-    func guideKeepsTheSharedRow() throws {
+    func guideKeepsTheSharedRow() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         pin(.leadGuide, in: context)
         // Written on his iPad before the pin arrived, not attached yet.
@@ -58,11 +59,11 @@ struct ClassroomNamesZoneTests {
         )
         #expect(context.safeSave())
         let zones = [waiting.objectID: defaultZone, shared.objectID: classroom]
-        let lookup: @Sendable (NSManagedObjectID) -> String? = { zones[$0] }
+        let lookup: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String] = { _ in zones }
 
-        let folded = ClassroomNames.$zoneNameOverride.withValue(lookup, operation: {
-            Support.asDevice(recordName: "_guide") {
-                ClassroomNames.foldMyRows(role: .leadGuide, in: context)
+        let folded = await ClassroomNames.$zoneLookupOverride.withValue(lookup, operation: {
+            await Support.asDevice(recordName: "_guide") {
+                await ClassroomNames.foldMyRows(role: .leadGuide, in: context)
             }
         })
         #expect(folded == 0)
@@ -77,8 +78,8 @@ struct ClassroomNamesZoneTests {
     /// rows live: the iPad still sees his oldest row in his own zone, the Mac
     /// sees both in the share. Neither may delete the row the other keeps.
     @Test("Two devices with different views of the zones keep the same row")
-    func devicesAgreeOnTheKeptRow() throws {
-        func deviceView(oldestZone: String) throws -> (keptSurvives: Bool, deletedOthers: Int) {
+    func devicesAgreeOnTheKeptRow() async throws {
+        func deviceView(oldestZone: String) async throws -> (keptSurvives: Bool, deletedOthers: Int) {
             let context = try CoreDataTestHelpers.makeContext()
             pin(.leadGuide, in: context)
             let oldest = Support.person("_guide", "Danny", role: .leadGuide, created: at(0), in: context)
@@ -87,32 +88,32 @@ struct ClassroomNamesZoneTests {
             )
             #expect(context.safeSave())
             let zones = [oldest.objectID: oldestZone, newer.objectID: classroom]
-            let lookup: @Sendable (NSManagedObjectID) -> String? = { zones[$0] }
-            let folded = ClassroomNames.$zoneNameOverride.withValue(lookup, operation: {
-                Support.asDevice(recordName: "_guide") {
-                    ClassroomNames.foldMyRows(role: .leadGuide, in: context)
+            let lookup: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String] = { _ in zones }
+            let folded = await ClassroomNames.$zoneLookupOverride.withValue(lookup, operation: {
+                await Support.asDevice(recordName: "_guide") {
+                    await ClassroomNames.foldMyRows(role: .leadGuide, in: context)
                 }
             })
             #expect(context.safeSave())
             return (!oldest.isDeleted && oldest.managedObjectContext != nil, folded)
         }
-        let iPad = try deviceView(oldestZone: defaultZone)
-        let mac = try deviceView(oldestZone: classroom)
+        let iPad = try await deviceView(oldestZone: defaultZone)
+        let mac = try await deviceView(oldestZone: classroom)
         #expect(iPad.keptSurvives && mac.keptSurvives)
         #expect(iPad.deletedOthers == 0)
         #expect(mac.deletedOthers == 1)
     }
 
     @Test("With no zones known (nothing exported, or sync off), folding works as before")
-    func noZonesFoldsAsBefore() throws {
+    func noZonesFoldsAsBefore() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         pin(.leadGuide, in: context)
         let older = Support.person("_guide", "Danny", role: .leadGuide, created: at(0), in: context)
         _ = Support.person("_guide", "Daniel", role: .leadGuide, created: at(50), modified: at(60), in: context)
         #expect(context.safeSave())
 
-        Support.asDevice(recordName: "_guide") {
-            #expect(ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 1)
+        await Support.asDevice(recordName: "_guide") {
+            #expect(await ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 1)
         }
         #expect(context.safeSave())
         let rows = context.safeFetch(CDFetchRequest(CDClassroomPerson.self))

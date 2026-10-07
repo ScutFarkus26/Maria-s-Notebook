@@ -108,13 +108,13 @@ struct AssistantSyncJoinLeaveTests {
     // Sync and sharing bug hunt 2026-10-05: after an Apple Account change,
     // her row could go under the last account's record name.
     @Test("While an account change is read, a waiting name isn't written")
-    func namesWaitForTheAccount() throws {
+    func namesWaitForTheAccount() async throws {
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
-        AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
+        await AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
             AssistantNameStore.writesHeld = true
             defer { AssistantNameStore.writesHeld = false }
-            #expect(!AssistantNameStore.writeWaitingName(in: context, container: nil))
+            #expect(await !AssistantNameStore.writeWaitingName(in: context, container: nil))
             #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).isEmpty)
             #expect(!context.hasChanges)
         }

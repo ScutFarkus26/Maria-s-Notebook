@@ -26,14 +26,14 @@ struct ClassroomNamesNotebookTests {
     // MARK: - Settings › Classroom › Your name
 
     @Test("Your name saves the guide's row; a rename changes that row, and clearing keeps it empty")
-    func yourNameWritesTheGuidesRow() throws {
+    func yourNameWritesTheGuidesRow() async throws {
         let context = try CoreDataTestHelpers.makeContext()
-        try Support.asDevice(recordName: "_guide") {
-            #expect(ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save))
+        try await Support.asDevice(recordName: "_guide") {
+            #expect(await ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save))
             #expect(ClassroomNames.myName(role: .leadGuide, in: context) == "Danny")
             #expect(ClassroomNames.guideName(in: context) == "Danny")
 
-            #expect(ClassroomYourNameCard.setName("Dan", in: context, save: CoreDataTestHelpers.save))
+            #expect(await ClassroomYourNameCard.setName("Dan", in: context, save: CoreDataTestHelpers.save))
             let rows = context.safeFetch(CDFetchRequest(CDClassroomPerson.self))
             #expect(rows.count == 1)
             let row = try #require(rows.first)
@@ -42,7 +42,7 @@ struct ClassroomNamesNotebookTests {
             #expect(row.displayName == "Dan")
             #expect(!context.hasChanges, "saved, not left pending on the view context")
 
-            #expect(ClassroomYourNameCard.setName("", in: context, save: CoreDataTestHelpers.save))
+            #expect(await ClassroomYourNameCard.setName("", in: context, save: CoreDataTestHelpers.save))
             #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).map(\.displayName) == [""])
             #expect(ClassroomNames.guideName(in: context) == nil)
             #expect(ClassroomNames.myName(role: .leadGuide, in: context) == "")
@@ -50,10 +50,10 @@ struct ClassroomNamesNotebookTests {
     }
 
     @Test("Before the guide's record name is known, his name waits on the device")
-    func yourNameWaitsForTheRecordName() throws {
+    func yourNameWaitsForTheRecordName() async throws {
         let context = try CoreDataTestHelpers.makeContext()
-        Support.asDevice(recordName: nil) {
-            #expect(ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save))
+        await Support.asDevice(recordName: nil) {
+            #expect(await ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save))
             #expect(ClassroomIdentity.nameWaitingAs == .leadGuide)
             #expect(ClassroomIdentity.displayName == "Danny")
             #expect(ClassroomNames.myName(role: .leadGuide, in: context) == "Danny")

@@ -69,7 +69,9 @@ struct AssistantNameSheet: View {
 
     private func save() {
         guard !trimmed.isEmpty else { return }
-        AssistantNameStore.save(trimmed, in: bootstrapper.coreDataStack)
+        let name = trimmed
+        let stack = bootstrapper.coreDataStack
+        Task { await AssistantNameStore.save(name, in: stack) }
         dismiss()
     }
 }

@@ -32,6 +32,12 @@ import Foundation
 ///   row would let another device's older one bring the old name back.
 /// - **Display only.** Names are what people typed, shown as typed; nothing is
 ///   stamped with them. Apple's name for the share's owner is never stored.
+/// - **Never ask iCloud on the main thread.** Which zone a row is in is asked
+///   of CloudKit in one batch off the main thread (`ClassroomNames+Zones`):
+///   the question waits on the mirroring delegate, and on the main thread it
+///   froze the app until iOS killed it (2026-10-06). The writes wait for the
+///   answer, one at a time, then check the account again and fetch the rows
+///   afresh; the reads use the zones last looked up (`knownZones`).
 ///
 /// Reads come from the store the screen reads: in the Daybook Assistant, only
 /// the classroom share (the shared store), as `AttendanceEmailLog` reads.
@@ -43,6 +49,24 @@ enum ClassroomNames {
     struct Written {
         let person: CDClassroomPerson
         let isNew: Bool
+    }
+
+    /// What `setMyName` did.
+    enum NameSet {
+        /// The person's row was updated or made; the caller saves.
+        case written(Written)
+        /// Nothing to write: the name waits on the device (the record name
+        /// isn't known, or the account changed during the lookup), or there's
+        /// no row and the name is empty.
+        case nothing
+        /// A newer `setMyName` came while this one waited: it wrote nothing,
+        /// and the newer one writes. The caller doesn't save.
+        case overtaken
+
+        var written: Written? {
+            if case .written(let written) = self { return written }
+            return nil
+        }
     }
 
     // MARK: - Your own name
@@ -60,22 +84,37 @@ enum ClassroomNames {
     /// The caller saves, on the view context: the guide's new row reaches the
     /// share only through `SharedStoreOrphanGuard`, which sees nothing else. On
     /// her phone the caller saves through `AssistantSave`, passing a new row.
+    ///
+    /// Waits for the zone lookup (`lookUpMyZones`), one write at a time. If
+    /// the account changed meanwhile the name waits, as before the record
+    /// name is known; if a newer call came, this one writes nothing.
     @discardableResult
     static func setMyName(
         _ name: String?,
         role: CDClassroomMembership.ClassroomRole,
         now: Date = Date(),
         in context: NSManagedObjectContext
-    ) -> Written? {
+    ) async -> NameSet {
         let typed = name?.trimmed() ?? ""
         guard let me = ClassroomIdentity.currentUserRecordName else {
             ClassroomIdentity.displayName = typed
             ClassroomIdentity.nameWaitingAs = role
-            return nil
+            return .nothing
         }
-        let written = upsert(typed, recordName: me, role: role, now: now, in: context)
+        nameSets += 1
+        let call = nameSets
+        await gate.enter()
+        defer { gate.leave() }
+        guard call == nameSets else { return .overtaken }
+        guard let zones = await lookUpMyZones(me, role: role, in: context) else {
+            ClassroomIdentity.displayName = typed
+            ClassroomIdentity.nameWaitingAs = role
+            return .nothing
+        }
+        guard call == nameSets else { return .overtaken }
+        let written = upsert(typed, recordName: me, role: role, now: now, zones: zones, in: context)
         stopWaiting(as: role, keeping: typed)
-        return written
+        return written.map(NameSet.written) ?? .nothing
     }
 
     /// Writes a name typed before this account's record name was known, and
@@ -101,6 +140,11 @@ enum ClassroomNames {
     /// the share. `role` is this device's (the Assistant passes `.assistant`); a
     /// waiting name keeps the role it was typed as. Returns whether it saved
     /// anything; after a failed save the name keeps waiting for the next launch.
+    ///
+    /// Waits for the zone lookup (`lookUpMyZones`), one write at a time; then
+    /// writes nothing if the account changed meanwhile. A call that comes while
+    /// one runs on the same context asks for one more run afterwards, with the
+    /// latest call's arguments, and returns what that run returns.
     @discardableResult
     static func writeWaitingName(
         role: CDClassroomMembership.ClassroomRole? = nil,
@@ -110,33 +154,42 @@ enum ClassroomNames {
         save: @escaping (_ context: NSManagedObjectContext, _ created: [NSManagedObject]) -> Bool = { context, _ in
             context.safeSave()
         }
-    ) -> Bool {
+    ) async -> Bool {
+        let write = WaitingWrite(role: role, now: now, context: context, arrival: arrival, save: save)
+        return await runCoalesced(write) { await writeWaitingNameOnce($0) }
+    }
+
+    /// One run of `writeWaitingName`.
+    private static func writeWaitingNameOnce(_ write: WaitingWrite) async -> Bool {
+        let context = write.context
         guard let me = ClassroomIdentity.currentUserRecordName,
               context.persistentStoreCoordinator?.persistentStores.isEmpty == false else { return false }
-        let deviceRole = role ?? CDClassroomMembership.currentRole(in: context)
-        arrival.start()
-        guard arrival.classIsHere(role: deviceRole, in: context) else {
-            arrival.holdUntilNextImport(for: me) { [weak context, weak arrival] in
+        let deviceRole = write.role ?? CDClassroomMembership.currentRole(in: context)
+        write.arrival.start()
+        guard write.arrival.classIsHere(role: deviceRole, in: context) else {
+            let role = write.role
+            let save = write.save
+            write.arrival.holdUntilNextImport(for: me) { [weak context, weak arrival = write.arrival] in
                 guard let context, let arrival else { return }
-                writeWaitingName(role: role, in: context, arrival: arrival, save: save)
+                await writeWaitingName(role: role, in: context, arrival: arrival, save: save)
             }
             return false
         }
+        await gate.enter()
+        defer { gate.leave() }
+        guard let zones = await lookUpMyZones(me, role: deviceRole, in: context) else { return false }
         refreshUnchangedRows(in: context)
-        var waitingRole = ClassroomIdentity.nameWaitingAs
-        if waitingRole == nil, deviceRole == .assistant, ClassroomIdentity.displayName != nil,
-           myRows(me, role: deviceRole, in: context).isEmpty {
-            waitingRole = .assistant
-        }
+        let waitingRole = waitingRole(me, deviceRole: deviceRole, zones: zones, in: context)
 
         var created: [NSManagedObject] = []
         if let waitingRole {
             let typed = ClassroomIdentity.displayName ?? ""
-            if let written = upsert(typed, recordName: me, role: waitingRole, now: now, in: context), written.isNew {
+            let written = upsert(typed, recordName: me, role: waitingRole, now: write.now, zones: zones, in: context)
+            if let written, written.isNew {
                 created.append(written.person)
             }
         } else {
-            foldMyRows(role: deviceRole, in: context)
+            foldCounting(myRows(me, role: deviceRole, zones: zones, in: context), zones: zones, in: context)
         }
         // Save only for a change to the list, never for something else the
         // view context happens to be holding.
@@ -145,9 +198,24 @@ enum ClassroomNames {
             if let waitingRole { stopWaiting(as: waitingRole, keeping: ClassroomIdentity.displayName ?? "") }
             return false
         }
-        guard save(context, created) else { return false }
+        guard write.save(context, created) else { return false }
         if let waitingRole { stopWaiting(as: waitingRole, keeping: ClassroomIdentity.displayName ?? "") }
         return true
+    }
+
+    /// The role a waiting name goes in as, or nil when none waits. An
+    /// assistant who named herself before the list existed has a name on her
+    /// phone and no row; that counts as waiting too.
+    private static func waitingRole(
+        _ me: String,
+        deviceRole: CDClassroomMembership.ClassroomRole,
+        zones: ZoneMap,
+        in context: NSManagedObjectContext
+    ) -> CDClassroomMembership.ClassroomRole? {
+        if let waiting = ClassroomIdentity.nameWaitingAs { return waiting }
+        guard deviceRole == .assistant, ClassroomIdentity.displayName != nil,
+              myRows(me, role: deviceRole, zones: zones, in: context).isEmpty else { return nil }
+        return .assistant
     }
 
     /// Her name was saved where it couldn't go into the list (no classroom
@@ -161,9 +229,10 @@ enum ClassroomNames {
     /// What this person's own name field starts with: a name still waiting for
     /// the record name, else their row's (the same on all their devices, not
     /// this device's own copy), else the name on this device, else empty.
+    /// Never asks iCloud: it reads the zones last looked up (`knownZones`).
     static func myName(role: CDClassroomMembership.ClassroomRole, in context: NSManagedObjectContext) -> String {
         if ClassroomIdentity.nameWaitingAs == nil, let me = ClassroomIdentity.currentUserRecordName,
-           let row = myRows(me, role: role, in: context).min(by: isNewer) {
+           let row = myRows(me, role: role, zones: knownZones, in: context).min(by: isNewer) {
             return row.displayName.trimmed()
         }
         return ClassroomIdentity.displayName ?? ""
@@ -173,11 +242,15 @@ enum ClassroomNames {
     /// the oldest by (`createdAt`, `id`), carrying the newest name over, so
     /// every device keeps the same row. Only the row's owner runs it; others'
     /// rows are never touched. Returns how many rows went. The caller saves.
+    /// Waits for the zone lookup, one write at a time; nothing when the
+    /// account changed meanwhile.
     @discardableResult
-    static func foldMyRows(role: CDClassroomMembership.ClassroomRole, in context: NSManagedObjectContext) -> Int {
+    static func foldMyRows(role: CDClassroomMembership.ClassroomRole, in context: NSManagedObjectContext) async -> Int {
         guard let me = ClassroomIdentity.currentUserRecordName else { return 0 }
-        let rows = myRows(me, role: role, in: context)
-        return foldCounting(rows, in: context).deleted
+        await gate.enter()
+        defer { gate.leave() }
+        guard let zones = await lookUpMyZones(me, role: role, in: context) else { return 0 }
+        return foldCounting(myRows(me, role: role, zones: zones, in: context), zones: zones, in: context).deleted
     }
 
     // MARK: - Reading
@@ -185,6 +258,7 @@ enum ClassroomNames {
     /// Everyone's current name, read once for a screen and handed to its
     /// wording (`RestockAuthor`, `AttendanceRules.markerName`,
     /// `AttendanceEmailLog.Send.senderName`), so a list isn't read per row.
+    /// Never asks iCloud: it reads the zones last looked up (`knownZones`).
     static func snapshot(in context: NSManagedObjectContext) -> Snapshot {
         let request = CDFetchRequest(CDClassroomPerson.self)
         scopeToClassroom(request, in: context)
@@ -202,7 +276,8 @@ enum ClassroomNames {
         if let owner = ownerRecordName(in: context) {
             guide = newest[owner]
         } else {
-            guide = inPinnedClassroom(newest.values.filter { $0.role == .leadGuide }, in: context).min(by: isNewer)
+            let guides = newest.values.filter { $0.role == .leadGuide }
+            guide = inPinnedClassroom(guides, zones: knownZones, in: context).min(by: isNewer)
         }
         let guideName = guide.map { $0.displayName.trimmed() }.flatMap { $0.isEmpty ? nil : $0 }
         return Snapshot(
@@ -280,14 +355,16 @@ enum ClassroomNames {
     // MARK: - Rows
 
     /// Updates this person's row (after folding duplicates) or makes one.
-    private static func upsert(
+    private static func upsert( // swiftlint:disable:this function_parameter_count
         _ typed: String,
         recordName: String,
         role: CDClassroomMembership.ClassroomRole,
         now: Date,
+        zones: ZoneMap,
         in context: NSManagedObjectContext
     ) -> Written? {
-        if let row = fold(myRows(recordName, role: role, in: context), in: context) {
+        let rows = myRows(recordName, role: role, zones: zones, in: context)
+        if let row = foldCounting(rows, zones: zones, in: context).kept {
             if row.displayName != typed || row.role != role {
                 row.displayName = typed
                 row.role = role
@@ -306,104 +383,12 @@ enum ClassroomNames {
         return Written(person: row, isNew: true)
     }
 
-    /// Keeps the survivor of `rows`, with the newest name, and deletes the
-    /// copies it safely can. Returns the survivor, or nil when there are no rows.
-    ///
-    /// The survivor is the oldest row by (`createdAt`, `id`) on every device,
-    /// whatever each knows about zones: choosing it by zone let two devices
-    /// with different views each keep a different row and delete the other's,
-    /// and both deletes synced (2026-10-05 review). A copy is deleted only when
-    /// it is in the survivor's zone, or has never been sent to iCloud (this
-    /// device's own, so deleting it reaches no other device). A copy in
-    /// another zone stays: on the guide's devices a row written before the pin
-    /// arrived sits in his default zone until the orphan guard attaches it, and
-    /// deleting the shared copy meanwhile took his name out of the assistants'
-    /// list (#24). Reads take the newest copy, so the name shows either way.
-    @discardableResult
-    private static func fold(_ rows: [CDClassroomPerson], in context: NSManagedObjectContext) -> CDClassroomPerson? {
-        foldCounting(rows, in: context).kept
-    }
-
-    /// `fold`, also saying how many copies it deleted.
-    private static func foldCounting(
-        _ rows: [CDClassroomPerson], in context: NSManagedObjectContext
-    ) -> (kept: CDClassroomPerson?, deleted: Int) {
-        guard let kept = rows.min(by: isOlder) else { return (nil, 0) }
-        guard rows.count > 1, let newest = rows.min(by: isNewer) else { return (kept, 0) }
-        if newest !== kept {
-            kept.displayName = newest.displayName
-            kept.roleRaw = newest.roleRaw
-            kept.modifiedAt = newest.modifiedAt
-        }
-        let keptZone = zoneName(of: kept, in: context)
-        // A copy of the survivor itself (a restore beside the row CloudKit
-        // brings back: same id, same createdAt) is never deleted. No order
-        // tells two such copies apart the same way on every device, so each
-        // device could keep a different one and delete the other, and the
-        // name would vanish.
-        var deleted = 0
-        for row in rows where row !== kept && row.id != kept.id {
-            let zone = zoneName(of: row, in: context)
-            guard zone == nil || zone == keptZone else { continue }
-            context.delete(row)
-            deleted += 1
-        }
-        return (kept, deleted)
-    }
-
     /// The name is in the list now: nothing waits. The guide's own copy on the
     /// device goes too, since his stamps never carry a name and his row is the
     /// truth; an assistant keeps hers, which her marks are stamped with.
     private static func stopWaiting(as role: CDClassroomMembership.ClassroomRole, keeping typed: String) {
         ClassroomIdentity.nameWaitingAs = nil
         ClassroomIdentity.displayName = role == .assistant ? typed : nil
-    }
-
-    /// This person's own rows, in the store their role writes to (the guide's
-    /// private store, an assistant's shared store; everything with one store).
-    /// Never the other store: there a row with the same record name belongs to
-    /// another classroom this account is in. Nor, in that store, another share
-    /// zone than the pinned classroom's: an assistant's shared store can hold
-    /// a classroom she was in before, and folding there deleted her row in it
-    /// (2026-10-05 hunt, #24). A row not yet sent to iCloud has no zone yet; it
-    /// is this device's own.
-    private static func myRows(
-        _ recordName: String,
-        role: CDClassroomMembership.ClassroomRole,
-        in context: NSManagedObjectContext
-    ) -> [CDClassroomPerson] {
-        let request = CDFetchRequest(CDClassroomPerson.self)
-        request.predicate = NSPredicate(format: "recordName == %@", recordName)
-        if let store = RestockService.destinationStore(for: role, in: context) { request.affectedStores = [store] }
-        return inPinnedClassroom(context.safeFetch(request), in: context)
-    }
-
-    /// `rows` without those in another classroom's share zone: the pinned
-    /// classroom's, and those in no share yet (not sent, or waiting in the
-    /// guide's own zone to be filed). All of them when nothing is pinned.
-    private static func inPinnedClassroom(
-        _ rows: [CDClassroomPerson], in context: NSManagedObjectContext
-    ) -> [CDClassroomPerson] {
-        guard !rows.isEmpty, let pinned = CDClassroomMembership.pinnedZoneName(in: context) else { return rows }
-        return rows.filter { row in
-            guard let zone = zoneName(of: row, in: context) else { return true }
-            return !zone.hasPrefix(shareZonePrefix) || zone == pinned
-        }
-    }
-
-    /// `ClassroomShareScope.shareZonePrefix`, which the Daybook Assistant
-    /// doesn't compile: the zones behind a `CKShare`.
-    private static let shareZonePrefix = "com.apple.coredata.cloudkit.share."
-
-    /// Test seam: the zone a row lives in, instead of asking CloudKit.
-    @TaskLocal static var zoneNameOverride: (@Sendable (NSManagedObjectID) -> String?)?
-
-    /// The CloudKit zone `row` is mirrored to, or nil when it hasn't been
-    /// exported yet (or the store doesn't sync).
-    private static func zoneName(of row: CDClassroomPerson, in context: NSManagedObjectContext) -> String? {
-        if let zoneNameOverride { return zoneNameOverride(row.objectID) }
-        guard !row.objectID.isTemporaryID else { return nil }
-        return CoreDataStack.cloudKitContainer(for: context)?.recordID(for: row.objectID)?.zoneID.zoneName
     }
 
     /// Oldest first by (`createdAt`, `id`): the row every device keeps.

@@ -64,7 +64,13 @@ extension ClassroomNames {
         private(set) var importStarts: [String: Date] = [:]
         /// The write waiting for the next import, and the record name it was
         /// held for. One at a time: a later one does the same work.
-        private var held: (recordName: String, write: () -> Void)?
+        private var held: (recordName: String, write: () async -> Void)?
+        /// The view context whose name rows' zones each import warms
+        /// (`ClassroomNames.warmZones`, which sets it).
+        weak var zonesContext: NSManagedObjectContext?
+        /// What the latest import started, after any earlier import's: warming
+        /// the zones, then the held write. Kept so tests can wait for it.
+        private(set) var importWork: Task<Void, Never>?
         /// Set once by `start()`, on the main actor; removed in `deinit`.
         private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
 
@@ -95,20 +101,28 @@ extension ClassroomNames {
         }
 
         /// An import into the store `storeIdentifier`, begun at `start`,
-        /// finished successfully: note it, and run the write waiting for one,
-        /// unless the account changed since it was held (the caller writes
-        /// again once it has read the new one).
+        /// finished successfully: note it, warm the name rows' zones (an
+        /// import brings rows the reads haven't placed), and run the write
+        /// waiting for one, unless the account changed since it was held (the
+        /// caller writes again once it has read the new one). Both wait for
+        /// CloudKit off the main thread, in `importWork`.
         func noteImport(intoStoreWithIdentifier storeIdentifier: String, startedAt start: Date) {
             if importStarts[storeIdentifier].map({ start > $0 }) ?? true { importStarts[storeIdentifier] = start }
-            guard let held else { return }
-            self.held = nil
-            guard ClassroomIdentity.currentUserRecordName == held.recordName else { return }
-            held.write()
+            let write = held.flatMap { ClassroomIdentity.currentUserRecordName == $0.recordName ? $0.write : nil }
+            held = nil
+            let context = zonesContext
+            guard write != nil || context != nil else { return }
+            let earlier = importWork
+            importWork = Task {
+                await earlier?.value
+                if let context { await ClassroomNames.warmZones(in: context, arrival: nil) }
+                await write?()
+            }
         }
 
         /// Runs `write` after the next successful import, for `recordName`.
         /// Never when it doesn't wait: then nothing is ever held back.
-        func holdUntilNextImport(for recordName: String, _ write: @escaping () -> Void) {
+        func holdUntilNextImport(for recordName: String, _ write: @escaping () async -> Void) {
             guard waitsForTheClass else { return }
             held = (recordName, write)
         }

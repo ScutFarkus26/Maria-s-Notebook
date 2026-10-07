@@ -61,6 +61,26 @@ enum AssistantRestockTestSupport {
         return try body()
     }
 
+    /// `asIdentity`, for a body that waits (the name list's writes do).
+    static func asIdentity<T>(
+        _ recordName: String?,
+        named name: String?,
+        _ body: () async throws -> T
+    ) async rethrows -> T {
+        let previous = (
+            ClassroomIdentity.currentUserRecordName, ClassroomIdentity.displayName, ClassroomIdentity.nameWaitingAs
+        )
+        defer {
+            ClassroomIdentity.currentUserRecordName = previous.0
+            ClassroomIdentity.displayName = previous.1
+            ClassroomIdentity.nameWaitingAs = previous.2
+        }
+        ClassroomIdentity.currentUserRecordName = recordName
+        ClassroomIdentity.displayName = name
+        ClassroomIdentity.nameWaitingAs = nil
+        return try await body()
+    }
+
     /// Ana's tab. A long save delay, so each test saves when it says (`flush`).
     static func model(
         in context: NSManagedObjectContext,

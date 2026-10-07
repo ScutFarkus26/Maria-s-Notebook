@@ -120,7 +120,7 @@ extension AssistantBootstrapper {
     /// and not while she's being asked for her name.
     func writeWaitingName() {
         guard isInRealClass, !askForNameAgain, let stack = coreDataStack else { return }
-        AssistantNameStore.writeWaitingName(on: stack)
+        Task { await AssistantNameStore.writeWaitingName(on: stack) }
     }
 
     private var isInRealClass: Bool {

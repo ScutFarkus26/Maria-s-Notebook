@@ -78,12 +78,16 @@ struct ClassroomYourNameCard: View {
         let typed = name.trimmed()
         guard typed != stored else { return }
         let coordinator = dependencies.saveCoordinator
-        guard Self.setName(typed, in: viewContext, save: { coordinator.save($0, reason: "Set your name") }) else {
-            return
+        let context = viewContext
+        Task {
+            guard await Self.setName(typed, in: context, save: { coordinator.save($0, reason: "Set your name") }) else {
+                return
+            }
+            stored = typed
+            // Not over what was typed while the name was being saved.
+            if name.trimmed() == typed { name = typed }
+            isWaiting = ClassroomIdentity.nameWaitingAs != nil
         }
-        stored = typed
-        name = typed
-        isWaiting = ClassroomIdentity.nameWaitingAs != nil
     }
 
     /// Sets the lead guide's own name in the classroom's list and saves, on
@@ -91,14 +95,15 @@ struct ClassroomYourNameCard: View {
     /// store only through `SharedStoreOrphanGuard`, which sees view-context
     /// saves alone. Before his record name is known the name waits on the
     /// device (`ClassroomNames.setMyName`) and nothing is saved. Returns false
-    /// when the save failed.
+    /// when the save failed, or when a newer name overtook this one (that one
+    /// is saved instead).
     @discardableResult
     static func setName(
         _ typed: String,
         in context: NSManagedObjectContext,
         save: (NSManagedObjectContext) -> Bool
-    ) -> Bool {
-        ClassroomNames.setMyName(typed, role: .leadGuide, in: context)
+    ) async -> Bool {
+        if case .overtaken = await ClassroomNames.setMyName(typed, role: .leadGuide, in: context) { return false }
         return save(context)
     }
 }

@@ -120,11 +120,14 @@ final class AppServicesLauncher {
         // Who this account is, for "you" on marks, sends and Restock changes;
         // then a name typed before that was known joins the shared name list
         // (and this person's duplicate rows fold into one).
+        // Where each name row lives, for the screens' reads, asked of CloudKit
+        // off the main thread (and again after each import).
         if coreDataStack.isCloudKitActive {
             let viewContext = coreDataStack.viewContext
+            Task { await ClassroomNames.warmZones(in: viewContext) }
             Task {
                 await ClassroomIdentity.refreshRecordName()
-                ClassroomNames.writeWaitingName(in: viewContext)
+                await ClassroomNames.writeWaitingName(in: viewContext)
             }
         }
 

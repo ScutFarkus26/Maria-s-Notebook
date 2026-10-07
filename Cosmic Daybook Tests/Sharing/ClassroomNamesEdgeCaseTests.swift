@@ -21,15 +21,15 @@ struct ClassroomNamesEdgeCaseTests {
     }
 
     @Test("Two copies of one row (a restore beside CloudKit's) are both kept, so no device deletes the name")
-    func copiesOfOneRowAreNeverFolded() throws {
+    func copiesOfOneRowAreNeverFolded() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         let id = UUID()
         Support.person("_guide", "Danny", role: .leadGuide, created: at(0), modified: at(10), id: id, in: context)
         Support.person("_guide", "Danny", role: .leadGuide, created: at(0), modified: at(10), id: id, in: context)
         #expect(context.safeSave())
 
-        Support.asDevice(recordName: "_guide") {
-            #expect(ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 0)
+        await Support.asDevice(recordName: "_guide") {
+            #expect(await ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 0)
         }
         #expect(context.safeSave())
         #expect(rows("_guide", in: context).count == 2, "nothing deleted")
@@ -38,7 +38,9 @@ struct ClassroomNamesEdgeCaseTests {
         // A genuinely different row of his still folds away.
         Support.person("_guide", "Daniel", role: .leadGuide, created: at(5), modified: at(90), in: context)
         #expect(context.safeSave())
-        _ = Support.asDevice(recordName: "_guide") { ClassroomNames.foldMyRows(role: .leadGuide, in: context) }
+        _ = await Support.asDevice(recordName: "_guide") {
+            await ClassroomNames.foldMyRows(role: .leadGuide, in: context)
+        }
         #expect(context.safeSave())
         #expect(rows("_guide", in: context).count == 2)
         #expect(rows("_guide", in: context).allSatisfy { $0.id == id })
@@ -46,15 +48,15 @@ struct ClassroomNamesEdgeCaseTests {
     }
 
     @Test("A name marked waiting is written over the row she already has")
-    func waitingRenameReachesAnExistingRow() throws {
+    func waitingRenameReachesAnExistingRow() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         Support.person("_ana", "Ana", role: .assistant, created: at(0), in: context)
         #expect(context.safeSave())
 
-        Support.asDevice(recordName: "_ana", displayName: "Annie") {
+        await Support.asDevice(recordName: "_ana", displayName: "Annie") {
             // Saved with no classroom open (or the Sample Class): it waits.
             ClassroomNames.markWaiting(as: .assistant)
-            #expect(ClassroomNames.writeWaitingName(role: .assistant, in: context))
+            #expect(await ClassroomNames.writeWaitingName(role: .assistant, in: context))
             #expect(ClassroomIdentity.nameWaitingAs == nil)
         }
         #expect(ClassroomNames.name(forRecordName: "_ana", in: context) == "Annie")

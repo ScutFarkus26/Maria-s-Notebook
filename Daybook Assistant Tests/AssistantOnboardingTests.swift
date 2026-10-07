@@ -46,7 +46,7 @@ struct AssistantOnboardingTests {
     // MARK: - Her name in the classroom's list
 
     @Test("Saving her name sets her row in the classroom's list, and passes a new row on to go into the share")
-    func nameJoinsTheList() throws {
+    func nameJoinsTheList() async throws {
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
         var saves: [[NSManagedObject]] = []
@@ -54,8 +54,8 @@ struct AssistantOnboardingTests {
             saves.append(created)
             return context.safeSave()
         }
-        try AssistantRestockTestSupport.asIdentity("_ana", named: nil) {
-            #expect(AssistantNameStore.setInList("Ana", in: context, save: save))
+        try await AssistantRestockTestSupport.asIdentity("_ana", named: nil) {
+            #expect(await AssistantNameStore.setInList("Ana", in: context, save: save))
             let first = try #require(saves.first?.first as? CDClassroomPerson)
             #expect(first.recordName == "_ana")
             #expect(first.role == .assistant)
@@ -63,7 +63,7 @@ struct AssistantOnboardingTests {
             #expect(!context.hasChanges)
 
             // A rename updates the same row; nothing new goes into the share.
-            #expect(AssistantNameStore.setInList("Anna", in: context, save: save))
+            #expect(await AssistantNameStore.setInList("Anna", in: context, save: save))
             #expect(saves.count == 2)
             #expect(saves[1].isEmpty)
             #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).map(\.displayName) == ["Anna"])
@@ -71,18 +71,18 @@ struct AssistantOnboardingTests {
             #expect(ClassroomIdentity.displayName == "Anna")
 
             // The same name again saves nothing.
-            #expect(AssistantNameStore.setInList("Anna", in: context, save: save))
+            #expect(await AssistantNameStore.setInList("Anna", in: context, save: save))
             #expect(saves.count == 2)
         }
     }
 
     @Test("Before her record name is known her name waits, and launch writes it to the list once it is")
-    func nameWaitsForRecordName() throws {
+    func nameWaitsForRecordName() async throws {
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
-        try AssistantRestockTestSupport.asIdentity(nil, named: nil) {
+        await AssistantRestockTestSupport.asIdentity(nil, named: nil) {
             var saved = false
-            #expect(AssistantNameStore.setInList("Ana", in: context) { _, _ in
+            #expect(await AssistantNameStore.setInList("Ana", in: context) { _, _ in
                 saved = true
                 return true
             })
@@ -93,7 +93,7 @@ struct AssistantOnboardingTests {
 
             // Launch: iCloud says who she is, then the waiting name is written.
             ClassroomIdentity.currentUserRecordName = "_ana"
-            #expect(AssistantNameStore.writeWaitingName(in: context, container: nil))
+            #expect(await AssistantNameStore.writeWaitingName(in: context, container: nil))
             let rows = context.safeFetch(CDFetchRequest(CDClassroomPerson.self))
             #expect(rows.map(\.displayName) == ["Ana"])
             #expect(rows.map(\.recordName) == ["_ana"])
@@ -102,16 +102,16 @@ struct AssistantOnboardingTests {
             #expect(ClassroomIdentity.displayName == "Ana", "her own marks are still stamped with it")
 
             // The next launch has nothing to write.
-            #expect(!AssistantNameStore.writeWaitingName(in: context, container: nil))
+            #expect(await !AssistantNameStore.writeWaitingName(in: context, container: nil))
         }
     }
 
     @Test("A name she gave before the list existed joins it at launch without her typing it again")
-    func olderNameJoinsAtLaunch() throws {
+    func olderNameJoinsAtLaunch() async throws {
         let stack = try AssistantTestSupport.makeStack()
         let context = stack.viewContext
-        try AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
-            #expect(AssistantNameStore.writeWaitingName(in: context, container: nil))
+        await AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
+            #expect(await AssistantNameStore.writeWaitingName(in: context, container: nil))
             #expect(ClassroomNames.snapshot(in: context).name(forRecordName: "_ana") == "Ana")
         }
     }

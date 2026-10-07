@@ -73,8 +73,8 @@ struct BackupClassroomNamesRoundTripTests {
         #expect(target.safeFetch(CDFetchRequest(CDClassroomPerson.self)).count == 2)
         #expect(ClassroomNames.name(forRecordName: "_guide", in: target) == "Daniel", "the newest row reads")
 
-        Support.asDevice(recordName: "_guide") {
-            #expect(ClassroomNames.foldMyRows(role: .leadGuide, in: target) == 1)
+        await Support.asDevice(recordName: "_guide") {
+            #expect(await ClassroomNames.foldMyRows(role: .leadGuide, in: target) == 1)
         }
         #expect(target.safeSave())
         let left = target.safeFetch(CDFetchRequest(CDClassroomPerson.self))

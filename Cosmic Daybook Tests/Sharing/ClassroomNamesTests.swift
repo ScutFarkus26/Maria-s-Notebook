@@ -24,13 +24,17 @@ struct ClassroomNamesTests {
     // MARK: - Writing your own name
 
     @Test("Setting your name makes your row; setting it again changes that row")
-    func upsertByRecordName() throws {
+    func upsertByRecordName() async throws {
         let context = try CoreDataTestHelpers.makeContext()
-        try Support.asDevice(recordName: "_guide") {
-            let first = try #require(ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(0), in: context))
+        try await Support.asDevice(recordName: "_guide") {
+            let first = try #require(
+                await ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(0), in: context).written
+            )
             #expect(first.isNew)
             #expect(context.safeSave())
-            let again = try #require(ClassroomNames.setMyName("  Daniel ", role: .leadGuide, now: at(60), in: context))
+            let again = try #require(
+                await ClassroomNames.setMyName("  Daniel ", role: .leadGuide, now: at(60), in: context).written
+            )
             #expect(!again.isNew)
             #expect(again.person.objectID == first.person.objectID)
             #expect(context.safeSave())
@@ -45,8 +49,9 @@ struct ClassroomNamesTests {
         #expect(row.modifiedAt == at(60))
 
         // Another record name is another person's row.
-        Support.asDevice(recordName: "_ana") {
-            #expect(ClassroomNames.setMyName("Ana", role: .assistant, now: at(90), in: context)?.isNew == true)
+        await Support.asDevice(recordName: "_ana") {
+            let ana = await ClassroomNames.setMyName("Ana", role: .assistant, now: at(90), in: context)
+            #expect(ana.written?.isNew == true)
             #expect(context.safeSave())
         }
         #expect(everyone(in: context).count == 2)
@@ -55,12 +60,12 @@ struct ClassroomNamesTests {
     }
 
     @Test("Setting the same name again changes nothing")
-    func sameNameIsNoChange() throws {
+    func sameNameIsNoChange() async throws {
         let context = try CoreDataTestHelpers.makeContext()
-        Support.asDevice(recordName: "_guide") {
-            ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(0), in: context)
+        await Support.asDevice(recordName: "_guide") {
+            await ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(0), in: context)
             #expect(context.safeSave())
-            ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(60), in: context)
+            await ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(60), in: context)
             #expect(!context.hasChanges)
         }
         #expect(everyone(in: context).first?.modifiedAt == at(0))
@@ -79,7 +84,7 @@ struct ClassroomNamesTests {
     }
 
     @Test("Folding keeps the same row on either device, carrying the newest name")
-    func foldSurvivorIsTheSameEverywhere() throws {
+    func foldSurvivorIsTheSameEverywhere() async throws {
         let macRowID = UUID()
         let iPadRowID = UUID()
         var survivors: [UUID?] = []
@@ -99,8 +104,8 @@ struct ClassroomNamesTests {
             Support.person("_ana", "Ana", role: .assistant, created: at(1), in: context)
             #expect(context.safeSave())
 
-            Support.asDevice(recordName: "_guide") {
-                #expect(ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 1)
+            await Support.asDevice(recordName: "_guide") {
+                #expect(await ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 1)
             }
             #expect(context.safeSave())
             let his = everyone(in: context).filter { $0.recordName == "_guide" }
@@ -114,12 +119,14 @@ struct ClassroomNamesTests {
     }
 
     @Test("Clearing your name keeps your row, with no name in it")
-    func clearingStoresAnEmptyName() throws {
+    func clearingStoresAnEmptyName() async throws {
         let context = try CoreDataTestHelpers.makeContext()
-        try Support.asDevice(recordName: "_guide") {
-            ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(0), in: context)
+        try await Support.asDevice(recordName: "_guide") {
+            await ClassroomNames.setMyName("Danny", role: .leadGuide, now: at(0), in: context)
             #expect(context.safeSave())
-            let cleared = try #require(ClassroomNames.setMyName("   ", role: .leadGuide, now: at(60), in: context))
+            let cleared = try #require(
+                await ClassroomNames.setMyName("   ", role: .leadGuide, now: at(60), in: context).written
+            )
             #expect(!cleared.isNew)
             #expect(context.safeSave())
             #expect(ClassroomNames.myName(role: .leadGuide, in: context) == "")
@@ -131,8 +138,8 @@ struct ClassroomNamesTests {
         #expect(ClassroomNames.guideName(in: context) == nil)
 
         // With no row yet, there's nothing to clear.
-        Support.asDevice(recordName: "_ana") {
-            #expect(ClassroomNames.setMyName(nil, role: .assistant, in: context) == nil)
+        await Support.asDevice(recordName: "_ana") {
+            #expect(await ClassroomNames.setMyName(nil, role: .assistant, in: context).written == nil)
         }
         #expect(everyone(in: context).count == 1)
     }
@@ -162,19 +169,19 @@ struct ClassroomNamesTests {
     }
 
     @Test("The guide's row goes to the private store, an assistant's to the shared store; each touches only their own")
-    func storeScoping() throws {
+    func storeScoping() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let stores = context.persistentStoreCoordinator?.persistentStores ?? []
         let privateStore = try #require(stores.first { $0.configurationName == CoreDataStack.privateConfiguration })
         let sharedStore = try #require(stores.first { $0.configurationName == CoreDataStack.sharedConfiguration })
 
-        try Support.asDevice(recordName: "_guide") {
-            let guide = try #require(ClassroomNames.setMyName("Danny", role: .leadGuide, in: context))
+        try await Support.asDevice(recordName: "_guide") {
+            let guide = try #require(await ClassroomNames.setMyName("Danny", role: .leadGuide, in: context).written)
             #expect(context.safeSave())
             #expect(guide.person.objectID.persistentStore == privateStore)
         }
-        try Support.asDevice(recordName: "_ana") {
-            let ana = try #require(ClassroomNames.setMyName("Ana", role: .assistant, in: context))
+        try await Support.asDevice(recordName: "_ana") {
+            let ana = try #require(await ClassroomNames.setMyName("Ana", role: .assistant, in: context).written)
             #expect(context.safeSave())
             #expect(ana.person.objectID.persistentStore == sharedStore)
         }
@@ -185,11 +192,11 @@ struct ClassroomNamesTests {
             "_guide", "Mr. D", role: .assistant, created: at(0), store: sharedStore, in: context
         )
         #expect(context.safeSave())
-        try Support.asDevice(recordName: "_guide") {
-            let renamed = try #require(ClassroomNames.setMyName("Daniel", role: .leadGuide, in: context))
+        try await Support.asDevice(recordName: "_guide") {
+            let renamed = try #require(await ClassroomNames.setMyName("Daniel", role: .leadGuide, in: context).written)
             #expect(!renamed.isNew)
             #expect(renamed.person.objectID.persistentStore == privateStore)
-            #expect(ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 0)
+            #expect(await ClassroomNames.foldMyRows(role: .leadGuide, in: context) == 0)
             #expect(context.safeSave())
         }
         #expect(!elsewhere.isDeleted)
@@ -199,22 +206,22 @@ struct ClassroomNamesTests {
     // MARK: - A name typed before the record name is known
 
     @Test("A name typed before the record name is known waits, then a view-context save writes it")
-    func waitingNameIsWrittenOnceTheRecordNameArrives() throws {
+    func waitingNameIsWrittenOnceTheRecordNameArrives() async throws {
         let stack = try CoreDataTestHelpers.makeInMemoryStack()
         let viewContext = stack.viewContext
-        try Support.asDevice(recordName: nil) {
-            #expect(ClassroomNames.setMyName("Danny", role: .leadGuide, in: viewContext) == nil)
+        try await Support.asDevice(recordName: nil) {
+            #expect(await ClassroomNames.setMyName("Danny", role: .leadGuide, in: viewContext).written == nil)
             #expect(ClassroomIdentity.nameWaitingAs == .leadGuide)
             #expect(ClassroomNames.myName(role: .leadGuide, in: viewContext) == "Danny")
             #expect(everyone(in: viewContext).isEmpty)
             // Still no record name: nothing can be written yet.
-            #expect(!ClassroomNames.writeWaitingName(in: viewContext))
+            #expect(await !ClassroomNames.writeWaitingName(in: viewContext))
 
             // `refreshRecordName()` answers.
             ClassroomIdentity.currentUserRecordName = "_guide"
             var savedOn: [NSManagedObjectContext] = []
             var created: [NSManagedObject] = []
-            let wrote = ClassroomNames.writeWaitingName(now: at(30), in: viewContext) { context, new in
+            let wrote = await ClassroomNames.writeWaitingName(now: at(30), in: viewContext) { context, new in
                 savedOn.append(context)
                 created += new
                 return context.safeSave()
@@ -233,38 +240,38 @@ struct ClassroomNamesTests {
             #expect(ClassroomIdentity.nameWaitingAs == nil)
             #expect(ClassroomIdentity.displayName == nil)
             #expect(ClassroomNames.myName(role: .leadGuide, in: viewContext) == "Danny")
-            #expect(!ClassroomNames.writeWaitingName(in: viewContext))
+            #expect(await !ClassroomNames.writeWaitingName(in: viewContext))
         }
     }
 
     @Test("An assistant's waiting name, or one she gave before the list existed, joins it and stays on her phone")
-    func assistantWaitingName() throws {
+    func assistantWaitingName() async throws {
         let context = try CoreDataTestHelpers.makeContext()
-        Support.asDevice(recordName: nil) {
-            ClassroomNames.setMyName("Ana", role: .assistant, in: context)
+        await Support.asDevice(recordName: nil) {
+            await ClassroomNames.setMyName("Ana", role: .assistant, in: context)
             ClassroomIdentity.currentUserRecordName = "_ana"
-            #expect(ClassroomNames.writeWaitingName(role: .assistant, in: context))
+            #expect(await ClassroomNames.writeWaitingName(role: .assistant, in: context))
             #expect(ClassroomIdentity.displayName == "Ana", "her marks are stamped with it")
         }
         #expect(ClassroomNames.name(forRecordName: "_ana", in: context) == "Ana")
 
         // Bea named herself on an older build: a name on her phone, no row.
-        Support.asDevice(recordName: "_bea", displayName: "Bea") {
-            #expect(ClassroomNames.writeWaitingName(role: .assistant, in: context))
-            #expect(!ClassroomNames.writeWaitingName(role: .assistant, in: context), "once is enough")
+        await Support.asDevice(recordName: "_bea", displayName: "Bea") {
+            #expect(await ClassroomNames.writeWaitingName(role: .assistant, in: context))
+            #expect(await !ClassroomNames.writeWaitingName(role: .assistant, in: context), "once is enough")
         }
         #expect(ClassroomNames.name(forRecordName: "_bea", in: context) == "Bea")
     }
 
     @Test("Nothing waiting and nothing to fold saves nothing, even with other changes pending")
-    func writeWaitingNameLeavesOtherChangesAlone() throws {
+    func writeWaitingNameLeavesOtherChangesAlone() async throws {
         let context = try CoreDataTestHelpers.makeContext()
-        Support.asDevice(recordName: "_guide") {
-            ClassroomNames.setMyName("Danny", role: .leadGuide, in: context)
+        await Support.asDevice(recordName: "_guide") {
+            await ClassroomNames.setMyName("Danny", role: .leadGuide, in: context)
             #expect(context.safeSave())
             CoreDataTestHelpers.seedStudent(in: context, firstName: "Unsaved")
             var saves = 0
-            #expect(!ClassroomNames.writeWaitingName(role: .leadGuide, in: context) { _, _ in
+            #expect(await !ClassroomNames.writeWaitingName(role: .leadGuide, in: context) { _, _ in
                 saves += 1
                 return true
             })
@@ -274,7 +281,7 @@ struct ClassroomNamesTests {
     }
 
     @Test("The guide's new row is a classroom insert into his private store, as SharedStoreOrphanGuard reads a save")
-    func guideRowReachesTheOrphanGuard() throws {
+    func guideRowReachesTheOrphanGuard() async throws {
         let context = try CoreDataTestHelpers.makeSplitStoreContext()
         let stores = context.persistentStoreCoordinator?.persistentStores ?? []
         let privateStore = try #require(stores.first { $0.configurationName == CoreDataStack.privateConfiguration })
@@ -285,8 +292,8 @@ struct ClassroomNamesTests {
         }
         defer { NotificationCenter.default.removeObserver(token) }
 
-        let row = try Support.asDevice(recordName: "_guide") {
-            let written = try #require(ClassroomNames.setMyName("Danny", role: .leadGuide, in: context))
+        let row = try await Support.asDevice(recordName: "_guide") {
+            let written = try #require(await ClassroomNames.setMyName("Danny", role: .leadGuide, in: context).written)
             #expect(context.safeSave())
             return written.person
         }
