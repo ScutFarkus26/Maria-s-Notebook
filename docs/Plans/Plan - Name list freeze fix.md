@@ -8,7 +8,7 @@
 The notebook on Danny's iPhone was killed three times on 2026-10-06 (4:44, 5:36 and 6:24 PM; TestFlight builds 300000000008 and 300000000010). After this fix, neither the notebook nor the Daybook Assistant waits on iCloud on the main thread when a sync finishes, when the app comes back to the front, or when someone saves their name. A TestFlight build of both apps carries the fix.
 
 ## Progress
-- [ ] Phase 1: Move the zone lookups off the main thread (session: here) · est. ~2–3% weekly · started at 96%
+- [x] Phase 1: Move the zone lookups off the main thread (session: here) · est. ~2–3% weekly · started at 96%, ended at 99% (~3%, includes the review and fix-round agents). On main 76725877 (f43b99cc + 0dab11dc), whole suites 2,759 + 265 pass. Differed: a code review found six races, fixed in 0dab11dc; two loose ends are in Tide.
 - [ ] Phase 2: Roll out both apps to TestFlight (session: here) · est. ~0.5–1% weekly
 
 ## Cost
