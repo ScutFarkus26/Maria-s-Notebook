@@ -105,6 +105,7 @@ struct AssistantSiriTests {
         let saturday = try AssistantTestSupport.day("2031-01-04")
         #expect(try AssistantSiriCommands.checkClose(session(on: saturday)) == .notSchoolDay)
         #expect(try AssistantSiriCommands.missingNames(session(on: saturday)) == nil)
+        #expect(try AssistantSiriCommands.absentNames(session(on: saturday)) == nil)
 
         #expect(AttendanceDayLocks.setLocked(true, for: monday, role: .leadGuide, in: context))
         #expect(throws: SiriAttendanceError.self) { try AssistantSiriCommands.checkClose(session()) }
@@ -122,6 +123,20 @@ struct AssistantSiriTests {
 
         #expect(try AssistantSiriCommands.missingNames(siri) == ["Ari", "Etty G", "Etty R", "Noah"])
         #expect(siri.spokenName(for: try #require(kids["Maya"])) == "Maya")
+    }
+
+    @Test("Who's absent names only the children marked absent, as the tiles do")
+    func absentNames() async throws {
+        defer { cleanUp() }
+        let kids = try classOfThree()
+        let siri = session()
+        #expect(try AssistantSiriCommands.absentNames(siri) == [])
+
+        try await siri.mark(try #require(kids["Noah"]), as: .absent)
+        try await siri.mark(try #require(kids["Ari"]), as: .absent)
+        try await siri.mark(try #require(kids["Maya"]), as: .tardy)
+
+        #expect(try AssistantSiriCommands.absentNames(siri) == ["Ari", "Noah"])
     }
 
     @Test("Undoing a Close Arrival that found everyone marked reopens arrival, once")

@@ -2,8 +2,8 @@ import AppIntents
 import CoreData
 
 // The Assistant's own attendance commands, beside the shared here / late /
-// absent / undo. Both read names aloud or change the whole class, so both
-// need the phone unlocked.
+// absent / undo. Each reads names aloud or changes the whole class, so each
+// needs the phone unlocked.
 
 // MARK: - Close arrival
 
@@ -76,6 +76,38 @@ struct WhoIsMissingIntent: AppIntent {
         return .result(dialog: IntentDialog(
             full: "\(count) not marked yet: \(missing.formatted(.list(type: .and))).",
             supporting: "\(count) not marked"
+        ))
+    }
+}
+
+// MARK: - Who's absent
+
+/// "Who's absent?": the children marked absent today, by the names the grid
+/// shows.
+struct WhoIsAbsentIntent: AppIntent {
+    static let title: LocalizedStringResource = "Who's Absent"
+    static let description = IntentDescription(
+        "Hear which children are marked absent today.",
+        categoryName: "Attendance"
+    )
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let session = try await SiriAttendance()
+        let names = try await SiriAttendance.plainly("reading who's absent") {
+            try AssistantSiriCommands.absentNames(session)
+        }
+        guard let absent = names else {
+            return .result(dialog: "Today isn't a school day.")
+        }
+        guard !absent.isEmpty else {
+            return .result(dialog: "No one is marked absent.")
+        }
+        let count = absent.count
+        return .result(dialog: IntentDialog(
+            full: "\(count) absent: \(absent.formatted(.list(type: .and))).",
+            supporting: "\(count) absent"
         ))
     }
 }

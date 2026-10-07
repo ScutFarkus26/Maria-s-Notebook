@@ -74,8 +74,17 @@ enum AssistantSiriCommands {
     /// tiles; nil when today isn't a school day.
     static func missingNames(_ session: SiriAttendance) throws -> [String]? {
         guard session.isSchoolDay else { return nil }
-        let (roll, missing) = try AssistantDayRoll.today(in: session)
-        let names = AttendanceGridNames.names(for: roll)
-        return missing.map { names[$0.objectID] ?? $0.firstName }
+        let day = try AssistantDayRoll.today(in: session)
+        let names = AttendanceGridNames.names(for: day.roll)
+        return day.unmarked.map { names[$0.objectID] ?? $0.firstName }
+    }
+
+    /// The children on today's roll marked absent, by the names on their
+    /// tiles; nil when today isn't a school day.
+    static func absentNames(_ session: SiriAttendance) throws -> [String]? {
+        guard session.isSchoolDay else { return nil }
+        let day = try AssistantDayRoll.today(in: session)
+        let names = AttendanceGridNames.names(for: day.roll)
+        return day.absent.map { names[$0.objectID] ?? $0.firstName }
     }
 }

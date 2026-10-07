@@ -3,9 +3,9 @@ import CoreData
 
 /// The children on one day's attendance, in the grid's order.
 ///
-/// The grid, Close Arrival by Siri and "Who's not here yet" all read this one
-/// list (`AttendanceRoster`'s day roll), so a voice command never marks a
-/// child the grid doesn't show. Siri used to take every enrolled child
+/// The grid, Close Arrival by Siri, "Who's not here yet" and "Who's absent"
+/// all read this one list (`AttendanceRoster`'s day roll), so a voice command
+/// never marks a child the grid doesn't show. Siri used to take every enrolled child
 /// instead: a child typed in ahead of her start date was marked absent, and
 /// that record then put her on the grid.
 @MainActor
@@ -70,10 +70,11 @@ enum AssistantDayRoll {
         return context.safeFetchFirst(request)?.date.map { Calendar.current.startOfDay(for: $0) }
     }
 
-    /// Siri's day: today's roll, and the children on it with no mark yet.
+    /// Siri's day: today's roll, the children on it with no mark yet, and
+    /// those marked absent.
     static func today(
         in session: SiriAttendance
-    ) throws -> (roll: [CDStudent], unmarked: [CDStudent]) {
+    ) throws -> (roll: [CDStudent], unmarked: [CDStudent], absent: [CDStudent]) {
         let records = try session.store.loadRecords(for: session.today).deduplicatedPerStudentDay()
         let roll = students(
             on: session.today,
@@ -81,6 +82,11 @@ enum AssistantDayRoll {
             in: session.context
         )
         let marked = Set(records.filter { $0.status != .unmarked }.map(\.studentID))
-        return (roll, roll.filter { !marked.contains($0.id?.uuidString ?? "") })
+        let absent = Set(records.filter { $0.status == .absent }.map(\.studentID))
+        return (
+            roll,
+            roll.filter { !marked.contains($0.id?.uuidString ?? "") },
+            roll.filter { absent.contains($0.id?.uuidString ?? "") }
+        )
     }
 }
