@@ -298,7 +298,7 @@ struct AssistantSetupSiriPage: View {
                 phrase("Mark \(names[0]) here in Daybook Assistant")
                 phrase("\(names[1]) is late in Daybook Assistant")
                 phrase("Mark \(names[2]) absent in Daybook Assistant")
-                phrase("Who's not here yet in Daybook Assistant")
+                phrase("Who's absent in Daybook Assistant")
                 phrase("Close arrival in Daybook Assistant")
             }
             ShortcutsLink()

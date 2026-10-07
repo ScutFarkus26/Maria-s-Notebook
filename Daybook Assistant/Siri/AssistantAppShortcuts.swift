@@ -58,15 +58,6 @@ struct AssistantAppShortcuts: AppShortcutsProvider {
             systemImageName: "door.left.hand.closed"
         )
         AppShortcut(
-            intent: WhoIsMissingIntent(),
-            phrases: [
-                "Who's not here yet in \(.applicationName)",
-                "Who isn't marked in \(.applicationName)"
-            ],
-            shortTitle: "Who's Not Marked",
-            systemImageName: "person.crop.circle.badge.questionmark"
-        )
-        AppShortcut(
             intent: WhoIsAbsentIntent(),
             phrases: [
                 "Who's absent in \(.applicationName)",
@@ -76,8 +67,7 @@ struct AssistantAppShortcuts: AppShortcutsProvider {
             shortTitle: "Who's Absent",
             systemImageName: "person.crop.circle.badge.xmark"
         )
-        // All ten of Apple's ten: adding another means merging two.
-        // Restock: the supply names come from
+        // Restock (nine of Apple's ten): the supply names come from
         // `SupplyEntityQuery.suggestedEntities()`.
         AppShortcut(
             intent: MarkSupplyOutIntent(),

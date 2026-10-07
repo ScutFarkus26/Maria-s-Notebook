@@ -51,9 +51,11 @@ struct CloseArrivalIntent: AppIntent {
 // MARK: - Who's missing
 
 /// "Who's not here yet?": the children still unmarked today, by the names the
-/// grid shows.
+/// grid shows. Off Siri's list since 2026-10-07 ("Who's absent" took its
+/// place); kept so a shortcut already built from it keeps running.
 struct WhoIsMissingIntent: AppIntent {
     static let title: LocalizedStringResource = "Who's Not Marked"
+    static let isDiscoverable = false
     static let description = IntentDescription(
         "Hear which children aren't marked yet today.",
         categoryName: "Attendance"
