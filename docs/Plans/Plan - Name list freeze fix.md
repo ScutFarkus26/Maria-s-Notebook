@@ -125,6 +125,22 @@ Checked 2026-10-06 against Xcode 27.0 (27A266a), iOS/macOS 27.0 SDKs. Xcode 27.1
   - Committed, with a short `/code-review` of the diff and its fixes, and landed on main (update-ref if the main checkout is on another branch; memory "merge-when-checkout-shared"), pushed.
 - Hand off: no.
 
+## Where Phase 1 stands (2026-10-06, evening)
+
+- f43b99cc, the fix: three builds pass, the focused suites pass (69 notebook + 32 Assistant), then the whole suites pass (2,754 notebook, 264 Assistant).
+- A code review found six edge-case races in f43b99cc, all during the new wait. None is a crash or deadlock. A `feature-phase` agent (Opus 5.5) was sent to fix them, each with a test:
+  1. `setMyName` (ClassroomNames.swift ~109): when the account changed during the wait, return `.nothing` without touching `ClassroomIdentity`. Today it stores the old account's typed name as waiting, and the Assistant then writes it into the new account's row.
+  2. `setMyName` (~104–115): mark the name waiting (`displayName`, `nameWaitingAs`) **before** the gate and lookup, so a rename survives the app being suspended or quit mid-wait. Square this with 1.
+  3. `writeWaitingNameOnce` (~180 vs ~187): look up zones for the store `waitingRole ?? deviceRole` writes to, not only `deviceRole`'s.
+  4. `myRows` on the write paths (ClassroomNames+Zones.swift ~163): leave out `.noAnswer` rows when a classroom is pinned. Reads still count them in.
+  5. `writeWaitingNameOnce` (~166): check the stores again after the lookup, since an Assistant stack rebuild mid-wait leaves an empty context. In `AssistantNameStore`, skip when the bootstrapper's stack is no longer the one passed in.
+  6. `ClassroomYourNameCard.swift` (~79): compare against the name being saved, not `stored`. Otherwise "change it, change it back" during a save drops the second change.
+- Fixed in 0dab11dc: all six, five with tests. The focused suites pass (74 notebook, 33 Assistant).
+- Left for later, in Tide:
+  - [check that each new name-list test fails when its guard is removed](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=In%20a%20new%20Claude%20session%2C%20check%20that%20each%20new%20name-list%20test%20fails%20when%20its%20guard%20is%20removed)
+  - [have the Assistant's name save notice when its storage was rebuilt](tide://box/Areas/App%20Development/Daybook%20Assistant/To%20do.md?text=In%20a%20new%20Claude%20session%2C%20have%20the%20Assistant%27s%20name%20save%20notice%20when%20its%20storage%20was%20rebuilt). That's the part of finding 5 that was left out; nothing is lost without it.
+- Next: run both whole suites again, land on main, push, then Phase 2.
+
 ## Phase 2: Roll out both apps to TestFlight
 - Who: main session (Opus 5.5, high) with the `roll-out` skill.
 - Steps: archive and upload the notebook (iPhone/iPad and Mac) and the Daybook Assistant from main. No tester-group change without Danny's word. Add Tide rows (Cosmic Daybook › Check on a device): "After the name-list freeze fix build installs, use the iPhone app through a sync and switching away; check Settings › Analytics Data shows no new Cosmic Daybook reports." The same row goes in the Assistant's list for her phone once the build is in her group.
