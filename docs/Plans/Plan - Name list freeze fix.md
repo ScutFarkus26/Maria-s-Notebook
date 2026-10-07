@@ -47,7 +47,7 @@ closure in Arrival.start()                     :83–93  (eventChangedNotificati
 
 Already off the main thread, not in scope: the duplicate cleanup (`DedupSyncState`, `DedupShareBoundary`, the lesson and track title merges), which runs on background contexts (`MigrationRunner.launchSweep`, `DeduplicationCoordinator.sweep` via `Task.detached`), and `ClassroomShareRelease+Live.swift:140–143`, inside `Task.detached`.
 
-**Same shape, follow-up (not this plan):** `ClassroomSharingService.shareContents` (`Sharing/ClassroomSharingService+Contents.swift:15–64`) is main-actor `async` and calls `fetchShares(matching:)` synchronously, from share setup and Restock's banner (`+Setup.swift:109, 209`). Whether it waits on the mirroring delegate is undocumented. Phase 1 adds it to Tide as a Build & fix row.
+**Same shape, follow-up (not this plan):** `ClassroomSharingService.shareContents` (`Sharing/ClassroomSharingService+Contents.swift:15–64`) is main-actor `async` and calls `fetchShares(matching:)` synchronously, from share setup and Restock's banner (`+Setup.swift:109, 209`). Whether it waits on the mirroring delegate is undocumented. It's in Tide: [stop sharing setup and Restock's banner from waiting on iCloud on the main thread](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=In%20a%20new%20Claude%20session%2C%20stop%20sharing%20setup%20and%20Restock%27s%20banner%20from%20waiting%20on%20iCloud%20on%20the%20main%20thread).
 
 ## Decisions
 
@@ -90,7 +90,7 @@ Checked 2026-10-06 against Xcode 27.0 (27A266a), iOS/macOS 27.0 SDKs. Xcode 27.1
 - There are no WWDC 2025 or 2026 sessions on these APIs.
 
 ## Phase 1: Move the zone lookups off the main thread
-- Who: `feature-phase-deep` agent on Fable (xhigh) in this worktree; the main session (Opus 5.5) reviews the diff and lands it. Changed at the start: only 4% of the weekly limit was left, and Fable has its own weekly window.
+- Who: `feature-phase` agent on Opus 5.5 (high) in this worktree; the main session (Opus 5.5) reviews the diff and lands it. Danny's choice at the start (2026-10-06): a Fable agent was started first and stopped before it changed any code.
 - Steps:
   - New `Cosmic Daybook/Sharing/ClassroomNames+Zones.swift`, holding:
     - the `@concurrent nonisolated` batched lookup, modeled on `CDAttendanceStore.shareZoneNames`;
