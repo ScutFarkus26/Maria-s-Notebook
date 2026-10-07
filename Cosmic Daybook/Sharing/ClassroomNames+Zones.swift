@@ -126,16 +126,23 @@ extension ClassroomNames {
     /// (2026-10-05 hunt, #24). A row not yet sent to iCloud has no zone yet; it
     /// is this device's own. Where rows live comes from `zones`; rows deleted
     /// meanwhile (by an import merged during a wait) are left out.
+    ///
+    /// For the writes, a row `zones` has no answer for (it arrived during the
+    /// wait) is left out too while a classroom is pinned: it may be an older
+    /// copy in a previous classroom's zone, which the fold would keep and
+    /// rename. The next run, with its answer, takes it in. The reads
+    /// (`myName`) pass `countingUnanswered` and count it in.
     static func myRows(
         _ recordName: String,
         role: CDClassroomMembership.ClassroomRole,
         zones: ZoneMap,
+        countingUnanswered: Bool = false,
         in context: NSManagedObjectContext
     ) -> [CDClassroomPerson] {
         let rows = fetchMyRows(recordName, role: role, in: context).filter {
             !$0.isDeleted && $0.managedObjectContext != nil
         }
-        return inPinnedClassroom(rows, zones: zones, in: context)
+        return inPinnedClassroom(rows, zones: zones, countingUnanswered: countingUnanswered, in: context)
     }
 
     /// Every row with `recordName` in the store `role` writes to, whatever
@@ -154,14 +161,21 @@ extension ClassroomNames {
     /// `rows` without those in another classroom's share zone: the pinned
     /// classroom's, and those in no share yet (not sent, or waiting in the
     /// guide's own zone to be filed). All of them when nothing is pinned. A
-    /// row `zones` has no answer for counts as in the pinned classroom.
+    /// row `zones` has no answer for counts as in the pinned classroom unless
+    /// `countingUnanswered` is false (the writes, `myRows`).
     static func inPinnedClassroom(
-        _ rows: [CDClassroomPerson], zones: ZoneMap, in context: NSManagedObjectContext
+        _ rows: [CDClassroomPerson],
+        zones: ZoneMap,
+        countingUnanswered: Bool = true,
+        in context: NSManagedObjectContext
     ) -> [CDClassroomPerson] {
         guard !rows.isEmpty, let pinned = CDClassroomMembership.pinnedZoneName(in: context) else { return rows }
         return rows.filter { row in
-            guard case .zone(let zone) = zones.answer(for: row.objectID) else { return true }
-            return !zone.hasPrefix(shareZonePrefix) || zone == pinned
+            switch zones.answer(for: row.objectID) {
+            case .zone(let zone): return !zone.hasPrefix(shareZonePrefix) || zone == pinned
+            case .notSent: return true
+            case .noAnswer: return countingUnanswered
+            }
         }
     }
 
@@ -226,9 +240,10 @@ extension ClassroomNames {
 
     /// The first steps of every write, holding `gate`: this person's rows'
     /// IDs are collected, their zones asked off the main thread, and then
-    /// whether this device may still write as `me` is checked again. Nil when
-    /// it may not. The caller refetches the rows (`myRows`): an import can
-    /// delete or change them during the wait.
+    /// whether this device may still write as `me` is checked again, and
+    /// whether `context` still has its stores (her stack can be rebuilt
+    /// during the wait). Nil when it may not. The caller refetches the rows
+    /// (`myRows`): an import can delete or change them during the wait.
     static func lookUpMyZones(
         _ me: String,
         role: CDClassroomMembership.ClassroomRole,
@@ -236,7 +251,8 @@ extension ClassroomNames {
     ) async -> ZoneMap? {
         let ids = fetchMyRows(me, role: role, in: context).map(\.objectID)
         let map = await lookUpZones(of: ids, in: context)
-        guard mayStillWrite(as: me) else { return nil }
+        guard mayStillWrite(as: me),
+              context.persistentStoreCoordinator?.persistentStores.isEmpty == false else { return nil }
         knownZones.update(with: map)
         return map
     }
@@ -285,6 +301,26 @@ extension ClassroomNames {
     /// How many `setMyName` calls have begun: one overtaken by a newer one
     /// before it wrote doesn't write.
     static var nameSets = 0
+
+    /// This device's name and waiting mark before the first of the
+    /// `setMyName` calls still running marked its name waiting: what an
+    /// account change during their wait puts back.
+    struct BeforeMarks {
+        let name: String?
+        let role: CDClassroomMembership.ClassroomRole?
+    }
+
+    static var beforeMarks: BeforeMarks?
+
+    /// Another account signed in while `setMyName` waited: its mark (and
+    /// those of the calls it overtook) goes back to what was there before,
+    /// unless something else has changed it since (the Assistant's
+    /// `forgetForNewAccount`).
+    static func unmark(_ typed: String, as role: CDClassroomMembership.ClassroomRole) {
+        guard let before = beforeMarks else { return }
+        if ClassroomIdentity.nameWaitingAs == role { ClassroomIdentity.nameWaitingAs = before.role }
+        if (ClassroomIdentity.displayName ?? "") == typed { ClassroomIdentity.displayName = before.name }
+    }
 
     /// One `writeWaitingName` call's arguments.
     struct WaitingWrite {

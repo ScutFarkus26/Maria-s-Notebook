@@ -85,9 +85,14 @@ enum ClassroomNames {
     /// share only through `SharedStoreOrphanGuard`, which sees nothing else. On
     /// her phone the caller saves through `AssistantSave`, passing a new row.
     ///
-    /// Waits for the zone lookup (`lookUpMyZones`), one write at a time. If
-    /// the account changed meanwhile the name waits, as before the record
-    /// name is known; if a newer call came, this one writes nothing.
+    /// Waits for the zone lookup (`lookUpMyZones`), one write at a time. The
+    /// name is marked waiting before the wait, so one typed just before the
+    /// app is suspended or quit is written at the next launch. If this
+    /// device may not write now (her account change is still being read, or
+    /// the stores are gone) it keeps waiting; if another account signed in
+    /// meanwhile, the mark is taken back and nothing is written, so the last
+    /// account's name never goes into the new one's row. If a newer call
+    /// came, this one writes nothing.
     @discardableResult
     static func setMyName(
         _ name: String?,
@@ -103,12 +108,19 @@ enum ClassroomNames {
         }
         nameSets += 1
         let call = nameSets
+        if beforeMarks == nil {
+            beforeMarks = BeforeMarks(name: ClassroomIdentity.displayName, role: ClassroomIdentity.nameWaitingAs)
+        }
+        defer { if call == nameSets { beforeMarks = nil } }
+        ClassroomIdentity.displayName = typed
+        ClassroomIdentity.nameWaitingAs = role
         await gate.enter()
         defer { gate.leave() }
         guard call == nameSets else { return .overtaken }
         guard let zones = await lookUpMyZones(me, role: role, in: context) else {
-            ClassroomIdentity.displayName = typed
-            ClassroomIdentity.nameWaitingAs = role
+            if call == nameSets, let now = ClassroomIdentity.currentUserRecordName, now != me {
+                unmark(typed, as: role)
+            }
             return .nothing
         }
         guard call == nameSets else { return .overtaken }
@@ -177,9 +189,15 @@ enum ClassroomNames {
         }
         await gate.enter()
         defer { gate.leave() }
-        guard let zones = await lookUpMyZones(me, role: deviceRole, in: context) else { return false }
+        // The zones of the rows this run writes: a waiting name's role can
+        // name the other store (a notebook that joined a class as an
+        // assistant, with his guide's name waiting).
+        let lookupRole = ClassroomIdentity.nameWaitingAs ?? deviceRole
+        guard let zones = await lookUpMyZones(me, role: lookupRole, in: context) else { return false }
         refreshUnchangedRows(in: context)
         let waitingRole = waitingRole(me, deviceRole: deviceRole, zones: zones, in: context)
+        // What waits changed during the lookup: the next run asks again.
+        guard (waitingRole ?? deviceRole) == lookupRole else { return false }
 
         var created: [NSManagedObject] = []
         if let waitingRole {
@@ -194,13 +212,10 @@ enum ClassroomNames {
         // Save only for a change to the list, never for something else the
         // view context happens to be holding.
         let pending = context.insertedObjects.union(context.updatedObjects).union(context.deletedObjects)
-        guard pending.contains(where: { $0 is CDClassroomPerson }) else {
-            if let waitingRole { stopWaiting(as: waitingRole, keeping: ClassroomIdentity.displayName ?? "") }
-            return false
-        }
-        guard write.save(context, created) else { return false }
+        let listChanged = pending.contains { $0 is CDClassroomPerson }
+        if listChanged, !write.save(context, created) { return false }
         if let waitingRole { stopWaiting(as: waitingRole, keeping: ClassroomIdentity.displayName ?? "") }
-        return true
+        return listChanged
     }
 
     /// The role a waiting name goes in as, or nil when none waits. An
@@ -232,7 +247,8 @@ enum ClassroomNames {
     /// Never asks iCloud: it reads the zones last looked up (`knownZones`).
     static func myName(role: CDClassroomMembership.ClassroomRole, in context: NSManagedObjectContext) -> String {
         if ClassroomIdentity.nameWaitingAs == nil, let me = ClassroomIdentity.currentUserRecordName,
-           let row = myRows(me, role: role, zones: knownZones, in: context).min(by: isNewer) {
+           let row = myRows(me, role: role, zones: knownZones, countingUnanswered: true, in: context)
+            .min(by: isNewer) {
             return row.displayName.trimmed()
         }
         return ClassroomIdentity.displayName ?? ""

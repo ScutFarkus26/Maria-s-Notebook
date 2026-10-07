@@ -106,6 +106,31 @@ struct AssistantOnboardingTests {
         }
     }
 
+    @Test("Another account signing in: a name waiting from the last account never goes into the new one's row")
+    func waitingNameForgottenForNewAccount() async throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        await AssistantRestockTestSupport.asIdentity("_bea", named: "Ana") {
+            let bea = CDClassroomPerson(context: context)
+            if let store = RestockService.destinationStore(for: .assistant, in: context) {
+                context.assign(bea, to: store)
+            }
+            bea.id = UUID()
+            bea.recordName = "_bea"
+            bea.role = .assistant
+            bea.displayName = "Bea"
+            bea.createdAt = Date(timeIntervalSince1970: 1_790_000_000)
+            bea.modifiedAt = bea.createdAt
+            #expect(context.safeSave())
+            ClassroomNames.markWaiting(as: .assistant)
+
+            AssistantNameStore.forgetForNewAccount()
+            #expect(ClassroomIdentity.nameWaitingAs == nil)
+            await AssistantNameStore.writeWaitingName(in: context, container: nil)
+            #expect(bea.displayName == "Bea")
+        }
+    }
+
     @Test("A name she gave before the list existed joins it at launch without her typing it again")
     func olderNameJoinsAtLaunch() async throws {
         let stack = try AssistantTestSupport.makeStack()

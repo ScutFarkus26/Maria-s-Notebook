@@ -128,9 +128,12 @@ enum AssistantNameStore {
     /// Another Apple Account signed in on this iPhone: the name kept here
     /// was the last account's. Hers comes from the new account's iCloud copy
     /// when it has one (`restoreIfNeeded`), or she's asked again. Nothing in
-    /// the classroom's list changes: the last account's row stays its own.
+    /// the classroom's list changes: the last account's row stays its own,
+    /// and a name waiting to go in was the last account's too, so it stops
+    /// waiting (a restored name with no row still goes in, as hers).
     static func forgetForNewAccount() {
         ClassroomIdentity.displayName = nil
+        ClassroomIdentity.nameWaitingAs = nil
         restoreIfNeeded()
     }
 

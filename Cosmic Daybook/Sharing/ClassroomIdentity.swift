@@ -133,7 +133,8 @@ enum ClassroomIdentity {
     /// Set while a name typed on this device (in `displayName`, or cleared)
     /// waits for this account's record name before it can go into the
     /// classroom's list: the role it was typed as. Nil when nothing waits.
-    /// Only `ClassroomNames` sets it.
+    /// Only `ClassroomNames` sets it; the Assistant clears it when another
+    /// account signs in (`AssistantNameStore.forgetForNewAccount`).
     static var nameWaitingAs: CDClassroomMembership.ClassroomRole? {
         get { UserDefaults.standard.string(forKey: nameWaitingKey).flatMap(CDClassroomMembership.ClassroomRole.init) }
         set {

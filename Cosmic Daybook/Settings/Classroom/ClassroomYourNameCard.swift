@@ -17,6 +17,9 @@ struct ClassroomYourNameCard: View {
     @State private var name = ""
     /// What the field last loaded or saved, so leaving it unchanged writes nothing.
     @State private var stored = ""
+    /// The name being saved now, if any: changing it and changing it back
+    /// before that save ends must still save the second name.
+    @State private var saving: String?
     /// The name is saved on this device but not in the list yet: this
     /// account's iCloud record name hasn't come back.
     @State private var isWaiting = false
@@ -76,13 +79,14 @@ struct ClassroomYourNameCard: View {
 
     private func commit() {
         let typed = name.trimmed()
-        guard typed != stored else { return }
+        guard typed != (saving ?? stored) else { return }
+        saving = typed
         let coordinator = dependencies.saveCoordinator
         let context = viewContext
         Task {
-            guard await Self.setName(typed, in: context, save: { coordinator.save($0, reason: "Set your name") }) else {
-                return
-            }
+            let saved = await Self.setName(typed, in: context, save: { coordinator.save($0, reason: "Set your name") })
+            if saving == typed { saving = nil }
+            guard saved else { return }
             stored = typed
             // Not over what was typed while the name was being saved.
             if name.trimmed() == typed { name = typed }
