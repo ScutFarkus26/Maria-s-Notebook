@@ -132,7 +132,7 @@ private struct MeetingSessionContent: View {
             if phase != .active { draft.flush() }
         }
         .confirmationDialog("Clear this meeting?", isPresented: $isConfirmingClear, titleVisibility: .visible) {
-            Button("Clear Meeting", role: .destructive) { draft.clear() }
+            Button("Clear Meeting", role: .destructive) { draft.discard(context: viewContext) }
         } message: {
             Text("Everything written for \(student.firstName)'s meeting so far will be erased.")
         }

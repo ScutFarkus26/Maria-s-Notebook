@@ -32,6 +32,13 @@ enum MeetingPersistenceService {
         /// Catalog lessons asked for, as uuidStrings; they go to the inbox on Complete.
         var requestLessonIDs: [String]?
 
+        /// Work the guide chose to re-present, as uuidStrings; on Complete each
+        /// one's lesson goes back in the inbox as a second pass.
+        var representWorkIDs: [String]?
+        /// Work the guide marked ready for the next lesson, as uuidStrings; on
+        /// Complete each one's next lesson goes On Deck.
+        var readyWorkIDs: [String]?
+
         var isEmpty: Bool {
             reflectionText.trimmed().isEmpty &&
             focusText.trimmed().isEmpty &&
@@ -42,7 +49,9 @@ enum MeetingPersistenceService {
             (droppedFocusIDs ?? []).isEmpty &&
             (workReviewDrafts ?? [:]).values.allSatisfy { $0.trimmed().isEmpty } &&
             (reviewedWorkIDs ?? []).isEmpty &&
-            (requestLessonIDs ?? []).isEmpty
+            (requestLessonIDs ?? []).isEmpty &&
+            (representWorkIDs ?? []).isEmpty &&
+            (readyWorkIDs ?? []).isEmpty
         }
 
         /// `self` with every nil workflow field taken from `stored`.
@@ -54,6 +63,8 @@ enum MeetingPersistenceService {
             merged.workReviewDrafts = workReviewDrafts ?? stored.workReviewDrafts
             merged.reviewedWorkIDs = reviewedWorkIDs ?? stored.reviewedWorkIDs
             merged.requestLessonIDs = requestLessonIDs ?? stored.requestLessonIDs
+            merged.representWorkIDs = representWorkIDs ?? stored.representWorkIDs
+            merged.readyWorkIDs = readyWorkIDs ?? stored.readyWorkIDs
             return merged
         }
     }

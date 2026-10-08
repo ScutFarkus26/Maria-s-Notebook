@@ -15,6 +15,10 @@ struct WorkDecisionCard: View {
 
     private var workID: UUID? { work.id }
     private var isReviewed: Bool { workID.map(draft.reviewedWorkIDs.contains) ?? false }
+    private var isRepresenting: Bool { workID.map(draft.representWorkIDs.contains) ?? false }
+    private var isReady: Bool { workID.map(draft.readyWorkIDs.contains) ?? false }
+    /// Re-present and Ready for Next need a lesson to plan; manual work has none.
+    private var hasLesson: Bool { UUID(uuidString: work.lessonID) != nil }
 
     private enum Outcome: CaseIterable {
         case keepWorking, practice, mastered
@@ -100,10 +104,21 @@ struct WorkDecisionCard: View {
             ForEach(Outcome.allCases, id: \.self) { outcome in
                 outcomeButton(
                     outcome.label,
-                    selected: isReviewed && !work.isResting && work.status == outcome.status
+                    selected: isReviewed && !work.isResting && !isRepresenting && !isReady
+                        && work.status == outcome.status
                 ) {
                     draft.decide(work, status: outcome.status, context: viewContext)
                 }
+            }
+            if hasLesson {
+                outcomeButton("Re-present", selected: isReviewed && isRepresenting) {
+                    draft.represent(work, context: viewContext)
+                }
+                .help("Closes this work as Incomplete and plans the lesson again when you complete the meeting")
+                outcomeButton("Ready for Next", selected: isReviewed && isReady) {
+                    draft.readyForNext(work, context: viewContext)
+                }
+                .help("Closes this work without marking it mastered and puts the next lesson On Deck when you complete the meeting")
             }
             outcomeButton(work.isResting ? "Resting" : "Rest…", selected: isReviewed && work.isResting) {
                 restUntil = AppCalendar.addingDays(14, to: Date())
