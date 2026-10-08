@@ -29,6 +29,20 @@ struct MCPNotebookToolsTests {
         #expect(output.contains(id))
     }
 
+    @Test("list_students shows the birthday update_student set")
+    func listStudentsShowsBirthday() async throws {
+        let (tools, context) = try makeTools()
+        CoreDataTestHelpers.seedStudent(in: context, firstName: "Ada", lastName: "Lovelace")
+        CoreDataTestHelpers.save(context)
+
+        _ = try await tool(named: "update_student", in: tools).handler([
+            "student": .string("Ada"),
+            "birthday": .string("2017-03-09")
+        ])
+        let output = try await tool(named: "list_students", in: tools).handler([:])
+        #expect(output.contains("born 2017-03-09"))
+    }
+
     @Test("create_observation writes a scoped, linked note")
     func createObservationWritesNote() async throws {
         let (tools, context) = try makeTools()
