@@ -9,7 +9,7 @@ In a student meeting, every work card under Needs a Decision (and an expanded Op
 
 ## Progress
 - [x] Phase 1: Review and fix (session: here) · est. ~1% weekly. The three known fixes landed with tests (15 in the suite pass). On Danny's call at close-out (2026-10-07), the review agent's pass over the code was skipped; the plan review had already found these three.
-- [x] Phase 2: Look, build, merge (session: here) · est. ~1–2% weekly. Merged with the iOS and Mac builds and the meeting suite. Skipped on Danny's call: the simulator look, the Assistant build (nothing it compiles changed), and the whole-suite run. Trying both buttons in a real meeting, on the Mac and the iPad, is a row in Cosmic Daybook's list in Tide.
+- [x] Phase 2: Look, build, merge (session: here) · est. ~1–2% weekly. Merged with the iOS and Mac builds and the meeting suite. Skipped on Danny's call: the simulator look, the Assistant build (nothing it compiles changed), and the whole-suite run. Trying both buttons in a real meeting, on the Mac and the iPad, is [a row in Tide](tide://box/Areas/App%20Development/Cosmic%20Daybook/To%20do.md?text=After%20the%20next%20roll-out%2C%20try%20Re-present%20and%20Ready%20for%20Next%20on%20a%20work%20card%20in%20a%20real%20meeting%20on%20the%20Mac%2C%20then%20the%20iPad).
 
 ## Cost
 
