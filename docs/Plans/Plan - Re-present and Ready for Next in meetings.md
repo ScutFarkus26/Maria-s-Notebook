@@ -1,6 +1,6 @@
 # Re-present and Ready for Next in meetings
 
-> **Not started.** Written 2026-10-07. Danny asked for "represent" and "ready for the next lesson, on the board" on the meeting work cards; both are built and unit-tested on branch `claude/add-represent-work-review-030aef` (uncommitted).
+> **Done 2026-10-07** (a8e7dd98). Danny asked for "represent" and "ready for the next lesson, on the board" on the meeting work cards.
 > In short: review the two new meeting buttons, look at them on the iPhone and iPad simulators, then merge them to main.
 
 ## Goal

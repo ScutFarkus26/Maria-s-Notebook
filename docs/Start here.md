@@ -12,7 +12,6 @@ run `docs-index`; edit only the Other documents section by hand.
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Name list freeze fix](<Plans/Plan - Name list freeze fix.md>) | stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it. | Working on it | 2026-10-06 |
 | [Plan - Names you set yourself](<Plans/Plan - Names you set yourself.md>) | A small shared list of each person's current name, set by that person, so the Assistant says "Danny" instead of "your guide" and a rename shows everywhere, old entries included. | Working on it | 2026-10-05 |
-| [Plan - Re-present and Ready for Next in meetings](<Plans/Plan - Re-present and Ready for Next in meetings.md>) | review the two new meeting buttons, look at them on the iPhone and iPad simulators, then merge them to main. | Not started | 2026-10-07 |
 | [Plan - Restock](<Plans/Plan - Restock.md>) | Supplies and orders as one page, shared with the Daybook Assistant; shipped to TestFlight, device checks open. | Working on it | 2026-10-03 |
 | [Plan - School year separation](<Plans/Plan - School year separation.md>) | A school-year lens across the app; reports, exports and the activity stamp were never built. | Working on it | 2026-09-30 |
 | [Plan - Who made a change](<Plans/Plan - Who made a change.md>) | Save each device's real CloudKit ID instead of the shared stand-in, show who added something only when it isn't you, and make the office run a plain errand list (what, how urgent, where it goes). | Working on it | 2026-10-05 |
@@ -23,6 +22,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Re-present and Ready for Next in meetings](<Plans/Plan - Re-present and Ready for Next in meetings.md>) | review the two new meeting buttons, look at them on the iPhone and iPad simulators, then merge them to main. | Done (a8e7dd98) | 2026-10-07 |
 | [Plan - Sync and sharing fixes](<Plans/Plan - Sync and sharing fixes.md>) | fix every finding of the 2026-10-05 sync and sharing bug hunt in six parallel agents, add who-changed-it to staple history (schema 17), and land it all on main. | Done (90aedef9) | 2026-10-06 |
 | [Plan - Data model and launch repair fixes](<Plans/Plan - Data model and launch repair fixes.md>) | Fix all 64 findings of that hunt, each behavior fix with a regression test, in six agent phases run in two parallel waves, then restore from the error screen, off-main store loading, a review and one squash onto main. | Done (0ab967ff) | 2026-10-06 |
 | [Plan - Add a check-in to existing work](<Plans/Plan - Add a check-in to existing work.md>) | `update_work` gets `add_check_in_on` / `add_check_in_purpose` / `add_check_in_for_this_child_only`, so a check-in can be scheduled on work that already exists. | Done (205bfdd2) | 2026-10-06 |
