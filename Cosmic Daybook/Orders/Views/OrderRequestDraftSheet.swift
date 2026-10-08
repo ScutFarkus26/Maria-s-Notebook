@@ -7,6 +7,8 @@ import SwiftUI
 import CoreData
 #if os(iOS)
 import MessageUI
+#elseif os(macOS)
+import AppKit
 #endif
 
 struct OrderRequestDraftSheet: View {
@@ -20,6 +22,8 @@ struct OrderRequestDraftSheet: View {
     @SyncedAppStorage(OrderRequestPrefs.recipientNameKey) private var recipientName: String = ""
     @SyncedAppStorage(OrderRequestPrefs.recipientEmailKey) private var recipientEmail: String = ""
     @SyncedAppStorage(OrderRequestPrefs.signOffNameKey) private var signOffName: String = ""
+    @SyncedAppStorage(OrderRequestPrefs.ccEmailKey) private var ccEmail: String = ""
+    @SyncedAppStorage(OrderRequestPrefs.messageTemplateKey) private var messageTemplate: String = ""
 
     @State private var included: Set<NSManagedObjectID> = []
     @State private var subject = ""
@@ -40,7 +44,7 @@ struct OrderRequestDraftSheet: View {
     @State private var quantityRevision = 0
 
     private var recipient: OrderRequestRecipient {
-        OrderRequestRecipient(name: recipientName.trimmed(), email: recipientEmail.trimmed())
+        OrderRequestRecipient(name: recipientName.trimmed(), email: recipientEmail.trimmed(), cc: ccEmail.trimmed())
     }
 
     private var includedItems: [CDOrderItem] {
@@ -55,7 +59,12 @@ struct OrderRequestDraftSheet: View {
     private var generatedSubject: String { OrderRequestMessage.subject(for: lines) }
 
     private var generatedBody: String {
-        OrderRequestMessage.body(for: lines, recipientName: recipientName, signOff: signOffName)
+        OrderRequestMessage.body(
+            for: lines,
+            recipientName: recipientName,
+            signOff: signOffName,
+            template: messageTemplate
+        )
     }
 
     private var itemCountText: String {
@@ -127,12 +136,17 @@ struct OrderRequestDraftSheet: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+                        if !recipient.ccEmails.isEmpty {
+                            Text("CC: \(recipient.ccEmails.joined(separator: ", "))")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
                     Button("Change") { editingRecipient = true }
                 }
             } else {
-                OrderRequestSettingsView()
+                OrderRequestSettingsView(showsMessage: false)
             }
         } header: {
             Text("To")
@@ -273,6 +287,7 @@ extension OrderRequestDraftSheet {
     private var mailComposer: some View {
         MailComposerView(
             toRecipients: recipient.emails,
+            ccRecipients: recipient.ccEmails,
             subject: subject,
             body: messageBody,
             preferredSender: AttendanceEmail.storedFromAddress()
@@ -289,6 +304,7 @@ extension OrderRequestDraftSheet {
             showingMailComposer = true
         } else if let url = AttendanceEmail.makeMailtoURL(
             to: recipient.emails,
+            cc: recipient.ccEmails,
             subject: subject,
             body: messageBody
         ) {
@@ -300,6 +316,21 @@ extension OrderRequestDraftSheet {
     }
     #elseif os(macOS)
     private func send() {
+        // Mac's compose-email service can't set CC, so with CC addresses the
+        // draft opens in Mail through a mail link instead.
+        if !recipient.ccEmails.isEmpty {
+            if let url = AttendanceEmail.makeMailtoURL(
+                to: recipient.emails,
+                cc: recipient.ccEmails,
+                subject: subject,
+                body: messageBody
+            ), NSWorkspace.shared.open(url) {
+                confirmingSent = true
+            } else {
+                sendErrorMessage = "Mail couldn't open the message. Copy the message instead."
+            }
+            return
+        }
         MacOSMailSender.send(
             to: recipient.emails.joined(separator: ", "),
             subject: subject,

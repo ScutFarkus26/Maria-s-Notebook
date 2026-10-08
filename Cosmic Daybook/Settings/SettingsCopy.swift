@@ -152,7 +152,7 @@ enum SettingsCopy {
             case .parentReports:
                 return ["Monthly reminder", "Reports"]
             case .orderRequests:
-                return ["Orders", "Restock", "Office", "Send requests to", "Sign off"]
+                return ["Orders", "Restock", "Office", "Send requests to", "CC", "Copy", "Sign off", "Message"]
             case .noteTemplates:
                 return ["Templates", "Observations"]
             case .meetingTemplates:

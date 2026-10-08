@@ -107,9 +107,8 @@ struct OrderLinkCleanerTests {
 
             Could you please order this for my classroom?
 
-            1. Anker Nano Phone Charger
+            1. Anker Nano Phone Charger — https://www.amazon.com/dp/B0B2MMB4LJ
                 Quantity: 2
-                https://www.amazon.com/dp/B0B2MMB4LJ
 
             Thank you!
             Danny

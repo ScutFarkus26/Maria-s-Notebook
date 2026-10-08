@@ -63,6 +63,8 @@ public final class SyncedPreferencesStore {
         "Orders.recipientName",
         "Orders.recipientEmail",
         "Orders.signOffName",
+        "Orders.ccEmail",
+        "Orders.messageTemplate",
         
         // CDLesson Age Settings
         "LessonAge.warningDays",

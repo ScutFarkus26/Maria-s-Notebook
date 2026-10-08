@@ -280,14 +280,22 @@ public enum AttendanceEmail {
 
     /// Builds a mailto: URL with the provided recipients, subject, and body.
     /// - CDNote: Useful as a fallback when `isAvailable` is false.
-    public static func makeMailtoURL(to recipients: [String], subject: String, body: String) -> URL? {
+    public static func makeMailtoURL(
+        to recipients: [String],
+        cc: [String] = [],
+        subject: String,
+        body: String
+    ) -> URL? {
         var components = URLComponents()
         components.scheme = "mailto"
         components.path = recipients.joined(separator: ",")
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: body)
-        ]
+        var query: [URLQueryItem] = []
+        if !cc.isEmpty {
+            query.append(URLQueryItem(name: "cc", value: cc.joined(separator: ",")))
+        }
+        query.append(URLQueryItem(name: "subject", value: subject))
+        query.append(URLQueryItem(name: "body", value: body))
+        components.queryItems = query
         return components.url
     }
 }
@@ -315,6 +323,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
     }
 
     public var toRecipients: [String]
+    public var ccRecipients: [String]
     public var subject: String
     public var body: String
     public var preferredSender: String?
@@ -323,6 +332,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
 
     public init(
         toRecipients: [String],
+        ccRecipients: [String] = [],
         subject: String,
         body: String,
         preferredSender: String?,
@@ -330,6 +340,7 @@ public struct MailComposerView: UIViewControllerRepresentable {
         onComplete: @escaping (MFMailComposeResult, Error?) -> Void
     ) {
         self.toRecipients = toRecipients
+        self.ccRecipients = ccRecipients
         self.subject = subject
         self.body = body
         self.preferredSender = preferredSender
@@ -341,6 +352,9 @@ public struct MailComposerView: UIViewControllerRepresentable {
         let vc = MFMailComposeViewController()
         vc.mailComposeDelegate = context.coordinator
         vc.setToRecipients(toRecipients)
+        if !ccRecipients.isEmpty {
+            vc.setCcRecipients(ccRecipients)
+        }
         vc.setSubject(subject)
         vc.setMessageBody(body, isHTML: false)
         if let preferred = preferredSender, !preferred.trimmed().isEmpty {
