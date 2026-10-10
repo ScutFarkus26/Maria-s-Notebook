@@ -8,7 +8,6 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
-| [Plan - Bug hunt 2026-10-09 fixes](<Plans/Plan - Bug hunt 2026-10-09 fixes.md>) | fix all 26 findings in six parallel fix agents over two waves, review the combined change, and land it on main without rolling out. | Working on it | 2026-10-09 |
 | [Plan - Daybook Assistant bug fixes](<Plans/Plan - Daybook Assistant bug fixes.md>) | Fixes for the ~50 findings of the 2026-10-04 Daybook Assistant bug hunt, in six phases. | Working on it | 2026-10-05 |
 | [Plan - Debug builds open a fake notebook](<Plans/Plan - Debug builds open a fake notebook.md>) | Debug builds open a fake, local-only notebook; the real one only through the Real Notebook scheme. | Not started | 2026-10-04 |
 | [Plan - Name list freeze fix](<Plans/Plan - Name list freeze fix.md>) | stop the name list from asking iCloud questions on the main thread, which froze the app until iOS killed it. | Working on it | 2026-10-06 |
@@ -23,6 +22,7 @@ run `docs-index`; edit only the Other documents section by hand.
 
 | Plan | What it is | Status | Date |
 |---|---|---|---|
+| [Plan - Bug hunt 2026-10-09 fixes](<Plans/Plan - Bug hunt 2026-10-09 fixes.md>) | fix all 26 findings in six parallel fix agents over two waves, review the combined change, and land it on main without rolling out. | Done (edcfb352) | 2026-10-10 |
 | [Plan - Re-present and Ready for Next in meetings](<Plans/Plan - Re-present and Ready for Next in meetings.md>) | review the two new meeting buttons, look at them on the iPhone and iPad simulators, then merge them to main. | Done (a8e7dd98) | 2026-10-07 |
 | [Plan - Sync and sharing fixes](<Plans/Plan - Sync and sharing fixes.md>) | fix every finding of the 2026-10-05 sync and sharing bug hunt in six parallel agents, add who-changed-it to staple history (schema 17), and land it all on main. | Done (90aedef9) | 2026-10-06 |
 | [Plan - Data model and launch repair fixes](<Plans/Plan - Data model and launch repair fixes.md>) | Fix all 64 findings of that hunt, each behavior fix with a regression test, in six agent phases run in two parallel waves, then restore from the error screen, off-main store loading, a review and one squash onto main. | Done (0ab967ff) | 2026-10-06 |
