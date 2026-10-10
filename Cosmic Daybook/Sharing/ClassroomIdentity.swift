@@ -62,9 +62,13 @@ enum ClassroomIdentity {
     }
 
     private static func readRecordName(from container: CKContainer) async {
+        // Saved by the last launch, or the account before a change.
+        let before = currentUserRecordName
         do {
             let recordID = try await container.userRecordID()
             currentUserRecordName = recordID.recordName
+            // Another account signed in while the notebook was closed.
+            forgetWaitingName(ifAnotherAccountThan: before)
         } catch {
             let detail = error.localizedDescription
             logger.notice("Couldn't read this account's CloudKit record name: \(detail, privacy: .public)")
@@ -100,10 +104,31 @@ enum ClassroomIdentity {
 
     /// What an account change does: forget the saved record name, then read
     /// the new one with `reread`. Tests pass their own read.
+    ///
+    /// On the notebook, a name waiting to go into the classroom's list was
+    /// typed under the account before; once the read confirms another
+    /// account, it's dropped (`ClassroomNames.forgetWaitingName`). It used to
+    /// go into the new account's row (2026-10-09 hunt, #5). Not when the read
+    /// finds none (signed out, offline, not ready) or the same account: the
+    /// name keeps waiting. The Assistant does this itself, asking her name
+    /// again (`AssistantBootstrapper`).
     static func accountChanged(reread: () async -> Void) async {
         logger.notice("The Apple Account changed; reading this account's record name again")
+        let before = currentUserRecordName
         currentUserRecordName = nil
         await reread()
+        forgetWaitingName(ifAnotherAccountThan: before)
+    }
+
+    /// On the notebook, drops a waiting name once the record name read is
+    /// known and another than `before`. Both must be known: an account that
+    /// couldn't be read is no reason to drop it, as on her phone
+    /// (`AssistantNameStore.isAnotherAccount`), which does this itself.
+    private static func forgetWaitingName(ifAnotherAccountThan before: String?) {
+        #if !ASSISTANT_APP
+        guard let before, let now = currentUserRecordName, now != before else { return }
+        ClassroomNames.forgetWaitingName()
+        #endif
     }
 
     /// The label this person wants beside their marks. Empty is stored as nil so
@@ -133,8 +158,9 @@ enum ClassroomIdentity {
     /// Set while a name typed on this device (in `displayName`, or cleared)
     /// waits for this account's record name before it can go into the
     /// classroom's list: the role it was typed as. Nil when nothing waits.
-    /// Only `ClassroomNames` sets it; the Assistant clears it when another
-    /// account signs in (`AssistantNameStore.forgetForNewAccount`).
+    /// Only `ClassroomNames` sets it; it's cleared when another account
+    /// signs in (`AssistantNameStore.forgetForNewAccount` on her phone,
+    /// `ClassroomNames.forgetWaitingName` on the notebook).
     static var nameWaitingAs: CDClassroomMembership.ClassroomRole? {
         get { UserDefaults.standard.string(forKey: nameWaitingKey).flatMap(CDClassroomMembership.ClassroomRole.init) }
         set {
@@ -142,6 +168,26 @@ enum ClassroomIdentity {
                 UserDefaults.standard.set(newValue.rawValue, forKey: nameWaitingKey)
             } else {
                 UserDefaults.standard.removeObject(forKey: nameWaitingKey)
+                UserDefaults.standard.removeObject(forKey: nameWaitingForKey)
+            }
+        }
+    }
+
+    /// Per CloudKit environment, beside `nameWaitingAs`.
+    private static var nameWaitingForKey: String { CloudKitEnvironment.scoped("ClassroomIdentity.nameWaitingFor") }
+
+    /// The account (record name) a waiting name was typed under, when it was
+    /// known then; nil when it wasn't, and for names waiting from before this
+    /// was kept. Set after `nameWaitingAs`, which clears it whenever nothing
+    /// waits. `ClassroomNames.writeWaitingName` writes a waiting name only
+    /// under this account, and drops it under another (2026-10-09 review).
+    static var nameWaitingFor: String? {
+        get { realRecordName(UserDefaults.standard.string(forKey: nameWaitingForKey)) }
+        set {
+            if let real = realRecordName(newValue) {
+                UserDefaults.standard.set(real, forKey: nameWaitingForKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: nameWaitingForKey)
             }
         }
     }

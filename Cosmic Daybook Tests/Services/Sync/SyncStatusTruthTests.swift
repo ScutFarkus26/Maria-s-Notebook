@@ -226,18 +226,6 @@ struct SyncStatusTruthTests {
         }
     }
 
-    @Test("A flag set while attaching (no store named) clears on the classroom share's next export")
-    func attachFlagClearsOnShareExport() async {
-        await withSavedDefaults {
-            let service = makeService()
-            service.mirroringDelegateFailed = true
-            finish(service, .export, store: "private-store")
-            #expect(service.mirroringDelegateFailed)
-            finish(service, .export, store: "shared-store")
-            #expect(!service.mirroringDelegateFailed)
-        }
-    }
-
     // MARK: #7a Events before configure
 
     @Test("A setup failure before configure is handled once configure runs")

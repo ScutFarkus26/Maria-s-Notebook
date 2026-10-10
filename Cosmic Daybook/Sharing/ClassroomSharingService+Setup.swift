@@ -37,7 +37,8 @@ extension ClassroomSharingService {
     /// share exists (the server holding that one zone and no other), it adds
     /// whatever of those types is in no share yet — the way to finish a setup
     /// that stopped partway ("Add them to the share"). It never moves a record
-    /// out of another share.
+    /// out of another share, and on a device that didn't make the pin it waits
+    /// until the notebook has imported since the pin arrived (`resumePin`).
     ///
     /// Holds `ClassroomShareAttachLock` throughout, so the orphan guard's pass
     /// waits rather than sharing the same records beside it. Refuses, rather
@@ -54,7 +55,7 @@ extension ClassroomSharingService {
     private func setUpHoldingTheLock(coreDataStack: CoreDataStack) async throws -> ClassroomShareSetupReport {
         let (store, pinned) = try await setupPreflight(coreDataStack: coreDataStack)
         let viewContext = coreDataStack.viewContext
-        if let pinned { try resumePin(pinned, in: viewContext) }
+        if let pinned { try resumePin(pinned, notebookStoreID: store.identifier, in: viewContext) }
         // What this device was holding for the share, as it found it.
         // Everything of these types is shared below, so these go, except any
         // the attach failed on; anything added meanwhile stays.
@@ -94,7 +95,8 @@ extension ClassroomSharingService {
             }
         }
         if outcome.mirroringDelegateDied {
-            CloudKitSyncStatusService.shared.mirroringDelegateFailed = true
+            // The store the attach ran against: the private store's delegate died.
+            CloudKitSyncStatusService.shared.markMirroringStopped(byAttachToStoreWithIdentifier: store.identifier)
         }
         let failed = Set(outcome.failed.map { $0.uriRepresentation().absoluteString })
         // Before this school year's start reaches the device, setup goes by the
@@ -119,22 +121,33 @@ extension ClassroomSharingService {
         return report
     }
 
+    /// Why setup can't run on this device right now, before asking iCloud
+    /// anything, or nil. First: a setup found no ready iCloud account
+    /// (`shareFilingHold`), which only iCloud becoming ready, or with none
+    /// signed in, reopening the notebook, fixes.
+    static func setupBlocker(
+        coreDataStack: CoreDataStack, sync: CloudKitSyncStatusService = .shared
+    ) -> ClassroomShareError? {
+        if let hold = sync.shareFilingHold { return ClassroomShareError(hold) }
+        guard coreDataStack.isCloudKitActive else { return .cloudKitInactive }
+        guard coreDataStack.privatePersistentStore != nil else { return .sharedStoreUnavailable }
+        // The attach lock is this process's only: a second copy of the app
+        // could share the same records beside the first.
+        guard !CoreDataStack.isSecondaryProcess else { return .anotherCopyOpen }
+        guard CDClassroomMembership.currentRole(in: coreDataStack.viewContext) == .leadGuide else {
+            return .assistantCannotCreateShare
+        }
+        guard !FirstDownloadGate.isPending() else { return .firstDownloadPending }
+        guard !sync.mirroringDelegateFailed else { return .mirroringStopped }
+        return nil
+    }
+
     /// Refuses unless setup is safe right now; returns the private store and
     /// the pinned share when one already exists (a resumed setup).
     private func setupPreflight(coreDataStack: CoreDataStack) async throws -> (NSPersistentStore, CKShare?) {
-        guard coreDataStack.isCloudKitActive else { throw ClassroomShareError.cloudKitInactive }
+        if let blocker = Self.setupBlocker(coreDataStack: coreDataStack) { throw blocker }
         guard let store = coreDataStack.privatePersistentStore else { throw ClassroomShareError.sharedStoreUnavailable }
-        // The attach lock is this process's only: a second copy of the app
-        // could share the same records beside the first.
-        guard !CoreDataStack.isSecondaryProcess else { throw ClassroomShareError.anotherCopyOpen }
         let viewContext = coreDataStack.viewContext
-        guard CDClassroomMembership.currentRole(in: viewContext) == .leadGuide else {
-            throw ClassroomShareError.assistantCannotCreateShare
-        }
-        guard !FirstDownloadGate.isPending() else { throw ClassroomShareError.firstDownloadPending }
-        guard !CloudKitSyncStatusService.shared.mirroringDelegateFailed else {
-            throw ClassroomShareError.mirroringStopped
-        }
 
         let serverZones = try await Self.fetchServerShareZoneNames()
         let localShares = try container.fetchShares(in: store)
@@ -179,13 +192,47 @@ extension ClassroomSharingService {
         return share
     }
 
-    /// A setup resumed here: the pin is this device's to settle, and a pin
-    /// whose save failed last time is saved before anything else.
-    private func resumePin(_ pinned: CKShare, in viewContext: NSManagedObjectContext) throws {
-        SharedStoreOrphanGuard.shared.notePinMadeHere(zone: pinned.recordID.zoneID.zoneName)
+    /// A setup resumed here, with the share already pinned. A pin whose save
+    /// failed last time is saved before anything else. Then, when the pin was
+    /// made on another device or before this device noted pins (a build
+    /// before 2026-10-06), setup waits for an import into the notebook that
+    /// began after this device saw the pin, as the orphan guard does
+    /// (`pinWaitBlocker`): until then records already in the share can read as
+    /// outside it (`fetchShares` reads only what has downloaded), and
+    /// `share(_:to:)` on them is the call behind the 2026-09-28 incident. The
+    /// pin is never noted as made here: that ended the guard's wait too (bug
+    /// hunt 2026-10-09, #1). Only `createPinnedShare` notes one.
+    private func resumePin(
+        _ pinned: CKShare, notebookStoreID: String, in viewContext: NSManagedObjectContext
+    ) throws {
         if CDClassroomMembership.current(in: viewContext)?.hasChanges == true {
             try savePin(in: viewContext)
         }
+        if let wait = Self.pinWaitBlocker(
+            pinnedZone: pinned.recordID.zoneID.zoneName, context: viewContext, notebookStoreID: notebookStoreID
+        ) {
+            Self.setupLogger.notice("Classroom setup: waiting for an import after the pin before adding records")
+            throw wait
+        }
+    }
+
+    /// `.classStillDownloading` while this device must wait for an import into
+    /// the notebook since it first saw the pin in `pinnedZone`
+    /// (`mustWaitForImportAfterPin`, which notes a pin it hasn't seen), else
+    /// nil. Every path that files this device's existing records into the
+    /// share asks: a resumed Set Up Classroom Sharing and the attendance
+    /// catch-up (the orphan guard waits the same way).
+    static func pinWaitBlocker(
+        pinnedZone: String,
+        context: NSManagedObjectContext,
+        notebookStoreID: String,
+        guardian: SharedStoreOrphanGuard = .shared
+    ) -> ClassroomShareError? {
+        let pin = CDClassroomMembership.current(in: context)
+        let mustWait = guardian.mustWaitForImportAfterPin(
+            pinnedZone: pinnedZone, pinnedAt: pin?.modifiedAt ?? pin?.joinedAt, notebookStoreID: notebookStoreID
+        )
+        return mustWait ? .classStillDownloading : nil
     }
 
     /// Saves the pin. Without it the share would be one no pin names: nothing
@@ -287,62 +334,5 @@ nonisolated struct ClassroomShareSetupReport: Sendable {
             return count == 1 ? "1 other item" : "\(count.formatted()) other items"
         }
         return count == 1 ? names.one : "\(count.formatted()) \(names.many)"
-    }
-}
-
-/// Why sharing couldn't be set up or opened.
-enum ClassroomShareError: LocalizedError {
-    case cloudKitInactive
-    case sharedStoreUnavailable
-    case assistantCannotCreateShare
-    case noSeedRecordAvailable
-    case shareStillSyncing
-    case firstDownloadPending
-    case mirroringStopped
-    case otherShareZonesExist(Int)
-    case notSetUp
-    case shareHasNoStudents
-    case shareContentsUnknown
-    case anotherCopyOpen
-    case pinNotSaved
-    case earlierAttachStillRunning
-
-    var errorDescription: String? {
-        switch self {
-        case .cloudKitInactive:
-            return "iCloud sync isn't on. Turn on iCloud for Cosmic Daybook in \(SystemSettingsApp.name), "
-                + "then try again."
-        case .sharedStoreUnavailable:
-            return "Classroom sharing can't start on this device right now. Quit and reopen the app, then try again."
-        case .assistantCannotCreateShare:
-            return "Only the lead guide can share the classroom."
-        case .noSeedRecordAvailable:
-            return "Add a student before sharing the classroom."
-        case .shareStillSyncing:
-            return "Your classroom's sharing is still coming down from iCloud. Wait for sync to finish, then try again."
-        case .firstDownloadPending:
-            return "The notebook is still downloading from iCloud. Set up sharing once it has finished."
-        case .mirroringStopped:
-            return "iCloud sync stopped working this session. Quit and reopen Cosmic Daybook, then try again."
-        case .otherShareZonesExist(let count):
-            let shares = count == 1 ? "a classroom share" : "\(count) classroom shares"
-            return "iCloud already has \(shares) for this notebook, and sharing can only be set up once, " +
-                "so nothing was changed."
-        case .notSetUp:
-            return "Classroom sharing isn't set up yet. Choose Set Up Classroom Sharing first."
-        case .shareHasNoStudents:
-            return "No students are shared yet, so an assistant would see an empty class. " +
-                "Nothing was sent. Choose Set Up Classroom Sharing first."
-        case .shareContentsUnknown:
-            return "Couldn't check what your classroom share holds, so sharing didn't open. Try again in a moment."
-        case .anotherCopyOpen:
-            return "Another copy of Cosmic Daybook has the notebook open. Quit the other copy, then try again."
-        case .pinNotSaved:
-            return "Classroom sharing was started, but this device couldn't save it. Keep Cosmic Daybook open " +
-                "and choose Set Up Classroom Sharing again to finish."
-        case .earlierAttachStillRunning:
-            return "Cosmic Daybook is still adding earlier changes to the classroom share. Try again in a " +
-                "few minutes. If this keeps happening, quit and reopen the app."
-        }
     }
 }

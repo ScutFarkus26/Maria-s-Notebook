@@ -9,7 +9,7 @@ extension AppBootstrapping {
     /// What starts as soon as the notebook's stores are open, whoever opened
     /// them first: the window, or a Siri intent run in the background, which
     /// brings up no scene at all (so the window's bootstrap, which used to
-    /// start these, never runs). Both are idempotent; the bootstrap's own
+    /// start these, never runs). All are idempotent; the bootstrap's own
     /// calls stay.
     static func startStoreObservers(_ stack: CoreDataStack) {
         // Classroom records saved from now on go to the share, Siri's included.
@@ -20,6 +20,9 @@ extension AppBootstrapping {
         // Not in the test host, whose suites drive the service themselves.
         if !isRunningUnitTests {
             CloudKitSyncStatusService.shared.beginEarlyEventCapture(for: stack)
+            // And the launch import the name list waits for, which used to
+            // finish before it listened (2026-10-09 hunt, #4).
+            ClassroomNames.Arrival.shared.start()
         }
     }
 

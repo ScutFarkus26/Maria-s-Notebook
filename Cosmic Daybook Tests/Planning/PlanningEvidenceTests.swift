@@ -149,6 +149,43 @@ final class PlanningEvidenceTests {
         #expect(area.evidenceAvailability == .strong)
     }
 
+    @Test("One child's own Re-present on a group presentation reads as reteaching for her alone")
+    func ownRepresentIsPerChild() throws {
+        let fixture = try makeFixture()
+        let ada = try #require(fixture.student.id)
+        let ben = CoreDataTestHelpers.seedStudent(in: fixture.context, firstName: "Ben", lastName: "Adler")
+        let benID = try #require(ben.id)
+        let group = PresentationFactory.makePresented(
+            lessonID: try #require(fixture.currentLesson.id),
+            studentIDs: [ada, benID],
+            presentedAt: Date(timeIntervalSince1970: 1_700_100_000),
+            context: fixture.context
+        )
+        // A meeting's Re-present for Ada: her own row, not the shared flag.
+        let row = try LifecycleService.upsertLessonPresentation(
+            presentationID: try #require(group.id).uuidString, studentID: ada.uuidString,
+            lessonID: group.lessonID, presentedAt: try #require(group.presentedAt), context: fixture.context
+        )
+        PresentationFollowUpService.beginFollowing(row, at: Date())
+        PresentationFollowUpService.resolve(.supportOrRepresent, row: row)
+        #expect(!group.needsAnotherPresentation)
+
+        let profiles = StudentReadinessAssessor.assessReadiness(for: [fixture.student, ben], context: fixture.context)
+        func signal(_ id: UUID) throws -> ProficiencySignal {
+            let profile = try #require(profiles.first { $0.studentID == id })
+            return try #require(profile.areaReadiness.first { $0.sequence == "Decimal System" }).proficiencySignal
+        }
+        #expect(try signal(ada) == .needsReteaching)
+        #expect(try signal(benID) == .presented)
+
+        let map = CurriculumDataAssembler.assembleCurriculumMap(for: [fixture.student, ben], context: fixture.context)
+        let position = try #require(map.areas.flatMap(\.groups).flatMap(\.lessons).first {
+            $0.lessonID == fixture.currentLesson.id
+        })
+        #expect(position.studentStatuses.first { $0.studentID == ada }?.proficiency == .needsReteaching)
+        #expect(position.studentStatuses.first { $0.studentID == benID }?.proficiency == .presented)
+    }
+
     @Test("Group evidence uses the least-supported student")
     func groupEvidenceIsConservative() {
         #expect(EvidenceAvailability.combined([.strong, .some]) == .some)

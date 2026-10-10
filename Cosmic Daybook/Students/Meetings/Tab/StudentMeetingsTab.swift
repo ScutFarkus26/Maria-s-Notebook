@@ -300,7 +300,7 @@ struct StudentMeetingsTab: View {
                 HStack {
                     Spacer()
                     Button("Clear") {
-                        clearCurrent()
+                        discardCurrent()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -388,6 +388,18 @@ struct StudentMeetingsTab: View {
         MeetingPersistenceService.saveCurrent(studentID: studentID, data: currentMeetingData)
     }
 
+    /// Clear: work the Meetings workflow decided as Re-present or Ready for
+    /// Next was closed on the tap and waits in the draft to be planned, so it
+    /// goes back as it was before the meeting, the way the workflow's Clear
+    /// Meeting does, before the draft goes (bug hunt 2026-10-09, #8).
+    private func discardCurrent() {
+        if let studentID = student.id {
+            let stored = MeetingPersistenceService.loadCurrent(studentID: studentID)
+            MeetingLessonDecisions.takeBack(stored, context: viewContext)
+        }
+        clearCurrent()
+    }
+
     private func clearCurrent() {
         isCompleted = false
         reflectionText = ""
@@ -408,13 +420,16 @@ struct StudentMeetingsTab: View {
         )
     }
 
+    /// Files the tab's fields as a history entry, with the workflow's
+    /// Re-present and Ready for Next decisions planned the way Complete plans
+    /// them (bug hunt 2026-10-09, #8).
     private func saveCurrentToHistory() {
         guard let studentID = student.id else { return }
-        if MeetingPersistenceService.saveToHistory(
+        if MeetingLessonDecisions.saveTabMeeting(
             studentID: studentID,
-            data: currentMeetingData,
+            tabData: currentMeetingData,
             context: viewContext
-        ) != nil {
+        ) {
             // Schedule next meeting if date was set
             if let date = nextMeetingDate {
                 MeetingScheduler.scheduleMeeting(

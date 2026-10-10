@@ -12,6 +12,14 @@ struct AssistantOfficeRunView: View {
         // Read so a check-off (the same objects, changed) redraws the rows.
         _ = model.revision
         return List {
+            if let error = model.errorMessage {
+                // A check-off that didn't save: said here, where it was made.
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            }
             Section {
                 if model.officeRun.isEmpty {
                     Text("Nothing to grab from the office.")

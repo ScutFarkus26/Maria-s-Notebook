@@ -120,6 +120,113 @@ struct AssistantSyncJoinLeaveTests {
         }
     }
 
+    // Bug hunt 2026-10-09, #5: the mark was taken back only when the next
+    // account was already known, which it usually isn't yet. Review: taking
+    // it back while the account was still being read lost her rename when the
+    // same account came back, since she already had a row.
+    @Test("An account read again during her save keeps her new name waiting; another account takes it back")
+    func accountChangeDuringHerSave() async throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let save = { (context: NSManagedObjectContext, _: [NSManagedObject]) -> Bool in context.safeSave() }
+        func rename(to name: String, whileSignedInAs account: String?) async {
+            // As `AssistantNameStore.save(_:in:)` does: her name on this iPhone first.
+            ClassroomIdentity.displayName = name
+            let hook = ClassroomNames.LookupHook { ClassroomIdentity.currentUserRecordName = account }
+            await ClassroomNames.$zoneLookupHook.withValue(hook) {
+                _ = await AssistantNameStore.setInList(name, in: context, save: save)
+            }
+            ClassroomIdentity.currentUserRecordName = "_ana"
+        }
+        await AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
+            #expect(await AssistantNameStore.setInList("Ana", in: context, save: save))
+            let row = context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).first
+
+            await rename(to: "Annie", whileSignedInAs: nil)
+            #expect(ClassroomIdentity.nameWaitingAs == .assistant, "the account may come back the same")
+            #expect(row?.displayName == "Ana")
+            // The same account is read again; then her waiting name goes in.
+            #expect(await AssistantNameStore.writeWaitingName(in: context, container: nil))
+            #expect(row?.displayName == "Annie")
+
+            await rename(to: "Anya", whileSignedInAs: "_bea")
+            #expect(ClassroomIdentity.nameWaitingAs == nil, "nothing waits for another account")
+            #expect(row?.displayName == "Annie")
+            #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).count == 1)
+        }
+    }
+
+    // Review 2026-10-09: an account change nobody saw (it couldn't be read,
+    // then the app opened under another) let the last account's name in.
+    @Test("Her waiting name goes in only under the account it was typed under; under another it's dropped")
+    func waitingNameKeepsItsAccount() async throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let save = { (context: NSManagedObjectContext, _: [NSManagedObject]) -> Bool in context.safeSave() }
+        await AssistantRestockTestSupport.asIdentity("_bea", named: "Bea") {
+            #expect(await AssistantNameStore.setInList("Bea", in: context, save: save))
+        }
+        let bea = context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).first
+
+        // Typed under _ana (no class to write to yet); the app opens under _bea.
+        await AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
+            ClassroomNames.markWaiting(as: .assistant)
+            #expect(ClassroomIdentity.nameWaitingFor == "_ana")
+            ClassroomIdentity.currentUserRecordName = "_bea"
+            #expect(await !AssistantNameStore.writeWaitingName(in: context, container: nil))
+            #expect(ClassroomIdentity.nameWaitingAs == nil, "dropped")
+            #expect(bea?.displayName == "Bea", "never written into _bea's row")
+        }
+
+        // Typed under _ana; it opens under _ana again.
+        await AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
+            ClassroomNames.markWaiting(as: .assistant)
+            #expect(await AssistantNameStore.writeWaitingName(in: context, container: nil))
+            #expect(ClassroomNames.snapshot(in: context).name(forRecordName: "_ana") == "Ana")
+            #expect(ClassroomIdentity.nameWaitingAs == nil)
+        }
+    }
+
+    // Bug hunt 2026-10-09, #7: a zone lookup that never returned held the
+    // name list's gate, so her name never went in until a relaunch.
+    @Test("A zone lookup that never returns: her name waits, and the next write isn't held behind it",
+          .timeLimit(.minutes(1)))
+    func lookupThatNeverReturns() async throws {
+        let stack = try AssistantTestSupport.makeStack()
+        let context = stack.viewContext
+        let released = DispatchSemaphore(value: 0)
+        defer { released.signal() }
+        let stuck: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String] = { _ in
+            released.wait()
+            return [:]
+        }
+        let answering: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String] = { _ in [:] }
+        await AssistantRestockTestSupport.asIdentity("_ana", named: "Ana") {
+            #expect(await AssistantNameStore.setInList("Ana", in: context) { context, _ in context.safeSave() })
+            let row = context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).first
+            #expect(row?.displayName == "Ana")
+
+            await ClassroomNames.$zoneLookupOverride.withValue(stuck) {
+                await ClassroomNames.$zoneLookupTimeLimit.withValue(.milliseconds(200)) {
+                    _ = await AssistantNameStore.setInList("Annie", in: context) { context, _ in context.safeSave() }
+                    #expect(ClassroomIdentity.nameWaitingAs == .assistant, "written once iCloud answers")
+                    #expect(row?.displayName == "Ana")
+                    // The gate moved on: the next write gets no answer at once.
+                    #expect(await !AssistantNameStore.writeWaitingName(in: context, container: nil))
+                    #expect(ClassroomNames.lookupOut != nil)
+                }
+            }
+            released.signal()
+            await ClassroomNames.lookupOut?.value
+            await ClassroomNames.$zoneLookupOverride.withValue(answering) {
+                #expect(await AssistantNameStore.writeWaitingName(in: context, container: nil))
+            }
+            #expect(row?.displayName == "Annie")
+            #expect(ClassroomIdentity.nameWaitingAs == nil)
+            #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).count == 1)
+        }
+    }
+
     // MARK: - Taken out of the class
 
     // Before: an iPhone taken out of the class kept its membership row and

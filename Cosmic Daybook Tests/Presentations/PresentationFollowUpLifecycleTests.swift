@@ -90,6 +90,31 @@ final class PresentationFollowUpLifecycleTests {
         #expect(secondRow.followUpResolvedAt == nil)
     }
 
+    @Test("A child's own Re-present is hers: resolved as re-present, or still planned as one")
+    func childRepresentationsReadOwnRows() throws {
+        let fixture = try makeFixture()
+        let rows = try record(fixture)
+        let presentation = fixture.assignment, presentationID = try #require(presentation.id).uuidString
+        let (ada, ben) = (try #require(rows.first?.studentID), try #require(rows.last?.studentID))
+        PresentationFollowUpService.resolve(.supportOrRepresent, row: rows[0])
+        PresentationFollowUpService.setAction(.planSupport, for: [rows[1]], support: .represent)
+        try fixture.context.save()
+
+        let both = ChildRepresentations(in: fixture.context)
+        #expect(both.students(on: presentationID) == [ada, ben] && both == ChildRepresentations(rows: rows))
+        #expect(!presentation.needsAnotherPresentation)
+        #expect(presentation.needsAnotherPresentation(for: ada.lowercased(), given: both))
+
+        // Ben's plan turned out otherwise; a shared flag still speaks for everyone.
+        PresentationFollowUpService.resolve(.continueIndependentWork, row: rows[1])
+        try fixture.context.save()
+        let adaOnly = ChildRepresentations(presentationIDs: [presentationID], in: fixture.context)
+        #expect(adaOnly.students(on: presentationID) == [ada])
+        #expect(!presentation.needsAnotherPresentation(for: ben, given: adaOnly))
+        presentation.needsAnotherPresentation = true
+        #expect(presentation.needsAnotherPresentation(for: ben, given: .none))
+    }
+
     @Test("Retrying an already-recorded presentation does not reopen a resolved follow-up")
     func idempotentRetryPreservesResolution() throws {
         let fixture = try makeFixture()

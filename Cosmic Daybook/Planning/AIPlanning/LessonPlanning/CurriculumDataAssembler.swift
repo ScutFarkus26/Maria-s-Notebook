@@ -22,6 +22,7 @@ struct CurriculumDataAssembler {
     ) -> CurriculumMap {
         let allLessons = DataQueryService(context: context).fetchAllLessons(sortBy: CDLesson.sortByCurriculumOrder)
         let allPresentations = fetchAllPresentations(context: context)
+        let representations = ChildRepresentations(in: context)
 
         let studentIDs = Set(students.compactMap { $0.id?.uuidString })
         let studentNameMap = Dictionary(
@@ -55,7 +56,8 @@ struct CurriculumDataAssembler {
                         let proficiency = determineProficiency(
                             lessonID: lessonID,
                             studentID: studentIDString,
-                            presentations: allPresentations
+                            presentations: allPresentations,
+                            representations: representations
                         )
 
                         let name = studentNameMap[studentIDString] ?? "Unknown"
@@ -171,7 +173,8 @@ struct CurriculumDataAssembler {
     private static func determineProficiency(
         lessonID: UUID,
         studentID: String,
-        presentations: [CDLessonAssignment]
+        presentations: [CDLessonAssignment],
+        representations: ChildRepresentations
     ) -> ProficiencySignal {
         let lessonIDStr = lessonID.uuidString
 
@@ -188,7 +191,8 @@ struct CurriculumDataAssembler {
             return .notPresented
         }
 
-        if latest.needsAnotherPresentation { return .needsReteaching }
+        // Her own Re-present counts, not only the flag shared by the group.
+        if latest.needsAnotherPresentation(for: studentID, given: representations) { return .needsReteaching }
         if latest.needsPractice { return .needsMorePractice }
         // A readiness heuristic for planning, not the record: the Three-Year
         // View and the tracks count only an explicit mastery mark.

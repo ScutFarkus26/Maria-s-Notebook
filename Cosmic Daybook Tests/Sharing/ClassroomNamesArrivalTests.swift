@@ -1,5 +1,6 @@
 import CoreData
 import Foundation
+import Synchronization
 import Testing
 @testable import CosmicDaybook
 
@@ -179,6 +180,58 @@ struct ClassroomNamesArrivalTests {
             #expect(await ClassroomNames.writeWaitingName(role: .assistant, in: context, arrival: arrival))
         }
         #expect(ClassroomNames.name(forRecordName: "_ana", in: context) == "Ana")
+    }
+
+    // Bug hunt 2026-10-09, #6: every iCloud download queued another zone
+    // lookup behind the gate, so a name saved on a busy morning waited.
+    @Test("An import warms the zones only for new name rows, and never queues a second warm-up")
+    func importsWarmOnlyForNewRows() async throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        Support.person("_guide", "Danny", role: .leadGuide, created: at(0), in: context)
+        #expect(context.safeSave())
+        let asked = Lookups()
+        let lookup: @Sendable ([NSManagedObjectID]) -> [NSManagedObjectID: String] = { _ in
+            asked.count()
+            return [:]
+        }
+        let arrival = ClassroomNames.Arrival()
+
+        await ClassroomNames.$zoneLookupOverride.withValue(lookup) {
+            await ClassroomNames.warmZones(in: context, arrival: arrival)
+            #expect(asked.calls == 1)
+
+            // Downloads that brought no new name row (a rename, other records).
+            for second in [10.0, 20, 30] {
+                arrival.noteImport(intoStoreWithIdentifier: "store", startedAt: at(second))
+            }
+            #expect(arrival.importWork == nil, "nothing queued behind the gate")
+
+            // One that brought her row, and more before its warm-up begins: one warm-up.
+            let ana = Support.person("_ana", "Ana", role: .assistant, created: at(40), in: context)
+            #expect(context.safeSave())
+            for second in [50.0, 60, 70] {
+                arrival.noteImport(intoStoreWithIdentifier: "store", startedAt: at(second))
+            }
+            await arrival.importWork?.value
+            #expect(asked.calls == 2)
+            #expect(ClassroomNames.knownZones.answer(for: ana.objectID) == .notSent, "her row is placed")
+
+            // Placed now: the next download needs none.
+            arrival.noteImport(intoStoreWithIdentifier: "store", startedAt: at(80))
+            await arrival.importWork?.value
+            #expect(asked.calls == 2)
+        }
+    }
+
+    /// How many lookups were asked.
+    nonisolated private final class Lookups: Sendable {
+        private let asked = Mutex(0)
+
+        var calls: Int { asked.withLock { $0 } }
+
+        func count() {
+            asked.withLock { $0 += 1 }
+        }
     }
 
     // MARK: - The guide's name

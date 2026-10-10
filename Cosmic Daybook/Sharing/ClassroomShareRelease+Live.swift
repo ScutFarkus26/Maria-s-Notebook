@@ -64,9 +64,17 @@ extension ClassroomShareRelease {
     }
 
     /// Sync must be healthy, online and caught up: the release waits on iCloud at every step.
+    /// Not at all while a setup found no ready iCloud account (`shareFilingHold`).
     @MainActor
-    static func syncBlocker() -> String? {
-        let sync = CloudKitSyncStatusService.shared
+    static func syncBlocker(sync: CloudKitSyncStatusService = .shared) -> String? {
+        switch sync.shareFilingHold {
+        case .untilReopen:
+            return "iCloud wasn't ready when the notebook opened. Quit and reopen it, then try again."
+        case .untilICloudReady:
+            return "iCloud isn't ready yet. Try again in a few minutes."
+        case nil:
+            break
+        }
         if sync.mirroringDelegateFailed {
             return "iCloud sync has stopped on this Mac. Quit and reopen the app, then try again."
         }
@@ -152,6 +160,7 @@ nonisolated extension ClassroomShareRelease.Environment {
             stopReason: {
                 await MainActor.run {
                     let sync = CloudKitSyncStatusService.shared
+                    if let hold = sync.shareFilingHold { return hold.message }
                     if sync.mirroringDelegateFailed { return "iCloud sync stopped on this Mac." }
                     if let failure = sync.storeHealth.mostSevereFailure, failure.severity == .stopped {
                         return failure.message

@@ -187,7 +187,7 @@ struct MCPWorkAndAttendanceToolsTests {
         let output = try await tool(named: "student_attendance", in: tools).handler([
             "student_name": .string("Lila")
         ])
-        #expect(output.contains("1 tardy"))
+        #expect(output.contains("1 late"))
         #expect(output.contains("Days away or late:"))
     }
 

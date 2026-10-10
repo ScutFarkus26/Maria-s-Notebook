@@ -59,6 +59,57 @@ struct SharedStoreOrphanGuardTests {
         #expect(guardian.pendingURIs.isEmpty)
     }
 
+    @Test("No pass runs after a setup with no account, or with a dead delegate; what waits stays listed")
+    func noPassWhileSyncStopsFiling() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "orphan-guard-\(UUID().uuidString)"))
+        let ctx = try CoreDataTestHelpers.makeSplitStoreContext()
+        let day = CDNonSchoolDay(context: ctx)
+        day.date = Date()
+        #expect(CoreDataTestHelpers.save(ctx))
+        let uri = day.objectID.uriRepresentation().absoluteString
+
+        let guardian = SharedStoreOrphanGuard(defaults: defaults)
+        let lock = ClassroomShareAttachLock()
+        guardian.attachLock = lock
+        guardian.enqueue([day.objectID])
+        let ran = PassesRun()
+
+        // Bug hunt 2026-10-09, #2: iCloud had no account when the notebook opened.
+        let paused = CloudKitSyncStatusService()
+        paused.shareFilingPausedUntilReopen = true
+        guardian.syncStatus = { paused }
+        await guardian.attachWaiting { _ in ran.count += 1 }
+        #expect(ran.count == 0)
+        #expect(guardian.pendingURIs == [uri])
+        #expect(!lock.isHeld)
+
+        // An account signed in but not ready yet: until its store has set up and synced.
+        let notReady = CloudKitSyncStatusService()
+        notReady.accountNotReadyStores = ["private-store": .awaitingSync]
+        guardian.syncStatus = { notReady }
+        await guardian.attachWaiting { _ in ran.count += 1 }
+        #expect(ran.count == 0)
+        #expect(guardian.pendingURIs == [uri])
+
+        let stopped = CloudKitSyncStatusService()
+        stopped.markMirroringStopped(by: .notebook)
+        guardian.syncStatus = { stopped }
+        await guardian.attachWaiting { _ in ran.count += 1 }
+        #expect(ran.count == 0)
+        #expect(guardian.pendingURIs == [uri])
+
+        // With sync healthy the same pass runs.
+        let healthy = CloudKitSyncStatusService()
+        guardian.syncStatus = { healthy }
+        await guardian.attachWaiting { taken in
+            ran.count += 1
+            ran.taken = taken.map(\.uri)
+        }
+        #expect(ran.count == 1)
+        #expect(ran.taken == [uri])
+        #expect(!lock.isHeld)
+    }
+
     @Test("What the share holds: counts, the outside total and the summary line")
     func contentsSummary() {
         var contents = ClassroomShareContents()
@@ -118,4 +169,11 @@ struct SharedStoreOrphanGuardTests {
         )
         #expect(Set(kept) == [current.objectID, currentNew.objectID, dayOff.objectID])
     }
+}
+
+/// What a test's stand-in passes did.
+@MainActor
+private final class PassesRun {
+    var count = 0
+    var taken: [String] = []
 }

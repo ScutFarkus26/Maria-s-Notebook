@@ -228,7 +228,8 @@ enum SequenceRecapResolver {
                 scheduledFor: a.scheduledFor,
                 state: a.state,
                 needsPractice: a.needsPractice,
-                needsAnotherPresentation: a.needsAnotherPresentation,
+                // The group's flag, or her own Re-present from a meeting.
+                needsAnotherPresentation: collected.needsAnotherPresentation(a, for: studentIDString),
                 groupNotes: a.notes,
                 attachedNotes: attached,
                 workItems: workItems

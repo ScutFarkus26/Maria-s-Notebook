@@ -18,6 +18,9 @@ struct OrderRequestDraftSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(SaveCoordinator.self) private var saveCoordinator
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.openURL) private var openURL
+    #endif
 
     @SyncedAppStorage(OrderRequestPrefs.recipientNameKey) private var recipientName: String = ""
     @SyncedAppStorage(OrderRequestPrefs.recipientEmailKey) private var recipientEmail: String = ""
@@ -38,10 +41,10 @@ struct OrderRequestDraftSheet: View {
     @State private var confirmingSent = false
     @State private var sendErrorMessage: String?
     @State private var didCopy = false
-    /// Bumped when a quantity changes. The quantities live on the managed
-    /// objects, which this view doesn't observe, so the message reads this to
-    /// know it must be rebuilt.
-    @State private var quantityRevision = 0
+    /// Bumped when an item changes: a quantity here, a fetched title from
+    /// here or Restock. Both live on the managed objects, which this view
+    /// doesn't observe, so the message reads this to know it must be rebuilt.
+    @State private var itemsRevision = 0
 
     private var recipient: OrderRequestRecipient {
         OrderRequestRecipient(name: recipientName.trimmed(), email: recipientEmail.trimmed(), cc: ccEmail.trimmed())
@@ -52,7 +55,7 @@ struct OrderRequestDraftSheet: View {
     }
 
     private var lines: [OrderRequestLine] {
-        _ = quantityRevision
+        _ = itemsRevision
         return includedItems.map(OrderRequestLine.init)
     }
 
@@ -90,6 +93,19 @@ struct OrderRequestDraftSheet: View {
                 }
             }
             .onAppear(perform: start)
+            .task {
+                // A pasted link with no title yet would print as "amazon.com".
+                await OrderLinkTitleFetcher.fillUntitled(items) {
+                    saveCoordinator.save(viewContext, reason: "Restock link title")
+                }
+            }
+            // A title landing here or from Restock's own fetch (still reading
+            // the page when the draft opened), or an item changed on another
+            // device: the lines rebuild, and `followGeneratedText` rewrites
+            // only the fields the guide hasn't edited.
+            .onPresentationDataChange(of: ["OrderItem"], in: viewContext) { _ in
+                itemsRevision += 1
+            }
             .onChange(of: generatedSubject) { _, _ in followGeneratedText() }
             .onChange(of: generatedBody) { _, _ in followGeneratedText() }
             #if os(iOS)
@@ -176,7 +192,7 @@ struct OrderRequestDraftSheet: View {
                     OrderQuantityControl(quantity: Int(item.quantity)) { newValue in
                         OrderService.setQuantity(item, to: newValue)
                         saveCoordinator.save(viewContext, reason: "Order quantity")
-                        quantityRevision += 1
+                        itemsRevision += 1
                     }
                     Toggle("Include \(item.displayTitle)", isOn: includedBinding(for: item))
                         .labelsHidden()
@@ -308,8 +324,14 @@ extension OrderRequestDraftSheet {
             subject: subject,
             body: messageBody
         ) {
-            UIApplication.shared.open(url)
-            confirmingSent = true
+            // Only an app that took the link can have sent anything.
+            openURL(url) { accepted in
+                if accepted {
+                    confirmingSent = true
+                } else {
+                    sendErrorMessage = "No mail account is set up on this device. Copy the message instead."
+                }
+            }
         } else {
             sendErrorMessage = "No mail account is set up on this device. Copy the message instead."
         }

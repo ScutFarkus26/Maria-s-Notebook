@@ -320,20 +320,28 @@ extension MCPNotebookTools {
 
         // One argument refused after another was applied would otherwise
         // leave the earlier edit sitting unsaved in the shared context.
-        let changes: [String] = try rollingBackOnFailure(modelContext) { modelContext in
+        let (changes, wroteSomething) = try rollingBackOnFailure(modelContext) { modelContext in
             var changes: [String] = []
             changes += try applyStudentCompletion(arguments, to: work, workID: workID, in: modelContext)
             changes += try applyCheckInCompletion(arguments, to: work, in: modelContext)
             changes += try applyCheckInMove(arguments, to: work, in: modelContext)
-            changes += try applyCheckInAdd(arguments, to: work, in: modelContext)
             changes += try applyDueDate(arguments, to: work)
             changes += try applyStatus(arguments, to: work, workID: workID, in: modelContext)
-            return changes
+            // Every line so far is a write; the add's lines may not be.
+            let wroteBeforeAdd = !changes.isEmpty
+            // After the status, so a call that reopens the work can add a
+            // check-in to it, and one that closes it can't.
+            let add = try applyCheckInAdd(arguments, to: work, in: modelContext)
+            changes += add.lines
+            return (changes, wroteBeforeAdd || add.added > 0)
         }
 
         guard !changes.isEmpty else {
             throw MCPToolError("Nothing to change — pass at least one field to update.")
         }
+        // An add that found a check-in on the day everywhere changed nothing,
+        // so the call stays out of the write journal.
+        if !wroteSomething { MCPCallOutcome.markNothingWritten() }
         guard modelContext.safeSave() else {
             modelContext.rollback()
             throw MCPToolError("The work could not be updated.")

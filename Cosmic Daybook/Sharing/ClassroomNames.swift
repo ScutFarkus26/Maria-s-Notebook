@@ -55,9 +55,17 @@ enum ClassroomNames {
     enum NameSet {
         /// The person's row was updated or made; the caller saves.
         case written(Written)
-        /// Nothing to write: the name waits on the device (the record name
-        /// isn't known, or the account changed during the lookup), or there's
-        /// no row and the name is empty.
+        /// No row, and the name is empty: nothing to clear, and nothing waits.
+        case nothingToClear
+        /// Nothing written yet: the name waits on this device, and
+        /// `writeWaitingName` writes it later (on the notebook, after the next
+        /// import). This account's record name isn't known yet, CloudKit
+        /// didn't say where the rows are in time, or this device may not
+        /// write now (the account is being read again, or the stores are gone).
+        case waiting
+        /// Not saved: another Apple Account signed in during the wait, so the
+        /// name, typed under the last one, was taken back, and nothing waits
+        /// for the new one. The caller says it wasn't saved (2026-10-09 hunt, #5).
         case nothing
         /// A newer `setMyName` came while this one waited: it wrote nothing,
         /// and the newer one writes. The caller doesn't save.
@@ -88,45 +96,52 @@ enum ClassroomNames {
     /// Waits for the zone lookup (`lookUpMyZones`), one write at a time. The
     /// name is marked waiting before the wait, so one typed just before the
     /// app is suspended or quit is written at the next launch. If this
-    /// device may not write now (her account change is still being read, or
-    /// the stores are gone) it keeps waiting; if another account signed in
-    /// meanwhile, the mark is taken back and nothing is written, so the last
-    /// account's name never goes into the new one's row. If a newer call
+    /// device may not write now (the account is being read again, the stores
+    /// are gone, or CloudKit didn't answer in time) it keeps waiting, and on
+    /// the notebook is written after the next import (`holdWaitingName`). An
+    /// account being read again may turn out to be the same one; a waiting
+    /// name is dropped only once another is confirmed
+    /// (`forgetWaitingName`, the Assistant's `forgetForNewAccount`). If
+    /// another account is known to have signed in meanwhile, the mark is
+    /// taken back and nothing is written, so the last account's name never
+    /// goes into the new one's row (2026-10-09 hunt, #5). If a newer call
     /// came, this one writes nothing.
     @discardableResult
     static func setMyName(
         _ name: String?,
         role: CDClassroomMembership.ClassroomRole,
         now: Date = Date(),
-        in context: NSManagedObjectContext
+        in context: NSManagedObjectContext,
+        arrival: Arrival = .shared
     ) async -> NameSet {
         let typed = name?.trimmed() ?? ""
         guard let me = ClassroomIdentity.currentUserRecordName else {
             ClassroomIdentity.displayName = typed
-            ClassroomIdentity.nameWaitingAs = role
-            return .nothing
+            mark(waitingAs: role, typedUnder: nil)
+            return .waiting
         }
         nameSets += 1
         let call = nameSets
-        if beforeMarks == nil {
-            beforeMarks = BeforeMarks(name: ClassroomIdentity.displayName, role: ClassroomIdentity.nameWaitingAs)
-        }
+        if beforeMarks == nil { beforeMarks = .now }
         defer { if call == nameSets { beforeMarks = nil } }
         ClassroomIdentity.displayName = typed
-        ClassroomIdentity.nameWaitingAs = role
+        mark(waitingAs: role, typedUnder: me)
         await gate.enter()
         defer { gate.leave() }
         guard call == nameSets else { return .overtaken }
         guard let zones = await lookUpMyZones(me, role: role, in: context) else {
-            if call == nameSets, let now = ClassroomIdentity.currentUserRecordName, now != me {
+            guard call == nameSets else { return .overtaken }
+            if let now = ClassroomIdentity.currentUserRecordName, now != me {
                 unmark(typed, as: role)
+                return .nothing
             }
-            return .nothing
+            holdWaitingName(for: me, in: context, arrival: arrival)
+            return .waiting
         }
         guard call == nameSets else { return .overtaken }
         let written = upsert(typed, recordName: me, role: role, now: now, zones: zones, in: context)
         stopWaiting(as: role, keeping: typed)
-        return written.map(NameSet.written) ?? .nothing
+        return written.map(NameSet.written) ?? .nothingToClear
     }
 
     /// Writes a name typed before this account's record name was known, and
@@ -176,15 +191,11 @@ enum ClassroomNames {
         let context = write.context
         guard let me = ClassroomIdentity.currentUserRecordName,
               context.persistentStoreCoordinator?.persistentStores.isEmpty == false else { return false }
+        dropWaitingName(typedUnderAnotherThan: me)
         let deviceRole = write.role ?? CDClassroomMembership.currentRole(in: context)
         write.arrival.start()
         guard write.arrival.classIsHere(role: deviceRole, in: context) else {
-            let role = write.role
-            let save = write.save
-            write.arrival.holdUntilNextImport(for: me) { [weak context, weak arrival = write.arrival] in
-                guard let context, let arrival else { return }
-                await writeWaitingName(role: role, in: context, arrival: arrival, save: save)
-            }
+            holdUntilNextImport(write, for: me)
             return false
         }
         await gate.enter()
@@ -193,7 +204,14 @@ enum ClassroomNames {
         // name the other store (a notebook that joined a class as an
         // assistant, with his guide's name waiting).
         let lookupRole = ClassroomIdentity.nameWaitingAs ?? deviceRole
-        guard let zones = await lookUpMyZones(me, role: lookupRole, in: context) else { return false }
+        guard let zones = await lookUpMyZones(me, role: lookupRole, in: context) else {
+            // CloudKit didn't say in time (2026-10-09 hunt, #7): try again
+            // after the next import rather than wait for the next launch.
+            if mayStillWrite(as: me), context.persistentStoreCoordinator?.persistentStores.isEmpty == false {
+                holdUntilNextImport(write, for: me)
+            }
+            return false
+        }
         refreshUnchangedRows(in: context)
         let waitingRole = waitingRole(me, deviceRole: deviceRole, zones: zones, in: context)
         // What waits changed during the lookup: the next run asks again.
@@ -231,14 +249,6 @@ enum ClassroomNames {
         guard deviceRole == .assistant, ClassroomIdentity.displayName != nil,
               myRows(me, role: deviceRole, zones: zones, in: context).isEmpty else { return nil }
         return .assistant
-    }
-
-    /// Her name was saved where it couldn't go into the list (no classroom
-    /// open yet, or the Sample Class): it waits, and the next launch on the
-    /// real classroom writes it (`writeWaitingName`), even over a row she
-    /// already has.
-    static func markWaiting(as role: CDClassroomMembership.ClassroomRole) {
-        ClassroomIdentity.nameWaitingAs = role
     }
 
     /// What this person's own name field starts with: a name still waiting for

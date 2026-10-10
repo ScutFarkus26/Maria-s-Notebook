@@ -21,6 +21,11 @@
 //  assign_work uses, so a check-in added later is the same record as one
 //  made with the work.
 //
+//  Neither ever leaves two check-ins on one day: a move onto a day this row
+//  already has one on is refused, and a linked copy with one there keeps its
+//  own where it is. A linked copy whose child has left the classroom is left
+//  alone by both, and the receipt names it.
+//
 
 import CoreData
 import Foundation
@@ -85,27 +90,32 @@ extension MCPNotebookTools {
         checkIns(of: work, on: day, in: modelContext).first { $0.status != .skipped }
     }
 
+    /// What `add_check_in_on` did: the receipt lines, and how many check-ins
+    /// it actually made. An add that found one on the day everywhere made
+    /// none, and the call stays out of the write journal.
+    struct CheckInAddResult {
+        var lines: [String] = []
+        var added = 0
+    }
+
     /// `add_check_in_on` / `add_check_in_purpose`. Returns one receipt line for
     /// this row and one for each linked copy, as a move does.
+    ///
+    /// Runs after the call's own status, so the closed-work check sees the
+    /// work as the call leaves it: a call that reopens the work can add a
+    /// check-in to it, and one that closes it can't.
     static func applyCheckInAdd(
         _ arguments: [String: JSONValue], to work: CDWorkModel,
         in modelContext: NSManagedObjectContext
-    ) throws -> [String] {
+    ) throws -> CheckInAddResult {
         let purpose = nonEmpty(arguments["add_check_in_purpose"]?.stringValue)
         guard let day = try dayArgument(arguments, "add_check_in_on").map(AppCalendar.startOfDay) else {
             if purpose != nil {
                 throw MCPToolError("add_check_in_purpose needs add_check_in_on — the day of the check-in.")
             }
-            return []
+            return CheckInAddResult()
         }
-        // Closed work is off the schedule; a check-in on it would show up
-        // under the day's check-ins for work nobody is doing any more.
-        if work.isClosed {
-            throw MCPToolError(
-                "This work is already closed (\(work.status.displayName)), so it can't get a new check-in. "
-                    + "Set its status back to active first if it's still going."
-            )
-        }
+        try refuseAddIfClosed(work, arguments)
 
         let landing = YearPlanPacing.schoolDay(onOrAfter: day, in: modelContext)
         let on = dayString(landing)
@@ -113,50 +123,87 @@ extension MCPNotebookTools {
             ? ""
             : " (\(dayString(day)) is not a school day, so it moved forward to \(on))"
 
-        var changes: [String]
+        var result = CheckInAddResult()
         if let existing = blockingCheckIn(of: work, on: landing, in: modelContext) {
-            changes = [
+            result.lines = [
                 "already has a \(existing.status.rawValue.lowercased()) check-in on \(on)\(detour), "
                     + "so no new one was added"
             ]
         } else {
             scheduleCheckIn(for: work, on: landing, purpose: purpose ?? "", in: modelContext)
-            changes = ["added a check-in on \(on)\(detour)"]
+            result.lines = ["added a check-in on \(on)\(detour)"]
+            result.added += 1
         }
 
         let siblings = WorkGrouping.group(containing: work, in: modelContext).siblings
-        guard !siblings.isEmpty else { return changes }
+        guard !siblings.isEmpty else { return result }
         if arguments["add_check_in_for_this_child_only"]?.boolValue == true {
             let count = siblings.count
-            changes.append(
+            result.lines.append(
                 "this child only — \(count) linked "
                     + (count == 1 ? "copy got" : "copies got")
                     + " no check-in on \(on)"
             )
-            return changes
+            return result
         }
         for sibling in siblings {
-            changes.append(addSiblingCheckIn(to: sibling, on: landing, purpose: purpose ?? "", in: modelContext))
+            let outcome = addSiblingCheckIn(to: sibling, on: landing, purpose: purpose ?? "", in: modelContext)
+            result.lines.append(outcome.line)
+            if outcome.added { result.added += 1 }
         }
-        return changes
+        return result
     }
 
-    /// One linked copy's line of the receipt: added, skipped because the copy
-    /// is closed, or left alone because it already has one that day.
+    /// Closed work is off the schedule; a check-in on it would show up under
+    /// the day's check-ins for work nobody is doing any more. When this call's
+    /// own status is what closed it, the refusal says so.
+    private static func refuseAddIfClosed(_ work: CDWorkModel, _ arguments: [String: JSONValue]) throws {
+        guard work.isClosed else { return }
+        let setsStatus = nonEmpty(arguments["status"]?.stringValue) != nil
+            || nonEmpty(arguments["outcome"]?.stringValue) != nil
+        if setsStatus {
+            throw MCPToolError(
+                "This call sets the work to \(work.status.displayName), which closes it, so it can't also "
+                    + "get a new check-in. Nothing has been changed. Drop one of the two and call again."
+            )
+        }
+        throw MCPToolError(
+            "This work is already closed (\(work.status.displayName)), so it can't get a new check-in. "
+                + "Set its status back to active first if it's still going."
+        )
+    }
+
+    /// One linked copy's line of the receipt, and whether it got a check-in:
+    /// added, skipped because the copy is closed or its child has left, or
+    /// left alone because it already has one that day.
     private static func addSiblingCheckIn(
         to sibling: CDWorkModel, on landing: Date, purpose: String,
         in modelContext: NSManagedObjectContext
-    ) -> String {
+    ) -> (line: String, added: Bool) {
         let label = linkedCopyLabel(sibling, in: modelContext)
         if sibling.isClosed {
-            return "\(label) is closed (\(sibling.status.displayName)), so it got no check-in"
+            return ("\(label) is closed (\(sibling.status.displayName)), so it got no check-in", false)
+        }
+        if ownerHasLeft(sibling, in: modelContext) {
+            return ("\(label) belongs to a child who has left the classroom, so it got no check-in", false)
         }
         if let existing = blockingCheckIn(of: sibling, on: landing, in: modelContext) {
-            return "\(label) already has a \(existing.status.rawValue.lowercased()) check-in on "
+            let line = "\(label) already has a \(existing.status.rawValue.lowercased()) check-in on "
                 + dayString(landing)
+            return (line, false)
         }
         scheduleCheckIn(for: sibling, on: landing, purpose: purpose, in: modelContext)
-        return "also added to \(label)"
+        return ("also added to \(label)", true)
+    }
+
+    /// A linked copy whose child is on file but no longer enrolled. Her copy
+    /// stays as it is: a check-in on it would put work on the schedule for a
+    /// child who isn't in the room. A copy whose child can't be found is
+    /// treated as before, since nothing says she left.
+    private static func ownerHasLeft(_ sibling: CDWorkModel, in modelContext: NSManagedObjectContext) -> Bool {
+        guard let owner = WorkGrouping.owner(of: sibling),
+              let student = StudentRepository(context: modelContext).fetchStudent(id: owner) else { return false }
+        return !student.isEnrolled
     }
 
     /// "Eli Test's linked copy [work id=…]", for a receipt line.
@@ -213,6 +260,14 @@ extension MCPNotebookTools {
                 : " — \(dayString(toDay)) is not a school day, and \(to) is the next open one."
             throw MCPToolError("The check-in is already on \(from)\(why)")
         }
+        // Moving onto a day that already has one would leave two there.
+        if let existing = blockingCheckIn(of: work, on: landing, in: modelContext) {
+            throw MCPToolError(
+                "This work already has a \(existing.status.rawValue.lowercased()) check-in on \(to)\(detour), "
+                    + "so the one on \(from) wasn't moved. Nothing has been changed. Pick another day, "
+                    + "or complete the one on \(from) instead."
+            )
+        }
 
         move(checkIn, toDay: landing)
         var changes = ["moved the check-in from \(from) to \(to)\(detour)"]
@@ -234,8 +289,9 @@ extension MCPNotebookTools {
         return changes
     }
 
-    /// One linked copy's line of the receipt: moved, kept because its
-    /// check-in was already completed or skipped, or had nothing on that day.
+    /// One linked copy's line of the receipt: moved; kept because its child
+    /// has left or it already has a check-in on the new day; kept because its
+    /// check-in was already completed or skipped; or had nothing on that day.
     private static func moveSiblingCheckIn(
         of sibling: CDWorkModel, from fromDay: Date, to landing: Date,
         in modelContext: NSManagedObjectContext
@@ -243,6 +299,14 @@ extension MCPNotebookTools {
         let label = linkedCopyLabel(sibling, in: modelContext)
         let onDay = checkIns(of: sibling, on: fromDay, in: modelContext)
         if let scheduled = onDay.first(where: { $0.status == .scheduled }) {
+            if ownerHasLeft(sibling, in: modelContext) {
+                return "\(label) belongs to a child who has left the classroom, so its check-in stayed on "
+                    + dayString(fromDay)
+            }
+            if let existing = blockingCheckIn(of: sibling, on: landing, in: modelContext) {
+                return "\(label) already has a \(existing.status.rawValue.lowercased()) check-in on "
+                    + "\(dayString(landing)), so its check-in stayed on \(dayString(fromDay))"
+            }
             move(scheduled, toDay: landing)
             return "also moved \(label)"
         }

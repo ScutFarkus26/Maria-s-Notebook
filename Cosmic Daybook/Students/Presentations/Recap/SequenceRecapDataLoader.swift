@@ -30,6 +30,7 @@ enum SequenceRecapDataLoader {
         return SequenceRecapCollectedData(
             assignmentsByLesson: Dictionary(grouping: assignments) { $0.lessonID },
             presentationByPair: indexPresentations(presentations),
+            representations: ChildRepresentations(rows: presentations),
             workByPair: indexWork(work),
             notes: notes,
             studentLinks: studentLinks
@@ -260,9 +261,16 @@ enum SequenceRecapNoteBucketer {
 struct SequenceRecapCollectedData {
     let assignmentsByLesson: [String: [CDLessonAssignment]]
     let presentationByPair: [SequenceRecapPairKey: CDLessonPresentation]
+    /// Children whose own follow-up row says re-present, by presentation.
+    let representations: ChildRepresentations
     let workByPair: [SequenceRecapPairKey: [CDWorkModel]]
     let notes: [CDNote]
     let studentLinks: [String: Set<String>]
+
+    /// The recap is one child's: the group's flag, or her own Re-present.
+    func needsAnotherPresentation(_ assignment: CDLessonAssignment, for studentID: String) -> Bool {
+        assignment.needsAnotherPresentation(for: studentID, given: representations)
+    }
 }
 
 /// Notes distributed into their target buckets. Each note appears in exactly one

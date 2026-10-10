@@ -54,6 +54,11 @@ struct OrderRequestSettingsView: View {
                  + "Separate several addresses with commas.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            ForEach(Array(leftOutNotes.enumerated()), id: \.offset) { _, note in
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             if showsMessage {
                 messageEditor
@@ -95,6 +100,12 @@ struct OrderRequestSettingsView: View {
                     ? "" : newValue
             }
         )
+    }
+
+    /// Which typed entries aren't addresses and get no email, for the email
+    /// field and then CC.
+    private var leftOutNotes: [String] {
+        [recipientEmail, ccEmail].compactMap(AttendanceEmail.leftOutNote(for:))
     }
 
     private var greetingName: String {

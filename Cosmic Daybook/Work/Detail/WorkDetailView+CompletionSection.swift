@@ -183,15 +183,17 @@ extension WorkDetailView {
 
     @ViewBuilder
     private func presentationFlags(_ presentation: CDLessonAssignment) -> some View {
+        // This child's: the group's flag, or her own Re-present.
+        let needsAnother = viewModel.relatedPresentationNeedsAnother
         if presentation.needsPractice
-            || presentation.needsAnotherPresentation
+            || needsAnother
             || !presentation.followUpWork.isEmpty {
             VStack(spacing: 8) {
                 if presentation.needsPractice {
                     FlagRow(icon: "arrow.counterclockwise", text: "Needs Practice", color: .orange)
                 }
 
-                if presentation.needsAnotherPresentation {
+                if needsAnother {
                     FlagRow(icon: "repeat", text: "Needs Re-presentation", color: .red)
                 }
 

@@ -35,6 +35,7 @@ extension WeekPlanSection {
             calendar: calendar,
             isSchoolDay: isSchoolDay
         )
+        stripSettle.releasePin()
         days = SchoolDayChecker.nextSchoolDays(
             from: first,
             count: Self.windowDaysBefore + Self.windowDaysAfter,
@@ -51,40 +52,84 @@ extension WeekPlanSection {
         return Array(days.dropFirst(start).prefix(count))
     }
 
-    /// The strip came to rest on a new day: remember it for next launch, and
-    /// load more days at an end the guide is nearing.
-    func leadingDayChanged(to day: Date?) {
-        guard let day, let index = days.firstIndex(of: day) else { return }
+    /// The leading day moved. While the guide scrolls, wait: the strip settles
+    /// when the scroll comes to rest (`stripScrollPhaseChanged`). A move made
+    /// for her (Today, the arrows, a fresh window) settles here instead, a
+    /// moment later, so an animated one has begun and settles when it lands.
+    func leadingDayChanged(proxy: ScrollViewProxy) {
+        guard stripSettle.leadingDayReported(leadingDay) else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(50))
+            guard stripSettle.canSettle else { return }
+            settleStrip(proxy: proxy)
+        }
+    }
+
+    func stripScrollPhaseChanged(_ phase: ScrollPhase, proxy: ScrollViewProxy) {
+        guard stripSettle.scrollPhaseChanged(isScrolling: phase != .idle), stripSettle.canSettle else { return }
+        settleStrip(proxy: proxy)
+    }
+
+    /// The longest the strip holds a day after adding days in front of it.
+    static let pinCap = Duration.milliseconds(500)
+
+    static let windowMargins = WeekPlanDayWindow.Margins(
+        front: windowEdgeMargin,
+        back: visibleDayCount + windowEdgeMargin
+    )
+
+    /// The strip is at rest on `leadingDay`: remember it for next launch, and
+    /// load more days at an end it is near. Days added in front would carry
+    /// the day on screen along with them, so it is put back explicitly, without
+    /// animation, rather than trusting the scroll view to hold it.
+    func settleStrip(proxy: ScrollViewProxy) {
+        guard let day = leadingDay, days.contains(day) else { return }
         startDateRaw = day.timeIntervalSinceReferenceDate
-        var grew = false
-        if index < Self.windowEdgeMargin, let first = days.first {
-            let earlierStart = Self.shiftedStart(
-                from: first,
-                bySchoolDays: -Self.windowGrowth,
-                calendar: calendar
-            ) { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
-            let earlier = SchoolDayChecker.nextSchoolDays(
-                from: earlierStart, count: Self.windowGrowth, using: viewContext
-            ).filter { $0 < first }
-            if !earlier.isEmpty {
-                days.insert(contentsOf: earlier, at: 0)
-                grew = true
+        let isSchoolDay = { SchoolDayChecker.isSchoolDay($0, using: viewContext) }
+        guard let growth = WeekPlanDayWindow.grown(
+            days: days,
+            leadingDay: day,
+            margins: Self.windowMargins,
+            earlierDays: { first in
+                let earlierStart = Self.shiftedStart(
+                    from: first, bySchoolDays: -Self.windowGrowth, calendar: calendar, isSchoolDay: isSchoolDay
+                )
+                return SchoolDayChecker.nextSchoolDays(from: earlierStart, count: Self.windowGrowth, using: viewContext)
+            },
+            laterDays: { last in
+                SchoolDayChecker.nextSchoolDays(
+                    from: AppCalendar.addingDays(1, to: last), count: Self.windowGrowth, using: viewContext
+                )
             }
-        }
-        if days.count - index < Self.visibleDayCount + Self.windowEdgeMargin, let last = days.last {
-            let later = SchoolDayChecker.nextSchoolDays(
-                from: AppCalendar.addingDays(1, to: last), count: Self.windowGrowth, using: viewContext
-            )
-            if !later.isEmpty {
-                days.append(contentsOf: later)
-                grew = true
+        ) else { return }
+        if growth.addedInFront > 0 {
+            // Hold the day: the scroll view's reports while the new days lay
+            // out are its own moves, not the guide's, and must not grow the
+            // window again. The hold ends when a report names the day, when a
+            // scroll next comes to rest, or after the cap, whichever is first.
+            stripSettle.pin(day)
+            days = growth.days
+            pinLeadingDay(day, proxy: proxy)
+            Task {
+                // Put it back again once the new days have laid out, in case
+                // the first scroll ran before they had.
+                await Task.yield()
+                if leadingDay != day { pinLeadingDay(day, proxy: proxy) }
+                try? await Task.sleep(for: Self.pinCap)
+                stripSettle.releasePin(holding: day)
             }
+        } else {
+            days = growth.days
         }
-        if grew {
-            // Re-pin the leading day: days added in front would otherwise push
-            // the strip's content and the day on screen with it.
+        Task { await refreshCheckIns() }
+    }
+
+    private func pinLeadingDay(_ day: Date, proxy: ScrollViewProxy) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            proxy.scrollTo(day, anchor: .leading)
             leadingDay = day
-            Task { await refreshCheckIns() }
         }
     }
 

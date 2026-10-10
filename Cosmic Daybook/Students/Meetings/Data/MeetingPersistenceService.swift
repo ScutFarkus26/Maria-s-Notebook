@@ -38,6 +38,11 @@ enum MeetingPersistenceService {
         /// Work the guide marked ready for the next lesson, as uuidStrings; on
         /// Complete each one's next lesson goes On Deck.
         var readyWorkIDs: [String]?
+        /// The `WorkLogService` receipts of the statuses this meeting's work
+        /// cards set, keyed by workID uuidString, oldest first, so Clear,
+        /// Rest or another outcome can take them back after a relaunch.
+        /// Absent in drafts saved before 2026-10-09.
+        var closeTokens: [String: [MeetingCloseToken]]?
 
         var isEmpty: Bool {
             reflectionText.trimmed().isEmpty &&
@@ -51,7 +56,8 @@ enum MeetingPersistenceService {
             (reviewedWorkIDs ?? []).isEmpty &&
             (requestLessonIDs ?? []).isEmpty &&
             (representWorkIDs ?? []).isEmpty &&
-            (readyWorkIDs ?? []).isEmpty
+            (readyWorkIDs ?? []).isEmpty &&
+            (closeTokens ?? [:]).isEmpty
         }
 
         /// `self` with every nil workflow field taken from `stored`.
@@ -65,6 +71,7 @@ enum MeetingPersistenceService {
             merged.requestLessonIDs = requestLessonIDs ?? stored.requestLessonIDs
             merged.representWorkIDs = representWorkIDs ?? stored.representWorkIDs
             merged.readyWorkIDs = readyWorkIDs ?? stored.readyWorkIDs
+            merged.closeTokens = closeTokens ?? stored.closeTokens
             return merged
         }
     }
@@ -167,6 +174,11 @@ enum MeetingPersistenceService {
     }
 
     // MARK: - Draft Presence
+
+    /// Whether the child has a stored draft (in the blob key).
+    static func hasDraft(studentID: UUID, defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: draftKey(studentID)) != nil
+    }
 
     /// Children with a draft in progress, for the queue's pencil. Moves any
     /// draft still in the old per-field keys into its blob first, so only the

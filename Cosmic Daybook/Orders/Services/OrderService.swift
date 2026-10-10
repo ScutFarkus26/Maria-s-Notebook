@@ -22,9 +22,32 @@ nonisolated enum OrderService {
     static func webURL(from text: String) -> URL? {
         let trimmed = text.trimmed()
         guard !trimmed.isEmpty, !trimmed.contains(" ") else { return nil }
-        let candidate = trimmed.contains("://") ? trimmed : "https://" + trimmed
+        let hasScheme = trimmed.contains("://")
+        let candidate = hasScheme ? trimmed : "https://" + trimmed
         guard let url = URL(string: candidate), isWebURL(url) else { return nil }
+        // "mailto:office@school.org" with https:// in front reads as a login
+        // ("mailto", "office") at school.org: a typed link never carries one.
+        guard hasScheme || (url.user() == nil && url.password() == nil) else { return nil }
         return url
+    }
+
+    /// The link in what the guide typed or pasted: the text itself when it is
+    /// one web address (a site with a dot, when typed without `https://`),
+    /// else the first http(s) link inside it, as when a shopping app shares
+    /// "Look at this! https://…". Nil when there is none: "Crayola" is a
+    /// name, and a mail or file link is never a product page.
+    static func firstWebURL(in text: String) -> URL? {
+        let trimmed = text.trimmed()
+        guard !trimmed.isEmpty else { return nil }
+        if !trimmed.contains(where: \.isWhitespace), let url = webURL(from: trimmed),
+           trimmed.contains("://") || (url.host() ?? "").contains(".") {
+            return url
+        }
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return nil
+        }
+        let matches = detector.matches(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed))
+        return matches.lazy.compactMap(\.url).first(where: isWebURL)
     }
 
     /// Only http(s) links with a host — a file dragged in from Finder is not an order.
@@ -139,6 +162,9 @@ nonisolated enum OrderService {
 
     // MARK: - Editing
 
+    /// Saves an edit. The link is the first web link in `urlString`, cleaned;
+    /// empty text removes the link, and text with no web link in it leaves the
+    /// link as it was (the editor refuses it before it gets here).
     static func update(
         _ item: CDOrderItem,
         title: String,
@@ -148,8 +174,11 @@ nonisolated enum OrderService {
         at date: Date = Date()
     ) {
         item.title = title.trimmed()
-        item.urlString = webURL(from: urlString).map { OrderLinkCleaner.clean($0.absoluteString) }
-            ?? urlString.trimmed()
+        if urlString.trimmed().isEmpty {
+            item.urlString = ""
+        } else if let url = firstWebURL(in: urlString) {
+            item.urlString = OrderLinkCleaner.clean(url.absoluteString)
+        }
         item.notes = notes.trimmed()
         item.modifiedAt = date
         setQuantity(item, to: quantity, at: date)

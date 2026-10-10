@@ -257,23 +257,6 @@ public struct AttendanceEmailDraft: Identifiable, Sendable {
 
 /// Recipients and mailto links, shared by every email the apps compose.
 public enum AttendanceEmail {
-    /// Parses a user-entered recipients string into an array of
-    /// email addresses by splitting on commas/semicolons and trimming
-    /// whitespace.
-    /// - Parameter string: A raw recipients string,
-    ///   e.g., "a@example.com, b@example.com".
-    /// - Returns: An array of non-empty email strings.
-    /// - CDNote: Multi-recipient support is implemented and used in
-    ///   all composer/send flows.
-    public static func parseRecipients(from string: String?) -> [String] {
-        guard let string, !string.trimmed().isEmpty else { return [] }
-        let separators = CharacterSet(charactersIn: ",;")
-        return string
-            .components(separatedBy: separators)
-            .map { $0.trimmed() }
-            .filter { !$0.isEmpty }
-    }
-
     public static func makeSubject(for date: Date, calendar: Calendar = .current) -> String {
         AttendanceEmailReport.makeSubject(for: date, calendar: calendar)
     }

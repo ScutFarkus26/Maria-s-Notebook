@@ -181,6 +181,10 @@ struct RestockView: View {
             names = ClassroomNames.snapshot(in: viewContext)
             reconcile()
             await refreshShareGap()
+            // Links an assistant pasted arrive without a title.
+            await OrderLinkTitleFetcher.fillUntitled(openNeeds) {
+                saveNow(reason: "Restock link title")
+            }
         }
         // Two devices can each open a need for one staple before either
         // syncs; the page keeps one whenever needs change, here or elsewhere.

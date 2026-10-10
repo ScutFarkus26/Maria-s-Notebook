@@ -255,3 +255,66 @@ struct OrderServiceTests {
         ) == OrderRequestMessage.body(for: lines, recipientName: "Maria", signOff: "Danny"))
     }
 }
+
+// MARK: - Links from pasted text, and the titles to fill in (bug hunt 2026-10-09 #22, #23)
+
+extension OrderServiceTests {
+
+    @Test("The link in pasted text is its first web link; a name or a mail link is no link at all")
+    func firstWebLink() {
+        #expect(OrderService.firstWebURL(in: " example.com/pencils ")?.absoluteString == "https://example.com/pencils")
+        #expect(OrderService.firstWebURL(in: "https://www.amazon.com/dp/B000HHKAE2")?.absoluteString
+            == "https://www.amazon.com/dp/B000HHKAE2")
+        let shared = "Check out Crayola Pencils, 24 ct! https://a.co/d/3xYz9 Shared from the app"
+        #expect(OrderService.firstWebURL(in: shared)?.absoluteString == "https://a.co/d/3xYz9")
+        #expect(OrderService.firstWebURL(in: "Crayola") == nil, "one word is a name, not a site")
+        #expect(OrderService.firstWebURL(in: "Look at this one") == nil)
+        #expect(OrderService.firstWebURL(in: "mailto:office@school.org") == nil)
+        #expect(OrderService.webURL(from: "mailto:office@school.org") == nil, "not a login at school.org")
+        #expect(OrderService.firstWebURL(in: "Write to office@school.org") == nil)
+        #expect(OrderService.firstWebURL(in: "file:///Users/guide/list.pdf") == nil)
+        #expect(OrderService.firstWebURL(in: "javascript:alert(1)") == nil)
+        #expect(OrderService.firstWebURL(in: "   ") == nil)
+    }
+
+    @Test("Editing keeps only the web link from pasted text, clears an empty link, and keeps the old one for junk")
+    func editLink() throws {
+        let context = try makeContext()
+        let item = try #require(OrderService.addLinks([link("rods")], in: context).first)
+        OrderService.update(
+            item, title: "Rods", urlString: "These look good https://www.example.com/beads?utm_source=share",
+            quantity: 2, notes: ""
+        )
+        #expect(item.urlString == "https://www.example.com/beads")
+        OrderService.update(item, title: "Rods", urlString: "no link here", quantity: 2, notes: "")
+        #expect(item.urlString == "https://www.example.com/beads", "text with no link leaves the link alone")
+        OrderService.update(item, title: "Rods", urlString: "  ", quantity: 2, notes: "")
+        #expect(item.urlString.isEmpty)
+        #expect(item.url == nil)
+    }
+
+    @Test("Only a web link opens: a stored mail, file or script link reads as no link")
+    func onlyWebLinksOpen() throws {
+        let context = try makeContext()
+        let item = CDOrderItem(context: context)
+        item.urlString = "https://www.example.com/rods"
+        #expect(item.url?.absoluteString == "https://www.example.com/rods")
+        for stored in ["javascript:alert(1)", "mailto:office@school.org", "file:///tmp/list.pdf",
+                       "Look at this https://www.example.com/rods"] {
+            item.urlString = stored
+            #expect(item.url == nil, "\(stored)")
+            #expect(item.host == nil)
+        }
+    }
+
+    @Test("Spaces separate addresses too, and what isn't an address gets no email")
+    func recipientsCheckedForShape() {
+        let recipient = OrderRequestRecipient(
+            name: "Office", email: "office@school.org principal",
+            cc: "a@school.org b@school.org, Jo"
+        )
+        #expect(recipient.emails == ["office@school.org"])
+        #expect(recipient.ccEmails == ["a@school.org", "b@school.org"])
+        #expect(!OrderRequestRecipient(name: "Office", email: "the office").isConfigured)
+    }
+}

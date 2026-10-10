@@ -29,11 +29,11 @@ struct ClassroomNamesNotebookTests {
     func yourNameWritesTheGuidesRow() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         try await Support.asDevice(recordName: "_guide") {
-            #expect(await ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save))
+            #expect(await ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save) == .saved)
             #expect(ClassroomNames.myName(role: .leadGuide, in: context) == "Danny")
             #expect(ClassroomNames.guideName(in: context) == "Danny")
 
-            #expect(await ClassroomYourNameCard.setName("Dan", in: context, save: CoreDataTestHelpers.save))
+            #expect(await ClassroomYourNameCard.setName("Dan", in: context, save: CoreDataTestHelpers.save) == .saved)
             let rows = context.safeFetch(CDFetchRequest(CDClassroomPerson.self))
             #expect(rows.count == 1)
             let row = try #require(rows.first)
@@ -42,7 +42,7 @@ struct ClassroomNamesNotebookTests {
             #expect(row.displayName == "Dan")
             #expect(!context.hasChanges, "saved, not left pending on the view context")
 
-            #expect(await ClassroomYourNameCard.setName("", in: context, save: CoreDataTestHelpers.save))
+            #expect(await ClassroomYourNameCard.setName("", in: context, save: CoreDataTestHelpers.save) == .saved)
             #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).map(\.displayName) == [""])
             #expect(ClassroomNames.guideName(in: context) == nil)
             #expect(ClassroomNames.myName(role: .leadGuide, in: context) == "")
@@ -53,12 +53,66 @@ struct ClassroomNamesNotebookTests {
     func yourNameWaitsForTheRecordName() async throws {
         let context = try CoreDataTestHelpers.makeContext()
         await Support.asDevice(recordName: nil) {
-            #expect(await ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save))
+            let saved = await ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save)
+            #expect(saved == .waiting)
             #expect(ClassroomIdentity.nameWaitingAs == .leadGuide)
             #expect(ClassroomIdentity.displayName == "Danny")
             #expect(ClassroomNames.myName(role: .leadGuide, in: context) == "Danny")
             #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).isEmpty)
         }
+    }
+
+    // Bug hunt 2026-10-09, #5: an account change during the save took the
+    // name back, and the card still showed it as saved.
+    @Test("Another Apple Account signing in while his name saves reads 'not saved', and nothing waits for it")
+    func yourNameNotSavedAcrossAnAccountChange() async throws {
+        let context = try CoreDataTestHelpers.makeContext()
+        let hook = ClassroomNames.LookupHook { ClassroomIdentity.currentUserRecordName = "_bea" }
+        let (saved, waiting, name) = await ClassroomNames.$zoneLookupHook.withValue(hook) {
+            await Support.asDevice(recordName: "_guide") {
+                let saved = await ClassroomYourNameCard.setName("Danny", in: context, save: CoreDataTestHelpers.save)
+                return (saved, ClassroomIdentity.nameWaitingAs, ClassroomIdentity.displayName)
+            }
+        }
+        #expect(saved == .notSaved)
+        #expect(waiting == nil, "nothing waits to go in under whoever signs in next")
+        #expect(name == nil)
+        #expect(context.safeFetch(CDFetchRequest(CDClassroomPerson.self)).isEmpty)
+        #expect(SettingsCopy.YourName.notSaved.contains("Type your name again"))
+    }
+
+    // Bug hunt 2026-10-09, #5: the Assistant forgot a waiting name when
+    // another account signed in; the notebook wrote it into that one's row.
+    @Test("On the notebook an account change drops a waiting name only once another account is confirmed")
+    func accountChangeDropsTheWaitingName() async {
+        func change(
+            from before: String?, to after: String?, waiting: Bool = true
+        ) async -> (String?, CDClassroomMembership.ClassroomRole?) {
+            await Support.asDevice(recordName: before, displayName: "Danny") {
+                if waiting { ClassroomNames.markWaiting(as: .leadGuide) }
+                await ClassroomIdentity.accountChanged { ClassroomIdentity.currentUserRecordName = after }
+                return (ClassroomIdentity.displayName, ClassroomIdentity.nameWaitingAs)
+            }
+        }
+        let another = await change(from: "_guide", to: "_bea")
+        #expect(another.0 == nil)
+        #expect(another.1 == nil)
+        let same = await change(from: "_guide", to: "_guide")
+        #expect(same.0 == "Danny")
+        #expect(same.1 == .leadGuide)
+        // Signed out, offline or not ready: it may be the same account.
+        let none = await change(from: "_guide", to: nil)
+        #expect(none.0 == "Danny")
+        #expect(none.1 == .leadGuide)
+        // Typed before any account was known: it's the next account's.
+        let unknown = await change(from: nil, to: "_bea")
+        #expect(unknown.0 == "Danny")
+        #expect(unknown.1 == .leadGuide)
+        // Nothing waiting: a notebook in a class as an assistant keeps the
+        // name her marks carry.
+        let stamped = await change(from: "_guide", to: "_bea", waiting: false)
+        #expect(stamped.0 == "Danny")
+        #expect(stamped.1 == nil)
     }
 
     @Test("Search finds Your name in the Classroom pane")

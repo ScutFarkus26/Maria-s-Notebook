@@ -155,6 +155,25 @@ still marked completed. `WorkLogTargets.resolve(work:students:in:)` turns a
 gesture into rows — everyone on a fan-out group, or the copies a set of
 children own; a `.shared` row refuses a subset rather than being split.
 
+**Linked copies (2026-10-10).** `WorkGrouping` treats two rows as copies of
+one assignment only when:
+- their owners name each other,
+- they match on lesson, kind and title,
+- they match on presentation, and
+- they were created within 60 seconds of each other.
+
+`createWork` gives every copy the children's latest presentation of the
+lesson, so a matching presentation alone used to join a repeat assignment
+weeks later to the first one. A row with no `createdAt` keeps the old rule.
+Status logs, removal, delete clean-up, the grid menu and MCP check-ins all go
+through this rule.
+
+**Undo from a meeting.** Re-present and Ready for Next close the work at
+once. The meeting keeps each close's `UndoToken` with its stored draft
+(`MeetingCloseToken`, object IDs as URIs), so Clear, Rest or another outcome
+can undo it after a relaunch. Before undoing, it checks the work is still as
+the meeting left it, because `undo` itself only checks the rows still exist.
+
 ### WorkCompletionRecord
 Historical record of work completion events.
 

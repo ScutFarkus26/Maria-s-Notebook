@@ -234,5 +234,6 @@ enum SettingsCopy {
         static let footer = "Your assistants see this name in attendance and Restock, in place of "
             + "\u{201C}your guide.\u{201D} Change it any time; their phones follow, old entries included."
         static let waiting = "Saved on this device. Your assistants will see it once iCloud is reachable."
+        static let notSaved = "Not saved: the Apple Account on this device changed while saving. Type your name again."
     }
 }

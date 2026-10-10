@@ -45,9 +45,11 @@ extension ClassroomNames {
     /// Imports are noted from CloudKit's events, in memory, for this launch
     /// only. The Daybook Assistant compiles this file and targets iOS 18, so
     /// it follows the classic `eventChangedNotification`, not the typed
-    /// messages. `ClassroomIdentity.refreshRecordName()` starts it early in
-    /// both apps; an import that finished before then is missed, and the write
-    /// waits for the next one.
+    /// messages. The notebook starts it as soon as its stores open
+    /// (`AppBootstrapping.startStoreObservers`), before the launch import
+    /// finishes, which it used to miss (2026-10-09 hunt, #4); the Assistant
+    /// from `ClassroomIdentity.refreshRecordName()`. An import that finished
+    /// before then is missed, and the write waits for the next one.
     final class Arrival {
 
         /// The app's. Unit tests have no CloudKit and no imports, so there it
@@ -71,6 +73,9 @@ extension ClassroomNames {
         /// What the latest import started, after any earlier import's: warming
         /// the zones, then the held write. Kept so tests can wait for it.
         private(set) var importWork: Task<Void, Never>?
+        /// A warm-up is in `importWork` and hasn't begun: a later import needs
+        /// no second one, which would only wait behind it for the gate.
+        private var warmUpQueued = false
         /// Set once by `start()`, on the main actor; removed in `deinit`.
         private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
 
@@ -101,21 +106,34 @@ extension ClassroomNames {
         }
 
         /// An import into the store `storeIdentifier`, begun at `start`,
-        /// finished successfully: note it, warm the name rows' zones (an
-        /// import brings rows the reads haven't placed), and run the write
-        /// waiting for one, unless the account changed since it was held (the
-        /// caller writes again once it has read the new one). Both wait for
-        /// CloudKit off the main thread, in `importWork`.
+        /// finished successfully: note it, warm the name rows' zones when it
+        /// brought rows the reads haven't placed, and run the write waiting
+        /// for one, unless the account changed since it was held (the caller
+        /// writes again once it has read the new one). Both wait for CloudKit
+        /// off the main thread, in `importWork`.
+        ///
+        /// Every iCloud download used to queue a warm-up behind the gate, so a
+        /// name saved on a busy morning waited behind all of them (2026-10-09
+        /// hunt, #6). Now one is queued only for new name rows, and never a
+        /// second while one waits to begin; it checks again when it begins,
+        /// since a write's lookup may have placed them meanwhile.
         func noteImport(intoStoreWithIdentifier storeIdentifier: String, startedAt start: Date) {
             if importStarts[storeIdentifier].map({ start > $0 }) ?? true { importStarts[storeIdentifier] = start }
             let write = held.flatMap { ClassroomIdentity.currentUserRecordName == $0.recordName ? $0.write : nil }
             held = nil
             let context = zonesContext
-            guard write != nil || context != nil else { return }
+            let warms = !warmUpQueued && context.map(ClassroomNames.hasRowsWithoutZones(in:)) == true
+            guard write != nil || warms else { return }
+            if warms { warmUpQueued = true }
             let earlier = importWork
             importWork = Task {
                 await earlier?.value
-                if let context { await ClassroomNames.warmZones(in: context, arrival: nil) }
+                if warms, let context {
+                    warmUpQueued = false
+                    if ClassroomNames.hasRowsWithoutZones(in: context) {
+                        await ClassroomNames.warmZones(in: context, arrival: nil)
+                    }
+                }
                 await write?()
             }
         }

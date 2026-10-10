@@ -305,17 +305,22 @@ final class AssistantRestockModel {
         case markedStaple
         /// Nothing to add: no name.
         case nothing
+        /// The phone couldn't save it (`errorMessage` says so). The change
+        /// waits in the context, and the same add again tries the save again.
+        case notSaved
     }
 
     /// Adds a one-off: from the office or to order, `quantity` of it. A pasted
-    /// link becomes the need's link. A staple's name marks the staple Out.
+    /// link becomes the need's link. A staple's name marks the staple Out,
+    /// with the quantity she chose on its need. Saves at once: the sheet
+    /// closes on anything but `.notSaved`.
     @discardableResult
     func addNeed(_ text: String, source: RestockSource, quantity: Int) -> AddResult {
         let entry = Self.entry(text)
         if let staple = staple(named: entry) {
             setLevel(staple, to: .out)
-            flush()
-            return .markedStaple
+            setChosenQuantity(quantity, for: staple)
+            return flush() ? .markedStaple : .notSaved
         }
         author = currentAuthor()
         let link = Self.pastedLink(entry)
@@ -328,11 +333,26 @@ final class AssistantRestockModel {
             at: now(),
             in: context
         ) else { return .nothing }
-        guard added.isNew else { return .alreadyListed }
+        guard added.isNew else {
+            // Her own add that didn't save: try the save again.
+            if added.object.isInserted { return flush() ? .added : .notSaved }
+            return .alreadyListed
+        }
         changed()
         // The sheet closes on it: save now rather than after a burst.
-        flush()
-        return .added
+        return flush() ? .added : .notSaved
+    }
+
+    /// The quantity she chose, on the staple's open need while the guide
+    /// hasn't asked the office for it. The default of one leaves whatever
+    /// count the need already has.
+    private func setChosenQuantity(_ quantity: Int, for staple: CDSupply) {
+        guard quantity != OrderService.quantityRange.lowerBound,
+              let need = RestockService.openNeeds(for: staple, in: context).first,
+              need.requestedAt == nil,
+              need.quantity != OrderService.clampedQuantity(quantity) else { return }
+        RestockService.setQuantity(need, to: quantity, at: now())
+        changed()
     }
 
     // MARK: - Saving
@@ -349,17 +369,20 @@ final class AssistantRestockModel {
         }
     }
 
-    /// Saves anything waiting now: the app or the tab is going away.
-    func flush() {
+    /// Saves anything waiting now: the app or the tab is going away. False
+    /// when the save failed (`errorMessage` says so).
+    @discardableResult
+    func flush() -> Bool {
         pendingSave?.cancel()
         pendingSave = nil
-        guard context.hasChanges || !createdSinceSave.isEmpty else { return }
-        save()
+        guard context.hasChanges || !createdSinceSave.isEmpty else { return true }
+        return save()
     }
 
     /// Saves, and puts what this tab created into the classroom share, even
-    /// when another save already wrote it.
-    private func save() {
+    /// when another save already wrote it. False when the save failed.
+    @discardableResult
+    private func save() -> Bool {
         noteCreated()
         let created = createdSinceSave.filter { !$0.isDeleted && $0.managedObjectContext != nil }
         // A failed save is this phone's own store refusing the change, not
@@ -367,10 +390,11 @@ final class AssistantRestockModel {
         guard saveChanges(context, Array(created)) else {
             Self.logger.error("Saving a Restock change failed")
             errorMessage = "Couldn't save that change. Try again."
-            return
+            return false
         }
         createdSinceSave.removeAll()
         errorMessage = nil
+        return true
     }
 
     /// Notes the Restock records waiting in the context for their first save.

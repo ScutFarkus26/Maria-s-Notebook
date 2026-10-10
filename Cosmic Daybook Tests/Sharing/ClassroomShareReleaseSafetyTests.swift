@@ -241,6 +241,25 @@ extension ClassroomShareReleaseTests {
         #expect(count("Student", in: fix) == 2)
     }
 
+    @Test("While iCloud's account holds filing, removing last year is refused, saying why")
+    func refusedUnderTheHolds() {
+        let sync = CloudKitSyncStatusService()
+        sync.accountNotReadyStores = ["private-store": .awaitingSetup]
+        #expect(ClassroomShareRelease.syncBlocker(sync: sync) == "iCloud isn't ready yet. Try again in a few minutes.")
+        sync.shareFilingPausedUntilReopen = true
+        #expect(ClassroomShareRelease.syncBlocker(sync: sync)
+            == "iCloud wasn't ready when the notebook opened. Quit and reopen it, then try again.")
+        // It comes before a dead delegate's message: reopening is the fix either way.
+        sync.markMirroringStopped(by: .notebook)
+        #expect(ClassroomShareRelease.syncBlocker(sync: sync)
+            == "iCloud wasn't ready when the notebook opened. Quit and reopen it, then try again.")
+
+        let stopped = CloudKitSyncStatusService()
+        stopped.markMirroringStopped(by: .notebook)
+        #expect(ClassroomShareRelease.syncBlocker(sync: stopped)
+            == "iCloud sync has stopped on this Mac. Quit and reopen the app, then try again.")
+    }
+
     @Test("A Core Data error that stops a run reads as a change here, not as being offline")
     func coreDataErrorWording() {
         let raw = NSError(domain: NSCocoaErrorDomain, code: NSManagedObjectMergeError)

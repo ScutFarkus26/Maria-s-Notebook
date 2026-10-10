@@ -250,7 +250,8 @@ extension CloudKitSyncStatusService {
         } else {
             handleFailedCloudKitEvent(
                 type: type, store: store,
-                typeDescription: "\(store.displayName) \(typeDescription.lowercased())", error: error
+                typeDescription: "\(store.displayName) \(typeDescription.lowercased())", error: error,
+                startDate: startDate
             )
         }
 
@@ -280,7 +281,7 @@ extension CloudKitSyncStatusService {
             return
         }
 
-        clearMirroringStopped(by: store)
+        clearMirroringStopped(by: store, eventStartedAt: startDate)
 
         // Per store: when an import last caught it up, and how far its history
         // has been exported (the bound for purging it).
@@ -370,13 +371,15 @@ extension CloudKitSyncStatusService {
         type: NSPersistentCloudKitContainer.EventType,
         store: SyncedStore,
         typeDescription: String,
-        error: (any Error)?
+        error: (any Error)?,
+        startDate: Date
     ) {
         recordEventFailure(type: type, store: store, typeDescription: typeDescription, error: error)
         if let error {
             CloudKitConfigurationService.storeError(error, retryCount: retryLogic.retryAttempt)
             if Self.marksMirroringDead(type: type, error: error) {
-                markMirroringStopped(by: store)
+                // Dated by the failed event: a success that began after it says the delegate works.
+                markMirroringStopped(by: store, at: startDate)
             }
         }
         lastOperation = "\(typeDescription) failed"

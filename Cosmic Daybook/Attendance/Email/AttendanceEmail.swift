@@ -123,6 +123,16 @@ public struct AttendanceEmailSettingsView: View {
             .task(id: changeSignature) { await applyChanges() }
     }
 
+    /// Says which of the typed entries aren't addresses, and get no email.
+    @ViewBuilder
+    private var leftOutNote: some View {
+        if let note = AttendanceEmail.leftOutNote(for: toAddress) {
+            Text(note)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     @ViewBuilder
     private var platformBody: some View {
         #if os(macOS)
@@ -135,6 +145,7 @@ public struct AttendanceEmailSettingsView: View {
                 TextField("Email addresses", text: $toAddress)
                     .frame(minWidth: 260)
             }
+            leftOutNote
             LabeledContent("From account") {
                 Text("Default Mail account")
                     .foregroundStyle(.secondary)
@@ -150,7 +161,7 @@ public struct AttendanceEmailSettingsView: View {
                     .labelsHidden()
             }
             groupingFootnote
-            Text("You can enter multiple addresses separated by commas or semicolons.")
+            Text("You can enter several addresses, separated by commas or spaces.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Divider()
@@ -171,6 +182,7 @@ public struct AttendanceEmailSettingsView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled(true)
                 #endif
+            leftOutNote
 
             #if os(iOS)
             TextField("Send from", text: $fromAddress)

@@ -68,6 +68,19 @@ extension MCPNotebookTools {
             let details = advice.details.isEmpty ? "" : " Details: \(advice.details)"
             lines.append("  WARNING: \(advice.title). \(advice.message)\(details)")
         }
+        // A CloudKit setup failed for want of a ready iCloud account.
+        switch service.shareFilingHold {
+        case .untilReopen:
+            lines.append("  Filing into the classroom share is paused until the app is reopened: a CloudKit setup "
+                + "failed and no iCloud account is signed in. " + CloudKitSyncStatusService.shareFilingPausedMessage)
+        case .untilICloudReady:
+            let stores = service.accountNotReadyStores.count
+            lines.append("  Filing into the classroom share waits for iCloud: \(stores) store(s) failed setup before "
+                + "the account was ready; the hold lifts once each sets up and syncs again. "
+                + CloudKitSyncStatusService.shareFilingWaitsForICloudMessage)
+        case nil:
+            break
+        }
         return lines.joined(separator: "\n")
     }
 
